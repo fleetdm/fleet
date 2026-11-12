@@ -852,7 +852,7 @@ in Android profiles, and `ee/server/service/` does hold Android code (`service.g
 
 ### Activities
 
-New types, documented in `docs/Contributing/reference/audit-logs.md`: `enabled_android_zero_touch`,
+New types, documented in `docs/API/global-audit-logs.md`: `enabled_android_zero_touch`,
 `disabled_android_zero_touch`, `created_android_zero_touch_configuration`,
 `edited_android_zero_touch_configuration`, `deleted_android_zero_touch_configuration`,
 `rotated_android_zero_touch_enrollment_token`, `changed_android_zero_touch_device_team`.

@@ -707,10 +707,10 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		require.Equal(t, 1, activityCallCount, "activity should still have been emitted only once (no duplicate)")
 	})
 
-	t.Run("windows software install failure with require_all_software_windows=true emits activity and cancels", func(t *testing.T) {
+	t.Run("windows software install failure with windows_require_all_software=true emits activity and cancels", func(t *testing.T) {
 		// Mirror of "software install failure triggers cancel and activity"
 		// for a Windows host. Asserts that the same emit-once-per-host
-		// invariant holds when the gating setting is `require_all_software_windows`
+		// invariant holds when the gating setting is `windows_require_all_software`
 		// (rather than `require_all_software`, which is the macOS counterpart).
 		teamID := uint(1)
 		failedSoftwareTitleID := uint(99)
@@ -805,7 +805,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
 		require.NoError(t, err)
 		require.True(t, updated)
-		require.True(t, activityFnCalled, "Windows host with require_all_software_windows=true must emit canceled_setup_experience")
+		require.True(t, activityFnCalled, "Windows host with windows_require_all_software=true must emit canceled_setup_experience")
 		require.True(t, ds.CancelPendingSetupExperienceStepsFuncInvoked, "Windows host must cancel pending setup-experience steps")
 		require.True(t, ds.CancelHostUpcomingActivityFuncInvoked)
 
@@ -1001,7 +1001,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 
 	t.Run("software install failure with require_all=false does not emit activity or cancel", func(t *testing.T) {
 		// Spec invariant: when require_all_software (macOS) /
-		// require_all_software_windows (Windows) is false, a software
+		// windows_require_all_software (Windows) is false, a software
 		// install failure during ESP MUST NOT cancel pending steps and MUST
 		// NOT emit a canceled_setup_experience activity. The device just
 		// proceeds to the desktop and the failure is visible only in

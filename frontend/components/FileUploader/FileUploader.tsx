@@ -12,6 +12,18 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "file-uploader";
 
+// The native picker resolves a MIME spec against the browser's own
+// MIME-to-extension table, so e.g. `application/gzip` matches a picked
+// `.tar.gz`. Dropped files only expose `file.type` from the OS, which varies
+// (`application/x-gzip`, empty) and often won't exact-match that spec. Mirror
+// the picker by allowing a dropped file whose filename matches a known
+// extension for the MIME spec. Bare `.gz` is intentionally omitted; the
+// package flow only supports `.tar.gz` archives, and callers that need bare
+// `.gz` would have to opt in explicitly.
+const MIME_EXTENSION_ALIASES: Record<string, readonly string[]> = {
+  "application/gzip": [".tar.gz", ".tgz"],
+};
+
 // The HTML `accept` attribute only filters the native file picker; dropped
 // files are not pre-filtered by the browser. Mirror the picker's behavior
 // for drops so a FileUploader with `accept=".pem"` doesn't accept a dropped
@@ -28,7 +40,9 @@ const isFileAccepted = (file: File, accept?: string): boolean => {
   return specs.some((spec) => {
     if (spec.startsWith(".")) return name.endsWith(spec);
     if (spec.endsWith("/*")) return type.startsWith(spec.slice(0, -1));
-    return type === spec;
+    if (type === spec) return true;
+    const aliases = MIME_EXTENSION_ALIASES[spec];
+    return aliases ? aliases.some((ext) => name.endsWith(ext)) : false;
   });
 };
 
@@ -65,6 +79,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-pkg"
   | "file-p7m"
   | "file-pem"
+  | "file-certificate"
   | "file-vpp"
   | "file-png"
   | "file-json"
@@ -78,6 +93,10 @@ interface IFileUploaderProps {
   title?: string;
   /** allow error state within the file uploader, as opposed to on its label */
   internalError?: string;
+  /** Show the error in the label slot, replacing the label, like other form
+   * fields. Off by default because some callers already show the error in
+   * `fileDetails`. */
+  errorInLabel?: boolean;
   additionalInfo?: string;
   /** Controls the loading spinner on the upload button */
   isLoading?: boolean;
@@ -137,6 +156,7 @@ export const FileUploader = ({
   message,
   title,
   internalError,
+  errorInLabel = false,
   additionalInfo,
   isLoading = false,
   disabled = false,
@@ -250,6 +270,15 @@ export const FileUploader = ({
   };
 
   const renderLabel = () => {
+    // The title slot isn't rendered once a file is selected, so the error
+    // falls back to the label slot then.
+    if (errorInLabel && errorText && (label || fileDetails)) {
+      return (
+        <div className="form-field__label form-field__label--error">
+          {errorText}
+        </div>
+      );
+    }
     return label ? (
       <div className={`${baseClass}__label form-field__label`}>{label}</div>
     ) : null;
@@ -337,7 +366,7 @@ export const FileUploader = ({
   };
 
   const renderTitle = () => {
-    if (errorText) {
+    if (errorText && !(errorInLabel && label)) {
       return <div className={`${baseClass}__internal-error`}>{errorText}</div>;
     }
     if (title) {
@@ -380,7 +409,9 @@ export const FileUploader = ({
 
   return (
     <div
-      className={`${baseClass}__wrapper form-field`}
+      className={classnames(`${baseClass}__wrapper form-field`, {
+        [`${baseClass}__wrapper--disabled`]: disabled,
+      })}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

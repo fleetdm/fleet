@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -12,7 +13,7 @@ import (
 )
 
 // FleetErrorEncoder handles fleet-specific error encoding for
-// DeviceSSORequiredError, MailError and OsqueryError.
+// DeviceSSORequiredError, AutofillConfigProfileError, MailError and OsqueryError.
 func FleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, enc *json.Encoder, jsonErr *endpointer.JsonError) bool {
 	switch e := err.(type) {
 	case *fleet.DeviceSSORequiredError:
@@ -30,6 +31,25 @@ func FleetErrorEncoder(ctx context.Context, err error, w http.ResponseWriter, en
 			JsonError:   *jsonErr,
 			SSORequired: true,
 		})
+		return true
+
+	case *fleet.AutofillConfigProfileError:
+		// Set here because this case returns before EncodeError's generic Retry-After handling.
+		if e.RetryAfterSeconds > 0 {
+			w.Header().Set("Retry-After", strconv.Itoa(e.RetryAfterSeconds))
+		}
+		w.WriteHeader(e.StatusCode())
+		jsonErr.Message = e.Message
+		jsonErr.Errors = []map[string]string{
+			{
+				"name":   e.Field,
+				"reason": e.Reason,
+			},
+		}
+		for _, reason := range e.MoreReasons {
+			jsonErr.Errors = append(jsonErr.Errors, map[string]string{"name": e.Field, "reason": reason})
+		}
+		enc.Encode(jsonErr) //nolint:errcheck
 		return true
 
 	case MailError:

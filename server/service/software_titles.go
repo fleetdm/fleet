@@ -86,7 +86,7 @@ func (svc *Service) ListSoftwareTitles(
 		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
@@ -112,6 +112,11 @@ func (svc *Service) ListSoftwareTitles(
 	})
 	if err != nil {
 		return nil, 0, nil, err
+	}
+	if !lic.IsPremium() {
+		for i := range titles {
+			titles[i].AITool = nil
+		}
 	}
 
 	return titles, count, meta, nil
@@ -186,15 +191,8 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get license")
 	}
-	// A nil teamID resolves to "no team" below, a scope the check above skips.
-	// Omit the installer data rather than failing, so this path doesn't turn the
-	// status code into a signal about titles the caller can't otherwise reach.
-	includeInstallers := license.IsPremium()
-	if includeInstallers && teamID == nil {
-		includeInstallers = svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead) == nil
-	}
-
-	if includeInstallers {
+	// Skip installer data when no fleet is given, packages, App Store apps and in-house apps are set per fleet
+	if license.IsPremium() && teamID != nil {
 		// add software installer data if needed
 		if software.SoftwareInstallersCount > 0 {
 			pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, id)
@@ -267,9 +265,9 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 						}
 						pkg.PatchPolicy = patchPolicy
 
-						// While patch_when_closed or notify_before_patching is on, the pre-install
-						// query is Fleet's managed app open query, shown read-only.
-						if patchPolicy != nil && (patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching) {
+						// While patch_when_closed, notify_before_patching, or patch_deadline is on, the
+						// pre-install query is Fleet's managed app open query, shown read-only.
+						if patchPolicy != nil && (patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching || patchPolicy.PatchDeadline) {
 							pkg.PreInstallQuery = pkg.AppOpenQuery
 						}
 					}
@@ -285,18 +283,32 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		}
 
 		// add VPP app data if needed
-		// Skip App Store apps when no fleet is given, their versions and settings are set per fleet
-		if software.VPPAppsCount > 0 && teamID != nil {
+		if software.VPPAppsCount > 0 {
 			versions, err := svc.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, *teamID, id)
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 			}
+			summaries, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, versions)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
+			}
+			vppTokensByID := make(map[uint]*fleet.VPPTokenSummary)
 			for _, meta := range versions {
-				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, meta.VPPAppsTeamsID)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
+				meta.Status = summaries[meta.VPPAppsTeamsID]
+
+				if meta.VPPTokenID != nil {
+					if _, ok := vppTokensByID[*meta.VPPTokenID]; !ok {
+						var tok *fleet.VPPTokenDB
+						tok, err = svc.ds.GetVPPToken(ctx, *meta.VPPTokenID)
+						if err != nil && !fleet.IsNotFound(err) {
+							return nil, ctxerr.Wrap(ctx, err, "get vpp token for app store app")
+						}
+						if tok != nil {
+							vppTokensByID[*meta.VPPTokenID] = &fleet.VPPTokenSummary{ID: tok.ID, OrgName: tok.OrgName, Location: tok.Location, CountryCode: tok.CountryCode}
+						}
+					}
+					meta.VPPToken = vppTokensByID[*meta.VPPTokenID]
 				}
-				meta.Status = summary
 
 				// Wrap iOS / iPadOS plist as a JSON string for the response.
 				if len(meta.Configuration) > 0 {
@@ -349,6 +361,9 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	}
 
 	svc.filterInstallerDetailsForUser(ctx, teamID, software)
+	if !license.IsPremium() {
+		software.AITool = nil
+	}
 
 	return software, nil
 }

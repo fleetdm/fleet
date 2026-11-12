@@ -21,12 +21,13 @@
   &__logo.org-logo-icon {
     margin-right: auto;
     flex-shrink: 0;
-    width: 28px;
+    width: auto;
+    max-width: 155px;
+    object-fit: contain;
     height: 28px;
     min-height: 28px;
     max-height: 28px;
     padding: 0;
-    object-fit: contain;
 
     &.default-fleet-logo {
       transform: none;
@@ -46,8 +47,10 @@
   }
 
   // Cap at 4.5 rows for a "more below" affordance; suppress hover (rows aren't clickable).
+  // The error state can tighten the cap via --list-max-height-override on
+  // the card (set by DeviceNotificationCard when there are 4+ items).
   .list__list {
-    max-height: calc(4.5 * 48px);
+    max-height: var(--list-max-height-override, calc(4.5 * 48px));
     overflow-y: auto;
   }
 
@@ -94,6 +97,16 @@
     flex-shrink: 0;
   }
 
+  // Groups the actions row and the error banner so they share a tighter
+  // 16px gap. The banner plus this gap totals ~48px — matched by the list
+  // cap shrink below — so the toast window height stays stable when a list
+  // is at its scroll cap.
+  &__footer {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
   &__actions {
     display: flex;
     justify-content: flex-end;
@@ -101,10 +114,17 @@
     gap: $pad-small;
   }
 
-  &__action-error {
-    // Strip DataError's stand-alone-page padding so the actions row keeps a stable height.
-    .data-error__header--single-line {
-      padding: 0;
-    }
+  // One-off color tweaks on top of the compact InfoBanner variant: soften
+  // the border from vibrant-red to ui-error and layer a faint diagonal red
+  // gradient over the white base.
+  &__error {
+    border-color: $ui-error;
+    background: linear-gradient(
+        141deg,
+        rgba(214, 108, 123, 0.05) 6.69%,
+        rgba(0, 0, 0, 0) 93.68%
+      ),
+      $core-fleet-white;
   }
+
 }

@@ -13,13 +13,19 @@ examples: |-
   SELECT * FROM sentinelone;
   ```
 
-  Report which hosts have SentinelOne protected and talking to the management console. Hosts without the agent return no rows.
+  Report which hosts have SentinelOne protected and talking to the management console. Hosts without the agent return no rows. On Windows, `protection` and `management_connected` are empty.
 
   ```
   SELECT agent_version, protection, management_connected FROM sentinelone;
   ```
 
-  Use as the query for a policy that passes only when the agent is protecting the host and connected to the console.
+  Use as the query for a policy that passes when the SentinelOne agent is installed and ready. Works on macOS, Windows, and Linux.
+
+  ```
+  SELECT 1 FROM sentinelone WHERE ready = 'yes';
+  ```
+
+  Use as the query for a stricter policy that passes only when the agent is protecting the host and connected to the console. macOS and Linux only. Windows doesn't report these fields, so Windows hosts fail this policy.
 
   ```
   SELECT 1 FROM sentinelone WHERE protection = 'enabled' AND management_connected = 'yes';
@@ -46,6 +52,8 @@ notes: |-
   Values are the status strings `sentinelctl` reports, passed through unchanged. A column is an empty string when the installed agent doesn't report that field, so an empty value means "not reported," not "off."
 
   `sentinelctl` on Windows reports a smaller, flatter set of fields than on macOS and Linux. Where a Windows field has a macOS equivalent it populates the same column: agent build ID fills `agent_version`, disable state fills `operational_state`, SentinelMonitor fills `es_framework`, and SentinelNetworkMonitor fills `network_monitoring`. The remaining Windows-only fields have their own columns (`tamper_protection`, `agent_run_mode`, `mitigation_policy`), and the columns Windows doesn't report at all (threat protection, daemons, launchd, management) are empty.
+
+  Windows doesn't report `protection` or `management_connected`, so use `ready` in policies that need to work on all platforms. For anti-tamper state on Windows, use `tamper_protection`.
 
   Because `sentinelctl` needs root to report full status, this table depends on osquery running as root (macOS and Linux) or LocalSystem (Windows), which is how fleetd runs it.
 columns:
@@ -281,13 +289,6 @@ columns:
       - darwin
   - name: management_server
     description: URL of the SentinelOne management console this agent reports to.
-    type: text
-    required: false
-    platforms:
-      - darwin
-      - linux
-  - name: management_site_key
-    description: Site key the agent enrolled with.
     type: text
     required: false
     platforms:

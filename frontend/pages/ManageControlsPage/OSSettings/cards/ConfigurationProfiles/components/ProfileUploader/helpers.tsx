@@ -9,7 +9,10 @@ import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 import { listNamesFromSelectedLabels } from "services/entities/labels";
 import { isDDMProfile } from "services/entities/mdm";
-import { generateGenericLearnMoreErrMsg } from "utilities/helpers";
+import {
+  formatFleet5RemovalMessage,
+  generateGenericLearnMoreErrMsg,
+} from "utilities/helpers";
 
 export interface IParseFileResult {
   name: string;
@@ -429,6 +432,15 @@ export const getErrorMessage = (
       : apiReason;
   }
 
+  const fleet5Removal = formatFleet5RemovalMessage(apiReason);
+  if (fleet5Removal) {
+    return (
+      <>
+        {couldnt} {fleet5Removal}
+      </>
+    );
+  }
+
   if (apiReason.includes("Secret variable")) {
     return generateSecretErrMsg(err);
   }
@@ -486,6 +498,18 @@ export const getErrorMessage = (
 
   if (apiReason.includes("Configuration profiles can't be signed")) {
     return generateGenericLearnMoreErrMsg(apiReason);
+  }
+
+  const advancedOptions = "Organization settings > Advanced options";
+  if (apiReason.includes(advancedOptions)) {
+    const [before, ...rest] = apiReason.split(advancedOptions);
+    return (
+      <>
+        {before}
+        <strong>{advancedOptions}</strong>
+        {rest.join(advancedOptions)}
+      </>
+    );
   }
 
   // // FIXME: Should we include a default case to catch any other learn more links from the API?

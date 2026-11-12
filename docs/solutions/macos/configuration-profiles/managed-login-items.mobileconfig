@@ -11,6 +11,8 @@
             <string>E059D4BC-B486-45AE-818B-B5B2A27E20D4</string>
             <key>PayloadType</key>
             <string>com.apple.servicemanagement</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
             <key>Rules</key>
             <array>
                 <dict>
@@ -34,6 +36,8 @@
     <string>FF6ECF03-8E78-4876-AD97-2E627AD8A237</string>
     <key>PayloadType</key>
     <string>Configuration</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
     <key>PayloadScope</key>
     <string>System</string>
 </dict>

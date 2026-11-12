@@ -186,11 +186,11 @@ func (d *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 // ///////////////////////////////////////////////////////////////////////////
 
 func (d *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
-	if err := d.Datastore.ApplyQueries(ctx, authorID, queries, queriesToDiscardResults); err != nil {
-		return err
-	}
+	err := d.Datastore.ApplyQueries(ctx, authorID, queries, queriesToDiscardResults)
+	// Invalidate even on error: batches commit independently, so earlier ones
+	// may have changed reports.
 	d.invalidateAndResetLabelScopes(ctx, "ApplyQueries")
-	return nil
+	return err
 }
 
 func (d *Datastore) NewQuery(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
@@ -303,8 +303,8 @@ func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
 // rare admin action, so the deployment-wide invalidation costs nothing; the
 // label-scope mode state is reset too, since the last label-scoped report of
 // a scope may just have become unscoped.
-func (d *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
-	if err := d.Datastore.DeleteLabel(ctx, name, filter); err != nil {
+func (d *Datastore) DeleteLabel(ctx context.Context, id uint) error {
+	if err := d.Datastore.DeleteLabel(ctx, id); err != nil {
 		return err
 	}
 	d.invalidateAndResetLabelScopes(ctx, "DeleteLabel")

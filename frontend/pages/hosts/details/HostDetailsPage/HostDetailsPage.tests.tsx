@@ -4,7 +4,9 @@ import React from "react";
 
 import { createMockActivity } from "__mocks__/activityMock";
 import createMockConfig from "__mocks__/configMock";
-import createMockHost from "__mocks__/hostMock";
+import createMockHost, {
+  createMockGetHostSoftwareResponse,
+} from "__mocks__/hostMock";
 import createMockUser from "__mocks__/userMock";
 import { notify } from "components/ToastNotification";
 import { ActivityType } from "interfaces/activity";
@@ -105,7 +107,7 @@ const stubQueries = (host: IHost) => {
     count: 0,
     meta: { has_next_results: false, has_previous_results: false },
   });
-  (teamAPI.loadAll as jest.Mock).mockResolvedValue({ teams: [] });
+  (teamAPI.loadAll as jest.Mock).mockResolvedValue({ fleets: [] });
   (commandAPI.getCommands as jest.Mock).mockResolvedValue({
     results: [],
     count: 0,
@@ -264,9 +266,7 @@ describe("HostDetailsPage - pending hosts", () => {
     // Give the poll timer (2s) room to fire if it was scheduled.
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    expect(
-      screen.queryByText(/fetching fresh vitals/i)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/refetching\.\.\./i)).not.toBeInTheDocument();
     expect(notify.error).not.toHaveBeenCalled();
   }, 15000);
 
@@ -332,13 +332,13 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
         currentUser: ADMIN,
         isGlobalAdmin: true,
       });
-      await screen.findByText(/fetching fresh vitals/i);
+      await screen.findByText(/refetching\.\.\./i);
       elapsedMs = pollMs;
       // The spinner clears only once the next response has gone through the toast decision.
       await waitFor(
         () =>
           expect(
-            screen.queryByText(/fetching fresh vitals/i)
+            screen.queryByText(/refetching\.\.\./i)
           ).not.toBeInTheDocument(),
         { timeout: 5000 }
       );
@@ -393,7 +393,7 @@ describe("HostDetailsPage - software library", () => {
     jest.resetAllMocks();
   });
 
-  it("explains that software is installed outside of Fleet on NixOS hosts", async () => {
+  it("shows the unsupported empty state on NixOS hosts, explaining that software is installed outside of Fleet", async () => {
     const host = createMockHost({ platform: "nixos", status: "online" });
     stubQueries(host);
 
@@ -407,15 +407,36 @@ describe("HostDetailsPage - software library", () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(
+      screen.getByText(
         "Software library is currently not supported on this host"
       )
-    ).not.toBeInTheDocument();
+    ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /learn more/i })).toHaveAttribute(
       "href",
       "https://fleetdm.com/learn-more-about/nixos-package-management"
     );
     expect(hostAPI.getHostSoftware).not.toHaveBeenCalled();
+  });
+
+  it("doesn't apply the Inventory tab's filters to the Library", async () => {
+    stubQueries(mockWindowsHost());
+    (hostAPI.getHostSoftware as jest.Mock).mockResolvedValue(
+      createMockGetHostSoftwareResponse()
+    );
+
+    renderHostDetails({
+      location: {
+        ...mockLocation,
+        pathname: "/hosts/1/software/library",
+        query: { types: "windows_app", ai_tool: "true" },
+      },
+    });
+
+    await waitFor(() => expect(hostAPI.getHostSoftware).toHaveBeenCalled());
+    const params = (hostAPI.getHostSoftware as jest.Mock).mock.calls[0][0];
+    expect(params.available_for_install).toBe(true);
+    expect(params).not.toHaveProperty("types");
+    expect(params).not.toHaveProperty("ai_tool");
   });
 });
 

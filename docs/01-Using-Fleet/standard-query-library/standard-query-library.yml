@@ -470,7 +470,7 @@ spec:
   name: Get local administrator accounts on macOS
   platform: darwin
   description: The query allows you to check macOS systems for local administrator accounts.
-  query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
+  query: SELECT u.uid, u.username FROM users u JOIN user_groups ug ON ug.uid = u.uid JOIN groups g ON g.gid = ug.gid WHERE g.groupname = 'admin';
   purpose: Informational
   tags: hunting, inventory
   contributors: alphabrevity

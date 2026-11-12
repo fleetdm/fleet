@@ -2,6 +2,24 @@
 
 NETWORK_FS_TYPES="nfs|nfs4|cifs|smb|smbfs|fuse\.sshfs|afs|ncpfs|9p"
 
+# NixOS keeps its tools in the system profile, and the systemd-run unit below
+# starts with systemd's default PATH, which has none of them.
+if [ -d /run/current-system/sw/bin ]; then
+    PATH="$PATH:/run/current-system/sw/bin"
+    export PATH
+fi
+
+# A missing awk makes is_network_mount report every path as local, so never
+# start deleting without it.
+require_wipe_commands() {
+    for _cmd in awk rm; do
+        if ! command -v "$_cmd" >/dev/null 2>&1; then
+            echo "Error: $_cmd not found in PATH ($PATH); aborting wipe" >&2
+            exit 1
+        fi
+    done
+}
+
 # passwd -l below only reaches accounts in /etc/shadow, so directory users
 # (SSSD/LDAP/Kerberos/AD) need pam_nologin to keep them out mid-wipe.
 block_logins() {
@@ -190,14 +208,45 @@ wipe_non_essential_data() {
     done
 }
 
+prepare_nix_store() {
+    # Only remount /nix/store itself, never its containing filesystem.
+    if ! _nix_store_options=$(awk '$2 == "/nix/store" { options = $4 } END { print options }' /proc/mounts); then
+        echo "Error: could not inspect /nix/store mount options; skipping Nix store deletion" >&2
+        return 1
+    fi
+
+    case ",$_nix_store_options," in
+        *,ro,*)
+            echo "Remounting /nix/store read-write"
+            if ! mount -o remount,bind,rw /nix/store; then
+                echo "Error: could not remount /nix/store read-write; skipping Nix store deletion" >&2
+                return 1
+            fi
+            if ! awk '$2 == "/nix/store" { options = $4 } END { exit options !~ /(^|,)rw(,|$)/ }' /proc/mounts; then
+                echo "Error: /nix/store mount is not confirmed writable; skipping Nix store deletion" >&2
+                return 1
+            fi
+            ;;
+    esac
+    return 0
+}
+
 # Function to wipe system files - Warning: This will render the system inoperable
 wipe_system_files() {
     essential_system_paths="/bin /sbin /usr /lib /opt /etc /var /srv"
+
+    # Keep the Nix store last in the system-directory wipe list, if present.
+    if [ -d /nix/store ]; then
+        essential_system_paths="$essential_system_paths /nix/store"
+    fi
 
     for path in $essential_system_paths
     do
         if is_network_mount "$path"; then
             echo "Skipping $path (network filesystem)"
+            continue
+        fi
+        if [ "$path" = "/nix/store" ] && ! prepare_nix_store; then
             continue
         fi
         echo "Wiping $path"
@@ -206,7 +255,7 @@ wipe_system_files() {
 }
 
 prepare_system_reset() {
-    cp /usr/bin/sync /sync_bin
+    cp "$(command -v sync)" /sync_bin
     # https://docs.kernel.org/admin-guide/sysrq.html
     echo "1" > /proc/sys/kernel/sysrq
 }
@@ -219,6 +268,7 @@ system_reset() {
 }
 
 wipe_all_files() {
+    require_wipe_commands
     sleep 10 # Give fleetd enough time to register the script as completed
     prepare_system_reset
     unmount_network_filesystems
@@ -250,6 +300,6 @@ else
     # systemd-run failing rather than existing, or an old systemd leaves a host
     # locked out by block_logins and never wiped.
     if ! systemd-run --unit=fleet-wipe /bin/sh "$WIPE_SCRIPT" wipe; then
-        (/usr/bin/nohup sh "$WIPE_SCRIPT" wipe >/dev/null 2>/dev/null </dev/null) &
+        (nohup sh "$WIPE_SCRIPT" wipe >/dev/null 2>/dev/null </dev/null) &
     fi
 fi

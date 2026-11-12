@@ -106,8 +106,10 @@ type Software struct {
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
-	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
-	Browser string `json:"browser"`
+	// AITool is true when fleetd's ai_tools table reported this software. It is not part of the
+	// software's identity (ToUniqueStr, ComputeRawChecksum), so the flag can be set on an existing row.
+	// It's a Premium field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"ai_tool"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package), or the Go toolchain version for go_binaries
@@ -175,18 +177,6 @@ func (Software) AuthzType() string {
 	return "software"
 }
 
-// populateBrowserField populates the browser field for backwards compatibility
-// see https://github.com/fleetdm/fleet/pull/31760/files
-func (s *Software) populateBrowserField() {
-	// Only populate browser field for browser extension sources
-	switch s.Source {
-	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
-		s.Browser = s.ExtensionFor
-	default:
-		s.Browser = ""
-	}
-}
-
 // marshalExtensionID hides the Go module path stored in extension_id for go_binaries: it
 // exists only for vulnerability detection, which reads it from the database.
 func marshalExtensionID(source, extensionID string) string {
@@ -196,10 +186,7 @@ func marshalExtensionID(source, extensionID string) string {
 	return extensionID
 }
 
-// MarshalJSON populates the browser field for backwards compatibility then calls the typical
-// MarshalJSON implementation
 func (s *Software) MarshalJSON() ([]byte, error) {
-	s.populateBrowserField()
 	type Alias Software
 	return json.Marshal(&struct {
 		*Alias
@@ -495,8 +482,6 @@ type SoftwareTitle struct {
 	Source string `json:"source" db:"source"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
-	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
-	Browser string `json:"browser"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.
@@ -538,47 +523,10 @@ type SoftwareTitle struct {
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	// DisplayName is an end-user friendly name.
 	DisplayName string `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 	SoftwareAutoUpdateConfig
-}
-
-// populateBrowserField populates the browser field for backwards compatibility
-// see https://github.com/fleetdm/fleet/pull/31760/files
-func (st *SoftwareTitle) populateBrowserField() {
-	// Only populate browser field for browser extension sources
-	switch st.Source {
-	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
-		st.Browser = st.ExtensionFor
-	default:
-		st.Browser = ""
-	}
-}
-
-// MarshalJSON populates the browser field for backwards compatibility then calls the typical
-// MarshalJSON implementation
-func (st *SoftwareTitle) MarshalJSON() ([]byte, error) {
-	st.populateBrowserField()
-	type Alias SoftwareTitle
-	return json.Marshal((*Alias)(st))
-}
-
-// populateBrowserField populates the browser field for backwards compatibility
-// see https://github.com/fleetdm/fleet/pull/31760/files
-func (st *SoftwareTitleListResult) populateBrowserField() {
-	// Only populate browser field for browser extension sources
-	switch st.Source {
-	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
-		st.Browser = st.ExtensionFor
-	default:
-		st.Browser = ""
-	}
-}
-
-// MarshalJSON populates the browser field for backwards compatibility then calls the typical
-// MarshalJSON implementation
-func (st *SoftwareTitleListResult) MarshalJSON() ([]byte, error) {
-	st.populateBrowserField()
-	type Alias SoftwareTitleListResult
-	return json.Marshal((*Alias)(st))
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
@@ -594,8 +542,6 @@ type SoftwareTitleListResult struct {
 	Source string `json:"source" db:"source"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
-	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
-	Browser string `json:"browser"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.
@@ -614,7 +560,8 @@ type SoftwareTitleListResult struct {
 
 	// AppStoreApp provides VPP app information, it is only present if a VPP app
 	// is available for the software title.
-	AppStoreApp *SoftwarePackageOrApp `json:"app_store_app"`
+	AppStoreApp  *SoftwarePackageOrApp `json:"app_store_app"`
+	AppStoreApps []AppStoreAppListItem `json:"app_store_apps"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -626,6 +573,9 @@ type SoftwareTitleListResult struct {
 	// https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
 	DisplayName string  `json:"display_name" db:"display_name"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 	SoftwareAutoUpdateConfig
 }
 
@@ -634,6 +584,8 @@ type SoftwareTitleListResult struct {
 // IMPORTANT: When updating this, also make sure to update SOFTWARE_TYPE_VARIANTS in frontend code.
 var softwareTypeFilterSources = map[string][]string{
 	"adobe_plugins":       nil,
+	"ai_clis":             nil,
+	"ai_skills":           nil,
 	"android_apps":        nil,
 	"apps":                nil,
 	"chocolatey_packages": nil,
@@ -643,6 +595,7 @@ var softwareTypeFilterSources = map[string][]string{
 	"ie_extensions":       nil,
 	"ios_apps":            nil,
 	"ipados_apps":         nil,
+	"mcp_servers":         nil,
 	"nix_packages":        nil,
 	"npm_packages":        nil,
 	"pacman_packages":     nil,
@@ -737,15 +690,16 @@ type SoftwareTitleListOptions struct {
 	PackageName         string  `query:"package_name,optional"`
 	Source              string  `query:"source,optional"`
 	ExtensionFor        string  `query:"extension_for,optional"`
+	AITool              bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
-	TypeFilter SoftwareTypeFilter
+	TypeFilter SoftwareTypeFilter `json:"-"`
 
 	// ForSetupExperience is an internal flag set when listing software via the
 	// setup experience endpoint, so that it filters out any software available
 	// for install that is not supported for setup experience. It cannot be set
 	// via the query parameters.
-	ForSetupExperience bool
+	ForSetupExperience bool `json:"-"`
 }
 
 type HostSoftwareTitleListOptions struct {
@@ -762,7 +716,7 @@ type HostSoftwareTitleListOptions struct {
 	// In order not to introduce a breaking change we have to mark this parameter as optional.
 	// However, instead of using *bool and modifying a lot of downstream code and tests
 	// Use this indicator
-	IncludeAvailableForInstallExplicitlySet bool
+	IncludeAvailableForInstallExplicitlySet bool `json:"-"`
 
 	// OnlyAvailableForInstall is set via a query argument that limits the
 	// returned software titles to only those that are available for install on
@@ -780,12 +734,13 @@ type HostSoftwareTitleListOptions struct {
 
 	Source       string `query:"source,optional"`
 	ExtensionFor string `query:"extension_for,optional"`
+	AITool       bool   `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
-	TypeFilter SoftwareTypeFilter
+	TypeFilter SoftwareTypeFilter `json:"-"`
 
 	// Non-MDM-enabled hosts cannot install VPP apps
-	IsMDMEnrolled bool
+	IsMDMEnrolled bool `json:"-"`
 }
 
 // AuthzSoftwareInventory is used for access controls on software inventory.
@@ -811,7 +766,6 @@ type HostSoftwareEntry struct {
 // MarshalJSON implements custom JSON marshaling for HostSoftwareEntry to ensure
 // all fields (both from embedded Software and the additional fields) are marshaled
 func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
-	hse.populateBrowserField()
 	type Alias Software
 	return json.Marshal(&struct {
 		*Alias
@@ -880,24 +834,25 @@ type SoftwareListOptions struct {
 	ListOptions ListOptions `url:"list_options"`
 
 	// HostID filters software to the specified host if not nil.
-	HostID                      *uint
-	TeamID                      *uint `query:"team_id,optional" renameto:"fleet_id"`
-	VulnerableOnly              bool  `query:"vulnerable,optional"`
-	WithoutVulnerabilityDetails bool  `query:"without_vulnerability_details,optional"`
-	IncludeCVEScores            bool
+	HostID                      *uint   `json:"-"`
+	TeamID                      *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	VulnerableOnly              bool    `query:"vulnerable,optional"`
+	WithoutVulnerabilityDetails bool    `query:"without_vulnerability_details,optional"`
+	IncludeCVEScores            bool    `json:"-"`
 	KnownExploit                bool    `query:"exploit,optional"`
 	MinimumCVSS                 float64 `query:"min_cvss_score,optional"`
 	MaximumCVSS                 float64 `query:"max_cvss_score,optional"`
 	Source                      string  `query:"source,optional"`
 	ExtensionFor                string  `query:"extension_for,optional"`
+	AITool                      bool    `query:"ai_tool,optional"`
 
 	// TypeFilter is the validated form of Source and ExtensionFor, set by the service layer.
-	TypeFilter SoftwareTypeFilter
+	TypeFilter SoftwareTypeFilter `json:"-"`
 
 	// WithHostCounts indicates that the list of software should include the
 	// counts of hosts per software, and include only those software that have
 	// a count of hosts > 0.
-	WithHostCounts bool
+	WithHostCounts bool `json:"-"`
 }
 
 type SoftwareIterQueryOptions struct {
@@ -922,6 +877,30 @@ type UpdateHostSoftwareDBResult struct {
 	Deleted []Software
 	// What software was inserted
 	Inserted []Software
+	// Preserved is the software kept as installed although absent from the reported list, see
+	// PreserveSoftwareSources.
+	Preserved []Software
+}
+
+// UpdateHostSoftwareOptions configures UpdateHostSoftware.
+type UpdateHostSoftwareOptions struct {
+	// PreserveSources lists software sources whose absence from the report means "not reported"
+	// rather than "not installed". The host's current rows with these sources are kept, with
+	// their installed paths, as if the report had included them. Rows of these sources the
+	// report does include are ingested as usual, and no row is ever created from the list
+	// alone. The datastore applies this without judgement: the caller passes a source only when
+	// the query that reports it did not run. See preservedSoftwareSources in the service package.
+	PreserveSources []string
+}
+
+// UpdateHostSoftwareOption is a functional option for UpdateHostSoftware.
+type UpdateHostSoftwareOption func(*UpdateHostSoftwareOptions)
+
+// PreserveSoftwareSources keeps the host's current rows with these sources.
+func PreserveSoftwareSources(sources ...string) UpdateHostSoftwareOption {
+	return func(o *UpdateHostSoftwareOptions) {
+		o.PreserveSources = append(o.PreserveSources, sources...)
+	}
 }
 
 // CurrInstalled returns all software that should be currently installed on the host by looking at
@@ -1063,18 +1042,11 @@ type VPPBatchPayload struct {
 	IconPath            string                    `json:"-"`
 	IconHash            string                    `json:"-"`
 	Platform            InstallableDevicePlatform `json:"platform"`
+	Location            string                    `json:"location,omitempty"`
 	Configuration       json.RawMessage           `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool                     `json:"auto_update_enabled,omitempty"`
 	AutoUpdateStartTime *string                   `json:"auto_update_window_start,omitempty"`
 	AutoUpdateEndTime   *string                   `json:"auto_update_window_end,omitempty"`
-}
-
-func (v VPPBatchPayload) GetPlatform() string {
-	return string(v.Platform)
-}
-
-func (v VPPBatchPayload) GetAppStoreID() string {
-	return v.AppStoreID
 }
 
 type VPPBatchPayloadWithPlatform struct {
@@ -1082,14 +1054,13 @@ type VPPBatchPayloadWithPlatform struct {
 	VersionName        string                    `json:"name"`
 	SelfService        bool                      `json:"self_service"`
 	Platform           InstallableDevicePlatform `json:"platform"`
+	Location           string                    `json:"location,omitempty"`
 	InstallDuringSetup *bool                     `json:"install_during_setup"` // keep saved value if nil, otherwise set as indicated
 	LabelsExcludeAny   []string                  `json:"labels_exclude_any"`
 	LabelsIncludeAny   []string                  `json:"labels_include_any"`
 	LabelsIncludeAll   []string                  `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories []string `json:"categories"`
-	// CategoryIDs is the list of IDs of software categories associated with this VPP app.
-	CategoryIDs         []uint          `json:"-"`
+	Categories          []string        `json:"categories"`
 	DisplayName         string          `json:"display_name"`
 	Configuration       json.RawMessage `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool           `json:"auto_update_enabled,omitempty"`

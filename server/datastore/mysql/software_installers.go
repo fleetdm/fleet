@@ -23,10 +23,6 @@ import (
 
 const setupExperienceSoftwareInstallsRetries uint = 2 // 3 attempts = 1 initial + 2 retries
 
-func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
-	return ds.listUpcomingSoftwareInstalls(ctx, hostID, false)
-}
-
 func (ds *Datastore) ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
 	return ds.listUpcomingSoftwareInstalls(ctx, hostID, true)
 }
@@ -232,7 +228,6 @@ func (ds *Datastore) MatchOrCreateSoftwareInstaller(ctx context.Context, payload
 			Filename:        payload.Filename,
 			BundleID:        payload.BundleIdentifier,
 			StorageID:       payload.StorageID,
-			Platform:        payload.Platform,
 			ValidatedLabels: payload.ValidatedLabels,
 			CategoryIDs:     payload.CategoryIDs,
 			Version:         payload.Version,
@@ -2358,12 +2353,14 @@ SELECT
 	st.source,
 	hsi.attempt_number,
 	hsi.patch_when_closed,
-	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AS notify_before_patching,
+	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AND NOT COALESCE(p.patch_deadline, 0) AS notify_before_patching,
+	hsi.override_pre_install_query AND NOT hsi.patch_when_closed AND COALESCE(p.patch_deadline, 0) AS patch_deadline,
 	hsi.override_pre_install_query
 FROM
 	host_software_installs hsi
 	LEFT JOIN software_titles st ON hsi.software_title_id = st.id
 	LEFT JOIN software_installers si ON hsi.software_installer_id = si.id
+	LEFT JOIN policies p ON p.id = hsi.policy_id
 	LEFT JOIN hosts h ON h.id = hsi.host_id
 	LEFT JOIN software_title_display_names stdn
 		ON stdn.software_title_id = hsi.software_title_id
@@ -2400,6 +2397,7 @@ SELECT
 	NULL AS attempt_number,
 	COALESCE(p.patch_when_closed, 0) AS patch_when_closed,
 	COALESCE(p.notify_before_patching, 0) AS notify_before_patching,
+	COALESCE(p.patch_deadline, 0) AS patch_deadline,
 	COALESCE(ua.payload->'$.override_pre_install_query', 0) AS override_pre_install_query
 FROM
 	upcoming_activities ua
@@ -2535,26 +2533,47 @@ FROM upcoming
 }
 
 // vppAppJoin builds the status-join for a VPP app title. When vppAppTeamID is
-// non-nil, every scanned source (upcoming activities, the Android pending
-// branch, the ranked history) is also scoped to that specific vpp_apps_teams
-// row so the status + version composition picks the latest row FOR THAT
-// VERSION and the pending branch only matches queued installs of that version.
-func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, vppAppTeamID *uint, status fleet.SoftwareInstallerStatus) (string, []any, error) {
+// non-nil, it matches the hosts counted in that version's status summary.
+func (ds *Datastore) vppAppJoin(ctx context.Context, appID fleet.VPPAppID, vppAppTeamID *uint, status fleet.SoftwareInstallerStatus) (string, []any, error) {
+	if vppAppTeamID != nil {
+		// TODO: Update this when VPP supports uninstall, for now we map the generic and uninstall statuses to the install statuses
+		switch status {
+		case fleet.SoftwarePending, fleet.SoftwareUninstallPending:
+			status = fleet.SoftwareInstallPending
+		case fleet.SoftwareFailed:
+			status = fleet.SoftwareInstallFailed
+		}
+
+		versionIDs, err := ds.GetAppStoreAppVersionIDsFromSpecificVersion(ctx, *vppAppTeamID)
+		if err != nil {
+			return "", nil, ctxerr.Wrap(ctx, err, "vpp app join: version ids")
+		}
+		// Match no hosts for a version that doesn't exist
+		if len(versionIDs) == 0 {
+			versionIDs = []uint{*vppAppTeamID}
+		}
+
+		stmt := fmt.Sprintf(`JOIN (%s) hss ON hss.host_id = h.id AND hss.vpp_app_team_id = :vpp_app_team_id AND hss.status = :status`, vppAppVersionHostStatusesQuery)
+		query, args, err := sqlx.Named(stmt, map[string]any{
+			"status":                    status,
+			"vpp_app_team_id":           *vppAppTeamID,
+			"version_ids":               versionIDs,
+			"software_status_pending":   fleet.SoftwareInstallPending,
+			"software_status_failed":    fleet.SoftwareInstallFailed,
+			"software_status_installed": fleet.SoftwareInstalled,
+		})
+		if err != nil {
+			return "", nil, ctxerr.Wrap(ctx, err, "vpp app join: named query")
+		}
+		return sqlx.In(query, args...)
+	}
+
 	// for pending status, we'll join through upcoming_activities
 	// EXCEPT for android VPP apps, which currently bypass upcoming activities
 	// NOTE: this should change when standard VPP app installs are supported for Android
 	// (in https://github.com/fleetdm/fleet/issues/25595)
 	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
-		// upcoming-activity branch scopes vpp_app_upcoming_activities on vpp_app_team_id;
-		// android pending branch scopes host_vpp_software_installs on vpp_app_team_id.
-		vppuaScope := ""
-		androidHvsiScope := ""
-		if vppAppTeamID != nil {
-			vppuaScope = " AND vppua.vpp_app_team_id = ?"
-			androidHvsiScope = "hvsi.vpp_app_team_id = ? AND "
-		}
-
-		stmt := fmt.Sprintf(`JOIN (
+		stmt := `JOIN (
 SELECT DISTINCT
 	host_id
 FROM (
@@ -2562,22 +2581,22 @@ FROM (
 	FROM upcoming_activities ua
 		JOIN vpp_app_upcoming_activities vppua ON ua.id = vppua.upcoming_activity_id
 	WHERE
-		%%s
+		%s
 
 	UNION
 
 	SELECT host_id
 	FROM host_vpp_software_installs hvsi
 	WHERE
-		%shvsi.adam_id = ? AND
+		hvsi.adam_id = ? AND
 		hvsi.platform = ? AND
 		hvsi.platform = 'android' AND
 		hvsi.verification_at IS NULL AND
 		hvsi.verification_failed_at IS NULL
 	) combined_pending
-) hss ON hss.host_id = h.id`, androidHvsiScope)
+) hss ON hss.host_id = h.id`
 
-		filter := "vppua.adam_id = ? AND vppua.platform = ?" + vppuaScope
+		filter := "vppua.adam_id = ? AND vppua.platform = ?"
 		switch status {
 		case fleet.SoftwareInstallPending:
 			filter += " AND ua.activity_type = 'vpp_app_install'"
@@ -2589,16 +2608,7 @@ FROM (
 			// activity type that is associated with the app (i.e. both install and uninstall)
 		}
 
-		// Arg order: upcoming-branch filter args, then android-pending-branch args.
-		args := []any{appID.AdamID, appID.Platform}
-		if vppAppTeamID != nil {
-			args = append(args, *vppAppTeamID)
-		}
-		if vppAppTeamID != nil {
-			args = append(args, *vppAppTeamID)
-		}
-		args = append(args, appID.AdamID, appID.Platform)
-		return fmt.Sprintf(stmt, filter), args, nil
+		return fmt.Sprintf(stmt, filter), []any{appID.AdamID, appID.Platform, appID.AdamID, appID.Platform}, nil
 	}
 
 	// TODO: Update this when VPP supports uninstall so that we map for now we map the generic failed status to the install statuses
@@ -2612,14 +2622,6 @@ FROM (
 	// Rank once over the app rather than looking the latest row up per host:
 	// host_vpp_software_installs has no host_id-leading index, so a correlated
 	// per-host lookup rescans the app's whole history for every candidate host.
-	// When scoped to a specific vpp_apps_teams row (version), rank only that
-	// version's history so the "latest row per host" check is per-version.
-	versionScope := ""
-	pendingVersionScope := ""
-	if vppAppTeamID != nil {
-		versionScope = "AND hvsi.vpp_app_team_id = :vpp_app_team_id"
-		pendingVersionScope = "AND vaua.vpp_app_team_id = :vpp_app_team_id"
-	}
 	stmt := fmt.Sprintf(`JOIN (
 SELECT
 	ranked.host_id
@@ -2638,7 +2640,6 @@ FROM (
 	WHERE
 		hvsi.adam_id = :adam_id
 		AND hvsi.platform = :platform
-		%s
 		AND hvsi.canceled = 0
 ) ranked
 LEFT JOIN
@@ -2650,7 +2651,7 @@ WHERE
 	-- with verification_failed_at set, no MDM command. See same comment in
 	-- vpp.go GetSummaryHostVPPAppInstalls. Checked after ranking, so a host whose
 	-- most recent row lacks a command result is dropped rather than falling back.
-	AND (ncr.id IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
+	AND (ncr.id IS NOT NULL OR ranked.verification_at IS NOT NULL OR ranked.verification_failed_at IS NOT NULL OR (:platform = 'android' AND ncr.id IS NULL))
 	AND (%s) = :status
 	AND ranked.host_id NOT IN (
 		SELECT
@@ -2661,13 +2662,12 @@ WHERE
 		WHERE
 			vaua.adam_id = :adam_id
 			AND vaua.platform = :platform
-			%s
 			AND ua.activity_type = 'vpp_app_install'
 	)
 ) hss ON hss.host_id = h.id
-`, versionScope, vppAppHostStatusNamedQuery("ranked", "ncr", ""), pendingVersionScope)
+`, vppAppHostStatusNamedQuery("ranked", "ncr", ""))
 
-	named := map[string]any{
+	return sqlx.Named(stmt, map[string]any{
 		"status":                    status,
 		"adam_id":                   appID.AdamID,
 		"platform":                  appID.Platform,
@@ -2677,11 +2677,7 @@ WHERE
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,
 		"mdm_status_error":          fleet.MDMAppleStatusError,
 		"mdm_status_format_error":   fleet.MDMAppleStatusCommandFormatError,
-	}
-	if vppAppTeamID != nil {
-		named["vpp_app_team_id"] = *vppAppTeamID
-	}
-	return sqlx.Named(stmt, named)
+	})
 }
 
 // softwareInstallerJoin builds the status-join for a software-installer title.
@@ -3033,7 +3029,18 @@ LIMIT ?`
 		for i, row := range rows {
 			ids[i] = row.ID
 		}
-		n, err := deleteHostSoftwareInstallsByIDs(ctx, ds.writer(ctx), ids, olderThan)
+
+		var n int64
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// Decrement from the automation runs so it lines up with the number of rows in the table
+			err := decrementHostPolicyAutomationRunCountsDB(ctx, tx, fleet.ActivityTypeInstalledSoftware{}, ids, olderThan)
+			if err != nil {
+				return err
+			}
+
+			n, err = deleteHostSoftwareInstallsByIDs(ctx, tx, ids, olderThan)
+			return err
+		})
 		if err != nil {
 			return deleted, err
 		}
@@ -4501,7 +4508,25 @@ WHERE
 		return nil
 	}
 
-	return ds.ProcessInstallerUpdateSideEffects(ctx, installerID, true, false)
+	if err := ds.ProcessInstallerUpdateSideEffects(ctx, installerID, true, false); err != nil {
+		return err
+	}
+
+	// Sync the title's patch policy now rather than at the next auto-update run.
+	var policyID uint
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &policyID, `
+SELECT p.id
+FROM policies p
+JOIN software_installers si ON si.global_or_team_id = p.team_id AND si.title_id = p.patch_software_title_id
+WHERE si.id = ? AND p.type = ?
+`, installerID, fleet.PolicyTypePatch)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "getting patch policy for installer")
+	}
+	return ds.syncPatchPolicyQuery(ctx, policyID)
 }
 
 func (ds *Datastore) UpdateSoftwareInstallerWithoutPackageIDs(ctx context.Context, id uint,
@@ -4584,11 +4609,10 @@ func (ds *Datastore) GetSoftwareInstallersPendingDeletion(ctx context.Context, t
 		globalOrTeamID = *tmID
 	}
 
-	// An installer survives a batch set iff its title matches an incoming
-	// (unique_identifier, source) key with extension_for = '' — the same
-	// matching BatchSetSoftwareInstallers uses to upsert titles before
-	// deleting installers with title_id NOT IN the upserted set. DISTINCT
-	// collapses multiple installer rows (cached FMA versions) of one title.
+	// Reports the team's installers whose title matches no incoming
+	// (unique_identifier, source) key with extension_for = ''. BatchSetSoftwareInstallers
+	// also keeps a title a payload attaches to by name; the caller drops those.
+	// DISTINCT collapses multiple installer rows (cached FMA versions) of one title.
 	stmt := `
 SELECT DISTINCT
   si.team_id,
@@ -4623,10 +4647,6 @@ WHERE
 
 func (ds *Datastore) IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error) {
 	return ds.isSoftwareLabelScoped(ctx, installerID, hostID, softwareTypeInstaller)
-}
-
-func (ds *Datastore) IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, hostID uint) (bool, error) {
-	return ds.isSoftwareLabelScoped(ctx, vppAppTeamID, hostID, softwareTypeVPP)
 }
 
 func (ds *Datastore) isSoftwareLabelScoped(ctx context.Context, softwareID, hostID uint, swType softwareType) (bool, error) {
@@ -4834,41 +4854,6 @@ WHERE
 	res := make(map[uint]struct{}, len(hostIDs))
 	for _, id := range hostIDs {
 		res[id] = struct{}{}
-	}
-
-	return res, nil
-}
-
-func (ds *Datastore) GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]string, error) {
-	return ds.getIncludedHostUUIDMapForSoftware(ctx, ds.writer(ctx), vppAppTeamID, softwareTypeVPP)
-}
-
-func (ds *Datastore) getIncludedHostUUIDMapForSoftware(ctx context.Context, tx sqlx.ExtContext, softwareID uint, swType softwareType) (map[string]string, error) {
-	filter := fmt.Sprintf(labelScopedFilter, swType, "?")
-	stmt := fmt.Sprintf(`SELECT
-		h.uuid AS uuid,
-		ad.applied_policy_id AS applied_policy_id
-FROM
-		hosts h
-		JOIN android_devices ad ON ad.enterprise_specific_id = h.uuid
-		JOIN vpp_apps_teams vat ON vat.team_id <=> h.team_id AND vat.id = ?
-WHERE
-		EXISTS (%s)
-		AND h.platform = 'android'
-`, filter)
-
-	var queryResults []struct {
-		UUID            string  `db:"uuid"`
-		AppliedPolicyID *string `db:"applied_policy_id"`
-	}
-	if err := sqlx.SelectContext(ctx, tx, &queryResults, stmt, softwareID, softwareID, softwareID, softwareID, softwareID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing hosts included in software scope")
-	}
-
-	res := make(map[string]string, len(queryResults))
-	for _, result := range queryResults {
-		polID := ptr.ValOrZero(result.AppliedPolicyID)
-		res[result.UUID] = polID
 	}
 
 	return res, nil
@@ -5339,13 +5324,6 @@ func (ds *Datastore) GetPinnedVersion(ctx context.Context, teamID *uint, titleID
 		return nil, ctxerr.Wrap(ctx, err, "get pinned version")
 	}
 	return &version, nil
-}
-
-func (ds *Datastore) SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error {
-	if err := setPinnedVersionDB(ctx, ds.writer(ctx), ptr.ValOrZero(teamID), titleID, version); err != nil {
-		return ctxerr.Wrap(ctx, err, "set pinned version")
-	}
-	return nil
 }
 
 func (ds *Datastore) DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error {

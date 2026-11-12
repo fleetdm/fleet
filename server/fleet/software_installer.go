@@ -563,6 +563,8 @@ type HostSoftwareInstallerResult struct {
 	// NotifyBeforePatching is set from the triggering policy and, like PatchWhenClosed, marks an
 	// empty pre-install result as the app being open rather than a query failure.
 	NotifyBeforePatching bool `json:"-" db:"notify_before_patching"`
+	// PatchDeadline is read live from the triggering policy. A deadline skip schedules the notification for the next deadline.
+	PatchDeadline bool `json:"-" db:"patch_deadline"`
 	// OverridePreInstallQuery means this install needs to use the app open query as its pre-install condition.
 	OverridePreInstallQuery bool `json:"-" db:"override_pre_install_query"`
 }
@@ -571,6 +573,7 @@ const (
 	SoftwareInstallerQueryFailCopy          = "Query didn't return result or failed\nInstall stopped"
 	SoftwareInstallerAppOpenCopy            = "The app was open\nInstall stopped"
 	SoftwareInstallerAppOpenNotifyCopy      = "The app was open\nInstall stopped\nFleet notifies the end user 1 hour before the patch is forced."
+	SoftwareInstallerAppOpenDeadlineCopy    = "The app was open\nInstall stopped\nFleet notifies the end user 1 hour before the patch deadline."
 	SoftwareInstallerQuerySuccessCopy       = "Query returned result\nProceeding to install..."
 	SoftwareInstallerScriptsDisabledCopy    = "Installing software...\nError: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with --enable-scripts."
 	SoftwareInstallerInstallFailCopy        = "Installing software...\nFailed\n%s"
@@ -599,6 +602,8 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 			switch {
 			case !h.OverridePreInstallQuery:
 				*h.PreInstallQueryOutput = SoftwareInstallerQueryFailCopy
+			case h.PatchDeadline:
+				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenDeadlineCopy
 			case h.NotifyBeforePatching:
 				*h.PreInstallQueryOutput = SoftwareInstallerAppOpenNotifyCopy
 			default:
@@ -720,11 +725,8 @@ type UploadSoftwareInstallerPayload struct {
 	// automatically created when a software installer is added to Fleet. This field should be set
 	// after software installer creation if AutomaticInstall is true.
 	AddedAutomaticInstallPolicy *Policy
-	// AlwaysDownload disables conditional HTTP downloads using ETag. When false
-	// (the default), the download request includes If-None-Match with the stored ETag.
-	AlwaysDownload bool
 	// HTTPETag stores the ETag from the last download response, used for
-	// conditional GET requests when AlwaysDownload is false.
+	// conditional GET requests when always_download is false.
 	HTTPETag   *string
 	PatchQuery string
 	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
@@ -759,26 +761,6 @@ func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
 		return p.UpgradeCode
 	}
 	return p.Title
-}
-
-// GetBundleIdentifierForDB returns a pointer to the bundle identifier if it's
-// non-empty (after trimming whitespace), or nil otherwise. This is used when
-// inserting into the database where NULL is preferred over empty string.
-func (p UploadSoftwareInstallerPayload) GetBundleIdentifierForDB() *string {
-	if strings.TrimSpace(p.BundleIdentifier) != "" {
-		return &p.BundleIdentifier
-	}
-	return nil
-}
-
-// GetUpgradeCodeForDB returns a pointer to the upgrade code if the source is
-// "programs", or nil otherwise. This is used when inserting into the database
-// where NULL is preferred for non-Windows installers.
-func (p UploadSoftwareInstallerPayload) GetUpgradeCodeForDB() *string {
-	if p.Source != "programs" {
-		return nil
-	}
-	return &p.UpgradeCode
 }
 
 type ExistingSoftwareInstaller struct {
@@ -845,6 +827,9 @@ type UpdateSoftwareInstallerPayload struct {
 	// NotifyBeforePatching skips the install while the app is open and notifies the end user an
 	// hour before the patch is forced. FMA-only.
 	NotifyBeforePatching *bool
+	// PatchDeadline skips the install while the app is open and notifies the end user an hour
+	// before the fleet's next patch deadline. FMA-only.
+	PatchDeadline *bool
 	// InstallScriptEdited and UninstallScriptEdited are the values to persist, not a
 	// request of whether to change them.
 	InstallScriptEdited   bool
@@ -857,7 +842,7 @@ func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) 
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
 		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil &&
 		u.PinnedVersion == nil && u.Patch == nil && u.PatchWhenClosed == nil &&
-		u.NotifyBeforePatching == nil
+		u.NotifyBeforePatching == nil && u.PatchDeadline == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -966,6 +951,9 @@ type HostSoftwareWithInstaller struct {
 	DisplayName       string                          `json:"display_name" db:"display_name"`
 	// UpgradeCode is a GUID representing a related set of Windows software products. See https://learn.microsoft.com/en-us/windows/win32/msi/upgradecode
 	UpgradeCode *string `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	// AITool is true when any software row of this title is flagged as an AI tool. It's a Premium
+	// field: the service clears it on Free so it's omitted from responses.
+	AITool *bool `json:"ai_tool,omitempty" db:"-"`
 
 	// SoftwarePackage provides software installer package information, it is
 	// only present if a software installer is available for the software title.
@@ -1011,8 +999,9 @@ type AutomaticInstallPolicy struct {
 	// InstallerID is nil for VPP-app-backed policies (they carry
 	// vpp_apps_teams_id instead). For custom-package-backed policies it
 	// points at the specific package the policy triggers install on.
-	InstallerID *uint  `json:"-" db:"software_installer_id"`
-	Type        string `json:"type" db:"type"`
+	InstallerID    *uint  `json:"-" db:"software_installer_id"`
+	VPPAppsTeamsID *uint  `json:"-" db:"vpp_apps_teams_id"`
+	Type           string `json:"type" db:"type"`
 }
 
 type PatchPolicyData struct {
@@ -1020,6 +1009,7 @@ type PatchPolicyData struct {
 	Name                         string `json:"name" db:"name"`
 	PatchWhenClosed              bool   `json:"patch_when_closed" db:"patch_when_closed"`
 	NotifyBeforePatching         bool   `json:"notify_before_patching" db:"notify_before_patching"`
+	PatchDeadline                bool   `json:"patch_deadline" db:"patch_deadline"`
 	ContinuousAutomationsEnabled bool   `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
 }
 
@@ -1069,25 +1059,6 @@ type SoftwarePackageListItem struct {
 	SelfService              *bool                    `json:"self_service,omitempty"`
 	PackageURL               *string                  `json:"package_url"`
 	UploadedAt               time.Time                `json:"uploaded_at"`
-}
-
-func (s *SoftwarePackageOrApp) GetPlatform() string {
-	return s.Platform
-}
-
-func (s *SoftwarePackageOrApp) GetAppStoreID() string {
-	return s.AppStoreID
-}
-
-// Returns unique name by Platform + AppStoreID/Name
-func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
-	if s.AppStoreID != "" {
-		return fmt.Sprintf(`%s_%s`, s.AppStoreID, s.Platform)
-	}
-	if s.Name != "" {
-		return fmt.Sprintf(`%s_%s`, s.Name, s.Platform)
-	}
-	return ""
 }
 
 type SoftwarePackageSpec struct {
@@ -1146,12 +1117,6 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	spec.Configuration.Path = resolveApplyRelativePath(baseDir, spec.Configuration.Path)
 
 	return spec
-}
-
-func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
-	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.LabelsIncludeAll) > 0 ||
-		len(spec.Categories.Value) > 0 || spec.SelfService || spec.InstallDuringSetup.Valid ||
-		spec.SetupExperiencePlatform.Set
 }
 
 func resolveApplyRelativePath(baseDir string, path string) string {
@@ -1487,6 +1452,8 @@ type HostSoftwareInstallOptions struct {
 	DeferActivation bool
 	// VPPAppTeamID is the vpp_apps_teams row an App Store app install is for.
 	VPPAppTeamID uint
+	// VPPTokenID is the VPP token an App Store app install uses.
+	VPPTokenID uint
 	// ForConfigurationResend means the install request re-sends an iOS/iPadOS App Store app configuration, which means it was Fleet-initiated.
 	ForConfigurationResend bool
 }

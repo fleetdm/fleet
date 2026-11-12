@@ -9,6 +9,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------------|:------------------------------------------------------------------------------------------|
 | SVP of Global Sales                   | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
 | Head of Strategic Growth               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
+| Director of Sales & Channel, EMEA     | [Damon Sabrkesh](https://www.linkedin.com/in/damon-sabrkesh/) _([@Nine9one](https://github.com/Nine9one))_
 | Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_ <br> [Suzy Beck](https://www.linkedin.com/in/suzy-beck/) _([@SuzyBeck](https://github.com/suzybeck))_
 | Account Executive (AE)                | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 | Solutions Consultant (SC)             | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
@@ -214,6 +215,26 @@ All leads generated as a result of the CEO and Fleetie requests must be logged i
 - Outcome and notes
 - Follow-up date (if applicable)
 
+### Submit a contract for legal review
+
+When needing a contract to undergo legal review, we use the following processes for different types of agreements.
+
+_*NDAs*_
+
+- NDAs are emailed to deal desk for review, cc CFO.
+- Nate will review and either give the ok for signature or send to outside counsel if necessary.
+
+_*MSAs, DPAs, and reseller agreements*_
+
+- Email these to outside counsel and cc Deal Desk.
+- Once outside counsel returns a draft, deal desk or CFO will review and approve it is ready to be sent back to the customer or reseller.
+- When all negotiations are concluded and terms are agreed upon, Nate will make sure the document is clean and ready for signature.
+- Final drafts will be indicated in the naming convention, using "YYYY-MM-DD [Customer Name] FINAL" to indicate the document is ready to be sent for signature.  
+
+_*All other agreements*_
+
+- Email to deal desk and cc CFO
+- Nate or Tina will either ok it for signature or send to outside counsel if necessary.
 
 ## Rituals
 

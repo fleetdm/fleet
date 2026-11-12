@@ -23,9 +23,6 @@
     display: flex;
     flex-direction: column;
     gap: $pad-xxlarge;
-    &--disabled {
-      @include disabled;
-    }
   }
 
   &__form-fields {

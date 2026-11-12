@@ -311,7 +311,7 @@ func TestMDMAppleBootstrapPackage(t *testing.T) {
 
 	url, err := bp.URL("http://example.com")
 	require.NoError(t, err)
-	require.Equal(t, "http://example.com/api/latest/fleet/mdm/bootstrap?token=abc-def", url)
+	require.Equal(t, "http://example.com/api/latest/fleet/bootstrap?token=abc-def", url)
 
 	url, err = bp.URL(" http://example.com")
 	require.Empty(t, url)
@@ -677,11 +677,14 @@ func TestHasCAVariables(t *testing.T) {
 		{"Certificate renewal (preferred)", []string{string(fleet.FleetVarCertificateRenewalID)}, true},
 		{"DigiCert data", []string{string(fleet.FleetVarDigiCertDataPrefix) + "my_ca"}, true},
 		{"DigiCert password", []string{string(fleet.FleetVarDigiCertPasswordPrefix) + "my_ca"}, true},
+		{"EJBCA data", []string{string(fleet.FleetVarEJBCADataPrefix) + "my_ca"}, true},
+		{"EJBCA password", []string{string(fleet.FleetVarEJBCAPasswordPrefix) + "my_ca"}, true},
 		{"Custom SCEP challenge", []string{string(fleet.FleetVarCustomSCEPChallengePrefix) + "my_ca"}, true},
 		{"Custom SCEP proxy URL", []string{string(fleet.FleetVarCustomSCEPProxyURLPrefix) + "my_ca"}, true},
 		{"Smallstep challenge", []string{string(fleet.FleetVarSmallstepSCEPChallengePrefix) + "my_ca"}, true},
 		{"Smallstep proxy URL", []string{string(fleet.FleetVarSmallstepSCEPProxyURLPrefix) + "my_ca"}, true},
 		{"Windows SCEP cert ID", []string{string(fleet.FleetVarSCEPWindowsCertificateID)}, true},
+		{"Conditional access SCEP URL", []string{string(fleet.FleetVarConditionalAccessSCEPURL)}, true},
 		{"mixed with CA", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarNDESSCEPChallenge)}, true},
 		{"unknown var", []string{"UNKNOWN_VAR"}, false},
 	}

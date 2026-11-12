@@ -20,7 +20,7 @@ const createMockHostPolicy = (
   author_email: "test@test.com",
   resolution: "Fix it",
   platform: "darwin",
-  team_id: null,
+  fleet_id: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
   critical: false,

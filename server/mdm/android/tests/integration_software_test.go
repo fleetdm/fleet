@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
@@ -325,6 +326,7 @@ func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidm
 		},
 	}
 
+	android_mock.RegisterDevice(deviceInfo)
 	data, err := json.Marshal(deviceInfo)
 	require.NoError(t, err)
 
@@ -339,7 +341,7 @@ func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidm
 }
 
 func createAndroidDeviceID(name string) string {
-	return "enterprises/mock-enterprise-id/devices/" + name
+	return "enterprises/" + EnterpriseID + "/devices/" + name
 }
 
 func createAndroidDeviceWithSoftware(deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail, software []*androidmanagement.ApplicationReport) androidmanagement.Device {
@@ -369,6 +371,7 @@ func createAndroidDeviceWithSoftware(deviceId, name, policyName string, policyVe
 }
 
 func createStatusReportMessageFromDevice(t *testing.T, device androidmanagement.Device) android.PubSubMessage {
+	android_mock.RegisterDevice(device)
 	data, err := json.Marshal(device)
 	require.NoError(t, err)
 

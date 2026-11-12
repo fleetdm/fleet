@@ -2,9 +2,11 @@ package mysql
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -23,6 +26,7 @@ var queryAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"id":         "q.id",
 	"name":       "q.name",
 	"team_id":    "q.team_id",
+	"fleet_id":   "q.team_id",
 	"created_at": "q.created_at",
 	"updated_at": "q.updated_at",
 }
@@ -498,80 +502,67 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 		return ctxerr.Wrap(ctx, err, "deleting old query labels")
 	}
 
-	lblNamesMap := make(map[string]struct{})
+	// Names are resolved once per fleet, since a fleet's report sees global labels plus its own fleet's, and a global
+	// report sees all labels.
+	type labelScope struct {
+		fleetID uint
+		global  bool
+	}
+	scopeOf := func(q *fleet.Query) labelScope {
+		return labelScope{fleetID: ptr.ValOrZero(q.TeamID), global: q.TeamID == nil}
+	}
+	namesByScope := make(map[labelScope][]string)
+	numLabels := 0
 	for _, q := range queries {
-		for _, lbl := range q.LabelsIncludeAny {
-			lblNamesMap[lbl.LabelName] = struct{}{}
-		}
-		for _, lbl := range q.LabelsIncludeAll {
-			lblNamesMap[lbl.LabelName] = struct{}{}
+		for _, lbl := range slices.Concat(q.LabelsIncludeAny, q.LabelsIncludeAll) {
+			namesByScope[scopeOf(q)] = append(namesByScope[scopeOf(q)], lbl.LabelName)
+			numLabels++
 		}
 	}
-	numLabelNames := len(lblNamesMap)
-	if numLabelNames == 0 {
+	if numLabels == 0 {
 		return nil
 	}
-
-	// We need to figure out the label IDs for the labels we're going to add.
-	stm, args, err := sqlx.In(`SELECT id, name FROM labels WHERE name IN (?)`, slices.Collect(maps.Keys(lblNamesMap)))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching label IDs")
-	}
-
-	rows, err := tx.QueryxContext(ctx, stm, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching label IDs")
-	}
-	defer rows.Close()
-
-	lblNameToID := make(map[string]uint)
-	for rows.Next() {
-		var id uint
-		var name string
-		if err := rows.Scan(&id, &name); err != nil {
-			return ctxerr.Wrap(ctx, err, "scan existing query")
+	idsByScope := make(map[labelScope]map[string]uint, len(namesByScope))
+	for scope, names := range namesByScope {
+		var fleetID *uint
+		if !scope.global {
+			fleetID = &scope.fleetID
 		}
-		lblNameToID[name] = id
-	}
-	if err := rows.Err(); err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching query IDs")
-	}
-	if err := rows.Close(); err != nil { //nolint:sqlclosecheck
-		return ctxerr.Wrap(ctx, err, "closing query IDs")
-	}
-
-	if len(lblNameToID) < numLabelNames {
-		return ctxerr.New(ctx, "not all labels found for query")
+		ids, err := resolveLabelNamesTx(ctx, tx, names, fleetID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resolving report labels")
+		}
+		idsByScope[scope] = ids
 	}
 
 	// Each query has at most one non-empty scope (mutex enforced above).
 	// Populate IDs back onto the query struct for each bucket.
-	params := make([]string, 0, numLabelNames)
-	insertArgs := make([]any, 0, numLabelNames*3)
+	params := make([]string, 0, numLabels)
+	insertArgs := make([]any, 0, numLabels*3)
 
-	resolve := func(qID uint, src []fleet.LabelIdent, requireAll bool) []fleet.LabelIdent {
+	resolve := func(q *fleet.Query, src []fleet.LabelIdent, requireAll bool) []fleet.LabelIdent {
 		if len(src) == 0 {
 			return src
 		}
+		ids := idsByScope[scopeOf(q)]
+		inserted := make(map[uint]struct{}, len(src))
 		out := make([]fleet.LabelIdent, 0, len(src))
 		for _, lbl := range src {
-			lblID, ok := lblNameToID[lbl.LabelName]
-			if !ok {
+			lblID := ids[lbl.LabelName]
+			if _, ok := inserted[lblID]; ok {
 				continue
 			}
+			inserted[lblID] = struct{}{}
 			params = append(params, "(?, ?, ?)")
-			insertArgs = append(insertArgs, qID, lblID, requireAll)
+			insertArgs = append(insertArgs, q.ID, lblID, requireAll)
 			out = append(out, fleet.LabelIdent{LabelID: lblID, LabelName: lbl.LabelName})
-		}
-		if len(out) == 0 {
-			return src
 		}
 		return out
 	}
 
 	for _, q := range queries {
-		q.LabelsIncludeAny = resolve(q.ID, q.LabelsIncludeAny, false)
-		q.LabelsIncludeAll = resolve(q.ID, q.LabelsIncludeAll, true)
+		q.LabelsIncludeAny = resolve(q, q.LabelsIncludeAny, false)
+		q.LabelsIncludeAll = resolve(q, q.LabelsIncludeAll, true)
 	}
 
 	if len(params) == 0 {
@@ -1123,6 +1114,67 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 	}
 
 	return results, nil
+}
+
+func (ds *Datastore) ScheduledQueriesDigest(ctx context.Context, teamID *uint) (string, error) {
+	// Agent eligibility (automations_enabled, discard_data, logging_type) also
+	// depends on the app config, so its inputs are included rather than
+	// filtered on.
+	queriesStmt := `
+		SELECT
+			q.name,
+			q.query,
+			q.schedule_interval,
+			q.platform,
+			q.min_osquery_version,
+			q.automations_enabled,
+			q.logging_type,
+			q.discard_data
+		FROM queries q
+		WHERE q.saved = true AND q.schedule_interval > 0 AND %s
+		ORDER BY q.name`
+	labelsStmt := `
+		SELECT q.name, ql.label_id, ql.require_all
+		FROM queries q
+		JOIN query_labels ql ON ql.query_id = q.id
+		WHERE q.saved = true AND q.schedule_interval > 0 AND %s
+		ORDER BY q.name, ql.label_id`
+	var args []any
+	teamSQL := "q.team_id IS NULL"
+	if teamID != nil {
+		teamSQL = "q.team_id = ?"
+		args = append(args, *teamID)
+	}
+
+	var digest struct {
+		Queries []struct {
+			Name               string `db:"name"`
+			Query              string `db:"query"`
+			Interval           uint   `db:"schedule_interval"`
+			Platform           string `db:"platform"`
+			MinOsqueryVersion  string `db:"min_osquery_version"`
+			AutomationsEnabled bool   `db:"automations_enabled"`
+			Logging            string `db:"logging_type"`
+			DiscardData        bool   `db:"discard_data"`
+		}
+		Labels []struct {
+			Name       string `db:"name"`
+			LabelID    uint   `db:"label_id"`
+			RequireAll bool   `db:"require_all"`
+		}
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &digest.Queries, fmt.Sprintf(queriesStmt, teamSQL), args...); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "select scheduled queries for digest")
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &digest.Labels, fmt.Sprintf(labelsStmt, teamSQL), args...); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "select scheduled query labels for digest")
+	}
+	b, err := json.Marshal(digest)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshal scheduled queries digest")
+	}
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func (ds *Datastore) HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error) {

@@ -1,6 +1,6 @@
 {
   "name": "Recut",
-  "unique_identifier": "com.tinywins.recut",
+  "unique_identifier": "co.tinywins.recut",
   "token": "recut",
   "installer_format": "dmg",
   "slug": "recut/darwin",

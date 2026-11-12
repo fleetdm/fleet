@@ -223,8 +223,8 @@ var deploymentHookCases = []deploymentHookCase{
 		// cascades query_labels away and can instantly unscope a report.
 		"DeleteLabel", resetsLabelScopes,
 		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error { return nil }
-			return &ds.DeleteLabelFuncInvoked, func() error { return d.DeleteLabel(hookTestCtx, "l", fleet.TeamFilter{}) }
+			ds.DeleteLabelFunc = func(ctx context.Context, id uint) error { return nil }
+			return &ds.DeleteLabelFuncInvoked, func() error { return d.DeleteLabel(hookTestCtx, 1) }
 		},
 	},
 	{
@@ -413,6 +413,21 @@ func TestNoInvalidationOnWriteError(t *testing.T) {
 	require.ErrorIs(t, err, wantErr)
 	require.Equal(t, 0, store.invalidateCalls)
 	require.Equal(t, 0, store.labelScopesResetCalls)
+}
+
+// TestApplyQueriesInvalidatesOnWriteError: ApplyQueries commits in batches,
+// so a failure may follow committed changes.
+func TestApplyQueriesInvalidatesOnWriteError(t *testing.T) {
+	ds, store, d := newTestDatastore()
+	wantErr := errors.New("boom")
+	ds.ApplyQueriesFunc = func(ctx context.Context, authorID uint, queries []*fleet.Query, discard map[uint]struct{}) error {
+		return wantErr
+	}
+
+	err := d.ApplyQueries(t.Context(), 1, nil, nil)
+	require.ErrorIs(t, err, wantErr)
+	require.Equal(t, 1, store.invalidateCalls)
+	require.Equal(t, 1, store.labelScopesResetCalls)
 }
 
 // TestInvalidationErrorsAreSwallowed: Redis being down must never fail a

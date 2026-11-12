@@ -742,12 +742,12 @@ describe("isDefaultTypeSelection", () => {
     ).toBe(false);
   });
 
-  it("is false when the vulnerable filter is on", () => {
+  it.each([
+    { name: "vulnerable", filter: { vulnerable: true } },
+    { name: "AI tools", filter: { aiTool: true } },
+  ])("is false when the $name filter is on", ({ filter }) => {
     expect(
-      isDefaultTypeSelection("darwin", {
-        types: ["macos_app"],
-        vulnerable: true,
-      })
+      isDefaultTypeSelection("darwin", { types: ["macos_app"], ...filter })
     ).toBe(false);
   });
 
@@ -767,6 +767,16 @@ describe("getInstallerActionButtonConfig", () => {
   it("returns 'Update' for a skipped_install row (a deferred update)", () => {
     expect(
       getInstallerActionButtonConfig("install", "skipped_install")
-    ).toEqual({ text: "Update", icon: "refresh" });
+    ).toEqual({ text: "Update", icon: "update" });
+  });
+
+  it.each([
+    { status: "failed_script" as const, text: "Retry" },
+    { status: "ran_script" as const, text: "Rerun" },
+  ])("returns the retry icon for $status", ({ status, text }) => {
+    expect(getInstallerActionButtonConfig("install", status)).toEqual({
+      text,
+      icon: "retry",
+    });
   });
 });

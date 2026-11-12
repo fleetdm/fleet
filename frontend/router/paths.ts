@@ -17,6 +17,7 @@ export default {
   CONTROLS_OS_SETTINGS: `${URL_PREFIX}/controls/os-settings`,
   CONTROLS_CUSTOM_SETTINGS: `${URL_PREFIX}/controls/os-settings/configuration-profiles`,
   CONTROLS_CUSTOM_SETTINGS_NEW: `${URL_PREFIX}/controls/os-settings/configuration-profiles/new`,
+  CONTROLS_CUSTOM_SETTINGS_NEW_MANUAL: `${URL_PREFIX}/controls/os-settings/configuration-profiles/new/manual`,
   CONTROLS_CUSTOM_SETTINGS_EDIT: (profileUUID: string) =>
     `${URL_PREFIX}/controls/os-settings/configuration-profiles/${profileUUID}`,
   CONTROLS_CERTIFICATES: `${URL_PREFIX}/controls/os-settings/certificates`,
@@ -105,7 +106,9 @@ export default {
   SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
   SOFTWARE_LIBRARY: `${URL_PREFIX}/software/library`,
-  SOFTWARE_LIBRARY_CATEGORIES: `${URL_PREFIX}/software/library/categories`,
+  SOFTWARE_LIBRARY_SETTINGS: `${URL_PREFIX}/software/library/settings`,
+  SOFTWARE_LIBRARY_SETTINGS_CATEGORIES: `${URL_PREFIX}/software/library/settings/categories`,
+  SOFTWARE_LIBRARY_SETTINGS_PATCH_DEADLINE: `${URL_PREFIX}/software/library/settings/patch-deadline`,
   SOFTWARE_TITLE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/titles/${id}`;
   },

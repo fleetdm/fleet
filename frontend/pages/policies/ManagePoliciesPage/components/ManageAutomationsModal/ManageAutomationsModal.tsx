@@ -112,7 +112,7 @@ const ManageAutomationsModal = ({
               <div className={`${baseClass}__platforms`}>
                 {displayedPlatforms.map((p) => (
                   <span key={p} className={`${baseClass}__platform`}>
-                    <Icon name={p} size="small" />
+                    <Icon name={p} />
                     {PLATFORM_DISPLAY_NAMES[p]}
                   </span>
                 ))}

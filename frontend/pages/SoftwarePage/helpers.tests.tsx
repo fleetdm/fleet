@@ -22,6 +22,7 @@ import {
   getDefaultAutoUpdateFromVersions,
   getDisplayedSoftwareName,
   routeVersionNameError,
+  rewriteVariableErrorReason,
   getSoftwareListName,
 } from "./helpers";
 
@@ -357,6 +358,27 @@ describe("getDefaultAutoUpdateFromVersions", () => {
   });
 });
 
+describe("rewriteVariableErrorReason", () => {
+  it("links the guide in a Fleet 5 removed variable error", () => {
+    render(
+      <div>
+        {rewriteVariableErrorReason(
+          'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration'
+        )}
+      </div>
+    );
+
+    expect(
+      screen.getByText(
+        /Couldn't edit\. The "\$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable/
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /fleet-5-migration/ })
+    ).toBeInTheDocument();
+  });
+});
+
 describe("routeVersionNameError", () => {
   const setServerErrors = jest.fn();
   const notifyError = notify.error as jest.Mock;
@@ -404,8 +426,7 @@ describe("routeVersionNameError", () => {
           errors: [
             {
               name: "base",
-              reason:
-                "Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_USERNAME",
+              reason: "Unsupported variable $FLEET_VAR_NOT_A_USERNAME",
             },
           ],
         },
@@ -420,7 +441,7 @@ describe("routeVersionNameError", () => {
 
     expect(setServerErrors).not.toHaveBeenCalled();
     expect(notifyError).toHaveBeenCalledWith(
-      "Unsupported variable $FLEET_VAR_HOST_END_USER_EMAIL_IDP_USERNAME",
+      "Unsupported variable $FLEET_VAR_NOT_A_USERNAME",
       {
         response: err,
       }
@@ -477,6 +498,102 @@ describe("routeVersionNameError", () => {
       {
         response: err,
       }
+    );
+  });
+
+  // iOS/iPadOS BE phrases the error as lowercase "unsupported variable ...".
+  // Must be rewritten so the admin sees the same copy Edit configuration uses
+  // ("Couldn't edit. Variable \"...\" doesn't exist.") instead of the raw BE
+  // reason.
+  it("rewrites an unknown $FLEET_VAR_ reason to the Edit configuration copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason: "unsupported variable $FLEET_VAR_PW_BOGUS",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_VAR_PW_BOGUS" doesn't exist.`,
+      { response: err }
+    );
+  });
+
+  // A profile-only variable (e.g. NDES_SCEP_CHALLENGE) in a managed
+  // configuration gets the profile-only explanation, matching Edit
+  // configuration.
+  it("rewrites a profile-only $FLEET_VAR_ reason with the profile-only copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason: "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_VAR_NDES_SCEP_CHALLENGE" isn't supported in managed configuration. It can only be used in configuration profiles.`,
+      { response: err }
+    );
+  });
+
+  // Missing $FLEET_SECRET_ reasons also get the Edit configuration rewrite.
+  it("rewrites a missing $FLEET_SECRET_ reason to the Edit configuration copy", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "base",
+              reason:
+                'Couldn\'t add. Secret variable "$FLEET_SECRET_BLA" missing from database',
+            },
+          ],
+        },
+      },
+    };
+
+    routeVersionNameError(
+      err,
+      setServerErrors,
+      "Couldn't update. Please try again."
+    );
+
+    expect(setServerErrors).not.toHaveBeenCalled();
+    expect(
+      notifyError
+    ).toHaveBeenCalledWith(
+      `Couldn't edit. Variable "$FLEET_SECRET_BLA" doesn't exist.`,
+      { response: err }
     );
   });
 });

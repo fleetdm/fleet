@@ -12,6 +12,7 @@ import (
 	"maps"
 	"net"
 	"net/url"
+	"path"
 	"regexp"
 	"slices"
 	"strconv"
@@ -23,7 +24,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
-	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/preservedsources"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -202,6 +203,19 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms:  []string{"chrome"},
 		IngestFunc: ingestNetworkInterface,
 	},
+	"timezone_unix": {
+		Description: "Reads the target of the `/etc/localtime` symlink, which requires osquery 5.17.0 or later. Hosts where `/etc/localtime` is a copied file report no timezone.",
+		Query:       `SELECT symlink_target_path FROM file WHERE path = '/etc/localtime'`,
+		Discovery:   `SELECT 1 FROM pragma_table_info('file') WHERE name = 'symlink_target_path'`,
+		Platforms:   append(fleet.HostLinuxOSs, "darwin"),
+		IngestFunc:  ingestTimezoneUnix,
+	},
+	"timezone_windows": {
+		Description: "Reads the Windows time zone name from the registry and maps it to an IANA name using the CLDR windowsZones table.",
+		Query:       `SELECT data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation\\TimeZoneKeyName'`,
+		Platforms:   []string{"windows"},
+		IngestFunc:  ingestTimezoneWindows,
+	},
 	"os_version": {
 		// Collect operating system information for the `hosts` table.
 		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
@@ -259,14 +273,21 @@ var hostDetailQueries = map[string]DetailQuery{
 		// revision would make every fixed build in a security bulletin compare as newer
 		// than the host, reporting every CVE in it.
 		//
-		// display_version is not available in some versions of Windows (Server 2019). By
-		// including it using a JOIN it can return no rows and the query will still succeed.
+		// The DisplayVersion registry value was introduced in Windows 10 20H2. Older releases still in
+		// support (Windows 10 LTSC 2019 and LTSB 2016, Windows Server 2019 and 2016) only have ReleaseId,
+		// so it is the fallback. ReleaseId is frozen at "2009" from 20H2 onward, so it must not be preferred.
+		// Both are joined in so that a missing value returns no rows and the query still succeeds.
 		Description: "Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.",
 		Query: `
 		WITH display_version_table AS (
 			SELECT data as display_version
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		release_id_table AS (
+			SELECT data AS release_id
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
 		),
 		installation_type_table AS (
 			SELECT data AS installation_type
@@ -275,7 +296,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		)
 		SELECT
 			os.name,
-			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(NULLIF(d.display_version, ''), r.release_id, '') AS display_version,
 			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
@@ -283,6 +304,8 @@ var hostDetailQueries = map[string]DetailQuery{
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
+		LEFT JOIN
+			release_id_table r
 		LEFT JOIN
 			installation_type_table it`,
 		Platforms: []string{"windows"},
@@ -397,7 +420,13 @@ var hostDetailQueries = map[string]DetailQuery{
 				return err
 			}
 			host.Hostname = rows[0]["hostname"]
-			host.UUID = rows[0]["uuid"]
+			switch reported := rows[0]["uuid"]; {
+			case host.UUID == "":
+				host.UUID = reported
+			case !strings.EqualFold(host.UUID, reported):
+				logger.WarnContext(ctx, "ignoring a different UUID reported by the host",
+					"component", "service", "method", "IngestFunc", "host_id", host.ID, "uuid", host.UUID, "reported_uuid", reported)
+			}
 			host.CPUType = rows[0]["cpu_type"]
 			host.CPUSubtype = rows[0]["cpu_subtype"]
 			host.CPUBrand = rows[0]["cpu_brand"]
@@ -499,6 +528,39 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		IngestFunc: ingestKubequeryInfo,
 		Discovery:  discoveryTable("kubernetes_info"),
 	},
+}
+
+func ingestTimezoneUnix(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
+	// macOS briefly removes /etc/localtime while switching zones, so zero rows is expected at times.
+	if len(rows) != 1 {
+		return nil
+	}
+	_, name, ok := strings.Cut(rows[0]["symlink_target_path"], "zoneinfo/")
+	if !ok {
+		return nil
+	}
+	name = strings.TrimPrefix(strings.TrimPrefix(name, "posix/"), "right/")
+	setHostTimezone(host, name)
+	return nil
+}
+
+func ingestTimezoneWindows(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
+	if len(rows) != 1 {
+		return nil
+	}
+	setHostTimezone(host, windowsTimezones[strings.TrimSpace(rows[0]["data"])])
+	return nil
+}
+
+func setHostTimezone(host *fleet.Host, name string) {
+	// LoadLocation accepts "" (UTC), "Local", and "Factory" (zone not set), none of which names the host's zone.
+	if name == "" || name == "Local" || name == "Factory" {
+		return
+	}
+	if _, err := time.LoadLocation(name); err != nil {
+		return
+	}
+	host.TimeZone = &name
 }
 
 func ingestNetworkInterface(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -713,15 +775,18 @@ var extraDetailQueries = map[string]DetailQuery{
 		// `os_version_windows` detail queries above. See os_version_windows for why the
 		// UBR comes from os_version.revision and why it is cast before being compared.
 		//
-		// DisplayVersion doesn't exist on all versions of Windows (Server 2019). To prevent
-		// the query from failing in those cases, we join the values in when they exist,
-		// alternatively the column is just empty.
+		// See os_version_windows for why display_version falls back to ReleaseId.
 		Description: "Reads the update build revision (UBR) from `os_version.revision`, which requires osquery 5.12.1 or later. Windows Server 2012 and 2012 R2 have no UBR and fall back to the `kernel_info` version.",
 		Query: `
 		WITH display_version_table AS (
 			SELECT data as display_version
 			FROM registry
 			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		),
+		release_id_table AS (
+			SELECT data AS release_id
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ReleaseId'
 		),
 		installation_type_table AS (
 			SELECT data AS installation_type
@@ -734,13 +799,15 @@ var extraDetailQueries = map[string]DetailQuery{
 			os.arch,
 			k.version as kernel_version,
 			CASE WHEN CAST(os.revision AS INTEGER) > 0 THEN os.version || '.' || os.revision ELSE k.version END AS version,
-			COALESCE(d.display_version, '') AS display_version,
+			COALESCE(NULLIF(d.display_version, ''), r.release_id, '') AS display_version,
 			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
+		LEFT JOIN
+			release_id_table r
 		LEFT JOIN
 			installation_type_table it`,
 		Platforms:        []string{"windows"},
@@ -1010,16 +1077,6 @@ func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
 }
 
-// macOSEntraIDDetails holds the query and ingestion function for macOS for Microsoft "Conditional access" feature.
-var macOSEntraIDDetails = DetailQuery{
-	// The query ingests Entra's Device ID and User Principal Name of the account
-	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
-	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
-	Discovery:        discoveryTable("app_sso_platform"),
-	Platforms:        []string{"darwin"},
-	DirectIngestFunc: directIngestEntraIDDetails,
-}
-
 // entraDeviceCertIssuerLike matches the issuer of the certificate Windows stores for
 // an Entra-joined or Entra-registered device; its subject is the Entra device ID.
 const entraDeviceCertIssuerLike = "net + windows + MS-Organization-Access%"
@@ -1149,7 +1206,7 @@ SELECT
   version AS version,
   '' AS bundle_identifier,
   '' AS extension_id,
-  '' AS browser,
+  '' AS extension_for,
   'npm_packages' AS source,
   '' AS vendor,
   0 AS last_opened_at,
@@ -1355,6 +1412,59 @@ FROM go_binaries`,
 	Discovery: discoveryTable("go_binaries"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
+}
+
+// softwareAITools reports what fleetd's ai_tools table finds. MCP servers, catalog agent CLIs,
+// agent instruction files and skills become their own sources; AI apps, IDE plugins and browser
+// extensions are reported with the pseudo-source "ai_tools" so AIToolsProcessResults can flag the
+// software another source already reports at the same path. Pseudo-source rows are never stored.
+//
+// The two NOT predicates keep out rows that would make poor titles:
+//   - Agents without the "catalog" evidence token are multi-signal candidates, named after a
+//     project directory or a tool's config folder and never versioned, so each would add a title
+//     per directory name. Catalog rows always carry the token, but a candidate merging into one
+//     re-sorts the tokens, hence LIKE rather than a prefix match.
+//   - MCP servers whose client is "process" (the table's source column, not the alias above) were
+//     only seen running: no config declares them, so they have no path, their name is guessed from
+//     the command line, and they come and go with the process. Declared servers always carry the
+//     name of the client whose config declared them.
+//
+// The types are listed rather than excluding sockets: the table only reads equality constraints
+// on type and runs every collector for any other predicate, including sockets, which lists the
+// host's connections (lsof on macOS). The list also keeps types added to the table later out of
+// inventory until reviewed. skill is listed before fleetd reports it: a fleetd without the type
+// returns no rows for it without running any collector.
+//
+// bundle_identifier and extension_for stay empty for the same reason as softwareAdobePlugins.
+var softwareAITools = DetailQuery{
+	Query: `
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS extension_for,
+  CASE type
+    WHEN 'agents' THEN 'ai_clis'
+    WHEN 'mcp_server' THEN 'mcp_servers'
+    WHEN 'agent_instruction' THEN 'ai_skills'
+    WHEN 'skill' THEN 'ai_skills'
+    ELSE 'ai_tools'
+  END AS source,
+  '' AS vendor,
+  '' AS last_opened_at,
+  path AS installed_path,
+  type AS ai_type,
+  source AS ai_install_method
+FROM ai_tools
+WHERE type IN ('agents', 'mcp_server', 'agent_instruction', 'skill', 'apps', 'ide_plugins', 'browser_extension')
+  AND NOT (type = 'agents' AND evidence NOT LIKE '%catalog%')
+  AND NOT (type = 'mcp_server' AND source = 'process')`,
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: discoveryTable("ai_tools"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because preProcessSoftwareResults
+	// merges its results into the main software query using AIToolsProcessResults, which needs the
+	// host's platform.
 }
 
 var softwareLinux = DetailQuery{
@@ -2198,36 +2308,9 @@ func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *flee
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
-	name := rows[0]["name"]
-	// forceRollingVersion is set for Arch-based distributions that report their
-	// own release number but must still be recorded as "rolling". See the
-	// Omarchy case below for why the version cannot be derived in that case.
-	var forceRollingVersion bool
-	switch {
-	case strings.HasPrefix(name, "Arch Linux"):
-		name = strings.TrimSuffix(name, " ARM")
-	case name == "CachyOS Linux":
-		// CachyOS is an Arch-based rolling-release distribution; aggregate it
-		// onto the "Arch Linux" operating system row in the OS inventory. It
-		// reports BUILD_ID=rolling, so parseOSVersion already derives "rolling".
-		name = "Arch Linux"
-	case name == "Omarchy":
-		// Omarchy is also an Arch-based rolling-release distribution, but unlike
-		// CachyOS it reports a real release number in both VERSION_ID and
-		// BUILD_ID (e.g. "4.0.0"). parseOSVersion would therefore derive
-		// "4.0.0" and produce an "Arch Linux 4.0.0" row, a version that does not
-		// exist upstream and that does not merge with the "Arch Linux rolling"
-		// row these hosts occupied before Omarchy started shipping its own
-		// os-release ID.
-		//
-		// Pin the version explicitly rather than rewriting the ingested build
-		// value, so parseOSVersion still sees exactly what the host reported.
-		// Note this only affects the OS inventory: the separate os_version
-		// detail query keeps recording the true build on the host, which
-		// continues to display as "Omarchy 4.0.0" on the host details page.
-		name = "Arch Linux"
-		forceRollingVersion = true
-	}
+	// Some Arch-based distributions are recorded as "Arch Linux" in the OS inventory. The host keeps its own name and
+	// version in hosts.os_version (the os_version detail query), which the host API returns.
+	name, forceRollingVersion := fleet.InventoryOSName(rows[0]["name"])
 	version := rows[0]["version"]
 	major := rows[0]["major"]
 	minor := rows[0]["minor"]
@@ -2378,6 +2461,11 @@ func directIngestEntraIDDetails(
 		// Device maybe hasn't logged in to Entra ID yet.
 		return nil
 	}
+	// Results are matched to detail queries by name only, and macOS hosts must prove their device ID
+	// with an Entra-signed token instead.
+	if host.Platform != "windows" {
+		return ctxerr.New(ctx, "Entra ID device_id is only accepted from Windows hosts")
+	}
 	row := rows[0]
 
 	deviceID := row["device_id"]
@@ -2385,14 +2473,8 @@ func directIngestEntraIDDetails(
 		return ctxerr.New(ctx, "empty Entra ID device_id")
 	}
 
-	// userPrincipalName can be empty on macOS workstations with e.g. two accounts:
-	// One logged in to Entra and the other one not logged in. While the second one is
-	// logged in, it would report the same Device ID but empty user principal name.
-	//
-	// userPrincipalName is empty on Windows devices.
-	userPrincipalName := row["user_principal_name"]
-
-	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, userPrincipalName); err != nil {
+	// The user principal name isn't reported on Windows.
+	if _, err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, "", false); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
 	}
 	return nil
@@ -2519,7 +2601,7 @@ var (
 )
 
 func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
-	var software []fleet.Software
+	var software, aiTools []fleet.Software
 	sPaths := map[string]fleet.ExecutableHashes{}
 
 	for _, row := range rows {
@@ -2563,7 +2645,13 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 			continue
 		}
 
+		if row["ai_tool"] == "1" {
+			s.AITool = new(true)
+		}
 		software = append(software, *s)
+		if ptr.ValOrZero(s.AITool) {
+			aiTools = append(aiTools, *s)
+		}
 
 		installedPath := strings.TrimSpace(row["installed_path"])
 		if installedPath != "" &&
@@ -2614,13 +2702,35 @@ func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.
 		}
 	}
 
-	result, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	result, err := ds.UpdateHostSoftware(ctx, host.ID, software,
+		fleet.PreserveSoftwareSources(preservedsources.FromContext(ctx)...))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software")
 	}
 
 	if err := ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, sPaths, result); err != nil {
 		return ctxerr.Wrap(ctx, err, "update software installed path")
+	}
+
+	// UpdateHostSoftware only writes the flag on insert, and writes nothing when the host's
+	// software set is unchanged, so rows that already exist are flagged here. Rows the host
+	// already reported flagged are skipped, so an unchanged host makes no extra query.
+	if len(aiTools) > 0 && result != nil {
+		flagged := make(map[string]struct{}, len(aiTools))
+		for _, sw := range result.WasCurrInstalled {
+			if ptr.ValOrZero(sw.AITool) {
+				flagged[sw.ToUniqueStr()] = struct{}{}
+			}
+		}
+		aiTools = slices.DeleteFunc(aiTools, func(sw fleet.Software) bool {
+			_, ok := flagged[sw.ToUniqueStr()]
+			return ok
+		})
+	}
+	if len(aiTools) > 0 {
+		if err := ds.MarkSoftwareAsAITool(ctx, aiTools); err != nil {
+			return ctxerr.Wrap(ctx, err, "mark software as ai tool")
+		}
 	}
 
 	return nil
@@ -2659,6 +2769,22 @@ var (
 	// "v2.0.11.1-beta") doesn't end up in the ingested version, which
 	// version_compare can't order.
 	rpiImagerVersion = regexp.MustCompile(`^[vV](\d+(?:\.\d+)*)`)
+	// aiCLIDisplayNames maps the ai_tools agents catalog slug to the name shown in inventory. The
+	// table's own name column is left alone so existing reports keep working. Unknown slugs keep
+	// the reported name.
+	aiCLIDisplayNames = map[string]string{
+		"claude-code":  "Claude Code",
+		"gemini-cli":   "Gemini CLI",
+		"codex":        "Codex",
+		"aider":        "aider",
+		"goose":        "Goose",
+		"opencode":     "OpenCode",
+		"cline":        "Cline",
+		"continue-cli": "Continue CLI",
+		"cursor-agent": "Cursor Agent",
+		"amazon-q":     "Amazon Q",
+		"grok":         "Grok CLI",
+	}
 	// rAppVersionFormat extracts the R version from R.app's
 	// CFBundleShortVersionString. The "R" name is duplicated in some builds
 	// and not others, e.g. "R 4.5.1 GUI 1.82 High Sierra build" -> "4.5.1" and
@@ -2886,8 +3012,124 @@ var (
 				s.Name = "Windows Defender"
 			},
 		},
+		{
+			// fleetd's ai_tools table names catalog agents by slug (claude-code).
+			matches: func(s *fleet.Software) bool {
+				_, ok := aiCLIDisplayNames[s.Name]
+				return s.Source == "ai_clis" && ok
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				s.Name = aiCLIDisplayNames[s.Name]
+			},
+		},
+		{
+			// Cursor rule files (.cursor/rules/*.mdc) are named by the developer, so each name
+			// would be its own title. They share one; each file stays an installed path.
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "ai_skills" && strings.EqualFold(path.Ext(s.Name), ".mdc")
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				s.Name = "Cursor rules"
+			},
+		},
 	}
 )
+
+// AIToolsProcessResults merges the software_ai_tools rows into the software rows of a host on the
+// given platform. The existing type wins: an ai_tools row reported at the install path of software
+// another source already reports flags that row (ai_tool = "1") instead of adding a second title.
+// Only unmatched MCP servers, agent CLIs and instruction files are added.
+func AIToolsProcessResults(platform string, mainRows, aiRows []map[string]string) []map[string]string {
+	if len(aiRows) == 0 {
+		return mainRows
+	}
+
+	normalize := func(p string) string {
+		if platform == "windows" {
+			// programs.install_location comes from the registry, in whatever case and with or
+			// without the trailing backslash the installer wrote.
+			return normalizeWindowsDir(p)
+		}
+		p = strings.TrimSpace(p)
+		if trimmed := strings.TrimRight(p, "/"); trimmed != "" {
+			p = trimmed
+		}
+		return p
+	}
+
+	isDarwin := platform == "darwin"
+	homebrewVersionDirs := make(map[string][]int)
+	byPath := make(map[string][]int, len(mainRows))
+	for i, r := range mainRows {
+		installedPath := strings.TrimSpace(r["installed_path"])
+		if r["source"] == "npm_packages" {
+			// npm_packages reports the package's package.json; ai_tools reports its directory.
+			installedPath = trimFileName(installedPath, "package.json")
+		}
+		p := normalize(installedPath)
+		if p == "" {
+			continue
+		}
+		byPath[p] = append(byPath[p], i)
+
+		if isDarwin && r["source"] == "homebrew_packages" {
+			// installed_path is homebrew_packages.path: the formula's or cask's dir,
+			// .../Cellar/<formula> or .../Caskroom/<token>, shared by every installed version. Each
+			// version has its own row and is installed under <path>/<version>.
+			dir := path.Join(p, r["version"])
+			homebrewVersionDirs[dir] = append(homebrewVersionDirs[dir], i)
+		}
+	}
+
+	out := mainRows
+	for _, ai := range aiRows {
+		if ai == nil {
+			continue
+		}
+		rawPath := strings.TrimSpace(ai["installed_path"])
+		if ai["ai_type"] == "browser_extension" {
+			// Chromium extensions are reported by their manifest; chrome_extensions reports the
+			// directory.
+			rawPath = trimFileName(rawPath, "manifest.json")
+		}
+
+		var matched []int
+		p := normalize(rawPath)
+		if p != "" {
+			matched = append(matched, byPath[p]...)
+		}
+		if len(matched) == 0 && isDarwin && ai["ai_type"] == "agents" {
+			// A Homebrew-installed CLI is a file somewhere inside its version's dir.
+			for dir := path.Dir(p); dir != "/" && dir != "."; dir = path.Dir(dir) {
+				if rows, ok := homebrewVersionDirs[dir]; ok {
+					matched = append(matched, rows...)
+					break
+				}
+			}
+		}
+		// A match is software another source already reports, so storing the row would add a
+		// second title; the match is flagged instead. AI apps, IDE plugins and browser extensions
+		// have no source of their own and are never stored.
+		for _, i := range matched {
+			mainRows[i]["ai_tool"] = "1"
+		}
+		if len(matched) > 0 || ai["source"] == "ai_tools" {
+			continue
+		}
+		ai["ai_tool"] = "1"
+		out = append(out, ai)
+	}
+	return out
+}
+
+// trimFileName returns the directory of p when p names the file name, matched case-insensitively
+// with either path separator, and p otherwise.
+func trimFileName(p, name string) string {
+	if i := strings.LastIndexAny(p, `/\`); i >= 0 && strings.EqualFold(p[i+1:], name) {
+		return p[:i]
+	}
+	return p
+}
 
 // MutateSoftwareOnIngestion performs any tweaks required to the ingested software fields.
 //
@@ -3091,12 +3333,18 @@ func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Ho
 	// Fleet bakes byod=1 into the enrollment profile's ServerURL for personal
 	// (BYOD) enrollments (apple_mdm.AddPersonalEnrollmentToFleetURL). osquery
 	// reports that ServerURL here, so we read the flag back the same way we read
-	// the enroll reference above. Without this, the detail-query ingest would
-	// overwrite the personal enrollment type set by the Apple Authenticate flow.
-	// Must be read before RawQuery is cleared below.
+	// the enroll reference above, but only to keep the personal type the Apple
+	// Authenticate flow set, since the host reports the URL. Must be read before
+	// RawQuery is cleared below.
 	personalType := fleet.PersonalEnrollmentTypeNone
 	if mdmSolutionName == fleet.WellKnownMDMFleet && serverURL.Query().Get(apple_mdm.FleetPersonalEnrollmentKey) == "1" {
-		personalType = fleet.PersonalEnrollmentTypeManualProfile
+		hostMDM, err := ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "getting host mdm for personal enrollment")
+		}
+		if hostMDM != nil && hostMDM.PersonalEnrollmentType == fleet.PersonalEnrollmentTypeManualProfile {
+			personalType = fleet.PersonalEnrollmentTypeManualProfile
+		}
 	}
 
 	// strip any query parameters from the URL
@@ -3360,7 +3608,8 @@ func storeDarwinDiskEncryptionKey(
 			if err != nil {
 				logger.WarnContext(ctx, "comparing disk encryption key plaintext", "host_id", host.ID, "err", err)
 			} else if same {
-				return ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, existing.Base64Encrypted, base64Key)
+				_, err := ds.ReplaceHostDiskEncryptionKeyBlob(ctx, host.ID, existing.Base64Encrypted, base64Key)
+				return err
 			}
 		}
 	}
@@ -3487,6 +3736,7 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 	}
 
 	if username != "" {
+		// SQLite has no backslash escapes, so Go's %q can't quote this device-reported name.
 		query += fmt.Sprintf(`
 			UNION
 
@@ -3497,8 +3747,8 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, hos
 			FROM
 				macos_user_profiles
 			WHERE
-				username = %q AND
-				type = "Configuration"`, username)
+				username = '%s' AND
+				type = "Configuration"`, strings.ReplaceAll(username, "'", "''"))
 	}
 	return query, true
 }
@@ -3797,6 +4047,7 @@ var luksVerifyQuery = DetailQuery{
 		WITH RECURSIVE
 		devices AS (
 			SELECT
+				parent,
 				MAX(CASE WHEN key = 'path' THEN value ELSE NULL END) AS path,
 				MAX(CASE WHEN key = 'kname' THEN value ELSE NULL END) AS kname,
 				MAX(CASE WHEN key = 'pkname' THEN value ELSE NULL END) AS pkname,
@@ -3806,6 +4057,14 @@ var luksVerifyQuery = DetailQuery{
 			GROUP BY parent
 		HAVING path <> '' AND fstype <> ''
 		),
+		-- lsblk lists every mount point of a device under "mountpoints" and keeps only
+		-- one of them in "mountpoint". A btrfs root with subvolumes (Omarchy) mounts the
+		-- same device at /, /home and more, so '/' may appear only in the list.
+		root_devices AS (
+			SELECT substr(parent, 1, length(parent) - length('/mountpoints')) AS parent
+			FROM lsblk
+			WHERE parent LIKE '%/mountpoints' AND value = '/'
+		),
 		root_mount AS (
 			SELECT
 				path,
@@ -3814,7 +4073,7 @@ var luksVerifyQuery = DetailQuery{
 				CASE WHEN fstype = 'crypto_LUKS' THEN NULL ELSE pkname END as pkname,
 				fstype
 			FROM devices
-			WHERE mountpoint = '/'
+			WHERE mountpoint = '/' OR parent IN (SELECT parent FROM root_devices)
 		),
 		luks_h(path, kname, pkname, fstype) AS (
 			SELECT
@@ -3918,6 +4177,19 @@ var bitLockerPresentDiscovery = fmt.Sprintf(`
 			)
 			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent)
 
+// bitLockerDiscovery is the discovery clause for a query that needs BitLocker to be usable and the given conditions to hold.
+// The conditions sit behind CASE because osquery's SQLite evaluates every operand of AND, and bitlocker_key_protectors errors
+// where BitLocker is absent. A failing discovery query makes osquery drop the host's whole distributed batch.
+func bitLockerDiscovery(conditions string) string {
+	return fmt.Sprintf(`
+			WITH should_run(yes) AS (
+			SELECT
+				CASE WHEN %s THEN (%s
+				) ELSE 0 END
+			)
+			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent, conditions)
+}
+
 // bitlockerPolicyQueries run wherever Fleet enforces Windows disk encryption, whether or not a startup PIN is required.
 var bitlockerPolicyQueries = map[string]DetailQuery{
 	// An admin, third-party software, or a previous MDM can leave a volume encrypted but unprotected while policy forbids the
@@ -3928,16 +4200,11 @@ var bitlockerPolicyQueries = map[string]DetailQuery{
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And no protector that can release the volume master key at boot exists, so the agent has to create one.
 		// - And the volume is fully encrypted, whether or not protection is currently on.
-		Discovery: fmt.Sprintf(`
-			WITH should_run(yes) AS (
-			SELECT
-				%s
+		Discovery: bitLockerDiscovery(`
 				-- 1, 4, 5, 6 are the TPM-family protectors; 2 is an external startup key on a USB stick.
-				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6))
+				NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (1,2,4,5,6))
 				-- Volume is fully encrypted.
-				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND conversion_status = 1)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND conversion_status = 1)`),
 		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPM'",
 		DirectIngestFunc: func(
 			ctx context.Context,
@@ -4028,18 +4295,13 @@ var tpmPINQueries = map[string]DetailQuery{
 		// - BitLocker is not an optional component (is built in) OR is an optional component and enabled.
 		// - And a TPM PIN is not yet set.
 		// - And the volume is encrypted (to avoid errors while trying to apply the policy).
-		Discovery: fmt.Sprintf(`
-			WITH should_run(yes) AS (
-			SELECT
-				%s
+		Discovery: bitLockerDiscovery(`
 				-- PIN is already set, so regardless of the current config, we don't need to enforce it:
 				-- 4: TPM And PIN.
 				-- 6: TPM And PIN And Startup key.
-				AND NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (4,6))
+				NOT EXISTS(SELECT 1 FROM bitlocker_key_protectors WHERE drive_letter = 'C:' AND key_protector_type IN (4,6))
 				-- Volume is encrypted
-				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
-			)
-			SELECT 1 FROM should_run WHERE yes = 1`, bitLockerPresent),
+				AND EXISTS(SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)`),
 		// Every value under the policy key, matched by name in Go because registry value names are case-insensitive.
 		Query: "SELECT name, data FROM registry WHERE key = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE'",
 		DirectIngestFunc: func(
@@ -4125,6 +4387,9 @@ func GetDetailQueries(
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
 		generatedMap["software_adobe_plugins"] = softwareAdobePlugins
 		generatedMap["software_go_binaries"] = softwareGoBinaries
+		if license.IsPremium(ctx) {
+			generatedMap["software_ai_tools"] = softwareAITools
+		}
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query
@@ -4173,7 +4438,6 @@ func GetDetailQueries(
 	}
 
 	if integrations.ConditionalAccessMicrosoft {
-		generatedMap["conditional_access_microsoft_device_id"] = macOSEntraIDDetails
 		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
@@ -4194,28 +4458,6 @@ func GetDetailQueries(
 			}
 		}(fleetConfig.Server.PrivateKey))
 		generatedMap["luks_verify"] = luksVerifyQuery
-	}
-
-	if features != nil {
-		var unknownQueries []string
-
-		for name, override := range features.DetailQueryOverrides {
-			query, ok := generatedMap[name]
-			if !ok {
-				unknownQueries = append(unknownQueries, name)
-				continue
-			}
-			if override == nil || *override == "" {
-				delete(generatedMap, name)
-			} else {
-				query.Query = *override
-				generatedMap[name] = query
-			}
-		}
-
-		if len(unknownQueries) > 0 {
-			logging.WithErr(ctx, ctxerr.New(ctx, fmt.Sprintf("detail_query_overrides: unknown queries: %s", strings.Join(unknownQueries, ","))))
-		}
 	}
 
 	return generatedMap

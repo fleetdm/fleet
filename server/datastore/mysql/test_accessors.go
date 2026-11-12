@@ -33,6 +33,7 @@ func (ds *Datastore) TestReplica() fleet.DBReader {
 // be used from production code.
 func (ds *Datastore) TestSetReplica(r fleet.DBReader) {
 	ds.replica = r
+	ds.healthReplica = nil
 }
 
 // TestSetReadReplicaConfig overrides the read replica MySQL config for use

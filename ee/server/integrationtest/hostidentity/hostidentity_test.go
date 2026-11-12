@@ -41,6 +41,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/go-tpm/tpm2/transport/simulator"
+	"github.com/jmoiron/sqlx"
 	"github.com/remitly-oss/httpsig-go"
 	"github.com/rs/zerolog"
 	"github.com/smallstep/scep"
@@ -61,6 +62,7 @@ func TestHostIdentity(t *testing.T) {
 	}{
 		{"GetCertAndSignReq", testGetCertAndSignReq},
 		{"GetCertFailures", testGetCertFailures},
+		{"ReissueForExistingName", testReissueForExistingName},
 		{"WrongCertAuthentication", testWrongCertAuthentication},
 		{"RealSecureHWAndSCEP", testRealSecureHWAndSCEP},
 	}
@@ -496,27 +498,25 @@ func testOsqueryEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPr
 	return enrollResp.NodeKey
 }
 
-// testCertificateRenewal tests the SCEP certificate renewal flow with proof-of-possession
-func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey, nodeKey string, isOsquery bool) {
-	ctx := t.Context()
-
-	// Get the original certificate's host_id before renewal (it will get revoked)
-	originalStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, existingCert.SerialNumber.Uint64())
-	require.NoError(t, err)
-	require.NotNil(t, originalStoredCert)
-	require.NotNil(t, originalStoredCert.HostID, "Original certificate should have host_id")
-	originalHostID := *originalStoredCert.HostID
-
-	// Generate a new ECC key pair for the renewed certificate
-	newEccPrivateKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
-	require.NoError(t, err)
+// renewalCSR builds a renewal request for existingCert, proving possession of existingKey and requesting a cert for newKey.
+// legacy signs the proof format of fleetd that predates key-bound proofs.
+func renewalCSR(
+	t *testing.T, existingCert *x509.Certificate, existingKey, newKey *ecdsa.PrivateKey, legacy bool,
+) *x509.CertificateRequest {
+	t.Helper()
 
 	// Create the renewal data
 	serialHex := fmt.Sprintf("0x%x", existingCert.SerialNumber.Bytes())
 
 	// Sign the message with the existing private key
-	hash := sha256.Sum256([]byte(serialHex))
-	signature, err := ecdsa.SignASN1(rand.Reader, eccPrivateKey, hash[:])
+	newKeyDER, err := x509.MarshalPKIXPublicKey(&newKey.PublicKey)
+	require.NoError(t, err)
+	proofMessage := types.RenewalChallenge(serialHex, newKeyDER)
+	if legacy {
+		proofMessage = []byte(serialHex)
+	}
+	hash := sha256.Sum256(proofMessage)
+	signature, err := ecdsa.SignASN1(rand.Reader, existingKey, hash[:])
 	require.NoError(t, err)
 
 	renewalData := types.RenewalData{
@@ -544,10 +544,29 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		// No challenge password for renewal
 	}
 
-	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, newEccPrivateKey)
+	csrDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &csrTemplate, newKey)
 	require.NoError(t, err)
 	csr, err := x509.ParseCertificateRequest(csrDerBytes)
 	require.NoError(t, err)
+	return csr
+}
+
+// testCertificateRenewal tests the SCEP certificate renewal flow with proof-of-possession
+func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey, nodeKey string, isOsquery bool) {
+	ctx := t.Context()
+
+	// Get the original certificate's host_id before renewal (it will get revoked)
+	originalStoredCert, err := s.DS.GetHostIdentityCertBySerialNumber(ctx, existingCert.SerialNumber.Uint64())
+	require.NoError(t, err)
+	require.NotNil(t, originalStoredCert)
+	require.NotNil(t, originalStoredCert.HostID, "Original certificate should have host_id")
+	originalHostID := *originalStoredCert.HostID
+
+	// Generate a new ECC key pair for the renewed certificate
+	newEccPrivateKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
+	require.NoError(t, err)
+
+	csr := renewalCSR(t, existingCert, eccPrivateKey, newEccPrivateKey, false)
 
 	renewedCert, err := enrollHostIdentityCSR(t, s, csr)
 	require.NoError(t, err, "Renewal should succeed")
@@ -644,35 +663,26 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		// Try to renew again using the same old certificate serial number
 		// This should fail because the certificate has already been revoked
 
-		// Generate another new key pair for this attempt
+		// Generate another new key pair for this attempt, with a valid proof for it, so revocation is the only reason to reject it
 		anotherNewKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
 		require.NoError(t, err)
-
-		// Use the same renewal data as before (same serial and signature)
-		retryCSRTemplate := x509util.CertificateRequest{
-			CertificateRequest: x509.CertificateRequest{
-				Subject: pkix.Name{
-					CommonName: existingCert.Subject.CommonName,
-				},
-				SignatureAlgorithm: x509.ECDSAWithSHA256,
-				ExtraExtensions: []pkix.Extension{
-					{
-						Id:    types.RenewalExtensionOID,
-						Value: renewalDataJSON, // Reuse the same renewal data
-					},
-				},
-			},
-		}
-
-		retryCSRDerBytes, err := x509util.CreateCertificateRequest(rand.Reader, &retryCSRTemplate, anotherNewKey)
-		require.NoError(t, err)
-		retryCSR, err := x509.ParseCertificateRequest(retryCSRDerBytes)
-		require.NoError(t, err)
+		retryCSR := renewalCSR(t, existingCert, eccPrivateKey, anotherNewKey, false)
 
 		_, err = enrollHostIdentityCSR(t, s, retryCSR)
 		rejected, ok := errors.AsType[enrollment.RejectedError](err)
 		require.True(t, ok, "Renewal retry with same serial should fail, got %v", err)
 		require.Equal(t, scep.FAILURE, rejected.Status)
+	})
+
+	t.Run("legacy renewal proof from older fleetd is accepted", func(t *testing.T) {
+		legacyNewKey, err := ecdsa.GenerateKey(eccPrivateKey.Curve, rand.Reader)
+		require.NoError(t, err)
+		legacyCSR := renewalCSR(t, renewedCert, newEccPrivateKey, legacyNewKey, true)
+		legacyCert, err := enrollHostIdentityCSR(t, s, legacyCSR)
+		require.NoError(t, err)
+		legacyPubKey, ok := legacyCert.PublicKey.(*ecdsa.PublicKey)
+		require.True(t, ok)
+		assert.True(t, legacyNewKey.PublicKey.Equal(legacyPubKey))
 	})
 }
 
@@ -819,6 +829,47 @@ func testGetCertFailures(t *testing.T, s *Suite) {
 			testSCEPFailure(t, s, c.config)
 		})
 	}
+}
+
+// testReissueForExistingName checks that the enroll secret cannot replace a valid certificate with a different key, but can re-issue it
+// for the same key (an agent retrying because the certificate never reached it), and can replace it once it expired.
+func testReissueForExistingName(t *testing.T, s *Suite) {
+	ctx := t.Context()
+	cert, key := testGetCertWithCurve(t, s, elliptic.P256())
+	name := cert.Subject.CommonName
+
+	// Requesting a new certificate for the same name with a different key should fail while the existing one is valid
+	_, err := requestSCEPCertificate(t, s, name)
+	require.Error(t, err)
+	current, err := s.DS.GetHostIdentityCertByName(ctx, name)
+	require.NoError(t, err)
+	require.Equal(t, cert.SerialNumber.Uint64(), current.SerialNumber)
+
+	// The same request signed with the existing key should succeed
+	csrDER, err := x509util.CreateCertificateRequest(rand.Reader, &x509util.CertificateRequest{
+		Subject:            pkix.Name{CommonName: name},
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
+		ChallengePassword:  testEnrollmentSecret,
+	}, key)
+	require.NoError(t, err)
+	csr, err := x509.ParseCertificateRequest(csrDER)
+	require.NoError(t, err)
+	sameKeyCert, err := enrollHostIdentityCSR(t, s, csr)
+	require.NoError(t, err)
+	current, err = s.DS.GetHostIdentityCertByName(ctx, name)
+	require.NoError(t, err)
+	require.Equal(t, sameKeyCert.SerialNumber.Uint64(), current.SerialNumber)
+	require.NotEqual(t, cert.SerialNumber.Uint64(), current.SerialNumber)
+
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_identity_scep_certificates SET not_valid_after = NOW() - INTERVAL 1 DAY WHERE name = ?`, name)
+		return err
+	})
+	newCert, err := requestSCEPCertificate(t, s, name)
+	require.NoError(t, err)
+	current, err = s.DS.GetHostIdentityCertByName(ctx, name)
+	require.NoError(t, err)
+	require.Equal(t, newCert.SerialNumber.Uint64(), current.SerialNumber)
 }
 
 type SCEPFailureConfig struct {

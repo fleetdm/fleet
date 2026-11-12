@@ -73,6 +73,10 @@ try {
     Exit 1
 }
 
+if ($exitCode -eq 1641 -or $exitCode -eq 3010) {
+    Write-Host "Uninstall succeeded. Restart the host before installing Google Drive again."
+}
+
 if ($expectedExitCodes -contains $exitCode) {
     $exitCode = 0
 }

@@ -2,7 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
-import validUrl from "components/forms/validators/valid_url";
+import { isValidURL } from "components/forms/validators";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import SettingsSection from "pages/admin/components/SettingsSection";
@@ -14,13 +14,13 @@ interface IWebAddressFormData {
   serverURL: string;
 }
 
-const validate = ({ serverURL }: IWebAddressFormData): IFormErrors => {
+export const validate = ({ serverURL }: IWebAddressFormData): IFormErrors => {
   const errors: IFormErrors = {};
   if (!serverURL) {
     errors.serverURL = "Enter your Fleet web address";
   } else if (
-    !validUrl({
-      url: serverURL,
+    !isValidURL({
+      url: serverURL.trim(),
       protocols: ["http", "https"],
       allowLocalHost: true,
     })

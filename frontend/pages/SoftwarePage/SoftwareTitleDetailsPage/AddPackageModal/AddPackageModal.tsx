@@ -104,7 +104,7 @@ const AddPackageModal = ({
       if (!gitOpsModeEnabled) {
         notify.success(
           <>
-            Successfully added new <b>{formData.software.name}</b> package.
+            Successfully added new <b>{formData.software.name}</b> version.
           </>
         );
       }
@@ -127,7 +127,7 @@ const AddPackageModal = ({
     <>
       <Modal
         className={baseClass}
-        title="Add package"
+        title="Add version"
         onExit={onExit}
         width="large"
       >

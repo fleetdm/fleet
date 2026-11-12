@@ -1,7 +1,7 @@
 # Fleet database migrations
 
 - [Adding/Updating tables](#addingupdating-tables)
-- [Populating the database with default data](#populating-the-database-with-default-data)
+- [The Fleet 5 baseline](#the-fleet-5-baseline)
 
 
 ## Adding/updating tables
@@ -27,23 +27,13 @@ make fleet
 ./build/fleet prepare db
 ```
 
-## Populating the database with default data
+## The Fleet 5 baseline
 
-Note: This pattern is now deprecated, new data changes are done using the same migrations process as for tables. Since there are a few data migrations using this obsolete pattern, we keep its documentation here:
+The first migration, `20261103120000_Fleet5Baseline.go`, creates the whole Fleet 5 schema and its seed data (built-in labels, default app config, etc.) from `baseline_schema.sql`. It replaced every Fleet 4 table and data migration. Never edit the baseline: add a new migration instead, including for default data.
 
-Populating built-in data is also performed through migrations. All table migrations are performed before any data migrations.
+Fleet 4 databases must be upgraded to Fleet 4.95.0 or later before upgrading to Fleet 5. A 4.95.0 or later database already has the baseline schema, so on those the baseline only checks that every migration in `Fleet4Migrations` (`fleet4_migrations.go`) is applied, then records itself. It refuses any other Fleet 4 database. The Fleet 4 migration records are kept, and the migration status check treats them as known.
 
-Note: Data migrations can be mutable. If tables are altered in a way that would render a data migration invalid (columns changed/removed), data migrations should be updated to comply with the new schema. Data migrations will not be re-run when they have already been run against a database, but they must be updated to maintain compatibility with a fresh DB.
-
-From the project root, run the following shell command:
-
-``` bash
-make migration name=NameOfMigration
-```
-
-Move the migration file from [server/datastore/mysql/migrations/tables/](https://github.com/fleetdm/fleet/tree/97b4d1f3fb30f7b25991412c0b40327f93cb118c/server/datastore/mysql/migrations/tables) to [server/datastore/mysql/migrations/data/](https://github.com/fleetdm/fleet/tree/97b4d1f3fb30f7b25991412c0b40327f93cb118c/server/datastore/mysql/migrations/data), and change the `package tables` to `package data`.
-
-Proceed as for table migrations, editing and running the newly created migration file.
+A migration added in a Fleet 4 release after 4.95.0 (4.95.x patches, 4.96, etc.) must also be merged, unchanged, into Fleet 5. Its version is newer than the baseline, so goose runs it after the baseline on fresh installs and on databases upgraded from an earlier Fleet 4 release, and skips it on databases that already applied it. Don't add it to `Fleet4Migrations`.
 
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn about creating and updating database migrations for Fleet.">

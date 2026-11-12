@@ -78,18 +78,20 @@ func (s *integrationTestSuite) TestLabels() {
 			s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: strings.ToUpper(n), Query: "select 1"}, http.StatusUnprocessableEntity, &createResp)
 		}
 
-		// try to create a label with an invalid platform
-		s.DoJSON(
-			"POST",
-			"/api/latest/fleet/labels",
-			&fleet.LabelPayload{
-				Name:     "amazing label",
-				Query:    "select 1",
-				Platform: "bados",
-			},
-			http.StatusUnprocessableEntity,
-			&createResp,
-		)
+		// try to create a label with an invalid platform; ubuntu and centos were replaced by linux
+		for _, platform := range []string{"bados", "ubuntu", "centos"} {
+			s.DoJSON(
+				"POST",
+				"/api/latest/fleet/labels",
+				&fleet.LabelPayload{
+					Name:     "amazing label",
+					Query:    "select 1",
+					Platform: platform,
+				},
+				http.StatusUnprocessableEntity,
+				&createResp,
+			)
+		}
 
 		// create a label with the generic "linux" platform (matches all Linux distros)
 		s.DoJSON(
@@ -134,11 +136,17 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// create a valid manual label
 		createResp = fleet.CreateLabelResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name() + "manual", Hosts: []string{manualHosts[0].UUID, manualHosts[1].Hostname, *manualHosts[2].NodeKey}}, http.StatusOK, &createResp)
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name() + "manual", Hosts: []string{manualHosts[0].UUID, manualHosts[1].UUID, manualHosts[2].UUID}}, http.StatusOK, &createResp)
 		assert.NotZero(t, createResp.Label.ID)
 		assert.Equal(t, t.Name()+"manual", createResp.Label.Name)
 		assert.ElementsMatch(t, []uint{manualHosts[0].ID, manualHosts[1].ID, manualHosts[2].ID}, createResp.Label.HostIDs)
 		manualLbl1 := createResp.Label.Label
+
+		// hostname, node key and osquery host ID aren't manual label host identifiers
+		hostnameResp := fleet.CreateLabelResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name() + "hostname", Hosts: []string{manualHosts[1].Hostname, *manualHosts[1].NodeKey, *manualHosts[1].OsqueryHostID}}, http.StatusOK, &hostnameResp)
+		assert.Empty(t, hostnameResp.Label.HostIDs)
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", hostnameResp.Label.ID), nil, http.StatusOK)
 
 		// get the label
 		getResp = fleet.GetLabelResponse{}
@@ -423,10 +431,10 @@ func (s *integrationTestSuite) TestLabels() {
 			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
 			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
 			"last_enrolled_at", "refetch_requested", "refetch_critical_queries_until",
-			"team_id", "policy_updated_at", "public_ip",
+			"team_id", "fleet_id", "policy_updated_at", "public_ip",
 			"gigs_disk_space_available", "percent_disk_space_available",
 			"gigs_total_disk_space", "seen_time", "software_updated_at",
-			"last_restarted_at", "timezone", "team_name",
+			"last_restarted_at", "timezone", "team_name", "fleet_name",
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count",
 			"issues", // supported as alias for "total_issues_count"
@@ -479,21 +487,10 @@ func (s *integrationTestSuite) TestLabels() {
 		// delete a non-existing label by id
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl2.ID+1), nil, http.StatusNotFound, &delIDResp)
 
-		// delete a label by name
-		var delResp fleet.DeleteLabelResponse
-		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusOK, &delResp)
-
-		// delete a non-existing label by name
-		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusNotFound, &delResp)
-
-		// delete a built-in label by name (case-insensitive)
-		for n := range builtinsMap {
-			for _, variant := range []string{n, strings.ToLower(n), strings.ToUpper(n)} {
-				res = s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(variant)), nil, http.StatusUnprocessableEntity)
-				errMsg = extractServerErrorText(res.Body)
-				require.Contains(t, errMsg, "cannot delete built-in label")
-			}
-		}
+		// labels can only be deleted by ID
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(lbl2.Name)), nil, http.StatusGone)
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl2.ID), nil, http.StatusOK, &delIDResp)
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl2.ID), nil, http.StatusNotFound, &delIDResp)
 		listResp = fleet.ListLabelsResponse{}
 		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp)
 		var remainingBuiltIns int
@@ -507,8 +504,7 @@ func (s *integrationTestSuite) TestLabels() {
 		// delete a manual label by id
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", manualLbl1.ID), nil, http.StatusOK, &delIDResp)
 
-		// delete a manual label by name
-		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(manualLbl2.Name)), nil, http.StatusOK, &delResp)
+		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", manualLbl2.ID), nil, http.StatusOK, &delIDResp)
 
 		// list labels, only the built-ins remain
 		s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "per_page", strconv.Itoa(builtInsCount+1))
@@ -546,9 +542,6 @@ func (s *integrationTestSuite) TestLabels() {
 		for name := range builtinsMap {
 			id, ok := idsByName[name]
 			require.True(t, ok)
-
-			// attempt to delete by name
-			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/%s", url.PathEscape(name)), nil, http.StatusUnprocessableEntity, &delResp)
 
 			// attempt to delete by id
 			s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", id), nil, http.StatusUnprocessableEntity, &delIDResp)
@@ -982,11 +975,11 @@ func (s *integrationTestSuite) TestLabels() {
 			"hardware_vendor", "hardware_model", "hardware_version", "hardware_serial",
 			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
 			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
-			"last_enrolled_at", "refetch_critical_queries_until", "team_id",
+			"last_enrolled_at", "refetch_critical_queries_until", "team_id", "fleet_id",
 			"policy_updated_at", "public_ip",
 			"gigs_disk_space_available", "percent_disk_space_available",
 			"gigs_total_disk_space", "seen_time", "software_updated_at",
-			"last_restarted_at", "timezone", "team_name",
+			"last_restarted_at", "timezone", "team_name", "fleet_name",
 			"failing_policies_count", "critical_vulnerabilities_count",
 			"total_issues_count", "issues",
 			"device_mapping",
@@ -1215,23 +1208,41 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 		}, http.StatusUnprocessableEntity, &applyResp,
 	)
 
-	// apply an invalid label spec - invalid platform
-	s.DoJSON(
-		"POST",
-		"/api/latest/fleet/spec/labels",
-		fleet.ApplyLabelSpecsRequest{
-			Specs: []*fleet.LabelSpec{
-				{
-					Name:                name,
-					Query:               "select 1",
-					Platform:            "bados",
-					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	// names that differ by case and accent are the same name to the database, so they collide with each other and with built-in labels
+	res := s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{Specs: []*fleet.LabelSpec{
+		{Name: name + "_Gämma", Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+		{Name: name + "_gamma", Query: "select 2", LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fmt.Sprintf("More than one label has the same name: %q", name+"_gamma"))
+	res = s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{Specs: []*fleet.LabelSpec{
+		{Name: "Àll Hosts", Query: "select 1", LabelMembershipType: fleet.LabelMembershipTypeDynamic},
+	}}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "conflicts with the name of a built-in label")
+	s.DoJSON("GET", "/api/latest/fleet/spec/labels", nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Specs, builtInsCount)
+	for _, spec := range listResp.Specs {
+		require.Equal(t, fleet.LabelTypeBuiltIn, spec.LabelType)
+	}
+
+	// apply an invalid label spec - invalid platform; ubuntu and centos were replaced by linux
+	for _, platform := range []string{"bados", "ubuntu", "centos"} {
+		s.DoJSON(
+			"POST",
+			"/api/latest/fleet/spec/labels",
+			fleet.ApplyLabelSpecsRequest{
+				Specs: []*fleet.LabelSpec{
+					{
+						Name:                name,
+						Query:               "select 1",
+						Platform:            platform,
+						LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+					},
 				},
 			},
-		},
-		http.StatusUnprocessableEntity,
-		&applyResp,
-	)
+			http.StatusUnprocessableEntity,
+			&applyResp,
+		)
+	}
 
 	// apply a valid label spec - generic "linux" platform
 	s.DoJSON(
@@ -1296,7 +1307,7 @@ func (s *integrationTestSuite) TestLabelSpecs() {
 			{
 				Name:                name,
 				Query:               "select 1",
-				Platform:            "centos",
+				Platform:            "darwin",
 				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
 			},
 		},

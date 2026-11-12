@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -116,7 +117,8 @@ func TestConfigRoundtrip(t *testing.T) {
 	require.Nil(t, err)
 
 	// Ensure the read config is the same as the original
-	actual := man.LoadConfig()
+	actual, err := man.LoadConfig()
+	require.NoError(t, err)
 	assert.Equal(t, *original, actual)
 }
 
@@ -326,11 +328,11 @@ osquery:
 			var loadedCfg FleetConfig
 			if c.panics {
 				require.Panics(t, func() {
-					loadedCfg = man.LoadConfig()
+					loadedCfg, _ = man.LoadConfig()
 				})
 			} else {
 				require.NotPanics(t, func() {
-					loadedCfg = man.LoadConfig()
+					loadedCfg = mustLoadConfig(t, man)
 				})
 				got := loadedCfg.Osquery.AsyncConfigForTask(AsyncTaskLabelMembership)
 				require.Equal(t, c.wantLabelCfg, got)
@@ -387,7 +389,7 @@ func TestOsqueryConfigETagDefaults(t *testing.T) {
 
 			var loadedCfg FleetConfig
 			require.NotPanics(t, func() {
-				loadedCfg = man.LoadConfig()
+				loadedCfg = mustLoadConfig(t, man)
 			})
 			require.Equal(t, c.wantConfigETags, loadedCfg.Osquery.ConfigETags)
 			require.Equal(t, c.wantRedisETags, loadedCfg.Osquery.RedisConfigETags)
@@ -504,11 +506,11 @@ server:
 			var loadedCfg FleetConfig
 			if c.panics {
 				require.Panics(t, func() {
-					loadedCfg = man.LoadConfig()
+					loadedCfg, _ = man.LoadConfig()
 				})
 			} else {
 				require.NotPanics(t, func() {
-					loadedCfg = man.LoadConfig()
+					loadedCfg = mustLoadConfig(t, man)
 				})
 				require.Equal(t, c.expectedOverrides, loadedCfg.Server.EndpointRequestSizeOverrides)
 			}
@@ -562,7 +564,7 @@ ses:
 				t.Setenv(kv[0], kv[1])
 			}
 
-			loadedCfg := man.LoadConfig()
+			loadedCfg := mustLoadConfig(t, man)
 			require.Equal(t, c.want, loadedCfg.SES.SenderDomain)
 		})
 	}
@@ -1076,16 +1078,26 @@ func TestAppleCommandCleanupValidate(t *testing.T) {
 			c.AppleCommandCleanupMaxRowDeletionsPerRun = 0
 			c.AppleCommandCleanupMaxCmdDeletionsPerRun = 0
 		}, ""},
-		{"short retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = time.Minute },
-			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s"},
-		{"standard retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupStandardRetention = 59 * time.Minute },
-			"mdm.apple_command_cleanup_standard_retention must be 0 (disabled) or at least 1h0m0s"},
-		{"negative retention", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = -time.Hour },
-			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s"},
-		{"negative row cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxRowDeletionsPerRun = -1 },
-			"mdm.apple_command_cleanup_max_row_deletions_per_run must be non-negative (0 = no deletions)"},
-		{"negative command cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxCmdDeletionsPerRun = -1 },
-			"mdm.apple_command_cleanup_max_command_deletions_per_run must be non-negative (0 = no deletions)"},
+		{
+			"short retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = time.Minute },
+			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"standard retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupStandardRetention = 59 * time.Minute },
+			"mdm.apple_command_cleanup_standard_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"negative retention", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = -time.Hour },
+			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"negative row cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxRowDeletionsPerRun = -1 },
+			"mdm.apple_command_cleanup_max_row_deletions_per_run must be non-negative (0 = no deletions)",
+		},
+		{
+			"negative command cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxCmdDeletionsPerRun = -1 },
+			"mdm.apple_command_cleanup_max_command_deletions_per_run must be non-negative (0 = no deletions)",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
@@ -1123,7 +1135,7 @@ func loadConfigWithOverrides(t *testing.T, yaml string, envVars []string) FleetC
 		t.Setenv(kv[0], kv[1])
 	}
 
-	return man.LoadConfig()
+	return mustLoadConfig(t, man)
 }
 
 func TestAppleCommandCleanupConfig(t *testing.T) {
@@ -1402,10 +1414,10 @@ func TestOsqueryConfigInMemoryCacheDefault(t *testing.T) {
 
 	testutils.SaveEnv(t)
 	os.Clearenv()
-	require.False(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
+	require.False(t, mustLoadConfig(t, man).Osquery.ConfigInMemoryCache)
 
 	t.Setenv("FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE", "true")
-	require.True(t, man.LoadConfig().Osquery.ConfigInMemoryCache)
+	require.True(t, mustLoadConfig(t, man).Osquery.ConfigInMemoryCache)
 }
 
 func TestOsqueryQueryReportConcurrencyLimits(t *testing.T) {
@@ -1415,7 +1427,7 @@ func TestOsqueryQueryReportConcurrencyLimits(t *testing.T) {
 		man := NewManager(&cmd)
 		man.viper.SetConfigType("yaml")
 		require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
-		return man.LoadConfig().Osquery
+		return mustLoadConfig(t, man).Osquery
 	}
 
 	testutils.SaveEnv(t)
@@ -1577,6 +1589,9 @@ func TestValidateWebSocketConfig(t *testing.T) {
 		OrbitConfigEnabled:      true,
 		OrbitConfigPollInterval: 5 * time.Minute,
 		OrbitConfigSpread:       30 * time.Second,
+
+		OsqueryConfigEnabled:      true,
+		OsqueryConfigPollInterval: 10 * time.Minute,
 	}
 
 	t.Run("valid", func(t *testing.T) {
@@ -1599,6 +1614,15 @@ func TestValidateWebSocketConfig(t *testing.T) {
 		{"orbit_config_enabled without transport", func(c *WebSocketConfig) { c.TransportEnabled = false }},
 		{"orbit_config_poll_interval below 30s", func(c *WebSocketConfig) { c.OrbitConfigPollInterval = 10 * time.Second }},
 		{"negative orbit_config_spread", func(c *WebSocketConfig) { c.OrbitConfigSpread = -time.Second }},
+		{"osquery_config_enabled without transport", func(c *WebSocketConfig) {
+			c.TransportEnabled = false
+			c.OrbitConfigEnabled = false
+		}},
+		{"osquery_config_poll_interval below 1m", func(c *WebSocketConfig) { c.OsqueryConfigPollInterval = 30 * time.Second }},
+		{"negative orbit_config_spread with only osquery config", func(c *WebSocketConfig) {
+			c.OrbitConfigEnabled = false
+			c.OrbitConfigSpread = -time.Second
+		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			cfg := valid
@@ -1627,7 +1651,7 @@ func TestSoftwareInstallersSignedURLKeys(t *testing.T) {
 			}
 			cmd := &cobra.Command{}
 			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
-			require.Equal(t, c.want, NewManager(cmd).LoadConfig().S3.SoftwareInstallersSignedURL)
+			require.Equal(t, c.want, mustLoadConfig(t, NewManager(cmd)).S3.SoftwareInstallersSignedURL)
 		})
 	}
 }
@@ -1757,3 +1781,71 @@ type testSigner struct{}
 func (*testSigner) Public() crypto.PublicKey { return nil }
 
 func (*testSigner) Sign(io.Reader, []byte, crypto.SignerOpts) ([]byte, error) { return nil, nil }
+
+func mustLoadConfig(t *testing.T, man Manager) FleetConfig {
+	t.Helper()
+	cfg, err := man.LoadConfig()
+	require.NoError(t, err)
+	return cfg
+}
+
+func TestRemovedConfigKeys(t *testing.T) {
+	newManager := func(t *testing.T, yaml string) (*cobra.Command, Manager) {
+		cmd := &cobra.Command{Use: "serve", Run: func(*cobra.Command, []string) {}}
+		cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+		man := NewManager(cmd)
+		man.viper.SetConfigType("yaml")
+		require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
+		return cmd, man
+	}
+	// removedMessage builds the expected message with the old and new names in the form the user set them.
+	removedMessage := func(e removednames.Entry, convert func(string) string) string {
+		newName := e.New
+		if newName != "" {
+			newName = convert(newName)
+		}
+		return removednames.Message(convert(e.Old), newName)
+	}
+
+	for _, removedKey := range removednames.Filter(removednames.KindConfigKey, 0) {
+		t.Run(removedKey.Old, func(t *testing.T) {
+			t.Run("file", func(t *testing.T) {
+				// Nest the dotted key as YAML, the way it appears in a config file.
+				var yaml strings.Builder
+				parts := strings.Split(removedKey.Old, ".")
+				for i, part := range parts {
+					yaml.WriteString(strings.Repeat("  ", i))
+					yaml.WriteString(part)
+					yaml.WriteString(":")
+					if i < len(parts)-1 {
+						yaml.WriteString("\n")
+					}
+				}
+				yaml.WriteString(" value\n")
+
+				_, man := newManager(t, yaml.String())
+				want := removedMessage(removedKey, func(s string) string { return s })
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
+
+			t.Run("env", func(t *testing.T) {
+				t.Setenv(envNameFromConfigKey(removedKey.Old), "value")
+
+				_, man := newManager(t, "")
+				want := removedMessage(removedKey, envNameFromConfigKey)
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
+
+			t.Run("flag", func(t *testing.T) {
+				cmd, man := newManager(t, "")
+				require.NoError(t, cmd.ParseFlags([]string{"--" + flagNameFromConfigKey(removedKey.Old) + "=value"}))
+
+				want := removedMessage(removedKey, func(s string) string { return "--" + flagNameFromConfigKey(s) })
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
+		})
+	}
+}

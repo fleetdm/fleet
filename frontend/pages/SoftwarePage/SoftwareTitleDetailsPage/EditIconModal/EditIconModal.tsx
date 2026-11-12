@@ -6,6 +6,7 @@ import Button from "components/buttons/Button";
 import Card from "components/Card";
 import FileUploader from "components/FileUploader";
 import InputField from "components/forms/fields/InputField";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
@@ -14,6 +15,7 @@ import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import { notify, INotifyBatchItem } from "components/ToastNotification";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { getErrorReason } from "interfaces/errors";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { ISelfServiceCategory } from "interfaces/self_service_category";
@@ -155,6 +157,7 @@ const EditIconModal = ({
 }: IEditIconModalProps) => {
   const { config } = useContext(AppContext);
   const queryClient = useQueryClient();
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const isSoftwarePackage = installerType === "package";
   const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
@@ -592,6 +595,7 @@ const EditIconModal = ({
           </>
         }
         autofocus
+        disabled={gitOpsModeEnabled}
       />
       <FileUploader
         label="Icon"
@@ -605,7 +609,7 @@ const EditIconModal = ({
         buttonType="secondary"
         className={`${baseClass}__file-uploader`}
         fileDetails={fileDetails}
-        gitopsCompatible={false}
+        disabled={gitOpsModeEnabled}
       />
       <h2>Preview</h2>
       {isAndroidApp ? (
@@ -772,14 +776,23 @@ const EditIconModal = ({
       {isFirstLoadWithCustomIcon ? <Spinner /> : renderForm()}
       <ModalFooter
         primaryButtons={
-          <Button
-            type="submit"
-            onClick={onClickSave}
-            isLoading={isUpdatingSoftwareInfo}
-            disabled={!canSaveForm || isUpdatingSoftwareInfo}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            position="top"
+            tipOffset={8}
+            entityType="software"
+            renderChildren={(gitOpsDisabled) => (
+              <Button
+                type="submit"
+                onClick={onClickSave}
+                isLoading={isUpdatingSoftwareInfo}
+                disabled={
+                  !canSaveForm || isUpdatingSoftwareInfo || !!gitOpsDisabled
+                }
+              >
+                Save
+              </Button>
+            )}
+          />
         }
       />
     </Modal>

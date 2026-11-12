@@ -11,7 +11,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/urfave/cli/v2"
@@ -51,8 +50,7 @@ func gitopsCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:        "delete-other-fleets",
-				Aliases:     []string{"delete-other-teams"},
-				EnvVars:     []string{"DELETE_OTHER_FLEETS", "DELETE_OTHER_TEAMS"},
+				EnvVars:     []string{"DELETE_OTHER_FLEETS"},
 				Destination: &flDeleteOtherTeams,
 				Usage:       "Delete other fleets not present in the GitOps configuration",
 			},
@@ -94,9 +92,6 @@ func gitopsCommand() *cli.Command {
 			// Apply log topic overrides from CLI flags.
 			applyLogTopicFlags(c)
 
-			logDeprecatedFlagName(c, "delete-other-teams", "delete-other-fleets")
-			logDeprecatedEnvVar(c, "DELETE_OTHER_TEAMS", "DELETE_OTHER_FLEETS")
-
 			gitOpsOpts := spec.GitOpsOptions{AllowUnknownKeys: flAllowUnknownKeys}
 
 			logf := func(format string, a ...interface{}) {
@@ -111,7 +106,6 @@ func gitopsCommand() *cli.Command {
 			if totalFilenames == 0 {
 				return errors.New("-f must be specified")
 			}
-			// TODO - remove No Team in Fleet 5
 			noTeamFilesEncountered := 0
 			for _, flFilename := range flFilenames.Value() {
 				if strings.TrimSpace(flFilename) == "" {
@@ -120,10 +114,10 @@ func gitopsCommand() *cli.Command {
 				if len(filepath.Base(flFilename)) > filenameMaxLength {
 					return fmt.Errorf("file name must be less than %d characters: %s", filenameMaxLength, filepath.Base(flFilename))
 				}
-				if filepath.Base(flFilename) == "no-team.yml" || filepath.Base(flFilename) == "unassigned.yml" {
+				if filepath.Base(flFilename) == "unassigned.yml" {
 					noTeamFilesEncountered++
 					if noTeamFilesEncountered > 1 {
-						return errors.New("Only one of `no-team.yml` or `unassigned.yml` can be provided. Use `unassigned.yml`; `no-team.yml` is deprecated.")
+						return errors.New("Only one `unassigned.yml` can be provided.")
 					}
 				}
 			}
@@ -203,7 +197,7 @@ func gitopsCommand() *cli.Command {
 			prefetchNoTeamSoftware := false
 			for _, flFilename := range flFilenames.Value() {
 				fn := filepath.Base(flFilename)
-				if fn == "no-team.yml" || fn == "unassigned.yml" {
+				if fn == "unassigned.yml" {
 					prefetchNoTeamSoftware = true
 					break
 				}
@@ -254,16 +248,10 @@ func gitopsCommand() *cli.Command {
 				gitOpsOpts.SyntheticSoftwareByTeam = syntheticSoftwareByTeam
 			}
 
-			// We need the controls from no-team.yml to apply them when applying the global app config.
+			// We need the controls from unassigned.yml to apply them when applying the global app config.
 			noTeamControls, noTeamPresent, noTeamFilename, err := extractControlsForNoTeam(flFilenames, appConfig, gitOpsOpts)
 			if err != nil {
 				return fmt.Errorf("extracting controls from %s: %w", noTeamFilename, err)
-			}
-			// Log a deprecation warning if the user is still using no-team.yml
-			if noTeamPresent && noTeamFilename == "no-team.yml" {
-				if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-					logf("[!] no-team.yml is deprecated; please ensure the fleet name has been updated to 'Unassigned' and rename the file to 'unassigned.yml'.\n")
-				}
 			}
 
 			// Used for keeping track of all label changes in this run.
@@ -372,9 +360,19 @@ func gitopsCommand() *cli.Command {
 				return err
 			}
 
-			labelMoves, err := computeLabelMoves(labelChanges)
-			if err != nil {
-				return err
+			// Under the labels exception no label is managed here, so none moves. A labels key is an error then, and DoGitOps
+			// reports it; planning moves first would report a name conflict instead.
+			var labelMoves map[string][]spec.LabelMovement
+			if !appConfig.GitOpsConfig.Exceptions.Labels {
+				labelMoves, err = computeLabelMoves(labelChanges)
+				if err != nil {
+					return err
+				}
+			}
+			for _, teamMoves := range labelMoves {
+				for i := range teamMoves {
+					teamMoves[i].FromTeamID = teamIDLookup[teamMoves[i].FromTeamName]
+				}
 			}
 
 			for _, configFile := range configs {
@@ -388,7 +386,7 @@ func gitopsCommand() *cli.Command {
 					}
 					if !noTeamControls.Defined && !config.Controls.Defined {
 						if appConfig.License.IsPremium() {
-							suggestion := ", no-team.yml or unassigned.yml"
+							suggestion := " or unassigned.yml"
 							if noTeamFilename != "" {
 								suggestion = fmt.Sprintf(" or %s", noTeamFilename)
 							}
@@ -413,7 +411,8 @@ func gitopsCommand() *cli.Command {
 						if len(parsed) > 0 {
 							return fmt.Errorf(
 								"Couldn't edit %q at \"microsoft_graph_credentials\": Missing or invalid license. Microsoft Graph credentials are available in Fleet Premium only.",
-								filepath.Base(flFilename))
+								filepath.Base(flFilename),
+							)
 						}
 					}
 
@@ -511,15 +510,12 @@ func gitopsCommand() *cli.Command {
 				labelChangesSummary := spec.NewLabelChangesSummary(labelChanges[teamName], labelMoves[teamName])
 				config.LabelChangesSummary = labelChangesSummary
 
-				// Delete labels at the end of the run to avoid issues with resource contention.
+				// Delete labels at the end of the run to avoid issues with resource contention. Deleting by ID also finds a
+				// label that was renamed (set aside) during the run because its name moved to or from the global level.
 				if !flDryRun {
-					for _, name := range labelChangesSummary.LabelsToRemove {
-						l := name // rebind for closure
+					for _, l := range labelChangesSummary.LabelsToRemove {
 						allPostOps = append(allPostOps, func() error {
-							if err := fleetClient.DeleteLabel(l); err != nil {
-								return err
-							}
-							return nil
+							return fleetClient.DeleteLabelByID(l.ID)
 						})
 					}
 				}
@@ -924,45 +920,43 @@ func validateGitOpsGroupEUA(configs []ConfigFile, appCfg *fleet.EnrichedAppConfi
 	return nil
 }
 
-// Computes label moves and validates that there is no funny business around label changes,
-// like trying to add the same label on multiple teams or deleting the same label multiple times.
-// A label is moved when it is deleted from one team and added to another, the moves are stored in
-// a team name -> label names map.
+// Computes label moves and validates the label changes of every file in the run. Fleets can share label names, but a
+// name can't be used by both a global label and a fleet label. A label is moved when its name is deleted on one side
+// of that boundary and added on the other: the old label is set aside when the destination is applied, and deleted at
+// the end of the run. Moves are stored in a destination team name -> moves map.
 func computeLabelMoves(allChanges map[string][]spec.LabelChange) (map[string][]spec.LabelMovement, error) {
-	deleteOps := make(map[string]spec.LabelChange) // label name -> file name
-	addOps := make(map[string]spec.LabelChange)    // label name -> file name
-
-	for _, teamChanges := range allChanges {
-		for _, change := range teamChanges {
-			switch change.Op {
-			case "-":
-				if prevCh, ok := deleteOps[change.Name]; ok {
-					errMsg := "can't delete label %q from %q, as it is already being deleted in %q"
-					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevCh.FileName)
-				}
-				deleteOps[change.Name] = change
-			case "+":
-				if prevCh, ok := addOps[change.Name]; ok {
-					errMsg := "can't add label %q to %q, as it is already being added in %q"
-					return nil, fmt.Errorf(errMsg, change.Name, change.FileName, prevCh.FileName)
-				}
-				addOps[change.Name] = change
-			}
-		}
+	globalChanges := make(map[string]spec.LabelChange)
+	for _, change := range allChanges[spec.LabelAPIGlobalTeamName] {
+		globalChanges[change.Name] = change
 	}
 
-	// A label is moved if it is added ('+') to a team AND deleted ('-') from any other team
 	moves := make(map[string][]spec.LabelMovement)
 	for teamName, teamChanges := range allChanges {
-		for _, ch := range teamChanges {
-			if ch.Op == "+" {
-				if prevCh, isDeletedElsewhere := deleteOps[ch.Name]; isDeletedElsewhere {
-					moves[teamName] = append(moves[teamName], spec.LabelMovement{
-						Name:         ch.Name,
-						FromTeamName: prevCh.TeamName,
-						ToTeamName:   ch.TeamName,
-					})
-				}
+		if teamName == spec.LabelAPIGlobalTeamName {
+			continue
+		}
+		for _, change := range teamChanges {
+			globalChange, ok := globalChanges[change.Name]
+			if !ok {
+				continue
+			}
+			switch {
+			case globalChange.Op == "+" && change.Op == "-":
+				moves[spec.LabelAPIGlobalTeamName] = append(moves[spec.LabelAPIGlobalTeamName], spec.LabelMovement{
+					Name:         change.Name,
+					FromTeamName: teamName,
+					ToTeamName:   spec.LabelAPIGlobalTeamName,
+				})
+			case globalChange.Op == "-" && change.Op == "+":
+				moves[teamName] = append(moves[teamName], spec.LabelMovement{
+					Name:         change.Name,
+					FromTeamName: spec.LabelAPIGlobalTeamName,
+					ToTeamName:   teamName,
+				})
+			case globalChange.Op == "+" && (change.Op == "+" || change.Op == "="):
+				return nil, fmt.Errorf("can't add label %q to %q: %s", change.Name, globalChange.FileName, fleet.LabelNameInUseByFleetsErrMsg)
+			case change.Op == "+" && globalChange.Op == "=":
+				return nil, fmt.Errorf("can't add label %q to %q: %s", change.Name, change.FileName, fleet.LabelNameInUseGloballyErrMsg)
 			}
 		}
 	}
@@ -995,7 +989,7 @@ func computeLabelChanges(
 			op = "~" // preserved (excepted from GitOps, no action needed)
 		}
 		for _, l := range regularLabels {
-			change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
+			change := spec.LabelChange{Name: l.Name, ID: l.ID, Op: op, TeamName: teamName, FileName: filename}
 			labelOperations = append(labelOperations, change)
 		}
 		return labelOperations
@@ -1014,7 +1008,7 @@ func computeLabelChanges(
 		}
 		// Remove from the map to track which specified labels are to be added.
 		delete(specifiedMap, l.Name)
-		change := spec.LabelChange{Name: l.Name, Op: op, TeamName: teamName, FileName: filename}
+		change := spec.LabelChange{Name: l.Name, ID: l.ID, Op: op, TeamName: teamName, FileName: filename}
 		labelOperations = append(labelOperations, change)
 	}
 
@@ -1168,7 +1162,7 @@ func getCustomSettings(osSettings interface{}) ([]fleet.MDMProfileSpec, bool) {
 func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.EnrichedAppConfig, gitOpsOpts spec.GitOpsOptions) (spec.GitOpsControls, bool, string, error) {
 	for _, flFilename := range flFilenames.Value() {
 		fileName := filepath.Base(flFilename)
-		if fileName == "no-team.yml" || fileName == "unassigned.yml" {
+		if fileName == "unassigned.yml" {
 			if !appConfig.License.IsPremium() {
 				// Message is printed in the next flFilenames loop to avoid printing it multiple times
 				break
@@ -1336,7 +1330,7 @@ func vppConfigWithoutMissingFleets(vppSettings []any, missingTeams []string) []a
 // setupAssistantABMChecker is the subset of the API client used by
 // warnSetupAssistantsWithoutABMTokens, split out for testing.
 type setupAssistantABMChecker interface {
-	ListABMTokens() ([]*fleet.ABMToken, error)
+	ListABTokens() ([]*fleet.ABMToken, error)
 	CountHosts(query string) (int, error)
 }
 
@@ -1347,7 +1341,7 @@ type setupAssistantABMChecker interface {
 // must never fail the run, and it runs after the deferred token assignments so the
 // server-side state it reads is final.
 func warnSetupAssistantsWithoutABMTokens(fleetClient setupAssistantABMChecker, fleets map[string]uint, logf func(format string, a ...any)) {
-	tokens, err := fleetClient.ListABMTokens()
+	tokens, err := fleetClient.ListABTokens()
 	if err != nil {
 		logf("[!] skipping setup assistant ABM coverage check: %s\n", err)
 		return

@@ -1,0 +1,1 @@
+- Reduced the size of the `fleet` binary and `fleetdm/fleet` Docker image by no longer embedding unused images and videos, or a second copy of the ones the UI uses.

@@ -1,20 +1,37 @@
+import { render, screen } from "@testing-library/react";
+import React from "react";
+
 import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import { getPastDate, getFutureDate } from "test/test-utils";
 
 import helpers, {
-  removeOSPrefix,
+  getHostOSDisplayName,
   compareVersions,
   willExpireWithinXDays,
   humanLastSeen,
   internationalTimeOnlyFormat,
+  formatSelectedTargetsForApi,
+  formatFleet5RemovalMessage,
 } from "./helpers";
 
 describe("helpers utilities", () => {
-  describe("removeOSPrefix function", () => {
-    it("properly removes Apple prefix from a host's operating system version", () => {
-      expect(removeOSPrefix("macOS 14.1.2")).toEqual("14.1.2");
-      expect(removeOSPrefix("iOS 18.0")).toEqual("18.0");
-      expect(removeOSPrefix("iPadOS 17.5.1")).toEqual("17.5.1");
+  describe("getHostOSDisplayName function", () => {
+    it.each([
+      ["macOS", "14.1.2", "macOS 14.1.2"],
+      ["iPadOS", "17.5.1", "iPadOS 17.5.1"],
+      ["Ubuntu", "24.04.5 LTS", "Ubuntu 24.04.5 LTS"],
+      ["Android", "16 (2026-05-01)", "Android 16 (2026-05-01)"],
+      [
+        "Windows Server 2022 Datacenter 21H2 (Server Core)",
+        "10.0.20348.1850",
+        "Windows Server 2022 Datacenter 21H2 (Server Core) 10.0.20348.1850",
+      ],
+      ["Omarchy", "4.0.0", "Omarchy 4.0.0"],
+      ["", "", ""],
+      [undefined, undefined, ""],
+      ["---", "---", ""],
+    ])("joins %p and %p into %p", (osName, osVersion, expected) => {
+      expect(getHostOSDisplayName(osName, osVersion)).toEqual(expected);
     });
   });
 
@@ -122,6 +139,23 @@ describe("helpers utilities", () => {
     });
   });
 
+  describe("formatSelectedTargetsForApi function", () => {
+    it("sends fleet targets under `fleets`", () => {
+      const targets = [
+        { id: 2, target_type: "hosts" },
+        { id: 3, target_type: "labels" },
+        { id: 9, target_type: "teams" },
+        { id: 4, target_type: "teams" },
+      ] as Parameters<typeof formatSelectedTargetsForApi>[0];
+
+      expect(formatSelectedTargetsForApi(targets)).toEqual({
+        hosts: [2],
+        labels: [3],
+        fleets: [4, 9],
+      });
+    });
+  });
+
   describe("internationalTimeOnlyFormat function", () => {
     const setLanguage = (lang: string) => {
       Object.defineProperty(window.navigator, "languages", {
@@ -177,6 +211,33 @@ describe("helpers utilities", () => {
       setLanguage("en-US");
       expect(internationalTimeOnlyFormat("00:00")).toMatch(/12:00\s?AM/i);
       expect(internationalTimeOnlyFormat("23:59")).toMatch(/11:59\s?PM/i);
+    });
+  });
+
+  describe("formatFleet5RemovalMessage function", () => {
+    const guideURL = "https://fleetdm.com/learn-more-about/fleet-5-migration";
+
+    it("returns null for any other message", () => {
+      expect(formatFleet5RemovalMessage("Couldn't add. Learn more")).toBeNull();
+    });
+
+    it("links the guide and keeps the text around it", () => {
+      render(
+        <div>
+          {formatFleet5RemovalMessage(
+            `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: ${guideURL} Trailing note.`
+          )}
+        </div>
+      );
+
+      expect(screen.getByRole("link", { name: guideURL })).toHaveAttribute(
+        "href",
+        guideURL
+      );
+      expect(
+        screen.getByText(/variable is not available anymore/)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Trailing note\./)).toBeInTheDocument();
     });
   });
 });

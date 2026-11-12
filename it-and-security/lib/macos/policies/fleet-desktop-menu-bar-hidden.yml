@@ -1,0 +1,17 @@
+- name: Fleet Desktop menu bar icon hidden
+  query: >-
+    SELECT 1 FROM plist p, orbit_info o
+    WHERE p.path = '/Library/LaunchDaemons/com.fleetdm.orbit.plist'
+      AND p.key = 'EnvironmentVariables'
+      AND p.subkey = 'ORBIT_FLEET_DESKTOP'
+      AND p.value = 'false'
+      AND o.desktop_version = '';
+  critical: false
+  description: Hosts with Fleet Desktop.app use the app for self-service, so the Fleet Desktop menu bar icon is hidden.
+  resolution: "No action needed from you. Fleet runs a script that hides the menu bar icon when this policy fails. If it keeps failing, IT reviews the script output in the host's activity."
+  hidden: true
+  run_script:
+    path: ../scripts/hide-fleet-desktop-menu-bar.sh
+  labels_include_any:
+    - "Macs with Fleet Desktop.app installed"
+  platform: darwin

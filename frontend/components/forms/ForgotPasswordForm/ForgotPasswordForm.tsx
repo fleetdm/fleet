@@ -2,8 +2,7 @@ import React from "react";
 
 import Button from "components/buttons/Button";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-import validateEmail from "components/forms/validators/valid_email";
-import validatePresence from "components/forms/validators/validate_presence";
+import { isValidEmail, isPresent } from "components/forms/validators";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 
 const baseClass = "forgot-password-form";
@@ -19,9 +18,9 @@ interface IForgotPasswordFormProps {
 const validate = ({ email }: IForgotPasswordFormData): IFormErrors => {
   const errors: IFormErrors = {};
 
-  if (!validatePresence(email)) {
+  if (!isPresent(email)) {
     errors.email = "Enter your email";
-  } else if (!validateEmail(email)) {
+  } else if (!isValidEmail(email)) {
     errors.email = "Enter a valid email";
   }
 
