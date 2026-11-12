@@ -662,7 +662,8 @@ func MakeDecoder(
 	}
 
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
-		if r.URL.RawQuery != "" {
+		scanRemovedNames := !SkipsRemovedNamesScan(r.URL.Path)
+		if scanRemovedNames && r.URL.RawQuery != "" {
 			if err := RejectRemovedQueryParams(r.URL.Query(), t); err != nil {
 				return nil, err
 			}
@@ -699,7 +700,7 @@ func MakeDecoder(
 			}
 
 			// A body without a size limit (agent uploads) is not buffered here.
-			if maxRequestBodySize != -1 && (isBodyDecoder == nil || !isBodyDecoder(v)) {
+			if scanRemovedNames && maxRequestBodySize != -1 && (isBodyDecoder == nil || !isBodyDecoder(v)) {
 				// The Content-Length hint is client-controlled, so it is capped, and a gzipped body's is its compressed size.
 				var data bytes.Buffer
 				if cl := r.ContentLength; cl > 0 && !gzipped {

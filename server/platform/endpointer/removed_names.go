@@ -25,6 +25,8 @@ type removedNames struct {
 	queryParams map[string]struct{} // exact, query parameter names are case-sensitive
 	// handParsed maps a `url` tag value to the query parameters its parser reads by name in code, where no tag declares them.
 	handParsed map[string][]string
+	// skipPaths are request path segments, such as "/orbit/", whose requests the scan leaves alone.
+	skipPaths []string
 }
 
 // maxRemovedNamesPresize caps how much buffer a request's Content-Length can reserve before any of its body has arrived.
@@ -33,11 +35,12 @@ const maxRemovedNamesPresize = 64 << 10
 var removedNamesList atomic.Pointer[removedNames]
 
 // SetRemovedNames sets the request names the scan rejects.
-func SetRemovedNames(jsonKeys, queryParams []string, handParsed map[string][]string) {
+func SetRemovedNames(jsonKeys, queryParams []string, handParsed map[string][]string, skipPaths []string) {
 	names := &removedNames{
 		jsonKeys:    make(map[string]struct{}, len(jsonKeys)),
 		queryParams: make(map[string]struct{}, len(queryParams)),
 		handParsed:  handParsed,
+		skipPaths:   skipPaths,
 	}
 	for _, k := range jsonKeys {
 		names.jsonKeys[strings.ToLower(k)] = struct{}{}
@@ -47,6 +50,20 @@ func SetRemovedNames(jsonKeys, queryParams []string, handParsed map[string][]str
 	}
 	removedNamesList.Store(names)
 	queryNamesCache.Clear() // the declared names include the hand-parsed ones
+}
+
+// SkipsRemovedNamesScan reports whether the request path is one of the skip paths.
+func SkipsRemovedNamesScan(path string) bool {
+	names := removedNamesList.Load()
+	if names == nil {
+		return false
+	}
+	for _, segment := range names.skipPaths {
+		if strings.Contains(path, segment) {
+			return true
+		}
+	}
+	return false
 }
 
 // RejectRemovedJSONKeys returns a *RemovedKeyError if the JSON document data uses a removed name as the key of a field its

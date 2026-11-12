@@ -56,8 +56,8 @@ func requireRejected(t *testing.T, err error, wantKey string) {
 }
 
 func TestRejectRemovedJSONKeys(t *testing.T) {
-	SetRemovedNames([]string{"team_id", "teams", "Team"}, nil, nil)
-	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
+	SetRemovedNames([]string{"team_id", "teams", "Team"}, nil, nil, nil)
+	t.Cleanup(func() { SetRemovedNames(nil, nil, nil, nil) })
 	typ := reflect.TypeFor[scanRequest]()
 
 	for _, tc := range []struct {
@@ -96,8 +96,8 @@ type handParsedRequest struct {
 }
 
 func TestRejectRemovedQueryParams(t *testing.T) {
-	SetRemovedNames(nil, []string{"team_id", "team_name"}, map[string][]string{"host_options": {"team_id"}})
-	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
+	SetRemovedNames(nil, []string{"team_id", "team_name"}, map[string][]string{"host_options": {"team_id"}}, nil)
+	t.Cleanup(func() { SetRemovedNames(nil, nil, nil, nil) })
 
 	type renamed struct {
 		FleetID *uint `query:"fleet_id,optional"`
@@ -124,14 +124,14 @@ func TestRejectRemovedQueryParams(t *testing.T) {
 
 	t.Run("changing the names resets what a type declares", func(t *testing.T) {
 		query := url.Values{"team_id": {"1"}}
-		SetRemovedNames(nil, []string{"team_id"}, nil)
+		SetRemovedNames(nil, []string{"team_id"}, nil, nil)
 		requireRejected(t, RejectRemovedQueryParams(query, reflect.TypeFor[handParsedRequest]()), "team_id")
 	})
 }
 
 func TestMakeDecoderRemovedNames(t *testing.T) {
-	SetRemovedNames([]string{"team_id"}, []string{"team_id"}, nil)
-	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
+	SetRemovedNames([]string{"team_id"}, []string{"team_id"}, nil, []string{"/orbit/", "/device/"})
+	t.Cleanup(func() { SetRemovedNames(nil, nil, nil, nil) })
 
 	type request struct {
 		FleetID uint `json:"fleet_id"`
@@ -146,7 +146,10 @@ func TestMakeDecoderRemovedNames(t *testing.T) {
 	requireRejected(t, decode(1<<20, "/", `{"team_id": 1}`), "team_id")
 	requireRejected(t, decode(1<<20, "/?team_id=1", `{"fleet_id": 1}`), "team_id")
 	require.NoError(t, decode(1<<20, "/?page=1", `{"fleet_id": 1}`))
-	// A body without a size limit (agent uploads) is not buffered or scanned.
+	// Agent routes are not scanned, in the query string or in the body.
+	requireRejected(t, decode(1<<20, "/api/fleet/orbit/config?team_id=1", `{"team_id": 1}`), "")
+	requireRejected(t, decode(1<<20, "/api/latest/fleet/device/abc/ping", `{"team_id": 1}`), "")
+	// A body without a size limit is not buffered or scanned.
 	require.NoError(t, decode(-1, "/", `{"team_id": 1}`))
 	// Malformed JSON is still reported by the decoder, and an oversize body keeps its error.
 	require.Error(t, decode(1<<20, "/", `{"team_id": `))
