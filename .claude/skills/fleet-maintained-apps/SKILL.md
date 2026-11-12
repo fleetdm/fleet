@@ -1,5 +1,5 @@
 ---
-name: new-fma
+name: fleet-maintained-apps
 description: Add, fix, or debug Fleet-maintained apps (FMAs) in ee/maintained-apps — Homebrew casks for macOS, winget packages for Windows. Use whenever a task touches FMA inputs, outputs, or install/uninstall scripts, even if the user never says "FMA" — adding an app or its other platform, a failing FMA validator or nightly "Update Fleet-maintained apps" PR, an ingest panic, an `~fma-soak` issue or customer report (install hangs, "app not detected", patch policy always failing or never failing, update loop), a per-user Windows app that breaks under SYSTEM, the exists/patched/open queries or patch policy, freezing or unfreezing an app, or pruning comments in a shipped script. Centers on verifying installer identity and behavior with real tools and real osquery instead of trusting catalog metadata.
 allowed-tools: Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch
 model: opus

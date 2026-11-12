@@ -45,7 +45,7 @@ If you can't confirm a field from one of the sources below, don't derive it from
 ## Winget manifests
 
 ```bash
-.claude/skills/new-fma/scripts/winget_manifest.sh <PackageIdentifier> [version] [--diff]
+.claude/skills/fleet-maintained-apps/scripts/winget_manifest.sh <PackageIdentifier> [version] [--diff]
 ```
 
 - GitHub code search returns nothing for `microsoft/winget-pkgs`, even for packages that exist, so a zero result proves nothing. The script reads the contents API. To find a publisher folder, list `manifests/<letter>` and grep; its casing isn't the brand's (`manifests/n/Nvidia`).
@@ -121,7 +121,7 @@ The ARP identity is the `<Arp DisplayName=… DisplayVersion=… Publisher=…>`
 
 ```bash
 curl -sL -r 0-31457279 -o head.bin "<InstallerUrl>"
-python3 -I .claude/skills/new-fma/scripts/burn_ux.py head.bin ux.cab
+python3 -I .claude/skills/fleet-maintained-apps/scripts/burn_ux.py head.bin ux.cab
 7zz x -y -oux ux.cab >/dev/null && grep -o '<Arp [^>]*>' ux/0 && grep -o '<Registration [^>]*>' ux/0
 ```
 
@@ -145,7 +145,7 @@ An InstallShield InstallScript MSI needs `/S /v/qn`: `/S` silences only the wrap
 ## macOS installers
 
 ```bash
-.claude/skills/new-fma/scripts/inspect_mac_installer.sh "<cask url>" --sha256 <cask sha256> [--keep]
+.claude/skills/fleet-maintained-apps/scripts/inspect_mac_installer.sh "<cask url>" --sha256 <cask sha256> [--keep]
 ```
 
 It prints the real format, every top-level app's `CFBundleIdentifier`, `CFBundleShortVersionString`, `CFBundleVersion`, `CFBundleExecutable`, Team ID, and Gatekeeper verdict, folders containing apps (suites), nested apps, and the lines in pkg scripts that kill, quit, relaunch, or remove the app. What to do with what it finds:
