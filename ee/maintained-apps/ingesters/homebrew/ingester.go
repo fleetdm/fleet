@@ -300,6 +300,15 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			out.UniqueIdentifier, out.Version,
 		)
 	}
+	if input.Token == "fluidvoice" {
+		// FluidVoice's updater keeps copies of the versions it replaced under
+		// "~/Library/Application Support/Fluid/RollbackBackups/"; Spotlight indexes
+		// them, so they report the app's bundle identifier at an old version.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%/Library/Application Support/Fluid/RollbackBackups/%%' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
 	if input.Token == "sonos" {
 		// Sonos versions its cask by build number (matching CFBundleVersion, e.g.
 		// "90.0.77070" after SonosVersionTransformer), while bundle_short_version is

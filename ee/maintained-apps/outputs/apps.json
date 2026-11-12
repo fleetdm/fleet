@@ -3397,6 +3397,13 @@
       "description": "Fluid is a tool to turn a website into a desktop app."
     },
     {
+      "name": "FluidVoice",
+      "slug": "fluidvoice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.FluidApp.app",
+      "description": "FluidVoice is an offline voice-to-text dictation app with AI enhancement."
+    },
+    {
       "name": "f.lux",
       "slug": "flux-app/darwin",
       "platform": "darwin",
