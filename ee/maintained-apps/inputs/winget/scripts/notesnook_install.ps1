@@ -26,27 +26,36 @@ try {
 
     # Earlier versions of this script installed Notesnook into SYSTEM's profile. That
     # copy can't be launched, and its old version would keep the patch policy failing.
+    # It's deleted directly because its uninstaller's running-app check can hang as SYSTEM.
     foreach ($root in @('SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall', 'SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall')) {
         foreach ($sub in (Get-ChildItem -Path "Registry::HKEY_USERS\S-1-5-18\$root" -ErrorAction SilentlyContinue)) {
             $key = Get-ItemProperty $sub.PSPath -ErrorAction SilentlyContinue
             if ($key.DisplayName -notmatch '^Notesnook \d' -or $key.Publisher -ne "Streetwriters") { continue }
             if ($key.UninstallString -notmatch '^\s*"([^"]+)"') { continue }
             # The 32-bit installer wrote it under SysWOW64 but registered the system32 path.
-            $legacyExe = $matches[1]
-            if (-not (Test-Path -LiteralPath $legacyExe)) { $legacyExe = $legacyExe -replace '(?i)\\system32\\', '\SysWOW64\' }
-            $legacyDir = Split-Path $legacyExe -Parent
-            if ((Split-Path $legacyDir -Leaf) -ne "@notesnookdesktop") { continue }
+            $legacyDir = Split-Path $matches[1] -Parent
+            if (-not (Test-Path -LiteralPath $legacyDir)) { $legacyDir = $legacyDir -replace '(?i)\\system32\\', '\SysWOW64\' }
+            if ($legacyDir -notmatch '(?i)^(.+)\\AppData\\Local\\Programs\\@notesnookdesktop$') { continue }
+            $legacyProfile = $matches[1]
             Write-Host "Removing the copy of Notesnook in $legacyDir"
-            if (Test-Path -LiteralPath $legacyExe) {
-                $legacy = Start-Process -FilePath $legacyExe -ArgumentList "/currentuser /S _?=$legacyDir" -NoNewWindow -PassThru
-                if (-not $legacy.WaitForExit(120000)) { Stop-Process -Id $legacy.Id -Force -ErrorAction SilentlyContinue }
+            Get-Process -ErrorAction SilentlyContinue |
+                Where-Object { $_.Path -and $_.Path.StartsWith("$legacyDir\", [System.StringComparison]::OrdinalIgnoreCase) } |
+                Stop-Process -Force -ErrorAction SilentlyContinue
+            for ($i = 0; $i -lt 10 -and (Test-Path -LiteralPath $legacyDir); $i++) {
+                if ($i) { Start-Sleep -Seconds 1 }
+                Remove-Item -LiteralPath $legacyDir -Recurse -Force -ErrorAction SilentlyContinue
             }
-            Remove-Item -LiteralPath $legacyDir -Recurse -Force -ErrorAction SilentlyContinue
             if (Test-Path -LiteralPath $legacyDir) {
                 Write-Host "Could not remove $legacyDir; uninstalling Notesnook will retry."
-            } else {
-                Remove-Item -Path $sub.PSPath -Recurse -Force -ErrorAction SilentlyContinue
+                continue
             }
+            # Its shortcuts, and the 100 MB copy of the installer it kept for updates.
+            foreach ($leftover in @('AppData\Local\@notesnookdesktop-updater',
+                    'AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Notesnook.lnk', 'Desktop\Notesnook.lnk')) {
+                Remove-Item -LiteralPath (Join-Path $legacyProfile $leftover) -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            Remove-Item -Path $sub.PSPath -Recurse -Force -ErrorAction SilentlyContinue
+            Remove-Item -Path 'Registry::HKEY_USERS\S-1-5-18\SOFTWARE\a05a6719-4910-5e6c-a2aa-9af71cd1063b' -Recurse -Force -ErrorAction SilentlyContinue
         }
     }
 

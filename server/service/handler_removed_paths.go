@@ -46,6 +46,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/apple_bm",
 	"/api/_version_/fleet/mdm/apple/abm_public_key",
 	"/api/_version_/fleet/scripts/batch/summary/{batch_execution_id}",
+	"/api/_version_/fleet/users/roles/spec",
 	"/api/_version_/fleet/software",
 	"/api/_version_/fleet/software/count",
 	"/api/_version_/fleet/software/{id:[0-9]+}",

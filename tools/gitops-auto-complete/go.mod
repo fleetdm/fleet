@@ -1,6 +1,6 @@
 module fleetdm.local/gitops-auto-complete
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/fleetdm/fleet/v4 v4.0.0

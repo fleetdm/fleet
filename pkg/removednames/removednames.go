@@ -33,6 +33,7 @@ const (
 	KindYAMLValue     Kind = "yaml_value"     // value of a YAML key, written "key: value" and compared without regard to case
 	KindActivityType  Kind = "activity_type"  // activity type name
 	KindSAMLAttribute Kind = "saml_attribute" // SAML attribute an identity provider sends, written with <ID> where a suffix varies
+	KindConfigKey     Kind = "config"         // yaml configuration key in the Fleet server config (will also check it's env var and flag versions)
 	KindFleetVariable Kind = "fleet_variable" // Fleet variable, written with its $FLEET_VAR_ prefix
 )
 
