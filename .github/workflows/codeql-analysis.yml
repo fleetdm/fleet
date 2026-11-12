@@ -43,11 +43,21 @@ jobs:
     - name: Check changed files
       id: changes
       env:
-        BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        BASE_SHA: ${{ github.event.before }}
         EVENT_NAME: ${{ github.event_name }}
       run: |
         GO_CHANGED=false
         JS_CHANGED=false
+        if [[ "$EVENT_NAME" == pull_request ]]; then
+          parent_lines=$(git cat-file -p HEAD | sed -n '1,/^$/s/^parent //p' | tr '\n' ' ')
+          read -r -a parents <<< "$parent_lines"
+          if [[ "${#parents[@]}" == 2 ]]; then
+            BASE_SHA="${parents[0]}"
+          else
+            echo "::warning::PR checkout is not a merge commit."
+            BASE_SHA=""
+          fi
+        fi
         if [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && ! "$BASE_SHA" =~ ^0+$ ]] &&
            ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
           if ! git fetch --no-tags --depth=1 origin "$BASE_SHA"; then
