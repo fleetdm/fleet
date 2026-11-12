@@ -122,6 +122,9 @@ func TestPolicies(t *testing.T) {
 		{"ResetPolicyDefersMembershipCleanup", testResetPolicyDefersMembershipCleanup},
 		{"ApplyPolicySpecNoSpuriousStatsReset", testApplyPolicySpecNoSpuriousStatsReset},
 		{"ApplyPolicySpecsMembershipCleanupOnlyOnChange", testApplyPolicySpecsMembershipCleanupOnlyOnChange},
+		{"ApplyPolicySpecsUnchangedDoesNotLockPolicies", testApplyPolicySpecsUnchangedDoesNotLockPolicies},
+		{"ApplyPolicySpecsDoesNotLockScripts", testApplyPolicySpecsDoesNotLockScripts},
+		{"ApplyPolicySpecsAppliesChangedFields", testApplyPolicySpecsAppliesChangedFields},
 		{"StalePolicyIDsForHost", testStalePolicyIDsForHost},
 		{"GetPoliciesForConditionalAccessSQLInjection", testGetPoliciesForConditionalAccess},
 		{"RecordPolicyQueryExecutionsDeletedPolicy", testRecordPolicyQueryExecutionsDeletedPolicy},
@@ -316,7 +319,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 		ScriptID:       &script.ID,
 	})
 	require.NoError(t, err)
-	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID, false)
+	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pendingScripts))
 
@@ -324,7 +327,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteGlobalPolicies(ctx, []uint{policy1.ID})
 	require.NoError(t, err)
 
-	pendingScripts, err = ds.ListPendingHostScriptExecutions(ctx, policy1.ID, false)
+	pendingScripts, err = ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pendingScripts))
 
@@ -366,7 +369,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, fleet.HostSoftwareInstallOptions{PolicyID: &policy2.ID})
 	require.NoError(t, err)
 
-	pendingInstalls, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	pendingInstalls, err := ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pendingInstalls))
 
@@ -374,7 +377,7 @@ func testGlobalPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteGlobalPolicies(ctx, []uint{policy2.ID})
 	require.NoError(t, err)
 
-	pendingInstalls, err = ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	pendingInstalls, err = ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pendingInstalls))
 }
@@ -1187,7 +1190,7 @@ func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 		ScriptID:       &script.ID,
 	})
 	require.NoError(t, err)
-	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID, false)
+	pendingScripts, err := ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pendingScripts))
 
@@ -1195,7 +1198,7 @@ func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteTeamPolicies(ctx, team1.ID, []uint{policy1.ID})
 	require.NoError(t, err)
 
-	pendingScripts, err = ds.ListPendingHostScriptExecutions(ctx, policy1.ID, false)
+	pendingScripts, err = ds.ListPendingHostScriptExecutions(ctx, policy1.ID)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pendingScripts))
 
@@ -1233,7 +1236,7 @@ func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host2.ID, installerID, fleet.HostSoftwareInstallOptions{PolicyID: &policy2.ID})
 	require.NoError(t, err)
 
-	pendingInstalls, err := ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	pendingInstalls, err := ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(pendingInstalls))
 
@@ -1241,7 +1244,7 @@ func testTeamPolicyPendingScriptsAndInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteTeamPolicies(ctx, team2.ID, []uint{policy2.ID})
 	require.NoError(t, err)
 
-	pendingInstalls, err = ds.ListPendingSoftwareInstalls(ctx, host2.ID)
+	pendingInstalls, err = ds.listUpcomingSoftwareInstalls(ctx, host2.ID, false)
 	require.NoError(t, err)
 	require.Equal(t, 0, len(pendingInstalls))
 }
@@ -10587,6 +10590,135 @@ func testApplyPolicySpecsMembershipCleanupOnlyOnChange(t *testing.T, ds *Datasto
 	require.NoError(t, ds.ApplyPolicySpecs(applyCtx, user.ID, []*fleet.PolicySpec{spec}))
 	// Orphan was cleaned up because the policy was changed.
 	assertPolicyMembership(t, ds, polsByName, map[string][]uint{pol.Name: {host.ID}})
+}
+
+func testApplyPolicySpecsUnchangedDoesNotLockPolicies(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	script, err := ds.NewScript(ctx, &fleet.Script{Name: "remediate.sh", ScriptContents: "echo", TeamID: &tm.ID})
+	require.NoError(t, err)
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: t.Name(), Query: "SELECT 1;"})
+	require.NoError(t, err)
+	specs := []*fleet.PolicySpec{
+		{Name: "with script", Team: tm.Name, Query: "SELECT 1;", ScriptID: &script.ID},
+		{Name: "with label", Team: tm.Name, Query: "SELECT 1;", LabelsIncludeAny: []string{label.Name}},
+	}
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, specs))
+	policies, _, err := ds.ListTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+	require.NoError(t, err)
+	require.Len(t, policies, 2)
+
+	// Hold the lock a host's policy_membership write or queued script or install takes on its policy.
+	hostTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = hostTx.Rollback() }()
+	for _, p := range policies {
+		_, err = hostTx.ExecContext(ctx, `SELECT id FROM policies WHERE id = ? FOR SHARE`, p.ID)
+		require.NoError(t, err)
+	}
+
+	applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	require.NoError(t, ds.ApplyPolicySpecs(applyCtx, user.ID, specs))
+	require.NoError(t, hostTx.Rollback())
+
+	// A changed spec is still applied.
+	specs[0].Query = "SELECT 2;"
+	specs[1].LabelsIncludeAny = nil
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, specs))
+	for _, p := range policies {
+		got, err := ds.Policy(ctx, p.ID)
+		require.NoError(t, err)
+		switch got.Name {
+		case "with script":
+			require.Equal(t, "SELECT 2;", got.Query)
+		case "with label":
+			require.Empty(t, got.LabelsIncludeAny)
+		}
+	}
+}
+
+func testApplyPolicySpecsAppliesChangedFields(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	other := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	scriptA, err := ds.NewScript(ctx, &fleet.Script{Name: "a.sh", ScriptContents: "echo a", TeamID: &tm.ID})
+	require.NoError(t, err)
+	scriptB, err := ds.NewScript(ctx, &fleet.Script{Name: "b.sh", ScriptContents: "echo b", TeamID: &tm.ID})
+	require.NoError(t, err)
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: t.Name(), Query: "SELECT 1;"})
+	require.NoError(t, err)
+
+	cases := []struct {
+		name   string
+		author uint
+		change func(*fleet.PolicySpec)
+		check  func(*testing.T, *fleet.Policy)
+	}{
+		{"query", user.ID, func(s *fleet.PolicySpec) { s.Query = "SELECT 2;" }, func(t *testing.T, p *fleet.Policy) { require.Equal(t, "SELECT 2;", p.Query) }},
+		{"description", user.ID, func(s *fleet.PolicySpec) { s.Description = "new" }, func(t *testing.T, p *fleet.Policy) { require.Equal(t, "new", p.Description) }},
+		{"resolution", user.ID, func(s *fleet.PolicySpec) { s.Resolution = "new" }, func(t *testing.T, p *fleet.Policy) { require.Equal(t, "new", *p.Resolution) }},
+		{"platform", user.ID, func(s *fleet.PolicySpec) { s.Platform = "darwin,linux" }, func(t *testing.T, p *fleet.Policy) { require.Equal(t, "darwin,linux", p.Platform) }},
+		{"critical", user.ID, func(s *fleet.PolicySpec) { s.Critical = true }, func(t *testing.T, p *fleet.Policy) { require.True(t, p.Critical) }},
+		{"calendar events", user.ID, func(s *fleet.PolicySpec) { s.CalendarEventsEnabled = true }, func(t *testing.T, p *fleet.Policy) { require.True(t, p.CalendarEventsEnabled) }},
+		{"conditional access", user.ID, func(s *fleet.PolicySpec) { s.ConditionalAccessEnabled = true }, func(t *testing.T, p *fleet.Policy) { require.True(t, p.ConditionalAccessEnabled) }},
+		{"continuous automations", user.ID, func(s *fleet.PolicySpec) { s.ContinuousAutomationsEnabled = true }, func(t *testing.T, p *fleet.Policy) { require.True(t, p.ContinuousAutomationsEnabled) }},
+		{"hidden", user.ID, func(s *fleet.PolicySpec) { s.Hidden = true }, func(t *testing.T, p *fleet.Policy) { require.True(t, p.Hidden) }},
+		{"script", user.ID, func(s *fleet.PolicySpec) { s.ScriptID = &scriptB.ID }, func(t *testing.T, p *fleet.Policy) { require.Equal(t, scriptB.ID, *p.ScriptID) }},
+		{"labels", user.ID, func(s *fleet.PolicySpec) { s.LabelsIncludeAny = []string{label.Name} }, func(t *testing.T, p *fleet.Policy) { require.Len(t, p.LabelsIncludeAny, 1) }},
+		{"author", other.ID, func(s *fleet.PolicySpec) {}, func(t *testing.T, p *fleet.Policy) { require.Equal(t, other.ID, *p.AuthorID) }},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			spec := func() *fleet.PolicySpec {
+				return &fleet.PolicySpec{Name: c.name, Team: tm.Name, Query: "SELECT 1;", Platform: "darwin", ScriptID: &scriptA.ID}
+			}
+			require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec()}))
+			changed := spec()
+			c.change(changed)
+			require.NoError(t, ds.ApplyPolicySpecs(ctx, c.author, []*fleet.PolicySpec{changed}))
+
+			policies, _, err := ds.ListTeamPolicies(ctx, tm.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
+			require.NoError(t, err)
+			for _, p := range policies {
+				if p.Name == c.name {
+					got, err := ds.Policy(ctx, p.ID)
+					require.NoError(t, err)
+					c.check(t, got)
+					return
+				}
+			}
+			t.Fatalf("policy %q not found", c.name)
+		})
+	}
+}
+
+func testApplyPolicySpecsDoesNotLockScripts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	script, err := ds.NewScript(ctx, &fleet.Script{Name: "remediate.sh", ScriptContents: "echo", TeamID: &tm.ID})
+	require.NoError(t, err)
+	spec := &fleet.PolicySpec{Name: t.Name(), Team: tm.Name, Query: "SELECT 1;", ScriptID: &script.ID}
+	require.NoError(t, ds.ApplyPolicySpecs(ctx, user.ID, []*fleet.PolicySpec{spec}))
+
+	// Activating a queued run of the script locks the policy row, then the script row. Hold the script lock.
+	hostTx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+	require.NoError(t, err)
+	defer func() { _ = hostTx.Rollback() }()
+	_, err = hostTx.ExecContext(ctx, `SELECT id FROM scripts WHERE id = ? FOR SHARE`, script.ID)
+	require.NoError(t, err)
+
+	spec.Query = "SELECT 2;"
+	applyCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	require.NoError(t, ds.ApplyPolicySpecs(applyCtx, user.ID, []*fleet.PolicySpec{spec}))
+	require.NoError(t, hostTx.Rollback())
 }
 
 func testGetPoliciesForConditionalAccess(t *testing.T, ds *Datastore) {

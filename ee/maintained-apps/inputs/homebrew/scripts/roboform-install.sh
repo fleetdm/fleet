@@ -119,10 +119,10 @@ yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INS
 APP_ZIP=$(compgen -G "$MOUNT_POINT/RoboForm.app/Contents/Resources/roboform-mac-*.zip" | head -n 1)
 if [[ -z "$APP_ZIP" ]] || ! sudo ditto -x -k "$APP_ZIP" "$TMPDIR"; then
 	echo "Couldn't extract RoboForm.app from the disk image."
-	hdiutil detach "$MOUNT_POINT" || true
+	hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 	exit 1
 fi
-hdiutil detach "$MOUNT_POINT" || true
+hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
 # copy to the applications folder
 quit_and_track_application 'com.sibersystems.RoboFormMac' || exit 1
 # RoboForm 9 reports com.SiberSystems.RoboForm from the same path.

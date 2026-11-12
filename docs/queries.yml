@@ -2521,8 +2521,7 @@ spec:
   name: Get local administrator accounts on macOS
   platform: darwin
   description: The query allows you to check macOS systems for local administrator accounts.
-  query: SELECT uid, username, type FROM users u JOIN groups g ON g.gid = u.gid;
-  printf "uid,username,type\n"; for u in $(dscl . -list /Users); do uid=$(dscl . -read /Users/"$u" UniqueID 2>/dev/null | awk '{print $2}'); pgid=$(dscl . -read /Users/"$u" PrimaryGroupID 2>/dev/null | awk '{print $2}'); grp=$(dscl . -list /Groups PrimaryGroupID | awk -v id="$pgid" '$2==id{print $1}'); [ -n "$uid" ] && [ -n "$pgid" ] && [ -n "$grp" ] && echo "$uid,$u,$grp"; done
+  query: SELECT u.uid, u.username FROM users u JOIN user_groups ug ON ug.uid = u.uid JOIN groups g ON g.gid = ug.gid WHERE g.groupname = 'admin';
   bash: dscl . -read /Groups/admin GroupMembership
   purpose: Informational
   tags: hunting, inventory

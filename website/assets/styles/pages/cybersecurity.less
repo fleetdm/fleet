@@ -1,0 +1,518 @@
+#cybersecurity {
+  background: linear-gradient(180deg, #E8F1F6 0%, #FFF 2.51%);
+
+  h1 {
+    .page-heading();
+    color: @core-fleet-black;
+    margin-bottom: 0px;
+  }
+  h2 {
+    .section-heading();
+    color: @core-fleet-black;
+    margin-bottom: 0px;
+  }
+  h3 {
+    .title-m();
+    color: @core-fleet-black;
+    margin-bottom: 0px;
+  }
+  // Older browsers ignore this and wrap as usual; desktop-break <br>s pin the desktop breaks.
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
+  h4 {
+    .kicker-title();
+    margin-bottom: 0px;
+  }
+  h5 {
+    .title-s();
+    font-weight: @bold;
+    color: @core-fleet-black;
+    margin-bottom: 0px;
+  }
+  p {
+    .body-l();
+    color: @core-fleet-black-75;
+    margin-bottom: 0px;
+  }
+
+  [purpose='page-container'] {
+    .page-container();
+  }
+  [purpose='page-content'] {
+    .page-content();
+    display: flex;
+    flex-direction: column;
+    gap: @section-160;
+  }
+  [purpose='page-section'] {
+    display: flex;
+    flex-direction: column;
+    gap: @section-48;
+  }
+
+  [purpose='button-row'] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 24px;
+  }
+  [purpose='cta-button'] {
+    .cta-button();
+    height: 36px;
+    min-width: 140px;
+    padding: 8px 16px;
+    font-size: 14px;
+    line-height: 150%;
+  }
+
+  // Hero
+  [purpose='page-hero'] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: @section-64;
+    padding-top: @page-padding-sm;
+    text-align: center;
+  }
+  [purpose='page-heading'] {
+    display: flex;
+    flex-direction: column;
+  }
+  [purpose='hero-text'] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: @section-gap;
+    max-width: 800px;
+    p {
+      max-width: 680px;
+      text-wrap: balance;
+    }
+    [purpose='button-row'] {
+      padding-top: @inner-padding-xs;
+    }
+  }
+
+  // Pain banner
+  [purpose='pain-banner'] {
+    display: flex;
+    flex-direction: column;
+    gap: @section-gap;
+    padding: 64px 48px;
+    border: 1px solid @core-fleet-black-10;
+    border-radius: 24px;
+    background-color: @ui-off-white;
+  }
+  [purpose='pain-items'] {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: @section-gap;
+    padding-bottom: @section-gap;
+    border-bottom: 1px solid @core-fleet-black-10;
+  }
+  [purpose='pain-item'] {
+    display: flex;
+    flex-direction: column;
+    gap: @inner-padding-xs;
+  }
+
+  [purpose='stat'] {
+    display: flex;
+    flex-direction: column;
+    gap: @inner-padding-xs;
+    h3 {
+      .title-l();
+    }
+    p {
+      .body-s();
+      a {
+        color: @core-fleet-black-75;
+        text-decoration: underline;
+      }
+    }
+  }
+
+  // Feature rows
+  [purpose='feature-rows'] {
+    display: flex;
+    flex-direction: column;
+    gap: @section-gap-lg;
+  }
+  [purpose='feature-with-image'] {
+    .feature-with-image();
+    [purpose='feature-image'] {
+      flex: 1 1 0;
+      > img {
+        width: 100%;
+        aspect-ratio: 4 / 3;
+      }
+      > img[purpose='wide-image'] {
+        aspect-ratio: auto;
+      }
+    }
+    [purpose='feature-text'] {
+      flex: 1 1 0;
+      gap: 24px;
+      [purpose='stat'] {
+        padding-top: @inner-padding-xs;
+      }
+    }
+    // Matches the mixin's column breakpoint, where a zero flex-basis would apply to height.
+    @media (max-width: 768px) {
+      [purpose='feature-image'], [purpose='feature-text'] {
+        flex: none;
+        width: 100%;
+      }
+    }
+  }
+
+  // Code and Glasswing graphics are built in HTML so the text stays sharp at any size.
+  [purpose='code-card'] {
+    display: flex;
+    align-items: center;
+    aspect-ratio: 504 / 352;
+    padding: 32px;
+    border-radius: 16px;
+    background-color: @ui-off-white;
+    overflow: hidden;
+    pre {
+      margin: 0px;
+      padding: 0px;
+      border: none;
+      background: none;
+      font-family: @code-font;
+      font-size: 13px;
+      line-height: 170%;
+      white-space: pre;
+      color: @core-fleet-black;
+    }
+    [purpose='code-comment'] {
+      color: @core-fleet-black-50;
+    }
+    [purpose='code-value'] {
+      color: #00997D;
+    }
+  }
+  [purpose='glasswing-card'] {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 20px;
+    aspect-ratio: 4 / 3;
+    padding: 40px;
+    border-radius: 16px;
+    background-color: #2E2E36;
+  }
+  [purpose='glasswing-dots'] {
+    display: grid;
+    grid-template-columns: repeat(3, 10px);
+    gap: 6px;
+    margin-bottom: auto;
+    span {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      &:nth-child(1) { background-color: #5BC25B; }
+      &:nth-child(2) { background-color: #5AA6E0; }
+      &:nth-child(3) { background-color: #D9737C; }
+      &:nth-child(4) { background-color: #B98AE6; }
+      &:nth-child(5) { background-color: #F2A65A; grid-column: 2; }
+      &:nth-child(6) { background-color: #3FD8B5; grid-column: 1; }
+    }
+  }
+  [purpose='glasswing-title'] {
+    font-size: 34px;
+    line-height: 115%;
+    font-weight: @bold;
+    color: @accent-white;
+  }
+  [purpose='glasswing-subtitle'] {
+    margin-bottom: auto;
+    font-size: 17px;
+    line-height: 145%;
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  // Customer quotes
+  [purpose='quote-section'] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    max-width: 796px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    [purpose='quote-text'] {
+      font-size: 22px;
+      font-style: italic;
+    }
+    [purpose='name-and-title'] {
+      align-items: center;
+    }
+  }
+  [purpose='quote-author'] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: @inner-padding-sm;
+    text-align: left;
+    [purpose='name-and-title'] {
+      align-items: flex-start;
+    }
+  }
+  [purpose='quote-author-image'] img {
+    height: 48px;
+    width: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  [purpose='name-and-title'] {
+    display: flex;
+    flex-direction: column;
+    gap: @inner-padding-xxs;
+  }
+  [purpose='author-name'] {
+    font-size: 14px;
+    font-weight: @bold;
+    color: @core-fleet-black;
+  }
+  [purpose='author-title'] {
+    .body-m();
+  }
+
+  // Quote and logos, matching /apple.
+  [purpose='quote-and-logos'] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: @section-64;
+  }
+  [purpose='section-quote'] {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 24px;
+    flex: 1 1 50%;
+    [purpose='quote-content'] {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    [purpose='quote-text'] {
+      font-size: 18px;
+      font-style: italic;
+    }
+  }
+  // The grid's background shows through the 1px gaps as divider lines between logos.
+  [purpose='logo-grid'] {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    flex: 1 1 50%;
+    background-color: @core-fleet-black-10;
+    [purpose='logo'] {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 76px;
+      background-color: @accent-white;
+      img {
+        width: auto;
+        max-width: 80%;
+        object-fit: contain;
+      }
+    }
+    // Fills the empty cell after the seventh logo so the divider lines stop at the last logo.
+    &::after {
+      content: '';
+      background-color: @accent-white;
+    }
+  }
+
+  // Native features, matching /apple.
+  [purpose='section-heading'] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+  }
+  [purpose='pills'] {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: @inner-padding-sm @inner-padding-xs;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  [purpose='pills-link'] {
+    display: flex;
+    justify-content: center;
+  }
+  [purpose='pill'] {
+    display: inline-flex;
+    align-items: center;
+    gap: @inner-padding-xs;
+    padding: 8px 16px;
+    border: 1px solid @core-fleet-black-10;
+    border-radius: 100px;
+    background-color: @accent-white;
+    font-size: 14px;
+    line-height: 150%;
+    font-weight: 500;
+    color: @core-fleet-black;
+    &::before {
+      content: ' ';
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      background-image: url('/images/icon-checkmark-green-16x16@2x.png');
+      background-size: 16px 16px;
+    }
+  }
+
+  // Trust
+  [purpose='trust-card'] {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: @section-gap;
+    padding: 24px 32px;
+    border: 1px solid @core-fleet-black-10;
+    border-radius: 16px;
+    background-color: @accent-white;
+  }
+  [purpose='trust-card-text'] {
+    display: flex;
+    flex-direction: column;
+    gap: @inner-padding-xs;
+  }
+
+  // Bottom CTA
+  [purpose='bottom-cta'] {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: @section-gap;
+    text-align: center;
+    [purpose='button-row'] {
+      padding-top: 16px;
+    }
+  }
+
+  @media (max-width: 1199px) {
+    [purpose='page-content'] {
+      gap: @section-160-lg;
+    }
+    [purpose='page-hero'] {
+      gap: @section-64-lg;
+    }
+  }
+
+  @media (max-width: 991px) {
+    [purpose='page-content'] {
+      gap: @section-160-md;
+    }
+    [purpose='page-hero'] {
+      gap: @section-64-md;
+    }
+    [purpose='desktop-break'] {
+      display: none;
+    }
+    [purpose='feature-rows'] {
+      gap: @section-64-md;
+    }
+    [purpose='pain-banner'] {
+      padding: 48px 32px;
+    }
+    [purpose='quote-and-logos'] {
+      flex-direction: column;
+      gap: @section-64-md;
+      [purpose='section-quote'] {
+        flex-direction: column;
+        align-items: center;
+        max-width: 560px;
+        text-align: center;
+      }
+      [purpose='name-and-title'] {
+        align-items: center;
+      }
+      [purpose='logo-grid'] {
+        width: 100%;
+      }
+    }
+    [purpose='glasswing-title'] {
+      font-size: 28px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    [purpose='page-content'] {
+      gap: @section-160-sm;
+    }
+    [purpose='page-hero'] {
+      gap: @section-64-sm;
+    }
+    [purpose='pain-items'] {
+      grid-template-columns: 1fr;
+    }
+    [purpose='trust-card'] {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  @media (max-width: 575px) {
+    [purpose='page-content'] {
+      gap: @section-160-xs;
+    }
+    [purpose='page-hero'] {
+      gap: @section-64-xs;
+      padding-top: 0;
+    }
+    [purpose='pain-banner'] {
+      padding: 32px 24px;
+    }
+    [purpose='logo-grid'] {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    [purpose='quote-section'] [purpose='quote-text'] {
+      font-size: 18px;
+    }
+    // The longest YAML line doesn't fit a phone screen, so the snippet scrolls sideways instead of wrapping.
+    [purpose='code-card'] {
+      aspect-ratio: auto;
+      padding: 24px;
+      overflow-x: auto;
+      pre {
+        font-size: 11px;
+      }
+    }
+    [purpose='glasswing-card'] {
+      padding: 32px;
+    }
+    [purpose='glasswing-title'] {
+      font-size: 24px;
+    }
+    [purpose='glasswing-subtitle'] {
+      font-size: 15px;
+    }
+  }
+
+  @media (max-width: 375px) {
+    [purpose='button-row'] {
+      flex-direction: column;
+      gap: 16px;
+      [purpose='cta-button'] {
+        width: 100%;
+      }
+    }
+  }
+}

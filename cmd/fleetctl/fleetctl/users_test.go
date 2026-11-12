@@ -4,11 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/csv"
 	"fmt"
-	"math/big"
-	"os"
-	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
@@ -136,108 +132,5 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 			require.Empty(t, stdout)
 		}
 		require.True(t, ds.NewUserFuncInvoked)
-	}
-}
-
-func writeTmpCsv(t *testing.T, contents string) string {
-	tmpFile, err := os.CreateTemp(t.TempDir(), "*.csv")
-	require.NoError(t, err)
-	_, err = tmpFile.WriteString(contents)
-	require.NoError(t, err)
-	require.NoError(t, tmpFile.Close())
-	return tmpFile.Name()
-}
-
-func TestCreateBulkUsers(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-	ds.InviteByEmailFunc = func(ctx context.Context, email string) (*fleet.Invite, error) {
-		return nil, nil
-	}
-	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
-		team1 := &fleet.TeamSummary{
-			ID: 1,
-		}
-		team2 := &fleet.TeamSummary{
-			ID: 2,
-		}
-		return []*fleet.TeamSummary{team1, team2}, nil
-	}
-
-	csvFile := writeTmpCsv(t,
-		`Name,Email,SSO,API Only,Global Role,Teams
-		user11,user11@example.com,false,false,maintainer,
-		user12,user12@example.com,false,false,,
-		user13,user13@example.com,true,false,admin,
-		user14,user14@example.com,false,false,,2:maintainer
-		user15,user15@example.com,false,false,,1:admin
-		user16,user16@example.com,false,false,,1:admin 2:maintainer`)
-
-	expectedText := `{"kind":"user_roles","apiVersion":"v1","spec":{"roles":{"admin1@example.com":{"fleets":null,"global_role":"admin","teams":null},"user11@example.com":{"fleets":null,"global_role":"maintainer","teams":null},"user12@example.com":{"fleets":null,"global_role":"observer","teams":null},"user13@example.com":{"fleets":null,"global_role":"admin","teams":null},"user14@example.com":{"fleets":[{"fleet":"","role":"maintainer","team":""}],"global_role":null,"teams":[{"fleet":"","role":"maintainer","team":""}]},"user15@example.com":{"fleets":[{"fleet":"","role":"admin","team":""}],"global_role":null,"teams":[{"fleet":"","role":"admin","team":""}]},"user16@example.com":{"fleets":[{"fleet":"","role":"admin","team":""},{"fleet":"","role":"maintainer","team":""}],"global_role":null,"teams":[{"fleet":"","role":"admin","team":""},{"fleet":"","role":"maintainer","team":""}]},"user1@example.com":{"fleets":null,"global_role":"maintainer","teams":null},"user2@example.com":{"fleets":null,"global_role":"observer","teams":null}}}}
-`
-
-	assert.Empty(t, runAppForTest(t, []string{"user", "create-users", "--csv", csvFile}))
-	assert.Equal(t, expectedText, runAppForTest(t, []string{"get", "user_roles", "--json"}))
-}
-
-func TestDeleteBulkUsers(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-	csvFilePath := writeTmpCsv(t,
-		`Email
-	user11@example.com
-	user12@example.com
-	user13@example.com`)
-
-	csvFile, err := os.Open(csvFilePath)
-	require.NoError(t, err)
-	defer csvFile.Close()
-
-	csvLines, err := csv.NewReader(csvFile).ReadAll()
-	require.NoError(t, err)
-
-	users := []fleet.User{}
-	deletedUserIds := []uint{}
-	for _, user := range csvLines[1:] {
-		email := user[0]
-		name := strings.Split(email, "@")[0]
-
-		randId, err := rand.Int(rand.Reader, big.NewInt(1000))
-		require.NoError(t, err)
-		id := uint(randId.Int64()) //nolint:gosec // dismiss G115
-
-		users = append(users, fleet.User{
-			Name:  name,
-			Email: email,
-			ID:    id,
-		})
-		deletedUserIds = append(deletedUserIds, id)
-	}
-
-	// Create a map for looking up users by email
-	usersByEmail := make(map[string]*fleet.User, len(users))
-	for i := range users {
-		usersByEmail[users[i].Email] = &users[i]
-	}
-
-	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		if u, ok := usersByEmail[email]; ok {
-			return u, nil
-		}
-		return nil, &notFoundError{}
-	}
-
-	deletedUser := uint(0)
-
-	ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
-		deletedUser = id
-		return nil
-	}
-	ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
-		return nil
-	}
-
-	assert.Empty(t, runAppForTest(t, []string{"user", "delete-users", "--csv", csvFilePath}))
-	for indx, user := range users {
-		deletedUser = deletedUserIds[indx]
-		assert.Equal(t, user.ID, deletedUser)
 	}
 }

@@ -8,6 +8,17 @@ $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
 
+# Setup exits with code 1 while OpenPGP Studio is running. Fleet runs as SYSTEM,
+# outside the user's session, so it can't ask the app to close: stop it
+# first. Unsaved changes are lost.
+$running = Get-Process -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path -like "*\GoAnywhere OpenPGP Studio\*" }
+foreach ($proc in $running) {
+    Write-Host "Stopping $($proc.Name) (PID $($proc.Id)) before installing."
+    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+}
+$running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue
+
 $process = Start-Process -FilePath "$exeFilePath" `
   -ArgumentList "-q -Dinstall4j.suppressUnattendedReboot=true" -PassThru -Wait
 $exitCode = $process.ExitCode

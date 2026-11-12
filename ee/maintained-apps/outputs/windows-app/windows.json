@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.0.1482.0",
+      "version": "2.0.1484.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Windows App' AND publisher = 'Microsoft Corp.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Windows App' AND publisher = 'Microsoft Corp.' AND version_compare(version, '2.0.1482.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Windows App' AND publisher = 'Microsoft Corp.' AND version_compare(version, '2.0.1484.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'windowsapp.exe');"
       },
-      "installer_url": "https://res.cdn.office.net/remote-desktop-windows-client/390902f9-2a4c-42d4-a574-c56461957534/WindowsApp_x64_Release_2.0.1482.0.msix",
+      "installer_url": "https://res.cdn.office.net/remote-desktop-windows-client/93d213e1-8d69-45da-8d73-ab5516984427/WindowsApp_x64_Release_2.0.1484.0.msix",
       "install_script_ref": "6052d15c",
       "uninstall_script_ref": "3518ea18",
-      "sha256": "2fef58ed626c5e611b70b1f0161f2b4f0fb877092f22b102bbde2f15be127af4",
+      "sha256": "b96ea42e6756f110b99cb4ec712f75ffc514335e656a478c98f23dd8336d781c",
       "default_categories": [
         "Productivity"
       ]

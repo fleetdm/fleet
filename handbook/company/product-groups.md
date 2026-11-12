@@ -617,8 +617,8 @@ Any fleetie can follow the process below to add a priority label to an issue.
 1. Add as much context as possible to the issue description and assign labels to help the team
    understand the problem and what is driving the urgency. 
 2. Add the `P0`, `P1`, or `P2` label based on the urgency of the issue. 
-3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the [Engineering Manager for the associated product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups). For immediate action, follow up with the EM via Slack DM or by phone.
-4. The EM will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
+3. Comment on the GitHub issue explaining why the issue is a priority, and assign the issue to the [Engineering Manager for the associated product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups). If the issue is a feature request (`:product` label), assign it to the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) instead. For immediate action, follow up with the EM or Head of Product Design via Slack DM or by phone.
+4. The EM (or Head of Product Design, for feature requests) will review the issue to determine if it meets the criteria for the assigned priority label. If so, they will triage as needed based on priority level. If not, they will remove the priority label and add a comment on the issue explaining why.
 
 
 ### Notify stakeholders when a user story is pushed
@@ -708,7 +708,7 @@ New requests are reviewed daily by the Head of Product Design and [unpacked](htt
 To prioritize a new feature, it must meet one of these criteria:
 
 - Small UX improvement that isn't quite a bug but it's so small that it's worthwhile
-- Contributes to Fleet's [company goals](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BM2) or [product maturity goals](https://fleetdm.com/handbook/company/product-groups#current-product-groups) goals for the current calendar year (`~product-maturity` label)
+- Contributes to Fleet's [company goals](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BM2) or [product maturity goals](https://fleetdm.com/handbook/company/product-groups#current-product-groups) goals for the current calendar year (`~product-maturity-*` label)
 - Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
 - Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
 
@@ -1201,7 +1201,7 @@ When selecting which issue to work on next, prioritize in the following order:
 3. **Customer activation blockers**: Issues with the `~activation-blocker` label.
 4. **Reliability issues**: Issues with the `reliability` label that the product group agreed to work on this release cycle.
 5. **Bugs**: Issues with the `bug` label, ordered by the [bug prioritization](#bug-prioritization) list below.
-6. **Product maturity stories**: User stories with the `~product-maturity` label. Product maturity stories without customer labels are prioritized over non-maturity stories with customer labels.
+6. **Product maturity stories**: User stories with a `~product-maturity-*` label. Product maturity stories without customer labels are prioritized over non-maturity stories with customer labels.
 7. **Other stories**: The remaining user stories in the group's **Ready** column.
 
 ## Bug prioritization

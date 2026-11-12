@@ -3,6 +3,7 @@
   "slug": "beyond-compare/windows",
   "package_identifier": "ScooterSoftware.BeyondCompare.5",
   "unique_identifier": "Beyond Compare",
+  "open_process_names": ["bcompare.exe"],
   "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/beyond_compare_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/beyond_compare_uninstall.ps1",

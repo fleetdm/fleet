@@ -421,7 +421,6 @@ const SaveNewQueryModal = ({
             type="submit"
             className="save-query-loading"
             isLoading={isLoading || isFetchingLabels}
-            disabled={isFetchingLabels}
           >
             Save
           </Button>
