@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "6.7.0.3",
+      "version": "6.7.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'MEGAsync' AND publisher = 'Mega Limited';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'MEGAsync' AND publisher = 'Mega Limited' AND version_compare(version, '6.7.0.3') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'MEGAsync' AND publisher = 'Mega Limited' AND version_compare(version, '6.7.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'megasync.exe');"
       },
       "installer_url": "https://mega.nz/MEGAsyncSetup64.exe",
