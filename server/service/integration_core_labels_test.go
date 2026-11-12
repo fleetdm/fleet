@@ -1118,20 +1118,6 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	require.NoError(t, err)
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
-	// Add pack
-	_, err = s.ds.NewPack(
-		context.Background(), &fleet.Pack{
-			Name: t.Name(),
-			Hosts: []fleet.Target{
-				{
-					Type:     fleet.TargetHost,
-					TargetID: hosts[0].ID,
-				},
-			},
-		},
-	)
-	require.NoError(t, err)
-
 	// Add policy
 	qr, err := s.ds.NewQuery(
 		context.Background(), &fleet.Query{

@@ -342,7 +342,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Saved:              true,
 	})
 	require.NoError(t, err)
-	nonScheduledGlobalQuery, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+	_, err = s.ds.NewQuery(context.Background(), &fleet.Query{
 		Name:               "non-scheduled-global-query",
 		TeamID:             nil,
 		Interval:           0,
@@ -406,24 +406,6 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Saved:              true,
 	})
 	require.NoError(t, err)
-	// Create a legacy 2017 user pack with one query.
-	userPack1TargetTeam1, err := s.ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "2017 Pack",
-		Type:    nil,
-		Teams:   []fleet.Target{{TargetID: team1.ID, Type: fleet.TargetTeam}},
-		TeamIDs: []uint{team1.ID},
-	})
-	require.NoError(t, err)
-	_, err = s.ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
-		Name:     "scheduled-query-pack1",
-		PackID:   userPack1TargetTeam1.ID,
-		QueryID:  nonScheduledGlobalQuery.ID,
-		Interval: 60,
-		Snapshot: new(true),
-		Removed:  new(true),
-	})
-	require.NoError(t, err)
-
 	// Simulate the osquery instance of the global host calling the osquery/config endpoint
 	// and test the returned scheduled queries.
 	req := getClientConfigRequest{NodeKey: *globalHost.NodeKey}
@@ -441,9 +423,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	resp = getClientConfigResponse{}
 	s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
 	packs = resp.Config["packs"].(map[string]any)
-	// The 2017 pack targeting the team is not served.
 	require.Len(t, packs, 2)
-	require.NotContains(t, packs, userPack1TargetTeam1.Name)
 	globalQueries = packs["Global"].(map[string]any)["queries"].(map[string]any)
 	require.Len(t, globalQueries, 1)
 	require.Contains(t, globalQueries, scheduledGlobalQuery.Name)
