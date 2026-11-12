@@ -53,7 +53,7 @@ func TestHostRunScript(t *testing.T) {
 	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 		return &fleet.HostScriptResult{HostID: request.HostID, ScriptContents: request.ScriptContents, ExecutionID: "abc"}, nil
 	}
-	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 		return nil, nil
 	}
 	ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
@@ -1282,7 +1282,7 @@ func TestScriptFleetVariablesValidation(t *testing.T) {
 		ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 			return &fleet.Host{ID: hostID, SeenTime: time.Now(), OrbitNodeKey: new("abc")}, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

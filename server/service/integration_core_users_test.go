@@ -19,10 +19,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/ghodss/yaml"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -438,7 +438,7 @@ func (s *integrationTestSuite) TestActivityUserEmailPersistsAfterDeletion() {
 func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 	t := s.T()
 
-	for _, role := range []string{fleet.RoleTechnician, fleet.RoleGitOps, fleet.RoleObserverPlus} {
+	for _, role := range []string{fleet.RoleTechnician, fleet.RoleObserverPlus} {
 		t.Run(role, func(t *testing.T) {
 			t.Run("login", func(t *testing.T) {
 				user := &fleet.User{
@@ -472,98 +472,95 @@ func (s *integrationTestSuite) TestPremiumOnlyRoles() {
 	}
 }
 
-func (s *integrationTestSuite) TestUserRolesSpec() {
+func (s *integrationTestSuite) TestGitOpsRoleOnFree() {
 	t := s.T()
 
-	_, err := s.ds.NewTeam(context.Background(), &fleet.Team{
-		ID:          42,
-		Name:        "team1",
-		Description: "desc team1",
-	})
-	require.NoError(t, err)
-
-	email := t.Name() + "@asd.com"
-	u := &fleet.User{
-		Password:    []byte("asd"),
-		Name:        t.Name(),
-		Email:       email,
-		GravatarURL: "http://asd.com",
-		GlobalRole:  new(fleet.RoleObserver),
+	var createResp struct {
+		User struct {
+			ID         uint    `json:"id"`
+			GlobalRole *string `json:"global_role"`
+		} `json:"user"`
+		Token string `json:"token"`
 	}
-	user, err := s.ds.NewUser(context.Background(), u)
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "gitops-free",
+		"global_role": fleet.RoleGitOps,
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+	require.NotEmpty(t, createResp.Token)
+	require.NotNil(t, createResp.User.GlobalRole)
+	require.Equal(t, fleet.RoleGitOps, *createResp.User.GlobalRole)
+
+	// The GitOps user can authenticate and use a GitOps endpoint.
+	s.token = createResp.Token
+	s.Do("PUT", "/api/latest/fleet/spec/secret_variables", fleet.CreateSecretVariablesRequest{
+		SecretVariables: []fleet.SecretVariable{{Name: "FLEET_SECRET_GITOPS_FREE", Value: "v"}},
+		DryRun:          true,
+	}, http.StatusOK)
+	s.token = s.getTestAdminToken()
+
+	// Fleet-level GitOps role still requires Premium.
+	s.Do("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":   "gitops-free-fleet",
+		"fleets": []map[string]any{{"id": 9999, "role": fleet.RoleGitOps}},
+	}, http.StatusPaymentRequired)
+
+	// GitOps is still API-only.
+	s.Do("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       new("gitops-free-not-api-only"),
+		Email:      new("gitops-free-not-api-only@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleGitOps),
+	}, http.StatusUnprocessableEntity)
+
+	// An existing API-only user can be changed to GitOps.
+	var observerResp struct {
+		User struct {
+			ID uint `json:"id"`
+		} `json:"user"`
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
+		"name":        "observer-to-gitops-free",
+		"global_role": fleet.RoleObserver,
+	}, http.StatusOK, &observerResp)
+	var modifyResp modifyUserResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", observerResp.User.ID), fleet.UserPayload{
+		GlobalRole: new(fleet.RoleGitOps),
+	}, http.StatusOK, &modifyResp)
+	require.NotNil(t, modifyResp.User.GlobalRole)
+	require.Equal(t, fleet.RoleGitOps, *modifyResp.User.GlobalRole)
+
+	// A non-API-only user cannot be changed to GitOps.
+	var regularResp createUserResponse
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", fleet.UserPayload{
+		Name:       new("regular-to-gitops-free"),
+		Email:      new("regular-to-gitops-free@example.com"),
+		Password:   new(test.GoodPassword),
+		GlobalRole: new(fleet.RoleObserver),
+	}, http.StatusOK, &regularResp)
+	res := s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/%d", regularResp.User.ID), fleet.UserPayload{
+		GlobalRole: new(fleet.RoleGitOps),
+	}, http.StatusUnprocessableEntity)
+	assertBodyContains(t, res, "role GitOps can only be set for API only users")
+	regularUser, err := s.ds.UserByID(t.Context(), regularResp.User.ID)
 	require.NoError(t, err)
-	assert.Empty(t, user.Teams)
+	require.NotNil(t, regularUser.GlobalRole)
+	require.Equal(t, fleet.RoleObserver, *regularUser.GlobalRole)
+}
 
-	spec := []byte(fmt.Sprintf(`
-  roles:
-    %s:
-      global_role: null
-      fleets:
-      - role: maintainer
-        fleet: team1
-`,
-		email))
+func (s *integrationTestSuite) TestUserRolesSpecRemoved() {
+	t := s.T()
 
-	var userRoleSpec applyUserRoleSpecsRequest
-	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
-	require.NoError(t, err)
-
-	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusOK)
-
-	user, err = s.ds.UserByEmail(context.Background(), email)
-	require.NoError(t, err)
-	require.Len(t, user.Teams, 1)
-	assert.Equal(t, fleet.RoleMaintainer, user.Teams[0].Role)
-
-	globalRoleDetails := fmt.Sprintf(`{"user_id": %d, "user_name": %q, "user_email": %q, "role": %%q}`, user.ID, user.Name, user.Email)
-	fleetRoleDetails := fmt.Sprintf(`{"user_id": %d, "user_name": %q, "user_email": %q, "role": "maintainer", "fleet_id": %d, "fleet_name": "team1"}`,
-		user.ID, user.Name, user.Email, user.Teams[0].ID)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedUserGlobalRole{}.ActivityName(), fmt.Sprintf(globalRoleDetails, fleet.RoleObserver), 0)
-	lastActivityID := s.lastActivityOfTypeMatches(fleet.ActivityTypeChangedUserTeamRole{}.ActivityName(), fleetRoleDetails, 0)
-
-	// applying the same roles again logs nothing
-	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusOK)
-	s.lastActivityMatches("", "", lastActivityID)
-
-	spec = []byte(fmt.Sprintf(`
-  roles:
-    %s:
-      global_role: null
-      fleets:
-      - role: maintainer
-        fleet: non-existent
-`,
-		email))
-	userRoleSpec = applyUserRoleSpecsRequest{}
-	err = yaml.Unmarshal(spec, &userRoleSpec.Spec)
-	require.NoError(t, err)
-	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusBadRequest)
-	s.lastActivityMatches("", "", lastActivityID)
-
-	// moving the user from the fleet role to a global role logs both changes
-	userRoleSpec = applyUserRoleSpecsRequest{Spec: &fleet.UsersRoleSpec{Roles: map[string]*fleet.UserRoleSpec{
-		email: {GlobalRole: new(fleet.RoleAdmin)},
-	}}}
-	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusOK)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeChangedUserGlobalRole{}.ActivityName(), fmt.Sprintf(globalRoleDetails, fleet.RoleAdmin), 0)
-	s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedUserTeamRole{}.ActivityName(), fleetRoleDetails, 0)
-	activities := s.listActivities()
-	require.NotNil(t, activities[len(activities)-1].ActorID)
-	assert.Equal(t, s.users["admin1@example.com"].ID, *activities[len(activities)-1].ActorID)
-
-	// spec keys that differ only in case resolve to one user, so only the role that gets saved is logged
-	changedGlobalRole := fleet.ActivityTypeChangedUserGlobalRole{}.ActivityName()
-	changedCount := s.countActivitiesOfType(changedGlobalRole)
-	userRoleSpec = applyUserRoleSpecsRequest{Spec: &fleet.UsersRoleSpec{Roles: map[string]*fleet.UserRoleSpec{
-		email:                  {GlobalRole: new(fleet.RoleMaintainer)},
-		strings.ToUpper(email): {GlobalRole: new(fleet.RoleObserver)},
-	}}}
-	s.Do("POST", "/api/latest/fleet/users/roles/spec", &userRoleSpec, http.StatusOK)
-	user, err = s.ds.UserByEmail(t.Context(), email)
-	require.NoError(t, err)
-	require.NotNil(t, user.GlobalRole)
-	s.lastActivityOfTypeMatches(changedGlobalRole, fmt.Sprintf(globalRoleDetails, *user.GlobalRole), 0)
-	assert.Equal(t, changedCount+1, s.countActivitiesOfType(changedGlobalRole))
+	res := s.Do("POST", "/api/latest/fleet/users/roles/spec", json.RawMessage(`{"spec":{"roles":{}}}`), http.StatusGone)
+	var body struct {
+		Errors []struct {
+			Reason string `json:"reason"`
+		} `json:"errors"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&body))
+	require.Len(t, body.Errors, 1)
+	assert.Equal(t, `The "POST /users/roles/spec" endpoint is not available anymore. What to use instead: `+removednames.GuideURL,
+		body.Errors[0].Reason)
 }
 
 func (s *integrationTestSuite) TestInvites() {

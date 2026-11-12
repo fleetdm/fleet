@@ -7,7 +7,6 @@ import { internationalTimeFormat } from "utilities/helpers";
 
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
-import { DEVICE_STATUS_TAGS } from "./helpers";
 import HostHeader from "./HostHeader";
 
 const renderActionDropdown = jest.fn(() => <div data-testid="dropdown" />);
@@ -239,8 +238,8 @@ describe("HostHeader", () => {
     expect(screen.getByText("Wipe pending")).toBeInTheDocument();
   });
 
-  it("renders no badge for a pending Android BYOD unenroll", () => {
-    render(
+  it("renders 'Unenroll pending' badge and tooltip for a pending Android BYOD unenroll", async () => {
+    const { user } = renderWithSetup(
       <HostHeader
         summaryData={{ ...defaultSummaryData, platform: "android" }}
         showRefetchSpinner={false}
@@ -250,9 +249,14 @@ describe("HostHeader", () => {
         hostMdmEnrollmentStatus="On (personal)"
       />
     );
-    Object.values(DEVICE_STATUS_TAGS).forEach(({ title }) => {
-      expect(screen.queryByText(title)).not.toBeInTheDocument();
-    });
+    expect(screen.queryByText("Wipe pending")).not.toBeInTheDocument();
+    expect(screen.getByText("Unenroll pending")).toHaveClass("warning");
+
+    await user.hover(screen.getByText("Unenroll pending"));
+
+    expect(
+      await screen.findByText(/Host will unenroll when it comes online/i)
+    ).toBeInTheDocument();
   });
 
   it("renders 'Clear passcode pending' badge for Android (#41683)", () => {

@@ -59,6 +59,7 @@
     "orbit_version": null,
     "os_update_deadline": null,
     "os_update_minimum_version": null,
+    "os_name": "",
     "os_version": "",
     "osquery_version": "",
     "pack_stats": null,
