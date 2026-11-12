@@ -545,6 +545,48 @@ func TestHostLockWipeStatusAndroidUnlockPIN(t *testing.T) {
 			status: HostLockWipeStatus{HostFleetPlatform: "android"},
 		},
 		{
+			name: "Clear passcode acknowledged after the lock",
+			status: HostLockWipeStatus{
+				HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked,
+				ClearPasscodeMDMCommand:       resetPassword,
+				ClearPasscodeMDMCommandResult: &MDMCommandResult{Status: string(android.MDMAndroidCommandStatusAcknowledged), UpdatedAt: ackedAt.Add(time.Minute)},
+			},
+		},
+		{
+			name: "Clear passcode pending after the lock",
+			status: HostLockWipeStatus{
+				HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked,
+				ClearPasscodeMDMCommand: resetPassword,
+			},
+			want: true,
+		},
+		{
+			name: "Clear passcode failed after the lock",
+			status: HostLockWipeStatus{
+				HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked,
+				ClearPasscodeMDMCommand:       resetPassword,
+				ClearPasscodeMDMCommandResult: &MDMCommandResult{Status: string(android.MDMAndroidCommandStatusError), UpdatedAt: ackedAt.Add(time.Minute)},
+			},
+			want: true,
+		},
+		{
+			name: "lock acknowledged after an earlier Clear passcode",
+			status: HostLockWipeStatus{
+				HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked,
+				ClearPasscodeMDMCommand:       resetPassword,
+				ClearPasscodeMDMCommandResult: &MDMCommandResult{Status: string(android.MDMAndroidCommandStatusAcknowledged), UpdatedAt: ackedAt.Add(-time.Minute)},
+			},
+			want: true,
+		},
+		{
+			name: "wiped after the lock",
+			status: HostLockWipeStatus{
+				HostFleetPlatform: "android", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked,
+				WipeMDMCommand:       &MDMCommand{RequestType: "WIPE"},
+				WipeMDMCommandResult: &MDMCommandResult{Status: string(android.MDMAndroidCommandStatusAcknowledged), UpdatedAt: ackedAt.Add(time.Minute)},
+			},
+		},
+		{
 			name:   "macOS lock with a PIN",
 			status: HostLockWipeStatus{HostFleetPlatform: "darwin", UnlockPIN: "135792", LockMDMCommand: resetPassword, LockMDMCommandResult: acked},
 		},
@@ -558,7 +600,7 @@ func TestHostLockWipeStatusAndroidUnlockPIN(t *testing.T) {
 				require.True(t, tc.status.AndroidLockedAt().IsZero())
 			}
 			// Android is never reported as locked, so Lock and Wipe stay available.
-			if tc.status.HostFleetPlatform == "android" {
+			if tc.status.HostFleetPlatform == "android" && !tc.status.IsWiped() {
 				require.False(t, tc.status.IsLocked())
 				require.Equal(t, DeviceStatusUnlocked, tc.status.DeviceStatus())
 			}

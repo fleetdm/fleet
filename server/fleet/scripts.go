@@ -875,14 +875,23 @@ func (s HostLockWipeStatus) IsLocked() bool {
 }
 
 // IsAndroidUnlockPINAvailable reports whether the current enrollment has an acknowledged Fleet lock
-// (RESET_PASSWORD under lock_ref) with a stored PIN. Hosts locked before Fleet 5 have a LOCK row and no PIN.
+// (RESET_PASSWORD under lock_ref) with a stored PIN that hasn't since been replaced by a Clear passcode or wiped.
+// Hosts locked before Fleet 5 have a LOCK row and no PIN.
 func (s HostLockWipeStatus) IsAndroidUnlockPINAvailable() bool {
-	return s.HostFleetPlatform == "android" &&
+	locked := s.HostFleetPlatform == "android" &&
 		s.UnlockPIN != "" &&
 		s.LockMDMCommand != nil &&
 		s.LockMDMCommand.RequestType == string(android.MDMAndroidCommandTypeResetPassword) &&
 		s.LockMDMCommandResult != nil &&
 		s.LockMDMCommandResult.Status == string(android.MDMAndroidCommandStatusAcknowledged)
+	if !locked || s.IsWiped() {
+		return false
+	}
+	// Lock and Clear passcode can't overlap, so a Clear passcode acknowledged after the lock removed the PIN.
+	clearedAfterLock := s.ClearPasscodeMDMCommandResult != nil &&
+		s.ClearPasscodeMDMCommandResult.Status == string(android.MDMAndroidCommandStatusAcknowledged) &&
+		s.ClearPasscodeMDMCommandResult.UpdatedAt.After(s.LockMDMCommandResult.UpdatedAt)
+	return !clearedAfterLock
 }
 
 // AndroidLockedAt returns when the device acknowledged the lock. Zero unless IsAndroidUnlockPINAvailable.
