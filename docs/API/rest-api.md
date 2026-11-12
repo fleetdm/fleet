@@ -15490,8 +15490,8 @@ For Microsoft Store apps (`windows`), `version` is empty, because the Microsoft 
     "created_at": "2026-11-10T21:49:04.145909Z",
     "categories": null,
     "display_name": "",
-    "install_script": "# Installs a Microsoft Store app for the logged-in user...",
-    "uninstall_script": "# Uninstalls a Microsoft Store app for the logged-in user...",
+    "install_script": "# Installs a Microsoft Store app for all users on the host...",
+    "uninstall_script": "# Uninstalls a Microsoft Store app for all users on the host...",
     "pre_install_query": "",
     "post_install_script": ""
   }
@@ -16176,7 +16176,7 @@ _Available in Fleet Premium._
 
 Add Apple App Store, Google Play, or Microsoft Store app. Apple apps must be added in Apple Business (AB) before adding them to Fleet.
 
-Microsoft Store apps are installed and uninstalled with scripts that Fleet runs as the logged-in user, so a user must be logged in to the Windows host. They aren't available in setup experience.
+Fleet installs Microsoft Store apps for all users on the Windows host. Only MSIX apps are supported. Apps that use their own installer (MSI or EXE) can't be added.
 
 You can add more than one version of the same app to a fleet. Fleet always installs the latest version available in the store, so versions don't differ by the app version that's installed. Instead, each version has its own `name`, `self_service`, `categories`, labels, automatic update settings, and managed app configuration. This lets you give different groups of hosts different settings (e.g. a different VPN configuration per IdP group) without creating a separate fleet.
 
@@ -16192,8 +16192,8 @@ You can add more than one version of the same app to a fleet. Fleet always insta
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, `android`, or `windows`). Default is `darwin`. **Required** for Microsoft Store apps (`windows`). |
 | name | string | body | Admin-provided version name, unique per title per fleet. Defaults to `Default version` when omitted. Required if the title already has a version with the default name. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS, Windows, and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS and Windows shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
-| install_script | string | body | Script that Fleet runs to install the app. Only supported for Microsoft Store apps (`windows`). If not specified, Fleet runs the default install script. Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name (MSIX apps only). |
-| uninstall_script | string | body | Script that Fleet runs to uninstall the app. Only supported for Microsoft Store apps (`windows`). If not specified, Fleet runs the default uninstall script. Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID. |
+| install_script | string | body | Script that Fleet runs to install the app. Only supported for Microsoft Store apps (`windows`). If not specified, Fleet runs the default install script. Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name. |
+| uninstall_script | string | body | Script that Fleet runs to uninstall the app. Only supported for Microsoft Store apps (`windows`). If not specified, Fleet runs the default uninstall script. Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name. |
 | pre_install_query | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Only supported for Microsoft Store apps (`windows`). |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed. Only supported for Microsoft Store apps (`windows`). |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Only supported for `darwin`. |
@@ -16301,8 +16301,8 @@ A software title can have more than one version of the same App Store app on a f
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | configuration | object | body | The version's managed app configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android. |
-| install_script | string | body | Script that Fleet runs to install the app. Only supported for Microsoft Store apps (`windows`). Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name (MSIX apps only). |
-| uninstall_script | string | body | Script that Fleet runs to uninstall the app. Only supported for Microsoft Store apps (`windows`). Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID. |
+| install_script | string | body | Script that Fleet runs to install the app. Only supported for Microsoft Store apps (`windows`). Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name. |
+| uninstall_script | string | body | Script that Fleet runs to uninstall the app. Only supported for Microsoft Store apps (`windows`). Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name. |
 | pre_install_query | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Only supported for Microsoft Store apps (`windows`). |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed. Only supported for Microsoft Store apps (`windows`). |
 

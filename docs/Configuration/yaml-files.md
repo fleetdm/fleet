@@ -883,7 +883,7 @@ App Store apps support `path:` (single file) and `paths:` (glob pattern) referen
 - `configuration.path` is the app managed configuration. For iOS and iPadOS apps it is in XML format, and for Android Play Store apps it is in JSON format. Currently only supported for iOS, iPadOS, and Android.
   + Android: `managedConfiguration`, `workProfileWidgets`, and `credentialProviderPolicy` are supported from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy).
   + Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790), [Zoom's iOS managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102), or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
-- `install_script.path` is the script Fleet runs on hosts to install the app. Only supported for Microsoft Store apps (`windows`). If omitted, Fleet uses the default install script. Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name (MSIX apps only).
+- `install_script.path` is the script Fleet runs on hosts to install the app. Only supported for Microsoft Store apps (`windows`). If omitted, Fleet uses the default install script. Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name.
 - `uninstall_script.path` is the script Fleet runs on hosts to uninstall the app. Only supported for Microsoft Store apps (`windows`). If omitted, Fleet uses the default uninstall script.
 - `pre_install_query.path` is the SQL query Fleet runs before installing the app. The app is installed only if the [query returns results](https://fleetdm.com/tables). Only supported for Microsoft Store apps (`windows`).
 - `post_install_script.path` is the script that, if supplied, Fleet runs on hosts after the app installs. Only supported for Microsoft Store apps (`windows`).
@@ -893,7 +893,7 @@ App Store apps support `path:` (single file) and `paths:` (glob pattern) referen
 
 To add the same App Store app for multiple platforms, specify the `app_store_id` multiple times, along with the `platform` you want. If you don't specify a platform, one app for each available platform will be added (macOS, iOS, and iPadOS).
 
-Microsoft Store apps are installed and uninstalled with scripts that Fleet runs as the logged-in user, so a user must be logged in to the Windows host. `setup_experience` isn't supported for Microsoft Store apps.
+Fleet installs Microsoft Store apps for all users on the Windows host. Only MSIX apps are supported. Apps that use their own installer (MSI or EXE) can't be added.
 
 When you update an Android app's configuration via GitOps, the app's settings are applied without reinstalling the app. The install status will show as "Pending" until the configuration is applied.
 
