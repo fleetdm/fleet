@@ -12,7 +12,7 @@ This guide picks up where Fleet's GitOps level 1 certification leaves off: a rep
 - An owner of the GitHub organization that owns the repository, to approve the ChatGPT app on GitHub.
 - For Slack: a Slack workspace owner or app manager to approve the ChatGPT app.
 - For Microsoft Teams: a Microsoft account with the Global Administrator or Privileged Role Administrator role, and a Teams admin to install the app.
-- To connect Fleet's MCP server: Fleet Premium 4.95 or later, `fleetctl` logged in as a Fleet admin, and the ChatGPT desktop app, Codex CLI, or IDE extension. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448).
+- To connect Fleet's MCP server: Fleet Premium 4.95 or later, a Fleet admin account, and the ChatGPT desktop app, Codex CLI, or IDE extension. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448).
 
 ## Add the fleet-gitops skill to your repository
 
@@ -82,15 +82,9 @@ OpenAI documents MCP support for the ChatGPT desktop app, Codex CLI, and IDE ext
 
 ### Create an API-only user
 
-Create a dedicated API-only user with the Observer+ role, the least privileged role that can run live reports. It can't change anything in Fleet, and its activity is easy to spot in Fleet's activity feed:
+Create a dedicated [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with the Observer+ role, the least privileged role that can run live reports. It can't change anything in Fleet, and its activity is easy to spot in Fleet's activity feed. Copy the user's API token.
 
-```bash
-fleetctl user create --name "AI assistant" --api-only --global-role observer_plus
-```
-
-`fleetctl` prints the user's API token once. Copy it.
-
-> **Note:** To limit the user to specific fleets, replace `--global-role observer_plus` with `--fleet <fleet_id>:observer_plus`, once per fleet. To limit it to only the API endpoints Fleet's MCP server needs, see [Create an API-only user](https://fleetdm.com/guides/fleet-mcp#create-an-api-only-user).
+> **Note:** To limit the user to specific fleets, give it the Observer+ role on those fleets instead of a global role. To limit it to only the API endpoints Fleet's MCP server needs, see [Create an API-only user](https://fleetdm.com/guides/fleet-mcp#create-an-api-only-user).
 
 ### Add the server on each admin's computer
 

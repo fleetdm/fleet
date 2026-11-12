@@ -10,7 +10,7 @@ This guide picks up where Fleet's GitOps level 1 certification leaves off: a rep
 - GitHub Copilot Business or Enterprise for the GitHub organization that owns the repository, and organization owner access to change its Copilot settings.
 - For Slack: a Slack workspace admin to install the GitHub app.
 - For Microsoft Teams: a Teams admin, if your organization restricts third-party apps.
-- To connect Fleet's MCP server: Fleet Premium 4.95 or later, and `fleetctl` logged in as a Fleet admin. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448).
+- To connect Fleet's MCP server: Fleet Premium 4.95 or later, and a Fleet admin account. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448).
 
 ## Add the fleet-gitops skill to your repository
 
@@ -86,15 +86,9 @@ Fleet Premium 4.95 and later include a built-in MCP server at `/api/v1/fleet/mcp
 
 ### Create an API-only user
 
-Create a dedicated API-only user with the Observer+ role, the least privileged role that can run live reports. It can't change anything in Fleet, and its activity is easy to spot in Fleet's activity feed:
+Create a dedicated [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with the Observer+ role, the least privileged role that can run live reports. It can't change anything in Fleet, and its activity is easy to spot in Fleet's activity feed. Copy the user's API token.
 
-```bash
-fleetctl user create --name "AI assistant" --api-only --global-role observer_plus
-```
-
-`fleetctl` prints the user's API token once. Copy it.
-
-> **Note:** To limit the user to specific fleets, replace `--global-role observer_plus` with `--fleet <fleet_id>:observer_plus`, once per fleet. To limit it to only the API endpoints Fleet's MCP server needs, see [Create an API-only user](https://fleetdm.com/guides/fleet-mcp#create-an-api-only-user).
+> **Note:** To limit the user to specific fleets, give it the Observer+ role on those fleets instead of a global role. To limit it to only the API endpoints Fleet's MCP server needs, see [Create an API-only user](https://fleetdm.com/guides/fleet-mcp#create-an-api-only-user).
 
 ### Store the token as an Agents secret
 

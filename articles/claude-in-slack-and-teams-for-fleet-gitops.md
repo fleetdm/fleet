@@ -11,7 +11,7 @@ This guide picks up where Fleet's GitOps level 1 certification leaves off: a rep
 - One person who is both an owner of the GitHub organization that owns the repository and an Owner in your Claude organization. Only someone with both roles can link GitHub.
 - A Slack workspace admin to install the Claude app and pair the workspace.
 - For Microsoft Teams: a Microsoft Entra Global Administrator to approve the Microsoft 365 connector.
-- To connect Fleet's MCP server: Fleet Premium 4.95 or later, and `fleetctl` logged in as a Fleet admin. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448).
+- To connect Fleet's MCP server: Fleet Premium 4.95 or later, and a Fleet admin account. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448).
 
 ## Add the fleet-gitops skill to your repository
 
@@ -102,15 +102,9 @@ Fleet Premium 4.95 and later include a built-in MCP server at `/api/v1/fleet/mcp
 
 ### Create an API-only user
 
-Create a dedicated API-only user with the Observer+ role, the least privileged role that can run live reports. It can't change anything in Fleet, and its activity is easy to spot in Fleet's activity feed:
+Create a dedicated [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with the Observer+ role, the least privileged role that can run live reports. It can't change anything in Fleet, and its activity is easy to spot in Fleet's activity feed. Copy the user's API token.
 
-```bash
-fleetctl user create --name "AI assistant" --api-only --global-role observer_plus
-```
-
-`fleetctl` prints the user's API token once. Copy it.
-
-> **Note:** To limit the user to specific fleets, replace `--global-role observer_plus` with `--fleet <fleet_id>:observer_plus`, once per fleet. To limit it to only the API endpoints Fleet's MCP server needs, see [Create an API-only user](https://fleetdm.com/guides/fleet-mcp#create-an-api-only-user).
+> **Note:** To limit the user to specific fleets, give it the Observer+ role on those fleets instead of a global role. To limit it to only the API endpoints Fleet's MCP server needs, see [Create an API-only user](https://fleetdm.com/guides/fleet-mcp#create-an-api-only-user).
 
 ### Connect it in Slack
 
@@ -151,7 +145,7 @@ cd fleet-mcp && zip -r ../fleet-mcp.zip .claude-plugin .mcp.json
 4. Go to **Organization settings > Claude Tag**. Under **Claude's access**, select the **Skills and plugins** tab and add `fleet-mcp`.
 5. Select the **Connectors** tab, then **Add > Custom connector**, and fill in the form:
    - **Name**: Fleet MCP
-   - **Credential type**: **Bearer**, with the token from `fleetctl`
+   - **Credential type**: **Bearer**, with the API-only user's token
    - **Allowed websites**: your Fleet server's host, for example `fleet.example.com`
    - **Path prefixes**: `/api/v1/fleet/mcp`
 6. Save the connector.

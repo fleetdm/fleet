@@ -12,7 +12,7 @@ Fleet lets your AI tool look up hosts, policies, and software in Fleet, so you c
 ## Prerequisites
 
 - Fleet Premium 4.95 or later. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448). The MCP server is built in, at `/api/v1/fleet/mcp`.
-- `fleetctl` logged in as a Fleet admin, to create an API-only user for your AI tool.
+- A Fleet admin account, to create an API-only user for your AI tool.
 - To request changes from chat: a Fleet GitOps repository on GitHub, created with [`fleetctl new`](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md).
 
 ## Pick your guide
@@ -70,11 +70,7 @@ The AI tool connects as an Observer+ user, so asking questions never changes any
 
 Fleet's MCP server works with other AI tools too, as long as they support remote MCP servers over Streamable HTTP and let you set a request header.
 
-1. Create an API-only user with the Observer+ role and copy the token that `fleetctl` prints:
-
-```bash
-fleetctl user create --name "AI assistant" --api-only --global-role observer_plus
-```
+1. Create an [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with the Observer+ role and copy its API token.
 
 2. Add Fleet to your tool's MCP configuration. Replace `fleet.example.com` with your Fleet server's host. Many tools use this format:
 
