@@ -162,8 +162,8 @@ var deploymentHookCases = []deploymentHookCase{
 		// cascades query_labels away and can instantly unscope a report.
 		"DeleteLabel", resetsLabelScopes,
 		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error { return nil }
-			return &ds.DeleteLabelFuncInvoked, func() error { return d.DeleteLabel(hookTestCtx, "l", fleet.TeamFilter{}) }
+			ds.DeleteLabelFunc = func(ctx context.Context, id uint) error { return nil }
+			return &ds.DeleteLabelFuncInvoked, func() error { return d.DeleteLabel(hookTestCtx, 1) }
 		},
 	},
 	{

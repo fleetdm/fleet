@@ -219,8 +219,9 @@ type Datastore interface {
 	// ApplyLabelSpecs does the same as ApplyLabelSpecs, additionally allowing an author ID to be set for the labels.
 	ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*LabelSpec, authorId *uint) error
 	// SetAsideLabels moves a set of labels out of the way if those labels *aren't* on the specified team and *are*
-	// writable by the specified user
-	SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user User) error
+	// writable by the specified user. When notOnTeamID is nil, a fleet label with one of the names on a fleet that isn't
+	// listed as moving it is a conflict instead.
+	SetAsideLabels(ctx context.Context, notOnTeamID *uint, labels []LabelToMove, user User) error
 	// GetLabelSpecs returns all of the stored LabelSpecs that the user can see, optionally filtered to
 	// a specific team (or global-only); in this case the team filter does *not* include global
 	// labels if the user asks for a specific team
@@ -254,8 +255,7 @@ type Datastore interface {
 	// members of this label, or an error. When hostIDs is non-nil, the label's
 	// manual membership is replaced with exactly those hosts.
 	SaveLabel(ctx context.Context, label *Label, hostIDs []uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
-	DeleteLabel(ctx context.Context, name string, filter TeamFilter) error
-	LabelByName(ctx context.Context, name string, filter TeamFilter) (*Label, error)
+	DeleteLabel(ctx context.Context, id uint) error
 	// Label returns the label and an array of host IDs members of this label, or an error.
 	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	// LabelMembershipHostIDs returns every host_id row in label_membership for
@@ -291,8 +291,11 @@ type Datastore interface {
 
 	SearchLabels(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
-	// LabelIDsByName retrieves the IDs associated with the given label names
+	// LabelIDsByName retrieves the IDs associated with the given label names. It returns a conflict error when a name
+	// matches labels on several fleets; use AllLabelIDsByName when that's expected.
 	LabelIDsByName(ctx context.Context, labels []string, filter TeamFilter) (map[string]uint, error)
+	// AllLabelIDsByName is like LabelIDsByName, but a name used by labels on several fleets maps to all their IDs.
+	AllLabelIDsByName(ctx context.Context, names []string, filter TeamFilter) (map[string][]uint, error)
 	// LabelsByName retrieves the labels associated with the given label names
 	LabelsByName(ctx context.Context, names []string, filter TeamFilter) (map[string]*Label, error)
 

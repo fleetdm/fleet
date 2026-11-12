@@ -41,18 +41,28 @@ describe("getDetailGuidance", () => {
     expect(result).toBeNull();
   });
 
-  it("renders a learn more link for IdP email errors", () => {
+  it("links the guide in a Fleet 5 removed variable error", () => {
     const guidance = getDetailGuidance(
       createMockHostMdmProfile({
         status: "failed",
-        detail: "There is no IdP email for this host.",
+        detail:
+          'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration The variable is used in the DigiCert certificate authority, not in the profile.',
       })
     );
 
     renderGuidance(guidance);
 
-    expect(screen.getByText(/Learn more/)).toBeInTheDocument();
-    expect(screen.getByText(/Learn more/).tagName.toLowerCase()).toBe("a");
+    expect(
+      screen.getByRole("link", {
+        name: /fleetdm.com\/learn-more-about\/fleet-5-migration/,
+      })
+    ).toHaveAttribute(
+      "href",
+      "https://fleetdm.com/learn-more-about/fleet-5-migration"
+    );
+    expect(
+      screen.getByText(/used in the DigiCert certificate authority/)
+    ).toBeInTheDocument();
     // The message quotes the detail, so the copyable block would repeat it.
     expect(guidance?.supersedesDetail).toBe(true);
   });

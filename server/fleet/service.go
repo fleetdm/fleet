@@ -324,7 +324,7 @@ type Service interface {
 
 	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary,
 	// plus rename existing labels *on other teams* to avoid name conflicts
-	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec, teamID *uint, namesToMove []string) error
+	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec, teamID *uint, labelsToMove []LabelToMove) error
 	// GetLabelSpecs returns either all labels a user can see (no team ID), global labels only (team ID 0),
 	// or team-specific labels
 	GetLabelSpecs(ctx context.Context, teamID *uint) ([]*LabelSpec, error)
@@ -337,8 +337,6 @@ type Service interface {
 	LabelsSummary(ctx context.Context, teamID *uint) (labels []*LabelSummary, err error)
 	GetLabel(ctx context.Context, id uint) (label *LabelWithTeamName, hostIDs []uint, err error)
 
-	DeleteLabel(ctx context.Context, name string) (err error)
-	// DeleteLabelByID is for backwards compatibility with the UI
 	DeleteLabelByID(ctx context.Context, id uint) (err error)
 
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.

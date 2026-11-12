@@ -212,7 +212,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 				_, err := q.ExecContext(ctx, `UPDATE mdm_declaration_labels SET label_id = NULL WHERE label_id = ?`, lbl.ID)
 				return err
 			})
-			err := ts.ds.DeleteLabel(ctx, lbl.Name, filter)
+			err := ts.ds.DeleteLabel(ctx, lbl.ID)
 			require.NoError(t, err)
 		}
 	}

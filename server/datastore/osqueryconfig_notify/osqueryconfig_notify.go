@@ -274,8 +274,8 @@ func (d *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 // DeleteLabel cascades away the label's query_labels rows, which can unscope
 // a report (it then applies to every host of its fleet). Label deletion is
 // infrequent, so it notifies every host.
-func (d *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
-	if err := d.Datastore.DeleteLabel(ctx, name, filter); err != nil {
+func (d *Datastore) DeleteLabel(ctx context.Context, id uint) error {
+	if err := d.Datastore.DeleteLabel(ctx, id); err != nil {
 		return err
 	}
 	d.publishScope(ctx, fleet.AgentNotificationScopeGlobal, fleet.AgentWSReasonLabels, "DeleteLabel")

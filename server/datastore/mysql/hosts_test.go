@@ -15409,10 +15409,8 @@ func testHostTimeZone(t *testing.T, ds *Datastore) {
 	}
 	err = ds.ApplyLabelSpecs(t.Context(), []*fleet.LabelSpec{l1s})
 	require.NoError(t, err)
-	l1, err := ds.LabelByName(t.Context(), l1s.Name, fleet.TeamFilter{
-		User: test.UserAdmin,
-	})
-	require.NoError(t, err)
+	l1 := labelByName(t, ds, l1s.Name, fleet.TeamFilter{User: test.UserAdmin})
+	require.NotNil(t, l1)
 	hosts, err = ds.ListHostsInLabel(t.Context(), fleet.TeamFilter{
 		User: test.UserAdmin,
 	}, l1.ID, fleet.HostListOptions{})
