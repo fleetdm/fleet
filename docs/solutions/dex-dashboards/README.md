@@ -4,13 +4,13 @@ Scripts that build eight dashboards from the Fleet API for macOS, Windows, and L
 
 | File | What it does |
 |:--|:--|
-| `collect.py` | Reads hosts, software, and 14 DEX reports from the Fleet API, several requests at a time. It only sends `GET` requests, and keeps only the software rows a page reads. |
+| `collect.py` | Reads hosts, software, and 15 DEX reports from the Fleet API, several requests at a time. It only sends `GET` requests, and keeps only the software rows a page reads. |
 | `vendor.py` | Reads the latest releases from outside Fleet: macOS from SOFA (`sofafeed.macadmins.io`), Windows builds from Microsoft's Security Update Guide (`api.msrc.microsoft.com`), and fleetd, osquery, and Fleet Desktop from Fleet's update server (`updates.fleetdm.com`). It only sends `GET` requests. When a source can't be reached, the pages that use it fall back to the newest version the fleet runs and say so. |
 | `build.py` | Builds each dashboard page and updates its history, or builds the overview from the dashboards' histories. Splits a page's data, or a history, into part files when it's too big for one artifact file. |
 | `run.py` | Collects, reads the latest releases, then builds all eight pages and the overview in one process, and prints the publish call for each page. The routine calls this. |
 | `bundle.py` | Packages the code above into one file for the routine and prints its sha256. |
 | `templates/` | Page templates. |
-| `dex-reports.yml` | The 14 DEX reports the dashboards read: five for Macs, three for Windows security, two for AI governance on every platform (AI tools and agent usage), and four for Sustainability (two for Macs, one each for Windows and Linux). |
+| `dex-reports.yml` | The 15 DEX reports the dashboards read: six for Macs, three for Windows security, two for AI governance on every platform (AI tools and agent usage), and four for Sustainability (two for Macs, one each for Windows and Linux). |
 | `routine-prompt.md` | The routine's prompt, with placeholders the setup fills in. |
 
 The scripts need Python 3.9 or later and no third-party packages. To try them locally, set `FLEET_URL` and `FLEET_API_TOKEN`, then run:

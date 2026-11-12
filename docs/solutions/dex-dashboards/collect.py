@@ -48,7 +48,10 @@ DEX_REPORTS = {
     "mac_sleep": "DEX - Sustainability - Mac sleep settings",
     "win_power": "DEX - Sustainability - Windows power",
     "lin_power": "DEX - Sustainability - Linux power",
+    "mac_updates": "DEX - System experience - Pending macOS updates",
 }
+# Reports that return several rows per host. Each host keeps every row from its latest results.
+MANY_ROW_REPORTS = {"mac_updates"}
 AI_ROWS_COLUMNS = {"tool_type": "type", "tool_name": "name", "origin": "source", "target_endpoint": "endpoint",
                    "risk_indicators": "risk_flags"}
 NOT_COMPUTERS = {"ios", "ipados", "android", "chrome"}
@@ -130,8 +133,9 @@ def compact_software(sw, keep=None):
     return out
 
 
-def report_rows(fleet, fleets, name, info=None):
+def report_rows(fleet, fleets, name, info=None, many=False):
     """Latest row per host, keyed by host ID as a string, from every copy of a report: global and per fleet.
+    With many=True, each host gets {"last_fetched", "rows"} with every row from its latest results.
 
     Pass a dict as info to learn whether the report exists and whether Fleet clipped it.
     """
@@ -151,7 +155,13 @@ def report_rows(fleet, fleets, name, info=None):
             for row in rep.get("results") or []:
                 hid = str(row.get("host_id"))
                 prev = rows.get(hid)
-                if prev is None or (row.get("last_fetched") or "") > (prev.get("last_fetched") or ""):
+                fetched = row.get("last_fetched") or ""
+                if many:
+                    if prev is None or fetched > (prev["last_fetched"] or ""):
+                        prev = rows[hid] = {"last_fetched": row.get("last_fetched"), "rows": []}
+                    if fetched == (prev["last_fetched"] or ""):
+                        prev["rows"].append(row.get("columns") or {})
+                elif prev is None or fetched > (prev.get("last_fetched") or ""):
                     rows[hid] = {"last_fetched": row.get("last_fetched"), **(row.get("columns") or {})}
     return rows
 
@@ -225,7 +235,8 @@ def submit_reports(fleet, fleets, pool):
     """Start fetching every DEX report side by side. finish_reports() collects them."""
     names = {"device_health": DEVICE_HEALTH_REPORT, "os_health": OS_HEALTH_REPORT, **DEX_REPORTS}
     info = {key: {} for key in names}
-    futures = {key: pool.submit(report_rows, fleet, fleets, name, info[key]) for key, name in names.items()}
+    futures = {key: pool.submit(report_rows, fleet, fleets, name, info[key], key in MANY_ROW_REPORTS)
+               for key, name in names.items()}
     futures["ai_tools"] = pool.submit(ai_tools, fleet, fleets)
     return futures, info
 

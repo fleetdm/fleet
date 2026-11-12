@@ -4,7 +4,7 @@ Fleet already knows what hardware your computers run, which apps people open, an
 
 - Hardware lifecycle: which computers to replace, repair, or leave alone.
 - Software usage: which installed apps nobody opens.
-- Patch velocity: how fast new versions reach every computer, measured against the latest releases from Apple and Microsoft. Rollouts in progress can show only the apps you have patch policies for.
+- Patch velocity: how fast new versions reach every computer, measured against the latest releases from Apple and Microsoft, and which Macs have a macOS update waiting to install. Rollouts in progress can show only the apps you have patch policies for.
 - AI governance: which AI tools people use, how much coding agents are used and with which models, how they're set up, and which settings put data at risk.
 - Connectivity: which computers stopped checking in, and which Macs have weak Wi-Fi or no network path.
 - Analytics: whether the data behind the dashboards is complete and fresh, plus security posture and Fleet agent versions.
@@ -18,7 +18,7 @@ A daily [Claude Code routine](https://code.claude.com/docs/en/routines) reads th
 ## How it works
 
 - A cloud environment holds a read-only Fleet API token and can reach only your Fleet server.
-- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and 14 DEX reports, then build the eight pages and the overview.
+- Once a day, the routine runs a set of Python scripts from Fleet's repository. They read your hosts, their software, and 15 DEX reports, then build the eight pages and the overview.
 - Each dashboard stores a small history file next to its page. Every run reads the history back and adds a day. Patch velocity uses it to time how long each new version takes to reach every computer, Hardware lifecycle uses it to tell sustained memory strain on a Mac from a single bad day, and Sustainability uses it to turn each Mac's running energy total into kWh per day. Each page also charts its key numbers over time, for up to a year, and the overview reads the same daily counts, so its numbers match each dashboard's. All of this gets more useful over the first few weeks.
 
 ## Tradeoffs
@@ -61,12 +61,13 @@ These dashboards replace a business intelligence (BI) tool with a scheduled Clau
 
 ## Step 1: Add the DEX reports
 
-The dashboards read 14 reports, all in [`dex-reports.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/dex-dashboards/dex-reports.yml):
+The dashboards read 15 reports, all in [`dex-reports.yml`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/dex-dashboards/dex-reports.yml):
 
 | Report | Platforms | What reads it |
 |:--|:--|:--|
 | `DEX - Hardware experience - Device health` | macOS | Hardware lifecycle, for memory pressure and battery health. |
 | `DEX - System experience - OS health` | macOS | Patch velocity, for macOS build numbers, so it can leave betas out. |
+| `DEX - System experience - Pending macOS updates` | macOS | Patch velocity, for macOS updates queued to install on their own. A Mac with nothing queued sends no results, so Analytics doesn't check this report. |
 | `DEX - AI governance - AI tools per host` | macOS, Windows, Linux | AI governance. It packs every AI tool fleetd finds into one row per computer, so a report row limit doesn't cut computers off. |
 | `DEX - AI governance - AI agent usage per host` | macOS, Windows, Linux | AI governance, for coding agent sessions, tokens, models, and sign-in types over the last 30 days. It needs fleetd 1.64.0 or later. |
 | `DEX - Network experience - Wi-Fi signal quality` | macOS | Connectivity, for signal strength, noise, and band. |
@@ -91,11 +92,11 @@ reports:
 
 The path is relative to the file it's in. This example is for a file in `fleets/`. In `default.yml`, use `./lib/all/reports/dex-reports.yml`.
 
-- **UI:** create the 14 reports from `dex-reports.yml` in the Fleet UI, with the same names, SQL, and platforms.
+- **UI:** create the 15 reports from `dex-reports.yml` in the Fleet UI, with the same names, SQL, and platforms.
 
 Keep the report names exactly as written. The scripts find each report by name, in any fleet or in **All fleets**.
 
-> **Note:** The dashboards read the results Fleet stores for each report. If `discard_reports_data` is `true` in your `server_settings`, Fleet doesn't store them, and Hardware lifecycle has no memory or battery data. The reports run every 10 minutes to every four hours, so give them a few hours before the first run.
+> **Note:** The dashboards read the results Fleet stores for each report. If `discard_reports_data` is `true` in your `server_settings`, Fleet doesn't store them, and Hardware lifecycle has no memory or battery data. The reports run every 10 minutes to every 8 hours, so give them a few hours before the first run.
 
 ## Step 2: Create a read-only API-only user
 
@@ -212,7 +213,7 @@ On a large fleet, keep these in mind:
 ## Verify
 
 1. Open the overview. Each card shows today's numbers and opens its dashboard in a new tab. Each dashboard shows today's date next to **Updated**, and **All dashboards** takes you back to the overview.
-2. On Patch velocity, the summary says "Timing starts with the next release." Until a new version ships and computers pick it up, it shows the share of installs on the newest version instead.
+2. On Patch velocity, the summary says "Timing starts with the next release." Until a new version ships and computers pick it up, it shows the share of installs on the newest version instead. Under **macOS updates waiting to install**, updates that were already queued on the first run show a "+" after their waiting time, since the page can't tell when they were queued.
 3. Under **Over time**, each chart says "Not enough history yet," and the overview's cards say the trend starts after a second day. The charts fill in after the second daily run.
 4. On AI governance, pick a posture under **AI policy**. The change log shows your name and the time. People who can only view the dashboard see the policy but can't change it.
 5. On Sustainability, the summary shows each Mac's average power since boot. Energy in kWh starts after the second run, once there are two readings to compare.
@@ -257,6 +258,10 @@ The environment's network access doesn't allow your Fleet server. Set **Network 
 **Patch velocity says "Couldn't check the latest release"**
 
 The environment's network access doesn't allow `sofafeed.macadmins.io` or `api.msrc.microsoft.com`. Add the one the notice names to the environment's **Network access**. Analytics says "Fleet's update server wasn't reachable" when `updates.fleetdm.com` is missing.
+
+**Patch velocity says "Pending macOS updates report not set up"**
+
+The scripts didn't find a report named `DEX - System experience - Pending macOS updates` in any fleet. Add it from `dex-reports.yml` (step 1) without renaming it. It runs every 8 hours, so Macs show up after their first run.
 
 **`403` with "endpoint not permitted for this API-only user"**
 

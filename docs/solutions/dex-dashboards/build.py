@@ -26,6 +26,8 @@ STALE_DAYS = 30
 WARRANTY_VITAL = os.environ.get("DEX_WARRANTY_VITAL", "AppleCare warranty expiration")
 PATCH_SLA_DAYS = 14
 PATCH_TIMED_DAYS = 90
+# A queued macOS update still waiting after this many days is likely stuck.
+QUEUED_STUCK_DAYS = 7
 IDLE_DAYS = 90
 MIN_INSTALLS = 3
 TREND_DAYS = 366
@@ -806,6 +808,22 @@ def patch_policy_titles(snap):
     return out
 
 
+def queued_update(h, report):
+    """The newest macOS update a Mac has queued to install on its own, as (version, build, type), or None.
+    Software Update leaves an update's key in place after it installs, so only a version newer than
+    the one the Mac runs counts. A Rapid Security Response keeps the version, so it's compared by build."""
+    running = (h.get("os_version") or "").replace("macOS ", "").strip()
+    best = None
+    for r in (report or {}).get("rows") or []:
+        ver, build, kind = r.get("target_version") or "", r.get("target_build") or "", r.get("update_type") or ""
+        current = running or r.get("current_version") or ""
+        c = vcmp(ver, current)
+        if ver and (c > 0 or (c == 0 and kind == "rsr" and build != (r.get("current_build") or build))):
+            if best is None or vcmp(ver, best[0]) > 0:
+                best = (ver, build, kind)
+    return best
+
+
 def newest_release(vers, betas):
     """Highest version at least two hosts run, so a lone test build doesn't set the bar."""
     release = [v for v in vers if v not in betas] or list(vers)
@@ -998,6 +1016,25 @@ def build_patch(snap, hist):
         for hid, day_i, _ in rows:
             if day_i == today_i and str(hid) in hosts:
                 count_into(day, fleet_of(hid), platform_of(hosts[str(hid)]), updates=1)
+
+    # macOS updates queued to install on their own. The history keeps the first day each Mac
+    # was seen waiting on its version, so the page can tell a fresh download from a stuck one.
+    reports = snap.get("dex") or {}
+    queued_report = bool(((snap.get("report_info") or {}).get("mac_updates") or {}).get("found"))
+    if queued_report:
+        hist.setdefault("queued_since", D)
+    waiting = hist.get("queued") or {}
+    queued = {}
+    for hid in active:
+        h = hosts[hid]
+        if platform_of(h) != "macos" or not (q := queued_update(h, (reports.get("mac_updates") or {}).get(hid))):
+            continue
+        prev = waiting.get(hid)
+        first = prev[1] if prev and prev[0] == q[0] else D
+        queued[hid] = [*q, first, (h.get("os_version") or "").replace("macOS ", "").strip()]
+        count_into(day, fleet_of(hid), "macos", os_queued=1,
+                   os_queued_stuck=int((today - dt.date.fromisoformat(first)).days >= QUEUED_STUCK_DAYS))
+    hist["queued"] = {hid: [q[0], q[3]] for hid, q in queued.items()}
     return {
         "generated_at": snap["generated_at"], "fleet_url": snap["fleet_url"],
         "history_since": hist["since"], "sla_days": PATCH_SLA_DAYS, "stale_days": STALE_DAYS,
@@ -1008,6 +1045,9 @@ def build_patch(snap, hist):
         "os_targets": os_targets(snap),
         "by_host": by_host,
         "by_app": {fp: [[ti, n, total, len(hs)] for ti, (n, total, hs) in sorted(apps.items())] for fp, apps in by_app.items()},
+        # {host id: [version, build, type, first day seen waiting, version it runs]}
+        "queued": queued, "queued_report": queued_report, "queued_since": hist.get("queued_since"),
+        "queued_stuck_days": QUEUED_STUCK_DAYS,
         "trend": save_trend(hist, today, day),
     }
 

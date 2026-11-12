@@ -23,6 +23,8 @@
 .app-line { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--line); }
 .notice { border: 1px solid var(--line-2); border-radius: 8px; padding: 12px 16px; background: var(--panel-2); color: var(--ink-2); }
 .notice b { color: var(--ink); }
+.stack { display: flex; flex-direction: column; gap: 16px; }
+.stack .panel-note { margin: 0; }
 </style>
 
 <div class="wrap">
@@ -72,6 +74,14 @@
     <div id="rollouts"></div>
   </section>
 
+  <section class="sec" aria-labelledby="queue-h" id="queue-sec">
+    <div class="sec-head">
+      <h2 id="queue-h">macOS updates waiting to install</h2>
+      <span class="hint">Updates macOS has queued to install on its own</span>
+    </div>
+    <div class="stack" id="queue"></div>
+  </section>
+
   <section class="sec" aria-labelledby="tail-h">
     <div class="sec-head">
       <h2 id="tail-h">Computers dragging the tail</h2>
@@ -107,6 +117,7 @@
         <p><span class="term">Scope:</span> on macOS, the OS plus third-party apps in <code>/Applications</code>. On Windows, the OS build across Windows 11's releases (for example 25H2 and 26H2) plus third-party programs. On Linux, the point release within each distribution release (for example Ubuntu 24.04.5 within 24.04) plus apps whose vendors ship their own Linux packages, such as Chrome, VS Code, Slack, and Zoom. Apps the distribution builds, such as LibreOffice and Ubuntu's Firefox, update with the OS and aren't timed on their own. Kernels aren't timed either, since a new kernel only runs after a restart. Apple's and Microsoft's own apps and components update on their own schedule and are left out, as are helpers and installers. Computers that haven't checked in for <span id="stale-days"></span> days are left out of the version counts.</p>
         <p><span class="term">Target:</span> <span id="sla"></span> days from release to install. <span id="os-targets"></span>Medians are used because patch times have a long tail.</p>
         <p><span class="term">Patch policy:</span> Rollouts in progress can show only apps with a patch policy in Fleet, counted on the computers each policy applies to. A policy is matched to an app by the bundle ID (macOS) or program name (Windows) in its query.</p>
+        <p><span class="term">Waiting to install:</span> macOS updates queued to install on their own, from the Pending macOS updates report. macOS keeps an update's entry after it installs, so only a version newer than the one the Mac runs counts. Waiting time counts from the first day the report shows the Mac waiting on that version, so updates already queued when tracking began, on <span id="queued-since"></span>, have waited longer than shown.</p>
       </div>
     </div>
   </details>
@@ -151,6 +162,11 @@ const OS_TARGETS = DATA.os_targets || {};
 const osTarget = (fp) => (OS_TARGETS[fp] ? OS_TARGETS[fp][0] + OS_TARGETS[fp][1] : SLA);
 const andList = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")}${xs.length > 2 ? "," : ""} and ${xs[xs.length - 1]}` : xs[0] || "");
 const covTone = (p) => (p >= 90 ? "good" : p >= 60 ? "info" : p >= 30 ? "warn" : "bad");
+// {host id: [version, build, type, first day seen waiting, version it runs]} for Macs with a macOS update queued.
+const QUEUED = DATA.queued || {};
+const STUCK = DATA.queued_stuck_days;
+const QUEUE_KINDS = { major: "Upgrade", rsr: "Rapid Security Response" };
+const daysOld = (iso) => Math.max(0, Math.round((Date.parse(DATA.generated_at.slice(0, 10)) - Date.parse(iso)) / 864e5));
 
 function compute() {
   const ok = (hid) => DATA.hosts[hid] && inFleet(DATA.hosts[hid].f) && inPlatform(DATA.hosts[hid].p);
@@ -261,7 +277,11 @@ function render() {
     stat(`Median ${Noun(false).toLowerCase()}`, hostMeans.length ? fmt.days(quantile(hostMeans, 0.5)) : "---", "each one counted once"),
     stat("Versions in use", fmt.n(titles.reduce((s, t) => s + t.versions, 0)), `across ${fmt.plural(titles.length, "title")}`));
 
-  renderTrend(["app_installs", "app_current", "os_installs", "os_current", "os_patched", "updates"], [
+  const queueTrend = DATA.queued_report && inPlatform("macos") ? [{ title: "Macs with a macOS update waiting", series: [
+    { label: "Queued", color: "var(--info)", value: (r) => (r.date >= DATA.queued_since ? r.os_queued : null) },
+    { label: `Waiting ${STUCK}+ days`, color: "var(--warn)", value: (r) => (r.date >= DATA.queued_since ? r.os_queued_stuck : null) }],
+    note: `Macs with a macOS update queued to install on its own, and how many have waited ${STUCK} days or more.` }] : [];
+  renderTrend(["app_installs", "app_current", "os_installs", "os_current", "os_patched", "updates", "os_queued", "os_queued_stuck"], [
     { title: "Installs on the newest version", yFmt: fmt.pct, yMax: 100, series: [
       { label: "Apps", color: "var(--info)", value: (r) => pct(r.app_current, r.app_installs) },
       { label: "OS", color: "var(--warn)", value: (r) => pct(r.os_current, r.os_installs) },
@@ -269,6 +289,7 @@ function render() {
       note: `Apps and OS versions on ${DATA.min_installs} or more computers, measured against the newest version on that day (for Windows, the newest build for the release each computer runs). It drops when a new release ships and climbs as computers update.` },
     { title: "Updates applied per day", kind: "bar", series: [{ label: "Updates", color: "var(--good)", value: (r) => r.updates }],
       note: "Computers seen moving to a newer version, counted on the day Fleet first reports it." },
+    ...queueTrend,
   ]);
 
   // Coverage curve
@@ -338,7 +359,8 @@ function render() {
       t.lines ? h("div", { class: "cell-sub" }, [`${fmt.n(t.onTop)} on the newest release`, `${fmt.n(t.patched)} patched on an older release`,
         `${fmt.n(t.installs - t.onTop - t.patched - t.unsupported)} missing updates`, t.unsupported ? `${fmt.n(t.unsupported)} on a release no longer updated` : null].filter(Boolean).join(" · ")) : null,
       lag.length ? h("div", { class: "split", style: "margin-top:10px" }, lag.map(([hid, v]) => h("div", { class: "app-line" }, hostLink(hid, DATA.hosts[hid].n),
-        h("span", {}, h("span", { class: "ver" }, verLabel(t, v)), status(v) ? h("span", { class: "tag" }, status(v)) : null))))
+        h("span", {}, h("span", { class: "ver" }, verLabel(t, v)), status(v) ? h("span", { class: "tag" }, status(v)) : null,
+          t.key === "os:macOS" && QUEUED[hid] ? h("span", { class: "tag" }, `${QUEUED[hid][2] === "rsr" ? QUEUE_KINDS.rsr : QUEUED[hid][0]} queued`) : null))))
         : h("p", {}, t.per_release ? "Every computer has the latest update for its release." : "Every computer runs the newest version.")];
   };
   mount("drift", rows.length ? [sortTable({ columns, groups: [{ rows }], sort: ["pct", "asc"], detail, id: "drift-table" }),
@@ -374,6 +396,35 @@ function render() {
   ] }) : rollScope === "patch" && !HAS_PATCH ? empty("No patch policies yet", "Add a patch policy to a Fleet-maintained app in Fleet, and its new versions show here. Pick All to see every app.")
     : rollScope === "patch" && rollsBy.all.length ? empty("No new versions for apps with a patch policy", "None has a version first seen in the last 45 days. Pick All to see every app.")
     : empty("No new versions yet", `Versions that first appear after ${fmt.date(DATA.history_since)} show here as computers pick them up.`));
+
+  // macOS updates queued to install on their own, and how many Macs behind on macOS have one.
+  const macs = Object.values(DATA.hosts).filter((x) => x.p === "macos" && inFleet(x.f));
+  const showQueue = inPlatform("macos") && macs.length > 0;
+  document.getElementById("queue-sec").hidden = !showQueue;
+  const queued = showQueue ? Object.entries(QUEUED).filter(([hid]) => DATA.hosts[hid] && inFleet(DATA.hosts[hid].f))
+    .map(([hid, [ver, build, kind, first, running]]) => ({ _id: hid, hid, ver, build, kind, first, running, waited: daysOld(first), baseline: first <= DATA.queued_since })) : [];
+  const stuck = queued.filter((q) => q.waited >= STUCK);
+  const macT = titles.find((t) => t.key === "os:macOS");
+  const macBehind = macT ? macT.inst.filter(([, v]) => !upToDate(macT, v)) : [];
+  const behindQueued = macBehind.filter(([hid]) => QUEUED[hid]).length;
+  const waitText = (q) => (q.waited < 1 ? (q.baseline ? "already queued" : "today") : (q.baseline ? `${fmt.n(q.waited)}+ days` : fmt.plural(q.waited, "day")));
+  if (showQueue) mount("queue", !DATA.queued_report
+    ? empty("Pending macOS updates report not set up", "Add DEX - System experience - Pending macOS updates from dex-reports.yml, without renaming it, to see which Macs have a macOS update waiting to install.")
+    : [h("div", { class: "stats" },
+        stat("Macs with an update queued", fmt.n(queued.length), `of ${fmt.plural(macs.length, "Mac")}`),
+        stat("Behind, update queued", macT ? fmt.n(behindQueued) : "---", "waiting to install on its own"),
+        stat("Behind, nothing queued", macT ? fmt.n(macBehind.length - behindQueued) : "---", "no automatic install pending"),
+        stat(`Waiting ${STUCK}+ days`, fmt.n(stuck.length), "queued, not installed yet"),
+        stat("Upgrades queued", fmt.n(queued.filter((q) => q.kind === "major").length), "to a new major version")),
+      queued.length ? sortTable({ id: "queue-table", sort: ["waited", "desc"], groups: [{ rows: queued }], columns: [
+        { key: "name", label: "Mac", value: (q) => DATA.hosts[q.hid].n.toLowerCase(), cell: (q) => hostLink(q.hid, DATA.hosts[q.hid].n) },
+        { key: "running", label: "Running", value: (q) => q.running, cell: (q) => h("span", { class: "ver" }, q.running || "---") },
+        { key: "ver", label: "Queued", value: (q) => q.ver, cell: (q) => [h("span", { class: "ver" }, q.ver), QUEUE_KINDS[q.kind] ? h("span", { class: "tag" }, QUEUE_KINDS[q.kind]) : null,
+          h("div", { class: "cell-sub" }, `Build ${q.build}`)] },
+        { key: "waited", label: "Waiting", num: true, value: (q) => q.waited, cell: (q) => [q.waited >= STUCK ? pill(waitText(q), "warn") : waitText(q),
+          h("div", { class: "cell-sub" }, q.baseline ? `queued by ${fmt.date(q.first)}` : `since ${fmt.date(q.first)}`)] },
+      ] }) : empty("No Mac has an update waiting", "None of these Macs has a macOS update queued to install on its own."),
+      h("p", { class: "panel-note" }, `A Mac with an update queued for ${STUCK} days or more is likely stuck. A deadline in Fleet's OS updates settings makes the install mandatory.`)]);
 
   // Tail
   mount("laggards", laggards.length ? h("div", { class: "bars" }, barRows(laggards.slice(0, 8).map((l) => ({
@@ -426,7 +477,13 @@ function render() {
     const older = [t.patched ? `${fmt.n(t.patched)} ${t.patched === 1 ? "is" : "are"} patched but on an older release` : null,
       t.unsupported ? `${fmt.n(t.unsupported)} ${t.unsupported === 1 ? "runs" : "run"} a release that no longer gets updates` : null].filter(Boolean);
     const upgrades = older.length ? ` Of them, ${older.join(", and ")}, so they need an upgrade, not just an update.` : "";
-    levers.push({ t: `Set a deadline for ${t.name} ${verLabel(t, t.newest)}`, e: `${behind} build.${upgrades} A deadline in Fleet's OS updates settings makes the update mandatory.`, x: fmt.pct(t.pct), s: "on the newest build" });
+    const waiting = t.key === "os:macOS" && DATA.queued_report ? t.inst.filter(([hid, v]) => !upToDate(t, v) && QUEUED[hid]).length : 0;
+    const waitingText = waiting ? ` ${fmt.n(waiting)} ${waiting === 1 ? "has" : "have"} an update queued to install on its own.` : "";
+    levers.push({ t: `Set a deadline for ${t.name} ${verLabel(t, t.newest)}`, e: `${behind} build.${upgrades}${waitingText} A deadline in Fleet's OS updates settings makes the update mandatory.`, x: fmt.pct(t.pct), s: "on the newest build" });
+  }
+  if (stuck.length) {
+    levers.push({ t: `Follow up on ${fmt.plural(stuck.length, "Mac")} with a macOS update waiting ${STUCK}+ days`, e: `macOS queued ${stuck.length === 1 ? "the update" : "these updates"} to install on its own but hasn't installed ${stuck.length === 1 ? "it" : "them"}. A deadline in Fleet's OS updates settings makes the install mandatory.`,
+      x: fmt.n(stuck.length), s: "waiting" });
   }
   mount("levers", levers.length ? levers.map((l) => h("div", { class: "lever" }, h("span", { class: "t" }, l.t), h("span", { class: "e" }, l.e), h("span", { class: "x" }, l.x, h("span", {}, l.s))))
     : empty("Nothing stands out", "Every app and computer is close to current."));
@@ -434,6 +491,7 @@ function render() {
   document.getElementById("since").textContent = fmt.date(DATA.history_since);
   document.getElementById("stale-days").textContent = DATA.stale_days;
   document.getElementById("sla").textContent = SLA;
+  document.getElementById("queued-since").textContent = DATA.queued_since ? fmt.date(DATA.queued_since) : "the first run with the report";
   const named = Object.entries(OS_TARGETS).map(([fp, [d, g]]) => `${d + g} days on ${fp.slice(0, fp.lastIndexOf("|"))} (${d}-day deadline plus ${g}-day grace period)`);
   document.getElementById("os-targets").textContent = named.length
     ? `Windows OS updates in a fleet with a Windows OS update deadline are held to the deadline plus its grace period instead: ${andList(named)}. `

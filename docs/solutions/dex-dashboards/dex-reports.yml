@@ -129,6 +129,25 @@
   automations_enabled: false
   logging: snapshot
   interval: 14400
+- name: DEX - System experience - Pending macOS updates
+  description: macOS software updates staged for automatic install, with target build and version compared to the currently installed OS.
+  query: |
+    SELECT
+      p.value AS product_key,
+      split(p.value, '_', 2) AS target_build,
+      split(p.value, '_', 3) AS payload,
+      split(p.value, '_', 4) AS target_version,
+      split(p.value, '_', 5) AS update_type,
+      o.version AS current_version,
+      o.build AS current_build
+    FROM plist p, os_version o
+    WHERE p.path = '/Library/Preferences/com.apple.SoftwareUpdate.plist'
+      AND p.key = 'AutoInstallProductKeys'
+      AND p.value LIKE 'MSU_UPDATE_%';
+  platform: darwin
+  automations_enabled: false
+  logging: snapshot
+  interval: 28800
 - name: DEX - AI governance - AI tools per host
   description: Every AI tool fleetd's ai_tools table finds on the host (desktop apps, agent CLIs, IDE plugins, browser extensions, MCP servers, live AI connections, and agent instruction files), packed into one row per host so Fleet's 1,000-row report limit doesn't cut hosts off. Needs fleetd 1.59.0 or later.
   query: |
