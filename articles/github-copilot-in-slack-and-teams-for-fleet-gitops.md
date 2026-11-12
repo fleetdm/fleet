@@ -2,7 +2,7 @@
 
 Once your Fleet configuration lives in a GitOps repository, most changes are a pull request away. This guide connects GitHub Copilot to Slack and Microsoft Teams, so anyone on your IT team can mention `@GitHub` in a channel, describe a change, and get a pull request back. Copilot cloud agent writes the change and checks it with the `fleet-gitops` skill. Your CI runs a dry run, a person reviews it, and merging it deploys it. You'll also connect Copilot to Fleet's MCP server, so it can look up hosts, policies, and software in Fleet while it works.
 
-This guide picks up where Fleet's GitOps level 1 certification leaves off: a repository created with `fleetctl new`, on GitHub, with CI applying it to Fleet. Copilot in Slack and Teams is in public preview, so labels and steps may change.
+This guide picks up where Fleet's GitOps level 1 certification leaves off: a repository created with `fleetctl new`, on GitHub, with CI applying it to Fleet.
 
 ## Prerequisites
 
@@ -10,13 +10,13 @@ This guide picks up where Fleet's GitOps level 1 certification leaves off: a rep
 - GitHub Copilot Business or Enterprise for the GitHub organization that owns the repository, and organization owner access to change its Copilot settings.
 - For Slack: a Slack workspace admin to install the GitHub app.
 - For Microsoft Teams: a Teams admin, if your organization restricts third-party apps.
-- To connect Fleet's MCP server: Fleet 4.95 or later, and `fleetctl` logged in as a Fleet admin. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448).
+- To connect Fleet's MCP server: Fleet Premium 4.95 or later, and `fleetctl` logged in as a Fleet admin. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448).
 
 ## Add the fleet-gitops skill to your repository
 
-Copilot reads `AGENTS.md` and discovers skills in `.agents/skills/` on its own. Recent versions of `fleetctl new` create both, along with the `fleet-gitops` skill. If your repository already has `AGENTS.md` and `.agents/skills/fleet-gitops/SKILL.md`, skip to the next step.
+Copilot reads `AGENTS.md` and discovers skills in `.agents/skills/` on its own. `fleetctl new` 4.95 and later create both, along with the `fleet-gitops` skill. If your repository already has `AGENTS.md` and `.agents/skills/fleet-gitops/SKILL.md`, skip to the next step.
 
-1. Download the latest `fleetctl` from [fleetdm.com/download](https://fleetdm.com/download), then create a fresh template in a temporary folder:
+1. Install `fleetctl` 4.95 or later from [fleetdm.com/download](https://fleetdm.com/download). Earlier versions don't create `AGENTS.md`, `GEMINI.md`, or `.agents/`. Then create a fresh template in a folder that doesn't exist yet:
 
 ```bash
 fleetctl new --dir /tmp/fleet-template --org-name "Acme"
@@ -38,23 +38,20 @@ A merge to your default branch is a deploy: the **Apply latest configuration to 
 
 1. In your repository, go to **Settings > Rules > Rulesets** and select **New ruleset > New branch ruleset**.
 2. Name the ruleset, set **Enforcement status** to **Active**, and add your default branch under **Targets**.
-3. Turn on **Require a pull request before merging** and set **Required approvals** to at least 1.
+3. Turn on **Require a pull request before merging** and set **Required approvals** to at least 1. Copilot opens pull requests from Slack and Teams channels under its own app identity, so by default they need one more approval than you set here.
 4. Turn on **Require status checks to pass** and add the `fleet-gitops` check, so a failed dry run blocks the merge.
 5. Select **Create**.
 
-> **Warning:** Don't give Copilot your `FLEET_API_TOKEN`. That token belongs to an API-only user with the GitOps role, which can apply changes, not only dry-run them. Copilot checks its work offline with the `fleet-gitops` skill's `validate.py`, and your CI runs the dry run with the token it already has.
+> **Warning:** Don't give Copilot your `FLEET_API_TOKEN`. That token can apply changes to Fleet, not only dry-run them. Copilot checks its work offline with the `fleet-gitops` skill's `validate.py`, and your CI runs the dry run with the token it already has.
 
-## Turn on Copilot cloud agent
+## Check that Copilot in the cloud is on
 
-Copilot cloud agent does the work you start from Slack and Teams. Sessions started from chat run in a cloud sandbox, which is off by default.
+Copilot cloud agent does the work you start from Slack and Teams, in a cloud sandbox. Cloud sandboxes don't have a separate setting. They come with the **Copilot in the cloud** policy.
 
-1. In your GitHub organization, go to **Settings > Copilot > Policies** and set **Copilot cloud agent** to **Enabled**. On GitHub Enterprise, an enterprise owner may need to allow it first under **AI controls > Agents**.
-2. Go to **Settings > Sandboxes**, set **Cloud sandbox access** to **Enabled**, and select **Save**.
-3. Go to **Settings > Copilot > Cloud agent** and make sure **Repository access** includes your GitOps repository.
+1. In your GitHub organization, go to **Settings > Copilot > Policies** and make sure **Copilot in the cloud** is **Enabled**. It's on by default for Copilot Business and Enterprise. On GitHub Enterprise, an enterprise owner may need to allow it first under **AI controls > Copilot > Configure features & clients**.
+2. Go to **Settings > Copilot > Cloud** and make sure **Repository access** includes your GitOps repository.
 
-> **Note:** GitHub bills cloud sandbox usage separately from Copilot seats, by compute time and storage.
-
-In your repository's **Settings > Copilot > Cloud agent**, leave **Require approval for workflow runs** on. GitHub Actions won't run on Copilot's pull requests until a person selects **Approve and run workflows**, so the dry run starts when someone is looking.
+> **Note:** GitHub bills cloud sandbox usage separately from Copilot seats, by compute, memory, and storage.
 
 ## Add Copilot to Slack
 
@@ -74,7 +71,7 @@ Choose your GitOps repository.
 ## Add Copilot to Microsoft Teams
 
 1. If your organization restricts third-party apps, a Teams admin allows the app first: in the Teams admin center, go to **Teams apps > Manage apps**, find **GitHub**, and select **Allow**.
-2. In Teams, select **Apps**, search for **GitHub**, and select **Add**. Install the app published by GitHub, not **GitHub Notifications**.
+2. In Teams, select **Apps**, search for **GitHub**, and select **Add**. If your team already uses **GitHub Notifications**, update that app instead. Your existing subscriptions stay.
 3. Add the app to the team and channel where people will request changes.
 4. Mention `@GitHub` in the channel and sign in with your GitHub account when prompted.
 5. Set the channel's default repository:
@@ -85,7 +82,7 @@ Choose your GitOps repository.
 
 ## Connect Copilot to Fleet's MCP server
 
-Fleet 4.95 and later include an MCP server, the `POST /mcp` endpoint. Connect it so Copilot can check what's already in Fleet before it writes a change, for example which fleets already have a FileVault policy.
+Fleet Premium 4.95 and later include a built-in MCP server at `/api/v1/fleet/mcp`. Connect it so Copilot can check what's already in Fleet before it writes a change, for example which fleets already have a FileVault policy.
 
 ### Create an API-only user
 
@@ -129,7 +126,7 @@ fleetctl user create --name "AI assistant" --api-only --global-role observer_plu
 ```
 
 4. Select **Save MCP configuration**.
-5. Go to **Settings > Copilot > Internet access**, add your Fleet server's host under **Custom allowlist**, and select **Save changes**.
+5. Go to **Settings > Copilot > Internet access**. Under **Custom allowlist**, select **Add rule**, enter your Fleet server's host, and select **Save changes**.
 
 Copilot runs MCP tools without asking first. That's why the token above belongs to an Observer+ user, which can't change anything in Fleet.
 
@@ -143,9 +140,9 @@ Copilot runs MCP tools without asking first. That's why the token above belongs 
 
 In Teams, add `repo=acme/it-and-security` (your repository) if the channel has no default.
 
-2. Copilot replies in the thread with a link to the session. Reply in the thread to steer it.
+2. In Slack, Copilot opens a dedicated **Slack Code** channel for the task. Steer the session there. In Teams, reply in the same thread and mention `@GitHub`.
 3. When Copilot opens the pull request, review the new file under `platforms/macos/policies/` and the change to `fleets/workstations.yml`.
-4. Select **Approve and run workflows** to start the dry run, and wait for the `fleet-gitops` check to pass.
+4. Wait for the `fleet-gitops` check to pass. If the pull request shows **Approve and run workflows**, select it first.
 5. To ask for changes, comment on the pull request and mention `@copilot`. Copilot pushes a new commit to the same branch.
 6. When the check passes and the change looks right, mark the pull request ready for review, approve it, and merge it. The workflow applies it to Fleet.
 
@@ -162,11 +159,11 @@ Ask for one in your request ("Open a pull request"). Sessions started from Slack
 
 **`@GitHub` doesn't respond in a channel**
 
-Run `/invite @GitHub` in Slack, or add the app to the channel in Teams. If it responds but can't start work, check that **Copilot cloud agent** and **Cloud sandbox access** are both enabled for your organization.
+Run `/invite @GitHub` in Slack, or add the app to the channel in Teams. If it responds but can't start work, check that **Copilot in the cloud** is enabled for your organization, and that you have write access to the repository.
 
 **The dry run never starts**
 
-Open the pull request and select **Approve and run workflows**. Copilot's pull requests wait for a person to approve workflow runs.
+If the pull request shows **Approve and run workflows**, select it. Otherwise, check that the **Apply latest configuration to Fleet** workflow is on your default branch.
 
 **The dry run fails on a key Copilot added**
 
@@ -174,7 +171,12 @@ Comment on the pull request: `@copilot The dry run failed. Run python3 .agents/s
 
 **The `fleet` MCP server doesn't start**
 
-Check the **Start MCP Servers** step in the session logs. A `401` means the secret's value is missing the `Bearer ` prefix or the token is wrong. A connection error means the Fleet host isn't on the custom allowlist, or your Fleet server is older than 4.95.
+Check the **Start MCP Servers** step in the session logs. If Fleet answers with an error:
+
+- `401`: the secret's value is missing the `Bearer ` prefix, or the token is wrong.
+- `402`: your Fleet server isn't on Fleet Premium.
+- `404`: your Fleet server is older than 4.95.
+- `400` "Fleet's MCP server is disabled": an admin turned it off. Turn it back on in **Settings > Organization settings > Advanced options**.
 
 ## Further reading
 

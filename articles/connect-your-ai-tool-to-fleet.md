@@ -11,7 +11,7 @@ Fleet lets your AI tool look up hosts, policies, and software in Fleet, so you c
 
 ## Prerequisites
 
-- Fleet 4.95 or later. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448). The MCP server is the `POST /mcp` endpoint.
+- Fleet Premium 4.95 or later. Fleet 4.95 is [coming soon](https://github.com/fleetdm/fleet/issues/44448). The MCP server is built in, at `/api/v1/fleet/mcp`.
 - `fleetctl` logged in as a Fleet admin, to create an API-only user for your AI tool.
 - To request changes from chat: a Fleet GitOps repository on GitHub, created with [`fleetctl new`](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md).
 
@@ -20,14 +20,14 @@ Fleet lets your AI tool look up hosts, policies, and software in Fleet, so you c
 | AI tool | Chat | Ask Fleet questions from | Plan you need |
 |:--|:--|:--|:--|
 | <span style="white-space: nowrap;"><img src="../website/assets/images/icon-claude-ai-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[Claude](https://fleetdm.com/guides/claude-in-slack-and-teams-for-fleet-gitops)</span> | `@Claude` in Slack (public beta). No Teams app yet. The guide covers a workaround. | Slack, and Claude Code on the web | Claude Team or Enterprise |
-| <span style="white-space: nowrap;"><img src="../website/assets/images/icon-open-ai-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[Codex](https://fleetdm.com/guides/codex-in-slack-and-teams-for-fleet-gitops)</span> | `@ChatGPT` in Slack and Teams | The Codex app, CLI, and IDE extension. Not from chat yet. | ChatGPT Enterprise |
-| <span style="white-space: nowrap;"><img src="../website/assets/images/icon-github-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[GitHub Copilot](https://fleetdm.com/guides/github-copilot-in-slack-and-teams-for-fleet-gitops)</span> | `@GitHub` in Slack and Teams (public preview) | Slack and Teams | Copilot Business or Enterprise, plus cloud sandbox usage |
+| <span style="white-space: nowrap;"><img src="../website/assets/images/icon-open-ai-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[Codex](https://fleetdm.com/guides/codex-in-slack-and-teams-for-fleet-gitops)</span> | `@ChatGPT` in Slack. OpenAI's docs don't yet confirm Codex tasks from Teams. | The ChatGPT desktop app, Codex CLI, and IDE extension. Not from chat yet. | ChatGPT Enterprise |
+| <span style="white-space: nowrap;"><img src="../website/assets/images/icon-github-28x28@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[GitHub Copilot](https://fleetdm.com/guides/github-copilot-in-slack-and-teams-for-fleet-gitops)</span> | `@GitHub` in Slack and Teams | Slack and Teams | Copilot Business or Enterprise, plus cloud sandbox usage |
 | <span style="white-space: nowrap;"><img src="../website/assets/images/app-icon-google-gemini-60x60@2x.png" alt="" style="display: inline; width: 20px; height: 20px; padding: 0; margin: 0px 8px 0px 0px; vertical-align: -4px;">[Gemini](https://fleetdm.com/guides/gemini-with-slack-and-teams-for-fleet-gitops)</span> | No chat agent yet. Create a GitHub issue from Slack or Teams, then comment `@gemini-cli`. | GitHub issues, and Antigravity CLI | A Gemini API key with billing, or Vertex AI |
 
 Not sure which one fits? Start here:
 
 - If your organization already pays for one of these plans, use that tool.
-- If your team works in Microsoft Teams, GitHub Copilot and Codex have a Teams app. Claude and Gemini need a workaround.
+- If your team works in Microsoft Teams, choose GitHub Copilot. ChatGPT has a Teams app too, but OpenAI's docs don't yet confirm it can hand work to Codex. Claude and Gemini need a workaround.
 - If you want to ask Fleet questions without leaving chat, choose Claude in Slack, or GitHub Copilot in Slack or Teams.
 - If your admins mostly work in a terminal or code editor, Codex or Gemini is a good fit. Their Fleet MCP connections live there.
 - If your organization uses Google Cloud, choose Gemini. It runs in your own GitHub Actions and can bill through Vertex AI.
@@ -68,7 +68,7 @@ The AI tool connects as an Observer+ user, so asking questions never changes any
 
 ## Use another AI tool
 
-Fleet's MCP server works with other AI tools too, as long as they support remote MCP servers over HTTP and let you set a request header.
+Fleet's MCP server works with other AI tools too, as long as they support remote MCP servers over Streamable HTTP and let you set a request header.
 
 1. Create an API-only user with the Observer+ role and copy the token that `fleetctl` prints:
 
@@ -94,7 +94,7 @@ fleetctl user create --name "AI assistant" --api-only --global-role observer_plu
 
 > **Warning:** Don't commit the token to a repository. Most AI tools can read it from an environment variable instead. Check your tool's MCP docs for the syntax.
 
-> **Note:** On Fleet versions older than 4.95, use the standalone [Fleet MCP server](https://fleetdm.com/guides/fleet-mcp) instead.
+> **Note:** On Fleet Free, or on Fleet versions older than 4.95, use the standalone [Fleet MCP server](https://fleetdm.com/guides/fleet-mcp) instead.
 
 ## Further reading
 
