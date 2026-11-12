@@ -1563,6 +1563,13 @@
       "description": "ChatGPT Desktop is OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
     },
     {
+      "name": "ChatGPT Desktop",
+      "slug": "chatgpt/windows",
+      "platform": "windows",
+      "unique_identifier": "ChatGPT",
+      "description": "ChatGPT Desktop is OpenAI's official desktop app for ChatGPT and Codex on Windows, providing AI-powered conversations, coding help, and assistance."
+    },
+    {
       "name": "ChatWise",
       "slug": "chatwise/darwin",
       "platform": "darwin",
@@ -3397,6 +3404,13 @@
       "description": "Fluid is a tool to turn a website into a desktop app."
     },
     {
+      "name": "FluidVoice",
+      "slug": "fluidvoice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.FluidApp.app",
+      "description": "FluidVoice is an offline voice-to-text dictation app with AI enhancement."
+    },
+    {
       "name": "f.lux",
       "slug": "flux-app/darwin",
       "platform": "darwin",
@@ -4786,7 +4800,7 @@
       "name": "Klokki",
       "slug": "klokki/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.klokki-launcher",
+      "unique_identifier": "com.klokki.macos",
       "description": "Klokki is an automatic time-tracking solution."
     },
     {
@@ -7279,7 +7293,14 @@
       "slug": "read-ai/darwin",
       "platform": "darwin",
       "unique_identifier": "com.readai.desktop",
-      "description": "Read AI is a meeting recorder, transcriber and summariser."
+      "description": "Read AI is a meeting recorder, transcriber, and summarizer."
+    },
+    {
+      "name": "Read AI",
+      "slug": "read-ai/windows",
+      "platform": "windows",
+      "unique_identifier": "Read AI",
+      "description": "Read AI is a meeting recorder, transcriber, and summarizer."
     },
     {
       "name": "Readest",
@@ -7341,7 +7362,7 @@
       "name": "REDCINE-X PRO",
       "slug": "redcine-x-pro/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.red.RED-Tether",
+      "unique_identifier": "com.red.RedCineX",
       "description": "REDCINE-X PRO is an app to transcode and manipulate REDCODE RAW footage."
     },
     {
@@ -7796,7 +7817,7 @@
       "name": "ShareFile",
       "slug": "sharefile/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.citrixfiles.ens.service",
+      "unique_identifier": "com.sharefile.desktop.widget",
       "description": "ShareFile is a client for the Progress ShareFile storage service."
     },
     {
@@ -7889,13 +7910,6 @@
       "platform": "darwin",
       "unique_identifier": "com.ToWatchList.SimpleComic",
       "description": "Simple Comic is a comic viewer/reader."
-    },
-    {
-      "name": "SiriMote",
-      "slug": "sirimote/darwin",
-      "platform": "darwin",
-      "unique_identifier": "at.EternalStorms.SiriMote-nonappstore",
-      "description": "SiriMote is a tool to control your computer with your Apple TV Siri Remote."
     },
     {
       "name": "Sketch",
@@ -7999,7 +8013,7 @@
       "name": "Snagit",
       "slug": "snagit/windows",
       "platform": "windows",
-      "unique_identifier": "Snagit 2026",
+      "unique_identifier": "Snagit",
       "description": "Snagit is screen capture software."
     },
     {
@@ -8029,6 +8043,13 @@
       "platform": "darwin",
       "unique_identifier": "org.sonicvisualiser.SonicVisualiser",
       "description": "Sonic Visualiser is a visualisation, analysis, and annotation of music audio recordings."
+    },
+    {
+      "name": "SonicWall Global VPN Client",
+      "slug": "sonicwall-global-vpn-client/windows",
+      "platform": "windows",
+      "unique_identifier": "Global VPN Client",
+      "description": "SonicWall Global VPN Client is an IPsec VPN client for secure remote access to SonicWall-protected networks."
     },
     {
       "name": "SonicWall NetExtender",
@@ -9749,7 +9770,7 @@
       "name": "XnViewMP",
       "slug": "xnviewmp/windows",
       "platform": "windows",
-      "unique_identifier": "XnView MP",
+      "unique_identifier": "XnView MP (x64)",
       "description": "XnViewMP is a photo viewer, image manager, image resiser and more."
     },
     {

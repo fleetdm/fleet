@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -11,7 +12,8 @@ import (
 // removedPathTemplates are the paths that Fleet 5 removed, as they appear in pkg/removednames. A request to one gets 410 Gone with the
 // message of its table entry, for every method, or only for the entry's Context when it names one. A path moves here from
 // deprecatedPathAliases, or from its own route, in the change that stops serving it. A path that a later template also matches
-// (/mdm/profiles/summary and /mdm/profiles/{profile_uuid}) must come first to get its own message.
+// (/mdm/profiles/summary and /mdm/profiles/{profile_uuid}) must come first to get its own message. A path variable can add a regex
+// constraint that the table entry leaves out.
 var removedPathTemplates = []string{
 	"/api/_version_/fleet/spec/teams",
 	"/api/_version_/fleet/teams",
@@ -19,6 +21,18 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/teams/{id}/agent_options",
 	"/api/_version_/fleet/teams/{id}/secrets",
 	"/api/_version_/fleet/teams/{id}/users",
+	"/api/_version_/fleet/team/{fleet_id}/policies",
+	"/api/_version_/fleet/team/{fleet_id}/policies/count",
+	"/api/_version_/fleet/team/{fleet_id}/policies/delete",
+	"/api/_version_/fleet/team/{fleet_id}/policies/{policy_id}",
+	"/api/_version_/fleet/team/{fleet_id}/schedule",
+	"/api/_version_/fleet/team/{fleet_id}/schedule/{report_id}",
+	"/api/_version_/fleet/teams/{fleet_id}/policies",
+	"/api/_version_/fleet/teams/{fleet_id}/policies/count",
+	"/api/_version_/fleet/teams/{fleet_id}/policies/delete",
+	"/api/_version_/fleet/teams/{fleet_id}/policies/{policy_id}",
+	"/api/_version_/fleet/teams/{fleet_id}/schedule",
+	"/api/_version_/fleet/teams/{fleet_id}/schedule/{report_id}",
 	"/api/_version_/fleet/mdm/apple/profiles/preassign",
 	"/api/_version_/fleet/mdm/apple/profiles/match",
 	"/api/_version_/fleet/hosts/{host_id}/configuration_profiles/resend/{profile_uuid}",
@@ -32,6 +46,10 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/apple_bm",
 	"/api/_version_/fleet/mdm/apple/abm_public_key",
 	"/api/_version_/fleet/scripts/batch/summary/{batch_execution_id}",
+	"/api/_version_/fleet/users/roles/spec",
+	"/api/_version_/fleet/software",
+	"/api/_version_/fleet/software/count",
+	"/api/_version_/fleet/software/{id:[0-9]+}",
 	"/api/_version_/fleet/hosts/identifier/{identifier}",
 	"/api/_version_/fleet/queries/{name}",
 
@@ -75,6 +93,7 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/apple/setup/eula/metadata",
 	"/api/_version_/fleet/mdm/setup/eula/{token}",
 	"/api/_version_/fleet/mdm/apple/setup/eula/{token}",
+	"/api/_version_/fleet/labels/{name}",
 }
 
 // removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.
@@ -118,10 +137,13 @@ func removedPaths() []endpointer.RemovedPath {
 	return paths
 }
 
+var pathVarConstraint = regexp.MustCompile(`\{(\w+):[^}]+\}`)
+
 // removedPathEntry finds the entry whatever its Context: removednames.Find with an empty context skips an entry pinned to a method.
 func removedPathEntry(template string) (removednames.Entry, bool) {
+	tableName := pathVarConstraint.ReplaceAllString(template, "{$1}")
 	for _, entry := range removednames.Filter(removednames.KindPath, 0) {
-		if entry.Old == template {
+		if entry.Old == tableName {
 			return entry, true
 		}
 	}

@@ -1370,6 +1370,27 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return nil, ctxerr.Wrap(ctx, err, "getting existing app store app versions")
 	}
 
+	// Every version of an app on a fleet shares the token of the first one added.
+	if existingVersionCount > 0 && appID.Platform.IsApplePlatform() {
+		existing, err := svc.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, appID.AdamID, appID.Platform, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting first added app store app version")
+		}
+		switch {
+		case existing.VPPTokenID == nil:
+		case appID.VPPTokenID == nil:
+			appID.VPPTokenID = existing.VPPTokenID
+		case *appID.VPPTokenID != *existing.VPPTokenID:
+			existingTok, err := svc.ds.GetVPPToken(ctx, *existing.VPPTokenID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting vpp token of first added app store app version")
+			}
+			return nil, fleet.ConflictError{Message: fmt.Sprintf(
+				"Couldn't add software. %s (%s) is already added to this fleet from the %q VPP token.",
+				existing.Name, appID.Platform.DisplayName(), existingTok.Location)}
+		}
+	}
+
 	if versionNameExists {
 		// FE routes the duplicate-name conflict to the Name field by matching
 		// the "a version named" substring (routeVersionNameError in
@@ -1390,27 +1411,6 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("Couldn't add. An app can have at most %d versions per fleet.", fleet.MaxAppStoreAppVersions),
 		}, "adding app store app version")
-	}
-
-	// Every version of an app on a fleet shares the token of the first one added.
-	if existingVersionCount > 0 && appID.Platform.IsApplePlatform() {
-		existing, err := svc.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, appID.AdamID, appID.Platform, teamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting first added app store app version")
-		}
-		switch {
-		case existing.VPPTokenID == nil:
-		case appID.VPPTokenID == nil:
-			appID.VPPTokenID = existing.VPPTokenID
-		case *appID.VPPTokenID != *existing.VPPTokenID:
-			existingTok, err := svc.ds.GetVPPToken(ctx, *existing.VPPTokenID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "getting vpp token of first added app store app version")
-			}
-			return nil, fleet.ConflictError{Message: fmt.Sprintf(
-				"Couldn't add software. %s (%s) is already added to this fleet from the %q VPP token.",
-				existing.Name, appID.Platform.DisplayName(), existingTok.Location)}
-		}
 	}
 
 	isAndroidAppID := androidApplicationID.MatchString(appID.AdamID)

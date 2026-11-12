@@ -5712,8 +5712,7 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{
-					MDM:            fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true},
-					ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}, // scripts being disabled shouldn't stop lock/unlock/wipe
+					MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true},
 				}, nil
 			}
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})

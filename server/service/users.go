@@ -812,7 +812,11 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if lic == nil {
 			return nil, ctxerr.New(ctx, "license not found")
 		}
-		if err := fleet.ValidateUserRoles(false, p, *lic); err != nil {
+		// The endpoint rejects api_only, so validate against the stored value to
+		// enforce API-only roles (GitOps).
+		rolesPayload := p
+		rolesPayload.APIOnly = new(user.APIOnly)
+		if err := fleet.ValidateUserRoles(false, rolesPayload, *lic); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validate role")
 		}
 	}

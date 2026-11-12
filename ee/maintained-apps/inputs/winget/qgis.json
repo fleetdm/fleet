@@ -3,6 +3,7 @@
   "slug": "qgis/windows",
   "package_identifier": "OSGeo.QGIS",
   "unique_identifier": "QGIS",
+  "open_process_names": ["qgis-bin.exe"],
   "fuzzy_match_name": true,
   "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version NOT LIKE '3.44.%';",
   "installer_arch": "x64",

@@ -51,6 +51,7 @@ spec:
     server_url: null
   memory: 0
   orbit_version: null
+  os_name: ""
   os_version: ""
   osquery_version: ""
   pack_stats: null
@@ -121,6 +122,7 @@ spec:
     server_url: null
   memory: 0
   orbit_version: null
+  os_name: ""
   os_version: ""
   osquery_version: ""
   pack_stats: null
