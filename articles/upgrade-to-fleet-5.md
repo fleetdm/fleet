@@ -361,7 +361,8 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 Fleet 4 doesn't return `os_name`, so you can't switch to it early. Instead:
 
 1. Before you upgrade, update code that splits the OS name out of `os_version`. When a host has `os_name`, read the name from `os_name` and the version from `os_version`. When it doesn't, keep splitting `os_version`. This works on both versions.
-2. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
+2. If you run the [vulnerability dashboard](https://github.com/fleetdm/fleet/tree/main/ee/vulnerability-dashboard), update it to the version in the Fleet 5 release before you upgrade Fleet. That version works with Fleet 4 too. An older version can't match hosts to their operating system in Fleet 5, so it removes them every time it syncs, and their vulnerability history starts over.
+3. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
 
 GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 
