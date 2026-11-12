@@ -1,0 +1,17 @@
+.setup-experience-users {
+  @include vertical-card-layout;
+
+  &__section-description {
+    margin: 0;
+  }
+
+  // The content column is wider than this copy needs. The design wraps it to two lines rather
+  // than letting it run the full width.
+  &__page-description {
+    max-width: px-to-rem(650);
+  }
+
+  .form-field--checkbox {
+    gap: $pad-xsmall;
+  }
+}

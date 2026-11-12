@@ -29,11 +29,13 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"golang.org/x/net/html/charset"
 )
 
 const (
@@ -268,15 +270,19 @@ func decodeXARTOCData(r io.Reader, hdr xarHeader) (xmlXar, error) {
 	defer zr.Close()
 
 	// decode the TOC data (in XML inside the zlib-compressed data)
-	decoder := xml.NewDecoder(zr)
+	decoder := xml.NewDecoder(limitReader(zr, maxXARTOCSize))
 	decoder.Strict = false
+	decoder.CharsetReader = charset.NewReaderLabel
 	if err := decoder.Decode(&root); err != nil {
-		return root, fmt.Errorf("decode xar xml: %w", err)
+		return root, fmt.Errorf("decode xar xml: %w", asMemberTooLarge(err))
 	}
 	return root, nil
 }
 
 func readCompressedFile(rat io.ReaderAt, heapOffset int64, sectionLength int64, f *xmlFile) ([]byte, error) {
+	if f.Data == nil {
+		return nil, fmt.Errorf("%w: file %s has no data section", ErrInvalidInstaller, f.Name)
+	}
 	var fileReader io.Reader
 	heapReader := io.NewSectionReader(rat, heapOffset, sectionLength-heapOffset)
 	fileReader = io.NewSectionReader(heapReader, f.Data.Offset, f.Data.Length)
@@ -297,7 +303,7 @@ func readCompressedFile(rat io.ReaderAt, heapOffset int64, sectionLength int64, 
 	}
 	// TODO: what other compression methods are supported?
 
-	contents, err := io.ReadAll(fileReader)
+	contents, err := readAllLimited(fileReader, maxMetadataMemberSize)
 	if err != nil {
 		return nil, fmt.Errorf("reading %s file: %w", f.Name, err)
 	}
@@ -332,6 +338,8 @@ var idTranslations = map[string]string{
 	// This is present in Privileges.pkg/PackageInfo, however, current logic doesn't parse PackageInfo files if Distribution file is present
 	"corp.sap.privileges.pkg": "corp.sap.privileges",
 }
+
+var rxMicrosoftAutoUpdateBundleID = regexp.MustCompile(`^com\.microsoft\.autoupdate\d+$`)
 
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
 func getDistributionInfo(d *distributionXML) (name string, identifier string, version string, packageIDs []string) {
@@ -396,7 +404,11 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 			identifier = bundle.ID
 			name = strings.TrimSuffix(base, ".app")
 			appVersion = bundle.CFBundleShortVersionString
-			break
+
+			// if the found bundle is microsoft auto-update, keep looking for a better match
+			if !rxMicrosoftAutoUpdateBundleID.MatchString(identifier) {
+				break
+			}
 		}
 	}
 
@@ -523,6 +535,9 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 		for _, pkgRef := range d.PkgRefs {
 			if pkgRef.Version != "" {
 				version = pkgRef.Version
+				if version != "0" {
+					break
+				}
 			}
 		}
 	}
@@ -548,21 +563,32 @@ func parsePackageInfoFile(rawXML []byte) (*InstallerMetadata, error) {
 // getPackageInfo gets the name, bundle identifier and version of a PKG top level PackageInfo file
 func getPackageInfo(p *packageInfoXML) (name string, identifier string, version string, packageIDs []string) {
 	packageIDSet := make(map[string]struct{}, 1)
+	var foundMetadata bool
+
 	for _, bundle := range p.Bundles {
+		// Keep track of all bundle identifiers
+		bundleID := fleet.Preprocess(bundle.ID)
+		if bundleID != "" {
+			packageIDSet[bundleID] = struct{}{}
+		}
+
 		installPath := bundle.Path
 		if p.InstallLocation != "" {
 			installPath = filepath.Join(p.InstallLocation, installPath)
 		}
 		installPath = strings.TrimPrefix(installPath, "/")
 		installPath = strings.TrimPrefix(installPath, "./")
-		if base, isValid := isValidAppFilePath(installPath); isValid {
+		base, isValid := isValidAppFilePath(installPath)
+		if isValid && !foundMetadata {
 			identifier = fleet.Preprocess(bundle.ID)
 			name = base
 			version = fleet.Preprocess(bundle.CFBundleShortVersionString)
 		}
-		bundleID := fleet.Preprocess(bundle.ID)
-		if bundleID != "" {
-			packageIDSet[bundleID] = struct{}{}
+
+		// Stop updating metadata if we found a bundle that
+		// matches the bundle identifier in pkg-info
+		if identifier == p.Identifier {
+			foundMetadata = true
 		}
 	}
 
@@ -619,7 +645,10 @@ func isValidAppFilePath(input string) (string, bool) {
 		return file, true
 	}
 
-	if strings.HasSuffix(file, ".app") {
+	// ignore nested .app files, we want to make sure the .app file is
+	// in the Applications directory and not nested somewhere else
+	// See https://github.com/fleetdm/fleet/issues/38356#issuecomment-3935530961
+	if strings.HasSuffix(file, ".app") && !strings.Contains(dir, ".app/") {
 		if strings.HasPrefix(dir, "Applications/") && strings.HasSuffix(dir, "/") {
 			return file, true
 		}
@@ -658,7 +687,7 @@ func decompress(r io.Reader) ([]byte, error) {
 		return nil, err
 	}
 	defer zr.Close()
-	return io.ReadAll(zr)
+	return readAllLimited(zr, maxXARTOCSize)
 }
 
 func parseTOC(r io.Reader, hashType crypto.Hash) (*toc, error) {

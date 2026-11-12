@@ -1,38 +1,56 @@
-/** Mobile preview modal uses a screenshot
- * Non-mobile now uses HTML/CSS instead for
- * maintainability as the self-selvice UI changes
+/**
+ * Previews match preview in Edit Appearance modal for Edit Appearance modal
  *
  * Currently only shown from the edit UI, though wired through the Add UI
- * Users currently can set categories only when editing a curent installer
+ * Users currently can set categories only when editing a current installer
  */
 
 import React, { useContext } from "react";
-
+import { useQuery } from "react-query";
 import { Column } from "react-table";
-import { noop } from "lodash";
+
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import Modal from "components/Modal";
+import TableContainer from "components/TableContainer";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import { AppContext } from "context/app";
 import { IHeaderProps } from "interfaces/datatable_config";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
+import selfServiceCategoriesAPI, {
+  ISelfServiceCategoriesResponse,
+} from "services/entities/self_service_categories";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
-import TableContainer from "components/TableContainer";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import Card from "components/Card";
-import SelfServiceHeader from "pages/hosts/details/cards/Software/SelfService/components/SelfServiceHeader";
-import SearchField from "components/forms/fields/SearchField";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import CategoriesMenu from "pages/hosts/details/cards/Software/SelfService/components/CategoriesMenu";
-import { CATEGORIES_NAV_ITEMS } from "pages/hosts/details/cards/Software/SelfService/helpers";
-
-import CategoriesEndUserExperiencePreviewMobile from "../../../../../../assets/images/categories-end-user-experience-preview-mobile@2x.png";
+import SelfServicePreview from "../../cards/SelfServicePreview";
+import SoftwareIcon from "../../icons/SoftwareIcon";
 
 const baseClass = "categories-end-user-experience-preview-modal";
 
 interface ISoftwareRow {
   name: React.ReactNode;
+  install_status: React.ReactNode;
 }
 
 type ITableHeaderProps = IHeaderProps<ISoftwareRow>;
+
+const InstalledCell = () => (
+  <span
+    className={`${baseClass}__status-cell ${baseClass}__status-cell--installed`}
+  >
+    <Icon name="success" />
+    Installed
+  </span>
+);
+
+const NeverInstalledCell = () => (
+  <span
+    className={`${baseClass}__status-cell ${baseClass}__status-cell--never-installed`}
+  >
+    {DEFAULT_EMPTY_CELL_VALUE}
+  </span>
+);
 
 const columns: Column<ISoftwareRow>[] = [
   {
@@ -42,15 +60,36 @@ const columns: Column<ISoftwareRow>[] = [
     accessor: "name",
     disableSortBy: true,
   },
+  {
+    Header: (cellProps: ITableHeaderProps) => (
+      <HeaderCell
+        value="Install status"
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "install_status",
+    disableSortBy: true,
+  },
+];
+
+type ExampleSoftware = {
+  title: string;
+};
+
+// 2 examples + current software = 3 rows shown in the preview table.
+const EXAMPLE_SOFTWARE_ROWS: ExampleSoftware[] = [
+  { title: "Adobe Acrobat Reader" },
+  { title: "Box Drive" },
 ];
 
 const getData = (
   name: string,
   displayName: string,
   iconUrl: string | null,
-  source?: string
-): ISoftwareRow[] => [
-  {
+  source?: string,
+  previewIcon?: JSX.Element
+): ISoftwareRow[] => {
+  const currentSoftwareRow: ISoftwareRow = {
     name: (
       <SoftwareNameCell
         name={name}
@@ -59,40 +98,29 @@ const getData = (
         iconUrl={iconUrl}
         pageContext="deviceUser"
         isSelfService
+        previewIcon={previewIcon}
       />
     ),
-  },
-  {
+    install_status: <NeverInstalledCell />,
+  };
+
+  // Filters out the current software from the example rows to avoid duplication
+  const exampleSoftwareRows: ISoftwareRow[] = EXAMPLE_SOFTWARE_ROWS.filter(
+    (item) => item.title !== name
+  ).map((item) => ({
     name: (
       <SoftwareNameCell
-        name="1Password"
+        name={item.title}
         source="apps"
         pageContext="deviceUser"
         isSelfService
       />
     ),
-  },
-  {
-    name: (
-      <SoftwareNameCell
-        name="Adobe Acrobat Reader"
-        source="apps"
-        pageContext="deviceUser"
-        isSelfService
-      />
-    ),
-  },
-  {
-    name: (
-      <SoftwareNameCell
-        name="Box Drive"
-        source="apps"
-        pageContext="deviceUser"
-        isSelfService
-      />
-    ),
-  },
-];
+    install_status: <InstalledCell />,
+  }));
+
+  return [currentSoftwareRow, ...exampleSoftwareRows];
+};
 
 const EmptyState = () => <div>No software found</div>;
 
@@ -101,18 +129,21 @@ interface BasicSoftwareTableProps {
   displayName: string;
   source?: string;
   iconUrl?: string | null;
+  /** Render a preview icon instead for edit icon preview */
+  previewIcon?: JSX.Element;
 }
 
-const BasicSoftwareTable = ({
+export const BasicSoftwareTable = ({
   name,
   displayName,
   source,
   iconUrl = null,
+  previewIcon,
 }: BasicSoftwareTableProps) => {
   return (
     <TableContainer<ISoftwareRow>
       columnConfigs={columns}
-      data={getData(name, displayName, iconUrl, source)}
+      data={getData(name, displayName, iconUrl, source, previewIcon)}
       isLoading={false}
       emptyComponent={EmptyState}
       showMarkAllPages={false}
@@ -121,87 +152,78 @@ const BasicSoftwareTable = ({
       disablePagination
       disableCount
       disableTableHeader
+      disableHighlightOnHover
     />
   );
 };
 
 interface ICategoriesEndUserExperienceModal {
   onCancel: () => void;
+  /** Used to scope the categories query to the current fleet */
+  teamId: number;
   isIosOrIpadosApp?: boolean;
   name?: string;
   displayName?: string;
-  iconUrl?: string;
+  iconUrl?: string | null;
   source?: string;
+  mobileVersion?: string;
 }
 
 const CategoriesEndUserExperienceModal = ({
   onCancel,
+  teamId,
   isIosOrIpadosApp = false,
   name = "Software name",
   displayName = "Software name",
   iconUrl,
   source,
+  mobileVersion,
 }: ICategoriesEndUserExperienceModal): JSX.Element => {
   const { config } = useContext(AppContext);
+
+  const { data: categories } = useQuery<
+    ISelfServiceCategoriesResponse,
+    Error,
+    ISelfServiceCategory[]
+  >(
+    ["selfServiceCategories", teamId],
+    () => selfServiceCategoriesAPI.getCategories(teamId),
+    {
+      select: (response) => response.self_service_categories,
+      staleTime: 60_000,
+    }
+  );
+  const hasCategories = (categories?.length ?? 0) > 0;
+
   return (
     <Modal title="End user experience" onExit={onCancel} className={baseClass}>
-      <>
-        <span>What end users see:</span>
-
-        {isIosOrIpadosApp ? (
-          <div className={`${baseClass}__preview`}>
-            <img
-              src={CategoriesEndUserExperiencePreviewMobile}
-              alt="Categories end user experience preview"
-            />
-          </div>
-        ) : (
-          <Card
-            borderRadiusSize="medium"
-            color="grey"
-            className={`${baseClass}__preview-card`}
-            paddingSize="xlarge"
-          >
-            <div className={`${baseClass}__disabled-overlay`} />
-            <Card
-              className={`${baseClass}__preview-card__self-service`}
-              borderRadiusSize="xxlarge"
-            >
-              <SelfServiceHeader
-                contactUrl={config?.org_info.contact_url || ""}
-                variant="preview"
-              />
-              <SearchField
-                placeholder="Search by name"
-                onChange={noop}
-                disabled
-              />
-              <div className={`${baseClass}__table`}>
-                <CategoriesMenu
-                  categories={CATEGORIES_NAV_ITEMS}
-                  queryParams={{
-                    query: "",
-                    order_direction: "asc",
-                    order_key: "name",
-                    page: 0,
-                    per_page: 100,
-                  }}
-                  readOnly
-                />
-                <BasicSoftwareTable
-                  name={name}
-                  displayName={displayName}
-                  source={source}
-                  iconUrl={iconUrl}
-                />
-              </div>
-            </Card>
-          </Card>
+      <span>What end users see:</span>
+      <SelfServicePreview
+        isIosOrIpadosApp={isIosOrIpadosApp}
+        contactUrl={config?.org_info.contact_url || ""}
+        name={name}
+        displayName={displayName || name}
+        versionLabel={mobileVersion || "Version (unknown)"}
+        hasCategories={hasCategories}
+        renderIcon={() => (
+          <SoftwareIcon
+            name={name}
+            source={source}
+            url={iconUrl ?? undefined}
+          />
         )}
-        <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
-        </div>
-      </>
+        renderTable={() => (
+          <BasicSoftwareTable
+            name={name}
+            displayName={displayName}
+            source={source}
+            iconUrl={iconUrl}
+          />
+        )}
+      />
+      <div className="modal-cta-wrap">
+        <Button onClick={onCancel}>Close</Button>
+      </div>
     </Modal>
   );
 };

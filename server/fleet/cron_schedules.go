@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -25,31 +26,76 @@ const (
 	CronMDMWindowsProfileManager     CronScheduleName = "mdm_windows_profile_manager"
 	CronMDMAndroidProfileManager     CronScheduleName = "mdm_android_profile_manager"
 	CronMDMAndroidDeviceReconciler   CronScheduleName = "mdm_android_device_reconciler"
+	CronMicrosoftAutopilotSync       CronScheduleName = "microsoft_autopilot_sync"
 	CronAppleMDMIPhoneIPadRefetcher  CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
 	CronAppleMDMAPNsPusher           CronScheduleName = "apple_mdm_apns_pusher"
 	CronCalendar                     CronScheduleName = "calendar"
+	CronGoogleWorkspaceSync          CronScheduleName = "google_workspace_sync"
 	CronUninstallSoftwareMigration   CronScheduleName = "uninstall_software_migration"
 	CronUpgradeCodeSoftwareMigration CronScheduleName = "upgrade_code_software_migration"
 	CronMaintainedApps               CronScheduleName = "maintained_apps"
+	// CronWindowsMaintainedAppTitles merges Windows software titles whose reported
+	// name embeds the version onto the title owned by the Fleet-maintained app's
+	// installer.
+	CronWindowsMaintainedAppTitles CronScheduleName = "windows_maintained_app_titles"
+	// CronMaintainedAppsAutoUpdate advances each Fleet-maintained app's active
+	// installer to the newest cached version its pin state allows. Premium only;
+	// runs every 1h.
+	CronMaintainedAppsAutoUpdate CronScheduleName = "maintained_apps_auto_update"
 	// CronRefreshVPPAppVersions updates the versions of VPP apps in Fleet to the latest value. Runs
 	// every 1h.
-	CronRefreshVPPAppVersions          CronScheduleName = "refresh_vpp_app_versions"
-	CronAppleMDMIPhoneIPadReviver      CronScheduleName = "apple_mdm_iphone_ipad_reviver"
-	CronUpcomingActivitiesMaintenance  CronScheduleName = "upcoming_activities_maintenance"
-	CronHostVitalsLabelMembership      CronScheduleName = "host_vitals_label_membership"
-	CronBatchActivityCompletionChecker CronScheduleName = "batch_activity_completion_checker"
-	CronScheduledBatchActivities       CronScheduleName = "scheduled_batch_activities"
+	CronRefreshVPPAppVersions         CronScheduleName = "refresh_vpp_app_versions"
+	CronAppleMDMIPhoneIPadReviver     CronScheduleName = "apple_mdm_iphone_ipad_reviver"
+	CronUpcomingActivitiesMaintenance CronScheduleName = "upcoming_activities_maintenance"
+	// CronFleetInitiatedActivitiesRelease activates deferred fleet-initiated
+	// upcoming activities (policy-automation installs/scripts) within the
+	// activity.fleet_initiated_release_per_minute budget. Runs every 1 minute.
+	CronFleetInitiatedActivitiesRelease CronScheduleName = "fleet_initiated_activities_release"
+	CronHostVitalsLabelMembership       CronScheduleName = "host_vitals_label_membership"
+	CronBatchActivityCompletionChecker  CronScheduleName = "batch_activity_completion_checker"
+	CronScheduledBatchActivities        CronScheduleName = "scheduled_batch_activities"
 	// CronEnableAndroidAppReportsOnDefaultPolicy enables applications reports on the default Android MDM policy (profile).
 	// This job only runs once after upgrading to v4.76.0.
 	CronEnableAndroidAppReportsOnDefaultPolicy CronScheduleName = "enable_android_app_reports_on_default_policy"
 	// CronMigrateToPerHostPolicy moves all Android hosts that are on the default MDM policy to a dedicated
 	// policy per host. This job only runs once after upgrading to v4.77.0.
 	CronMigrateToPerHostPolicy CronScheduleName = "migrate_to_per_host_policy"
+	// CronReencryptWindowsDiskEncryptionKeys re-encrypts legacy Windows BitLocker recovery keys, stored by older
+	// releases under the WSTEP certificate, with the server private key, and marks the ones it cannot read so the
+	// host escrows a new key. First run is ten minutes after startup, then hourly.
+	CronReencryptWindowsDiskEncryptionKeys CronScheduleName = "reencrypt_windows_disk_encryption_keys"
+	// CronQueryResultsCleanup deletes excess query result rows that exceed the maximum allowed per query.
+	// Runs every 1 minute.
+	CronQueryResultsCleanup CronScheduleName = "query_results_cleanup"
+	// CronSendRecoveryLockCommands sends SetRecoveryLock MDM commands to macOS devices.
+	// Runs every 5 minutes.
+	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
+	// CronSendManagedLocalAccountRotationCommands rotates managed local account passwords.
+	// Runs every 5 minutes; picks up rows whose auto_rotate_at has elapsed (set by view or
+	// by a manual rotation that was deferred because the account UUID wasn't yet known).
+	CronSendManagedLocalAccountRotationCommands CronScheduleName = "send_managed_local_account_rotation_commands"
+	CronAppleMDMWorker                          CronScheduleName = "apple_mdm_worker"
+	CronChartDataCollection                     CronScheduleName = "chart_data_collection" // Used by chart bounded context
+	CronCleanupExpiredADUEChallenges            CronScheduleName = "cleanup_expired_adue_challenges"
+	CronAppleMDMOSUpdatesSchedule               CronScheduleName = "apple_mdm_os_updates"
+	// CronMDMAndroidCommandReconciler polls AMAPI for the outcome of Android MDM commands whose Pub/Sub
+	// COMMAND notification never arrived, so they don't stay pending forever. Runs every 24h.
+	CronMDMAndroidCommandReconciler CronScheduleName = "mdm_android_command_reconciler"
+	// CronAppleMDMAPNsSweep walks enabled Apple MDM enrollments in daily laps
+	// and re-pushes any that have been silent for more than a day, so offline
+	// devices always have a stored push waiting at APNs.
+	CronAppleMDMAPNsSweep CronScheduleName = "apple_mdm_apns_sweep"
+	// CronEndUserNotifications queues end user notifications that are due and gives up on expired
+	// ones. Runs every 1 minute, which is what a reminder timed to the minute needs.
+	CronEndUserNotifications CronScheduleName = "end_user_notifications"
+	// CronAppStoreAppConfigurationReconciler installs iOS and iPadOS App Store apps again on hosts whose latest install didn't send
+	// the configuration of the version they should have. Runs every 1 minute.
+	CronAppStoreAppConfigurationReconciler CronScheduleName = "app_store_app_configuration_reconciler"
 )
 
 type CronSchedulesService interface {
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
-	TriggerCronSchedule(name string) error
+	TriggerCronSchedule(ctx context.Context, name string) error
 }
 
 func NewCronSchedules() *CronSchedules {
@@ -57,7 +103,7 @@ func NewCronSchedules() *CronSchedules {
 }
 
 type CronSchedule interface {
-	Trigger() (*CronStats, error)
+	Trigger(ctx context.Context) (*CronStats, bool, error)
 	Name() string
 	Start()
 }
@@ -85,12 +131,12 @@ func (cs *CronSchedules) StartCronSchedule(fn NewCronScheduleFunc) error {
 }
 
 // TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
-func (cs *CronSchedules) TriggerCronSchedule(name string) error {
+func (cs *CronSchedules) TriggerCronSchedule(ctx context.Context, name string) error {
 	sched, ok := cs.Schedules[name]
 	if !ok {
 		return triggerNotFoundError{name: name, msg: cs.formatSupportedTriggerNames()}
 	}
-	stats, err := sched.Trigger()
+	stats, _, err := sched.Trigger(ctx)
 	switch {
 	case err != nil:
 		return err
@@ -144,6 +190,10 @@ func (e triggerConflictError) IsConflict() bool {
 	return true
 }
 
+func (e triggerConflictError) IsClientError() bool {
+	return true
+}
+
 func (e triggerConflictError) StatusCode() int {
 	return http.StatusConflict
 }
@@ -158,6 +208,10 @@ func (e triggerNotFoundError) Error() string {
 }
 
 func (e triggerNotFoundError) IsNotFound() bool {
+	return true
+}
+
+func (e triggerNotFoundError) IsClientError() bool {
 	return true
 }
 
@@ -214,7 +268,7 @@ const (
 	CronStatsTypeTriggered CronStatsType = "triggered"
 )
 
-// CronStatsStatus is one of four recognized statuses of cron stats (i.e. "pending", "expired", "canceled", or "completed")
+// CronStatsStatus is one of the recognized statuses of cron stats
 type CronStatsStatus string
 
 // List of recognized cron stats statuses.
@@ -223,4 +277,6 @@ const (
 	CronStatsStatusExpired   CronStatsStatus = "expired"
 	CronStatsStatusCompleted CronStatsStatus = "completed"
 	CronStatsStatusCanceled  CronStatsStatus = "canceled"
+	// CronStatsStatusQueued indicates a trigger request waiting for a remote server to pick up.
+	CronStatsStatusQueued CronStatsStatus = "queued"
 )

@@ -10,9 +10,11 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // MDMWindowsBitLockerSummary reports the number of Windows hosts being managed by Fleet with
@@ -30,14 +32,25 @@ type MDMWindowsBitLockerSummary struct {
 	RemovingEnforcement uint `json:"removing_enforcement" db:"removing_enforcement"`
 }
 
+const (
+	// WindowsProfileRemovalBehaviorURL explains why some settings stay on Windows hosts after their profile is deleted:
+	// not every CSP accepts <Delete>.
+	WindowsProfileRemovalBehaviorURL = "https://fleetdm.com/learn-more-about/removal-behavior"
+	// WindowsProfileDeletedWarning is returned when a Windows configuration profile is deleted through the API.
+	WindowsProfileDeletedWarning = "Some Windows settings may not be cleanly removed from hosts and will remain at their last configured value. See " +
+		WindowsProfileRemovalBehaviorURL
+)
+
 // MDMWindowsConfigProfile represents a Windows MDM profile in Fleet.
 type MDMWindowsConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
 	// Fleet. For Windows profiles, it is the letter "w" followed by a uuid.
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
-	TeamID           *uint                       `db:"team_id" json:"team_id"`
+	TeamID           *uint                       `db:"team_id" json:"fleet_id"`
 	Name             string                      `db:"name" json:"name"`
+	Description      string                      `db:"description" json:"description"`
 	SyncML           []byte                      `db:"syncml" json:"-"`
+	Hidden           bool                        `db:"hidden" json:"hidden"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
@@ -45,14 +58,59 @@ type MDMWindowsConfigProfile struct {
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 }
 
-// ValidateUserProvided ensures that the SyncML content in the profile is valid
-// for Windows.
+type windowsProfileValidator struct {
+	// Validator for SCEP profiles, to keep track of SCEP-specific profile validation
+	scepValidator *windowsSCEPProfileValidator
+	// Boolean indicating whether the profile is an Atomic profile, if so don't allow other top level elements.
+	// Starts out as nil until we encounter the first element, to avoid Atomic coming later
+	isAtomicProfile *bool
+
+	// The current element being processed, e.g., "LocURI", "Target", etc.
+	// Will also be top-level elements before we get to inner elements
+	currentElement string
+	// The current top-level element being processed, e.g., "Replace", "Add", etc.
+	// can be empty if not within a top-level element.
+	currentTopLevelElement string
+
+	// Tracks whether we have encountered at least one valid SyncML top-level element (Replace, Add, Exec, or Atomic). Used
+	// to reject inputs that parse as XML but contain no supported elements, such as plain text or comment-only files.
+	sawValidTopLevel bool
+
+	// Tracks whether the profile content references a Fleet secret variable. When true, the body may be a bare placeholder
+	// that expands into real SyncML at apply time, so we skip the top-level structural check.
+	containsServerSecret bool
+
+	// Tracks whether the currently-open <LocURI> element has seen any non-whitespace character data. Reset when the LocURI
+	// close tag fires; used to reject `<LocURI></LocURI>` which a real Windows device returns status 400 for.
+	locURIHasContent bool
+
+	// Accumulates all CharData fragments within a <LocURI> element so the complete value is validated as a whole. This
+	// prevents bypasses where a forbidden substring (e.g. "BitLocker") is split across CDATA or comment boundaries so
+	// that no single CharData token contains the full reserved string.
+	locURIAccumulator strings.Builder
+
+	// When true, custom BitLocker (disk encryption) LocURIs are allowed instead of being rejected.
+	allowCustomDiskEncryption bool
+
+	// The decoder which is used for reading the XML tokens.
+	decoder *xml.Decoder
+}
+
+var validTopLevelElements = map[string]struct{}{
+	"Replace": {},
+	"Add":     {},
+	"Exec":    {},
+	"Atomic":  {},
+}
+
+// ValidateUserProvided ensures that the SyncML content in the profile is valid for Windows.
 //
-// It checks that all top-level elements are <Replace> and none of the <LocURI>
-// elements within <Target> are reserved URIs.
+// It checks that the file contains at least one supported top-level element (<Replace>, <Add>, <Exec>, or <Atomic>),
+// that each <LocURI> follows the OMA-DM addressing rules (must start with "./" and must not contain "../" path
+// traversal sequences), and that none of the <LocURI> elements within <Target> are reserved Fleet-managed URIs.
 //
-// It also performs basic checks for XML well-formedness as defined in the [W3C
-// Recommendation section 2.8][1], as required by the [MS-MDM spec][2].
+// It also performs basic checks for XML well-formedness as defined in the [W3C Recommendation section 2.8][1], as
+// required by the [MS-MDM spec][2].
 //
 // Note that we only need to check for well-formedness, but validation is not required.
 //
@@ -60,131 +118,241 @@ type MDMWindowsConfigProfile struct {
 //
 // [1]: http://www.w3.org/TR/2006/REC-xml-20060816
 // [2]: https://winprotocoldoc.blob.core.windows.net/productionwindowsarchives/MS-MDM/%5bMS-MDM%5d.pdf
-func (m *MDMWindowsConfigProfile) ValidateUserProvided(enableCustomOSUpdates bool) error {
+func (m *MDMWindowsConfigProfile) ValidateUserProvided(allowCustomDiskEncryption bool) error {
 	if len(bytes.TrimSpace(m.SyncML)) == 0 {
 		return errors.New("The file should include valid XML.")
+	}
+	if strings.TrimSpace(m.Name) == "" {
+		return errors.New("Profile name can't be empty.")
 	}
 	fleetNames := mdm.FleetReservedProfileNames()
 	if _, ok := fleetNames[m.Name]; ok {
 		return fmt.Errorf("Profile name %q is not allowed.", m.Name)
 	}
+	if utf8.RuneCountInString(m.Name) > MaxProfileNameLength {
+		return errors.New(MaxProfileNameLengthErrMsg + ".")
+	}
 
-	dec := xml.NewDecoder(bytes.NewReader(m.SyncML))
+	validator := newWindowsProfileValidator(m.SyncML, allowCustomDiskEncryption)
+	// Substring match for the secret prefix. A literal "FLEET_SECRET_" appearing in profile data with no "$" sigil would
+	// also flip this flag, but the only consequence is skipping the top-level element check on that upload, which is
+	// acceptable.
+	validator.containsServerSecret = bytes.Contains(m.SyncML, []byte(ServerSecretPrefix))
+	return validator.validate()
+}
+
+func newWindowsProfileValidator(syncML []byte, allowCustomDiskEncryption bool) *windowsProfileValidator {
+	dec := xml.NewDecoder(bytes.NewReader(syncML))
 	// use strict mode to check for a variety of common mistakes like
 	// unclosed tags, etc.
 	dec.Strict = true
 
-	// keep track of certain elements to perform Fleet-validations.
-	//
-	// NOTE: since we're only checking for well-formedness
-	// we don't need to validate the required nesting
-	// structure (Target>Item>LocURI) so we don't need to track all the tags.
-	var inValidNode bool
-	var inExec bool
-	var inLocURI bool
-	var inComment bool
+	return &windowsProfileValidator{
+		scepValidator:             newWindowsSCEPProfileValidator(),
+		decoder:                   dec,
+		allowCustomDiskEncryption: allowCustomDiskEncryption,
+	}
+}
 
-	windowSCEPProfileValidator := newWindowsSCEPProfileValidator()
-
+func (v *windowsProfileValidator) validate() error {
 	for {
-		tok, err := dec.Token()
+		tok, err := v.decoder.Token()
 		if err != nil {
 			if err != io.EOF {
 				return fmt.Errorf("The file should include valid XML: %w", err)
 			}
-			// EOF means no more tokens to process
 			break
 		}
 
-		switch t := tok.(type) {
-		// no processing instructions allowed (<?target inst?>)
-		// see #16316 for details
-		case xml.ProcInst:
-			return errors.New("The file should include valid XML: processing instructions are not allowed.")
+		if err := v.processToken(tok); err != nil {
+			return err
+		}
+	}
 
-		case xml.Comment:
-			inComment = true
-			continue
+	// If the profile references a Fleet secret variable, the body may be (or contain) a placeholder that expands into the
+	// real SyncML at apply time, so skip the structural top-level element check here.
+	if !v.sawValidTopLevel && !v.containsServerSecret {
+		return errors.New("The file should include valid SyncML XML with at least one supported element.")
+	}
 
-		case xml.StartElement:
-			// Top-level comments should be followed by <Replace> or <Add> elements
-			if inComment {
-				if !inValidNode && t.Name.Local != "Replace" && t.Name.Local != "Add" && t.Name.Local != "Exec" {
-					return errors.New("Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements after comments")
-				}
-				inValidNode = true
-				inComment = false
+	return v.scepValidator.finalizeValidation()
+}
+
+func (v *windowsProfileValidator) processToken(tok xml.Token) error {
+	switch t := tok.(type) {
+	// no processing instructions allowed (<?target inst?>)
+	// see #16316 for details
+	case xml.ProcInst:
+		return errors.New("The file should include valid XML: processing instructions are not allowed.")
+	case xml.Comment:
+		// TODO: Do we really care about comments? Why not allow them everywhere?
+	case xml.StartElement:
+		return v.handleStartElement(t)
+	case xml.EndElement:
+		return v.handleEndElement(t)
+	case xml.CharData:
+		return v.handleCharData(t)
+
+	}
+	return nil
+}
+
+func (v *windowsProfileValidator) handleStartElement(el xml.StartElement) error {
+	elementName := el.Name.Local
+
+	if v.isAtTopLevel() {
+
+		if _, valid := validTopLevelElements[elementName]; !valid {
+			// We agreed with Design that it's okay to not include <Atomic> in the msg here.
+			return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+		}
+
+		// We have an atomic profile and we see another top level element, we don't care what it is.
+		if v.isAtomicProfile != nil && *v.isAtomicProfile {
+			return errors.New("<Atomic> element must wrap all the elements in a Windows configuration profile.")
+		}
+
+		if elementName == "Atomic" && v.isAtomicProfile == nil {
+			// We are at top level, and we see Atomic element first, mark the entire profile as atomic.
+			v.isAtomicProfile = ptr.Bool(true)
+		} else if elementName == "Atomic" && v.isAtomicProfile != nil && !*v.isAtomicProfile {
+			// We are at top level, we have already seen other top level elements, and now we see Atomic
+			return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+		}
+
+		v.currentTopLevelElement = elementName
+		v.sawValidTopLevel = true
+		if v.isAtomicProfile == nil {
+			// We are at top level, and we see a non-Atomic element first, mark the profile as non-Atomic.
+			v.isAtomicProfile = ptr.Bool(false)
+		}
+	} else if v.currentElement == "Atomic" && !v.isValidNestedAtomicElement(elementName) {
+		return errors.New("Windows configuration profiles can only include <Replace> or <Add> within the <Atomic> element.")
+	}
+
+	v.currentElement = elementName
+	return nil
+}
+
+func (v *windowsProfileValidator) handleEndElement(el xml.EndElement) error {
+	elementName := el.Name.Local
+
+	if elementName == v.currentTopLevelElement {
+		// We are closing a top-level element.
+		v.currentTopLevelElement = ""
+	}
+
+	// An empty <LocURI></LocURI> or whitespace-only LocURI produces no non-whitespace CharData, so locURIHasContent
+	// stays false and we reject here before any further validation runs.
+	if elementName == "LocURI" && !v.locURIHasContent {
+		return errors.New("<LocURI> can't be empty.")
+	}
+
+	// When leaving a LocURI element, validate the fully accumulated content so that forbidden substrings split across
+	// CDATA or comment boundaries are caught.
+	if elementName == "LocURI" {
+		locURI := v.locURIAccumulator.String()
+		v.locURIAccumulator.Reset()
+
+		// Check for Fleet-reserved LocURIs (e.g. BitLocker, Windows Updates). Runs first so users
+		// get the specific "managed by Fleet" error instead of a generic format error.
+		if err := validateFleetProvidedLocURI(locURI, v.allowCustomDiskEncryption); err != nil {
+			return err
+		}
+
+		// Validate structural format rules (must start with "./", no invalid characters, etc.)
+		// that real Windows devices enforce with status 400.
+		if err := validateLocURIFormat(locURI); err != nil {
+			return err
+		}
+
+		// Validate SCEP-specific constraints depending on whether this LocURI is inside an
+		// <Exec> command (certificate operations) or a non-Exec command (Add/Replace).
+		if v.isInExec() {
+			if err := v.scepValidator.validateExecLocURI(locURI); err != nil {
+				return err
 			}
-
-			switch t.Name.Local {
-			case "Replace", "Add":
-				inValidNode = true
-			case "Exec":
-				inValidNode = true
-				inExec = true
-			case "LocURI":
-				if !inValidNode {
-					return errors.New("Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.")
-				}
-				inLocURI = true
-
-			default:
-				if !inValidNode {
-					return errors.New("Windows configuration profiles can only have <Replace>, <Add> or <Exec> top level elements.")
-				}
-			}
-
-		case xml.EndElement:
-			switch t.Name.Local {
-			case "Replace", "Add":
-				inValidNode = false
-			case "Exec":
-				inValidNode = false
-				inExec = false
-			case "LocURI":
-				inLocURI = false
-			}
-
-		case xml.CharData:
-			if inLocURI {
-				if inExec {
-					if err := windowSCEPProfileValidator.validateExecLocURI(string(t)); err != nil {
-						return err
-					}
-					continue
-				}
-
-				if err := windowSCEPProfileValidator.validateLocURI(string(t)); err != nil {
-					return err
-				}
-
-				if err := validateFleetProvidedLocURI(string(t), enableCustomOSUpdates); err != nil {
-					return err
-				}
+		} else {
+			if err := v.scepValidator.validateLocURI(locURI); err != nil {
+				return err
 			}
 		}
 	}
 
-	if err := windowSCEPProfileValidator.finalizeValidation(); err != nil {
-		return err
+	v.currentElement = ""
+	v.locURIHasContent = false
+	return nil
+}
+
+func (v *windowsProfileValidator) handleCharData(el xml.CharData) error {
+	// We only care about LocURI elements.
+	if !v.isInLocURI() {
+		return nil
 	}
 
+	fragment := string(el)
+	if strings.TrimSpace(fragment) != "" {
+		v.locURIHasContent = true
+	}
+
+	// Accumulate CharData fragments; actual validation happens in handleEndElement when the full LocURI value is known.
+	// This prevents bypasses where a forbidden substring is split across CDATA or comment boundaries.
+	v.locURIAccumulator.WriteString(fragment)
 	return nil
+}
+
+// validateLocURIFormat rejects LocURI values that real Windows MDM devices reject with status 400 (empirically verified
+// against Windows 11 25H2), plus a defensive ".." segment check:
+//
+//  1. Empty value (no legitimate use in Add/Replace/Atomic/Exec; device returns 400).
+//  2. Leading "/" (Microsoft's OMA DM protocol support page explicitly states "LocURI can't start with /"; device
+//     returns 400).
+//  3. ".." path traversal segment (security; spec-silent, kept on principle).
+//
+// All other forms are accepted, including device-permissive "Device/Vendor/MSFT/..." (no "./") and "./Vendor/MSFT/..."
+// (implicit device-targeted) variants.
+func validateLocURIFormat(locURI string) error {
+	trimmed := strings.TrimSpace(locURI)
+	if trimmed == "" {
+		return errors.New("<LocURI> can't be empty.")
+	}
+	if strings.HasPrefix(trimmed, "/") && !strings.HasPrefix(trimmed, "./") {
+		return errors.New("<LocURI> can't start with \"/\".")
+	}
+	if slices.Contains(strings.Split(strings.TrimPrefix(trimmed, "./"), "/"), "..") {
+		return errors.New("<LocURI> can't contain \"..\" path traversal segments.")
+	}
+	return nil
+}
+
+func (v *windowsProfileValidator) isAtTopLevel() bool {
+	return v.currentTopLevelElement == ""
+}
+
+func (v *windowsProfileValidator) isValidNestedAtomicElement(elementName string) bool {
+	_, valid := validTopLevelElements[elementName]
+	return valid && elementName != "Atomic"
+}
+
+func (v *windowsProfileValidator) isInLocURI() bool {
+	return v.currentElement == "LocURI"
+}
+
+func (v *windowsProfileValidator) isInExec() bool {
+	return v.currentTopLevelElement == "Exec"
 }
 
 var fleetProvidedLocURIValidationMap = map[string][]string{
 	syncml.FleetBitLockerTargetLocURI: nil,
-	syncml.FleetOSUpdateTargetLocURI:  {"Windows updates", "mdm.windows_updates"},
 }
 
-func validateFleetProvidedLocURI(locURI string, enableCustomOSUpdates bool) error {
-	sanitizedLocURI := strings.TrimSpace(locURI)
+func validateFleetProvidedLocURI(locURI string, allowCustomDiskEncryption bool) error {
 	for fleetLocURI, errHints := range fleetProvidedLocURIValidationMap {
-		if strings.Contains(sanitizedLocURI, fleetLocURI) {
-			if fleetLocURI == syncml.FleetOSUpdateTargetLocURI && enableCustomOSUpdates {
-				continue
-			}
+		if LocURITargetsReservedNode(locURI, fleetLocURI) {
 			if fleetLocURI == syncml.FleetBitLockerTargetLocURI {
+				if allowCustomDiskEncryption {
+					continue
+				}
 				return errors.New(syncml.DiskEncryptionProfileRestrictionErrMsg)
 			}
 			if len(errHints) == 2 {
@@ -280,9 +448,9 @@ func newWindowsSCEPProfileValidator() *windowsSCEPProfileValidator {
 }
 
 func (v windowsSCEPProfileValidator) normalizeSCEPLocURI(locURI string) string {
-	trimmed := strings.TrimSpace(locURI)
+	normalized := CanonicalizeSCEPScope(locURI)
 	// Accept braces version of the Fleet Var, and normalize it to the non-braces for validation.
-	return strings.ReplaceAll(trimmed, FleetVarSCEPWindowsCertificateID.WithBraces(), FleetVarSCEPWindowsCertificateID.WithPrefix())
+	return strings.ReplaceAll(normalized, FleetVarSCEPWindowsCertificateID.WithBraces(), FleetVarSCEPWindowsCertificateID.WithPrefix())
 }
 
 func (v *windowsSCEPProfileValidator) isSCEPProfile() bool {
@@ -331,7 +499,10 @@ func (v *windowsSCEPProfileValidator) validateExecLocURI(locURI string) error {
 
 func (v *windowsSCEPProfileValidator) setLocURIArrays(locURI string) error {
 	switch {
-	case IsWindowsSCEPLocURI(locURI) && v.validExecSCEPProfileLocURIs == nil:
+	case IsWindowsSCEPLocURI(locURI) && (v.validExecSCEPProfileLocURIs == nil || len(*v.validExecSCEPProfileLocURIs) == 0):
+		// First SCEP LocURI seen. Earlier non-SCEP LocURIs may have set the empty placeholder arrays; replace them
+		// with the real ones so finalizeValidation rejects the mixed profile cleanly instead of indexing into an
+		// empty array below.
 		if strings.HasPrefix(locURI, "./User") {
 			v.requiredSCEPProfileLocURIs = &requiredUserSCEPProfileLocURIs
 			v.validSCEPProfileLocURIs = &validUserSCEPProfileLocURIs
@@ -379,6 +550,22 @@ func IsWindowsSCEPLocURI(locURI string) bool {
 		strings.HasPrefix(locURI, "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/")
 }
 
+// CanonicalizeSCEPScope rewrites a SCEP ClientCertificateInstall LocURI to its explicit scoped form so the SCEP validations
+// (which key off the "./Device/"/"./User/" prefix) can't be bypassed by a scope-less spelling. Non-SCEP LocURIs are returned unchanged.
+func CanonicalizeSCEPScope(locURI string) string {
+	// CanonicalLocURI strips the device scope to the bare "Vendor/MSFT/..." form and preserves explicit user scope as
+	// "User/Vendor/MSFT/...".
+	canon := CanonicalLocURI(locURI)
+	switch {
+	case strings.HasPrefix(canon, scepInstallLocURINode+"/"):
+		return "./Device/" + canon
+	case strings.HasPrefix(canon, "User/"+scepInstallLocURINode+"/"):
+		return "./" + canon
+	default:
+		return locURI
+	}
+}
+
 func (v *windowsSCEPProfileValidator) finalizeValidation() error {
 	if !v.isSCEPProfile() {
 		// Cheeky validation here, to only allow Exec elements in SCEP profiles.
@@ -403,7 +590,10 @@ func (v *windowsSCEPProfileValidator) finalizeValidation() error {
 		return errors.New("SCEP profiles must include exactly one <Exec> element.")
 	}
 
-	// Verify that we do not have any non-scep loc URIs present
+	// Verify that we do not have any non-SCEP LocURIs present. This
+	// constraint also means SCEP profiles are always SCEP-only, which the
+	// ESP (EnrollmentStatusTracking) relies on to track them under
+	// Certificates instead of Security policies.
 	if v.totalLocURIs != len(v.foundLocURIs) {
 		return errors.New("Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.")
 	}
@@ -431,6 +621,26 @@ type MDMWindowsProfilePayload struct {
 	Retries          int                `db:"retries"`
 	Checksum         []byte             `db:"checksum"`
 	SecretsUpdatedAt *time.Time         `db:"secrets_updated_at"`
+	// PreviousInstalledChecksum is the checksum of the version this host currently has installed, set by the reconciler only when an
+	// install is triggered because the profile content changed (a modify, not a fresh install).
+	PreviousInstalledChecksum []byte `db:"-"`
+	// UserChannelRejected is set when Fleet parses a device's SyncML results. It becomes true when at least one failed command in the
+	// profile targeted a user-channel LocURI (canonical prefix User/) and its status code is one of an allow-list of "no user context
+	// available" rejections that Windows was empirically observed to return. Transient, never persisted.
+	UserChannelRejected bool `db:"-"`
+}
+
+// MDMWindowsProfileVersionKey identifies one retained prior version of a Windows config profile.
+type MDMWindowsProfileVersionKey struct {
+	ProfileUUID string
+	Checksum    []byte
+}
+
+// MDMWindowsProfilePriorContent is the retained syncml of a prior version of a Windows config profile (the version a host still has).
+type MDMWindowsProfilePriorContent struct {
+	ProfileUUID string `db:"profile_uuid"`
+	Checksum    []byte `db:"checksum"`
+	SyncML      []byte `db:"syncml"`
 }
 
 func (p MDMWindowsProfilePayload) Equal(other MDMWindowsProfilePayload) bool {
@@ -456,11 +666,64 @@ type MDMWindowsBulkUpsertHostProfilePayload struct {
 	Status        *MDMDeliveryStatus
 	Detail        string
 	Checksum      []byte
+	// HeldForUserContext marks a user-scoped profile the reconciler deliberately did not send because the host has no MDM user context yet.
+	HeldForUserContext bool
 }
 
 type MDMWindowsProfileContents struct {
 	SyncML   []byte `db:"syncml"`
 	Checksum []byte `db:"checksum"`
+}
+
+// WindowsHostReconcileInfo is a per-host record used by the batched Windows profile reconciler. It contains only the fields
+// needed to decide which profiles should be installed on the host given its team and label membership. Mirrors
+// AppleHostReconcileInfo
+type WindowsHostReconcileInfo struct {
+	HostID         uint      `db:"id"`
+	UUID           string    `db:"uuid"`
+	TeamID         *uint     `db:"team_id"`
+	LabelUpdatedAt time.Time `db:"label_updated_at"`
+}
+
+// EffectiveTeamID returns 0 for hosts not in a team. team_id=0 is its own team (the "no team" / global scope). Equality between
+// EffectiveTeamID and a profile's team_id is the correct match check. See AppleHostReconcileInfo.EffectiveTeamID.
+func (h *WindowsHostReconcileInfo) EffectiveTeamID() uint {
+	if h.TeamID == nil {
+		return 0
+	}
+	return *h.TeamID
+}
+
+// WindowsProfileForReconcile is the profile data needed by the batched Windows reconciler to compute desired state per host in
+// memory. The label-gating fields mirror AppleProfileForReconcile exactly so the same shared dispatcher and handlers
+// (server/mdm/reconcile) run against both platforms.
+//
+// Include and exclude labels are stored separately so a profile can carry both: applicability becomes (include gate passes) AND
+// (exclude gate passes), with each gate skipped when its slice is empty.
+type WindowsProfileForReconcile struct {
+	ProfileUUID      string
+	ProfileName      string
+	TeamID           uint // 0 means global
+	Checksum         []byte
+	SecretsUpdatedAt *time.Time
+	IncludeMode      MDMProfileIncludeMode
+	IncludeLabels    []MDMProfileLabelRef
+	ExcludeLabels    []MDMProfileLabelRef
+}
+
+func (p *WindowsProfileForReconcile) GetTeamID() uint                       { return p.TeamID }
+func (p *WindowsProfileForReconcile) GetIncludeMode() MDMProfileIncludeMode { return p.IncludeMode }
+func (p *WindowsProfileForReconcile) GetIncludeLabels() []MDMProfileLabelRef {
+	return p.IncludeLabels
+}
+func (p *WindowsProfileForReconcile) GetExcludeLabels() []MDMProfileLabelRef {
+	return p.ExcludeLabels
+}
+
+// HasBrokenLabel reports whether any include or exclude label on the profile references a deleted label. Used to keep
+// broken-label profiles exempt from removal. See AppleProfileForReconcile.HasBrokenLabel.
+func (p *WindowsProfileForReconcile) HasBrokenLabel() bool {
+	return anyMDMLabelBroken(p.IncludeLabels) || anyMDMLabelBroken(p.ExcludeLabels)
 }
 
 // MDMWindowsWipeType specifies what type of remote wipe we want

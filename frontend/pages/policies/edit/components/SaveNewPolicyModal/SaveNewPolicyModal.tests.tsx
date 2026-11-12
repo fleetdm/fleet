@@ -1,0 +1,426 @@
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import React from "react";
+
+import createMockConfig from "__mocks__/configMock";
+import { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
+import PolicyProvider from "context/policy";
+import { ILabelSummary } from "interfaces/label";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
+import SaveNewPolicyModal from "./SaveNewPolicyModal";
+
+const baseUrl = (path: string) => {
+  return `/api/latest/fleet${path}`;
+};
+
+const mockLabels: ILabelSummary[] = [
+  {
+    id: 1,
+    name: "Fun",
+    description: "Computers that like to have a good time",
+    label_type: "regular",
+  },
+  {
+    id: 2,
+    name: "Fresh",
+    description: "Laptops with dirty mouths",
+    label_type: "regular",
+  },
+];
+
+const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
+  return HttpResponse.json({
+    labels: mockLabels,
+  });
+});
+
+describe("SaveNewPolicyModal", () => {
+  const defaultProps = {
+    baseClass: "",
+    queryValue: "",
+    onCreatePolicy: jest.fn(),
+    setIsSaveNewPolicyModalOpen: jest.fn(),
+    backendValidators: {},
+    platformSelector: {
+      setSelectedPlatforms: jest.fn(),
+      getSelectedPlatforms: () => {
+        return [];
+      },
+      isAnyPlatformSelected: true,
+      render: () => <div />,
+      disabled: false,
+    },
+    isUpdatingPolicy: false,
+    isFetchingAutofillDescription: false,
+    isFetchingAutofillResolution: false,
+    onClickAutofillDescription: jest.fn(),
+    onClickAutofillResolution: jest.fn(),
+    isGlobalPolicy: true,
+    policyTeamId: undefined,
+    automationsConfig: createMockConfig(),
+    globalConfig: createMockConfig(),
+    fleetName: "All fleets",
+    router: createMockRouter(),
+  };
+
+  it("should not show the target selector in the free tier", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<SaveNewPolicyModal {...defaultProps} />);
+
+    // Wait for any queries (that should not be happening) to finish.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Check that the target selector is not present.
+    expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
+  });
+
+  it("does not show the Hide from end user checkbox in the free tier", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(
+      <SaveNewPolicyModal
+        {...defaultProps}
+        isGlobalPolicy={false}
+        policyTeamId={1}
+      />
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    expect(
+      screen.queryByRole("checkbox", { name: "hidden-policy" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("caps the policy name input at 255 characters", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<SaveNewPolicyModal {...defaultProps} />);
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
+  });
+
+  describe("in premium tier", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          isGlobalObserver: false,
+          isGlobalAdmin: true,
+          isGlobalMaintainer: false,
+          isOnGlobalTeam: true,
+          isPremiumTier: true,
+          isSandboxMode: false,
+          currentTeam: createMockTeamSummary(),
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    beforeEach(() => {
+      mockServer.use(labelSummariesHandler);
+    });
+
+    it("should show the target selector in All hosts target mode when the policy has no labels", async () => {
+      render(<SaveNewPolicyModal {...defaultProps} />);
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+        expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+        expect(screen.getByLabelText("All hosts")).toBeChecked();
+      });
+    });
+
+    it("surfaces an inline labels error on Save click in Custom target mode when no labels are selected", async () => {
+      const onCreatePolicy = jest.fn();
+      render(
+        <SaveNewPolicyModal {...defaultProps} onCreatePolicy={onCreatePolicy} />
+      );
+      let allHosts;
+      let custom;
+      await waitFor(() => {
+        allHosts = screen.getByLabelText("All hosts");
+        custom = screen.getByLabelText("Custom");
+        expect(allHosts).toBeInTheDocument();
+        expect(custom).toBeInTheDocument();
+      });
+      custom && (await userEvent.click(custom));
+
+      await userEvent.type(screen.getByLabelText("Name"), "name");
+      const saveButton = screen.getByRole("button", { name: "Save" });
+      expect(saveButton).toBeEnabled();
+      await userEvent.click(saveButton);
+
+      expect(onCreatePolicy).not.toHaveBeenCalled();
+      expect(screen.getByText(/Select at least one label/)).toBeInTheDocument();
+
+      const funButton = await screen.findByRole("checkbox", { name: "Fun" });
+      await userEvent.click(funButton);
+      expect(
+        screen.queryByText(/Select at least one label/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("sends hidden when Hide from end user is checked on a fleet policy", async () => {
+      const onCreatePolicy = jest.fn();
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal
+            {...defaultProps}
+            onCreatePolicy={onCreatePolicy}
+            isGlobalPolicy={false}
+            policyTeamId={1}
+            fleetName="Workstations"
+          />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+
+      const hiddenCheckbox = screen.getByRole("checkbox", {
+        name: "hidden-policy",
+      });
+      expect(hiddenCheckbox).not.toBeChecked();
+      await userEvent.click(hiddenCheckbox);
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onCreatePolicy.mock.calls[0][0].hidden).toBe(true);
+    });
+
+    it("sends hidden for an All fleets policy too", async () => {
+      const onCreatePolicy = jest.fn();
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal
+            {...defaultProps}
+            onCreatePolicy={onCreatePolicy}
+          />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+      await userEvent.click(
+        screen.getByRole("checkbox", { name: "hidden-policy" })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onCreatePolicy.mock.calls[0][0].hidden).toBe(true);
+    });
+
+    it("should send labels when saving a new policy in Custom target mode (include any)", async () => {
+      const onCreatePolicy = jest.fn();
+      const props = { ...defaultProps, onCreatePolicy };
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal {...props} />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      // Set a name.
+      const nameInput = screen.getByLabelText("Name");
+      await userEvent.type(nameInput, "A Brand New Policy!");
+
+      // Set a label.
+      await userEvent.click(screen.getByLabelText("Custom"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onCreatePolicy.mock.calls[0][0].labels_include_any).toEqual([
+        "Fun",
+      ]);
+    });
+
+    it("should send labels when saving a new policy in Custom target mode (exclude any)", async () => {
+      const onCreatePolicy = jest.fn();
+      const props = { ...defaultProps, onCreatePolicy };
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal {...props} />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      // Set a name.
+      const nameInput = screen.getByLabelText("Name");
+      await userEvent.type(nameInput, "A Brand New Policy!");
+
+      // Set a label.
+      await userEvent.click(screen.getByLabelText("Custom"));
+      await userEvent.click(screen.getByText("Exclude"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onCreatePolicy.mock.calls[0][0].labels_exclude_any).toEqual([
+        "Fun",
+      ]);
+    });
+
+    it("should send labels_include_all when the include mode is All", async () => {
+      const onCreatePolicy = jest.fn();
+      const props = { ...defaultProps, onCreatePolicy };
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal {...props} />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+
+      await userEvent.click(screen.getByLabelText("Custom"));
+      await userEvent.click(screen.getByLabelText("All"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      const payload = onCreatePolicy.mock.calls[0][0];
+      expect(payload.labels_include_all).toEqual(["Fun"]);
+      expect(payload.labels_include_any).toEqual([]);
+    });
+
+    it("should send labels_exclude_all when the exclude mode is All", async () => {
+      const onCreatePolicy = jest.fn();
+      const props = { ...defaultProps, onCreatePolicy };
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal {...props} />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+
+      await userEvent.click(screen.getByLabelText("Custom"));
+      await userEvent.click(screen.getByText("Exclude"));
+      await userEvent.click(screen.getByLabelText("All"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      const payload = onCreatePolicy.mock.calls[0][0];
+      expect(payload.labels_exclude_all).toEqual(["Fun"]);
+      expect(payload.labels_exclude_any).toEqual([]);
+    });
+
+    it("should send both include and exclude labels when both tabs have selections", async () => {
+      const onCreatePolicy = jest.fn();
+      const props = { ...defaultProps, onCreatePolicy };
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal {...props} />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+
+      await userEvent.click(screen.getByLabelText("Custom"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
+      await userEvent.click(screen.getByText("Exclude"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fresh" })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      const payload = onCreatePolicy.mock.calls[0][0];
+      expect(payload.labels_include_any).toEqual(["Fun"]);
+      expect(payload.labels_exclude_any).toEqual(["Fresh"]);
+    });
+
+    it("should clear labels when saving a new policy in All hosts target mode", async () => {
+      const onCreatePolicy = jest.fn();
+      const props = { ...defaultProps, onCreatePolicy };
+      render(
+        <PolicyProvider>
+          <SaveNewPolicyModal {...props} />
+        </PolicyProvider>
+      );
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      // Set a name.
+      await userEvent.type(
+        screen.getByLabelText("Name"),
+        "A Brand New Policy!"
+      );
+
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onCreatePolicy.mock.calls[0][0].labels_include_any).toEqual([]);
+    });
+  });
+});

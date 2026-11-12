@@ -162,6 +162,19 @@ func TestVariations(t *testing.T) {
 			vendorVariations:  []string{"microsoft", "ms-python"},
 			productVariations: []string{"python", "ms-python.python"},
 		},
+		{
+			software:          fleet.Software{Name: "python3-geopandas", Version: "1.0.1", Source: "python_packages"},
+			productVariations: []string{"python3-geopandas", "geopandas"},
+		},
+		{
+			software:          fleet.Software{Name: "python3-django", Version: "3.2.12", Source: "python_packages"},
+			productVariations: []string{"python3-django", "django"},
+		},
+		{
+			// python_packages without the prefix should not get extra variations
+			software:          fleet.Software{Name: "requests", Version: "2.28.0", Source: "python_packages"},
+			productVariations: []string{"requests"},
+		},
 	}
 
 	for _, tc := range variationsTestCases {
@@ -378,6 +391,7 @@ func TestSanitizedSoftwareName(t *testing.T) {
 			require.Equal(t, tc.expected, actual)
 		}
 	})
+
 }
 
 func TestParseUpdateFromVersion(t *testing.T) {

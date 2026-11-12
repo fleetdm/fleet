@@ -1,0 +1,12 @@
+{
+  "name": "PureVPN",
+  "unique_identifier": "com.purevpn.app.mac",
+  "token": "purevpn",
+  "installer_format": "pkg",
+  "slug": "purevpn/darwin",
+  "default_categories": [
+    "Security"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/purevpn-install.sh",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/purevpn-uninstall.sh"
+}

@@ -1,0 +1,133 @@
+import React from "react";
+import { SingleValue } from "react-select-5";
+
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import InputField from "components/forms/fields/InputField";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+
+import {
+  getSeverityBand,
+  getSeverityOption,
+  ISeverityFieldErrors,
+  ISeverityFilterValue,
+  parseSeverityScore,
+  SEVERITY_DROPDOWN_OPTIONS,
+  SEVERITY_HELP_TEXT,
+  severityForRange,
+  SeverityScoreField,
+} from "./helpers";
+
+const baseClass = "severity-filter";
+
+export type { ISeverityFilterValue };
+
+interface ISeverityFilterProps extends ISeverityFilterValue {
+  onChange: (next: ISeverityFilterValue) => void;
+  disabled?: boolean;
+  errors?: ISeverityFieldErrors;
+  onScoreBlur?: (field: SeverityScoreField) => void;
+  onScoreFocus?: (field: SeverityScoreField) => void;
+}
+
+const SeverityFilter = ({
+  severity,
+  minScore,
+  maxScore,
+  onChange,
+  disabled = false,
+  errors,
+  onScoreBlur,
+  onScoreFocus,
+}: ISeverityFilterProps) => {
+  const onChangeSeverity = (selected: SingleValue<CustomOptionType>) => {
+    const option = getSeverityOption(selected?.value);
+    if (!option) {
+      return;
+    }
+    const band = getSeverityBand(option.value);
+    onChange({
+      severity: option.value,
+      minScore: band ? String(band.min) : "",
+      maxScore: band ? String(band.max) : "",
+    });
+  };
+
+  const onScoreChange = ({ name, value }: IInputFieldParseTarget) => {
+    onChange({ severity, minScore, maxScore, [name]: value as string });
+  };
+
+  const onScoreBlurred = (field: SeverityScoreField) => {
+    const derived = severityForRange(
+      parseSeverityScore(minScore),
+      parseSeverityScore(maxScore)
+    );
+    if (derived !== severity) {
+      onChange({ severity: derived, minScore, maxScore });
+    }
+    onScoreBlur?.(field);
+  };
+
+  const renderLabel = () => (
+    <TooltipWrapper
+      tipContent="The worst case impact across different environments (CVSS version 3.x base score)."
+      clickable={false}
+    >
+      Severity
+    </TooltipWrapper>
+  );
+
+  return (
+    <div className={baseClass}>
+      <DropdownWrapper
+        name="severity-filter"
+        ariaLabel="Severity"
+        label={renderLabel()}
+        options={SEVERITY_DROPDOWN_OPTIONS}
+        value={getSeverityOption(severity)}
+        onChange={onChangeSeverity}
+        placeholder="Any severity"
+        className={`${baseClass}__dropdown`}
+        isDisabled={disabled}
+        helpText={SEVERITY_HELP_TEXT}
+      />
+      <div className={`${baseClass}__cvss-range`}>
+        <InputField
+          label="Min score"
+          onChange={onScoreChange}
+          onBlur={() => onScoreBlurred("minScore")}
+          onFocus={() => onScoreFocus?.("minScore")}
+          name="minScore"
+          value={minScore}
+          disabled={disabled}
+          type="number"
+          placeholder="0.0"
+          min={0}
+          max={10}
+          step={0.1}
+          parseTarget
+          error={errors?.minScore}
+        />
+        <InputField
+          label="Max score"
+          onChange={onScoreChange}
+          onBlur={() => onScoreBlurred("maxScore")}
+          onFocus={() => onScoreFocus?.("maxScore")}
+          name="maxScore"
+          value={maxScore}
+          disabled={disabled}
+          type="number"
+          placeholder="10.0"
+          min={0}
+          max={10}
+          step={0.1}
+          parseTarget
+          error={errors?.maxScore}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default SeverityFilter;

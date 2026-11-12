@@ -36,17 +36,32 @@ defaults:
 permissions:
   contents: read
 
+env:
+  # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
+  NPM_CONFIG_MIN_RELEASE_AGE: 0.5
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Wine in the fleetdm/wix image fails on ubuntu-26.04. Use ubuntu-latest once msi
+    # generation is pure Go: https://github.com/fleetdm/fleet/issues/50503
+    runs-on: ubuntu-24.04
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
+      - name: Checkout fleetctl install script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: website/assets/resources/install-fleetctl.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Install fleetctl
-        run: npm install -g fleetctl
+        run: |
+          bash website/assets/resources/install-fleetctl.sh
+          echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
       - name: Build MSI
         id: build-msi
@@ -57,11 +72,11 @@ jobs:
             --enroll-secret dummy \
             --orbit-channel ${{ github.event.inputs.orbit-channel }} \
             --osqueryd-channel ${{ github.event.inputs.osqueryd-channel }} \
-            --desktop-channel ${{ github.event.inputs.desktop-channel }}
-          mv fleet-osquery*.msi fleetd-base.msi
+            --desktop-channel ${{ github.event.inputs.desktop-channel }} \
+            --outfile fleetd-base.msi
 
       - name: Upload fleetd-base.msi for code signing
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: unsigned-windows
           path: fleetd-base.msi
@@ -89,12 +104,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Download signed artifact
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: fleetd-base-msi
         
@@ -113,7 +128,7 @@ jobs:
           jq -e . >/dev/null 2>&1 <<< $(cat meta.json)
 
       - name: Upload meta.json
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: meta.json
           path: meta.json

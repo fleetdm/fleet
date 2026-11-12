@@ -1,0 +1,5 @@
+.edit-category-modal {
+  &__form {
+    @include vertical-form-layout;
+  }
+}

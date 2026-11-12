@@ -1,25 +1,38 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
-import React from "react";
+
+import classnames from "classnames";
 import { millisecondsToHours, millisecondsToMinutes } from "date-fns";
-import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
+import React from "react";
+
+import CriticalPolicyBadge from "components/CriticalPolicyBadge";
 // @ts-ignore
 import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Graphic from "components/Graphic";
+import HiddenPolicyBadge from "components/HiddenPolicyBadge";
+import Icon from "components/Icon";
+import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import Icon from "components/Icon";
-import { IPolicyStats } from "interfaces/policy";
-import PATHS from "router/paths";
-
-import { getPathWithQueryParams } from "utilities/url";
-import sortUtils from "utilities/sort";
-import { PolicyResponse } from "utilities/constants";
-
-import InheritedBadge from "components/InheritedBadge";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Tag from "components/Tag";
+import TooltipWrapper from "components/TooltipWrapper";
+import {
+  CommaSeparatedPlatformString,
+  isQueryablePlatform,
+} from "interfaces/platform";
+import { IPolicyStats, OtherAutomationType } from "interfaces/policy";
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import PATHS from "router/paths";
+import { DEFAULT_EMPTY_CELL_VALUE, PolicyResponse } from "utilities/constants";
+import sortUtils from "utilities/sort";
+import { getPathWithQueryParams } from "utilities/url";
 
+import { getAutomationsForPolicy, IAutomationData } from "../../helpers";
 import PassingColumnHeader from "../PassingColumnHeader";
 
 interface IGetToggleAllRowsSelectedProps {
@@ -49,9 +62,20 @@ interface ICellProps {
   };
 }
 
+interface IPlatformCellProps {
+  cell: {
+    value: CommaSeparatedPlatformString;
+  };
+  row: {
+    original: IPolicyStats;
+  };
+}
+
 interface IDataColumn {
   Header: ((props: IHeaderProps) => JSX.Element) | string;
-  Cell: (props: ICellProps) => JSX.Element;
+  Cell:
+    | ((props: ICellProps) => JSX.Element)
+    | ((props: IPlatformCellProps) => JSX.Element);
   id?: string;
   title?: string;
   accessor?: string;
@@ -59,6 +83,154 @@ interface IDataColumn {
   disableSortBy?: boolean;
   sortType?: string;
 }
+
+const AUTOMATION_ICON_RENDERERS: Record<
+  IAutomationData["type"],
+  (args: { name: string; iconName?: string; iconUrl?: string }) => JSX.Element
+> = {
+  software: ({ name, iconName, iconUrl }) => (
+    <span className="automations__software-icon">
+      <SoftwareIcon name={iconName ?? name} url={iconUrl} size="small" />
+    </span>
+  ),
+  script: ({ name }) => (
+    <Graphic
+      name={name.endsWith(".sh") ? "file-sh" : "file-ps1"}
+      className="scale-40-24"
+    />
+  ),
+  profile: () => (
+    <Graphic name="file-configuration-profile" className="scale-40-24" />
+  ),
+  calendar: () => <Graphic name="calendar" />,
+  conditional_access: () => <Graphic name="lock" />,
+  other: () => <Icon name="settings" />,
+};
+
+interface IEditableAutomationsCellProps {
+  ariaLabel: string;
+  onEdit: () => void;
+  className?: string;
+  children: React.ReactNode;
+}
+
+const EditableAutomationsCell = ({
+  ariaLabel,
+  onEdit,
+  className,
+  children,
+}: IEditableAutomationsCellProps): JSX.Element => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onEdit();
+    }
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      className={classnames("automations__cell-content", className)}
+      onClick={onEdit}
+      onKeyDown={handleKeyDown}
+      aria-label={ariaLabel}
+    >
+      {children}
+      <span className="automations__edit-button" aria-hidden="true">
+        <Icon name="pencil" />
+      </span>
+    </div>
+  );
+};
+
+interface IAutomationsCellProps {
+  policy: IPolicyStats;
+  otherAutomationType?: OtherAutomationType;
+  onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
+}
+
+const AutomationsCell = ({
+  policy,
+  otherAutomationType,
+  onOpenManageAutomationsModal,
+}: IAutomationsCellProps): JSX.Element => {
+  const automations = getAutomationsForPolicy(policy, otherAutomationType);
+  // Without an edit callback the user's role can't open the automations modal,
+  // so the cell is read-only: no pencil icon, no pointer cursor, not focusable.
+  const canEdit = !!onOpenManageAutomationsModal;
+
+  const handleEdit = () => onOpenManageAutomationsModal?.(policy);
+
+  const renderAutomationIcon = (automation: IAutomationData) => {
+    return AUTOMATION_ICON_RENDERERS[automation.type]({
+      name: automation.name,
+      iconName:
+        automation.type === "software" ? automation.iconName : undefined,
+      iconUrl: automation.iconUrl ?? undefined,
+    });
+  };
+
+  const isEmpty = automations.length === 0;
+
+  let ariaLabel: string;
+  let content: React.ReactNode;
+  if (isEmpty) {
+    ariaLabel = "Add automation";
+    content = (
+      <span className="automations__name">{DEFAULT_EMPTY_CELL_VALUE}</span>
+    );
+  } else if (automations.length === 1) {
+    const automation = automations[0];
+    ariaLabel = `Edit automation: ${automation.name}`;
+    content = (
+      <TooltipTruncatedTextCell
+        prefix={renderAutomationIcon(automation)}
+        value={automation.name}
+        className="automations__name"
+      />
+    );
+  } else {
+    ariaLabel = "Edit automations";
+    content = (
+      <TooltipWrapper
+        className="automations__count"
+        position="top"
+        underline={false}
+        fixedPositionStrategy
+        tipOffset={8}
+        tipContent={automations.map(({ name }) => name).join(", ")}
+        showArrow
+      >
+        {automations.length} automations
+      </TooltipWrapper>
+    );
+  }
+
+  if (!canEdit) {
+    return (
+      <span
+        className={classnames(
+          "automations__cell-content",
+          "automations__cell-content--readonly",
+          { "automations__cell-content--none": isEmpty }
+        )}
+      >
+        {content}
+      </span>
+    );
+  }
+
+  return (
+    <EditableAutomationsCell
+      ariaLabel={ariaLabel}
+      onEdit={handleEdit}
+      className={classnames({ "automations__cell-content--none": isEmpty })}
+    >
+      {content}
+    </EditableAutomationsCell>
+  );
+};
 
 const getPolicyRefreshTime = (ms: number): string => {
   const seconds = ms / 1000;
@@ -90,11 +262,18 @@ const generateTableHeaders = (
     selectedTeamId?: number | null;
     hasPermissionAndPoliciesToDelete?: boolean;
     tableType?: string;
+    otherAutomationType?: OtherAutomationType;
+    onOpenManageAutomationsModal?: (policy: IPolicyStats) => void;
   },
   isPremiumTier?: boolean,
   isPrimoMode?: boolean
 ): IDataColumn[] => {
-  const { selectedTeamId, hasPermissionAndPoliciesToDelete } = options;
+  const {
+    selectedTeamId,
+    hasPermissionAndPoliciesToDelete,
+    otherAutomationType,
+    onOpenManageAutomationsModal,
+  } = options;
   const viewingTeamPolicies = selectedTeamId !== -1;
 
   const tableHeaders: IDataColumn[] = [
@@ -108,7 +287,7 @@ const generateTableHeaders = (
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const { critical, id, team_id } = cellProps.row.original;
+        const { critical, hidden, id, fleet_id, type } = cellProps.row.original;
         return (
           <LinkCell
             className="w250"
@@ -116,44 +295,57 @@ const generateTableHeaders = (
             value={cellProps.cell.value}
             suffix={
               <>
-                {isPremiumTier && critical && (
-                  <div className="critical-badge">
-                    <span
-                      className="critical-badge-icon"
-                      data-tooltip-id={`critical-tooltip-${id}`}
-                    >
-                      <Icon
-                        className="critical-policy-icon"
-                        name="policy"
-                        size="small"
-                        color="ui-fleet-black-75"
-                      />
-                    </span>
-                    <ReactTooltip5
-                      className="critical-tooltip"
-                      disableStyleInjection
-                      place="top"
-                      opacity={1}
-                      id={`critical-tooltip-${id}`}
-                      offset={8}
-                      positionStrategy="fixed"
-                    >
-                      This policy has been marked as critical.
-                    </ReactTooltip5>
-                  </div>
+                {isPremiumTier && critical && <CriticalPolicyBadge />}
+                {isPremiumTier && hidden && <HiddenPolicyBadge />}
+                {type === "patch" && (
+                  <Tag tooltip={PATCH_TOOLTIP_CONTENT} size="small">
+                    Patch
+                  </Tag>
                 )}
-                {viewingTeamPolicies && team_id === null && (
-                  <InheritedBadge tooltipContent="This policy runs on all hosts." />
+                {viewingTeamPolicies && fleet_id === null && (
+                  <Tag tooltip="This policy runs on all hosts." size="small">
+                    Inherited
+                  </Tag>
                 )}
               </>
             }
-            path={getPathWithQueryParams(PATHS.EDIT_POLICY(id), {
-              team_id,
+            path={getPathWithQueryParams(PATHS.POLICY_DETAILS(id), {
+              // Inherited policies show fleet_id === null; preserve the
+              // current team context so back nav returns to the same list
+              // instead of "All teams".
+              fleet_id:
+                fleet_id ?? (selectedTeamId !== -1 ? selectedTeamId : null),
             })}
           />
         );
       },
       sortType: "caseInsensitive",
+    },
+    {
+      title: "Targeted platforms",
+      Header: "Targeted platforms",
+      disableSortBy: true,
+      accessor: "platform",
+      Cell: (cellProps: IPlatformCellProps): JSX.Element => {
+        const platforms = cellProps.cell.value
+          .split(",")
+          .map((s) => s.trim())
+          .filter(isQueryablePlatform);
+        return <PlatformCell platforms={platforms} />;
+      },
+    },
+    {
+      title: "Automations",
+      Header: "Automations",
+      accessor: "automations",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <AutomationsCell
+          policy={cellProps.row.original}
+          otherAutomationType={otherAutomationType}
+          onOpenManageAutomationsModal={onOpenManageAutomationsModal}
+        />
+      ),
     },
     {
       title: "Pass",
@@ -176,25 +368,23 @@ const generateTableHeaders = (
               path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
                 policy_id: id,
                 policy_response: PolicyResponse.PASSING,
-                team_id: selectedTeamId,
+                fleet_id: selectedTeamId,
               })}
             />
           );
         }
         return (
           <div className="policy-has-not-run">
-            <span data-tooltip-id={`passing_${id.toString()}`}>---</span>
-            <ReactTooltip5
-              className="policy-has-not-run-tooltip"
-              disableStyleInjection
-              place="top"
-              opacity={1}
-              id={`passing_${id.toString()}`}
-              offset={8}
-              positionStrategy="fixed"
+            <TooltipWrapper
+              tooltipClass="policy-has-not-run-tooltip"
+              position="top"
+              underline={false}
+              fixedPositionStrategy
+              tipOffset={8}
+              tipContent={getTooltip(next_update_ms)}
             >
-              {getTooltip(next_update_ms)}
-            </ReactTooltip5>
+              ---
+            </TooltipWrapper>
           </div>
         );
       },
@@ -220,25 +410,23 @@ const generateTableHeaders = (
               path={getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
                 policy_id: id,
                 policy_response: PolicyResponse.FAILING,
-                team_id: selectedTeamId,
+                fleet_id: selectedTeamId,
               })}
             />
           );
         }
         return (
           <div className="policy-has-not-run">
-            <span data-tooltip-id={`passing_${id.toString()}`}>---</span>
-            <ReactTooltip5
-              className="policy-has-not-run-tooltip"
-              disableStyleInjection
-              place="top"
-              opacity={1}
-              id={`passing_${id.toString()}`}
-              offset={8}
-              positionStrategy="fixed"
+            <TooltipWrapper
+              tooltipClass="policy-has-not-run-tooltip"
+              position="top"
+              underline={false}
+              fixedPositionStrategy
+              tipOffset={8}
+              tipContent={getTooltip(next_update_ms)}
             >
-              {getTooltip(next_update_ms)}
-            </ReactTooltip5>
+              ---
+            </TooltipWrapper>
           </div>
         );
       },
@@ -249,13 +437,16 @@ const generateTableHeaders = (
   if (hasPermissionAndPoliciesToDelete) {
     tableHeaders.unshift({
       id: "selection",
+      // TODO: headerProps is `any` because local IHeaderProps is a simplified
+      // subset of react-table's HeaderProps. Fixing requires refactoring
+      // IDataColumn/IHeaderProps to align with react-table's actual types.
       Header: (headerProps: any) => {
         // When viewing team policies, the select all checkbox will ignore inherited policies
         const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({
           headerProps,
           checkIfRowIsSelectable: (row) =>
             // allow selecting inherited policies in primo mode
-            isPrimoMode || row.original.team_id !== null,
+            isPrimoMode || row.original.fleet_id !== null,
         });
 
         // Regular table selection logic
@@ -292,7 +483,7 @@ const generateTableHeaders = (
         );
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const inheritedPolicy = cellProps.row.original.team_id === null;
+        const inheritedPolicy = cellProps.row.original.fleet_id === null;
         const props = cellProps.row.getToggleRowSelectedProps();
         const checkboxProps = {
           value: props.checked,

@@ -1,0 +1,10 @@
+{
+  "name": "SonoBus",
+  "unique_identifier": "com.Sonosaurus.SonoBus",
+  "token": "sonobus",
+  "installer_format": "dmg",
+  "slug": "sonobus/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

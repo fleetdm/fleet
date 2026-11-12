@@ -1,7 +1,6 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 
 import SectionCard from "../../SectionCard";
 
@@ -25,8 +24,7 @@ const VppCard = ({ isAppleMdmOn, isVppOn, viewDetails }: IVppCardProps) => {
     <SectionCard
       iconName="success"
       cta={
-        <Button onClick={viewDetails} variant="inverse">
-          <Icon name="pencil" />
+        <Button onClick={viewDetails} variant="subdued" icon="pencil">
           Edit
         </Button>
       }
@@ -48,7 +46,7 @@ const VppCard = ({ isAppleMdmOn, isVppOn, viewDetails }: IVppCardProps) => {
       }
     >
       Add a VPP connection to install Apple App Store apps purchased through
-      Apple Business Manager.
+      Apple Business.
     </SectionCard>
   );
 

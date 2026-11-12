@@ -2,10 +2,10 @@
 services:
   # To test with MariaDB, set FLEET_MYSQL_IMAGE to mariadb:10.6 or the like (note MariaDB is not
   # officially supported).
-  # To run in macOS M1, set FLEET_MYSQL_IMAGE=arm64v8/mysql:oracle FLEET_MYSQL_PLATFORM=linux/arm64/v8
+  # MySQL runs on the host's native architecture; set FLEET_MYSQL_PLATFORM (e.g. linux/amd64) to override.
   mysql:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
-    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
+    platform: ${FLEET_MYSQL_PLATFORM:-}
     volumes:
       - mysql-persistent-volume:/tmp
     command: [
@@ -17,6 +17,8 @@ services:
         "--server-id=master-01",
         # Required for storage of Apple MDM bootstrap packages.
         "--max_allowed_packet=536870912",
+        # Automatically expire binary logs after 1 day to save disk space in dev. Default is 30 days.
+        "--binlog-expire-logs-seconds=86400",
       ]
     environment: &mysql-default-environment
       MYSQL_ROOT_PASSWORD: toor
@@ -26,11 +28,11 @@ services:
       # This is required by Percona XtraDB server.
       CLUSTER_NAME: fleet
     ports:
-      - "3306:3306"
+      - "127.0.0.1:${FLEET_MYSQL_PORT:-3306}:3306"
 
   mysql_test:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
-    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
+    platform: ${FLEET_MYSQL_PLATFORM:-}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: [
         "mysqld",
@@ -46,17 +48,19 @@ services:
         "--server-id=1",
         # Required for storage of Apple MDM bootstrap packages.
         "--max_allowed_packet=536870912",
+        # Automatically expire binary logs after 1 day to save disk space in dev. Default is 30 days.
+        "--binlog-expire-logs-seconds=86400",
       ]
     environment: *mysql-default-environment
     ports:
-      - "${FLEET_MYSQL_TEST_PORT:-3307}:3306"
+      - "127.0.0.1:${FLEET_MYSQL_TEST_PORT:-3307}:3306"
     tmpfs:
       - /var/lib/mysql:rw,noexec,nosuid
       - /tmpfs
 
   mysql_replica_test:
-    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.36}
-    platform: ${FLEET_MYSQL_PLATFORM:-linux/x86_64}
+    image: ${FLEET_MYSQL_IMAGE:-mysql:8.0.44}
+    platform: ${FLEET_MYSQL_PLATFORM:-}
     # innodb-file-per-table=OFF gives ~20% speedup for test runs.
     command: [
         "mysqld",
@@ -72,28 +76,31 @@ services:
         "--server-id=2",
         # Required for storage of Apple MDM bootstrap packages.
         "--max_allowed_packet=536870912",
+        # Automatically expire binary logs after 1 day to save disk space in dev. Default is 30 days.
+        "--binlog-expire-logs-seconds=86400",
       ]
     environment: *mysql-default-environment
     ports:
       # ports 3308 and 3309 are used by the main and replica MySQL containers in tools/mysql-replica-testing/docker-compose.yml
-      - "3310:3306"
+      - "127.0.0.1:${FLEET_MYSQL_REPLICA_TEST_PORT:-3310}:3306"
     tmpfs:
       - /var/lib/mysql:rw,noexec,nosuid
       - /tmpfs
 
-  # Unauthenticated SMTP server.
+  # Unauthenticated SMTP server. Kept the "mailhog" service name to avoid churn in CI and env vars.
+  # Using "axllent/mailpit" because it has amd64/arm64 builds.
   mailhog:
-    image: mailhog/mailhog:latest
+    image: axllent/mailpit:latest
     ports:
-      - "8025:8025"
-      - "1025:1025"
+      - "127.0.0.1:${FLEET_MAILHOG_WEB_PORT:-8025}:8025"
+      - "127.0.0.1:${FLEET_MAILHOG_SMTP_PORT:-1025}:1025"
 
   # SMTP server with Basic Authentication.
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "8026:8025"
-      - "1026:1025"
+      - "127.0.0.1:${FLEET_MAILPIT_WEB_PORT:-8026}:8025"
+      - "127.0.0.1:${FLEET_MAILPIT_SMTP_PORT:-1026}:1025"
     volumes:
       - ./tools/mailpit/auth.txt:/auth.txt
     command: ["--smtp-auth-file=/auth.txt", "--smtp-auth-allow-insecure=true"]
@@ -102,8 +109,8 @@ services:
   smtp4dev_test:
     image: rnwood/smtp4dev:v3
     ports:
-      - "8028:80"
-      - "1027:25"
+      - "127.0.0.1:${FLEET_SMTP4DEV_WEB_PORT:-8028}:80"
+      - "127.0.0.1:${FLEET_SMTP4DEV_SMTP_PORT:-1027}:25"
     volumes:
       - ./tools/smtp4dev:/certs
     environment:
@@ -112,63 +119,58 @@ services:
       - ServerOptions__TlsCertificatePrivateKey=/certs/fleet.key
 
   redis:
-    image: redis:6
+    image: ${FLEET_REDIS_IMAGE:-redis:6.2}
     ports:
-      - "6379:6379"
+      - "127.0.0.1:${FLEET_REDIS_PORT:-6379}:6379"
 
   saml_idp:
-    image: fleetdm/docker-idp:latest
+    # Using simplesamlphp-1.19.0 instead of latest
+    # because it has amd64/arm64 builds.
+    image: fleetdm/docker-idp:simplesamlphp-1.19.0
     volumes:
       - ./tools/saml/users.php:/var/www/simplesamlphp/config/authsources.php
       - ./tools/saml/config.php:/var/www/simplesamlphp/metadata/saml20-sp-remote.php
     ports:
-      - "9080:8080"
-      - "9443:8443"
-
-  # CAdvisor container allows monitoring other containers. Useful for
-  # development.
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    ports:
-      - "5678:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./tools/app/prometheus.yml:/etc/prometheus/prometheus.yml
+      - "127.0.0.1:${FLEET_SAML_IDP_HTTP_PORT:-9080}:8080"
+      - "127.0.0.1:${FLEET_SAML_IDP_HTTPS_PORT:-9443}:8443"
 
   # localstack to simulate AWS integrations like firehose & kinesis
   # use http://localhost:4566 as the `--endpoint-url` argument in awscli
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack:4.5
+    profiles: ["localstack"]
     ports:
-      - "4566:4566"
-      - "4571:4571"
+      - "127.0.0.1:${FLEET_LOCALSTACK_PORT:-4566}:4566"
+      - "127.0.0.1:${FLEET_LOCALSTACK_LEGACY_PORT:-4571}:4571"
     environment:
       - SERVICES=firehose,kinesis,s3,iam,sts,secretsmanager
 
   # s3 compatible object storage (file carving/software installers)
   s3:
-    image: rustfs/rustfs:1.0.0-alpha.73
+    image: rustfs/rustfs:1.0.0-alpha.85
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:${FLEET_S3_PORT:-9000}:9000"
+      - "127.0.0.1:${FLEET_S3_CONSOLE_PORT:-9001}:9001"
     environment:
       - RUSTFS_ADDRESS=0.0.0.0:9000
       - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
       - RUSTFS_CONSOLE_ENABLE=true
-      - RUSTFS_EXTERNAL_ADDRESS=:9000
       - RUSTFS_ACCESS_KEY=locals3
       - RUSTFS_SECRET_KEY=locals3
     volumes:
       - data-s3:/data:rw
 
+  # Azurite emulator for Azure Blob Storage (software installers/bootstrap packages/icons/org logos)
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    profiles: ["azurite"]
+    command: ["azurite-blob", "--blobHost", "0.0.0.0", "--blobPort", "10000", "--skipApiVersionCheck"]
+    ports:
+      - "127.0.0.1:${FLEET_AZURITE_PORT:-10000}:10000"
+    volumes:
+      - data-azurite:/data:rw
+
 volumes:
   mysql-persistent-volume:
   data-s3:
+  data-azurite:

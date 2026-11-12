@@ -1,0 +1,10 @@
+{
+  "name": "PixelSnap",
+  "unique_identifier": "pl.maketheweb.pixelsnap2",
+  "token": "pixelsnap",
+  "installer_format": "dmg",
+  "slug": "pixelsnap/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -15,7 +15,7 @@ You can specify configuration options in the following formats:
 
 ## MySQL
 
-This section describes the configuration options for the primary. Suppose you also want to set up a read replica. In that case the options are the same, except that the YAML section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
+This section describes the configuration options for the primary. Suppose you also want to set up a read replica. In that case the options are the same, except that the YAML section is `mysql_read_replica`, and the flags have the `mysql_read_replica_` prefix instead of `mysql_` (the corresponding environment variables follow the same transformation). **Read replica configuration is fully independent from the primary — no values are inherited.** All required settings (address, region, TLS, authentication, etc.) must be explicitly set for the read replica using the `mysql_read_replica_` prefix. For example, if IAM authentication is used, both `FLEET_MYSQL_REGION` and `FLEET_MYSQL_READ_REPLICA_REGION` must be set. Note that there is no default value for `mysql_read_replica_address`, it must be set explicitly for Fleet to use a read replica, and it is recommended in that case to set a non-zero value for `mysql_read_replica_conn_max_lifetime` as in some environments, the replica's address may dynamically change to point
 from the primary to an actual distinct replica based on auto-scaling options, so existing idle connections need to be recycled
 periodically.
 
@@ -119,7 +119,9 @@ The path to a PEM encoded private key used for TLS authentication.
 
 ### mysql_tls_config
 
-The TLS value in an MYSQL DSN. Can be `true`,`false`,`skip-verify`, or the CN value of the certificate.
+The TLS value in a MySQL DSN. Can be `true`,`false`,`skip-verify`, or the CN value of the certificate.
+
+When using IAM authentication with RDS, this setting is typically not needed — Fleet automatically uses `rdsmysql` as the TLS config, which includes bundled RDS CA certificates (including GovCloud regions). Setting this to `true` uses the system CA pool instead, which may not include RDS certificates in minimal container environments.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_TLS_CONFIG`
@@ -143,7 +145,9 @@ This is the server name or IP address used by the client certificate.
 
 ### mysql_max_open_conns
 
-The maximum open connections to the database.
+The maximum open connections from each Fleet server to the database. This value should be less than the database's maximum connection limit.
+
+If your database has 100 connections available and you have up to 3 Fleet servers running, this value should be 30 to avoid opening more connections than the database can handle and still leave a small buffer.
 
 - Default value: 50
 - Environment variable: `FLEET_MYSQL_MAX_OPEN_CONNS`
@@ -204,6 +208,8 @@ AWS region to use for Identity and Access Management (IAM) authentication of an 
 
 - `mysql_password` is not set
 - `mysql_password_path` is not set
+
+If a read replica is configured, the read replica's region must also be set explicitly via `mysql_read_replica_region` — it is not inherited from this setting.
 
 - Default value: none
 - Environment variable: `FLEET_MYSQL_REGION`
@@ -368,7 +374,7 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 
 ### redis_duplicate_results
 
-Whether or not to duplicate Live Query results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the Live Query results outside of Fleet, near real-time.
+Whether or not to duplicate results to another Redis channel named `LQDuplicate`. This is useful in a scenario involving shipping the results outside of Fleet, near real-time.
 
 - Default value: `false`
 - Environment variable: `FLEET_REDIS_DUPLICATE_RESULTS`
@@ -592,6 +598,35 @@ A value of 0 means no timeout.
     write_timeout: 5s
   ```
 
+### redis_host_cache_enabled
+
+Enables a Redis-backed cache that fronts host lookups on the osquery and orbit auth paths.
+When enabled, Fleet caches authenticated host records in Redis to reduce MySQL load on
+high-volume check-in endpoints. Disable to bypass the cache and serve every check-in directly
+from MySQL.
+
+- Default value: true
+- Environment variable: `FLEET_REDIS_HOST_CACHE_ENABLED`
+- Config file format:
+  ```yaml
+  redis:
+    host_cache_enabled: true
+  ```
+
+### redis_host_cache_ttl
+
+Base TTL for entries in the Redis-backed host lookup cache. Each entry's actual TTL is jittered
+by ±10% to avoid synchronized expiry waves. Must be greater than 0 when `redis_host_cache_enabled`
+is true; to disable the cache, set `redis_host_cache_enabled=false` instead of zeroing this value.
+
+- Default value: 60s
+- Environment variable: `FLEET_REDIS_HOST_CACHE_TTL`
+- Config file format:
+  ```yaml
+  redis:
+    host_cache_ttl: 60s
+  ```
+
 ## Server
 
 ### server_address
@@ -630,6 +665,33 @@ The TLS key to use when terminating TLS.
   ```yaml
   server:
     key: /tmp/fleet.key
+  ```
+
+### server_default_max_request_body_size
+
+The max request body size, in a human readable format (size + unit), for endpoints that don't implement a higher size. If an endpoint has a default limit of 3MB for instance, and this value is set to 5MB, that endpoint will have its maximum request size increased to 5MB as well. To see which endpoints have a higher size than the default, check out the [API reference docs](https://fleetdm.com/docs/rest-api/rest-api).
+
+- Default value: `1MiB`
+- Environment variable: `FLEET_SERVER_DEFAULT_MAX_REQUEST_BODY_SIZE`
+- Config file format:
+  ```yaml
+  server:
+    default_max_request_body_size: 2MiB
+  ```
+
+### server_endpoint_request_size_overrides
+
+Per-endpoint max request body size overrides using human-readable sizes (e.g. 50MiB). The highest value between default_max_request_body_size and a matching override is used.
+
+- Default value: None
+- Environment variable: `FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES`
+- Environment variable format: `[{"endpoint": "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install", "max_request_size": "50MiB"}]`
+- Config file format:
+  ```yaml
+  server:
+    endpoint_request_size_overrides:
+      - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/available_for_install"
+        max_request_size: "50MiB"
   ```
 
 ### server_tls
@@ -684,6 +746,44 @@ Turning off keepalives has helped reduce outstanding TCP connections in some dep
     keepalive: true
   ```
 
+### server_trusted_proxies (Fleet 4.80.1+)
+
+Sets the strategy that Fleet uses to determine the IP address of the client making a request. This address is used for rate-limiting purposes. Options are:
+
+- `none`: always take the IP from the remote address of the request
+- A comma-delimited set of IP addresses or ranges: parse the `x-forwarded-for` or `forwarded` header (if any) in the request and take the right-most IP _not_ in the list
+- A number: parse the `x-forwarded-for` or `forwarded` header (if any) and taken the Nth address from the right (`1` indicates the right-most address, `2` the second-to-right-most, etc.)
+- A string starting with `header:`: take the value of that header as the IP address
+- Empty: take the value of the IP from the `True-Client-IP` header, or else the `X-Real-IP` header, or else the left-most value of the `X-Forwarded-For` header. _This setting is deprecated: For Fleet servers directly facing the internet, `none` is recommended. Otherwise use a value compatible with your proxy setup._
+
+> If no value can be determined via the configured setting (for example, if a number is supplied but no `x-forwarded-for` or `forwarded` headers exist on the request) then the remote address of the request will be used.
+
+For example, if a request from remote address `5.5.5.5` has these headers:
+```
+X-Forwarded-For: 1.1.1.1, 2.2.2.2, 4.4.4.4, 192.168.0.120
+X-Real-IP: 2.2.2.2
+```
+
+Then depending on how `fleet_server_trusted_proxies` is set, Fleet would determine the following values for the client IP:
+
+| Trusted proxies setting | Client IP | Explanation |
+| --- | --- | --- |
+|`none` | `5.5.5.5` | The address Fleet received the request from |
+|`192.168.0.0/24, 4.4.4.4`| `2.2.2.2` | Using `X-Forwarded-For` and skipping the trusted addresses of `192.168.0.120` and `4.4.4.4` |
+|`1`| `192.168.0.120` | The first address from the right in `x-forwarded-for`
+|`2`| `4.4.4.4` | The second address from the right in `x-forwarded-for` |
+|`header:x-real-ip`| `2.2.2.2` | The value of the specified header|
+|`header:x-peekaboo`| `5.5.5.5` |  The address Fleet received the request from, since the specified header doesn't exist in the request |
+|empty| `2.2.2.2` | The value of the `x-real-ip` header
+
+- Default value: empty
+- Environment variable: `FLEET_SERVER_TRUSTED_PROXIES`
+- Config file format:
+  ```yaml
+  server:
+    trusted_proxies: none
+  ```
+
 ### server_websockets_allow_unsafe_origin
 
 Controls the servers websocket origin check. If your Fleet server is behind a reverse proxy,
@@ -701,6 +801,34 @@ Setting to true will disable the origin check.
     websockets_allow_unsafe_origin: true
   ```
 
+### server_allow_private_network_integrations
+
+Allows Fleet's HTTP client to make outbound requests to RFC 1918 and other private network addresses. Enable this if  Fleet needs to reach an integration over HTTP. (Examples include SSO/IdP, EJBCA, Jira, or SCEP server, or an `HTTP_PROXY`/`HTTPS_PROXY` hosted on a private network.)
+
+This does not affect the always-blocked loopback (`127.0.0.0/8`) and cloud metadata (`169.254.0.0/16`) ranges.
+
+- Default value: `false`
+- Environment variable: `FLEET_SERVER_ALLOW_PRIVATE_NETWORK_INTEGRATIONS`
+- Config file format:
+```yaml
+server:
+  allow_private_network_integrations: true
+```
+
+### server_allow_request_certificate_any_idp
+
+Turns off the identity checks on the [Request certificate](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API. When set, requests authenticated with an HTTP signature don't have to name the end user recorded for the host, and IdP credentials are accepted for any introspection endpoint, not only those listed in `integrations.certificates_idp_introspection_urls`.
+
+This restores the behavior of Fleet versions that predate these checks. Use it while you migrate, then configure the `integrations.certificates_*` settings and turn it off.
+
+- Default value: `false`
+- Environment variable: `FLEET_SERVER_ALLOW_REQUEST_CERTIFICATE_ANY_IDP`
+- Config file format:
+```yaml
+server:
+  allow_request_certificate_any_idp: true
+```
+
 ### server_force_h2c
 
 Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 support is only negotiated if the Go webserver
@@ -716,7 +844,7 @@ cloud providers that have limitations on their API gateways, such as GCP Cloud R
 
 ### server_private_key
 
-This key is required for enabling Apple, Windows, and Android MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
+This key is required for enabling Apple, Windows, and Android MDM features and features that require third-party secrets, passwords, or API keys (ex. [maintenance windows](https://fleetdm.com/guides/using-maintenance-windows)). If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
 
 The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Terminal app to generate one on macOS.
 
@@ -749,7 +877,7 @@ Only one of `server_private_key_arn` or `server_private_key` can be set.
 If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
 
 - Default value: `""`
-- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_ARN`
 - Config file format:
   ```yaml
   server:
@@ -773,11 +901,84 @@ Optionally, when using Identity and Access Management (IAM) authentication, this
 Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `server_private_key_arn` and `server_private_key_sts_assume_role_arn`.
 
 - Default value: `""`
-- Environment variable: `FLEET_SERVER_PRIVATE_KEY_EXTERNAL_ID`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_EXTERNAL_ID`
 - Config file format:
   ```yaml
   server:
     private_key_sts_external_id: your_unique_id
+  ```
+
+### server_max_installer_size
+
+Maximum size for software installer uploads. Accepts human-readable size values with suffixes like `K`, `M`, `G`, `T` (binary, e.g., `10GiB` = 10 * 1024³ bytes) or `KB`, `MB`, `GB`, `TB` (decimal, e.g., `10GB` = 10 * 1000³ bytes). Plain numbers are interpreted as bytes.
+
+- Default value: `10GiB`
+- Environment variable: `FLEET_SERVER_MAX_INSTALLER_SIZE`
+- Config file format:
+  ```yaml
+  server:
+    max_installer_size: 10GiB
+  ```
+  
+### server_gzip_responses
+
+If enabled, the server will return gzip-compressed responses for HTTP requests to clients that indicate support. Client support is determined by the presence of `gzip` in an `Accept-Encoding` request header.
+
+Enable this to significantly reduce the outbound bandwidth from the Fleet server at a small expense to CPU utilization on the server.
+
+- Default value: false
+- Environment variable: `FLEET_SERVER_GZIP_RESPONSES`
+- Config file format:
+  ```yaml
+  server:
+    gzip_responses: true
+  ```
+
+### fleet_server_enable_csp
+
+When set to `1` or `true`, the Fleet server adds a `Content-Security-Policy` header to responses for the Fleet UI, API, and static assets. The policy restricts where the browser can load scripts, styles, images, fonts, and network connections from.
+
+The policy allows resources from the Fleet server, images from `www.gravatar.com` and any HTTPS origin (for custom logos), and WebSocket connections. Inline scripts and styles are allowed only when they carry a per-response nonce that the server injects into the UI.
+
+This is only supported as an environment variable.
+
+- Default value: not set (no `Content-Security-Policy` header is sent)
+- Environment variable: `FLEET_SERVER_ENABLE_CSP`
+
+### server_script_results_retention (Fleet 4.92.2+)
+
+Minimum time since a script run recorded its result before Fleet's hourly cleanup deletes it. Runs still waiting on a host are kept, as are runs a host lock, wipe, unlock, setup experience, software uninstall, or batch run depends on. Set to 0 to disable the cleanup.
+
+- Default value: 720h
+- Environment variable: `FLEET_SERVER_SCRIPT_RESULTS_RETENTION`
+- Config file format:
+  ```yaml
+  server:
+    script_results_retention: 720h
+  ```
+
+### server_software_install_results_retention (Fleet 4.92.2+)
+
+Minimum time since a software install or uninstall finished before Fleet's hourly cleanup deletes its record. Records a host is still working on are kept, as are records setup experience depends on and the most recent install and uninstall per host and package. Set to 0 to disable the cleanup.
+
+- Default value: 720h
+- Environment variable: `FLEET_SERVER_SOFTWARE_INSTALL_RESULTS_RETENTION`
+- Config file format:
+  ```yaml
+  server:
+    software_install_results_retention: 720h
+  ```
+
+### server_deleted_host_certificates_retention (Fleet 4.94.0+)
+
+Minimum time since a certificate was removed from a host before Fleet's hourly cleanup permanently deletes Fleet's record of it. Certificates still on a host are never deleted. Set to 0 to disable the cleanup.
+
+- Default value: 720h
+- Environment variable: `FLEET_SERVER_DELETED_HOST_CERTIFICATES_RETENTION`
+- Config file format:
+  ```yaml
+  server:
+    deleted_host_certificates_retention: 720h
   ```
 
 ## Auth
@@ -788,7 +989,7 @@ How long an SSO authentication process can take between initiation and callback.
 
 > Note: Once logged in, `session_duration` determines how long a user stays logged into Fleet.
 
-- Default value: `5m` (5 minutes)
+- Default value: `15m` (15 minutes)
 - Environment variable: `FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD`
 - Config file format:
   ```yaml
@@ -840,6 +1041,18 @@ When enabled, Fleet server will require HTTP message signatures for all incoming
     require_http_message_signature: true
   ```
 
+### auth_sso_rate_limit_per_minute
+
+The number of requests per minute allowed to the [SSO callback endpoint](https://fleetdm.com/docs/rest-api/rest-api#sso-callback) (`/api/v1/fleet/sso/callback`).
+
+- Default value: 10
+- Environment variable: `FLEET_AUTH_SSO_RATE_LIMIT_PER_MINUTE`
+- Config file format:
+  ```yaml
+  auth:
+    sso_rate_limit_per_minute: 200
+  ```
+
 ## App
 
 ### app_token_key_size
@@ -866,18 +1079,18 @@ How long invite tokens should be valid for.
     invite_token_validity_period: 1d
   ```
 
-### app_enable_scheduled_query_stats
+### app_enable_report_stats
 
-Determines whether Fleet collects performance impact statistics for scheduled queries.
+Determines whether Fleet collects performance impact statistics for reports.
 
-If set to `false`, stats are still collected for live queries.
+If set to `false`, stats are still collected for live reports.
 
 - Default value: `true`
-- Environment variable: `FLEET_APP_ENABLE_SCHEDULED_QUERY_STATS`
+- Environment variable: `FLEET_APP_ENABLE_REPORT_STATS`
 - Config file format:
   ```yaml
   app:
-    enable_scheduled_query_stats: true
+    enable_report_stats: true
   ```
 
 ## License
@@ -948,9 +1161,7 @@ Options are `provided` (default), `uuid`, `hostname`, or `instance`.
 
 This setting works in combination with the `--host_identifier` flag in osquery. In most deployments, using `uuid` will be the best option. The flag defaults to `provided` -- preserving the existing behavior of Fleet's handling of host identifiers -- using the identifier provided by osquery. `instance`, `uuid`, and `hostname` correspond to the same meanings as osquery's `--host_identifier` flag.
 
-Users that have duplicate UUIDs in their environment can benefit from setting this flag to `instance`.
-
-> If you are enrolling your hosts using Fleet generated packages, it is recommended to use `uuid` as your identifier. This prevents potential issues with duplicate host enrollments.
+> If you are enrolling your hosts using Fleet generated packages, it is recommended to leave this setting as the default of `provided` and use the `--host-identifier` flag to specify an identifier when building your fleetd package. Supported options are `uuid` and `instance`.
 
 - Default value: `provided`
 - Environment variable: `FLEET_OSQUERY_HOST_IDENTIFIER`
@@ -1033,7 +1244,7 @@ Valid time units are `s`, `m`, `h`.
 This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, `splunk`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -1047,7 +1258,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, `splunk`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -1076,7 +1287,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asynchronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' report results. Currently, asynchronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled report statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -1085,7 +1296,7 @@ It can be set to a single boolean value ("true" or "false"), which controls all 
 * `label_membership` for updating the hosts' label query execution;
 * `policy_membership` for updating the hosts' policy membership results;
 * `host_last_seen` for updating the hosts' last seen timestamp.
-* `scheduled_query_stats` for saving the hosts' scheduled query statistics.
+* `scheduled_query_stats` for saving the hosts' scheduled report statistics.
 
 - Default value: false
 - Environment variable: `FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING`
@@ -1221,6 +1432,124 @@ The minimum time difference between the software's "last opened at" timestamp re
     min_software_last_opened_at_diff: 4h
   ```
 
+### osquery_max_concurrent_query_report_reads
+
+The maximum number of osquery log requests that each Fleet server checks against stored report results at the same time. Fleet reads a host's stored results from the database (the read replica, if configured) so it can skip writing results that haven't changed. When a server is at the limit, it skips storing report results for the request instead of waiting on the database. The host sends fresh results on the report's next run. Results still go to the log destination for reports with automations on. Set it to 0 to remove the limit.
+
+- Default value: 40
+- Environment variable: `FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_READS`
+- Config file format:
+  ```yaml
+  osquery:
+    max_concurrent_query_report_reads: 80
+  ```
+
+### osquery_max_concurrent_query_report_writes
+
+The maximum number of osquery log requests, across all Fleet servers, that write changed report results to the database at the same time. Unlike `osquery_max_concurrent_query_report_reads`, this limit is shared through Redis, so it doesn't change when you add or remove Fleet servers. Results that haven't changed don't count toward it. When the limit is reached, Fleet skips storing the request's changed report results instead of waiting on the database. The host sends fresh results on the report's next run. Results still go to the log destination for reports with automations on. If Redis can't be reached, each Fleet server allows up to 2 writes at a time instead. Set it to 0 to remove the limit.
+
+- Default value: 20
+- Environment variable: `FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_WRITES`
+- Config file format:
+  ```yaml
+  osquery:
+    max_concurrent_query_report_writes: 40
+  ```
+
+### osquery_max_log_write_body_size
+
+Maximum HTTP request body size accepted by `/api/osquery/log`. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default (10MiB).
+
+This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fallback: true`). In header-auth mode (`false`) the route is not subject to any body size limit and this value is ignored.
+
+- Default value: `0` (use built-in default of 10MiB)
+- Environment variable: `FLEET_OSQUERY_MAX_LOG_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_log_write_body_size: 20MiB
+  ```
+
+### osquery_max_distributed_write_body_size
+
+Maximum HTTP request body size accepted by `/api/osquery/distributed/write`. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default (5MiB).
+
+This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fallback: true`). In header-auth mode (`false`) the route is not subject to any body size limit and this value is ignored.
+
+- Default value: `0` (use built-in default of 5MiB)
+- Environment variable: `FLEET_OSQUERY_MAX_DISTRIBUTED_WRITE_BODY_SIZE`
+- Config file format:
+  ```yaml
+  osquery:
+    max_distributed_write_body_size: 10MiB
+  ```
+
+### osquery_config_in_memory_cache
+
+Caches the scheduled-report section of the osquery config in memory, so that Fleet doesn't rebuild it from the database on every config check-in. Disabled by default.
+
+When enabled, the cache holds that section for one minute, keyed by fleet (team) and the `server_settings.query_reports_disabled` setting, which reduces database reads on config check-ins. It covers only the `packs` key of the response; the rest of the config is rebuilt on every check-in. It's also used only where it can't change what a host receives: hosts with 2017 packs, and fleets with label-scoped reports (whose configs differ per host), always build from the database.
+
+When disabled, every check-in builds that section from the database.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE`
+- Config file format:
+  ```yaml
+  osquery:
+    config_in_memory_cache: true
+  ```
+
+### osquery_allow_body_auth_fallback
+
+Selects how osquery requests are authenticated.
+
+When `true` (default), the `Authorization: NodeKey` header is ignored entirely and only body-based `node_key` auth is used.
+
+When `false`, the `Authorization: NodeKey` header is required and the body's `node_key` field is not consulted. The HTTP-level pre-auth middleware rejects requests with absent or invalid headers BEFORE the request body is read. On `/api/osquery/carve/block` the same pre-auth additionally enforces that the carve's `host_id` matches the authenticated host.
+
+- Default value: `true`
+- Environment variable: `FLEET_OSQUERY_ALLOW_BODY_AUTH_FALLBACK`
+- Config file format:
+  ```yaml
+  osquery:
+    allow_body_auth_fallback: false
+  ```
+
+### osquery_config_etags
+
+Enables conditional osquery config requests on `/api/osquery/config`. Disabled by default.
+
+When enabled, an agent that sends an `"etag"` field in its config request body receives the config with an `"etag"` key added, and the minimal `{"etag":"ok"}` body when its etag matches the current config. Agents that don't send the field are unaffected either way.
+
+Setting this to `false` is the escape hatch that disables the feature entirely: the request's etag field is ignored, every response is the full config with no `"etag"` key — byte-identical to the behavior before this feature existed for every agent — and no ETag store I/O happens. This is broader than `osquery_redis_config_etags` below, which only disables the Redis short circuit while leaving conditional requests active.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_CONFIG_ETAGS`
+- Config file format:
+  ```yaml
+  osquery:
+    config_etags: false
+  ```
+
+### osquery_redis_config_etags
+
+Enables the Redis-backed ETag short circuit for the osquery config endpoint (`/api/osquery/config`). Disabled by default.
+
+When enabled, Fleet stores config ETags in Redis. When an agent's config request body carries an `"etag"` field matching the stored validator, Fleet answers with the minimal `{"etag":"ok"}` body directly from Redis **without building the config** — skipping that request's database reads entirely. Fleets (teams) whose config is uniform share one ETag per fleet and platform; fleets with label-scoped reports (whose configs are host-specific) use isolated per-host ETags that are invalidated whenever a host's label results are recorded. Qualifying changes (agent options, features, report schedules, label deletion, 2017 packs, fleet/team changes) invalidate the stored ETags immediately; a short "write fence" window after each change keeps Fleet's in-memory caches from repopulating Redis with stale data.
+
+The short circuit is automatically bypassed — falling back to a normal full config build — when the deployment has user-created 2017 packs, when the agent sends no (or an empty) etag, or on any Redis error (the feature fails open and can never block config delivery). Requires Redis; has no effect without it. It also requires `osquery_config_etags` (above): when that is `false`, this option is forced off with a startup warning, and no config ETag Redis traffic occurs at all. Agents that don't send the `"etag"` field receive the config exactly as before this feature existed, with no etag in the response.
+
+When disabled, every config request takes the full-build path, identical to the behavior before this feature existed — use this to A/B test the feature or to rule it out when debugging config delivery.
+
+- Default value: `false`
+- Environment variable: `FLEET_OSQUERY_REDIS_CONFIG_ETAGS`
+- Config file format:
+  ```yaml
+  osquery:
+    redis_config_etags: false
+  ```
+
 ## External activity audit logging
 
 > Available in Fleet Premium. Activity information is available for all Fleet Free and Fleet Premium instances using the [Activities API](https://fleetdm.com/docs/using-fleet/rest-api#activities).
@@ -1247,7 +1576,7 @@ This flag only has effect if `activity_enable_audit_log` is set to `true`.
 
 Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
 
-Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), and `stdout` (no additional configuration needed).
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), [`splunk`](#splunk), and `stdout` (no additional configuration needed).
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
@@ -1255,6 +1584,22 @@ Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#k
   ```yaml
   activity:
     audit_log_plugin: firehose
+  ```
+
+### activity_fleet_initiated_release_per_minute
+
+Maximum number of hosts whose Fleet-initiated activities (policy automation software installs and script runs, and iOS/iPadOS scheduled app updates) are released for execution per minute. Fleet-initiated activities are queued immediately, but hosts start executing them at this rate, spreading out the software install and script result load when a policy automation fires for many hosts at once (for example, after a policy's query or software is edited). User-initiated activities (self-service installs, admin-run scripts, setup experience) are not affected.
+
+The limit paces how many *idle* hosts start Fleet-initiated work each minute. A host that is already working through its activity queue continues to its next queued activity as each one completes, without waiting for the next release window — including a host a user just acted on (for example, running a script), since a person acting on a host takes precedence over pacing.
+
+Tune this down during recovery or heavy GitOps pushes, or up where rollout speed matters more than load smoothing. Set to `0` to disable the limit and start Fleet-initiated activities immediately.
+
+- Default value: `1000`
+- Environment variable: `FLEET_ACTIVITY_FLEET_INITIATED_RELEASE_PER_MINUTE`
+- Config file format:
+  ```yaml
+  activity:
+    fleet_initiated_release_per_minute: 500
   ```
 
 ## Logging (Fleet server logging)
@@ -1307,6 +1652,63 @@ and a negative value to disable storage of errors in Redis.
   ```yaml
   logging:
     error_retention_period: 1h
+  ```
+
+### logging_enable_topics
+
+A comma-delimited set of log topics to enable. 
+
+In Fleet v4.82.0, a number of API parameters and URLs were deprecated. Starting with version 4.83.0, Fleet server will begin logging warnings when deprecated API parameters or URLs are used. To see the warnings in v4.82.0, enable the `deprecated-field-names` topic using this setting.
+
+- Default value: none
+- Environment variable: `FLEET_LOGGING_ENABLE_TOPICS`
+- Config file format:
+  ```yaml
+  logging:
+    enable_topics: deprecated-field-names
+  ```
+
+### logging_disable_topics
+
+A comma-delimited set of log topics to disable. If a topic is included in both this and the `logging_enable_topics` setting, it will be enabled.
+
+- Default value: none
+- Environment variable: `FLEET_LOGGING_DISABLE_TOPICS`
+- Config file format:
+  ```yaml
+  logging:
+    disable_topics: deprecated-field-names
+  ```
+
+### logging_tracing_enabled
+
+Whether or not to enable tracing. When enabled, the Fleet server exports traces (and, when `logging_otel_logs_enabled` is also set, logs) to an [OpenTelemetry](https://opentelemetry.io/) collector over OTLP.
+
+The export destination and resource attributes are configured through the standard OpenTelemetry SDK environment variables, the most common being:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT` - the OTLP collector endpoint, e.g. `http://localhost:4317`.
+- `OTEL_SERVICE_NAME` - the service name reported with each span (defaults to `fleet`).
+
+See the [OpenTelemetry SDK environment variable reference](https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/) for the full list, and [Traces](https://fleetdm.com/docs/deploy/reference-architectures#traces) for how Fleet samples traces in production.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_TRACING_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    tracing_enabled: true
+  ```
+
+### logging_otel_logs_enabled
+
+Whether or not to export logs to an OpenTelemetry collector in addition to stderr. Requires `logging_tracing_enabled` to be `true` so that exported log records can be correlated with traces.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_OTEL_LOGS_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    otel_logs_enabled: true
   ```
 
 ## Filesystem
@@ -1430,7 +1832,7 @@ to zero will retain all logs. _Note_ max_age may still cause them to be deleted.
 
 ## Webhook
 
-To use webhook logging for query results, the following two Fleet config values must *both* be set:
+To use webhook logging for report results, the following two Fleet config values must *both* be set:
 
 ### Set log method to 'webhook' by
 - Command line flag: `--osquery_result_log_plugin="webhook"`,
@@ -2071,6 +2473,327 @@ The value of the Content-Type header to use in [Kafka REST Proxy API calls](http
     content_type_value: application/vnd.kafka.json.v2+json
   ```
 
+## NATS
+
+NATS subject configuration options (`nats_status_subject`, `nats_result_subject`,
+and `nats_audit_subject`) support dynamic subject generation using templates.
+Subjects can be constant strings, or templates containing expressions enclosed
+in curly braces (`{...}`).
+
+Template expressions are evaluated using [expr](https://expr-lang.org/) and have
+access to the log data via the `log` variable. Fields can be accessed using dot
+notation, such as `log.name` and `log.decorations.hostname`.
+
+#### Example log
+```json
+{
+  "action": "snapshot",
+  "decorations": {
+    "host_uuid": "85c1244f-9176-2445-8ceb-d6569dc1b417",
+    "hostname": "webserver"
+  },
+  "name": "pack/Global/process_events",
+  "snapshot": [
+    {"pid": "1234", "name": "nginx", "cmdline": "/usr/sbin/nginx"}
+  ]
+}
+```
+
+#### Example subject templates
+| Description         | Template                                          | Result                       |
+|---------------------|---------------------------------------------------|------------------------------|
+| Route by hostname   | `results.{log.decorations.hostname}`              | `results.webserver`          |
+| Extract report name  | `results.{log.name \| split("/") \| last()}`      | `results.process_events`     |
+| Action and hostname | `results.{log.action}.{log.decorations.hostname}` | `results.snapshot.webserver` |
+
+### nats_server
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+The URL of the NATS server to connect to for publishing logs.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_SERVER`
+- Config file format:
+  ```yaml
+  nats:
+    server: nats://localhost:4222
+  ```
+
+### nats_status_subject
+
+This flag only has effect if `osquery_status_log_plugin` is set to `nats`.
+
+The NATS subject that osquery status logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_STATUS_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    status_subject: osquery_status
+  ```
+
+### nats_result_subject
+
+This flag only has effect if `osquery_result_log_plugin` is set to `nats`.
+
+The NATS subject that osquery result logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_RESULT_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    result_subject: osquery_result
+  ```
+
+### nats_audit_subject
+
+This flag only has effect if `activity_audit_log_plugin` is set to `nats`.
+
+The NATS subject that audit logs will be published to.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_AUDIT_SUBJECT`
+- Config file format:
+  ```yaml
+  nats:
+    audit_subject: fleet_audit
+  ```
+
+### nats_cred_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the NATS [credentials file](https://docs.nats.io/using-nats/developer/connecting/creds) for authentication. Cannot be used together with `nats_nkey_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_CRED_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    cred_file: /path/to/nats.creds
+  ```
+
+### nats_nkey_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the NATS [NKey seed file](https://docs.nats.io/using-nats/developer/connecting/nkey) for authentication. Cannot be used together with `nats_cred_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_NKEY_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    nkey_file: /path/to/nats.nk
+  ```
+
+### nats_tls_client_crt_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the TLS client certificate file for NATS connection. Must be used together with `nats_tls_client_key_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_TLS_CLIENT_CRT_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    tls_client_crt_file: /path/to/client.crt
+  ```
+
+### nats_tls_client_key_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the TLS client key file for NATS connection. Must be used together with `nats_tls_client_crt_file`.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_TLS_CLIENT_KEY_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    tls_client_key_file: /path/to/client.key
+  ```
+
+### nats_ca_crt_file
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Path to the CA certificate file for verifying the NATS server certificate.
+
+- Default value: none
+- Environment variable: `FLEET_NATS_CA_CRT_FILE`
+- Config file format:
+  ```yaml
+  nats:
+    ca_crt_file: /path/to/ca.crt
+  ```
+
+### nats_compression
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Compression algorithm to use for log payloads before publishing to NATS. Supported values are `gzip`, `snappy`, and `zstd`. When not specified, logs are published uncompressed.
+
+- Default value: none (no compression)
+- Environment variable: `FLEET_NATS_COMPRESSION`
+- Config file format:
+  ```yaml
+  nats:
+    compression: gzip
+  ```
+
+### nats_jetstream
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Enable NATS JetStream for log publishing. When enabled, logs are published using JetStream instead of core NATS.
+
+- Default value: false
+- Environment variable: `FLEET_NATS_JETSTREAM`
+- Config file format:
+  ```yaml
+  nats:
+    jetstream: true
+  ```
+
+### nats_timeout
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `nats`.
+- `activity_audit_log_plugin` is set to `nats` and `activity_enable_audit_log` is set to `true`.
+
+Timeout for NATS publish operations. Valid time units are `s`, `m`, `h`.
+
+- Default value: 30s
+- Environment variable: `FLEET_NATS_TIMEOUT`
+- Config file format:
+  ```yaml
+  nats:
+    timeout: 1m
+  ```
+
+## Splunk
+
+Fleet can send osquery logs directly to Splunk via the [HTTP Event Collector (HEC)](https://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector) endpoint.
+
+> Fleet doesn't validate `splunk_url` or `splunk_token` at startup. If either is wrong, errors appear in the Fleet server logs when Fleet tries to send logs to Splunk.
+
+### splunk_url
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The base URL of the Splunk HEC endpoint (e.g. `https://splunk.example.com:8088`).
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_URL`
+- Config file format:
+  ```yaml
+  splunk:
+    url: https://splunk.example.com:8088
+  ```
+
+### splunk_token
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The HEC authentication token.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_TOKEN`
+- Config file format:
+  ```yaml
+  splunk:
+    token: your-hec-token
+  ```
+
+### splunk_index
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The Splunk index to send events to. If empty, the HEC token's default index is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_INDEX`
+- Config file format:
+  ```yaml
+  splunk:
+    index: main
+  ```
+
+### splunk_source
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The source value for events sent to Splunk. If empty, the HEC token's default source is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_SOURCE`
+- Config file format:
+  ```yaml
+  splunk:
+    source: fleet
+  ```
+
+### splunk_source_type
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+The sourcetype value for events sent to Splunk. If empty, the HEC token's default sourcetype is used.
+
+- Default value: none
+- Environment variable: `FLEET_SPLUNK_SOURCE_TYPE`
+- Config file format:
+  ```yaml
+  splunk:
+    source_type: fleet:json
+  ```
+
+### splunk_insecure_skip_verify
+
+This flag only has effect if one of the following is true:
+- `osquery_result_log_plugin` or `osquery_status_log_plugin` are set to `splunk`.
+- `activity_audit_log_plugin` is set to `splunk` and `activity_enable_audit_log` is set to `true`.
+
+Skip TLS certificate verification when connecting to the Splunk HEC endpoint. Useful for development environments with self-signed certificates.
+
+- Default value: `false`
+- Environment variable: `FLEET_SPLUNK_INSECURE_SKIP_VERIFY`
+- Config file format:
+  ```yaml
+  splunk:
+    insecure_skip_verify: true
+  ```
+
 ## Email backend
 
 By default, the SMTP backend is enabled and no additional configuration is required on the server settings. You can configure
@@ -2162,6 +2885,20 @@ If set, Fleet uses AWS Identity and Access Management (IAM) authentication inste
     ses_source_arn: arn:aws:ses:us-east-1:123456789012:identity/example.com
   ```
 
+### ses_sender_domain
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
+
+Optionally set the domain used in the `From` address for SES emails. When configured, Fleet sends mail as `do-not-reply@<domain>`. If omitted, Fleet keeps the current behavior and uses the hostname from `server_settings.server_url`.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SENDER_DOMAIN`
+- Config file format:
+  ```yaml
+  ses:
+    sender_domain: notifications.example.com
+  ```
+
 ### ses_sts_assume_role_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
@@ -2192,6 +2929,8 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
   ```
 
 ## S3
+
+> If you're hosting Fleet on Render (or any service that doesn't offer S3-compatible storage and is not a multi-container deployment) or building Fleet locally, use the `FLEET_SOFTWARE_INSTALLER_STORE_DIR` environment variable (no YAML or flag equivalent) to store software installers and bootstrap packages on local disk instead. If you're hosting Fleet in AWS, GCP or any other large-scale deployment, use an S3 compatible object store (below) because local storage won't work for multi-container deployments.
 
 ### s3_software_installers_bucket
 
@@ -2284,12 +3023,33 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
    software_installers_sts_external_id: your_unique_id
   ```
 
+### s3_software_installers_gcs_iam_auth
+
+When `true`, Fleet uses Google Application Default Credentials (ADC) bearer tokens for
+authentication against Google Cloud Storage's S3-compatible endpoint instead of S3 HMAC keys.
+
+Use this only with `s3_software_installers_endpoint_url` set to `https://storage.googleapis.com`.
+This is incompatible with `s3_software_installers_access_key_id`,
+`s3_software_installers_secret_access_key`, and `s3_software_installers_sts_assume_role_arn`.
+
+On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identity (metadata server).
+
+- Default value: false
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_GCS_IAM_AUTH`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_gcs_iam_auth: true
+  ```
+
 ### s3_software_installers_endpoint_url
 
 *Available in Fleet Premium.*
 
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS),
 or running S3 locally with localstack. Leave this blank to use the default S3 service endpoint.
+
+> Setting `s3_software_installers_endpoint_url` overrides the endpoint for **all** AWS API calls (not just S3), breaking IAM Roles for Service Accounts (IRSA) and other token-based IAM authentication. If you use IRSA on Amazon Elastic Kubernetes Service (EKS) or Elastic Container Service (ECS) task roles, do not set this. Use `s3_software_installers_region` instead.
 
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL`
@@ -2323,6 +3083,8 @@ will use [virtual hosted bucket addressing](http://docs.aws.amazon.com/AmazonS3/
 AWS S3 Region. Leave blank to enable region discovery.
 
 You'll likely need to set this if using a non-AWS S3-compatible object store.
+
+If neither `s3_software_installers_region` nor `s3_software_installers_endpoint_url` is set, Fleet defaults to `us-east-1` for initial region discovery.
 
 - Default value:
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
@@ -2375,6 +3137,46 @@ Private key for URL signing. If `s3_software_installers_cloudfront_url` is set, 
       ------BEGIN BEGIN RSA PRIVATE KEY-----
       3126756bd0c54fbc90c9928ef59e7037af8983afd10048929ae5
       7473e62c7aed...
+  ```
+
+### s3_software_installers_gcs_signed_url
+
+*Available in Fleet Premium.*
+
+When `true`, Fleet uses [signed URLs](https://docs.cloud.google.com/storage/docs/access-control/signed-urls) so package bytes move directly between Google Cloud Storage (GCS) and the client instead of through the Fleet server:
+
+- Hosts download software installers, in-house apps, and bootstrap packages from GCS.
+- The Fleet UI, `fleetctl`, and the [REST API](https://fleetdm.com/docs/rest-api/rest-api#create-staged-upload) upload software packages and bootstrap packages to GCS, then register them with Fleet.
+
+This lets Fleet hosted on GCP Cloud Run handle packages larger than 32 MiB, Cloud Run's request size limit over [HTTP/1](https://github.com/fleetdm/fleet/issues/37352).
+
+This option has three requirements:
+
+- Set `s3_software_installers_endpoint_url` to `https://storage.googleapis.com`.
+- Use HMAC credentials in `s3_software_installers_access_key_id` and `s3_software_installers_secret_access_key`. This option can't be combined with `s3_software_installers_gcs_iam_auth` or `s3_software_installers_sts_assume_role_arn`.
+- For uploads from the Fleet UI, add a cross-origin resource sharing (CORS) rule to the bucket that allows `PUT` from your Fleet URL. `fleetctl` and API clients don't need it. For example, save the following as `cors.json`:
+
+  ```json
+  [
+    {
+      "origin": ["https://fleet.example.com"],
+      "method": ["PUT"],
+      "responseHeader": ["Content-Type"],
+      "maxAgeSeconds": 3600
+    }
+  ]
+  ```
+
+  Then apply it with `gcloud storage buckets update gs://<bucket> --cors-file=cors.json`.
+
+The previous name, `s3_software_installers_signed_url` (`FLEET_S3_SOFTWARE_INSTALLERS_SIGNED_URL`), is deprecated but still works.
+
+- Default value: false
+- Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_GCS_SIGNED_URL`
+- Config file format:
+  ```yaml
+  s3:
+    software_installers_gcs_signed_url: true
   ```
 
 ### s3_carves_bucket
@@ -2441,7 +3243,28 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
      carves_sts_external_id: your_unique_id
   ```
 
+### s3_carves_gcs_iam_auth
+
+When `true`, Fleet uses Google Application Default Credentials (ADC) bearer tokens for
+authentication against Google Cloud Storage's S3-compatible endpoint instead of S3 HMAC keys.
+
+Use this only with `s3_carves_endpoint_url` set to `https://storage.googleapis.com`.
+This is incompatible with `s3_carves_access_key_id`,
+`s3_carves_secret_access_key`, and `s3_carves_sts_assume_role_arn`.
+
+On GCE, GKE, or Cloud Run, ADC typically resolves to the runtime workload identity (metadata server).
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_GCS_IAM_AUTH`
+- Config file format:
+  ```yaml
+  s3:
+    carves_gcs_iam_auth: true
+  ```
+
 ### s3_carves_endpoint_url
+
+> Same override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
 
 - Default value: none
 - Environment variable: `FLEET_S3_CARVES_ENDPOINT_URL`
@@ -2461,7 +3284,54 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
      carves_force_s3_path_style: false
   ```
 
+### s3_carves_cleanup_disabled
+
+When `true`, the S3 carve store skips the periodic reconciliation that marks carves whose S3
+object no longer exists as expired. Set this if you rely solely on the bucket lifecycle policy
+to remove carve objects and do not need the `expired` flag reconciled. This applies only to the
+S3 carve store; it has no effect when carves are stored in MySQL.
+
+- Default value: false
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_DISABLED`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_disabled: true
+  ```
+
+### s3_carves_cleanup_max_per_run
+
+The maximum number of carves the S3 cleanup reconciles per run, which also bounds
+the number of S3 `HeadObject` requests a single run makes. A larger carve backlog
+is drained across subsequent runs. Raise this to drain a large backlog faster, at
+the cost of more work per run; lower it to reduce each run's impact on the shared
+cleanup schedule.
+
+- Default value: 1000
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_MAX_PER_RUN`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_max_per_run: 1000
+  ```
+
+### s3_carves_cleanup_concurrency
+
+The number of concurrent S3 `HeadObject` probes the carve cleanup performs. Kept
+modest by default to stay well under S3's per-prefix request rate; lower it if you
+observe throttling, or raise it to speed up a backlog's probe phase.
+
+- Default value: 32
+- Environment variable: `FLEET_S3_CARVES_CLEANUP_CONCURRENCY`
+- Config file format:
+  ```yaml
+  s3:
+     carves_cleanup_concurrency: 32
+  ```
+
 ### s3_carves_region
+
+> Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
 
 - Default value:
 - Environment variable: `FLEET_S3_CARVES_REGION`
@@ -2551,7 +3421,7 @@ In this case, the URL should be a host that serves the files in the legacy feed 
 Fleet expects to find all the GZ and META files that can be found in https://nvd.nist.gov/vuln/data-feeds#JSON_FEED.
 For example: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL` + `/nvdcve-1.1-2002.meta`
 
-When not defined, Fleet downloads CVE information from the nvd.nist.gov host using the NVD 2.0 API.
+When not defined, Fleet downloads CVE information from the [`fleetdm/vulnerabilities`](https://github.com/fleetdm/vulnerabilities/releases) releases on GitHub.
 
 - Default value: `""`
 - Environment variable: `FLEET_VULNERABILITIES_CVE_FEED_PREFIX_URL`
@@ -2865,6 +3735,8 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS)
 or running S3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
+> Same override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
+
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
 - Config file format:
@@ -2911,6 +3783,8 @@ This is the AWS S3 Region. Leave it blank to enable region discovery.
 
 You'll likely need to set this if using a non-AWS S3-compatible object store.
 
+> Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
+
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_REGION`
 - Config file format:
@@ -2924,7 +3798,7 @@ You'll likely need to set this if using a non-AWS S3-compatible object store.
 
 > The [`server_private_key` configuration option](#server_private_key) is required for macOS MDM features.
 
-> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business Manager (ABM) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please [upload your APNs certificate and ABM token](https://fleetdm.com/docs/using-fleet/mdm-setup).
+> The Apple Push Notification service (APNs), Simple Certificate Enrollment Protocol (SCEP), and Apple Business (AB) [certificate and key configuration](https://github.com/fleetdm/fleet/blob/fleet-v4.51.0/docs/Contributing/reference/configuration-for-contributors.md#mobile-device-management-mdm) are deprecated as of Fleet 4.51. They are maintained for backwards compatibility. Please [upload your APNs certificate and AB token](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 ### mdm.apple_scep_signer_validity_days
 
@@ -2938,21 +3812,25 @@ The number of days the signed SCEP client certificates will be valid.
     apple_scep_signer_validity_days: 100
   ```
 
-### mdm.apple_scep_signer_allow_renewal_days
+### mdm.apple_scep_static_challenge_enabled
 
-The number of days allowed to renew SCEP certificates.
+Whether Fleet accepts its static SCEP challenge when Apple hosts request an MDM identity certificate. Fleet gives each host a one-time challenge tied to that host for automatic (ADE), over-the-air (OTA), and account-driven user enrollments, and for SCEP certificate renewals. The static challenge is only used by the [manual enrollment profile](https://fleetdm.com/docs/rest-api/rest-api#get-manual-enrollment-profile).
 
-- Default value: 14
-- Environment variable: `FLEET_MDM_APPLE_SCEP_SIGNER_ALLOW_RENEWAL_DAYS`
+Set this to `false` to stop accepting the static challenge. When it's `false`, the manual enrollment profile isn't available, and manual enrollment profiles you downloaded earlier stop working. Hosts that are already enrolled aren't affected.
+
+In a future major release, the default will change to `false`.
+
+- Default value: `true`
+- Environment variable: `FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED`
 - Config file format:
   ```yaml
   mdm:
-    apple_scep_signer_allow_renewal_days: 30
+    apple_scep_static_challenge_enabled: false
   ```
 
 ### mdm.apple_dep_sync_periodicity
 
-The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business Manager (ABM) is configured.
+The duration between DEP device syncing (fetching and setting of DEP profiles). Only relevant if Apple Business (AB) is configured.
 
 - Default value: 1m
 - Environment variable: `FLEET_MDM_APPLE_DEP_SYNC_PERIODICITY`
@@ -2960,6 +3838,64 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
   ```yaml
   mdm:
     apple_dep_sync_periodicity: 10m
+  ```
+
+### mdm.apple_command_cleanup_short_retention
+
+How long Fleet keeps completed Apple MDM commands that it generates on a recurring schedule before deleting them from the command queue. This covers refetch commands (`REFETCH-*`), device name updates (`DEVNAME-*`), App Store (VPP) install verification commands (`VERIFY-VPP-INSTALLS-*`), and `DeclarativeManagement` sync commands. Fleet also uses this window to purge inactive commands, such as a profile install superseded by a newer one or commands cleared when a host re-enrolled.
+
+Fleet only deletes a command after the host responds with a final status (`Acknowledged`, `Error`, or `CommandFormatError`) or it has been marked inactive and would never be sent. Deleted commands no longer appear in the host's MDM commands list.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 24h
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_short_retention: 48h
+  ```
+
+### mdm.apple_command_cleanup_standard_retention
+
+How long Fleet keeps other completed Apple MDM commands before deleting them from the command queue. This covers profile installs and removals (`InstallProfile`, `RemoveProfile`), app installs (`InstallApplication`, `InstallEnterpriseApplication`), `DeviceConfigured`, `DeviceLocation`, recovery lock commands (`SetRecoveryLock`, `VerifyRecoveryLock`), `SetAutoAdminPassword`, and inventory commands run manually through the API (`DeviceInformation`, `InstalledApplicationList`, `CertificateList`, `ProfileList`, `SecurityInfo`, `UserList`).
+
+Fleet never deletes commands it needs to determine a host's state, such as `DeviceLock`, `EraseDevice`, `EnableLostMode`, `DisableLostMode`, and `AccountConfiguration`, or any command type not listed above. Fleet also keeps a command past this window while it's referenced by a host's current profiles, bootstrap package, pending app installations, recovery lock or managed local account rotation, or Enrollment Profile renewal.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_standard_retention: 2160h
+  ```
+
+### mdm.apple_command_cleanup_max_row_deletions_per_run
+
+The maximum number of Apple MDM command queue entries Fleet deletes each time the cleanup runs. The cleanup runs hourly. Each entry is one command sent to one host, along with that host's result.
+
+Raise this value to clear a large backlog faster, at the cost of more database load per run. Set to `0` to stop deleting queue entries.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_ROW_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_row_deletions_per_run: 5000
+  ```
+
+### mdm.apple_command_cleanup_max_command_deletions_per_run
+
+The maximum number of Apple MDM commands Fleet deletes each time the cleanup runs. A command is the payload shared by every host it was sent to. Fleet deletes a command only after no host's queue entry or result refers to it, and only after it's more than 24 hours old. Set to `0` to stop deleting commands.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_COMMAND_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_command_deletions_per_run: 5000
   ```
 
 ### mdm.windows_wstep_identity_cert_bytes
@@ -2976,7 +3912,7 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
       -----END CERTIFICATE-----
   ```
 
-If your WSTEP certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on.
+Fleet encrypts Windows BitLocker recovery keys with this certificate before storing them. If you change the certificate/key pair, every key escrowed against the old pair becomes permanently unrecoverable. Back up your pair, and treat replacing it as key loss for every Windows host that has already escrowed a key. Fleet doesn't detect this on its own. Viewing one of these keys on the **Host details** page returns an error rather than an incorrect key. To make affected hosts escrow a fresh key, move them to a team with disk encryption turned off, then move them back.
 
 ### mdm.windows_wstep_identity_key_bytes
 
@@ -2992,12 +3928,98 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
       -----END RSA PRIVATE KEY-----
   ```
 
+### mdm.windows_command_retention
+
+The minimum time since Windows MDM command history was recorded, or last updated, before the hourly cleanup deletes it. Command history is the raw responses devices send when they check in, the per-command results parsed from those responses, and the commands themselves once no result and no queued delivery refers to them. Deleted commands no longer appear in a host's MDM command history.
+
+Two things are kept regardless of age: commands still queued for a device that hasn't acknowledged them, and the wipe command a host's wiped status depends on. Set it to `0` to disable the cleanup.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_WINDOWS_COMMAND_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    windows_command_retention: 336h
+  ```
+
+### mdm.apple_command_cleanup_short_retention
+
+How long Fleet keeps completed Apple MDM commands that it generates on a recurring schedule before deleting them from the command queue. This covers refetch commands (`REFETCH-*`), device name updates (`DEVNAME-*`), App Store (VPP) install verification commands (`VERIFY-VPP-INSTALLS-*`), and `DeclarativeManagement` sync commands. Fleet also uses this window to purge inactive commands, such as a profile install superseded by a newer one or commands cleared when a host re-enrolled.
+
+Fleet only deletes a command after the host responds with a final status (`Acknowledged`, `Error`, or `CommandFormatError`) or it has been marked inactive and would never be sent. Deleted commands no longer appear in the host's MDM commands list.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 24h
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_short_retention: 48h
+  ```
+
+### mdm.apple_command_cleanup_standard_retention
+
+How long Fleet keeps other completed Apple MDM commands before deleting them from the command queue. This covers profile installs and removals (`InstallProfile`, `RemoveProfile`), app installs (`InstallApplication`, `InstallEnterpriseApplication`), `DeviceConfigured`, `DeviceLocation`, recovery lock commands (`SetRecoveryLock`, `VerifyRecoveryLock`), `SetAutoAdminPassword`, and inventory commands run manually through the API (`DeviceInformation`, `InstalledApplicationList`, `CertificateList`, `ProfileList`, `SecurityInfo`, `UserList`).
+
+Fleet never deletes commands it needs to determine a host's state, such as `DeviceLock`, `EraseDevice`, `EnableLostMode`, `DisableLostMode`, and `AccountConfiguration`, or any command type not listed above. Fleet also keeps a command past this window while it's referenced by a host's current profiles, bootstrap package, pending app installations, recovery lock or managed local account rotation, or Enrollment Profile renewal.
+
+Set to `0` to turn off this cleanup. Otherwise, the minimum is `1h`. Lower values fail validation.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_standard_retention: 2160h
+  ```
+
+### mdm.apple_command_cleanup_max_row_deletions_per_run
+
+The maximum number of Apple MDM command queue entries Fleet deletes each time the cleanup runs. The cleanup runs hourly. Each entry is one command sent to one host, along with that host's result.
+
+Raise this value to clear a large backlog faster, at the cost of more database load per run. Set to `0` to stop deleting queue entries.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_ROW_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_row_deletions_per_run: 5000
+  ```
+
+### mdm.apple_command_cleanup_max_command_deletions_per_run
+
+The maximum number of Apple MDM commands Fleet deletes each time the cleanup runs. A command is the payload shared by every host it was sent to. Fleet deletes a command only after no host's queue entry or result refers to it, and only after it's more than 24 hours old. Set to `0` to stop deleting commands.
+
+- Default value: 1000
+- Environment variable: `FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_COMMAND_DELETIONS_PER_RUN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_command_cleanup_max_command_deletions_per_run: 5000
+  ```
+
+### mdm.windows_enrollment_retention
+
+How long Fleet keeps a Windows MDM enrollment that is orphaned or superseded before the hourly cleanup deletes it, along with its queued commands, command results, and stored responses. An enrollment is orphaned when its host has been deleted from Fleet and the device hasn't re-enrolled, and superseded when the same host has a newer enrollment. The window starts when the host is deleted or the enrollment was last updated, whichever is later.
+
+Enrollments are kept after a host is deleted so that a device that's still online relinks to a new host record when fleetd re-enrolls it. If you use host expiry, a device that stays offline for longer than the expiry window plus this value has to be unenrolled and re-enrolled manually. Set it to `0` to disable the cleanup.
+
+- Default value: 720h (30 days)
+- Environment variable: `FLEET_MDM_WINDOWS_ENROLLMENT_RETENTION`
+- Config file format:
+  ```yaml
+  mdm:
+    windows_enrollment_retention: 336h
+  ```
+
 ### mdm.sso_rate_limit_per_minute
 
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
 [Complete SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#complete-sso-during-dep-enrollment) endpoints, combined.
 
-The best practice is to set this to 3x the number of new employees (end users) that onboard at the same time (ex. `300` if 100 end users set up their Macs simultaneously).
+The best practice is to set this to 3x the number of employees onboarding simultaneously (e.g., 300 for 100 end users). This gives breathing room to prevent issues from multiple setup requests while limiting exposure to unauthorized access attempts.
 
 - Default value: 10 (same rate limit for [Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in))
 - Environment variable: `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE`
@@ -3005,6 +4027,195 @@ The best practice is to set this to 3x the number of new employees (end users) t
   ```yaml
   mdm:
     sso_rate_limit_per_minute: 200
+  ```
+
+### mdm.certificate_profiles_limit
+
+If you're using Fleet to [deploy certificates](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate) from a third-party certificate authority (CA), this is the maximum number of Apple (macOS, iOS, iPadOS), certificate configuration profiles Fleet installs (`InstallProfile` command) every 30 seconds. Each install also requests a certificate from your CA, so this limit also caps CA requests to the same number per 30 seconds.
+
+The profile reconciler runs approximately every 30 seconds. The best practice is to set this at a level that is half or less the number that can be handled by your certificate authority in one minute. If a profile for instance is uploaded that references a SCEP server which can handle 100 transactions per minute, best practice would be to set this to 50 or less. Lower values will mean that a profile potentially takes longer to be sent to all hosts targeted by it, with a tradeoff that it will result in lower Certificate Authority load.
+
+For a team with 10,000 hosts targeted by a newly-uploaded profile containing Certificate Authority variables, a setting of 100 would mean that it would take 100 runs of the profile reconciler, or, at least 50 minutes, for all 10,000 certificate profiles to be sent.
+
+Currently this limit only applies to the Apple profile reconciler. Windows and Android support will be added soon. Additionally, newly enrolling ADE hosts do not count toward and are not affected by this limit, so as not to delay onboarding.
+
+- Default value: 100
+- Environment variable: `FLEET_MDM_CERTIFICATE_PROFILES_LIMIT`
+- Config file format:
+  ```yaml
+  mdm:
+    certificate_profiles_limit: 50
+  ```
+
+### mdm.apple_vpp_app_metadata_api_bearer_token
+
+By default, Fleet retrieves [Apple App Store (VPP) metadata](https://developer.apple.com/documentation/devicemanagement/get-your-apps-metadata) from Apple using an API token from Fleet's Apple Developer account. This API token is hosted on fleetdm.com.
+
+If you have an [Apple Developer account that is enabled as an MDM vendor](https://developer.apple.com/help/account/service-configurations/apps-and-books-for-organizations), you can optionally configure Fleet with your own API token. This way, Fleet can directly communicate with Apple.
+
+- Default value: none
+- Environment variable: `FLEET_MDM_APPLE_VPP_APP_METADATA_API_BEARER_TOKEN`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_vpp_app_metadata_api_bearer_token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ92eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6Ikp
+  ```
+
+### mdm.enable_custom_disk_encryption
+
+> `mdm.enable_custom_filevault` is deprecated as of Fleet 4.90.0 and `mdm.enable_custom_os_updates_and_filevault` is deprecated as of Fleet 4.87.0. Both are maintained for backwards compatibility. Please use `mdm.enable_custom_disk_encryption` instead. As of Fleet 4.87.0, custom OS updates are enabled by default.
+
+*Available in Fleet Premium.*
+
+For macOS, allows users to add custom macOS [configuration profiles](https://fleetdm.com/guides/custom-os-settings) for FileVault, including [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), and [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow) configuration profiles.
+
+For Windows, allows users to add custom Windows profiles for BitLocker.
+
+> Enabling this option may cause conflicts between your custom disk encryption configuration profiles and the profiles Fleet manages under the hood when [Fleet's disk encryption](https://fleetdm.com/guides/enforce-disk-encryption) is enabled.
+
+See the [Custom disk encryption profiles guide](https://fleetdm.com/guides/custom-disk-encryption-profiles) for step-by-step instructions.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_DISK_ENCRYPTION`
+- Config file format:
+  ```yaml
+  mdm:
+    enable_custom_disk_encryption: false
+  ```
+
+### mdm.allow_all_declarations
+
+> Enable this feature flag to deploy any device-scoped, configuration [declaration (DDM profile)](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations) with Fleet. Assets and user-scoped declarations are [coming in Fleet 4.90](https://github.com/fleetdm/fleet/issues/38986). At the same time, Fleet will enable this feature flag out-of-the-box. Custom activations require [`mdm.allow_custom_activations`](#mdm-allow-custom-activations).
+
+If disabled (default), Fleet doesn't allow [these configurations](https://github.com/fleetdm/fleet/blob/9589631a7f25a342ed24571c08deffbc959661ec/server/fleet/apple_mdm.go#L704-L717).
+
+[Asset](https://developer.apple.com/documentation/devicemanagement/devicemanagement-declarations#Assets) declarations require additional infrastructure. You need to self-host the asset and include the URL in the [declaration](https://developer.apple.com/documentation/devicemanagement/assetdata#Asset-example).
+
+Enabling this bypasses checks for forbidden declaration types, reserved identifiers, and required prefixes.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ALLOW_ALL_DECLARATIONS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_all_declarations: true
+  ```
+
+### mdm.allow_custom_activations
+
+*Available in Fleet Premium.*
+
+> On macOS 26.5, an invalid predicate can leave a host unmanageable, and you can't recover it remotely. Apple tracks this as FB24193230. Test each predicate on one host before you add the profile to more hosts.
+
+Allows users to add custom [activations](https://developer.apple.com/documentation/devicemanagement/activationsimple) to Apple configuration declarations (DDM profiles), using the API or GitOps. Apple defines predicate syntax, so Fleet can't check a predicate before it reaches a host.
+
+You can remove an activation you already added, whether or not this setting is turned on.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_custom_activations: true
+  ```
+
+### mdm.allow_orbit_end_user_auth_bypass
+
+When a fleet requires [end user authentication](https://fleetdm.com/guides/end-user-authentication), Fleet gates Orbit enrollment on end user authentication. `fleetd`/Orbit versions that predate end user authentication support cannot complete that flow, installers built with `fleetctl package --bypass-end-user-auth` intentionally skip it, and on macOS end user authentication normally happens during automatic (ADE) MDM enrollment rather than during `fleetd` enrollment.
+
+By default (`true`), Fleet allows those hosts to enroll into a fleet that requires end user authentication without completing it. Because the enrollment request's platform and capabilities are supplied by the client, anyone holding an enroll secret can craft a request that enrolls a host without end user authentication while this setting is `true`.
+
+Set this to `false` to strictly enforce end user authentication for all Orbit enrollments on every platform. A host is then only enrolled if Fleet has a record that end user authentication was completed for it (for example, the IdP account linked during macOS ADE enrollment or the Windows end-user-auth token), or if it previously enrolled. Hosts that do not complete end user authentication, including `--bypass-end-user-auth` installers, pre-end-user-auth agents, and macOS hosts that install `fleetd` before turning on MDM, are blocked with `END_USER_AUTH_REQUIRED`. On Linux and Windows, `fleetd` prompts the end user to sign in with the IdP. On macOS, `fleetd` doesn't support IdP sign-in, so the host can't enroll until it enrolls in MDM through automatic enrollment (ADE) or manual enrollment, which require IdP sign-in.
+
+Hosts that already enrolled before end user authentication was enabled are always allowed to re-enroll regardless of this setting. Windows hosts that present a valid end-user-auth token from MDM enrollment always complete end user authentication regardless of this setting.
+
+- Default value: `true`
+- Environment variable: `FLEET_MDM_ALLOW_ORBIT_END_USER_AUTH_BYPASS`
+- Config file format:
+  ```yaml
+  mdm:
+    allow_orbit_end_user_auth_bypass: false
+  ```
+
+### mdm.windows_one_time_enroll_secrets
+
+When enabled, Fleet installs fleetd on Windows hosts that turn on MDM (Microsoft Entra, Windows Autopilot, or **Settings > Accounts > Access work or school**) with a one-time enroll secret for that device instead of the global or fleet-level enroll secret. This keeps the shared enroll secret off the device. The setting only affects Windows hosts that have MDM turned on. If fleetd was already installed when a host turned on MDM, Fleet doesn't reinstall it, so the host keeps its original enroll secret.
+
+Fleet delivers the secret on the fleetd install command and through the Fleet-managed "Fleetd enroll secret" configuration profile. Orbit and osquery can each use the secret once, and the second one has to enroll within 60 minutes of the first.
+
+- Recovery: a host that has to enroll again, for example because its node key was deleted, needs a new one-time enroll secret. To issue one, resend the "Fleetd enroll secret" profile from **Host details > OS settings**. fleetd picks it up at the host's next MDM check-in, without a reinstall or restart (requires fleetd v1.63.0). Hosts with an older fleetd need fleetd reinstalled instead. End users can't resend this profile from the **My device** page.
+- Deleted hosts: a deleted Windows host that has MDM turned on enrolls again on its own. [Learn more](https://fleetdm.com/guides/enroll-hosts#delete-a-host).
+- Shared enroll secrets: Fleet doesn't let a global or fleet-level enroll secret enroll fleetd as a Windows host that has MDM turned on or is registered in Windows Autopilot. This includes a deleted host whose device still has MDM turned on. Refused attempts are recorded as `host_enrollment_rejected` activities.
+- Re-imaged devices: Fleet isn't notified when MDM is turned off on a device (re-imaged, disconnected in **Settings > Accounts > Access work or school**, or unenrolled with a script), so Fleet still treats the device as enrolled, even after you delete its host. Such a device can't enroll fleetd with a package. To bring it back, enroll it in MDM again with Windows Autopilot, Microsoft Entra, or **Settings > Accounts > Access work or school**. Fleet then replaces the old enrollment and installs fleetd with a one-time enroll secret. If the device can't enroll in MDM again, delete its host in Fleet. Fleet removes the old enrollment after the `mdm.windows_enrollment_retention` period (30 days by default), and fleetd can then enroll with a package.
+- Reserved names: custom configuration profiles can't be named "Fleetd enroll secret". Custom configuration profiles and MDM commands can't use `$FLEET_HOST_SECRET_` variables.
+
+When you turn this setting off, Fleet removes the "Fleetd enroll secret" profiles and stops accepting the one-time enroll secrets it delivered. Secrets that weren't used yet work again if you turn the setting back on. Hosts that enrolled with a one-time enroll secret can't enroll again, for example after losing their node key, until you turn the setting back on or reinstall fleetd with a package built with a global or fleet-level enroll secret.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_WINDOWS_ONE_TIME_ENROLL_SECRETS`
+- Config file format:
+  ```yaml
+  mdm:
+    windows_one_time_enroll_secrets: true
+  ```
+
+### mdm.apple_one_time_enroll_secrets
+
+When enabled, Fleet delivers a one-time, device-scoped enroll secret to each macOS host enrolled in Fleet MDM instead of a global or fleet-level enroll secret. The secret is embedded in the "Fleetd configuration" profile and is bound to the host's hardware UUID and serial number. Orbit and osquery can each use it once.
+
+A host that needs to re-enroll, for example after its node key has been deleted or its local orbit installation corrupted, needs a new one-time enroll secret. To issue one, resend the "Fleetd configuration" profile from the host's **Controls** tab. End users can't resend this profile from the **My device** page when this setting is enabled.
+
+Fleet also denies enrollment attempts that use a global or fleet-level enroll secret for a macOS host that is enrolled in Fleet MDM or assigned to Fleet in Apple Business. Denied attempts are recorded as `host_enrollment_rejected` activities.
+
+This setting requires that every Mac enrolled in Fleet MDM runs fleetd installed by Fleet MDM, so it reads the enroll secret from the "Fleetd configuration" profile. Macs running a fleetd package built with a global or fleet-level enroll secret won't be able to re-enroll.
+
+- Default value: `false`
+- Environment variable: `FLEET_MDM_APPLE_ONE_TIME_ENROLL_SECRETS`
+- Config file format:
+  ```yaml
+  mdm:
+    apple_one_time_enroll_secrets: true
+  ```
+
+### fleet_allow_bootstrap_package_during_migration
+
+When set to `1` or `true`, this environment variable enables Fleet to install bootstrap packages on hosts during MDM migration enrollments (i.e. non-DEP enrollments). By default, bootstrap packages are only installed for DEP-enrolled hosts. Setting this variable restores the previous behavior, ensuring all new enrollments receive the bootstrap package.
+
+This is only supported as an environment variable.
+
+- Environment variable: `FLEET_ALLOW_BOOTSTRAP_PACKAGE_DURING_MIGRATION`
+
+### silent_migration_enrollment_profile
+
+Specifies the original enrollment profile from the previous MDM, used by Fleet for migrated Apple hosts during SCEP certificate renewal. This profile ensures that migrated hosts can renew their SCEP certificates without requiring re-enrollment or user interaction, enabling seamless MDM migration. Required when migrating hosts from another MDM to Fleet to maintain uninterrupted certificate management.
+
+The enrollment profile must be base64-encoded. This is only supported as an environment variable. 
+
+In the profile's SCEP payload, set `Challenge` to `$FLEET_VAR_SILENT_MIGRATION_SCEP_CHALLENGE`. Fleet replaces it with a one-time challenge for each host when it sends the renewal. This variable is only supported in this profile, not in configuration profiles.
+
+Profiles set up before Fleet 4.94.0 that contain Fleet's static SCEP challenge instead keep working. Fleet logs an error at startup if the profile contains neither the variable nor the static challenge.
+
+- Environment variable: `FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE`
+- Note: If you are experiencing systems failing SCEP renewal, please contact [Fleet support](https://fleetdm.com/support).
+
+## Conditional access
+
+### conditional_access_cert_serial_format
+
+Specifies the format for parsing certificate serial numbers from the `X-Client-Cert-Serial` header during Okta conditional access authentication.
+
+Different load balancers/reverse proxies send certificate serial numbers in different formats:
+- AWS ALB sends serial numbers in **hexadecimal** format (e.g., `A` for serial 10)
+- Caddy sends serial numbers in **decimal** format (e.g., `10` for serial 10)
+
+This configuration allows Fleet to correctly parse the serial number regardless of the proxy being used.
+
+- Default value: `hex`
+- Environment variable: `FLEET_CONDITIONAL_ACCESS_CERT_SERIAL_FORMAT`
+- Config file format:
+  ```yaml
+  conditional_access:
+    cert_serial_format: decimal
   ```
 
 ## Partnerships
@@ -3040,3 +4251,4 @@ This content was moved to [Public IPs](http://fleetdm.com/docs/deploy/public-ip)
 
 <meta name="pageOrderInSection" value="100">
 <meta name="description" value="This page includes resources for configuring the Fleet binary, managing osquery configurations, and running with systemd.">
+<meta name="keywordsForDocsearch" value="server config, env vars, yaml config, log routing, log streaming, log shipping, server flags, cli flags, session expiry, secrets management, high availability">

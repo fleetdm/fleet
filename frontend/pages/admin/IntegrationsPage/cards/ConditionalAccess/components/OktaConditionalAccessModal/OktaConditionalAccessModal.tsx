@@ -1,28 +1,24 @@
 import React, { useCallback, useContext, useState } from "react";
-import { size } from "lodash";
-import { useQuery } from "react-query";
 
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
-import configAPI from "services/entities/config";
-import conditionalAccessAPI from "services/entities/conditional_access";
-import { IConfig } from "interfaces/config";
-
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-import CustomLink from "components/CustomLink";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { getErrorReason } from "interfaces/errors";
-import {
-  DEFAULT_USE_QUERY_OPTIONS,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
+import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
-import valid_url from "components/forms/validators/valid_url";
+import InputField from "components/forms/fields/InputField";
+import { isValidURL } from "components/forms/validators";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
+import { getErrorReason } from "interfaces/errors";
+import conditionalAccessAPI from "services/entities/conditional_access";
+import configAPI from "services/entities/config";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import { getConditionalAccessErrorMessage } from "../../helpers";
 
 const baseClass = "okta-conditional-access-modal";
 
@@ -31,6 +27,9 @@ const OKTA_ACS_URL = "okta_acs_url";
 const OKTA_AUDIENCE_URI = "okta_audience_uri";
 const OKTA_CERTIFICATE = "okta_certificate";
 
+const MAX_URL_LENGTH = 2048;
+const MAX_CERT_LENGTH = 8192;
+
 interface IFormData {
   [OKTA_IDP_ID]: string;
   [OKTA_ACS_URL]: string;
@@ -38,60 +37,62 @@ interface IFormData {
   [OKTA_CERTIFICATE]: string;
 }
 
-interface IFormErrors {
-  [OKTA_IDP_ID]?: string;
-  [OKTA_ACS_URL]?: string;
-  [OKTA_AUDIENCE_URI]?: string;
-  [OKTA_CERTIFICATE]?: string;
-}
+// The request uses responseType "blob", so a JSON error body arrives as a Blob.
+const getBlobErrorReason = async (e: unknown): Promise<string> => {
+  const data = (e as { data?: unknown } | undefined)?.data;
+  if (data instanceof Blob) {
+    try {
+      return getErrorReason({ data: JSON.parse(await data.text()) });
+    } catch {
+      return "";
+    }
+  }
+  return getErrorReason(e);
+};
 
-const validate = (formData: IFormData) => {
-  const errs: IFormErrors = {};
+export const validate = (data: IFormData): IFormErrors => {
+  const errors: IFormErrors = {};
 
-  // Max lengths from backend validation
-  const maxURLLength = 2048;
-  const maxCertLength = 8192;
-
-  // IdP ID validation - must be non-empty and not just whitespace
-  if (!formData[OKTA_IDP_ID] || !formData[OKTA_IDP_ID].trim()) {
-    errs[OKTA_IDP_ID] = "IdP ID must be present";
-  } else if (formData[OKTA_IDP_ID].length > maxURLLength) {
-    errs[OKTA_IDP_ID] = `IdP ID must be ${maxURLLength} characters or less`;
+  if (!data[OKTA_IDP_ID].trim()) {
+    errors[OKTA_IDP_ID] = "Enter IdP ID";
+  } else if (data[OKTA_IDP_ID].length > MAX_URL_LENGTH) {
+    errors[
+      OKTA_IDP_ID
+    ] = `IdP ID must be ${MAX_URL_LENGTH} characters or fewer`;
   }
 
-  // Assertion consumer service URL validation
-  if (!formData[OKTA_ACS_URL] || !formData[OKTA_ACS_URL].trim()) {
-    errs[OKTA_ACS_URL] = "Assertion consumer service URL must be present";
-  } else if (formData[OKTA_ACS_URL].length > maxURLLength) {
-    errs[
+  if (!data[OKTA_ACS_URL].trim()) {
+    errors[OKTA_ACS_URL] = "Enter assertion consumer service URL";
+  } else if (data[OKTA_ACS_URL].length > MAX_URL_LENGTH) {
+    errors[
       OKTA_ACS_URL
-    ] = `Assertion consumer service URL must be ${maxURLLength} characters or less`;
+    ] = `Assertion consumer service URL must be ${MAX_URL_LENGTH} characters or fewer`;
   } else if (
-    !valid_url({ url: formData[OKTA_ACS_URL], protocols: ["http", "https"] })
+    !isValidURL({
+      url: data[OKTA_ACS_URL].trim(),
+      protocols: ["http", "https"],
+    })
   ) {
-    errs[OKTA_ACS_URL] =
-      "Assertion consumer service URL must be a valid URL with http or https scheme and a host";
+    errors[OKTA_ACS_URL] = "Enter a valid URL with http or https scheme";
   }
 
-  // Audience URI validation
-  if (!formData[OKTA_AUDIENCE_URI] || !formData[OKTA_AUDIENCE_URI].trim()) {
-    errs[OKTA_AUDIENCE_URI] = "Audience URI must be present";
-  } else if (formData[OKTA_AUDIENCE_URI].length > maxURLLength) {
-    errs[
+  if (!data[OKTA_AUDIENCE_URI].trim()) {
+    errors[OKTA_AUDIENCE_URI] = "Enter audience URI";
+  } else if (data[OKTA_AUDIENCE_URI].length > MAX_URL_LENGTH) {
+    errors[
       OKTA_AUDIENCE_URI
-    ] = `Audience URI must be ${maxURLLength} characters or less`;
+    ] = `Audience URI must be ${MAX_URL_LENGTH} characters or fewer`;
   }
 
-  // Certificate validation
-  if (!formData[OKTA_CERTIFICATE] || !formData[OKTA_CERTIFICATE].trim()) {
-    errs[OKTA_CERTIFICATE] = "Certificate must be present";
-  } else if (formData[OKTA_CERTIFICATE].length > maxCertLength) {
-    errs[
+  if (!data[OKTA_CERTIFICATE].trim()) {
+    errors[OKTA_CERTIFICATE] = "Upload certificate";
+  } else if (data[OKTA_CERTIFICATE].length > MAX_CERT_LENGTH) {
+    errors[
       OKTA_CERTIFICATE
-    ] = `Certificate must be ${maxCertLength} characters or less`;
+    ] = `Upload only the Okta certificate (${MAX_CERT_LENGTH} characters or fewer)`;
   }
 
-  return errs;
+  return errors;
 };
 
 export interface IOktaConditionalAccessModalProps {
@@ -103,47 +104,38 @@ const OktaConditionalAccessModal = ({
   onCancel,
   onSuccess,
 }: IOktaConditionalAccessModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const { config } = useContext(AppContext);
+  const { gitOpsModeEnabled } = useGitOpsMode();
 
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [formData, setFormData] = useState<IFormData>({
-    [OKTA_IDP_ID]: "",
-    [OKTA_ACS_URL]: "",
-    [OKTA_AUDIENCE_URI]: "",
-    [OKTA_CERTIFICATE]: "",
-  });
-  const [formErrors, setFormErrors] = useState<IFormErrors>({});
+  const savedSettings = config?.conditional_access;
   const [certFile, setCertFile] = useState<File | null>(null);
-
-  // Fetch Apple profile with automatic retries
-  const { data: appleProfile = "" } = useQuery<string, Error>(
-    ["appleProfile"],
-    conditionalAccessAPI.getIdpAppleProfile,
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      onError: (e: any) => {
-        // When responseType is "text", error responses come back as JSON strings
-        // that need to be parsed manually
-        let errorReason = "";
-        try {
-          if (e.data && typeof e.data === "string") {
-            const parsedError = JSON.parse(e.data);
-            errorReason = parsedError.errors?.[0]?.reason || "";
-          } else {
-            errorReason = getErrorReason(e);
-          }
-        } catch {
-          errorReason = getErrorReason(e);
-        }
-
-        const message = errorReason
-          ? `Failed to load Apple profile: ${errorReason}`
-          : "Failed to load Apple profile.";
-        renderFlash("error", message);
-      },
-    }
+  // The saved certificate has no file name; this tracks whether the
+  // uploader should still show it as the current file.
+  const [showSavedCert, setShowSavedCert] = useState(
+    !!savedSettings?.okta_certificate
   );
+
+  const {
+    formData,
+    setField,
+    commitFields,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit,
+    isSubmitting,
+  } = useFormValidation<IFormData>({
+    initialFormData: {
+      [OKTA_IDP_ID]: savedSettings?.okta_idp_id ?? "",
+      [OKTA_ACS_URL]: savedSettings?.okta_assertion_consumer_service_url ?? "",
+      [OKTA_AUDIENCE_URI]: savedSettings?.okta_audience_uri ?? "",
+      [OKTA_CERTIFICATE]: savedSettings?.okta_certificate ?? "",
+    },
+    validate,
+    // The certificate is PEM content pulled from a file; a trailing newline
+    // after -----END CERTIFICATE----- is part of the format.
+    skipTrim: [OKTA_CERTIFICATE],
+  });
 
   const [isDownloadingCert, setIsDownloadingCert] = useState(false);
 
@@ -159,76 +151,51 @@ const OktaConditionalAccessModal = ({
       downloadLink.remove();
       URL.revokeObjectURL(url);
     } catch (e: unknown) {
-      renderFlash("error", "Failed to download signing certificate.");
+      notify.error(
+        getConditionalAccessErrorMessage(
+          "download",
+          await getBlobErrorReason(e)
+        ),
+        { response: e }
+      );
     } finally {
       setIsDownloadingCert(false);
     }
-  }, [renderFlash]);
+  }, []);
 
-  const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-
-    const errs = validate(formData);
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
-    }
-    if (!config) {
-      return;
-    }
-    setIsUpdating(true);
+  const onValidSubmit = async (data: IFormData) => {
+    if (!config) return;
+    const isUpdate = isOktaConditionalAccessConfigured(config);
     try {
       const updatedConfig = await configAPI.update({
         conditional_access: {
-          okta_idp_id: formData[OKTA_IDP_ID],
-          okta_assertion_consumer_service_url: formData[OKTA_ACS_URL],
-          okta_audience_uri: formData[OKTA_AUDIENCE_URI],
-          okta_certificate: formData[OKTA_CERTIFICATE],
+          okta_idp_id: data[OKTA_IDP_ID],
+          okta_assertion_consumer_service_url: data[OKTA_ACS_URL],
+          okta_audience_uri: data[OKTA_AUDIENCE_URI],
+          okta_certificate: data[OKTA_CERTIFICATE],
           // Preserve existing Microsoft Entra settings
           microsoft_entra_tenant_id:
             config.conditional_access?.microsoft_entra_tenant_id || "",
         },
       });
-      renderFlash("success", "Successfully configured Okta conditional access");
-      setIsUpdating(false);
+      notify.success(
+        isUpdate
+          ? "Successfully updated Okta conditional access"
+          : "Successfully configured Okta conditional access"
+      );
       onSuccess(updatedConfig);
     } catch (e) {
-      renderFlash(
-        "error",
-        "Could not update conditional access integration settings."
+      notify.error(
+        "Could not update conditional access integration settings.",
+        { response: e }
       );
-      setIsUpdating(false);
     }
-  };
-
-  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-    const newFormData = { ...formData, [name]: value };
-    setFormData(newFormData);
-    const newErrs = validate(newFormData);
-    // only set errors that are updates of existing errors
-    // new errors are only set onBlur or submit
-    const errsToSet: Record<string, string> = {};
-    Object.keys(formErrors).forEach((k) => {
-      // @ts-ignore
-      if (newErrs[k]) {
-        // @ts-ignore
-        errsToSet[k] = newErrs[k];
-      }
-    });
-    setFormErrors(errsToSet);
-  };
-
-  const onInputBlur = () => {
-    setFormErrors(validate(formData));
   };
 
   const onDeleteFile = () => {
     setCertFile(null);
-    setFormData({ ...formData, [OKTA_CERTIFICATE]: "" });
-    setFormErrors({
-      ...formErrors,
-      [OKTA_CERTIFICATE]: "Certificate must be present",
-    });
+    setShowSavedCert(false);
+    commitFields({ [OKTA_CERTIFICATE]: "" });
   };
 
   const onSelectFile = useCallback(
@@ -236,10 +203,8 @@ const OktaConditionalAccessModal = ({
       const file = files?.[0];
       if (!file) return;
 
-      // Validate file extension
       if (!file.name.match(/\.(pem|crt|cer|cert)$/i)) {
-        renderFlash(
-          "error",
+        notify.error(
           "Invalid file type. Please upload a .pem, .crt, .cer, or .cert file."
         );
         return;
@@ -251,34 +216,36 @@ const OktaConditionalAccessModal = ({
       reader.addEventListener("load", () => {
         const content = reader.result as string;
 
-        // Validate PEM format
         if (
           !content.includes("-----BEGIN CERTIFICATE-----") ||
           !content.includes("-----END CERTIFICATE-----")
         ) {
-          renderFlash(
-            "error",
+          notify.error(
             "Invalid certificate format. The file must be a valid PEM-encoded certificate."
           );
           return;
         }
 
-        // Create new form data with the certificate
-        const newFormData = { ...formData, [OKTA_CERTIFICATE]: content };
-
-        // Store the certificate content and file details
         setCertFile(file);
-        setFormData(newFormData);
-        // Re-validate the entire form to clear errors if all fields are now complete
-        setFormErrors(validate(newFormData));
+        commitFields({ [OKTA_CERTIFICATE]: content });
       });
 
       reader.addEventListener("error", () => {
-        renderFlash("error", "Failed to read the certificate file.");
+        notify.error("Failed to read the certificate file.");
       });
     },
-    [formData, renderFlash]
+    [commitFields]
   );
+
+  const getCertFileDetails = () => {
+    if (certFile) {
+      return { name: certFile.name };
+    }
+    if (showSavedCert) {
+      return { name: "Okta certificate" };
+    }
+    return undefined;
+  };
 
   return (
     <Modal
@@ -287,110 +254,110 @@ const OktaConditionalAccessModal = ({
       className={baseClass}
       width="xlarge"
     >
-      <>
-        <form onSubmit={onSubmit} autoComplete="off">
-          <p className={`${baseClass}__instructions`}>
-            To configure Okta conditional access, follow the instructions in the{" "}
-            <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/okta-conditional-access`}
-              text="guide"
-              newTab
-            />
-          </p>
+      <form onSubmit={handleSubmit(onValidSubmit)} autoComplete="off">
+        <p className={`${baseClass}__instructions`}>
+          To configure Okta conditional access, follow the instructions in the{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/okta-conditional-access`}
+            text="guide"
+            newTab
+          />
+        </p>
 
-          {/* IdP Signature Certificate Section */}
-          <div className={`${baseClass}__certificate-section`}>
+        {/* IdP Signature Certificate Section */}
+        <div className={`${baseClass}__certificate-section`}>
+          <div className="form-field__label">
             <TooltipWrapper
               tipContent="Upload this certificate in Okta when creating the Fleet IdP."
               underline
             >
               Identity provider (IdP) signature certificate
             </TooltipWrapper>
-            <br />
-            <Button
-              variant="inverse"
-              onClick={onDownloadSigningCert}
-              isLoading={isDownloadingCert}
-              disabled={isDownloadingCert}
-            >
-              Download certificate <Icon name="download" />
-            </Button>
           </div>
+          <Button
+            variant="secondary"
+            onClick={onDownloadSigningCert}
+            isLoading={isDownloadingCert}
+            disabled={isDownloadingCert}
+            icon="download"
+            iconPosition="right"
+          >
+            <span>Download certificate</span>
+          </Button>
+        </div>
 
-          {/* User Scope Profile */}
-          <InputField
-            enableCopy
-            label="User scope profile"
-            readOnly
-            value={appleProfile}
-            type="textarea"
-          />
-
-          {/* Help text */}
-          <p className={`${baseClass}__field-instructions`}>
-            You can find the following fields in Okta after creating an IdP in{" "}
-            <strong>Security</strong> &gt; <strong>Identity Providers</strong>{" "}
-            &gt; <strong>SAML 2.0 IdP</strong>.
-          </p>
-
+        <div
+          className={`form ${
+            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+          }`}
+        >
           <InputField
             label="IdP ID"
-            onChange={onInputChange}
             name={OKTA_IDP_ID}
             value={formData[OKTA_IDP_ID]}
-            parseTarget
-            onBlur={onInputBlur}
-            error={formErrors[OKTA_IDP_ID]}
+            onChange={(value: string) => setField(OKTA_IDP_ID, value)}
+            onFocus={() => clearFieldError(OKTA_IDP_ID)}
+            onBlur={() => validateField(OKTA_IDP_ID)}
+            error={getError(OKTA_IDP_ID)}
+            disabled={isSubmitting || gitOpsModeEnabled}
           />
           <InputField
             label="Assertion consumer service URL"
-            onChange={onInputChange}
             name={OKTA_ACS_URL}
             value={formData[OKTA_ACS_URL]}
-            parseTarget
-            onBlur={onInputBlur}
-            error={formErrors[OKTA_ACS_URL]}
+            onChange={(value: string) => setField(OKTA_ACS_URL, value)}
+            onFocus={() => clearFieldError(OKTA_ACS_URL)}
+            onBlur={() => validateField(OKTA_ACS_URL)}
+            error={getError(OKTA_ACS_URL)}
+            disabled={isSubmitting || gitOpsModeEnabled}
           />
           <InputField
             label="Audience URI"
-            onChange={onInputChange}
             name={OKTA_AUDIENCE_URI}
             value={formData[OKTA_AUDIENCE_URI]}
-            parseTarget
-            onBlur={onInputBlur}
-            error={formErrors[OKTA_AUDIENCE_URI]}
+            onChange={(value: string) => setField(OKTA_AUDIENCE_URI, value)}
+            onFocus={() => clearFieldError(OKTA_AUDIENCE_URI)}
+            onBlur={() => validateField(OKTA_AUDIENCE_URI)}
+            error={getError(OKTA_AUDIENCE_URI)}
+            disabled={isSubmitting || gitOpsModeEnabled}
           />
           <FileUploader
             graphicName="file-pem"
-            title="Okta certificate"
+            label="Okta certificate"
             message={
               <>
                 Upload the certificate provided by Okta during the{" "}
                 <strong>Set Up Authenticator</strong> workflow
               </>
             }
-            internalError={formErrors[OKTA_CERTIFICATE]}
+            internalError={getError(OKTA_CERTIFICATE)}
+            errorInLabel
             onFileUpload={onSelectFile}
-            buttonType="brand-inverse-icon"
+            buttonType="secondary"
             buttonMessage="Upload"
             accept=".pem,.crt,.cer,.cert"
-            fileDetails={certFile ? { name: certFile.name } : undefined}
+            fileDetails={getCertFileDetails()}
             onDeleteFile={onDeleteFile}
+            disabled={isSubmitting || gitOpsModeEnabled}
           />
-          <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              disabled={!!size(formErrors)}
-              isLoading={isUpdating}
-            >
-              Save
-            </Button>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </>
+        </div>
+        <div className="modal-cta-wrap">
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                disabled={disableChildren || isSubmitting}
+                isLoading={isSubmitting}
+              >
+                Save
+              </Button>
+            )}
+          />
+          <Button onClick={onCancel} variant="secondary">
+            Cancel
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

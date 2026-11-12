@@ -1,12 +1,16 @@
-# Variables in scripts and configuration profiles
+# Custom variables
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/VRK-3rN7-aY" frameborder="0" allowfullscreen></iframe>
 </div>
 
-In Fleet you can add variables, in [scripts](https://fleetdm.com/guides/scripts) and [configuration profiles](https://fleetdm.com/guides/custom-os-settings). Variables are hidden when the script or configuration profile is viewed in the Fleet UI or API.
+In Fleet you can use custom variables in [scripts](https://fleetdm.com/guides/scripts), [script-only packages](https://fleetdm.com/guides/deploy-software-packages#script-only-packages), [configuration profiles](https://fleetdm.com/guides/custom-os-settings), and [host name templates](https://fleetdm.com/guides/rename-hosts-with-a-naming-template).
 
-Configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/docs/configuration/yaml-files#variables).
+Scripts and configuration profiles can also use any of Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables).
+
+Custom variables use the same value for all hosts. To use unique per-host values, use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`) instead.
+
+Custom variables are global. Anyone who can add or edit scripts, software, or configuration profiles in a fleet, including fleet-level admins, maintainers, and GitOps users, can use any custom variable and read its value on that fleet's hosts. If you store something sensitive in a variable (e.g. an API token), make sure you're comfortable with those users having access to it.
 
 ## Add variables
 
@@ -20,33 +24,37 @@ To add or delete a variable in the UI, go to `Controls` > `Variables` and click 
 
 ![Add variable](../website/assets/images/articles/controls-add-variable-337x209@2x.png)
 
-Variables are global, meaning they can be used in scripts and profiles across all teams.
-
 ### GitOps
 
-1. You must add the variable to your [GitHub](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#creating-secrets-for-a-repository) or [GitLab](https://docs.gitlab.com/ci/variables/#define-a-cicd-variable-in-the-ui) repository's secrets to use them in GitOps.
+1. Add the variable to your [GitHub](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#creating-secrets-for-a-repository) or [GitLab](https://docs.gitlab.com/ci/variables/#define-a-cicd-variable-in-the-ui) repository's secrets to use the variable in GitOps.
 
-2. For the GitHub GitOps flow, they must also be added to the `env` section of your workflow file, as shown below:
+2. Define the variable in the `env` section of in your `workflows.yml` file, as shown below. Any variable defined here that begins with `FLEET_SECRET` will be automatically uploaded to Fleet during GitOps runs:
 
 ```yaml
     env:
-      ###  Variables used by the gitops workflow ###
+      ###  Local variables used by the GitOps workflow ###
       FLEET_URL: ${{ secrets.FLEET_URL }}
-      FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
-      FLEET_WORKSTATIONS_ENROLL_SECRET: ${{ secrets.FLEET_WORKSTATIONS_ENROLL_SECRET }}
-      FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET: ${{ secrets.FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET }}
-      ### Secrets uploaded to Fleet for use in profiles and scripts ###
-      FLEET_SECRET_CERT_PASSWORD: ${{ secrets.FLEET_SECRET_CERT_PASSWORD }}
-      FLEET_SECRET_CERT_BASE64: ${{ secrets.FLEET_SECRET_CERT_BASE64 }}
+      FLEET_SECRET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
+      WORKSTATIONS_ENROLL_SECRET: ${{ secrets.WORKSTATIONS_ENROLL_SECRET }}
+      ### Variables to upload to Fleet for use in scripts and profiles. Any variable
+      FLEET_SECRET_EXAMPLE_API_TOKEN: ${{ secrets.FLEET_SECRET_EXAMPLE_API_TOKEN }}
 ```
 
-When GitOps syncs the configuration, it looks for variables in scripts and profiles, extracts the variable's values from the environment, and uploads them to Fleet.
+> For GitLab, this typically goes in the `.gitlab-ci.yml` file, and uses `variables:` rather than `env:`.
 
-On subsequent GitOps syncs, if a variable is used by an updated configuration profile, the profile will be resent to the host device(s).
+### Scripts and configuration profiles
+
+During a GitOps run, Fleet scans scripts and profiles for variables, pulls their values from GitHub or GitLab, and uploads them to Fleet.
+
+Profiles with variables aren’t validated during a GitOps dry run because the variables may be missing or incorrect in Fleet. This means they’re more likely to fail during a real run. Best practice: test the script or profile by adding it to Fleet via the UI first.
+
+Some variables trigger an Apple (macOS, iOS, iPadOS) profile resend when their value changes. Automatic re-send for Windows profiles is [coming soon](https://github.com/fleetdm/fleet/issues/44852). See which variables support this in the [Fleet variable](https://fleetdm.com/guides/fleet-variables) guide.
+
+If a variable is a secret (for example, an API token), prefix it with FLEET_SECRET_. This masks the value when viewed or downloaded from the Fleet UI or API.
 
 Variables aren't removed on GitOps runs. To remove a variable, delete it on the `Controls` > `Variables` page.
 
-> Profiles with variables are not entirely validated during a GitOps dry run because the required variables may not exist or may be incorrect in the database. As a result, these profiles have a higher chance of failing during a non-dry run. Test them by uploading to a small team first.
+> Profiles with variables are not entirely validated during a GitOps dry run because the required variables may not exist or may be incorrect in the database. As a result, these profiles have a higher chance of failing during a non-dry run. Test them by uploading to a small fleet first.
 
 ## Using the secret on a configuration profile
 
@@ -90,20 +98,23 @@ Here's an example profile with `$FLEET_SECRET_CERT_PASSWORD` and `$FLEET_SECRET_
 </plist>
 ```
 
-> In XML, certain characters (`&`, `<`, `>`, `"`, `'`) must be escaped because they have special meanings in the markup language. Fleet variables will be automatically escaped when used in a `.mobileconfig` configuration profile. For example, `&` will become `&amp;`.
+> The dollar sign (`$`) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
 
+> In XML, certain characters (`&`, `<`, `>`, `"`, `'`) must be escaped because they have special meanings in the markup language. GitHub and GitLab environment variables, as well as Fleet's reserved variables, will be automatically escaped when used in Apple (`.mobileconfig`) and Windows (`.xml`) configuration profiles. For example, `&` will become `&amp;`. These characters must be manually escaped outside of the variables.
 
 ## Known limitations and issues
 
 - **Apple MDM profiles**: Fleet secret variables (`$FLEET_SECRET_*`) cannot be used in the `PayloadDisplayName` field of Apple configuration profiles. This field becomes the visible name of the profile and using secrets here could expose sensitive information. Place secrets in other fields like `PayloadDescription`, `Password`, or `PayloadContent` instead.
+- **Host name templates**: A custom variable used in a [host name template](https://fleetdm.com/guides/rename-hosts-with-a-naming-template) isn't hidden — its value becomes the host's name in Fleet and on the device. Only use custom variables for values that are safe to display (for example, a site or location code).
+- **Windows SCEP subject names**: In a Windows SCEP profile's `SubjectName`, Fleet quotes a `$FLEET_VAR_*` value so Windows reads it as one attribute. Fleet inserts a `$FLEET_SECRET_*` value as written. If that value contains `,`, `+`, `;`, or `"`, the device rejects the certificate request. Use a value without those characters.
 - After changing a variable used by a Windows profile, that profile is currently not re-sent to the device when the GitHub action (or GitLab pipeline) runs: [story #27351](https://github.com/fleetdm/fleet/issues/27351)
-- Fleet does not hide the secret in script results. Don't print/echo your secrets to the console output.
+- Fleet expands secret variables to plaintext before delivering scripts and profiles to the host, so anyone with root access can retrieve the value. This holds even if the script never echoes it. On macOS, package installer scripts are logged in full, secrets included, to the world-readable `/var/log/install.log`. Only use secret variables for values you're OK having exposed on the host.
 - There is no way to explicitly delete a secret variable. Instead, you can overwrite it with any value.
 - Do not use deprecated API endpoint(s) to upload profiles containing secret variables. Use endpoints documented in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api).
 
-<meta name="articleTitle" value="Variables in scripts and configuration profiles">
+<meta name="articleTitle" value="Custom variables in scripts and configuration profiles">
 <meta name="authorFullName" value="Victor Lyuboslavsky">
 <meta name="authorGitHubUsername" value="getvictor">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-01-02">
-<meta name="description" value="A guide on using variables in scripts and configuration profiles.">
+<meta name="description" value="A guide on using custom variables in scripts and configuration profiles.">

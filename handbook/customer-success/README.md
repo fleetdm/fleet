@@ -8,16 +8,18 @@ This handbook page details processes specific to working [with](#contact-us) and
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | SVP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
-| Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Jorge Falcon](https://www.linkedin.com/in/falcon-jorge/) _([@BCTBB](https://github.com/bctbb))_
+| VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
+| Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Fevzi Sahinler]() _([@fsahinler](https://github.com/fsahinler))_ <br> [Trai Compton](https://www.linkedin.com/in/trailynne/) _([@TraiLynne](https://github.com/trailynne))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
-| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ 
-| Customer Success Manager (CSM)        | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ <br> [Matt Rebelo](https://www.linkedin.com/in/matt-rebelo/) _([@reeblybeebly](https://github.com/reeblybeebly))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_
+| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ <br> [Jonathan Porter](https://linkedin.com/in/jp-cpe) _([@jp-cpe](https://github.com/jp-cpe))_
+| Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/) <br> [Sean Hannon](https://www.linkedin.com/in/sean-hannon-73b603105/) <br> [Kelly Kroening](https://www.linkedin.com/in/kelly-kroening)
+| Customer Support Engineer Team Lead | [Ryn Satterlee](https://www.linkedin.com/in/rynsatterlee/) _([@rynsatterlee](https://github.com/rynsatterlee))_
+| Customer Support Engineer (CSE)       |  [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> [Matthew Thomas](https://linkedin.com/in/mthomas172) _([@adriant172](https://github.com/adriant172))_ <br> [Noel Rodriguez-Lebron](https://www.linkedin.com/in/noel-w-rl) _([@MrNRod](https://github.com/MrNRod))_
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1)).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1) Slack channel.)
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/79) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
@@ -26,15 +28,23 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
 
+### Responsibilities when out of office
+
+When a CS team member is unable to attend a scheduled customer call, they should find backup coverage for their respective function or request a reschedule with the customer.
+
+If a CSM is having another team member cover their call, the CSM is responsible for preparing the customer agenda doc and debriefing their co-worker in advance of the meeting. If a CSA is having another technical resource cover their call, the CSA is responsible for debriefing that team member on the current status of the customer deployment.
+
+If you are working on issues that need follow-up while you're out, assign them to the Manager of Customer Support and Solutions Architecture in Unthread before you leave. Also create a thread in [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1) with an overview of the current status and next steps for these.
+
 
 ### Respond to a "Contact us" job application submission
 
 1. Applications for open roles at Fleet come through the "Contact us" form.
 2. The contact form generates a new ticket in Unthread. 
 3. Within 4 business hours, the assigned CSE sends an email from their Gmail account to the applicant using the suggested response template under "Applying for open position" [in this internal file](https://docs.google.com/spreadsheets/d/1-wsYunAfr-BQZMBYizY4TMavi3X071D5KZ3mCYX4Uqs/edit?gid=695748028#gid=695748028). Remember that contact form messages cannot be replied to in Unthread. 
-5. CC the Interim Head of People on all job application emails.
-6. Remember to include the title of the position being applied for, as is requested in the response template.
-7. Add a closure note or include copy of your response as an internal note in the unthread ticket, and close the ticket.
+4. CC the Head of People on all job application emails.
+5. Remember to include the title of the position being applied for, as is requested in the response template.
+6. Add a closure note or include copy of your response as an internal note in the unthread ticket, and close the ticket.
 
 
 ### Assign a customer codename
@@ -103,12 +113,25 @@ Sometimes there is a change in the champion within the customer's organization.
 4. Fill out all the required fields making sure to pick "Expansion" in the  "Type" dropdown menu and then click "Save".
 
 
+### Monitor and respond to LinkedIn comments
+
+The Customer Support team monitors comments on Fleet's company LinkedIn page posts daily. Comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel and sent to Unthread.
+
+To monitor and respond to LinkedIn comments:
+1. Address LinkedIn mentions and comments once within 1 day.
+2. From the Fleet LinkedIn company page, Like mentions and respond to any questions asked in comments.
+3. Repost content related to GitOps certification or from Fleeties.
+4. Flag comments requiring subject-matter expertise to the appropriate team member, get the answer, then respond.
+
+
+
 ### Schedule a Fast-track engagement
 
-Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.
+Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training prerequisites.
 
 1. When a deal including Fast-track closes, add a TODO on the final page of the partnership kickoff presentation, to confirm the details around their services purchase and to coordinate scheduling. Be sure to make the customer aware that delays in confirming service delivery date can cause the date to move out further.
-2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA to collect the following information:
+2. Create a Fast-track issue on the help-customers board for tracking.
+3. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA. The CSM is responsible for scheduling this call, but the CSA is the DRI for running this call and collecting the following:
 - What is the target migration date and when does the previous MDM contract end?
 - Which critical workflows will Fleet be used for?
   - Onboarding workflow?
@@ -116,6 +139,7 @@ Fast-track is Fleet's service delivery package for new MDM customers. Check with
   - Automated device enrollment (ADE)? Autopilot?
   - Setup experience?
   - Self-service software?
+  - Have you started planning for what a migration will look like? 
 - Which integrations will be required for migration? Which integrations will be required post-migration (no hard timeline)?
   - IAM?
   - Log shipping to SIEM?
@@ -139,12 +163,12 @@ Health checks are conducted quarterly or bi-annually, in preparation for a quart
 
 Business reviews are conducted quarterly or bi-annually to ensure initial success criteria completion, ongoing adoption, alignment on goals, and delivery of value as a vendor. Use the meeting to assess customer priorities for the coming year, review performance metrics, address any challenges and showcase value in upcoming and unutilized features.
 1. Work with your champion to schedule the business review at a time their stakeholders are available (typically 90 days after kickoff and again, 90 days before renewal).
-2. Collect usage metrics from the [usage data report](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGNLY3kl1VI-c/edit?gid=0#gid=0) (internal Fleet document) and the following:
+2. Collect usage metrics from the [usage statistics Google sheet](https://docs.google.com/spreadsheets/d/1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI/edit) (internal Fleet document) and the following:
     - Optionally schedule a health check with day to day admins prior to the QBR to better understand how the product is being used and which features have been adopted.
     - Have a support engineer collect data on open and closed bugs from the previous quarter and highlight any P0 or P1 incidents along with a summary of the postmortem (search Unthread and GitHub for issues tagged with the customer codename and ':bug').
     - Summarize status updates for open feature requests and highlight delivered feature requests.
     - For managed cloud customers, reach out to #help-infrastructure to collect information on cloud uptime and any outages or alarms.
-    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for #g-mdm and #g-endpoint-ops
+    - Provide one slide with information on the latest Fleet release and any upcoming big ticket features which can be found on the product board and current release board for any product or product group.
 3. After the business review, save the presentation as a PDF and share it with your customer.
 
 ### Track a customer promise
@@ -166,6 +190,21 @@ Document the completion of a customer promise through the following steps:
 4. Get a verbal agreement from your customer to respond to that follow up email, with a confirmation that the promise was completed in a satisfactory manner.
 5. Once you have received email confirmation of the completed promise, note this via a comment in the GitHub issue. If all other customers have confirmed completion, then you may close out the issue as well.
 
+### Submit a feature request for CSA review (For CSMs)
+
+Note: This is for cases where the customer in question does not have an assigned CSA. CSAs will submit feature requests for accounts that they are assigned to.
+Submit a feature request to the CSA team for review following these steps:
+- Navigate to the help-customers board in GitHub
+- Press "Add item" under the "New requests" column
+- Select "Custom request" as the issue type
+- Title your request "FR for (customer-codename-here)"
+- In the description field, add the following information
+    - What is the specific feature being requested?
+    - Why is this impactful to the customer?
+    - What priority is this issue to the customer?
+    - Any additional information that may be helpful for the CSA to understand your customer's request
+- Before pressing "Create", check the URL at the top of the submission box, and confirm you are submitting the issue to our confidential repo
+- Press the "Create" button to generate your request for a feature to the CSA team, who will then review and create the public FR for your customer
 
 ### File a customer bug report
 
@@ -208,6 +247,89 @@ During the window of time available to investigate an issue, use the resources a
   - Contact the developer on-call.
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
+
+If an issue is causing serious problems for a customer and support hasn't found a resolution within **1 business day**, stop investigating solo and escalate to engineering:
+
+1. [File a bug report](#file-a-customer-bug-report) (or locate the existing issue) so the problem is tracked in GitHub, not only in Slack threads.
+2. Add the appropriate [priority label](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs) and assign the issue to the product group's Engineering Manager so it's prioritized at the next standup.
+3. Keep investigating together with engineering. Escalating isn't handing off; it's adding help.
+
+Don't wait for the issue to become an incident. Escalating on day one gives engineering time to help during business hours instead of scrambling near a deadline or over a weekend.
+
+### Keep support conversations in one thread
+
+A single issue can sprawl across the customer channel, #help-customers, #help-engineering, and a product group channel, making it hard to track. To keep full context in one place:
+
+- **Talk to the customer** in the customer channel thread.
+- **Coordinate internally** in a single #help-customers thread. This is the source of truth for the issue.
+- **When asking for help** in any channel other than #help-customers (e.g., #help-engineering or a product group channel), keep the post short: summarize the ask and link to the #help-customers thread. Ask responders to reply in the #help-customers thread, not in the post, so everyone has the most context at all times.
+
+### Escalate an issue to Apple
+
+Fleet has an AppleCare cooperative support agreement with Apple. It lets Fleet work a support case together with Apple for a customer we share. It does not let Fleet open cases for customers who don't have their own support agreement with Apple.
+
+When a customer reports a problem that's caused by Apple (for example, Setup Assistant behavior, Apple Business device assignment, or an OS bug), follow these steps:
+
+1. **Confirm it's an Apple issue.** If Fleet could be involved, [file a customer bug report](#file-a-customer-bug-report) first. Use the `~applecare-cooperative-support` label for these issues.
+2. **Ask if the customer has an AppleCare Enterprise (AppleCare OS Support) agreement.** Ask before you offer a cooperative case.
+   - **If they do:** Ask the customer to open a case at [enterprise.apple.com](https://enterprise.apple.com) and share the case number with Fleet. Fleet can then link a cooperative case to theirs and give Apple technical details from the Fleet side. If Apple asks for a Fleet reference, give them the related GitHub issue number.
+   - **If they don't:** Ask the customer to file a report with the Feedback Assistant app, ideally from an affected Mac right after the issue happens, and to share the feedback number with Fleet.
+3. **Decide whether Fleet should open a linked case.** Usually Apple contacts Fleet if it needs more information. Open a cooperative case from Fleet's side when Apple asks for one, or when Fleet can reproduce the issue, because a second reproduction strengthens the customer's case. The Customer Support Engineer Team Lead will coordinate opening the case.
+4. **File Fleet's own feedback when we can reproduce the issue.** Sign in to Feedback Assistant with your Fleet Apple Account so you can track its status. Contacts at Apple generally won't look into an issue that doesn't have a feedback number.
+5. **Collect logs remotely if Apple asks for them.** On iOS and iPadOS 27, customers can [trigger AppleCare log collection](https://fleetdm.com/guides/trigger-applecare-log-collection) with a custom MDM command in Fleet.
+6. **Track the Apple case and feedback numbers** in the #help-customers thread and on the GitHub issue.
+
+### Troubleshooting a managed cloud or self-hosted customer suspected infrastructure issue
+
+##### For managed cloud customers, CSE is responsible for doing an initial check on logs. Timebox 10 minutes to do the following: 
+
+1. First, in all instances, [review the athena logs](https://github.com/fleetdm/confidential/blob/main/infrastructure/runbooks/cse-troubleshooting.md) for:
+  - IP ingress patterns from problematic hosts
+  - ELB errors and response times
+  - For customers with WAF enabled, check for any traffic being blocked
+  - 408 or 502 errors
+  - Total number of requests by status code type
+
+2. Next, check Fleet server logs via [Cloudwatch Log Insights](https://github.com/fleetdm/confidential/blob/main/infrastructure/runbooks/cse-troubleshooting.md#aws-cloudwatch-logs-insights---check-fleet-server-logs). Follow the steps below:
+  - Search for related endpoints via endpoint URL's
+  - Check for errors during cron jobs using the query in the infra runbook
+  - Use the Patterns tab to look for patterns in the logs which may provide more information
+  - In #help-customers or #help-engineering, ask other CSE's or the developer on-call engineer what else they might search for in the logs
+
+3. Finally, if you're not able to determine if this is a Fleet app issue or an infrastructure issue, tag in the infrastructure on-call via a new thread in the #help-infrastructure channel with a synopsis of your findings. The infrastructure engineer is the DRI for determining if an issue is infrastructure related. If they rule out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance. If the issue is a suspected P0, follow the [incident response process](https://fleetdm.com/handbook/engineering#incident-response-process). 
+
+##### For self-hosted customers, CSE is responsible for requesting customer logs and doing an initial review. Timebox 10 minutes to do the following:  
+
+1. Verify that the information we have stored about their Fleet architecture is correct
+2. Ask the following questions
+  - Are your hosts checking in and is your Fleet server online? 
+  - When did the issue begin?
+  - Have you made any changes to Fleet around the time of the issue beginning?
+  - Request Fleet server logs
+  - Request uptime data for Fleet, Redis, and MySQL
+  - Request the average memory and CPU for Fleet, Redis, and MySQL
+  - For customers hosting on AWS, request Aurora and RDS Performance insights
+3. Request the output of `fleetctl debug errors`
+  - Review the output and search for any patterns
+  - The next steps in your process will be determined by what you find
+  - Contact a Sr CSE to determine if this should be escalated to the infrastructure on-call engineer
+  - If the infrastructure on-call engineer rules out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance.
+
+### Accessing managed cloud customer environments
+
+Every time a customer or prospect managed cloud environment needs to be accessed, written approval must be obtained by the customer, and there must be a confidential repo GitHub issue tracked on the [:help-customers board ](https://github.com/orgs/fleetdm/projects/79). 
+
+If a review of production data is required in order to troubleshoot a bug report or incident, written approval must be obtained by the customer, and there must be a confidential repo GitHub issue tracked on the [:help-customers board ](https://github.com/orgs/fleetdm/projects/79). 
+
+Customer production data must never be used in development or testing environments. 
+
+### Report an incident
+
+Review the [criteria](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) to determine the priority level of the issue.
+
+If it qualifies as a P0, follow the response instructions to initiate our incident response process by creating an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). Creating the issue triggers incident.io to notify the incident on-call engineer 24/7/365.
+
+For P1 and lower issues, contact the on-call engineer via `@oncall` in `#help-engineering`. Responses to on-call will be addressed during business hours.
 
 ### Contact the developer on-call
 
@@ -257,7 +379,19 @@ The acting infrastructure engineer on-call rotation is reflected in the [📈KPI
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
 
-### Respond to messages and alerts 
+### Reset a customer trial
+
+When a customer or prospect requests an extension beyond the standard 30-day trial period, CS is responsible for resetting their trial using the super admin page.
+
+1. Receive the trial reset request (typically via Slack from the customer or an internal team member).
+2. Navigate to the [super admin trial reset page](https://fleetdm.com/admin/reset-trial) (super admin access required).
+3. Enter the customer's information and reset their trial.
+4. Notify the customer or the requestor in Slack that the trial has been reset.
+
+> **Note:** The trial reset page at https://fleetdm.com/admin/reset-trial is only accessible to super admins.
+
+
+### Respond to messages and alerts
 
 Customer Support Engineers (CSEs) are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, MacAdmins Slack and dedicated customer Slack channels. 
 - The 24/7 infrastructure on-call engineer is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Premium customers when tagged in for assistance. Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provide detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts.
@@ -267,7 +401,7 @@ Customer Support Engineers (CSEs) are responsible for the first response to Slac
 ### Maintain first responder SLA
 
 The first responder on-call for Managed Cloud will take ownership of the @infrastructure-oncall alias in Slack first thing Monday morning. The previous week's on-call will provide a summary in the #help-customers Slack channel with an update on alarms that came up the week before, open issues with or without direct end-user impact, and other issues to keep an eye out for.
-- **First responders:** Robert Fairburn, Jorge Falcon
+- **First responders:** Robert Fairburn
 
 Escalation of alarms will be done manually by the first responder according to the escalation contacts mentioned above. A [suspected outage issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23outage%2C%23g-cx%2C%3Arelease&projects=&template=outage.md&title=Suspected+outage%3A+YYYY-MM-DD) should be created to track the escalation and determine root cause. 
 - **Escalations (in order):** » Eric Shaw (fleetdm.com) » Zay Hanlon » Luke Heath » Mike McNeil
@@ -277,16 +411,204 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 ### Communicate feedback on prioritized customer requests
 
-When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
+When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) brings one or more user stories through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
-After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `#g-unicorns` label.
+After the user stories are released and reviewed at [confirm and celebrate](https://fleetdm.com/handbook/product-design#confirm-and-celebrate), it's up to the Customer Success Manager (CSM) to inform the customer and close the issue.
 
-If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the PD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the PD, and unsassign themselves from the request issue.
+If we learn the improvements are missing something in order to meet the customer's needs, the CSM re-opens the issue, adds feedback in a comment (Gong snippet, Slack thread, or meetings notes), and @ mentions the HPD.
 
 ### Manage DNS records
 
 Fleet-managed DNS records are maintained in Cloudflare using Terraform.  
 See [DNS management](https://github.com/fleetdm/confidential/tree/main/infrastructure/dns/dns-management.md) for how changes are reviewed, validated, and applied automatically.
+
+
+### Restore a Fleet Cloud database or environment
+
+This process covers backup and restore for Fleet Cloud customer environments: Aurora MySQL databases, S3 installer buckets, and dependent Terraform-managed resources operated by the Infrastructure Engineering team. Endpoint/laptop restoration (owned by IT/endpoint management) and application-layer data restoration outside of database and object storage are out of scope.
+
+| | |
+|---|---|
+| Control | Backup and restore capability with defined RTO/RPO |
+| Recovery time objective (RTO) | 1 hour |
+| Recovery point objective (RPO) | 24 hours |
+| Most recent restore test as of July 16, 2026 | 2026-07-16, 14:49 to 15:23 EDT (34 minutes end to end; RTO and RPO met, see the restore walkthrough below) |
+| Process initiation authority | Fleet CEO or CTO |
+| Restore execution owner | Infrastructure Engineering team |
+
+#### Approach: code-driven restore against version-controlled baselines
+
+Fleet does not maintain restore procedures as ad hoc runbooks re-derived at incident time. Every restore is executed against the same Terraform baseline that provisioned the environment (see the companion "Secure configuration baselines" document), using a version-controlled restore tool committed to `fleetdm/fleet-terraform`:
+
+- **Tooling:** The restore script and its documentation are proposed in [`fleet-terraform` PR #236](https://github.com/fleetdm/fleet-terraform/pull/236/changes), which will be merged after internal review and approval. The script drives the database restore, updates Terraform configuration to reference the restored cluster, and produces a manifest that enables safe cleanup of retired resources. Any change to restore behavior is a reviewed code change in that repository.
+- **State integrity:** The script surgically removes the retired RDS/Secrets Manager resources from Terraform state, writes the new snapshot ARN into the environment's Terraform configuration, and re-applies the pinned root module (`github.com/fleetdm/fleet-terraform@tf-mod-root-v1.30.0`) so the restored environment matches the documented baseline exactly.
+- **Reviewable:** Every restore run produces an artifact directory (`.db-restore-<timestamp>/`) containing the manifest, plan output, and logs. Cleanup requires the same manifest, making the two phases auditable.
+
+#### Restore response teams and responsibilities
+
+| Role | Responsibility |
+|---|---|
+| Fleet CEO or CTO | Initiates the restore process and authorizes the switch from an impaired environment to a restored or DR environment |
+| Infrastructure Engineering team | Executes the restore, validates data, cuts DNS over, cleans up retired resources, and closes out the incident record |
+| IT / Security | Coordinates customer and internal communications and captures artifacts for post-incident review |
+
+Full team scope is documented in [security response teams and responsibilities](https://fleetdm.com/handbook/it/security#response-teams-and-responsibilities).
+
+#### Production regions and disaster recovery (DR) region pairings
+
+Every production region has a pre-designated DR failover region. AWS Backup copies of tagged resources are pre-staged into the DR region so that a full regional loss can be recovered from without cross-region data movement at incident time.
+
+| Production region | DR region |
+|---|---|
+| `us-east-2` (Ohio)         | `us-west-2` (Oregon) |
+| `eu-central-1` (Frankfurt) | `eu-west-1` (Ireland) |
+| `ap-south-1` (Mumbai)      | `eu-central-1` (Frankfurt) |
+
+#### Restore considerations
+
+- **DNS:** After the Terraform apply, verify the ALB CNAME/DNS record targets the restored environment. If Terraform fails to update the existing DNS entries (e.g., because the record is externally managed or drifted), update DNS manually before declaring the restore complete.
+- **DR-region service quotas:** In the event of total loss of a primary region, DR-region service quotas must be increased to absorb the additional footprint.
+
+#### In-region restore or rollback
+
+Used when the primary region is healthy but the environment or its database must be rolled back (e.g., accidental data corruption, bad migration, cluster degradation).
+
+Prerequisites:
+
+- A new or existing target environment in the same region.
+- A database snapshot (automated or AWS Backup) or a PITR timestamp within the retention window.
+- An S3 bucket backup from AWS Backup, if software installers were previously used by the environment.
+
+Procedure:
+
+1. Restore the database from the chosen snapshot or PITR time using the restore script (see the restore walkthrough below).
+2. If installers were in use, restore the source S3 bucket to a new bucket from AWS Backup, then `terraform import` the new bucket into the environment's Terraform state so the pinned root module manages it going forward.
+3. Verify Fleet server, migrations, and monitoring signals against the restored data.
+4. Clean up the retired RDS cluster, instances, and Secrets Manager entries using the restore-script manifest.
+
+#### DR-region restore or rollback
+
+Used when the primary region is impaired or lost. The DR environment is provisioned into the paired DR region against a separate Terraform state so that recovery does not require or corrupt the primary state.
+
+Prerequisites:
+
+- A new state bucket in the DR region to hold the DR environment's Terraform state. The original state buckets are not used, so restoration can proceed even if the primary region is unavailable.
+- The Fleet server private key. If the original deployment region is unavailable, retrieve it from the secondary Terraform state bucket into which the original states are synchronized. The state file contains the reference needed to recover the private key.
+- A new or existing DR-region environment definition.
+
+Procedure:
+
+1. Create the Fleet server private key in AWS Secrets Manager in the DR region.
+2. Add the new Fleet server private key Secrets Manager ARN to the DR environment's Terraform configuration.
+3. Restore the database from AWS Backup in the DR region and take a snapshot of the restored cluster (this is the input the restore script consumes).
+4. Use the resulting DB snapshot to restore the existing DR-region environment. The same `db-restore.sh` flow used for in-region restores applies here (see the restore walkthrough below).
+5. If installers were in use, restore the S3 bucket into a new bucket in the DR region and `terraform import` it into the DR environment's state.
+6. Update DNS to point at the DR environment (verify Terraform-managed records applied; correct manually if not).
+7. Clean up any retired resources in the DR region after validation.
+
+#### Restore walkthrough: in-region restore of the datarestore test environment
+
+Restore scenarios are exercised on demand rather than on a fixed calendar: (1) whenever a customer or internal system needs an actual restore or rollback, and (2) whenever the restore tooling itself changes, so that the updated script is validated end to end before it is relied on in a live incident. The 2026-07-16 test below served both purposes. It validated the tooling proposed in [`fleet-terraform` PR #236](https://github.com/fleetdm/fleet-terraform/pull/236/changes) against a Fleet Cloud environment (`datarestore`) provisioned in the primary AWS region `us-east-2` from the documented baseline.
+
+##### List available recovery points and snapshots
+
+```console
+% $PWD/db-restore.sh --list
+Environment: datarestore
+Region: us-east-2
+Current cluster: datarestore
+
+PITR window:
+  earliest: 2026-07-15T20:01:54.679000+00:00
+  latest:   2026-07-16T18:14:35.195000+00:00
+
+RDS DB cluster snapshots:
+2026-07-16T02:02:15.913000+00:00    automated    available    rds:datarestore-2026-07-16-02-01    arn:aws:rds:us-east-2:611884880216:cluster-snapshot:rds:datarestore-2026-07-16-02-01
+
+AWS Backup recovery points (same region, inventory-only; not currently targetable by this script):
+  These require aws backup start-restore-job and post-restore Terraform adoption.
+2026-07-16T01:00:00-04:00    aws-backup-inventory-only    COMPLETED    backup_aurora_vault_source    arn:aws:rds:us-east-2:611884880216:cluster-snapshot:awsbackup:job-3e89ff03-c6bf-a120-44ad-8af76506de25
+```
+
+##### Restore from the selected snapshot
+
+The restore script modifies the Terraform configuration in the current working directory to reference the chosen snapshot and drives the full restore:
+
+- creates a new database cluster from the snapshot
+- creates new database instances
+- creates a new secret holding the database password
+- updates Terraform configurations with the new database and secret naming
+
+```console
+% $PWD/db-restore.sh \
+    --restore-snapshot arn:aws:rds:us-east-2:611884880216:cluster-snapshot:rds:datarestore-2026-07-16-02-01 \
+    --confirm
+[db-restore] artifact directory: $PWD/repos/confidential/infrastructure/cloud/datarestore/.db-restore-20260716145351
+[db-restore] module address: module.main.module.byo-vpc
+[db-restore] current cluster: datarestore
+[db-restore] restored cluster: datarestore-1
+[db-restore] restore mode: snapshot
+[db-restore] restore snapshot: arn:aws:rds:us-east-2:611884880216:cluster-snapshot:rds:datarestore-2026-07-16-02-01
+[db-restore] execution path: DB restore, post-restore RDS reconcile, ECS targeted apply, migrations, scale services back up
+[db-restore] old DB resources will be kept; run --cleanup-only --manifest $PWD/repos/confidential/infrastructure/cloud/datarestore/.db-restore-20260716145351/manifest.json later
+[db-restore] scaling Fleet ECS service to 0
+[db-restore] scaling vuln-processing ECS service to 0
+[db-restore] removing old RDS resources from Terraform state
+Removed module.main.module.byo-vpc.aws_db_parameter_group.main[0]
+Removed module.main.module.byo-vpc.aws_rds_cluster_parameter_group.main[0]
+Removed module.main.module.byo-vpc.module.rds.aws_db_subnet_group.this[0]
+Removed module.main.module.byo-vpc.module.rds.aws_iam_role_policy_attachment.rds_enhanced_monitoring[0]
+Removed module.main.module.byo-vpc.module.rds.aws_iam_role.rds_enhanced_monitoring[0]
+Removed module.main.module.byo-vpc.module.rds.aws_rds_cluster_instance.this["one"]
+Removed module.main.module.byo-vpc.module.rds.aws_rds_cluster.this[0]
+Removed module.main.module.byo-vpc.module.rds.aws_security_group_rule.this["allowed_security_group_0"]
+Removed module.main.module.byo-vpc.module.rds.aws_security_group.this[0]
+Removed module.main.module.byo-vpc.module.rds.data.aws_iam_policy_document.monitoring_rds_assume_role[0]
+Removed module.main.module.byo-vpc.module.rds.data.aws_partition.current
+Removed module.main.module.byo-vpc.module.secrets-manager-1.aws_secretsmanager_secret_version.sm-sv["datarestore-database-password"]
+Removed module.main.module.byo-vpc.module.secrets-manager-1.aws_secretsmanager_secret.sm["datarestore-database-password"]
+Removed module.main.module.byo-vpc.random_id.rds_final_snapshot_identifier[0]
+Successfully removed 14 resource instance(s).
+
+<terraform apply kicks off here>
+```
+
+##### Clean up retired resources
+
+After validating the restored environment, retired resources are removed using the manifest produced by the restore run. The script requires typing the environment name for confirmation before it will delete anything.
+
+```console
+% $PWD/repos/fleet-terraform/tools/rds-db-restore/db-restore.sh \
+    --cleanup-only \
+    --manifest $PWD/repos/confidential/infrastructure/cloud/datarestore/.db-restore-20260716145351/manifest.json \
+    --confirm
+[db-restore] deleting old Aurora instance datarestore-one
+[db-restore] deleting old Aurora cluster datarestore with final snapshot datarestore-pre-restore-retirement-20260716145351
+[db-restore] deleting old secret arn:aws:secretsmanager:us-east-2:611884880216:secret:datarestore-database-password-v3NZz0
+[db-restore] cleanup complete
+```
+
+##### Test result: RTO and RPO evaluation
+
+The restore of the `datarestore` environment was executed on 2026-07-16, starting at 14:49 EDT (18:49 UTC) and completing at 15:23 EDT (19:23 UTC), an elapsed time of approximately 34 minutes.
+
+| Objective | Target | Measured result | Outcome |
+|---|---|---|---|
+| RTO | 1 hour | ~34 minutes (start 2026-07-16 14:49 EDT, end 15:23 EDT) | Met |
+| RPO | 24 hours | ~16h47m data-loss window (snapshot `rds:datarestore-2026-07-16-02-01` taken 2026-07-16 02:02 UTC; restore initiated 2026-07-16 18:49 UTC) | Met |
+
+The test satisfies ISO 22301:2019 §8.3.2 (exercising and testing continuity capabilities) and §8.5 (evaluating documented information from exercises against defined objectives).
+
+#### Restore evidence index
+
+| Restore concern | Source of truth |
+|---|---|
+| Restore tooling (script + docs) | [`fleet-terraform` PR #236](https://github.com/fleetdm/fleet-terraform/pull/236/changes) |
+| Environment baseline the restore rebuilds against | `infrastructure/cloud/template/` and per-customer `infrastructure/cloud/<customer>/` in `fleetdm/confidential` |
+| Pinned application stack module | `github.com/fleetdm/fleet-terraform` @ `tf-mod-root-v1.30.0` |
+| AWS Backup vaults and cross-region copy plans | `infrastructure/cloud/shared/aws-backup/` in `fleetdm/confidential` |
+| Aurora snapshot retention (30-day) and PITR | Enforced in the pinned root module via the Fleet Cloud baseline (see the "Secure configuration baselines" document) |
+| Response teams and initiation authority | [Security response teams and responsibilities](https://fleetdm.com/handbook/it/security#response-teams-and-responsibilities) |
 
 
 ### Process a self-service license dispenser refund
@@ -305,7 +627,7 @@ Once you submit the form, Stripe will refund the user's payment and cancel their
 When a user requests that we delete all data we have stored about them, their data will need to be removed from the following places:
 1. **fleetdm.com**
     - Create a confidential website request issue
-    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website working group will delete the account and let you know in a comment when the user account is deleted.
+    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website product group will delete the account and let you know in a comment when the user account is deleted.
 2.  **Salesforce**
     1. Search Salesforce for the user's email address, delete the contact record, and any related historical event records associated with the user's contact record.
 3. **Stripe** 
@@ -315,7 +637,29 @@ When a user requests that we delete all data we have stored about them, their da
         2. Search for the user's email address
         3. Select the user's Stripe customer record
         4. Click the "Actions" dropdown in the upper right corner of the customer profile page and select delete.
- 
+
+
+### Respond to a logo removal request from a customer
+
+1. CSM navigates to the account in Salesforce and changes the "Customer requested logo removal?" field from "No" to "Yes" and adds details about who made the request in the "Logo usage notes" field.
+2. CSM messages the [#help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel, ccing marketing leadership, with the subject/message "Customer logo removal request" and includes a screenshot and any other necessary details.
+
+
+### Create a task for a CSA
+
+If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](https://github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
+
+**Ensure all private data is scrubbed and customer code names are used.**
+
+This will automatically be added to the `:help-customers` project board, with the status of `New requests`. During the next standup meeting, the Manager of Customer Support and Solutions Architecture will triage the task.
+
+
+### Update premium usage stats
+
+The [usage statistics Google sheet](https://docs.google.com/spreadsheets/d/1YVTgjabIHLt0bXAExMuxkOhFm1KPr0LhGHFiCDKmHRI/edit) (internal Fleet document) updates automatically every day with the latest usage statistics from each Fleet Premium deployment. There's no manual export. Use the **Customer view** tab to see a single deployment, or the **Dashboard** tab for totals across all customers.
+
+The sheet only shows each deployment's current state, not history. Deployments that haven't reported in the last 60 days drop off the sheet.
+
 ## Rituals
 
 <rituals :rituals="rituals['handbook/customer-success/customer-success.rituals.yml']"></rituals>
@@ -324,7 +668,7 @@ When a user requests that we delete all data we have stored about them, their da
 The following stubs are included only to make links backward compatible.
 
 ##### Customer support service level agreements (SLAs)
-Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos).
+Please see 📖[handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-operations#customer-support-service-level-objectives-slos).
 
 ##### Runbooks
 Please see [Handbook/customer-success#respond-to-messages-and-alerts](https://www.fleetdm.com/handbook/customer-success#respond-to-messages-and-alerts)

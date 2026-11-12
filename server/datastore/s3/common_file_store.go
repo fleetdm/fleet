@@ -20,8 +20,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const signedURLExpiresIn = 6 * time.Hour
-
 // commonFileStore implements the common Get, Put, Exists, Sign and Cleanup
 // operations typical for storage of files in the SoftwareInstallers S3 bucket
 // configuration. It is used by the SoftwareInstallerStore and the
@@ -37,10 +35,12 @@ type commonFileStore struct {
 	*s3store
 	pathPrefix string
 	fileLabel  string // how to call the file in error messages
-
-	gcs bool
 }
 
+// isGCS reports whether the endpoint targets Google Cloud Storage. The loose
+// substring match is deliberate: the GCS workarounds it gates must also apply to
+// the local mock servers in the tests. Presigning is separate and validates the
+// hostname strictly in ValidateSoftwareInstallersSignedURL.
 func isGCS(endpointURL string) bool {
 	return strings.Contains(endpointURL, "storage.googleapis.com")
 }
@@ -193,20 +193,67 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 	return int(deleted.Load()), ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
 }
 
-func (s *commonFileStore) Sign(ctx context.Context, fileID string) (string, error) {
-	if s.cloudFrontConfig == nil {
-		return "", ctxerr.Wrapf(ctx, fleet.ErrNotConfigured, "signing %s URL in S3 store", s.fileLabel)
+func (s *commonFileStore) Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
+	// Preferred: CloudFront signed URL (AWS), when configured.
+	if s.cloudFrontConfig != nil {
+		urlToAccess, err := url.JoinPath(s.cloudFrontConfig.BaseURL, s.keyForFile(fileID))
+		if err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "building URL for %s with ID %s in S3 store", s.fileLabel, fileID)
+		}
+		signer := sign.NewURLSigner(s.cloudFrontConfig.SigningPublicKeyID, s.cloudFrontConfig.Signer)
+		signedURL, err := signer.Sign(urlToAccess, time.Now().Add(expiresIn))
+		if err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "signing %s URL %s in S3 store", s.fileLabel, urlToAccess)
+		}
+		return signedURL, nil
 	}
-	urlToAccess, err := url.JoinPath(s.cloudFrontConfig.BaseURL, s.keyForFile(fileID))
+
+	// GCS: hand out a presigned GET URL generated with this store's own
+	// client/credentials, so clients download directly from the bucket instead
+	// of proxying the bytes through Fleet.
+	if s.signedURL {
+		key := s.keyForFile(fileID)
+		req, err := s.presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+			Bucket: &s.bucket,
+			Key:    &key,
+		}, s3.WithPresignExpires(expiresIn))
+		if err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "presigning %s URL in S3 store", s.fileLabel)
+		}
+		return req.URL, nil
+	}
+
+	return "", ctxerr.Wrapf(ctx, fleet.ErrNotConfigured, "signing %s URL in S3 store", s.fileLabel)
+}
+
+// PresignPut returns a presigned PUT URL for fileID with the body size signed
+// into the request, so the object store rejects a body of any other length.
+func (s *commonFileStore) PresignPut(ctx context.Context, fileID string, size int64, expiresIn time.Duration) (string, error) {
+	if !s.signedURL {
+		return "", ctxerr.Wrapf(ctx, fleet.ErrNotConfigured, "presigning %s upload URL in S3 store", s.fileLabel)
+	}
+	key := s.keyForFile(fileID)
+	req, err := s.presignClient.PresignPutObject(ctx, &s3.PutObjectInput{
+		Bucket:        &s.bucket,
+		Key:           &key,
+		ContentLength: &size,
+	}, s3.WithPresignExpires(expiresIn))
 	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "building URL for %s  with ID %s in S3 store", s.fileLabel, fileID)
+		return "", ctxerr.Wrapf(ctx, err, "presigning %s upload URL in S3 store", s.fileLabel)
 	}
-	signer := sign.NewURLSigner(s.cloudFrontConfig.SigningPublicKeyID, s.cloudFrontConfig.Signer)
-	signedURL, err := signer.Sign(urlToAccess, time.Now().Add(signedURLExpiresIn))
-	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "signing %s URL %s in S3 store", s.fileLabel, urlToAccess)
+	return req.URL, nil
+}
+
+// Delete removes a file from S3. Deleting a missing file is not an error.
+func (s *commonFileStore) Delete(ctx context.Context, fileID string) error {
+	key := s.keyForFile(fileID)
+	if _, err := s.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: &s.bucket,
+		Key:    &key,
+	}); err != nil {
+		return ctxerr.Wrapf(ctx, err, "deleting %s in S3 store", s.fileLabel)
 	}
-	return signedURL, nil
+	return nil
 }
 
 // keyForFile builds an S3 key to identify the file.

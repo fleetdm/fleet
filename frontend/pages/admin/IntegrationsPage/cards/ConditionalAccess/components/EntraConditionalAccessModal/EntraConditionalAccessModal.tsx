@@ -1,15 +1,13 @@
-import React, { useContext, useState } from "react";
-import { size } from "lodash";
+import React, { useState } from "react";
 
-import { NotificationContext } from "context/notification";
-import conditionalAccessAPI from "services/entities/conditional_access";
-
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-import CustomLink from "components/CustomLink";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { IInputFieldParseTarget } from "interfaces/form_field";
+import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
+import { IApiError } from "interfaces/errors";
+import conditionalAccessAPI from "services/entities/conditional_access";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "entra-conditional-access-modal";
@@ -20,16 +18,28 @@ interface IFormData {
   [MSETID]: string;
 }
 
-interface IFormErrors {
-  [MSETID]?: string | null;
-}
-
-const validate = (formData: IFormData) => {
-  const errs: IFormErrors = {};
-  if (!formData[MSETID]) {
-    errs[MSETID] = "Tenant ID must be present";
+const validate = (data: IFormData): IFormErrors => {
+  const errors: IFormErrors = {};
+  if (!data[MSETID].trim()) {
+    errors[MSETID] = "Enter tenant ID";
   }
-  return errs;
+  return errors;
+};
+
+// GUID format check is server-only; map it inline so the user sees which
+// field to fix instead of a generic toast.
+const parseEntraServerErrors = (e: unknown): IFormErrors | null => {
+  const apiErrors = (e as { data?: IApiError } | undefined)?.data?.errors;
+  if (!Array.isArray(apiErrors) || !apiErrors.length) return null;
+
+  const guidError = apiErrors.find(
+    (err) =>
+      err?.name === "microsoft_tenant_id" &&
+      err.reason?.includes("must be a valid Microsoft Entra tenant ID")
+  );
+  return guidError
+    ? { [MSETID]: "Enter a valid tenant ID (GUID format)" }
+    : null;
 };
 
 export interface IEntraConditionalAccessModalProps {
@@ -41,49 +51,43 @@ const EntraConditionalAccessModal = ({
   onCancel,
   onSuccess,
 }: IEntraConditionalAccessModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+  const [serverErrors, setServerErrors] = useState<IFormErrors | null>(null);
 
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [formData, setFormData] = useState<IFormData>({
-    [MSETID]: "",
+  const {
+    formData,
+    setField,
+    getError,
+    clearFieldError,
+    validateField,
+    handleSubmit,
+    isSubmitting,
+  } = useFormValidation<IFormData>({
+    initialFormData: { [MSETID]: "" },
+    validate,
+    serverErrors,
   });
-  const [formErrors, setFormErrors] = useState<IFormErrors>({});
 
-  const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-
-    const errs = validate(formData);
-    if (Object.keys(errs).length > 0) {
-      setFormErrors(errs);
-      return;
-    }
-    setIsUpdating(true);
+  const onValidSubmit = async (data: IFormData) => {
+    setServerErrors(null);
     try {
       const {
         microsoft_authentication_url: msAuthURL,
       } = await conditionalAccessAPI.triggerMicrosoftConditionalAccess(
-        formData[MSETID]
+        data[MSETID]
       );
       window.open(msAuthURL);
-      setIsUpdating(false);
-      // Close modal and show banner on main page
       onSuccess();
     } catch (e) {
-      renderFlash(
-        "error",
-        "Could not update conditional access integration settings."
-      );
-      setIsUpdating(false);
+      const fieldErrors = parseEntraServerErrors(e);
+      if (fieldErrors) {
+        setServerErrors(fieldErrors);
+      } else {
+        notify.error(
+          "Could not update conditional access integration settings.",
+          { response: e }
+        );
+      }
     }
-  };
-
-  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
-    setFormData({ ...formData, [name]: value });
-    setFormErrors({}); // Clear any existing error
-  };
-
-  const onInputBlur = () => {
-    setFormErrors(validate(formData));
   };
 
   return (
@@ -93,41 +97,40 @@ const EntraConditionalAccessModal = ({
       className={baseClass}
       width="large"
     >
-      <>
-        <form onSubmit={onSubmit} autoComplete="off">
-          <p className={`${baseClass}__instructions`}>
-            To configure Microsoft Entra conditional access, follow the
-            instructions in the{" "}
-            <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/entra-conditional-access`}
-              text="guide"
-              newTab
-            />
-          </p>
-          <InputField
-            label="Microsoft Entra tenant ID"
-            helpText="You can find this in your Microsoft Entra admin center."
-            onChange={onInputChange}
-            name={MSETID}
-            value={formData[MSETID]}
-            parseTarget
-            onBlur={onInputBlur}
-            error={formErrors[MSETID]}
+      <form onSubmit={handleSubmit(onValidSubmit)} autoComplete="off">
+        <p className={`${baseClass}__instructions`}>
+          To configure Microsoft Entra conditional access, follow the
+          instructions in the{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/entra-conditional-access`}
+            text="guide"
+            newTab
           />
-          <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              disabled={!!size(formErrors)}
-              isLoading={isUpdating}
-            >
-              Save
-            </Button>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
-        </form>
-      </>
+        </p>
+        <InputField
+          label="Microsoft Entra tenant ID"
+          helpText="You can find this in your Microsoft Entra admin center."
+          name={MSETID}
+          value={formData[MSETID]}
+          onChange={(value: string) => setField(MSETID, value)}
+          onFocus={() => clearFieldError(MSETID)}
+          onBlur={() => validateField(MSETID)}
+          error={getError(MSETID)}
+          disabled={isSubmitting}
+        />
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            isLoading={isSubmitting}
+          >
+            Save
+          </Button>
+          <Button onClick={onCancel} variant="secondary">
+            Cancel
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

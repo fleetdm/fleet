@@ -1749,7 +1749,7 @@ parasails.registerPage('configuration-builder', {
         payloads: [
           {
             name: 'Allow users to change date and time settings',
-            uniqueSlug: 'windows-device-lock-enable-device-lock',
+            uniqueSlug: 'windows-date-time-allow-users-to-cahnge-settings',
             tooltip: 'Allows the user to change date and time settings.',
             category: 'Date & time',
             supportedAccessTypes: ['add', 'replace'],
@@ -1841,7 +1841,7 @@ parasails.registerPage('configuration-builder', {
                 name: 'Maximum inactivity time before device locks',
                 uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks',
                 category: 'Device lock',
-                tooltip: 'The number of seconds a device can remain inactive before a password is required to unlock the device.',
+                tooltip: 'The number of minutes a device can remain inactive before a password is required to unlock the device.',
                 supportedAccessTypes: ['add', 'replace'],
                 alsoAutoSetWhenSelected: [
                   {
@@ -1851,9 +1851,9 @@ parasails.registerPage('configuration-builder', {
                 ],
                 formInput: {
                   type: 'number',
-                  maxValue: 9000,
+                  maxValue: 999,
                   minValue: 1,
-                  unitLabel: 'seconds'
+                  unitLabel: 'minutes'
                 },
                 formOutput: {
                   settingFormat: 'int',
@@ -1864,7 +1864,7 @@ parasails.registerPage('configuration-builder', {
                 name: 'Maximum inactivity time before device locks with external display',
                 uniqueSlug: 'windows-device-lock-max-inactivity-before-device-locks-with-external-display',
                 category: 'Device lock',
-                tooltip: 'The number of seconds a device can remain inactive while using an external monitor before a password is required to unlock the device.',
+                tooltip: 'The number of minutes a device can remain inactive while using an external monitor before a password is required to unlock the device.',
                 supportedAccessTypes: ['add', 'replace'],
                 alsoAutoSetWhenSelected: [
                   {
@@ -1874,9 +1874,9 @@ parasails.registerPage('configuration-builder', {
                 ],
                 formInput: {
                   type: 'number',
-                  maxValue: 9000,
+                  maxValue: 999,
                   minValue: 1,
-                  unitLabel: 'seconds'
+                  unitLabel: 'minutes'
                 },
                 formOutput: {
                   settingFormat: 'int',
@@ -2075,7 +2075,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'int',
-                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/AllowSimpleDevicePassword',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/ClearTextPassword',
                   trueValue: 1,
                   falseValue: 0,
                 },
@@ -2091,7 +2091,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/AllowSimpleDevicePassword',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/PreventEnablingLockScreenCamera',
                   trueValue: '<![CDATA[<enabled/>]]>',
                   falseValue: '<![CDATA[<disabled/>]]>',
                 },
@@ -2115,8 +2115,8 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'int',
                   settingTarget: './Device/Vendor/MSFT/Policy/Config/DeviceLock/PasswordComplexity',
-                  trueValue: 0,
-                  falseValue: 1,
+                  trueValue: 1,
+                  falseValue: 0,
                 },
               },
             ],
@@ -2146,7 +2146,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Allow users to bypass Windows Defender SmartScreen prompts for sites',
-                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                tooltip: `This policy setting lets you decide whether employees can override the Windows Defender SmartScreen warnings about downloading unverified files.`,
                 uniqueSlug: 'windows-enable-smartscreen-bypass-in-edge',
                 category: 'SmartScreen',
                 supportedAccessTypes: ['add', 'replace'],
@@ -2294,16 +2294,16 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Set device name',
-                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                tooltip: `Sets the device's name. Supports the substitution variables %RAND:<# of digits>% (generates a random numeric string of the given length) and %SERIAL% (the device's serial number). The new name takes effect after the device is rebooted.`,
                 uniqueSlug: 'windows-set-device-name',
                 category: 'Personalization',
-                supportedAccessTypes: ['add', 'replace'],
+                supportedAccessTypes: ['replace'],
                 formInput: {
                   type: 'text',
                 },
                 formOutput: {
                   settingFormat: 'chr',
-                  settingTarget: './Device/Vendor/MSFT/DeviceName',
+                  settingTarget: './Device/Vendor/MSFT/DevDetail/Ext/Microsoft/DNSComputerName',
                 },
               },
             ],
@@ -3428,7 +3428,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Specify feature branch readiness level',
                 uniqueSlug: 'windows-updates-feature-branch',
-                tooltip: 'This policy enables devices to get optional updates including gradual feature rollouts',
+                tooltip: 'Enable this policy to specify when to receive Feature Updates.',
                 category: 'Updates',
                 payloadGroup: 'Windows update service',
                 supportedAccessTypes: ['add', 'replace'],
@@ -3444,7 +3444,7 @@ parasails.registerPage('configuration-builder', {
                       value: 4
                     },
                     {
-                      name: ` Release Windows Insider build`,
+                      name: `Release Windows Insider build`,
                       value: 8
                     },
                     {
@@ -3461,13 +3461,13 @@ parasails.registerPage('configuration-builder', {
                     },
                     {
                       name: `Canary channel.`,
-                      value: 1128
+                      value: 128
                     },
                   ]
                 },
                 formOutput: {
                   settingFormat: 'int',
-                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/AllowOptionalContent',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/BranchReadinessLevel',
                 },
               },
               {
@@ -3553,7 +3553,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'int',
-                  settingTarget: './Vendor/MSFT/Firewall/MdmStore/PublicProfile/EnableFirewall',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ManagePreviewBuilds',
                 },
               },
               {
@@ -3603,7 +3603,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Pause quality updates',
                 uniqueSlug: 'windows-updates-pause-quality-updates',
-                tooltip: 'If enabled, Windows merges locally set firewall rules with the MDM-delivered settings for the public profile',
+                tooltip: 'If enabled, Windows quality updates will be paused for 35 days from when this policy is set',
                 category: 'Updates',
                 payloadGroup: 'Windows update service',
                 supportedAccessTypes: ['replace', 'add'],
@@ -3622,7 +3622,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'int',
-                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseFeatureUpdates',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/PauseQualityUpdates',
                 },
               },
               {
@@ -4039,7 +4039,7 @@ parasails.registerPage('configuration-builder', {
                 },
                 formOutput: {
                   settingFormat: 'int',
-                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursEnd',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Update/ActiveHoursMaxRange',
                 },
               },
               {
@@ -4264,7 +4264,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Remove access to use all Windows Update features',
-                uniqueSlug: 'windows-updates-disable-pause-updates',
+                uniqueSlug: 'windows-updates-remove-acces-to-use-all-windows-update-features',
                 tooltip: 'Allows IT admins to remove end-user access to Windows Update scan.',
                 category: 'Updates',
                 payloadGroup: 'End user experience',
@@ -4281,7 +4281,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Set power policy for cart restarts',
-                uniqueSlug: 'windows-updates-disable-pause-updates',
+                uniqueSlug: 'windows-updates-set-power-policy-for-cart-restarts',
                 tooltip: 'Enabling this policy for EDU devices that remain on carts overnight will skip power checks to ensure update reboots will happen at the scheduled install time. This setting is designed for education devices that remain in carts overnight that are left in sleep mode. It isn\'t designed for 1:1 devices.',
                 category: 'Updates',
                 payloadGroup: 'End user experience',
@@ -4298,7 +4298,7 @@ parasails.registerPage('configuration-builder', {
               },
               {
                 name: 'Configure update notifications',
-                uniqueSlug: 'windows-updates-configure-active-hours-notification',
+                uniqueSlug: 'windows-updates-configure-update-notifications',
                 tooltip: 'This policy allows you to define what Windows Update notifications users see.',
                 category: 'Updates',
                 payloadGroup: 'End user experience',
@@ -4342,7 +4342,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Enable firewall on Domain profile',
                 uniqueSlug: 'windows-firewall-enabled-domain',
-                tooltip: 'Enables windows defender firewall on the devices Domain profile',
+                tooltip: `Enables windows defender firewall on the device's Domain profile`,
                 category: 'Firewall',
                 payloadGroup: 'Domain profile',
                 supportedAccessTypes: ['replace'],
@@ -4372,7 +4372,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Enable firewall on private profile',
                 uniqueSlug: 'windows-firewall-enabled-private',
-                tooltip: 'Enables windows defender firewall on the devices Domain profile',
+                tooltip: `Enables windows defender firewall on the device's private profile`,
                 category: 'Firewall',
                 payloadGroup: 'Private profile',
                 supportedAccessTypes: ['replace'],
@@ -5235,7 +5235,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Allow installation of untrusted applications',
                 uniqueSlug: 'android-untrusted-apps',
-                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                tooltip: `Controls whether the user can install apps from sources other than the Google Play Store (i.e., from unknown sources).`,
                 category: 'Applications',
                 formInput: {
                   type: 'radio',
@@ -5266,7 +5266,7 @@ parasails.registerPage('configuration-builder', {
               {
                 name: 'Enforce Google Play protect verification',
                 uniqueSlug: 'android-google-play-protect',
-                tooltip: `The app auto-update policy, which controls when automatic app updates can be applied.`,
+                tooltip: `Controls whether Google Play Protect verifies apps for harmful behavior before and periodically after they are installed.`,
                 category: 'Applications',
                 formInput: {
                   type: 'radio',

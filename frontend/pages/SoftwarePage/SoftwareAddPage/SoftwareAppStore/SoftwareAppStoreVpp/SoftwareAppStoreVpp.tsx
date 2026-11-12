@@ -1,95 +1,174 @@
-import React, { useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
 import { AxiosError } from "axios";
-import PATHS from "router/paths";
+import React, { useContext, useState } from "react";
+import { useQuery, useQueryClient } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import { NotificationContext } from "context/notification";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { ILabelSummary } from "interfaces/label";
+import { formatVppTokenLabel } from "interfaces/mdm";
+import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+import PATHS from "router/paths";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
 import softwareAPI from "services/entities/software";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Button from "components/buttons/Button";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
-
 import { getPathWithQueryParams } from "utilities/url";
+
 import SoftwareVppForm from "../../../components/forms/SoftwareVppForm";
-import { getErrorMessage, teamHasVPPToken } from "./helpers";
 import { ISoftwareVppFormData } from "../../../components/forms/SoftwareVppForm/SoftwareVppForm";
+
+import {
+  getErrorMessage,
+  getFleetVppTokens,
+  isVppTokenExpired,
+} from "./helpers";
 
 const baseClass = "software-app-store-vpp";
 //
 
 interface IEnableVppMessage {
   onEnableVpp: () => void;
+  isGlobalAdmin?: boolean;
 }
 
-const EnableVppMessage = ({ onEnableVpp }: IEnableVppMessage) => (
-  <div className={`${baseClass}__enable-vpp-message`}>
-    <p className={`${baseClass}__enable-vpp-title`}>
-      Volume Purchasing Program (VPP) isn&apos;t enabled
-    </p>
-    <p className={`${baseClass}__enable-vpp-description`}>
-      To add App Store apps, first enable VPP.
-    </p>
-    <Button onClick={onEnableVpp}>Enable VPP</Button>
-  </div>
+const EnableVppMessage = ({
+  onEnableVpp,
+  isGlobalAdmin,
+}: IEnableVppMessage) => (
+  <EmptyState
+    variant="list"
+    header="Volume Purchasing Program (VPP) isn't enabled"
+    info={
+      isGlobalAdmin
+        ? "Enable VPP to add App Store apps (MDM required)."
+        : "To add App Store apps, ask your admin to enable VPP."
+    }
+    primaryButton={
+      isGlobalAdmin ? (
+        <Button onClick={onEnableVpp}>Enable VPP</Button>
+      ) : undefined
+    }
+  />
 );
 
 interface IAddTeamToVppMessage {
   onEditVpp: () => void;
+  isGlobalAdmin?: boolean;
+  /** Named-team display name, or null when useTeamIdParam hasn't resolved yet.
+   * Ignored when `isNoTeam` is true. */
+  currentTeamName: string | null;
+  isNoTeam: boolean;
 }
 
-const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
-  <EmptyTable
-    header="This team isn't added to Volume Purchasing Program (VPP)"
-    info="To add App Store apps, first add this team to VPP."
-    primaryButton={<Button onClick={onEditVpp}> Edit VPP</Button>}
+const AddTeamToVppMessage = ({
+  onEditVpp,
+  isGlobalAdmin,
+  currentTeamName,
+  isNoTeam,
+}: IAddTeamToVppMessage) => {
+  let header: string;
+  let subject: string;
+  if (isNoTeam) {
+    header = "Unassigned hosts aren't in Volume Purchasing Program (VPP)";
+    subject = "unassigned hosts";
+  } else if (currentTeamName) {
+    header = `${currentTeamName} fleet isn't added to Volume Purchasing Program (VPP)`;
+    subject = `${currentTeamName} fleet`;
+  } else {
+    header = "This fleet isn't added to Volume Purchasing Program (VPP)";
+    subject = "this fleet";
+  }
+
+  return (
+    <EmptyState
+      variant="list"
+      header={header}
+      info={
+        isGlobalAdmin
+          ? `To add App Store apps, first add ${subject} to VPP.`
+          : `To add App Store apps, ask your admin to add ${subject} to VPP.`
+      }
+      primaryButton={
+        isGlobalAdmin ? (
+          <Button onClick={onEditVpp}>Edit VPP</Button>
+        ) : undefined
+      }
+    />
+  );
+};
+
+interface IVppTokenExpiredMessage {
+  onRenew: () => void;
+  isGlobalAdmin?: boolean;
+}
+
+const VppTokenExpiredMessage = ({
+  onRenew,
+  isGlobalAdmin,
+}: IVppTokenExpiredMessage) => (
+  <EmptyState
+    header="Token expired"
+    info={
+      isGlobalAdmin
+        ? "To add apps from this token you must renew it first."
+        : "To add apps from this token, ask your admin to renew it."
+    }
+    primaryButton={
+      isGlobalAdmin ? <Button onClick={onRenew}>Renew</Button> : undefined
+    }
   />
 );
 
 const NoVppAppsMessage = () => (
-  <div className={`${baseClass}__no-vpp-message`}>
-    <p className={`${baseClass}__no-vpp-title`}>
-      You don&apos;t have any App Store apps
-    </p>
-    <p className={`${baseClass}__no-vpp-description`}>
-      You must purchase apps in{" "}
-      <CustomLink
-        url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-apps`}
-        text="ABM"
-        newTab
-      />
-      .<br />
-      App Store apps that are already added to this team are not listed.
-    </p>
-  </div>
+  <EmptyState
+    variant="list"
+    header="You don't have any App Store apps"
+    info={
+      <>
+        You must purchase apps in{" "}
+        <CustomLink
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-apps`}
+          text="Apple Business"
+          newTab
+        />
+        <br />
+        App Store apps that are already added to this fleet are not listed.
+      </>
+    }
+  />
 );
 
 interface ISoftwareAppStoreProps {
   currentTeamId: number;
+  currentTeamName?: string;
   router: InjectedRouter;
 }
 
 const SoftwareAppStoreVpp = ({
   currentTeamId,
+  currentTeamName,
   router,
 }: ISoftwareAppStoreProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const {
+    isPremiumTier,
+    isGlobalAdmin,
+    isMacMdmEnabledAndConfigured,
+  } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const [isLoading, setIsLoading] = useState(false);
   const [
@@ -107,6 +186,7 @@ const SoftwareAppStoreVpp = ({
     () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!isMacMdmEnabledAndConfigured,
       staleTime: 30000,
       retry: (tries, error) => error.status !== 404 && tries <= 3,
     }
@@ -131,30 +211,37 @@ const SoftwareAppStoreVpp = ({
   );
 
   const noVppTokenUploaded = !vppInfo || !vppInfo.vpp_tokens.length;
-  const hasVppToken = teamHasVPPToken(currentTeamId, vppInfo?.vpp_tokens);
+  const fleetTokens = getFleetVppTokens(currentTeamId, vppInfo?.vpp_tokens);
+  const [selectedTokenId, setSelectedTokenId] = useState<number>();
+  const selectedToken =
+    fleetTokens.find((t) => t.id === selectedTokenId) ?? fleetTokens[0];
+  const vppTokenId = selectedToken?.id;
+  const isSelectedTokenExpired = isVppTokenExpired(selectedToken);
 
   const {
     data: vppApps,
     isLoading: isLoadingVppApps,
     error: errorVppApps,
   } = useQuery(
-    ["vppSoftware", currentTeamId],
-    () => mdmAppleAPI.getVppApps(currentTeamId),
+    ["vppSoftware", currentTeamId, vppTokenId],
+    () => mdmAppleAPI.getVppApps(currentTeamId, vppTokenId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: hasVppToken,
+      enabled:
+        !!vppTokenId &&
+        !isSelectedTokenExpired &&
+        !!isMacMdmEnabledAndConfigured,
       staleTime: 30000,
       select: (res) => res.app_store_apps,
     }
   );
 
-  const goBackToSoftwareTitles = (showAvailableForInstallOnly = false) => {
-    const queryParams = {
-      team_id: currentTeamId,
-      ...(showAvailableForInstallOnly && { available_for_install: true }),
-    };
-
-    router.push(getPathWithQueryParams(PATHS.SOFTWARE_TITLES, queryParams));
+  const goBackToSoftwareLibrary = () => {
+    router.push(
+      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
+        fleet_id: currentTeamId,
+      })
+    );
   };
 
   const onClickPreviewEndUserExperience = (iosOrIpadosApp?: boolean) => {
@@ -172,24 +259,35 @@ const SoftwareAppStoreVpp = ({
     try {
       const {
         software_title_id: softwareVppTitleId,
-      } = await softwareAPI.addAppStoreApp(currentTeamId, formData);
+      } = await softwareAPI.addAppStoreApp(currentTeamId, {
+        ...formData,
+        vppTokenId,
+      });
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
           <b>{formData.selectedApp.name}</b> successfully added.
-        </>,
-        { persistOnPageChange: true }
+        </>
       );
+
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["vppSoftware", currentTeamId],
+      });
 
       router.push(
         getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(softwareVppTitleId.toString()),
-          { team_id: currentTeamId }
+          { fleet_id: currentTeamId }
         )
       );
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
 
     setIsLoading(false);
@@ -202,11 +300,21 @@ const SoftwareAppStoreVpp = ({
       );
     }
 
-    if (isLoadingVppInfo || isLoadingVppApps || isLoadingLabels) {
+    // VPP needs Apple MDM; a token uploaded before MDM was turned off must not be used.
+    if (!isMacMdmEnabledAndConfigured) {
+      return (
+        <EnableVppMessage
+          onEnableVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+          isGlobalAdmin={isGlobalAdmin}
+        />
+      );
+    }
+
+    if (isLoadingVppInfo || isLoadingLabels) {
       return <Spinner />;
     }
 
-    if (errorVppInfo || errorVppApps || isErrorLabels) {
+    if (errorVppInfo || isErrorLabels) {
       return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
@@ -214,34 +322,86 @@ const SoftwareAppStoreVpp = ({
       return (
         <EnableVppMessage
           onEnableVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+          isGlobalAdmin={isGlobalAdmin}
         />
       );
     }
 
-    if (!hasVppToken) {
+    if (!fleetTokens.length) {
       return (
         <AddTeamToVppMessage
           onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+          isGlobalAdmin={isGlobalAdmin}
+          currentTeamName={currentTeamName ?? null}
+          isNoTeam={currentTeamId === APP_CONTEXT_NO_TEAM_ID}
         />
       );
     }
 
-    if (!vppApps) {
-      return <NoVppAppsMessage />;
-    }
-    return (
-      <div className={`${baseClass}__content`}>
+    // The token dropdown stays above the list so a token that is loading,
+    // errored, or empty doesn't strand the user on it.
+    const renderApps = () => {
+      if (isSelectedTokenExpired) {
+        return (
+          <>
+            <VppTokenExpiredMessage
+              onRenew={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+              isGlobalAdmin={isGlobalAdmin}
+            />
+            <div className={`${baseClass}__action-buttons`}>
+              <Button disabled>Add software</Button>
+              <Button onClick={goBackToSoftwareLibrary} variant="secondary">
+                Cancel
+              </Button>
+            </div>
+          </>
+        );
+      }
+      if (isLoadingVppApps) {
+        return <Spinner />;
+      }
+      if (errorVppApps) {
+        return <DataError verticalPaddingSize="pad-xxxlarge" />;
+      }
+      if (!vppApps) {
+        return <NoVppAppsMessage />;
+      }
+      return (
         <SoftwareVppForm
+          key={vppTokenId}
           labels={labels || []}
           onSubmit={onAddSoftware}
-          onCancel={goBackToSoftwareTitles}
+          onCancel={goBackToSoftwareLibrary}
           onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
           isLoading={isLoading}
           vppApps={vppApps}
         />
+      );
+    };
+
+    return (
+      <div className={`${baseClass}__content`}>
+        {fleetTokens.length > 1 && (
+          <DropdownWrapper
+            ariaLabel="Select VPP token"
+            name="vpp-token"
+            label="VPP token"
+            onChange={(token) =>
+              token && setSelectedTokenId(Number(token.value))
+            }
+            value={vppTokenId?.toString()}
+            options={fleetTokens.map((t) => ({
+              label: formatVppTokenLabel(t),
+              value: t.id.toString(),
+              helpText: t.org_name,
+            }))}
+          />
+        )}
+        {renderApps()}
         {showPreviewEndUserExperience && (
           <CategoriesEndUserExperienceModal
             onCancel={onClickPreviewEndUserExperience}
+            teamId={currentTeamId}
             isIosOrIpadosApp={isIosOrIpadosApp}
           />
         )}

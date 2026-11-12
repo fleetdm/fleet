@@ -7,11 +7,22 @@
     justify-content: space-between;
   }
 
+  &__header-actions {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
   &__content {
     display: inline-grid;
     gap: $pad-medium $pad-xxlarge;
     grid-template-columns: repeat(2, auto);
     grid-template-rows: repeat(3, auto);
     grid-auto-flow: column;
+
+    // Column flow adds a third column instead of a row once the fields outgrow the rows.
+    &:has(> :nth-child(7)) {
+      grid-template-rows: repeat(4, auto);
+    }
   }
 }

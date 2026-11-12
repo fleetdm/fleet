@@ -1,0 +1,142 @@
+import { Command } from "cmdk";
+import React, { useEffect } from "react";
+
+import CriticalPolicyBadge from "components/CriticalPolicyBadge";
+import { PATCH_TOOLTIP_CONTENT } from "components/SoftwareInstallPolicyBadges/SoftwareInstallPolicyBadges";
+import Tag from "components/Tag";
+import {
+  ILoadAllPoliciesResponse,
+  ILoadTeamPoliciesResponse,
+  IPolicyStats,
+} from "interfaces/policy";
+import { APP_CONTEXT_ALL_TEAMS_ID, ITeamSummary } from "interfaces/team";
+import globalPoliciesAPI from "services/entities/global_policies";
+import teamPoliciesAPI from "services/entities/team_policies";
+
+import { RESULT_PREFIXES } from "./constants";
+import HighlightedLabel from "./HighlightedLabel";
+import getFleetSuffix from "./pickerCopy";
+import usePickerSearch from "./usePickerSearch";
+
+const baseClass = "command-palette";
+
+const POLICY_SEARCH_LIMIT = 50;
+
+interface IPolicyPickerProps {
+  search: string;
+  currentTeam?: ITeamSummary;
+  /** Critical-policy badge is Premium-only (matches PoliciesTable). */
+  isPremiumTier?: boolean;
+  onSelect: (policyId: number) => void;
+  /** Fires when the results list identity changes, with the cmdk value of
+   *  the first item (or null when empty). See HostPicker for rationale. */
+  onResultsChange?: (firstItemValue: string | null) => void;
+}
+
+const PolicyPicker = ({
+  search,
+  currentTeam,
+  isPremiumTier = false,
+  onSelect,
+  onResultsChange,
+}: IPolicyPickerProps): JSX.Element => {
+  const teamId =
+    currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID
+      ? currentTeam.id
+      : undefined;
+
+  const fleetSuffix = getFleetSuffix(currentTeam);
+
+  const { items: policies, isLoading, debouncedQuery } = usePickerSearch<
+    ILoadAllPoliciesResponse | ILoadTeamPoliciesResponse,
+    IPolicyStats
+  >({
+    search,
+    queryKeyPrefix: ["commandPalettePolicies", teamId ?? "global"],
+    queryFn: (q) => {
+      if (teamId !== undefined) {
+        return teamPoliciesAPI.loadAllNew({
+          teamId,
+          page: 0,
+          perPage: POLICY_SEARCH_LIMIT,
+          query: q || undefined,
+          // Surface inherited global policies in team views, matching the
+          // Policies page behavior.
+          mergeInherited: true,
+        });
+      }
+      return globalPoliciesAPI.loadAllNew({
+        page: 0,
+        perPage: POLICY_SEARCH_LIMIT,
+        query: q || undefined,
+      });
+    },
+    selectItems: (data) => data?.policies ?? [],
+  });
+
+  const firstItemValue =
+    policies.length > 0 ? `${RESULT_PREFIXES.policy}${policies[0].id}` : null;
+  // See HostPicker.
+  const itemsSignature = policies.map((p) => p.id).join(",");
+  useEffect(() => {
+    onResultsChange?.(firstItemValue);
+  }, [itemsSignature, firstItemValue, onResultsChange]);
+
+  if (isLoading && policies.length === 0) {
+    return <div className={`${baseClass}__empty`}>Looking for policies...</div>;
+  }
+
+  if (policies.length === 0) {
+    return (
+      <div className={`${baseClass}__empty`}>
+        {debouncedQuery
+          ? `No policies match "${debouncedQuery}"${fleetSuffix}.`
+          : `No policies found${fleetSuffix}.`}
+      </div>
+    );
+  }
+
+  // "Inherited" applies only when viewing a specific team and the policy
+  // is a global one (fleet_id === null), matching PoliciesTableConfig.
+  const isViewingSpecificTeam =
+    !!currentTeam && currentTeam.id !== APP_CONTEXT_ALL_TEAMS_ID;
+
+  return (
+    <Command.Group className={`${baseClass}__group`}>
+      {policies.map((policy) => {
+        const showCriticalBadge = isPremiumTier && policy.critical;
+        const showPatchBadge = policy.type === "patch";
+        const showInheritedBadge =
+          isViewingSpecificTeam && policy.fleet_id === null;
+
+        return (
+          <Command.Item
+            key={`policy-${policy.id}`}
+            value={`${RESULT_PREFIXES.policy}${policy.id}`}
+            onSelect={() => onSelect(policy.id)}
+            className={`${baseClass}__item`}
+          >
+            <div className={`${baseClass}__item-left`}>
+              <span className={`${baseClass}__item-label`}>
+                <HighlightedLabel text={policy.name} query={debouncedQuery} />
+              </span>
+              {showCriticalBadge && <CriticalPolicyBadge />}
+              {showPatchBadge && (
+                <Tag tooltip={PATCH_TOOLTIP_CONTENT} size="small">
+                  Patch
+                </Tag>
+              )}
+              {showInheritedBadge && (
+                <Tag tooltip="This policy runs on all hosts." size="small">
+                  Inherited
+                </Tag>
+              )}
+            </div>
+          </Command.Item>
+        );
+      })}
+    </Command.Group>
+  );
+};
+
+export default PolicyPicker;

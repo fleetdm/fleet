@@ -2,8 +2,12 @@
 
 In Fleet you can run custom scripts to remediate an issue on your macOS, Windows, and Linux hosts.
 
-Shell scripts are supported on macOS and Linux. By default, shell scripts will run in the host's (root) shell (`/bin/sh`). We also support `/bin/zsh` and `/bin/bash` interpreters.
-Note: To run in `/bin/zsh` or `/bin/bash`, create `.sh` file (only supported extension) and add an interpreter at the first line.
+Shell (`.sh`) and Python (`.py`) scripts are supported on macOS and Linux.
+
+By default, shell scripts will run in the host's (root) shell (`/bin/sh`). To run a shell script in `/bin/zsh` or `/bin/bash`, add a shebang as the first line (for example, `#!/bin/zsh` or `#!/bin/bash`).
+
+Python scripts must start with a Python shebang as the first line (for example, `#!/usr/bin/env python3` or `#!/usr/bin/python3`).
+> Python must be installed on the target host before running `.py` scripts. If you're deploying a script-only package that uses Python, ensure Python is present (e.g., via a prerequisite software package or a shell script that installs it first).
 
 PowerShell scripts are supported on Windows. Other types of scripts are not supported yet.
 
@@ -21,7 +25,7 @@ If you don't use MDM features, to enable scripts, we'll [deploy Fleet's agent (f
 
 If you already deployed fleetd, instead of re-deploying it, you can update fleetd's configuration remotely to enable scripts. This requires a third-party tool (ex. [Chef](https://www.chef.io/)), other than Fleet, that can run scripts. 
 
-Using your separate third-party tool, run the enable scripts script for [macOS](https://github.com/fleetdm/fleet/blob/main/assets/scripts/enable-scripts-macos.sh), [Windows](https://github.com/fleetdm/fleet/blob/main/assets/windows/scripts/enable-scripts-windows.ps1), or [Linux](https://github.com/fleetdm/fleet/blob/main/assets/scripts/enable-scripts-linux.sh).
+Using your separate third-party tool, run the enable scripts script for [macOS](https://github.com/fleetdm/fleet/blob/main/assets/scripts/enable-scripts-macos.sh), [Windows](https://github.com/fleetdm/fleet/blob/main/assets/scripts/enable-scripts-windows.ps1), or [Linux](https://github.com/fleetdm/fleet/blob/main/assets/scripts/enable-scripts-linux.sh).
 
 ## Manually run scripts
 
@@ -41,7 +45,7 @@ Fleet UI (multiple hosts):
 
 1. In Fleet, head to the **Controls > Scripts** tab and upload your script.
 
-2. Head to the **Hosts** page. If you're on Fleet Premium, select a team (or "no team").
+2. Head to the **Hosts** page. If you're on Fleet Premium, select a fleet (or "Unassigned").
 
 3. Click the checkbox next to one or more hosts you want to run the script on.
 
@@ -71,7 +75,7 @@ You can execute a script on a large number of hosts at the same time using the F
 
 Fleet UI:
 
-1. In Fleet, go to the **Hosts** page, and select a team.
+1. In Fleet, go to the **Hosts** page, and select a fleet.
 
 2. Select the hosts that you want to run the script on.
 
@@ -86,15 +90,39 @@ After you've initiated a batch script run, you can see its status by navigating 
 To see a breakdown of the hosts targeted by a specific batch script run, click on that run's entry in the **Started**, **Scheduled**, or **Finished** list.  
 
 To cancel a current or future batch script run:
+
 1. Select the batch run you wish to cancel from the **Started** or **Scheduled** list.
+
 2. In the modal window that appears, hover over the **Pending** hosts row.
+
 3. Click on the **Cancel** button that appears in that row.
 
 Fleet API: See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#batch-run-script)
+
+## Use Fleet variables in scripts
+
+Fleet's [built-in variables](https://fleetdm.com/guides/fleet-variables) (prefixed with `$FLEET_VAR_`) can be used in scripts to inject host-specific data at execution time. When the script runs on a host, Fleet replaces the variable with the host's actual value.
+
+For example, to use the host's end user IdP username in a script:
+
+**macOS/Linux (.sh):**
+```sh
+#!/bin/bash
+echo "Configuring account for $FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+```
+
+**Windows (.ps1):**
+```sh
+Write-Host "Serial: $FLEET_VAR_HOST_HARDWARE_SERIAL"
+```
+
+See the full list of supported variables in the [built-in variables](https://fleetdm.com/guides/fleet-variables) guide.
+
+> The ${FLEET_VAR_NAME} brace syntax is also supported for embedding variables within strings (e.g., user_${FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART}@company.com).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-10-07">
 <meta name="articleTitle" value="Scripts">
-<meta name="description" value="Learn how to execute a custom script on macOS, Windows, and Linux hosts in Fleet.">
+<meta name="description" value="Learn how to execute scripts on your hosts using Fleet, including using Fleet variables for host-specific data.">

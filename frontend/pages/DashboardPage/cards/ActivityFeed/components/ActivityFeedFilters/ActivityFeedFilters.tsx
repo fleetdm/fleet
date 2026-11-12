@@ -1,12 +1,11 @@
 import React from "react";
 
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import SearchField from "components/forms/fields/SearchField";
 import {
   ACTIVITY_TYPE_TO_FILTER_LABEL,
   ActivityType,
 } from "interfaces/activity";
-
-import SearchField from "components/forms/fields/SearchField";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 
 import ActivityTypeDropdown from "../ActivityTypeDropdown";
 
@@ -89,6 +88,7 @@ const ActivityFeedFilters = ({
           onSelect={onChangeActivityType}
         />
         <DropdownWrapper
+          ariaLabel="Filter by date"
           className={`${baseClass}__date-filter-dropdown`}
           iconName="calendar"
           name="date-filter"
@@ -101,9 +101,10 @@ const ActivityFeedFilters = ({
           }}
         />
         <DropdownWrapper
+          ariaLabel="Filter by activity age"
           className={`${baseClass}__sort-created-at-dropdown`}
           name="created-at-filter"
-          iconName="filter"
+          iconName="sort"
           options={SORT_OPTIONS}
           value={createdAtDirection}
           onChange={(value) => {

@@ -1,0 +1,10 @@
+{
+  "name": "CustomShortcuts",
+  "unique_identifier": "com.houdah.CustomShortcuts",
+  "token": "customshortcuts",
+  "installer_format": "zip",
+  "slug": "customshortcuts/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Bdash",
+  "slug": "bdash/windows",
+  "package_identifier": "bdash-app.bdash",
+  "unique_identifier": "Bdash",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "fuzzy_match_name": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/bdash_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/bdash_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

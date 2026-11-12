@@ -30,8 +30,11 @@ type PackageTest struct {
 	forbiddenPkgs []string
 }
 
+// ModuleName is the module name for the fleet project.
+const ModuleName = "github.com/fleetdm/fleet/v4"
+
 // PackageTest will ignore dependency on this package.
-const thisPackage = "github.com/fleetdm/fleet/v4/server/archtest"
+const thisPackage = ModuleName + "/server/archtest"
 
 type TestingT interface {
 	Errorf(format string, args ...any)

@@ -1,11 +1,22 @@
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
-import { screen } from "@testing-library/react";
 
 import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
 import { IConfig } from "interfaces/config";
+import configAPI from "services/entities/config";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import EndUserMigrationSection from "./EndUserMigrationSection";
+
+jest.mock("services/entities/config");
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+    batch: jest.fn(),
+    dismiss: jest.fn(),
+  },
+}));
 
 const createTestMockData = (
   configOverrides: Partial<IConfig>,
@@ -20,15 +31,152 @@ const createTestMockData = (
         }),
         setConfig: jest.fn(),
       },
-      notification: {
-        renderFlash: jest.fn(),
-      },
     },
   };
 };
 
 describe("EndUserMigrationSection", () => {
   const mockRouter = createMockRouter();
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("disables the save button while an update is in flight", async () => {
+    // Hold the request open so the in-flight window can be asserted on.
+    let resolveUpdate!: (config: IConfig) => void;
+    const updateSpy = jest.mocked(configAPI.update).mockImplementation(
+      () =>
+        new Promise<IConfig>((resolve) => {
+          resolveUpdate = resolve;
+        })
+    );
+
+    const render = createCustomRenderer(
+      createTestMockData({
+        mdm: createMockMdmConfig({
+          macos_migration: {
+            enable: true,
+            mode: "voluntary",
+            webhook_url: "https://example.com/webhook",
+          },
+        }),
+      })
+    );
+
+    const { user } = render(<EndUserMigrationSection router={mockRouter} />);
+
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    expect(saveButton).not.toBeDisabled();
+
+    await user.click(saveButton);
+    await waitFor(() => expect(saveButton).toBeDisabled());
+
+    // Extra clicks while the first request is open must not send more requests.
+    await user.click(saveButton);
+    await user.click(saveButton);
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+
+    resolveUpdate(createMockConfig());
+    await waitFor(() => expect(saveButton).not.toBeDisabled());
+  });
+
+  it("re-enables the save button when the update fails", async () => {
+    // Hold the request open so the button can be observed disabled before the
+    // failure, proving it is the rejection that re-enables it.
+    let rejectUpdate!: (err: Error) => void;
+    jest.mocked(configAPI.update).mockImplementation(
+      () =>
+        new Promise<IConfig>((_resolve, reject) => {
+          rejectUpdate = reject;
+        })
+    );
+
+    const render = createCustomRenderer(
+      createTestMockData({
+        mdm: createMockMdmConfig({
+          macos_migration: {
+            enable: true,
+            mode: "voluntary",
+            webhook_url: "https://example.com/webhook",
+          },
+        }),
+      })
+    );
+
+    const { user } = render(<EndUserMigrationSection router={mockRouter} />);
+
+    const saveButton = screen.getByRole("button", { name: "Save" });
+    await user.click(saveButton);
+    await waitFor(() => expect(saveButton).toBeDisabled());
+
+    rejectUpdate(new Error("Something went wrong"));
+    await waitFor(() => expect(saveButton).not.toBeDisabled());
+  });
+
+  it("saves without toggling migration when Enter is pressed in the webhook URL", async () => {
+    const updateSpy = jest
+      .mocked(configAPI.update)
+      .mockResolvedValue(createMockConfig());
+    const render = createCustomRenderer(
+      createTestMockData({
+        mdm: createMockMdmConfig({
+          macos_migration: {
+            enable: true,
+            mode: "voluntary",
+            webhook_url: "https://example.com/webhook",
+          },
+        }),
+      })
+    );
+
+    const { user } = render(<EndUserMigrationSection router={mockRouter} />);
+
+    await user.type(
+      screen.getByRole("textbox", { name: "Webhook URL" }),
+      "{Enter}"
+    );
+
+    await waitFor(() =>
+      expect(updateSpy).toHaveBeenCalledWith({
+        mdm: {
+          macos_migration: {
+            enable: true,
+            mode: "voluntary",
+            webhook_url: "https://example.com/webhook",
+          },
+        },
+      })
+    );
+    expect(screen.getByRole("switch")).toBeChecked();
+  });
+
+  it("doesn't save an invalid webhook URL when Enter is pressed", async () => {
+    const updateSpy = jest
+      .mocked(configAPI.update)
+      .mockResolvedValue(createMockConfig());
+    const render = createCustomRenderer(
+      createTestMockData({
+        mdm: createMockMdmConfig({
+          macos_migration: {
+            enable: true,
+            mode: "voluntary",
+            webhook_url: "",
+          },
+        }),
+      })
+    );
+
+    const { user } = render(<EndUserMigrationSection router={mockRouter} />);
+
+    await user.type(
+      screen.getByRole("textbox", { name: "Webhook URL" }),
+      "not-a-url{Enter}"
+    );
+
+    expect(updateSpy).not.toHaveBeenCalled();
+    expect(screen.getByText("Must be a valid URL.")).toBeInTheDocument();
+  });
 
   it("toggles form elements disabled state when slider is clicked", async () => {
     const render = createCustomRenderer(
@@ -81,6 +229,7 @@ describe("EndUserMigrationSection", () => {
         gitops: {
           gitops_mode_enabled: true,
           repository_url: "https://example.com/repo.git",
+          exceptions: { labels: false, software: false, secrets: true },
         },
       })
     );
@@ -121,7 +270,7 @@ describe("EndUserMigrationSection", () => {
     render(<EndUserMigrationSection router={mockRouter} />);
 
     expect(
-      screen.getByText("Connect to Apple Business Manager to get started.")
+      screen.getByText("Connect to Apple Business to get started.")
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Connect" })).toBeInTheDocument();
   });

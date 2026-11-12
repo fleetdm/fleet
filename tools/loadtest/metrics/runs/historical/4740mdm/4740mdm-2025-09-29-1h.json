@@ -1,0 +1,113 @@
+{
+  "metadata": {
+    "workspace": "4740mdm",
+    "collected_at": "2025-09-29T00:00:00Z",
+    "interval": "1h",
+    "release": "4.74.0",
+    "category": "mdm",
+    "source": "spreadsheet-backfill",
+    "sheet_row": 36
+  },
+  "fleet_server": {
+    "cpu_utilization": {
+      "Average": 25.0
+    },
+    "memory_utilization": {
+      "Average": 1.74
+    },
+    "task_counts": {
+      "runningCount": 20
+    }
+  },
+  "loadtest_containers": {
+    "cpu_utilization": {
+      "Average": 50.0
+    },
+    "memory_utilization": {
+      "Average": 30.0
+    },
+    "task_counts": {
+      "runningCount": 10
+    }
+  },
+  "rds_writer": {
+    "instance": "writer",
+    "cpu_utilization": {
+      "Average": 4.0
+    },
+    "write_iops": {
+      "Average": 400.0
+    },
+    "deadlocks": null
+  },
+  "rds_writer_extended": {
+    "threads_running": {
+      "average": 3.0,
+      "maximum": 4.0
+    },
+    "iops_utilization": null
+  },
+  "rds_readers": [
+    {
+      "instance": "reader-1",
+      "cpu_utilization": {
+        "Average": 1.0
+      },
+      "read_iops": {
+        "Average": 3.0,
+        "Maximum": 4.0
+      }
+    }
+  ],
+  "rds_readers_extended": [
+    {
+      "instance": "reader-1",
+      "threads_running": {
+        "average": 3.0,
+        "maximum": 4.0
+      }
+    }
+  ],
+  "redis": [
+    {
+      "node": "redis-1",
+      "cpu_utilization": {
+        "Average": 2.1,
+        "Maximum": 2.7
+      },
+      "memory_utilization": {
+        "Average": 0.24
+      }
+    }
+  ],
+  "fleet_server_errors": {
+    "error_count": 0
+  },
+  "backfill": {
+    "source": "Fleet release load testing results (Google Sheet), manual-logging era",
+    "purpose": "Ticket #28974",
+    "one_click": null,
+    "notes": "Baseline test after adding 4 Certificate Authorities. Before\u2026",
+    "raw": {
+      "fleet_containers": "20",
+      "loadtest_containers": "10",
+      "fleet_cpu": "~25%",
+      "fleet_mem": "~1.74%",
+      "errors": "No new errors. I did see this initially then it went away",
+      "writer_top_sql": "INSERT IGNORE INTO `softw\u2026",
+      "writer_cpu": "~4%",
+      "writer_sessions": "2-4 avg",
+      "writer_iops": "~400",
+      "reader_top_sql": "SELECT `h` . `id` , `h` .\u2026",
+      "reader_cpu": "~1%",
+      "reader_sessions": "2-4 avg",
+      "reader_iops": "2 -4",
+      "redis_cpu": "1.5 - 2.7%",
+      "redis_mem": "0.24%",
+      "osquery_uptime": "100%",
+      "osquery_cpu": "50%",
+      "osquery_mem": "30%",
+      "deadlocks": "~1-2"
+    }
+  }
+}

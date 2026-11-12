@@ -1,10 +1,10 @@
-import { useQuery, UseQueryResult } from "react-query";
 import { filter, uniqueId } from "lodash";
+import { useQuery, UseQueryResult } from "react-query";
 
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { ITeam } from "interfaces/team";
 import { ISelectedTargetsForApi } from "interfaces/target";
+import { ITeam } from "interfaces/team";
 import targetsAPI from "services/entities/targets";
 
 export interface ITargetsLabels {
@@ -65,8 +65,8 @@ const getTargets = async (
         ({ label_type: type }) => type === "regular"
       ).map((label) => ({ ...label, uuid: uniqueId() }));
 
-      const teams = targets.teams.map((team) => ({
-        ...team,
+      const teams = targets.fleets.map((fleet) => ({
+        ...fleet,
         uuid: uniqueId(),
       }));
 

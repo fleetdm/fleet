@@ -29,7 +29,11 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 					ID:    123,
 					Email: "test@example.com",
 				}
-				return viewer.NewContext(ctx, viewer.Viewer{User: testUser})
+				v := viewer.Viewer{User: testUser}
+				ctx = viewer.NewContext(ctx, v)
+				// Register the viewer as an error context provider
+				ctx = AddErrorContextProvider(ctx, &v)
+				return ctx
 			},
 			errorMessage: "test error with user context",
 			expectedAttrs: map[string]any{
@@ -43,7 +47,10 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 					ID:       456,
 					Hostname: "test-host.example.com",
 				}
-				return host.NewContext(ctx, testHost)
+				ctx = host.NewContext(ctx, testHost)
+				// Register the host as an error context provider
+				ctx = AddErrorContextProvider(ctx, &host.HostAttributeProvider{Host: testHost})
+				return ctx
 			},
 			errorMessage: "test error with host context",
 			expectedAttrs: map[string]any{

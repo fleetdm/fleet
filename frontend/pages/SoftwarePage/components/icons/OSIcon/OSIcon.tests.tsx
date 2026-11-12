@@ -1,10 +1,13 @@
 // OSIcon.test.tsx
-import React from "react";
+
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import { SOFTWARE_ICON_SIZES } from "styles/var/icon_sizes";
-import OSIcon from "./OSIcon";
+
 import { getMatchedOsIcon } from "..";
+
+import OSIcon from "./OSIcon";
 
 // Mock getMatchedOsIcon to return a fake icon component
 jest.mock("..", () => ({
@@ -12,7 +15,15 @@ jest.mock("..", () => ({
 }));
 
 // Create a simple mock SVG component for matched icons
-const MockSvgIcon = ({ width, height, className }: any) => (
+const MockSvgIcon = ({
+  width,
+  height,
+  className,
+}: {
+  width?: number;
+  height?: number;
+  className?: string;
+}) => (
   <svg
     data-testid="mock-svg"
     width={width}

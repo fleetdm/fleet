@@ -1,0 +1,11 @@
+{
+  "name": "XQuartz",
+  "unique_identifier": "org.xquartz.X11",
+  "token": "xquartz",
+  "installer_format": "pkg",
+  "slug": "xquartz/darwin",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/xquartz-install.sh",
+  "default_categories": [
+    "Productivity"
+  ]
+}

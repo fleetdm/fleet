@@ -1,10 +1,9 @@
 import React, { useMemo } from "react";
 
-import { IMdmSolution } from "interfaces/mdm";
-
+import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import TableContainer from "components/TableContainer";
-import Button from "components/buttons/Button";
+import { IMdmSolution } from "interfaces/mdm";
 
 import {
   generateSolutionsDataSet,
@@ -47,29 +46,27 @@ const MdmSolutionModal = ({
       onExit={onCancel}
       onEnter={onCancel}
     >
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          <TableContainer
-            isLoading={false}
-            emptyComponent={() => null} // if this modal is shown, this table should never be empty
-            columnConfigs={solutionsTableHeaders}
-            data={solutionsDataSet}
-            defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
-            defaultSortDirection={DEFAULT_SORT_DIRECTION}
-            resultsTitle="MDM"
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disableCount
-            disablePagination
-            disableTableHeader
-          />
-        </div>
-        <div className="modal-cta-wrap">
-          <Button type="button" onClick={onCancel}>
-            Done
-          </Button>
-        </div>
-      </>
+      <div className={`${baseClass}__modal-content`}>
+        <TableContainer
+          isLoading={false}
+          emptyComponent={() => null} // if this modal is shown, this table should never be empty
+          columnConfigs={solutionsTableHeaders}
+          data={solutionsDataSet}
+          defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
+          defaultSortDirection={DEFAULT_SORT_DIRECTION}
+          resultsTitle="MDM"
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          disableCount
+          disablePagination
+          disableTableHeader
+        />
+      </div>
+      <div className="modal-cta-wrap">
+        <Button type="button" onClick={onCancel}>
+          Close
+        </Button>
+      </div>
     </Modal>
   );
 };

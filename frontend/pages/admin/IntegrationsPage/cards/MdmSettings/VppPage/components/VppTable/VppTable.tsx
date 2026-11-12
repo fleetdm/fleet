@@ -1,9 +1,8 @@
 import React, { useContext } from "react";
 
-import { IMdmVppToken } from "interfaces/mdm";
-
 import TableContainer from "components/TableContainer";
 import { AppContext } from "context/app";
+import { IMdmVppToken } from "interfaces/mdm";
 
 import { generateTableConfig } from "./VppTableConfig";
 
@@ -51,7 +50,8 @@ const VppTable = ({
   return (
     <TableContainer<IMdmVppToken>
       columnConfigs={tableConfig}
-      defaultSortHeader="org_name"
+      // Keeps the API order. With no matching sort column, react-table reverses rows.
+      manualSortBy
       disableTableHeader
       disablePagination
       showMarkAllPages={false}

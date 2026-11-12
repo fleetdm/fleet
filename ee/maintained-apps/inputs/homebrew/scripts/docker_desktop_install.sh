@@ -1,0 +1,210 @@
+#!/bin/bash
+
+set -euo pipefail
+
+# variables
+APPDIR="/Applications/"
+TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
+MOUNT_POINT=""
+
+cleanup() {
+  local mp="${MOUNT_POINT:-}"
+  if [[ -n "$mp" ]]; then
+    if mount | grep -q " on $mp "; then
+      hdiutil detach "$mp" >/dev/null 2>&1 || { sleep 2; hdiutil detach "$mp" >/dev/null 2>&1; } || hdiutil detach -force "$mp" >/dev/null 2>&1 || true
+    fi
+    rmdir "$mp" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+# functions
+
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
+quit_and_track_application() {
+  local bundle_id="$1"
+  local var_name
+  var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
+  local timeout_duration=10
+
+  # check if the application is running
+  local app_running
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null || echo "false")
+  if [[ "$app_running" != "true" ]]; then
+    eval "export $var_name=0"
+    return 0
+  fi
+
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
+    echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
+    eval "export $var_name=0"
+    return 0
+  fi
+
+  # App was running, mark it for relaunch
+  eval "export $var_name=1"
+  echo "Application '$bundle_id' was running; will relaunch after installation."
+
+  echo "Quitting application '$bundle_id'..."
+
+  # try to quit the application within the timeout period
+  local quit_success=false quit_sent=false still_running quit_error
+  SECONDS=0
+  while (( SECONDS < timeout_duration )); do
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null) || true
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      if [[ "$quit_sent" == false ]]; then
+        eval "export $var_name=0"
+        echo "Application '$bundle_id' isn't running; it won't be relaunched."
+      else
+        echo "Application '$bundle_id' quit successfully."
+      fi
+      quit_success=true
+      break
+    fi
+    quit_sent=true
+    sleep 1
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
+  done
+
+  if [[ "$quit_success" = false ]]; then
+    echo "Application '$bundle_id' did not quit within ${timeout_duration}s; aborting install." >&2
+    return 1
+  fi
+}
+
+
+relaunch_application() {
+  local bundle_id="$1"
+  local var_name
+  var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
+  local was_running
+
+  # Check if the app was running before installation
+  eval "was_running=\${$var_name:-0}"
+  if [[ "$was_running" != "1" ]]; then
+    return
+  fi
+
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
+    echo "Not logged into a non-root GUI; skipping relaunching application ID '$bundle_id'."
+    return
+  fi
+
+  echo "Relaunching application '$bundle_id'..."
+
+  # Launch the app in the logged-in user's GUI session. Apps launched by root
+  # won't register with the user's Dock/GUI, so run 'open' as the console user.
+  # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
+  # and GUI session — 'sudo -u' alone doesn't do this, which can cause
+  # LSOpenURLsWithRole() failures even when 'open' exits 0.
+  local open_status=0
+  if [[ $EUID -eq 0 ]]; then
+    local console_uid
+    console_uid=$(id -u "$console_user")
+    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  else
+    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  fi
+
+  if [[ $open_status -eq 0 ]]; then
+    echo "Application '$bundle_id' relaunched successfully."
+  else
+    echo "Failed to relaunch application '$bundle_id'."
+  fi
+}
+
+
+# Root removes Docker's per-user update staging from a pinned working
+# directory after checking its kernel path (/bin/pwd, not the shell's string
+# walk): the home's owner controls this tree, so root following a symlink they
+# swapped in could otherwise delete files anywhere on the system. A failure
+# stops the install (set -e) before Docker is quit with a staged update still
+# on disk.
+remove_from_user_home() { # remove_from_user_home <home directory> <parent dir under home> <entry>
+  local home="$1" parent="$2" entry="$3" real_home
+  [[ -e "$home/$parent/$entry" ]] || return 0
+  real_home=$(cd "$home" && /bin/pwd -P) || return 1
+  (
+    cd "$home/$parent" || exit 1
+    if [[ "$(/bin/pwd -P)" != "$real_home/$parent" ]]; then
+      echo "refusing to remove $home/$parent/$entry: $home/$parent resolves to $(/bin/pwd -P)" >&2
+      exit 1
+    fi
+    rm -rf "$entry"
+  )
+}
+
+
+# extract contents
+MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
+if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"; then
+  echo "Failed to mount DMG '$INSTALLER_PATH'." >&2
+  exit 1
+fi
+sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
+hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
+MOUNT_POINT=""
+# copy to the applications folder
+# Quitting Docker Desktop with a staged self-update triggers its install-on-quit
+# updater, which renames Docker.app to Docker.app.back and races this script.
+# Remove the staging dir (staged bundle + updater state) first so it can't fire.
+for home in /Users/*; do
+  remove_from_user_home "$home" "Library/Application Support" "com.docker.install"
+done
+quit_and_track_application 'com.electron.dockerdesktop'
+# Wait out any updater already in flight before touching /Applications/Docker.app.
+SECONDS=0
+while pgrep -f 'com\.docker\.install' >/dev/null 2>&1 && (( SECONDS < 30 )); do
+  sleep 1
+done
+if [ -d "$APPDIR/Docker.app" ]; then
+	sudo mv "$APPDIR/Docker.app" "$TMPDIR/Docker.app.bkp"
+fi
+# Remove stale self-updater leftovers; osquery's apps table picks them up by
+# bundle_identifier and patch policies report Docker as out of date.
+sudo rm -rf "$APPDIR/Docker.app.back"
+sudo cp -R "$TMPDIR/Docker.app" "$APPDIR"
+# Docker Desktop manages its own CLI symlinks: on every launch it compares each
+# /usr/local/bin link byte-for-byte with /Applications/Docker.app/Contents/Resources/bin/<name>
+# and asks the user for an admin password to rewrite any that differ. Earlier versions of
+# this script wrote those links with a "/Applications//Docker.app/..." target, which fails
+# that check after every update. Repair the links this script created so affected hosts
+# converge without a prompt, and otherwise leave the links to Docker.
+for name in docker docker-credential-desktop docker-credential-ecr-login docker-credential-osxkeychain kubectl.docker hub-tool; do
+  link="/usr/local/bin/$name"
+  [ -L "$link" ] || continue
+  target=$(readlink "$link")
+  case "$target" in
+    /Applications//Docker.app/*) ;;
+    *) continue ;;
+  esac
+  clean="/Applications/${target#/Applications//}"
+  if [ -e "$clean" ]; then
+    /bin/ln -h -f -s -- "$clean" "$link"
+  else
+    # The binary no longer ships (hub-tool); Docker treats the link as obsolete.
+    rm -f -- "$link"
+  fi
+done
+relaunch_application 'com.electron.dockerdesktop'
+# Remove stale copies recreated during the quit/relaunch window, if any.
+sudo rm -rf "$APPDIR/Docker.app.back"
+for home in /Users/*; do
+  remove_from_user_home "$home" "Library/Application Support/com.docker.install/in_progress" "Docker.app"
+done

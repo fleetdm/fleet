@@ -8,30 +8,93 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
+
+// hostCertificateAllowedOrderKeys defines the allowed order keys for ListHostCertificates.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+var hostCertificateAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"not_valid_after": "hc.not_valid_after",
+	"common_name":     "hc.common_name",
+}
+
+func isVerifiedStatus(s *fleet.MDMDeliveryStatus) bool {
+	if s == nil {
+		return false
+	}
+	return *s == fleet.MDMDeliveryVerified
+}
+
+// hmmcBackfillGrace separates an in-flight renewal (recently NULL'd by
+// reconcile, may still be matched by the pre-renewal cert in
+// host_certificates) from a stuck row that needs wide-pool recovery. See
+// issue #44111.
+const hmmcBackfillGrace = 4 * time.Hour
 
 func (ds *Datastore) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
 	return listHostCertsDB(ctx, ds.reader(ctx), hostID, opts)
 }
 
-func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin, observedScopes []fleet.HostCertificateScope) error {
 	type certSourceToSet struct {
 		Source   fleet.HostCertificateSource
 		Username string
 	}
 
+	// observedScopes restricts which (source, username) scopes reconciliation may soft-delete. A nil slice means every
+	// scope was observed this run (the macOS keychain model, where all keychains are always readable, and the MDM path). A non-nil slice (the Windows path) preserves certificates whose scope
+	// is not listed, because osquery can only enumerate a user's certificates while that user is logged in.
+	var observedSet map[certSourceToSet]struct{}
+	if observedScopes != nil {
+		observedSet = make(map[certSourceToSet]struct{}, len(observedScopes))
+		for _, s := range observedScopes {
+			observedSet[certSourceToSet{Source: s.Source, Username: s.Username}] = struct{}{}
+		}
+	}
+	isObserved := func(s certSourceToSet) bool {
+		if observedScopes == nil {
+			return true
+		}
+		_, ok := observedSet[s]
+		return ok
+	}
+	// desiredSources returns the source set to persist for a certificate: every source reported in the incoming batch,
+	// plus any existing source whose scope was NOT observed this run. For the macOS/MDM path (nil observedScopes) every
+	// scope is observed.
+	desiredSources := func(incoming, existing []certSourceToSet) []certSourceToSet {
+		result := append([]certSourceToSet(nil), incoming...)
+		have := make(map[certSourceToSet]struct{}, len(incoming))
+		for _, s := range incoming {
+			have[s] = struct{}{}
+		}
+		for _, s := range existing {
+			if isObserved(s) {
+				continue
+			}
+			if _, ok := have[s]; ok {
+				continue
+			}
+			result = append(result, s)
+		}
+		return result
+	}
+
 	incomingBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(certs))
 	incomingSourcesBySHA1 := make(map[string][]certSourceToSet, len(certs))
 	for _, cert := range certs {
+		// Tag every incoming cert with the calling ingestion source. We trust the
+		// caller for this — origin scopes deletion semantics, not data integrity.
+		cert.Origin = origin
 		if cert.HostID != hostID {
 			// caller should ensure this does not happen
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: host ID does not match provided certificate: %d %d", hostID, cert.HostID))
+			ds.logger.DebugContext(ctx, fmt.Sprintf("host certificates: host ID does not match provided certificate: %d %d", hostID, cert.HostID))
 		}
 
 		// Validate and truncate certificate fields
@@ -51,10 +114,11 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		//   h.Write(data)
 		//   sha1Sum := h.Sum(nil)
 		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
-		incomingSourcesBySHA1[normalizedSHA1] = append(incomingSourcesBySHA1[normalizedSHA1], certSourceToSet{
-			Source:   cert.Source,
-			Username: cert.Username,
-		})
+		// Dedupe (source, username) tuples per certificate: osquery can report the same certificate scope more than once.
+		srcToSet := certSourceToSet{Source: cert.Source, Username: cert.Username}
+		if !slices.Contains(incomingSourcesBySHA1[normalizedSHA1], srcToSet) {
+			incomingSourcesBySHA1[normalizedSHA1] = append(incomingSourcesBySHA1[normalizedSHA1], srcToSet)
+		}
 		incomingBySHA1[normalizedSHA1] = cert
 	}
 
@@ -65,19 +129,47 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		return ctxerr.Wrap(ctx, err, "list host certificates for update")
 	}
 
+	// listHostCertsDB returns one row per (certificate row x source row). host_certificates has no unique index on (host_id,
+	// sha1_sum), so treat the newest row as canonical: diff sources against it alone, and soft-delete the duplicates in the
+	// transaction below. Newest wins.
 	existingBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(existingCerts))
-	existingSourcesBySHA1 := make(map[string][]certSourceToSet, len(existingCerts))
 	for _, ec := range existingCerts {
 		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))
-		existingBySHA1[normalizedSHA1] = ec
-		existingSourcesBySHA1[normalizedSHA1] = append(existingSourcesBySHA1[normalizedSHA1], certSourceToSet{
-			Source:   ec.Source,
-			Username: ec.Username,
-		})
+		if cur, ok := existingBySHA1[normalizedSHA1]; !ok || ec.ID > cur.ID {
+			existingBySHA1[normalizedSHA1] = ec
+		}
+	}
+	existingSourcesBySHA1 := make(map[string][]certSourceToSet, len(existingBySHA1))
+	existingSourceRowIDsBySHA1 := make(map[string]map[certSourceToSet]uint, len(existingBySHA1))
+	var certIDsToRetire []uint      // duplicate host_certificates rows, soft-deleted in the tx (self-heal)
+	var sourceRowIDsToRetire []uint // their host_certificate_sources rows, deleted
+	seenRetiredCertIDs := make(map[uint]struct{})
+	for _, ec := range existingCerts {
+		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(ec.SHA1Sum))
+		winner := existingBySHA1[normalizedSHA1]
+		if ec.ID != winner.ID {
+			if _, ok := seenRetiredCertIDs[ec.ID]; !ok {
+				seenRetiredCertIDs[ec.ID] = struct{}{}
+				certIDsToRetire = append(certIDsToRetire, ec.ID)
+			}
+			sourceRowIDsToRetire = append(sourceRowIDsToRetire, ec.SourceID)
+			continue
+		}
+		srcToSet := certSourceToSet{Source: ec.Source, Username: ec.Username}
+		existingSourcesBySHA1[normalizedSHA1] = append(existingSourcesBySHA1[normalizedSHA1], srcToSet)
+		if existingSourceRowIDsBySHA1[normalizedSHA1] == nil {
+			existingSourceRowIDsBySHA1[normalizedSHA1] = make(map[certSourceToSet]uint)
+		}
+		existingSourceRowIDsBySHA1[normalizedSHA1][srcToSet] = ec.SourceID
 	}
 
 	toInsert := make([]*fleet.HostCertificateRecord, 0, len(incomingBySHA1))
+	toInsertBySHA1 := make(map[string]*fleet.HostCertificateRecord, len(incomingBySHA1))
 	toSetSourcesBySHA1 := make(map[string][]certSourceToSet, len(incomingBySHA1))
+	// Existing mdm-origin rows that osquery is also reporting. One-way
+	// downgrade: osquery sees a strict superset of the keychain, so dual
+	// observation isn't evidence of MDM delivery.
+	var toDowngrade []uint
 	for sha1, incoming := range incomingBySHA1 {
 		incomingSources := incomingSourcesBySHA1[sha1]
 		existingSources := existingSourcesBySHA1[sha1]
@@ -89,104 +181,456 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			}
 			return strings.Compare(a.Username, b.Username)
 		}
-		slices.SortFunc(incomingSources, sliceSortFunc)
+		// Persist the reported sources plus any existing source in a scope we did not observe (preserving a logged-off
+		// user's source). For the macOS/MDM path this is exactly incomingSources.
+		newSources := desiredSources(incomingSources, existingSources)
+		slices.SortFunc(newSources, sliceSortFunc)
 		slices.SortFunc(existingSources, sliceSortFunc)
 
-		if !slices.Equal(incomingSources, existingSources) {
-			toSetSourcesBySHA1[sha1] = incomingSources
+		if !slices.Equal(newSources, existingSources) {
+			toSetSourcesBySHA1[sha1] = newSources
+		}
+
+		existing, hasExisting := existingBySHA1[sha1]
+		if hasExisting && existing.Origin == fleet.HostCertificateOriginMDM && incoming.Origin == fleet.HostCertificateOriginOsquery {
+			toDowngrade = append(toDowngrade, existing.ID)
 		}
 
 		// Check by SHA but also validity dates, as certs with dynamic SCEP challenges, the profile contents does not change other than validity dates.
-		if existing, ok := existingBySHA1[sha1]; ok && existing.NotValidBefore.Equal(incoming.NotValidBefore) && existing.NotValidAfter.Equal(incoming.NotValidAfter) {
+		if hasExisting && existing.NotValidBefore.Equal(incoming.NotValidBefore) && existing.NotValidAfter.Equal(incoming.NotValidAfter) {
 			// TODO: should we always update existing records? skipping updates reduces db load but
 			// osquery is using sha1 so we consider subtleties
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
+			ds.logger.DebugContext(ctx, fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
 		} else {
 			toInsert = append(toInsert, incoming)
+			toInsertBySHA1[sha1] = incoming
 		}
 	}
 
-	// Check if any of the certs to insert are managed by Fleet; if so, update the associated host_mdm_managed_certificates rows
+	// Update host_mdm_managed_certificates from the host's reported certs.
+	// Runs on every UpdateHostCertificates call so a stuck row (renewal cert
+	// already in host_certificates but never matched) recovers even when this
+	// call has no toInsert. Per hmmc row: pool = incomingBySHA1 when stuck
+	// (NULL past hmmcBackfillGrace AND profile 'verified'), else toInsertBySHA1.
+	// See issue #44111.
 	hostMDMManagedCertsToUpdate := make([]*fleet.MDMManagedCertificate, 0, len(toInsert))
-	if len(toInsert) > 0 {
-		hostMDMManagedCerts, err := ds.ListHostMDMManagedCertificates(ctx, hostUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "list host mdm managed certs for update")
+	// JOINs to the per-platform profile tables surface delivery status so we
+	// don't widen the pool while a renewal is genuinely in flight.
+	type hmmcRow struct {
+		fleet.MDMManagedCertificate
+		AppleStatus   *fleet.MDMDeliveryStatus `db:"apple_status"`
+		WindowsStatus *fleet.MDMDeliveryStatus `db:"windows_status"`
+	}
+	var hostMDMManagedCerts []*hmmcRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostMDMManagedCerts, `
+		SELECT
+			hmmc.profile_uuid, hmmc.host_uuid, hmmc.challenge_retrieved_at,
+			hmmc.not_valid_before, hmmc.not_valid_after, hmmc.type,
+			hmmc.ca_name, hmmc.serial, hmmc.updated_at,
+			hmap.status AS apple_status,
+			hwmp.status AS windows_status
+		FROM host_mdm_managed_certificates hmmc
+		LEFT JOIN host_mdm_apple_profiles hmap
+			ON hmap.host_uuid = hmmc.host_uuid AND hmap.profile_uuid = hmmc.profile_uuid AND hmap.operation_type = ?
+		LEFT JOIN host_mdm_windows_profiles hwmp
+			ON hwmp.host_uuid = hmmc.host_uuid AND hwmp.profile_uuid = hmmc.profile_uuid AND hwmp.operation_type = ?
+		WHERE hmmc.host_uuid = ?
+	`, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeInstall, hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "list host mdm managed certs for update")
+	}
+	now := time.Now()
+	for _, row := range hostMDMManagedCerts {
+		hostMDMManagedCert := &row.MDMManagedCertificate
+		// Skip CA types that don't carry a renewal-ID marker — today only
+		// DigiCert, which is server-issued and managed without matching
+		// against ingested certs. Empty/NULL `Type` (rows created by the
+		// non-proxied insert path below) IS eligible.
+		if hostMDMManagedCert.Type != "" && !hostMDMManagedCert.Type.SupportsRenewalID() {
+			continue
 		}
-		for _, hostMDMManagedCert := range hostMDMManagedCerts {
-			// Note that we only care about proxied SCEP certificates because DigiCert are requested
-			// by Fleet and stored in the DB directly, so we need not fetch them via osquery/MDM
-			if !hostMDMManagedCert.Type.SupportsRenewalID() { // TODO(SCA): Will this not cause issues? It now includes DigiCert, which it didn't do previously.
+
+		verified := isVerifiedStatus(row.AppleStatus) || isVerifiedStatus(row.WindowsStatus)
+		stuck := hostMDMManagedCert.NotValidAfter == nil &&
+			now.Sub(hostMDMManagedCert.UpdatedAt) > hmmcBackfillGrace &&
+			verified
+
+		var pool map[string]*fleet.HostCertificateRecord
+		switch {
+		case stuck:
+			pool = incomingBySHA1
+		case len(toInsertBySHA1) > 0:
+			pool = toInsertBySHA1
+		default:
+			continue
+		}
+
+		renewalIDString := "fleet-" + hostMDMManagedCert.ProfileUUID
+		var bestMatch *fleet.HostCertificateRecord
+		for _, cert := range pool {
+			if !strings.Contains(cert.SubjectCommonName, renewalIDString) && !strings.Contains(cert.SubjectOrganizationalUnit, renewalIDString) {
 				continue
 			}
-			for _, certToInsert := range toInsert {
-				renewalIDString := "fleet-" + hostMDMManagedCert.ProfileUUID
-				if strings.Contains(certToInsert.SubjectCommonName, renewalIDString) || strings.Contains(certToInsert.SubjectOrganizationalUnit, renewalIDString) {
-					managedCertToUpdate := &fleet.MDMManagedCertificate{
-						ProfileUUID:          hostMDMManagedCert.ProfileUUID,
-						HostUUID:             hostMDMManagedCert.HostUUID,
-						ChallengeRetrievedAt: hostMDMManagedCert.ChallengeRetrievedAt,
-						NotValidBefore:       &certToInsert.NotValidBefore,
-						NotValidAfter:        &certToInsert.NotValidAfter,
-						Type:                 hostMDMManagedCert.Type,
-						CAName:               hostMDMManagedCert.CAName,
-						Serial:               ptr.String(fmt.Sprintf("%040s", certToInsert.Serial)),
-					}
-					// To reduce DB load, we only write to datastore if the managed cert is different
-					// However, they should never be the same because we check the certificate SHA1 above and only insert new certs
-					if !hostMDMManagedCert.Equal(*managedCertToUpdate) {
-						hostMDMManagedCertsToUpdate = append(hostMDMManagedCertsToUpdate, managedCertToUpdate)
-					}
-					// We found a matching cert from host certs; move on to the next managed cert
-					break
+			if cert.NotValidBefore.After(now) || cert.NotValidAfter.Before(now) {
+				continue
+			}
+			if bestMatch == nil || cert.NotValidBefore.After(bestMatch.NotValidBefore) {
+				bestMatch = cert
+			}
+		}
+		if bestMatch == nil {
+			continue
+		}
+
+		// Monotonic-forward: never regress hmmc with an older cert.
+		if hostMDMManagedCert.NotValidAfter != nil && !hostMDMManagedCert.NotValidAfter.Before(bestMatch.NotValidAfter) {
+			continue
+		}
+
+		managedCertToUpdate := &fleet.MDMManagedCertificate{
+			ProfileUUID:          hostMDMManagedCert.ProfileUUID,
+			HostUUID:             hostMDMManagedCert.HostUUID,
+			ChallengeRetrievedAt: hostMDMManagedCert.ChallengeRetrievedAt,
+			NotValidBefore:       &bestMatch.NotValidBefore,
+			NotValidAfter:        &bestMatch.NotValidAfter,
+			Type:                 hostMDMManagedCert.Type,
+			CAName:               hostMDMManagedCert.CAName,
+			Serial:               ptr.String(fmt.Sprintf("%040s", bestMatch.Serial)),
+		}
+		if !hostMDMManagedCert.Equal(*managedCertToUpdate) {
+			hostMDMManagedCertsToUpdate = append(hostMDMManagedCertsToUpdate, managedCertToUpdate)
+		}
+	}
+
+	// Non-proxied insert path: for each profile installed on this host
+	// without an existing host_mdm_managed_certificates row, see if any
+	// incoming cert's Subject carries the `fleet-<profile_uuid>` marker.
+	// If so, create the row from the cert's metadata. This activates
+	// renewal for ACME / non-proxied SCEP flows where Fleet isn't in the
+	// issuance path so no row gets created at issuance time.
+	hostMDMManagedCertsToInsert := make([]*fleet.MDMManagedCertificate, 0, len(incomingBySHA1))
+	if len(incomingBySHA1) > 0 {
+		existingProfileUUIDs := make(map[string]struct{}, len(hostMDMManagedCerts))
+		for _, row := range hostMDMManagedCerts {
+			existingProfileUUIDs[row.ProfileUUID] = struct{}{}
+		}
+		var candidateProfileUUIDs []string
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &candidateProfileUUIDs, `
+			SELECT profile_uuid FROM host_mdm_apple_profiles
+			WHERE host_uuid = ? AND operation_type = ?
+			UNION
+			SELECT profile_uuid FROM host_mdm_windows_profiles
+			WHERE host_uuid = ? AND operation_type = ?`,
+			hostUUID, fleet.MDMOperationTypeInstall,
+			hostUUID, fleet.MDMOperationTypeInstall,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "list candidate profile UUIDs for managed cert insert")
+		}
+		for _, profileUUID := range candidateProfileUUIDs {
+			if _, exists := existingProfileUUIDs[profileUUID]; exists {
+				continue
+			}
+			renewalIDString := "fleet-" + profileUUID
+			var bestMatch *fleet.HostCertificateRecord
+			for _, cert := range incomingBySHA1 {
+				if !strings.Contains(cert.SubjectCommonName, renewalIDString) &&
+					!strings.Contains(cert.SubjectOrganizationalUnit, renewalIDString) {
+					continue
+				}
+				// Skip certs outside their validity window: a device may
+				// still be reporting a just-expired cert alongside its
+				// renewal, and latching onto it would seed the row with
+				// backward-pointing dates.
+				if cert.NotValidBefore.After(now) || cert.NotValidAfter.Before(now) {
+					continue
+				}
+				if bestMatch == nil || cert.NotValidBefore.After(bestMatch.NotValidBefore) {
+					bestMatch = cert
 				}
 			}
+			if bestMatch == nil {
+				continue
+			}
+			// Use a fixed sentinel for ca_name on non-proxied rows.
+			// Proxied flows set ca_name from Fleet-controlled CA
+			// registration (stable across renewals); deriving it from
+			// the cert's Issuer CN would drift if the upstream CA ever
+			// renames. The cert's actual issuer is available in
+			// host_certificates for support visibility.
+			// Type is written as NULL by insertHostMDMManagedCertDB —
+			// Fleet wasn't in the issuance path so it doesn't know the
+			// CA type. The struct's Type field is left unset.
+			hostMDMManagedCertsToInsert = append(hostMDMManagedCertsToInsert, &fleet.MDMManagedCertificate{
+				HostUUID:       hostUUID,
+				ProfileUUID:    profileUUID,
+				NotValidBefore: &bestMatch.NotValidBefore,
+				NotValidAfter:  &bestMatch.NotValidAfter,
+				CAName:         "non_proxied",
+				Serial:         ptr.String(fmt.Sprintf("%040s", bestMatch.Serial)),
+			})
 		}
 	}
 
 	toDelete := make([]uint, 0, len(existingBySHA1))
 	for sha1, existing := range existingBySHA1 {
-		if _, ok := incomingBySHA1[sha1]; !ok {
+		if _, ok := incomingBySHA1[sha1]; ok {
+			// present in the incoming batch, reconciled above
+			continue
+		}
+		// Source-scoped delete: only remove rows whose origin matches the calling ingestion source.
+		if existing.Origin != origin {
+			continue
+		}
+		// Preserve sources in scopes we did not observe this run (e.g. a logged-off Windows user) and drop the
+		// observed-but-no-longer-reported ones.
+		existingSources := existingSourcesBySHA1[sha1]
+		preserved := desiredSources(nil, existingSources)
+		switch {
+		case len(preserved) == 0:
 			toDelete = append(toDelete, existing.ID)
+		case len(preserved) != len(existingSources):
+			toSetSourcesBySHA1[sha1] = preserved
 		}
 	}
+
+	// Whether osquery could read at least one user's certificate store in this report. SINGLE-USER ASSUMPTION: we treat
+	// "any user cert observed" as "the target user's store was readable", which holds when the device has one primary
+	// user.
+	anyUserCertObserved := slices.ContainsFunc(certs, func(c *fleet.HostCertificateRecord) bool {
+		return c.Source == fleet.UserHostCertificate
+	})
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := insertHostCertsDB(ctx, tx, toInsert); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host certs")
 		}
 
+		// Self-heal: retire duplicate cert rows (and their source rows) before resolving canonical ids,
+		// so a host that accumulated duplicate rows returns to one active row per certificate.
+		if err := softDeleteHostCertsDB(ctx, tx, hostID, certIDsToRetire); err != nil {
+			return ctxerr.Wrap(ctx, err, "soft delete duplicate host certs")
+		}
+
+		// Compute the precise source-row changes: delete only rows that are stale (by primary key) and insert only tuples that are missing.
+		staleSourceRowIDs := append([]uint(nil), sourceRowIDsToRetire...)
+		var sourceRowsToInsert []hostCertSourceRow
 		if len(toSetSourcesBySHA1) > 0 {
-			// must reload the DB IDs to insert the host_certificates_sources rows
+			// must reload the DB IDs to insert the host_certificate_sources rows
 			certIDsBySHA1, err := loadHostCertIDsForSHA1DB(ctx, tx, hostID, slices.Collect(maps.Keys(toSetSourcesBySHA1)))
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "load host certs ids")
 			}
 
-			toReplaceSources := make([]*fleet.HostCertificateRecord, 0, len(toSetSourcesBySHA1))
-			for sha1, sources := range toSetSourcesBySHA1 {
-				for _, source := range sources {
-					toReplaceSources = append(toReplaceSources, &fleet.HostCertificateRecord{
-						ID:       certIDsBySHA1[sha1],
-						Source:   source.Source,
-						Username: source.Username,
+			for sha1, desired := range toSetSourcesBySHA1 {
+				certID, ok := certIDsBySHA1[sha1]
+				if !ok {
+					// cert row not found on the writer (e.g. deleted concurrently); nothing to attach sources to
+					continue
+				}
+				existingRowIDs := existingSourceRowIDsBySHA1[sha1]
+				desiredSet := make(map[certSourceToSet]struct{}, len(desired))
+				for _, s := range desired {
+					desiredSet[s] = struct{}{}
+				}
+				for s, rowID := range existingRowIDs {
+					if _, ok := desiredSet[s]; !ok {
+						staleSourceRowIDs = append(staleSourceRowIDs, rowID)
+					}
+				}
+				for _, s := range desired {
+					if _, ok := existingRowIDs[s]; ok {
+						continue
+					}
+					sourceRowsToInsert = append(sourceRowsToInsert, hostCertSourceRow{
+						HostCertificateID: certID,
+						Source:            s.Source,
+						Username:          s.Username,
 					})
 				}
 			}
-			if err := replaceHostCertsSourcesDB(ctx, tx, toReplaceSources); err != nil {
-				return ctxerr.Wrap(ctx, err, "replace host certs sources")
-			}
+		}
+		if err := deleteHostCertSourceRowsDB(ctx, tx, staleSourceRowIDs); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete stale host cert sources")
+		}
+		if err := insertHostCertSourceRowsDB(ctx, tx, sourceRowsToInsert); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host cert sources")
 		}
 
 		if err := softDeleteHostCertsDB(ctx, tx, hostID, toDelete); err != nil {
 			return ctxerr.Wrap(ctx, err, "soft delete host certs")
 		}
 
+		if err := downgradeHostCertsOriginToOsqueryDB(ctx, tx, hostID, toDowngrade); err != nil {
+			return ctxerr.Wrap(ctx, err, "downgrade host certs origin")
+		}
+
 		if err := updateHostMDMManagedCertDetailsDB(ctx, tx, hostMDMManagedCertsToUpdate); err != nil {
 			return ctxerr.Wrap(ctx, err, "update host mdm managed cert details")
 		}
+
+		if err := insertHostMDMManagedCertDB(ctx, tx, hostMDMManagedCertsToInsert); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host mdm managed cert rows")
+		}
+
+		// A proxied Windows SCEP profile sits in "verifying" until the certificate it requested is observed on the host.
+		// The managed-cert updates above set not_valid_after/serial when a reported cert matched the profile's
+		// renewal-ID marker, so a matched-and-valid managed-cert row is the signal that the certificate landed. Flip
+		// those profiles to "verified" (self-healing any that were "failed" from a proxy-observed error).
+		verifiedRows, err := verifyWindowsSCEPProfilesFromObservedCertsDB(ctx, tx, hostUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "verify windows scep profiles from observed certs")
+		}
+
+		// Backstop: a proxied Windows SCEP profile that never gets its certificate would otherwise sit in
+		// "verifying" forever, and one the device reported as installed would stay "verified" even though Fleet can't
+		// match the certificate for renewal. Once the grace period has elapsed and this report proves we could read the
+		// store where the certificate belongs but no matching certificate is there, fail it. Runs after the flip above,
+		// so no row it considers has an observed certificate.
+		failedRows, err := failStuckWindowsSCEPProfilesDB(ctx, tx, hostUUID, anyUserCertObserved)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fail stuck windows scep profiles")
+		}
+
+		// Both helpers above rewrite host_mdm_windows_profiles rows, so the per-host rollup that
+		// GetMDMWindowsProfilesSummary reads has to be refreshed on the same transaction.
+		if verifiedRows+failedRows > 0 {
+			if err := updateWindowsProfilesStatusRollupDB(ctx, tx, []string{hostUUID}, true); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating windows profiles status rollup after scep reconciliation")
+			}
+		}
 		return nil
 	})
+}
+
+// windowsSCEPVerificationGracePeriod is how long a proxied Windows SCEP profile may stay "verifying", or "verified" by the
+// device's SCEP status, without osquery matching its certificate (measured from host_mdm_windows_profiles.updated_at)
+// before an ingest that proves the relevant certificate store was readable, yet lacks the certificate, is treated as a
+// failure.
+const windowsSCEPVerificationGracePeriod = time.Hour
+
+// windowsSCEPCertNotFoundDetail is the failure detail recorded when the verification backstop fires.
+const windowsSCEPCertNotFoundDetail = "Fleet did not detect the SCEP certificate on the host after profile was delivered."
+
+// failStuckWindowsSCEPProfilesDB is the verification backstop for proxied Windows SCEP profiles. It runs on certificate
+// ingestion (so an offline host, or one whose agent can't enumerate certificates, never ingests and is never failed)
+// and acts only when we have positive evidence the certificate is missing:
+//
+//   - Device-scoped profiles (SyncML uses the ./Device SCEP node): the LocalMachine store is always readable when
+//     osquery reports, so any ingest past the grace period with the certificate still absent is a genuine failure.
+//   - User-scoped profiles (SyncML uses the ./User SCEP node): the certificate lives in a user's store, which osquery
+//     can read only while that user is logged in. We act only when this report includes at least one user
+//     certificate, proving a user store was readable. SINGLE-USER ASSUMPTION: Fleet does not track which user a
+//     ./User Windows profile targets, so we assume the device has one primary user.
+//
+// It also covers a profile the device's SCEP status reported as installed (verified) whose certificate osquery has never
+// matched to the profile's renewal ID, which happens when the CA rewrites the requested subject. The certificate is on
+// the host, but Fleet can't renew it, so it is treated as missing like any other.
+//
+// A certificate that never arrives is a delivery failure like any other, so it spends the profile's retries before it
+// becomes terminal: while retries are left the profile goes back to pending and the profile manager redelivers it with
+// a fresh challenge. Redelivering resets updated_at, so the grace period has to elapse again before this can fire for
+// the same profile, which is what bounds a silently failing SCEP profile to one grace window per attempt.
+func failStuckWindowsSCEPProfilesDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, anyUserCertObserved bool) (int64, error) {
+	caTypes := fleet.ListCATypesWithRenewalIDSupport()
+	caTypeStrs := make([]string, 0, len(caTypes))
+	for _, t := range caTypes {
+		caTypeStrs = append(caTypeStrs, string(t))
+	}
+	graceSeconds := int(windowsSCEPVerificationGracePeriod.Seconds())
+
+	joins := `
+			JOIN host_mdm_managed_certificates hmmc
+				ON hmmc.host_uuid = hwmp.host_uuid AND hmmc.profile_uuid = hwmp.profile_uuid`
+	where := `
+			WHERE hwmp.host_uuid = ?
+				AND hwmp.operation_type = ?
+				AND hwmp.status IN (?, ?)
+				AND hmmc.type IN (?)
+				AND hmmc.not_valid_after IS NULL
+				AND hwmp.updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)`
+	whereArgs := []any{
+		hostUUID, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified, caTypeStrs, graceSeconds,
+	}
+	if !anyUserCertObserved {
+		// Only the LocalMachine store is provably readable this run. Restrict to device-scoped profiles (SyncML
+		// without a ./User SCEP node); a user-scoped certificate may just be waiting for its user to log in.
+		joins += `
+			JOIN mdm_windows_configuration_profiles cp
+				ON cp.profile_uuid = hwmp.profile_uuid`
+		where += `
+				AND cp.syncml NOT LIKE ?`
+		whereArgs = append(whereArgs, "%/User/Vendor/MSFT/ClientCertificateInstall/SCEP%")
+	}
+
+	update := func(setClause string, setArgs []any, retriesCmp string) (int64, error) {
+		query := `
+			UPDATE host_mdm_windows_profiles hwmp` + joins + `
+			SET ` + setClause + where + `
+				AND hwmp.retries ` + retriesCmp + ` ?`
+		args := make([]any, 0, len(setArgs)+len(whereArgs)+1)
+		args = append(args, setArgs...)
+		args = append(args, whereArgs...)
+		args = append(args, mdm.MaxWindowsProfileRetries)
+
+		stmt, inArgs, err := sqlx.In(query, args...)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "building windows scep backstop query")
+		}
+		res, err := tx.ExecContext(ctx, stmt, inArgs...)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "running windows scep backstop update")
+		}
+		rows, _ := res.RowsAffected()
+		return rows, nil
+	}
+
+	// Terminal first, then the retry. Running them in this order keeps the two sets disjoint twice over: they already
+	// disagree on the retries bound, and by the time the retry update runs the rows the first one touched are no
+	// longer "verifying".
+	failed, err := update(`hwmp.status = ?, hwmp.detail = ?`,
+		[]any{fleet.MDMDeliveryFailed, windowsSCEPCertNotFoundDetail}, ">=")
+	if err != nil {
+		return 0, err
+	}
+	retried, err := update(`hwmp.status = NULL, hwmp.detail = '', hwmp.retries = hwmp.retries + 1`, nil, "<")
+	if err != nil {
+		return 0, err
+	}
+	return failed + retried, nil
+}
+
+// verifyWindowsSCEPProfilesFromObservedCertsDB flips a host's proxied Windows SCEP install profiles from "verifying" or
+// "failed" to "verified" once their managed-certificate row shows a certificate was observed (its serial/validity dates
+// were populated by the renewal-ID matcher in UpdateHostCertificates). Current validity is intentionally NOT required:
+// observing that the CA issued a certificate matching this profile's renewal-ID proves the enrollment succeeded, so we
+// mark it verified regardless of the certificate's lifetime. A short-lived certificate that has since expired is a
+// renewal concern (handled by RenewMDMManagedCertificates), not a verification failure.
+func verifyWindowsSCEPProfilesFromObservedCertsDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) (int64, error) {
+	caTypes := fleet.ListCATypesWithRenewalIDSupport()
+	caTypeStrs := make([]string, 0, len(caTypes))
+	for _, t := range caTypes {
+		caTypeStrs = append(caTypeStrs, string(t))
+	}
+	stmt, args, err := sqlx.In(`
+		UPDATE host_mdm_windows_profiles hwmp
+		JOIN host_mdm_managed_certificates hmmc
+			ON hmmc.host_uuid = hwmp.host_uuid AND hmmc.profile_uuid = hwmp.profile_uuid
+		SET hwmp.status = ?, hwmp.detail = ''
+		WHERE hwmp.host_uuid = ?
+			AND hwmp.operation_type = ?
+			AND hwmp.status IN (?, ?)
+			AND hmmc.type IN (?)
+			AND hmmc.not_valid_after IS NOT NULL`,
+		fleet.MDMDeliveryVerified, hostUUID, fleet.MDMOperationTypeInstall,
+		fleet.MDMDeliveryVerifying, fleet.MDMDeliveryFailed, caTypeStrs)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "building windows scep verify query")
+	}
+	res, err := tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "flipping windows scep profiles to verified")
+	}
+	rows, _ := res.RowsAffected()
+	return rows, nil
 }
 
 // validateAndTruncateCertificateFields validates and truncates certificate string fields to match database schema constraints
@@ -203,9 +647,8 @@ func (ds *Datastore) validateAndTruncateCertificateFields(ctx context.Context, h
 			truncated := value[:maxLen]
 			err := errors.New("certificate field too long")
 			ctxerr.Handle(ctx, err)
-			level.Error(ds.logger).Log(
+			ds.logger.ErrorContext(ctx, "truncating certificate field",
 				"err", err,
-				"msg", "truncating certificate field",
 				"field", field,
 				"host_id", hostID,
 				"original_length", len(value),
@@ -252,7 +695,7 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostI
 	FROM
 		host_certificates hc
 	WHERE
-		hc.sha1_sum IN (?) AND hc.host_id = ?`
+		hc.sha1_sum IN (?) AND hc.host_id = ? AND hc.deleted_at IS NULL`
 
 	var certs []*fleet.HostCertificateRecord
 	stmt, args, err := sqlx.In(stmt, binarySHA1s, hostID)
@@ -266,7 +709,11 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostI
 	certIDsBySHA1 := make(map[string]uint, len(certs))
 	for _, cert := range certs {
 		normalizedSHA1 := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
-		certIDsBySHA1[normalizedSHA1] = cert.ID
+		// Keep the newest row when duplicates exist (matching the canonical-row selection in UpdateHostCertificates)
+		// so sources attach to the row that survives duplicate healing instead of an arbitrary duplicate.
+		if curID, ok := certIDsBySHA1[normalizedSHA1]; !ok || cert.ID > curID {
+			certIDsBySHA1[normalizedSHA1] = cert.ID
+		}
 	}
 	return certIDsBySHA1, nil
 }
@@ -305,6 +752,8 @@ SELECT
 	hc.issuer_org,
 	hc.issuer_org_unit,
 	hc.issuer_common_name,
+	hc.origin,
+	hcs.id AS source_id,
 	hcs.source,
 	hcs.username
 	%s`, fromWhereClause)
@@ -314,7 +763,10 @@ SELECT
     	`, fromWhereClause)
 
 	baseArgs := []interface{}{hostID}
-	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, baseArgs, &opts)
+	stmtPaged, args, err := appendListOptionsWithCursorToSQLSecure(stmt, baseArgs, &opts, hostCertificateAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	var certs []*fleet.HostCertificateRecord
 	if err := sqlx.SelectContext(ctx, tx, &certs, stmtPaged, args...); err != nil {
@@ -336,89 +788,66 @@ SELECT
 	return certs, metaData, nil
 }
 
-func replaceHostCertsSourcesDB(ctx context.Context, tx sqlx.ExtContext, toReplaceSources []*fleet.HostCertificateRecord) error {
-	if len(toReplaceSources) == 0 {
+// deleteHostCertSourceRowsDB deletes host_certificate_sources rows by primary key.
+func deleteHostCertSourceRowsDB(ctx context.Context, tx sqlx.ExtContext, ids []uint) error {
+	if len(ids) == 0 {
 		return nil
 	}
+	// Sort for deterministic lock ordering across concurrent transactions.
+	slices.Sort(ids)
+	stmt, args, err := sqlx.In(`DELETE FROM host_certificate_sources WHERE id IN (?)`, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building delete host cert sources query")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host cert sources")
+	}
+	return nil
+}
 
-	// FIXME: It is entirely possible for the caller to pass duplicates in the toReplaceSources slice
-	// (e.g. multiple elements with the same source and username for the same certificate ID).
-	// Although this function checks against duplicates in the database, it does not deduplicate the
-	// slice itself. This can lead to unique constraint violations when ths function inserts new sources.
-	//
-	// For Apple, it was implicitly assumed that there would be no incoming duplicates (likely based
-	// on Apple KeyChain behavior). But for Windows, duplicates are commonly reported by osquery. We
-	// should consider the best pattern for ensuring deduplication happens here or up the call
-	// stack. For now, we are deduping Windows certs in the upstream osqquery directIngest function,
-	// but that may not be the best approach if we want to guard against other potential issues.
+// hostCertSourceRow is one (host_certificate_id, source, username) tuple to insert into host_certificate_sources.
+type hostCertSourceRow struct {
+	HostCertificateID uint
+	Source            fleet.HostCertificateSource
+	Username          string
+}
 
-	// Sort by host_certificate_id to ensure consistent lock ordering and prevent deadlocks
-	slices.SortFunc(toReplaceSources, func(a, b *fleet.HostCertificateRecord) int {
-		if a.ID != b.ID {
-			if a.ID < b.ID {
+// insertHostCertSourceRowsDB inserts the given (host_certificate_id, source, username) tuples. The caller passes only
+// tuples it believes are missing; ON DUPLICATE KEY UPDATE is a no-op guard.
+func insertHostCertSourceRowsDB(ctx context.Context, tx sqlx.ExtContext, rows []hostCertSourceRow) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	// Sort by (host_certificate_id, source, username) for deterministic lock ordering across concurrent transactions.
+	slices.SortFunc(rows, func(a, b hostCertSourceRow) int {
+		if a.HostCertificateID != b.HostCertificateID {
+			if a.HostCertificateID < b.HostCertificateID {
 				return -1
 			}
 			return 1
 		}
-		// Secondary sort by source/username for determinism
 		if a.Source != b.Source {
 			return strings.Compare(string(a.Source), string(b.Source))
 		}
 		return strings.Compare(a.Username, b.Username)
 	})
 
-	// Build unique certificate IDs for deletion (already sorted from above)
-	certIDs := make([]uint, 0, len(toReplaceSources))
-	var lastID uint
-	for i, source := range toReplaceSources {
-		// Deduplicate: only add if this ID is different from the last one
-		if i == 0 || source.ID != lastID {
-			certIDs = append(certIDs, source.ID)
-			lastID = source.ID
-		}
+	const singleRowPlaceholderCount = 3
+	placeholders := make([]string, 0, len(rows))
+	args := make([]any, 0, len(rows)*singleRowPlaceholderCount)
+	for _, row := range rows {
+		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
+		args = append(args, row.HostCertificateID, row.Source, row.Username)
 	}
-
-	// Check if any sources exist before deleting to avoid unnecessary gap locks
-	stmtCheck := `SELECT EXISTS(SELECT 1 FROM host_certificate_sources WHERE host_certificate_id IN (?))`
-	stmtCheck, args, err := sqlx.In(stmtCheck, certIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building check host cert sources query")
-	}
-	var exists bool
-	if err := sqlx.GetContext(ctx, tx, &exists, stmtCheck, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "checking if host cert sources exist")
-	}
-
-	// Only delete if sources exist
-	if exists {
-		stmtDelete := `DELETE FROM host_certificate_sources WHERE host_certificate_id IN (?)`
-		stmtDelete, args, err := sqlx.In(stmtDelete, certIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building delete host cert sources query")
-		}
-		if _, err := tx.ExecContext(ctx, stmtDelete, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting host cert sources")
-		}
-	}
-
-	// Insert new sources
-	stmtInsert := `
+	stmt := fmt.Sprintf(`
 	INSERT INTO host_certificate_sources (
 		host_certificate_id,
 		source,
 		username
-	) VALUES %s`
-
-	const singleRowPlaceholderCount = 3
-	placeholders := make([]string, 0, len(toReplaceSources))
-	args = make([]any, 0, len(toReplaceSources)*singleRowPlaceholderCount)
-	for _, source := range toReplaceSources {
-		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
-		args = append(args, source.ID, source.Source, source.Username)
-	}
-
-	stmtInsert = fmt.Sprintf(stmtInsert, strings.Join(placeholders, ","))
-	if _, err := tx.ExecContext(ctx, stmtInsert, args...); err != nil {
+	) VALUES %s
+	ON DUPLICATE KEY UPDATE host_certificate_id = host_certificate_sources.host_certificate_id`,
+		strings.Join(placeholders, ","))
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting host cert sources")
 	}
 	return nil
@@ -449,19 +878,25 @@ INSERT INTO host_certificates (
 	issuer_country,
 	issuer_org,
 	issuer_org_unit,
-	issuer_common_name
+	issuer_common_name,
+	origin
 ) VALUES %s`
 
 	placeholders := make([]string, 0, len(certs))
-	const singleRowPlaceholderCount = 19
+	const singleRowPlaceholderCount = 20
 	args := make([]interface{}, 0, len(certs)*singleRowPlaceholderCount)
 	for _, cert := range certs {
 		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
+		origin := cert.Origin
+		if origin == "" {
+			origin = fleet.HostCertificateOriginOsquery
+		}
 		args = append(args,
 			cert.HostID, cert.SHA1Sum, cert.NotValidBefore, cert.NotValidAfter, cert.CertificateAuthority, cert.CommonName,
 			cert.KeyAlgorithm, cert.KeyStrength, cert.KeyUsage, cert.Serial, cert.SigningAlgorithm,
 			cert.SubjectCountry, cert.SubjectOrganization, cert.SubjectOrganizationalUnit, cert.SubjectCommonName,
-			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName)
+			cert.IssuerCountry, cert.IssuerOrganization, cert.IssuerOrganizationalUnit, cert.IssuerCommonName,
+			origin)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.Join(placeholders, ","))
@@ -472,10 +907,23 @@ INSERT INTO host_certificates (
 	return nil
 }
 
-func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, toDelete []uint) error {
-	// TODO: consider whether we should hard delete certs after a certain period of time if we are seeing
-	// the table grow too large with soft deleted records
+func downgradeHostCertsOriginToOsqueryDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	stmt := `UPDATE host_certificates SET origin = ? WHERE host_id = ? AND id IN (?) AND origin = ?`
+	stmt, args, err := sqlx.In(stmt, fleet.HostCertificateOriginOsquery, hostID, ids, fleet.HostCertificateOriginMDM)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building downgrade origin query")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "downgrading host certificate origin")
+	}
+	return nil
+}
 
+// softDeleteHostCertsDB soft-deletes certs; CleanupSoftDeletedHostCertificates hard-deletes them after the retention window.
+func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, toDelete []uint) error {
 	if len(toDelete) == 0 {
 		return nil
 	}
@@ -491,6 +939,135 @@ func softDeleteHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint,
 	}
 
 	return nil
+}
+
+// softDeleteMDMHostCertsDB clears all MDM-origin cert rows on unenroll, where
+// nothing else will: no more CertificateList, and osquery can't see
+// hardware-bound ACME certs.
+func softDeleteMDMHostCertsDB(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
+	const stmt = `UPDATE host_certificates SET deleted_at = NOW(6) WHERE host_id = ? AND origin = ? AND deleted_at IS NULL`
+	if _, err := tx.ExecContext(ctx, stmt, hostID, fleet.HostCertificateOriginMDM); err != nil {
+		return ctxerr.Wrap(ctx, err, "soft deleting mdm host certificates")
+	}
+	return nil
+}
+
+// See the Datastore interface for contract. Batched to bound lock scope: a
+// host can have many MDM certs, so a mass unenroll could otherwise lock a
+// large set in one statement.
+func (ds *Datastore) SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx context.Context) (int64, error) {
+	const batchSize = 1000
+	// Derived-table wrap is required: MySQL forbids referencing the updated
+	// table directly in the subquery's FROM.
+	const stmt = `
+		UPDATE host_certificates
+		SET deleted_at = NOW(6)
+		WHERE deleted_at IS NULL AND id IN (
+			SELECT id FROM (
+				SELECT hc.id
+				FROM host_certificates hc
+				JOIN host_mdm hm ON hm.host_id = hc.host_id AND hm.enrolled = 0
+				WHERE hc.origin = ? AND hc.deleted_at IS NULL
+				ORDER BY hc.id
+				LIMIT ?
+			) AS batch
+		)`
+	var total int64
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, fleet.HostCertificateOriginMDM, batchSize)
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "soft-delete mdm host certificates for unenrolled hosts")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return total, ctxerr.Wrap(ctx, err, "rows affected for mdm host certificates sweep")
+		}
+		total += n
+		if n < batchSize {
+			break
+		}
+	}
+	return total, nil
+}
+
+// See the Datastore interface for contract.
+func (ds *Datastore) CleanupSoftDeletedHostCertificates(ctx context.Context, olderThan time.Time) (int64, error) {
+	const (
+		batchSize  = 500
+		maxBatches = 200 // 100k certificates per origin per tick
+	)
+	return cleanupSoftDeletedHostCertsDB(ctx, ds, olderThan, batchSize, maxBatches)
+}
+
+// cleanupSoftDeletedHostCertsDB selects ids on the replica, then deletes them by primary key. Each origin is walked with a
+// (deleted_at, id) cursor in idx_host_certs_origin_deleted order, so every batch reads only its own index entries and a lagging
+// replica that still returns already-deleted rows can't make the loop select them again. The DELETE re-checks deleted_at, so stale
+// replica data can't remove a live cert. maxBatches applies per origin, so a large backlog in one can't hold back the other.
+func cleanupSoftDeletedHostCertsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
+	const (
+		firstSelectStmt = `
+SELECT id, deleted_at FROM host_certificates
+WHERE origin = ? AND deleted_at < ?
+ORDER BY deleted_at, id
+LIMIT ?`
+		nextSelectStmt = `
+SELECT id, deleted_at FROM host_certificates
+WHERE origin = ? AND deleted_at < ? AND (deleted_at > ? OR (deleted_at = ? AND id > ?))
+ORDER BY deleted_at, id
+LIMIT ?`
+		// host_certificate_sources rows go with their certificate via ON DELETE CASCADE.
+		deleteStmt = `DELETE FROM host_certificates WHERE id IN (?) AND deleted_at < ?`
+	)
+	type softDeletedCert struct {
+		ID        uint      `db:"id"`
+		DeletedAt time.Time `db:"deleted_at"`
+	}
+
+	var totalDeleted int64
+	for _, origin := range []fleet.HostCertificateOrigin{fleet.HostCertificateOriginOsquery, fleet.HostCertificateOriginMDM} {
+		var cursor *softDeletedCert
+		for batches := 0; ; batches++ {
+			if batches == maxBatches {
+				ds.logger.WarnContext(ctx, "cleanup soft-deleted host certificates hit its batch cap, any remaining rows are cleaned on the next run",
+					"origin", origin, "deleted", totalDeleted, "max_batches", maxBatches)
+				break
+			}
+			var certs []softDeletedCert
+			var err error
+			if cursor == nil {
+				err = sqlx.SelectContext(ctx, ds.reader(ctx), &certs, firstSelectStmt, origin, olderThan, batchSize)
+			} else {
+				err = sqlx.SelectContext(ctx, ds.reader(ctx), &certs, nextSelectStmt,
+					origin, olderThan, cursor.DeletedAt, cursor.DeletedAt, cursor.ID, batchSize)
+			}
+			if err != nil {
+				return totalDeleted, ctxerr.Wrap(ctx, err, "select soft-deleted host certificates")
+			}
+			if len(certs) == 0 {
+				break
+			}
+			cursor = &certs[len(certs)-1]
+
+			ids := make([]uint, 0, len(certs))
+			for _, c := range certs {
+				ids = append(ids, c.ID)
+			}
+			stmt, args, err := sqlx.In(deleteStmt, ids, olderThan)
+			if err != nil {
+				return totalDeleted, ctxerr.Wrap(ctx, err, "build delete soft-deleted host certificates")
+			}
+			res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+			if err != nil {
+				return totalDeleted, ctxerr.Wrap(ctx, err, "delete soft-deleted host certificates")
+			}
+			n, _ := res.RowsAffected()
+			totalDeleted += n
+			if len(certs) < batchSize {
+				break
+			}
+		}
+	}
+	return totalDeleted, nil
 }
 
 func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {
@@ -510,6 +1087,32 @@ func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, 
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating host mdm managed certificates")
+		}
+	}
+	return nil
+}
+
+// insertHostMDMManagedCertDB creates host_mdm_managed_certificates rows for
+// non-proxied SCEP/ACME flows discovered via cert ingestion. type is always
+// written as NULL because Fleet wasn't in the issuance path and doesn't know
+// the CA type. Uses INSERT IGNORE so a row created concurrently by another
+// transaction (e.g., a SCEP proxy issuance) doesn't cause a duplicate-key
+// error here — the matcher's UPDATE pass picks up that row on the next
+// ingestion call.
+func insertHostMDMManagedCertDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {
+	if len(certs) == 0 {
+		return nil
+	}
+	for _, c := range certs {
+		_, err := tx.ExecContext(ctx, `
+			INSERT IGNORE INTO host_mdm_managed_certificates
+				(host_uuid, profile_uuid, ca_name, type,
+				 not_valid_before, not_valid_after, serial)
+			VALUES (?, ?, ?, NULL, ?, ?, ?)`,
+			c.HostUUID, c.ProfileUUID, c.CAName,
+			c.NotValidBefore, c.NotValidAfter, c.Serial)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host mdm managed certificate")
 		}
 	}
 	return nil

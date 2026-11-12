@@ -1,11 +1,18 @@
 package nvd
 
 import (
+	"compress/gzip"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -15,9 +22,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
+	"github.com/google/go-github/v37/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -130,6 +137,12 @@ func (d *threadSafeDSMock) InsertSoftwareVulnerability(ctx context.Context, vuln
 	return d.Store.InsertSoftwareVulnerability(ctx, vuln, src)
 }
 
+func (d *threadSafeDSMock) InsertSoftwareVulnerabilities(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.Store.InsertSoftwareVulnerabilities(ctx, vulns, src)
+}
+
 func TestTranslateCPEToCVE(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -140,7 +153,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		// download the CVEs once for all sub-tests, and then disable syncing
 		tempDir = t.TempDir()
 		err := nettest.RunWithNetRetry(t, func() error {
-			return DownloadCVEFeed(tempDir, "", false, log.NewNopLogger())
+			return DownloadCVEFeed(tempDir, "", false, slog.New(slog.DiscardHandler))
 		})
 		require.NoError(t, err)
 	} else {
@@ -174,8 +187,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				{ID: "CVE-2021-3572", resolvedInVersion: "21.1"},
 				{ID: "CVE-2025-8869", resolvedInVersion: "25.3"},
 				{ID: "CVE-2023-5752", resolvedInVersion: "23.3"},
+				{ID: "CVE-2026-1703", resolvedInVersion: "26.0"},
 			},
-			continuesToUpdate: false,
+			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:mozilla:firefox:93.0:*:*:*:*:windows:*:*": {
 			includedCVEs:      firefox93WindowsVulnerabilities,
@@ -285,13 +299,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
-		/*"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
+		"cpe:2.3:a:microsoft:python_extension:2020.9.1:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
+				{ID: "CVE-2025-49714", resolvedInVersion: "2025.8.1"},
 			},
 			continuesToUpdate: false,
-		},*/
+		},
 		"cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2023-36018", resolvedInVersion: "2023.10.1100000000"},
@@ -308,15 +323,16 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: false,
 		},
-		/*"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
+		"cpe:2.3:a:microsoft:python_extension:2020.4.0:*:*:*:*:visual_studio_code:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2020-1171", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-1192", resolvedInVersion: "2020.5.0"},
 				{ID: "CVE-2020-17163", resolvedInVersion: "2020.9.2"},
 				{ID: "CVE-2024-49050", resolvedInVersion: "2024.18.2"},
+				{ID: "CVE-2025-49714", resolvedInVersion: "2025.8.1"},
 			},
 			continuesToUpdate: false,
-		},*/
+		},
 		// #34323
 		"cpe:2.3:a:valvesoftware:dota_2:1.0:*:*:*:*:macos:*:*": {
 			excludedCVEs: []string{
@@ -368,6 +384,48 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:apple:safari:16.2:*:*:*:*:macos:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2023-28205", resolvedInVersion: "16.4.1"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:16.4.1:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:16.5:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:16.6:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:15.6.1:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:14.1.2:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:apple:safari:13.1.3:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{
+				"CVE-2023-28205",
+			},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:microsoft:365_apps:16.0.17628.20144:*:*:*:*:windows:*:*": {
 			includedCVEs: []cve{
 				{ID: "CVE-2024-21402"},
@@ -379,13 +437,18 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-6286"},
 			continuesToUpdate: true,
 		},
-		// FIXME: https://github.com/fleetdm/fleet/issues/31303
-		// "cpe:2.3:a:citrix:workspace:2309.0:*:*:*:*:windows:*:*": {
-		// 	includedCVEs: []cve{
-		// 		{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
-		// 	},
-		// 	continuesToUpdate: true,
-		// },
+		"cpe:2.3:a:citrix:workspace:2203.1:*:*:*:ltsr:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-6286", resolvedInVersion: "2402"},
+			},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:citrix:workspace:2311.1:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2024-6286", resolvedInVersion: "2403.1"},
+			},
+			continuesToUpdate: true,
+		},
 		"cpe:2.3:a:python:python:3.9.6:*:*:*:*:macos:*:*": {
 			excludedCVEs:      []string{"CVE-2024-4030"},
 			continuesToUpdate: true,
@@ -398,6 +461,19 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		// 	},
 		// 	continuesToUpdate: true,
 		// },
+		// Ensure malformed ipswitch whatsup cpe is successfully matched to CVE
+		// See https://github.com/fleetdm/fleet/issues/32662.
+		"cpe:2.3:a:ipswitch:whatsup:2006:-:professional:premium:*:*:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2006-2351"},
+				{ID: "CVE-2006-2352"},
+				{ID: "CVE-2006-2353"},
+				{ID: "CVE-2006-2354"},
+				{ID: "CVE-2006-2355"},
+				{ID: "CVE-2006-2356"},
+				{ID: "CVE-2006-2357"},
+			},
+		},
 		// Tests the expandCPEAliases rule for virtualbox on macOS
 		"cpe:2.3:a:oracle:virtualbox:7.0.6:*:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
@@ -487,66 +563,72 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2024-12254"},
 			continuesToUpdate: true,
 		},
+		// NOTE: VulnCheck (the sole source — NVD has no CPE config for these CVEs)
+		// currently mislabels several CPython version ranges under product
+		// cpe:2.3:a:libexpat_project:libexpat instead of cpe:2.3:a:python:python.
+		// libexpat's real versions are 2.x, so the 3.x ranges clearly belong to CPython.
+		// These entries are commented out below until VulnCheck corrects the feed —
+		// uncomment them once upstream relabels the CVEs back to python:python.
 		"cpe:2.3:a:python:python:3.12.0:-:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
-				{
-					ID:                "CVE-2025-1795",
-					resolvedInVersion: "3.12.3",
-				},
+				// {
+				// 	ID:                "CVE-2025-1795",
+				// 	resolvedInVersion: "3.12.3",
+				// },
 				{
 					ID:                "CVE-2024-7592",
 					resolvedInVersion: "3.12.6",
 				},
-				{
-					ID:                "CVE-2024-6923",
-					resolvedInVersion: "3.12.5",
-				},
-				{
-					ID:                "CVE-2024-0397",
-					resolvedInVersion: "3.12.3",
-				},
-				{
-					ID:                "CVE-2024-12254",
-					resolvedInVersion: "3.12.9",
-				},
+				// {
+				// 	ID:                "CVE-2024-6923",
+				// 	resolvedInVersion: "3.12.5",
+				// },
+				// {
+				// 	ID:                "CVE-2024-0397",
+				// 	resolvedInVersion: "3.12.3",
+				// },
+				// {
+				// 	ID:                "CVE-2024-12254",
+				// 	resolvedInVersion: "3.12.9",
+				// },
 				{
 					ID:                "CVE-2024-9287",
 					resolvedInVersion: "3.12.8",
 				},
-				{
-					ID:                "CVE-2025-0938",
-					resolvedInVersion: "3.12.9",
-				},
+				// {
+				// 	ID:                "CVE-2025-0938",
+				// 	resolvedInVersion: "3.12.9",
+				// },
 				{
 					ID: "CVE-2023-6507",
 					// TODO: fix missing version here (according to vulncheck it was fixed in
 					// 3.12.1, but the generated feed data doesn't have this value)
 					resolvedInVersion: "",
 				},
-				{
-					ID:                "CVE-2024-8088",
-					resolvedInVersion: "3.12.6",
-				},
-				{
-					ID:                "CVE-2024-4032",
-					resolvedInVersion: "3.12.4",
-				},
-				{
-					ID:                "CVE-2024-3219",
-					resolvedInVersion: "3.12.5",
-				},
-				{
-					ID:                "CVE-2024-0450",
-					resolvedInVersion: "3.12.2",
-				},
-				{
-					ID:                "CVE-2023-6597",
-					resolvedInVersion: "3.12.1",
-				},
-				{
-					ID:                "CVE-2024-3220",
-					resolvedInVersion: "3.14.0",
-				},
+				// {
+				// 	ID:                "CVE-2024-8088",
+				// 	resolvedInVersion: "3.12.6",
+				// },
+				// {
+				// 	ID:                "CVE-2024-4032",
+				// 	resolvedInVersion: "3.12.4",
+				// },
+				// {
+				// 	ID:                "CVE-2024-3219",
+				// 	resolvedInVersion: "3.12.5",
+				// },
+				// {
+				// 	ID:                "CVE-2024-0450",
+				// 	resolvedInVersion: "3.12.2",
+				// },
+				// {
+				// 	ID:                "CVE-2023-6597",
+				// 	resolvedInVersion: "3.12.1",
+				// },
+				// {
+				// 	ID:                "CVE-2024-3220",
+				// 	resolvedInVersion: "3.14.0",
+				// },
 				{
 					ID:                "CVE-2024-6232",
 					resolvedInVersion: "3.12.6",
@@ -556,41 +638,41 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
-				{
-					ID:                "CVE-2024-12254",
-					resolvedInVersion: "3.14.0a3",
-				},
+				// {
+				// 	ID:                "CVE-2024-12254",
+				// 	resolvedInVersion: "3.14.0a3",
+				// },
 				{
 					ID:                "CVE-2024-9287",
 					resolvedInVersion: "",
 				},
-				{
-					ID:                "CVE-2025-0938",
-					resolvedInVersion: "3.14.0a5",
-				},
+				// {
+				// 	ID:                "CVE-2025-0938",
+				// 	resolvedInVersion: "3.14.0a5",
+				// },
 			},
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha2:*:*:*:macos:*:*": {
 			includedCVEs: []cve{
-				{
-					ID:                "CVE-2024-12254",
-					resolvedInVersion: "3.14.0a3",
-				},
-				{
-					ID:                "CVE-2025-0938",
-					resolvedInVersion: "3.14.0a5",
-				},
+				// {
+				// 	ID:                "CVE-2024-12254",
+				// 	resolvedInVersion: "3.14.0a3",
+				// },
+				// {
+				// 	ID:                "CVE-2025-0938",
+				// 	resolvedInVersion: "3.14.0a5",
+				// },
 			},
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:python:python:3.14.0:alpha3:*:*:*:macos:*:*": {
 			excludedCVEs: []string{"CVE-2024-12254"},
 			includedCVEs: []cve{
-				{
-					ID:                "CVE-2025-0938",
-					resolvedInVersion: "3.14.0a5",
-				},
+				// {
+				// 	ID:                "CVE-2025-0938",
+				// 	resolvedInVersion: "3.14.0a5",
+				// },
 			},
 			continuesToUpdate: true,
 		},
@@ -603,12 +685,23 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:docker:desktop:4.43.2:*:*:*:*:macos:*:*": {
-			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
+			includedCVEs:      []cve{{ID: "CVE-2026-2664", resolvedInVersion: "4.62.0"}},
 			continuesToUpdate: true,
 		},
 		"cpe:2.3:a:docker:desktop:4.39.0:*:*:*:*:windows:*:*": {
-			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
+			includedCVEs:      []cve{{ID: "CVE-2026-2664", resolvedInVersion: "4.62.0"}},
 			continuesToUpdate: true,
+		},
+		// #41586 - Admin By Request false positives on macOS/Linux
+		// These CVEs are Windows-only but NVD data uses target_sw=* so they would match any platform without our fix.
+		"cpe:2.3:a:fasttracksoftware:admin_by_request:5.2:*:*:*:*:macos:*:*": {
+			excludedCVEs: []string{"CVE-2019-17201", "CVE-2019-17202"},
+		},
+		"cpe:2.3:a:fasttracksoftware:admin_by_request:5.2:*:*:*:*:windows:*:*": {
+			includedCVEs: []cve{
+				{ID: "CVE-2019-17201", resolvedInVersion: "6.2.0.0"},
+				{ID: "CVE-2019-17202", resolvedInVersion: "6.2.0.0"},
+			},
 		},
 	}
 
@@ -691,6 +784,76 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			// This was resolved in 15.3, so it should be excluded. See https://github.com/fleetdm/fleet/issues/26561.
 			excludedCVEs: []string{"CVE-2025-24176"},
 		},
+		{
+			platform: "darwin",
+			version:  "13.2",
+			osID:     4,
+			// macOS Ventura 13.2 < 13.3.1 is vulnerable to CVE-2023-28205
+			includedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "13.3",
+			osID:     5,
+			// macOS Ventura 13.3.0 is vulnerable (< 13.3.1)
+			includedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "13.3.1",
+			osID:     6,
+			// macOS Ventura 13.3.1 includes system-level WebKit patch for CVE-2023-28205
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "13.4",
+			osID:     7,
+			// macOS Ventura 13.4 is patched (>= 13.3.1)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "13.5",
+			osID:     8,
+			// macOS Ventura 13.5 is patched (>= 13.3.1)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "12.7.6",
+			osID:     9,
+			// macOS Monterey 12.7.6 did NOT receive system-level fix (rely on Safari matching)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "12.6.5",
+			osID:     10,
+			// macOS Monterey 12.6.5 did NOT fix CVE-2023-28205 (only fixed CVE-2023-28206)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "11.7.10",
+			osID:     11,
+			// macOS Big Sur 11.7.10 did NOT receive system-level fix (rely on Safari matching)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "11.7.6",
+			osID:     12,
+			// macOS Big Sur 11.7.6 did NOT fix CVE-2023-28205 (only fixed CVE-2023-28206)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
+		{
+			platform: "darwin",
+			version:  "10.15.7",
+			osID:     13,
+			// macOS Catalina (10.x) should NOT match CVE-2023-28205 (pre-Big Sur)
+			excludedCVEs: []string{"CVE-2023-28205"},
+		},
 	}
 
 	t.Run("find_vulns_on_cpes", func(t *testing.T) {
@@ -726,31 +889,33 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 		cveLock := &sync.Mutex{}
 		cvesFound := make(map[string][]cve)
-		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
 			cveLock.Lock()
 			defer cveLock.Unlock()
 
-			cpe, ok := softwareIDToCPEs[vuln.SoftwareID]
-			if !ok {
-				return false, fmt.Errorf("software id -> cpe not found: %d", vuln.SoftwareID)
+			for _, vuln := range vulns {
+				cpe, ok := softwareIDToCPEs[vuln.SoftwareID]
+				if !ok {
+					return nil, fmt.Errorf("software id -> cpe not found: %d", vuln.SoftwareID)
+				}
+				c := cve{ID: vuln.CVE}
+				if vuln.ResolvedInVersion != nil {
+					c.resolvedInVersion = *vuln.ResolvedInVersion
+				}
+				cvesFound[cpe] = append(cvesFound[cpe], c)
 			}
-			cve := cve{
-				ID:                vuln.CVE,
-				resolvedInVersion: *vuln.ResolvedInVersion,
-			}
-			cvesFound[cpe] = append(cvesFound[cpe], cve)
-			return false, nil
+			return nil, nil
 		}
 
-		osCVELock := &sync.Mutex{}
 		osCVEsFound := make(map[uint][]string)
-		ds.InsertOSVulnerabilityFunc = func(ctx context.Context, vuln fleet.OSVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-			osCVELock.Lock()
-			defer osCVELock.Unlock()
+		ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+			cveLock.Lock()
+			defer cveLock.Unlock()
 
-			osCVEsFound[vuln.OSID] = append(osCVEsFound[vuln.OSID], vuln.CVE)
-
-			return false, nil
+			for _, vuln := range vulns {
+				osCVEsFound[vuln.OSID] = append(osCVEsFound[vuln.OSID], vuln.CVE)
+			}
+			return int64(len(vulns)), nil
 		}
 
 		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
@@ -760,7 +925,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			return nil
 		}
 
-		_, err := TranslateCPEToCVE(ctx, ds, tempDir, kitlog.NewNopLogger(), false, time.Now().UTC().Add(-time.Hour))
+		_, err := TranslateCPEToCVE(ctx, ds, tempDir, slog.New(slog.DiscardHandler), false, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
@@ -813,8 +978,9 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 			return softwareCPEs, nil
 		}
-		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-			return true, nil
+		// First call: all vulns are new, return whatever was inserted.
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+			return vulns, nil
 		}
 		ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, p string) ([]fleet.OperatingSystem, error) {
 			return nil, nil
@@ -822,8 +988,11 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
 			return nil
 		}
+		ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+			return 0, nil
+		}
 
-		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().Add(-time.Hour))
+		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, slog.New(slog.DiscardHandler), true, time.Now().Add(-time.Hour))
 		require.NoError(t, err)
 
 		byCPE := make(map[uint]int)
@@ -838,12 +1007,11 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		assert.Greater(t, byCPE[softwareCPEs[1].SoftwareID], 280, "mozilla firefox CVEs")
 		assert.Greater(t, byCPE[softwareCPEs[2].SoftwareID], 10, "curl CVEs")
 
-		// call it again but now return false from this call, simulating CVE-CPE pairs
-		// that already existed in the DB.
-		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
-			return false, nil
+		// Call it again but now return no new vulns (all already existed in the DB).
+		ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+			return nil, nil
 		}
-		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, time.Now().UTC().Add(-time.Hour))
+		recent, err = TranslateCPEToCVE(ctx, safeDS, tempDir, slog.New(slog.DiscardHandler), true, time.Now().UTC().Add(-time.Hour))
 		require.NoError(t, err)
 
 		// no recent vulnerability should be reported
@@ -865,7 +1033,7 @@ func TestSyncsCVEFromURL(t *testing.T) {
 
 	tempDir := t.TempDir()
 	cveFeedPrefixURL := ts.URL + "/feeds/json/cve/1.1/"
-	err := DownloadCVEFeed(tempDir, cveFeedPrefixURL, false, log.NewNopLogger())
+	err := DownloadCVEFeed(tempDir, cveFeedPrefixURL, false, slog.New(slog.DiscardHandler))
 	require.Error(t, err)
 	require.Contains(t,
 		err.Error(),
@@ -979,6 +1147,48 @@ func TestGetMatchingVersionEndExcluding(t *testing.T) {
 	}
 }
 
+func TestCheckVersionTrailingZeros(t *testing.T) {
+	tests := []struct {
+		name    string
+		rule    *schema.NVDCVEFeedJSON10DefCPEMatch
+		version string
+		want    string
+	}{
+		{
+			name:    "equal to end excluding with fewer parts",
+			rule:    &schema.NVDCVEFeedJSON10DefCPEMatch{VersionEndExcluding: "157.0.0"},
+			version: "157.0",
+			want:    "",
+		},
+		{
+			name:    "below end excluding",
+			rule:    &schema.NVDCVEFeedJSON10DefCPEMatch{VersionEndExcluding: "157.0.0"},
+			version: "156.0.1",
+			want:    "157.0.0",
+		},
+		{
+			name:    "equal to start including with fewer parts",
+			rule:    &schema.NVDCVEFeedJSON10DefCPEMatch{VersionStartIncluding: "154.0.0", VersionEndExcluding: "157.0.0"},
+			version: "154.0",
+			want:    "157.0.0",
+		},
+		{
+			name:    "equal to end excluding in a range with fewer parts",
+			rule:    &schema.NVDCVEFeedJSON10DefCPEMatch{VersionStartIncluding: "154.0.0", VersionEndExcluding: "157.0.0"},
+			version: "157.0",
+			want:    "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := checkVersion(tt.rule, tt.version)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestGetMacOSCPEs(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
@@ -1081,6 +1291,8 @@ func TestExpandCPEAliases(t *testing.T) {
 	pythonCodeExtensionAlias2 := *pythonCodeExtension
 	pythonCodeExtensionAlias2.Product = "visual_studio_code"
 	pythonCodeExtensionAlias2.TargetSW = "python"
+	pythonCodeExtensionAlias3 := *pythonCodeExtension
+	pythonCodeExtensionAlias3.Product = "python"
 
 	python3140Alpha2 := &wfn.Attributes{
 		Vendor:   "python",
@@ -1115,6 +1327,44 @@ func TestExpandCPEAliases(t *testing.T) {
 	python3130RC1Alias.Version = "3.13.0rc1"
 	python3130RC1Alias.Update = ""
 
+	ipswitchWhatsup := &wfn.Attributes{
+		Vendor:  "ipswitch",
+		Product: "whatsup",
+		Version: "2006",
+	}
+	ipswitchWhatsupAlias := *ipswitchWhatsup
+	ipswitchWhatsupAlias.Product = "whatsup_professional"
+
+	pgadminMacOS := &wfn.Attributes{
+		Vendor:   "pgadmin",
+		Product:  "pgadmin",
+		Version:  "9.10",
+		TargetSW: "macos",
+	}
+	pgadminMacOSAliasPgadmin := *pgadminMacOS
+	pgadminMacOSAliasPgadmin.TargetSW = "postgresql"
+	pgadminMacOSAliasPgadmin_4 := *pgadminMacOS
+	pgadminMacOSAliasPgadmin_4.Product = "pgadmin_4"
+	pgadminMacOSAliasPgadmin_4.TargetSW = "postgresql"
+	pgadminMacOSAliasPgadmin4 := *pgadminMacOS
+	pgadminMacOSAliasPgadmin4.Product = "pgadmin4"
+	pgadminMacOSAliasPgadmin4.TargetSW = "postgresql"
+
+	pgadminWindows := &wfn.Attributes{
+		Vendor:   "pgadmin",
+		Product:  "pgadmin_4",
+		Version:  "9.10",
+		TargetSW: "windows",
+	}
+	pgadminWindowsAliasPgadmin := *pgadminWindows
+	pgadminWindowsAliasPgadmin.Product = "pgadmin"
+	pgadminWindowsAliasPgadmin.TargetSW = "postgresql"
+	pgadminWindowsAliasPgadmin_4 := *pgadminWindows
+	pgadminWindowsAliasPgadmin_4.TargetSW = "postgresql"
+	pgadminWindowsAliasPgadmin4 := *pgadminWindows
+	pgadminWindowsAliasPgadmin4.Product = "pgadmin4"
+	pgadminWindowsAliasPgadmin4.TargetSW = "postgresql"
+
 	for _, tc := range []struct {
 		name            string
 		cpeItem         *wfn.Attributes
@@ -1138,7 +1388,7 @@ func TestExpandCPEAliases(t *testing.T) {
 		{
 			name:            "python visual studio code extension",
 			cpeItem:         pythonCodeExtension,
-			expectedAliases: []*wfn.Attributes{pythonCodeExtension, &pythonCodeExtensionAlias1, &pythonCodeExtensionAlias2},
+			expectedAliases: []*wfn.Attributes{pythonCodeExtension, &pythonCodeExtensionAlias1, &pythonCodeExtensionAlias2, &pythonCodeExtensionAlias3},
 		},
 		{
 			name:            "pre-release python: 3.14.0 alpha2",
@@ -1155,10 +1405,420 @@ func TestExpandCPEAliases(t *testing.T) {
 			cpeItem:         python3130RC1,
 			expectedAliases: []*wfn.Attributes{python3130RC1, &python3130RC1Alias},
 		},
+		{
+			name:            "ipswitch whatsup alias",
+			cpeItem:         ipswitchWhatsup,
+			expectedAliases: []*wfn.Attributes{ipswitchWhatsup, &ipswitchWhatsupAlias},
+		},
+		{
+			name:    "pgadmin on macos",
+			cpeItem: pgadminMacOS,
+			expectedAliases: []*wfn.Attributes{
+				pgadminMacOS,
+				&pgadminMacOSAliasPgadmin,
+				&pgadminMacOSAliasPgadmin_4,
+				&pgadminMacOSAliasPgadmin4,
+			},
+		},
+		{
+			name:    "pgadmin on windows",
+			cpeItem: pgadminWindows,
+			expectedAliases: []*wfn.Attributes{
+				pgadminWindows,
+				&pgadminWindowsAliasPgadmin,
+				&pgadminWindowsAliasPgadmin_4,
+				&pgadminWindowsAliasPgadmin4,
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			aliases := expandCPEAliases(tc.cpeItem)
 			require.Equal(t, tc.expectedAliases, aliases)
 		})
 	}
+}
+
+// nvdFeedItemJSON returns a single NVD CVE_Items entry vulnerable below the
+// given version, matching either a testvendor:testprod software CPE (kind
+// "software") or an apple macOS CPE (kind "os").
+func nvdFeedItemJSON(cveID, kind, versionEndExcluding string) string {
+	cpe23URI := "cpe:2.3:a:testvendor:testprod:*:*:*:*:*:*:*:*"
+	if kind == "os" {
+		cpe23URI = "cpe:2.3:o:apple:macos:*:*:*:*:*:*:*:*"
+	}
+	return fmt.Sprintf(`{
+		"cve": {
+			"CVE_data_meta": {"ID": %q},
+			"description": {"description_data": [{"lang": "en", "value": "test vulnerability"}]}
+		},
+		"configurations": {
+			"CVE_data_version": "4.0",
+			"nodes": [{
+				"operator": "OR",
+				"cpe_match": [{
+					"vulnerable": true,
+					"cpe23Uri": %q,
+					"versionEndExcluding": %q
+				}]
+			}]
+		},
+		"impact": {},
+		"publishedDate": "2023-01-01T00:00Z",
+		"lastModifiedDate": "2023-01-01T00:00Z"
+	}`, cveID, cpe23URI, versionEndExcluding)
+}
+
+// writeTestNVDFeedItems writes a minimal gzipped NVD 1.1 feed file containing
+// the given raw CVE_Items entries (see nvdFeedItemJSON).
+func writeTestNVDFeedItems(t *testing.T, dir, name string, items []string) {
+	t.Helper()
+	feed := fmt.Sprintf(`{
+		"CVE_data_type": "CVE",
+		"CVE_data_format": "MITRE",
+		"CVE_data_version": "4.0",
+		"CVE_Items": [%s]
+	}`, strings.Join(items, ","))
+
+	f, err := os.Create(filepath.Join(dir, name))
+	require.NoError(t, err)
+	gz := gzip.NewWriter(f)
+	_, err = gz.Write([]byte(feed))
+	require.NoError(t, err)
+	require.NoError(t, gz.Close())
+	require.NoError(t, f.Close())
+}
+
+// writeTestNVDFeedFile writes a minimal gzipped NVD 1.1 feed file with one
+// software item per given CVE ID, each affecting testvendor:testprod
+// versions below 2.0.
+func writeTestNVDFeedFile(t *testing.T, dir, name string, cveIDs ...string) {
+	t.Helper()
+	var items []string
+	for _, cveID := range cveIDs {
+		items = append(items, nvdFeedItemJSON(cveID, "software", "2.0"))
+	}
+	writeTestNVDFeedItems(t, dir, name, items)
+}
+
+func TestTranslateCPEToCVEFlushesMatchesInChunks(t *testing.T) {
+	// Not parallel: overrides the package-level flush threshold.
+	orig := matchFlushSize
+	matchFlushSize = 2
+	t.Cleanup(func() { matchFlushSize = orig })
+
+	ctx := t.Context()
+
+	vulnPath := t.TempDir()
+	writeTestNVDFeedFile(t, vulnPath, "nvdcve-1.1-2023.json.gz",
+		"CVE-2023-1111", "CVE-2023-2222", "CVE-2023-3333", "CVE-2023-4444", "CVE-2023-5555")
+	writeTestNVDFeedFile(t, vulnPath, "nvdcve-1.1-2024.json.gz", "CVE-2024-6666")
+
+	ds := new(mock.Store)
+	ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
+		return []fleet.SoftwareCPE{
+			{ID: 1, SoftwareID: 10, CPE: "cpe:2.3:a:testvendor:testprod:1.0:*:*:*:*:*:*:*"},
+		}, nil
+	}
+	ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
+		return nil, nil
+	}
+
+	var insertCalls int
+	var inserted []fleet.SoftwareVulnerability
+	ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+		insertCalls++
+		inserted = append(inserted, vulns...)
+		return vulns, nil
+	}
+	ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+		return int64(len(vulns)), nil
+	}
+	ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+		return nil
+	}
+	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+		return nil
+	}
+
+	collected, err := TranslateCPEToCVE(ctx, ds, vulnPath, slog.New(slog.DiscardHandler), true, time.Now().UTC().Add(-time.Hour))
+	require.NoError(t, err)
+
+	allCVEs := []string{
+		"CVE-2023-1111", "CVE-2023-2222", "CVE-2023-3333", "CVE-2023-4444", "CVE-2023-5555",
+		"CVE-2024-6666",
+	}
+
+	// Sanity: all CVEs from both feed files match the seeded CPE.
+	var cves []string
+	for _, v := range inserted {
+		require.Equal(t, uint(10), v.SoftwareID)
+		cves = append(cves, v.CVE)
+	}
+	require.ElementsMatch(t, allCVEs, cves)
+
+	// Matches must be flushed to the datastore in bounded chunks rather than
+	// accumulated for the whole corpus: holding every matched (software, CVE)
+	// pair in memory is what drove multi-GB peaks on large fleets. With a
+	// threshold of 2 and 6 matches, the sink flushes exactly 3 times.
+	require.Equal(t, 3, insertCalls)
+
+	// collectVulns keeps returning the newly inserted vulnerabilities.
+	var collectedCVEs []string
+	for _, v := range collected {
+		collectedCVEs = append(collectedCVEs, v.CVE)
+	}
+	require.ElementsMatch(t, allCVEs, collectedCVEs)
+
+	require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
+	require.True(t, ds.DeleteOutOfDateOSVulnerabilitiesFuncInvoked)
+}
+
+func TestTranslateCPEToCVESkipsStaleDeletesOnError(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		// setupFeed writes the feed file(s) for the case into dir.
+		setupFeed          func(t *testing.T, dir string)
+		softwareInsertErr  error
+		osInsertErr        error
+		wantErr            bool
+		wantCollectedCVEs  []string
+		wantSoftwareDelete bool
+		wantOSDelete       bool
+	}{
+		{
+			name: "feed file fails to load",
+			setupFeed: func(t *testing.T, dir string) {
+				writeTestNVDFeedFile(t, dir, "nvdcve-1.1-2023.json.gz", "CVE-2023-1111")
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "nvdcve-1.1-2024.json.gz"), []byte("not a gzip"), 0o644))
+				writeTestNVDFeedFile(t, dir, "nvdcve-1.1-2025.json.gz", "CVE-2025-2222")
+			},
+			// The corrupted file is reported, but the scan continues: matches
+			// from the healthy files are still inserted and collected.
+			// Aborting instead would suppress their automations forever —
+			// earlier chunks are already committed, so the next run would
+			// classify them as already known.
+			wantErr:           true,
+			wantCollectedCVEs: []string{"CVE-2023-1111", "CVE-2025-2222"},
+			// With part of the corpus unread, rows not re-matched this run
+			// can't be assumed stale, so both deletes are skipped.
+			wantSoftwareDelete: false,
+			wantOSDelete:       false,
+		},
+		{
+			name: "software insert fails",
+			setupFeed: func(t *testing.T, dir string) {
+				writeTestNVDFeedItems(t, dir, "nvdcve-1.1-2023.json.gz", []string{
+					nvdFeedItemJSON("CVE-2023-1111", "software", "2.0"),
+					nvdFeedItemJSON("CVE-2023-2222", "os", "16.0"),
+				})
+			},
+			softwareInsertErr: errors.New("insert failed"),
+			wantCollectedCVEs: nil,
+			// Each stream's delete is gated independently: only the software
+			// delete is skipped.
+			wantSoftwareDelete: false,
+			wantOSDelete:       true,
+		},
+		{
+			name: "os insert fails",
+			setupFeed: func(t *testing.T, dir string) {
+				writeTestNVDFeedItems(t, dir, "nvdcve-1.1-2023.json.gz", []string{
+					nvdFeedItemJSON("CVE-2023-1111", "software", "2.0"),
+					nvdFeedItemJSON("CVE-2023-2222", "os", "16.0"),
+				})
+			},
+			osInsertErr:       errors.New("insert failed"),
+			wantCollectedCVEs: []string{"CVE-2023-1111"},
+			// Only the OS delete is skipped.
+			wantSoftwareDelete: true,
+			wantOSDelete:       false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ctx := t.Context()
+
+			vulnPath := t.TempDir()
+			tc.setupFeed(t, vulnPath)
+
+			ds := new(mock.Store)
+			ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
+				return []fleet.SoftwareCPE{
+					{ID: 1, SoftwareID: 10, CPE: "cpe:2.3:a:testvendor:testprod:1.0:*:*:*:*:*:*:*"},
+				}, nil
+			}
+			ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
+				return []fleet.OperatingSystem{{ID: 20, Platform: "darwin", Version: "15.1"}}, nil
+			}
+			ds.InsertSoftwareVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+				if tc.softwareInsertErr != nil {
+					return nil, tc.softwareInsertErr
+				}
+				return vulns, nil
+			}
+			ds.InsertOSVulnerabilitiesFunc = func(ctx context.Context, vulns []fleet.OSVulnerability, src fleet.VulnerabilitySource) (int64, error) {
+				if tc.osInsertErr != nil {
+					return 0, tc.osInsertErr
+				}
+				return int64(len(vulns)), nil
+			}
+			ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+				return nil
+			}
+			ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, olderThan time.Time) error {
+				return nil
+			}
+
+			collected, err := TranslateCPEToCVE(ctx, ds, vulnPath, slog.New(slog.DiscardHandler), true, time.Now().UTC().Add(-time.Hour))
+
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			var collectedCVEs []string
+			for _, v := range collected {
+				collectedCVEs = append(collectedCVEs, v.CVE)
+			}
+			require.ElementsMatch(t, tc.wantCollectedCVEs, collectedCVEs)
+
+			require.Equal(t, tc.wantSoftwareDelete, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
+			require.Equal(t, tc.wantOSDelete, ds.DeleteOutOfDateOSVulnerabilitiesFuncInvoked)
+		})
+	}
+}
+
+func newTestGitHubClient(t *testing.T, handler http.HandlerFunc) *github.Client {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	gh := github.NewClient(srv.Client())
+	baseURL, err := url.Parse(srv.URL + "/")
+	require.NoError(t, err)
+	gh.BaseURL = baseURL
+	return gh
+}
+
+func TestFindLatestCVEReleaseTag(t *testing.T) {
+	type release struct {
+		tag   string
+		draft bool
+	}
+	drafts := func(n int) []release {
+		rs := make([]release, n)
+		for i := range rs {
+			rs[i] = release{tag: fmt.Sprintf("cve-2026091%04d", i), draft: true}
+		}
+		return rs
+	}
+	published := func(prefix string, n int) []release {
+		rs := make([]release, n)
+		for i := range rs {
+			rs[i] = release{tag: fmt.Sprintf("%s-%d", prefix, i)}
+		}
+		return rs
+	}
+	latest := release{tag: "cve-202609290800"}
+
+	// releasesServer pages through releases the way GitHub does, honoring per_page and page,
+	// and records the query of every request.
+	releasesServer := func(releases []release, queries *[]url.Values) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			// Errors are reported to the client, which fails the test through its return value.
+			if r.URL.Path != "/repos/fleetdm/vulnerabilities/releases" {
+				http.NotFound(w, r)
+				return
+			}
+			q := r.URL.Query()
+			*queries = append(*queries, q)
+			perPage, err := strconv.Atoi(q.Get("per_page"))
+			if err != nil || perPage < 1 {
+				http.Error(w, "bad per_page", http.StatusBadRequest)
+				return
+			}
+			page := 1
+			if p := q.Get("page"); p != "" {
+				if page, err = strconv.Atoi(p); err != nil || page < 1 {
+					http.Error(w, "bad page", http.StatusBadRequest)
+					return
+				}
+			}
+			start, end := min((page-1)*perPage, len(releases)), min(page*perPage, len(releases))
+			if end < len(releases) {
+				w.Header().Set("Link", fmt.Sprintf(`<http://%s%s?per_page=%d&page=%d>; rel="next"`, r.Host, r.URL.Path, perPage, page+1))
+			}
+			body := []map[string]any{}
+			for _, rel := range releases[start:end] {
+				body = append(body, map[string]any{"tag_name": rel.tag, "draft": rel.draft})
+			}
+			_ = json.NewEncoder(w).Encode(body)
+		}
+	}
+	find := func(t *testing.T, releases []release) (string, []url.Values, error) {
+		var queries []url.Values
+		gh := newTestGitHubClient(t, releasesServer(releases, &queries))
+		tag, err := findLatestCVEReleaseTag(t.Context(), gh, "fleetdm")
+		return tag, queries, err
+	}
+	// requireRequests asserts the number of requests, all using the small page size
+	// that Fleet servers use.
+	requireRequests := func(t *testing.T, queries []url.Values, n int) {
+		t.Helper()
+		require.Len(t, queries, n)
+		for _, q := range queries {
+			require.Equal(t, "10", q.Get("per_page"))
+		}
+	}
+
+	t.Run("found on first page with the same request as before", func(t *testing.T) {
+		tag, queries, err := find(t, append(drafts(2), latest))
+		require.NoError(t, err)
+		require.Equal(t, latest.tag, tag)
+		require.Len(t, queries, 1)
+		// Fleet servers make this request on every vulnerability sync, so it must not change.
+		require.Equal(t, url.Values{"per_page": {"10"}}, queries[0])
+	})
+
+	t.Run("drafts never exhaust the search", func(t *testing.T) {
+		tag, queries, err := find(t, append(drafts(250), latest))
+		require.NoError(t, err)
+		require.Equal(t, latest.tag, tag)
+		requireRequests(t, queries, 26)
+	})
+
+	t.Run("non-CVE releases before the latest CVE release", func(t *testing.T) {
+		tag, _, err := find(t, append(published("cpe", maxPublishedReleasesScanned-1), latest))
+		require.NoError(t, err)
+		require.Equal(t, latest.tag, tag)
+	})
+
+	t.Run("search stops after max published releases", func(t *testing.T) {
+		_, queries, err := find(t, append(published("cpe", maxPublishedReleasesScanned), latest))
+		require.ErrorContains(t, err, "no CVE feed found")
+		requireRequests(t, queries, maxPublishedReleasesScanned/cveReleasesPerPage)
+	})
+
+	t.Run("no CVE release at all", func(t *testing.T) {
+		_, queries, err := find(t, append(drafts(3), published("cpe", 20)...))
+		require.ErrorContains(t, err, "no CVE feed found")
+		requireRequests(t, queries, 3)
+	})
+
+	t.Run("rate limit response surfaces as RateLimitError", func(t *testing.T) {
+		reset := time.Now().Add(24 * time.Minute).Truncate(time.Second)
+		gh := newTestGitHubClient(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-RateLimit-Limit", "60")
+			w.Header().Set("X-RateLimit-Remaining", "0")
+			w.Header().Set("X-RateLimit-Reset", strconv.FormatInt(reset.Unix(), 10))
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`{"message":"API rate limit exceeded for 20.184.150.249. (But here's the good news: Authenticated requests get a higher rate limit. Check out the documentation for more details.)","documentation_url":"https://docs.github.com/rest/overview/resources-in-the-rest-api#rate-limiting"}`))
+		})
+		_, err := findLatestCVEReleaseTag(t.Context(), gh, "fleetdm")
+		rlErr, ok := errors.AsType[*github.RateLimitError](err)
+		require.True(t, ok, "expected *github.RateLimitError, got %T: %v", err, err)
+		require.True(t, reset.Equal(rlErr.Rate.Reset.Time), "reset %s, want %s", rlErr.Rate.Reset.Time, reset)
+	})
 }

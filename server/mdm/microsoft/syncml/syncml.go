@@ -108,6 +108,9 @@ const (
 	// This response code will be generated if you try to access a property that the CSP doesn't support
 	CmdStatusOptionalFeature = "406"
 
+	// This response code will be generated if authentication is required to continue the session
+	CmdStatusAuthenticationRequired = "407"
+
 	// Unsupported type or format
 	// This response code can result from XML parsing or formatting errors
 	CmdStatusUnsupportedType = "415"
@@ -169,14 +172,21 @@ const (
 )
 
 const (
-	FleetBitLockerTargetLocURI = "/Vendor/MSFT/BitLocker"
-	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
+	FleetBitLockerTargetLocURI  = "/Vendor/MSFT/BitLocker"
+	FleetOSUpdateTargetLocURI   = "/Vendor/MSFT/Policy/Config/Update"
+	FleetRemoteWipeTargetLocURI = "/Vendor/MSFT/RemoteWipe"
 
 	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include BitLocker settings."
 )
 
-// Supported MS-MDE2 enrollment versions
-var SupportedEnrollmentVersions = []string{"4.0", "5.0", "6.0", "7.0"}
+// MinSupportedEnrollmentVersion is the lowest MS-MDE2 discovery RequestVersion Fleet accepts.
+//
+// The discovery response pins the protocol to EnrollmentVersionV4 ("4.0") and the client
+// negotiates down from whatever version it advertised, so Fleet accepts any RequestVersion >= 4.0
+// rather than an exact-match allow-list. This keeps enrollment working on newer Windows builds
+// that advertise higher versions (e.g. Windows 11 25H2 sends "9.0") without requiring a code
+// change for each Windows release.
+const MinSupportedEnrollmentVersion = EnrollmentVersionV4
 
 // MS-MDE2 Message constants
 const (
@@ -222,8 +232,8 @@ const (
 	// Supported Enroll Type Full
 	ReqSecTokenEnrollTypeFull = "Full"
 
-	// Provisioning Doc Certificate Renewal Period (365 days)
-	WstepCertRenewalPeriodInDays = "365"
+	// Provisioning Doc Certificate Renewal Period in Days (180 days, matching PolicyCertRenewalPeriodInSecs)
+	WstepCertRenewalPeriodInDays = "180"
 
 	// Provisioning Doc Server supports ROBO auto certificate renewal
 	// TODO: Add renewal support
@@ -234,6 +244,10 @@ const (
 
 	// The PROVIDER-ID paramer specifies the server identifier for a management server used in the current management session
 	DocProvisioningAppProviderID = "Fleet"
+
+	// DMClientPollIntervalLocURI is the DMClient Poll node Fleet writes to tune the Windows MDM poll cadence (the aggressive default vs the
+	// relaxed steady-state for hosts that can be woken on demand by fleetd).
+	DMClientPollIntervalLocURI = "./Device/Vendor/MSFT/DMClient/Provider/" + DocProvisioningAppProviderID + "/Poll/IntervalForFirstSetOfRetries"
 
 	// The NAME parameter is used in the APPLICATION characteristic to specify a user readable application identity
 	DocProvisioningAppName = DocProvisioningAppProviderID
@@ -277,11 +291,14 @@ const (
 	ReqSecTokenContextItemNotInOobe            = "NotInOobe"
 	ReqSecTokenContextItemRequestVersion       = "RequestVersion"
 
-	// APPRU query param expected by STS Auth endpoint
-	STSAuthAppRu = "appru"
+	// ReqSecTokenContextItemZeroTouchProvisioning carries the Autopilot ZTDID, ZTD being Microsoft's codename for
+	// Windows Autopilot. It is present only when the enrolling device is registered with Autopilot.
+	ReqSecTokenContextItemZeroTouchProvisioning = "ZeroTouchProvisioning"
 
-	// Login related query param expected by STS Auth endpoint
-	STSLoginHint = "login_hint"
+	// ReqSecTokenContextItemOfflineAutopilotCorrelator is a second Autopilot identifier that can accompany the item
+	// above. Fleet does not consume it and nothing links on it; it is logged as a diagnostic so that a device supplying
+	// this instead of a ZTDID is distinguishable from one that supplied nothing.
+	ReqSecTokenContextItemOfflineAutopilotCorrelator = "OfflineAutoPilotEnrollmentCorrelator"
 
 	// redirect_uri query param expected by TOS endpoint
 	TOCRedirectURI = "redirect_uri"
@@ -292,8 +309,16 @@ const (
 	// Alert payload user-driven unenrollment request
 	AlertUserUnenrollmentRequest = "com.microsoft:mdm.unenrollment.userrequest"
 
+	// AlertTypeLoginStatus is the Meta/Type of the device alert (CmdAlertClientEvent, "1224") Windows sends in the first message of
+	// every management session to report whether an MDM user is signed in. Microsoft documents it as "DM package #1" under "Determine
+	// when a user is logged in through polling".
+	AlertTypeLoginStatus = "com.microsoft/MDM/LoginStatus"
+
 	// FleetdWindowsInstallerGUID is the GUID used for fleetd on Windows
 	FleetdWindowsInstallerGUID = "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall"
+
+	AuthMD5       = "syncml:auth-md5"
+	AuthB64Format = "b64"
 )
 
 // MS-MDM Message constants
@@ -323,6 +348,7 @@ type TestCommand struct {
 	Data   string
 }
 
+// Wraps the commands in an <Atomic> element for testing purposes
 func ForTestWithData(commands []TestCommand) []byte {
 	var syncMLBuf bytes.Buffer
 	for _, command := range commands {
@@ -333,6 +359,22 @@ func ForTestWithData(commands []TestCommand) []byte {
       <LocURI>%s</LocURI>
     </Target>
     <Data>%s</Data>
+  </Item>
+</%s>`, command.Verb, command.LocURI, command.Data, command.Verb))
+	}
+	return fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", syncMLBuf.Bytes())
+}
+
+func ForTestWithDataNonAtomic(commands []TestCommand) []byte {
+	var syncMLBuf bytes.Buffer
+	for _, command := range commands {
+		syncMLBuf.WriteString(fmt.Sprintf(`
+<%s>
+  <Item>
+	<Target>
+	  <LocURI>%s</LocURI>
+	</Target>
+	<Data>%s</Data>
   </Item>
 </%s>`, command.Verb, command.LocURI, command.Data, command.Verb))
 	}

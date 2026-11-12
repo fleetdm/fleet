@@ -1,0 +1,10 @@
+{
+  "name": "Forecast",
+  "unique_identifier": "fm.overcast.forecast-encoder",
+  "token": "forecast",
+  "installer_format": "zip",
+  "slug": "forecast/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

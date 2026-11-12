@@ -1,6 +1,8 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+
 import IconStatusMessage from ".";
+
 import "../../index.scss";
 
 const meta: Meta<typeof IconStatusMessage> = {
@@ -13,14 +15,7 @@ const meta: Meta<typeof IconStatusMessage> = {
     },
     iconName: {
       control: { type: "select" },
-      options: [
-        undefined,
-        "success",
-        "success-outline",
-        "error",
-        "error-outline",
-        "info",
-      ],
+      options: [undefined, "success", "success-filled", "error", "info"],
       description: "Name of the icon to display",
     },
     iconColor: {

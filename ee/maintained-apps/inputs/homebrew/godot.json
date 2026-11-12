@@ -1,0 +1,10 @@
+{
+  "name": "Godot Engine",
+  "unique_identifier": "org.godotengine.godot",
+  "token": "godot",
+  "installer_format": "zip",
+  "slug": "godot/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

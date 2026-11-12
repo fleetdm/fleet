@@ -1,0 +1,10 @@
+{
+  "name": "Dangerzone",
+  "unique_identifier": "press.freedom.dangerzone",
+  "token": "dangerzone",
+  "installer_format": "dmg",
+  "slug": "dangerzone/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

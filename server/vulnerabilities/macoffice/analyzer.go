@@ -3,6 +3,7 @@ package macoffice
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -118,28 +119,12 @@ func updateVulnsInDB(
 		return nil, err
 	}
 
-	inserted := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
-	err = utils.BatchProcess(toInsertSet, func(vulns []fleet.SoftwareVulnerability) error {
-		for _, v := range vulns {
-			ok, err := ds.InsertSoftwareVulnerability(ctx, v, fleet.MacOfficeReleaseNotesSource)
-			if err != nil {
-				return err
-			}
-
-			if ok {
-				inserted = append(inserted, v)
-			}
-		}
-
-		return nil
-		// Since we are only detecting Mac Office vulnerabilities 'toInsertSet' should be small, so
-		// inserting the whole batch in one go should be ok.
-	}, len(toInsertSet))
-	if err != nil {
-		return nil, err
+	allVulns := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	for _, v := range toInsertSet {
+		allVulns = append(allVulns, v)
 	}
 
-	return inserted, nil
+	return ds.InsertSoftwareVulnerabilities(ctx, allVulns, fleet.MacOfficeReleaseNotesSource)
 }
 
 // Analyze uses the most recent Mac Office release notes asset in 'vulnPath' for detecting
@@ -157,6 +142,20 @@ func Analyze(
 
 	if len(relNotes) == 0 {
 		return nil, nil
+	}
+
+	// Refuse to proceed if the loaded release notes contain no valid security updates —
+	// without them every existing MacOffice vulnerability would be marked as remediated.
+	// This usually indicates the bulletin file is corrupted or partially downloaded.
+	hasValid := false
+	for i := range relNotes {
+		if relNotes[i].Valid() {
+			hasValid = true
+			break
+		}
+	}
+	if !hasValid {
+		return nil, errors.New("MacOffice release notes contain no valid security updates (possible corrupted feed)")
 	}
 
 	queryParams := fleet.SoftwareIterQueryOptions{IncludedSources: []string{"apps"}}

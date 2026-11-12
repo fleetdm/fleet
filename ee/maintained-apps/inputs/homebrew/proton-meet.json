@@ -1,0 +1,10 @@
+{
+  "name": "Proton Meet",
+  "unique_identifier": "ch.protonmeet.desktop",
+  "token": "proton-meet",
+  "installer_format": "dmg",
+  "slug": "proton-meet/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

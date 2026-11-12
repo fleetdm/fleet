@@ -5,6 +5,8 @@ import {
   stripQuotes,
   isIncompleteQuoteQuery,
   hyphenateString,
+  matchLoosePrefixToKey,
+  equalsIgnoreCase,
 } from "./stringUtils";
 
 describe("string utilities", () => {
@@ -140,6 +142,91 @@ describe("string utilities", () => {
       expect(hyphenateString("Attached Numbered App3")).toBe(
         "attached-numbered-app3"
       );
+    });
+  });
+
+  describe("matchLoosePrefixToKey", () => {
+    const MAP = {
+      arc: "Arc",
+      code: "VisualStudioCode",
+      archaeology: "Archaeology",
+      "visual studio code": "VisualStudioCode",
+      "windows app": "WindowsApp",
+      "windows app remote": "WindowsAppRemote",
+    } as const;
+
+    it("matches exact key", () => {
+      expect(matchLoosePrefixToKey(MAP, "Arc")).toBe("arc");
+    });
+
+    it("matches key followed by space and suffix", () => {
+      expect(matchLoosePrefixToKey(MAP, "Visual Studio Code - Insiders")).toBe(
+        "visual studio code"
+      );
+      expect(matchLoosePrefixToKey(MAP, "Code 2")).toBe("code");
+      expect(
+        matchLoosePrefixToKey(MAP, "Visual Studio Code 2025 Edition")
+      ).toBe("visual studio code");
+    });
+
+    it("does not match non-word prefix (Archive vs arc)", () => {
+      expect(matchLoosePrefixToKey(MAP, "Archive")).toBeUndefined();
+    });
+
+    it("matches 'code' as a whole word but not 'Codex'", () => {
+      expect(matchLoosePrefixToKey(MAP, "Code")).toBe("code");
+      expect(matchLoosePrefixToKey(MAP, "Code Helper")).toBe("code");
+      expect(matchLoosePrefixToKey(MAP, "Codex")).toBeUndefined();
+    });
+
+    it("matches variants that use a space before another variant correctly by matching the longest match key", () => {
+      // Exact matches
+      expect(matchLoosePrefixToKey(MAP, "Windows App")).toBe("windows app");
+      expect(matchLoosePrefixToKey(MAP, "Windows App Remote")).toBe(
+        "windows app remote"
+      );
+
+      // With suffixes
+      expect(matchLoosePrefixToKey(MAP, "Windows App - Something")).toBe(
+        "windows app"
+      );
+      expect(
+        matchLoosePrefixToKey(MAP, "Windows App Remote - Something Else")
+      ).toBe("windows app remote");
+    });
+
+    it("is case-insensitive and trims surrounding whitespace", () => {
+      expect(matchLoosePrefixToKey(MAP, "  arc  ")).toBe("arc");
+      expect(matchLoosePrefixToKey(MAP, "VISUAL STUDIO CODE")).toBe(
+        "visual studio code"
+      );
+      expect(
+        matchLoosePrefixToKey(MAP, "  Visual Studio Code  - Insiders  ")
+      ).toBe("visual studio code");
+    });
+  });
+
+  describe("equalsIgnoreCase", () => {
+    it("matches regardless of case", () => {
+      expect(
+        equalsIgnoreCase(
+          "5b1fc5b6-9502-4cf9-90cf-d0b656eaf7a4",
+          "5B1FC5B6-9502-4CF9-90CF-D0B656EAF7A4"
+        )
+      ).toBe(true);
+    });
+
+    it("does not match different values", () => {
+      expect(equalsIgnoreCase("abc", "abd")).toBe(false);
+    });
+
+    it("does not trim", () => {
+      expect(equalsIgnoreCase("abc", " abc")).toBe(false);
+    });
+
+    it("uses locale-independent casing", () => {
+      // toLocaleLowerCase would map "I" to a dotless "i" under a Turkish locale and break the match.
+      expect(equalsIgnoreCase("ID-1", "id-1")).toBe(true);
     });
   });
 });

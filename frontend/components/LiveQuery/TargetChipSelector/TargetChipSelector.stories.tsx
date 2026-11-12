@@ -1,7 +1,11 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+
 import { ISelectLabel, ISelectTeam } from "interfaces/target";
-import TargetChipSelector from "./TargetChipSelector"; // Adjust the path if necessary
+
+import TargetChipSelector from "./TargetChipSelector";
+
+// Adjust the path if necessary
 
 const meta: Meta<typeof TargetChipSelector> = {
   component: TargetChipSelector,
@@ -19,15 +23,6 @@ const meta: Meta<typeof TargetChipSelector> = {
     onClick: {
       description: "The handler to call when the chip is clicked.",
       action: "clicked", // Use Storybook's action to track clicks
-    },
-  },
-  parameters: {
-    backgrounds: {
-      default: "light",
-      values: [
-        { name: "light", value: "#ffffff" },
-        { name: "dark", value: "#333333" },
-      ],
     },
   },
 };

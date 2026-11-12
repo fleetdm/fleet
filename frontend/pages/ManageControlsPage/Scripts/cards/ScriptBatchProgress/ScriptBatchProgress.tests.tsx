@@ -1,21 +1,19 @@
-import React from "react";
 import { cleanup, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import React from "react";
+
+import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
+import { ScriptBatchStatus } from "interfaces/script";
+import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   createMockRouter,
 } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { http, HttpResponse } from "msw";
 
-import { ScriptBatchStatus } from "interfaces/script";
-
-import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
-
-import ScriptBatchProgress, {
-  EMPTY_STATE_DETAILS,
-} from "./ScriptBatchProgress";
 import { ScriptsLocation } from "../../Scripts";
+
+import ScriptBatchProgress from "./ScriptBatchProgress";
 
 const waitForLoadingToFinish = async (container: HTMLElement) => {
   await waitFor(() => {
@@ -53,13 +51,25 @@ const teamBatchSummariesHandler = http.get(
       });
     }
     if (status === "scheduled") {
+      // For "almost 10 years", using 9 years and 10 months from now
+      const now = new Date();
+      const almostTenYearsFromNow = new Date(
+        now.getFullYear() + 9, // years from now
+        now.getMonth() + 10, // months from now
+        now.getDate(),
+        now.getHours(),
+        now.getMinutes(),
+        now.getSeconds(),
+        now.getMilliseconds()
+      ).toISOString();
+
       return HttpResponse.json({
         batch_executions: [
           createMockBatchScriptSummary({
             script_name: "Test Script 1",
             status: "scheduled",
             finished_at: null,
-            not_before: "9999-01-01T10:11:00.000Z",
+            not_before: almostTenYearsFromNow,
           }),
         ],
         meta: { has_next_results: false, has_previous_results: false },
@@ -102,6 +112,12 @@ const getTestLocation = (status: ScriptBatchStatus): ScriptsLocation => ({
   search: `?status=${status}`,
 });
 
+const EMPTY_STATE_TEXT: Record<ScriptBatchStatus, string> = {
+  started: "Scripts running on multiple hosts will appear here.",
+  scheduled: "Scheduled scripts will appear here.",
+  finished: "Completed or canceled batch scripts will appear here.",
+};
+
 const testTabURLNavAndEmpty = async (status: ScriptBatchStatus) => {
   const render = createCustomRenderer({
     withBackendMock: true,
@@ -132,7 +148,7 @@ const testTabURLNavAndEmpty = async (status: ScriptBatchStatus) => {
 
   await waitForLoadingToFinish(container);
 
-  expect(screen.getByText(EMPTY_STATE_DETAILS[status])).toBeInTheDocument();
+  expect(screen.getByText(EMPTY_STATE_TEXT[status])).toBeInTheDocument();
   cleanup();
 };
 
@@ -198,7 +214,7 @@ describe("ScriptBatchProgress", () => {
     await waitFor(() => {
       expect(screen.getByText("Test Script 1")).toBeInTheDocument();
       expect(screen.getByText(/Will start/)).toBeInTheDocument();
-      expect(screen.getByText(/in (about|over) \d+ years/)).toBeInTheDocument();
+      expect(screen.getByText(/in almost 10 years/)).toBeInTheDocument();
     });
   });
 
@@ -229,5 +245,60 @@ describe("ScriptBatchProgress", () => {
       expect(screen.getByText(/Canceled/)).toBeInTheDocument();
       expect(screen.getByText(/20\s+\/\s+50/m)).toBeInTheDocument();
     });
+  });
+
+  // Regression coverage for #47019: the auto-correction effect for an
+  // invalid/missing ?status must use router.replace, not router.push, so the
+  // browser Back button isn't trapped.
+  it("Replaces (does not push) the URL with ?status=started when status is invalid", async () => {
+    mockServer.use(emptyTeamBatchSummariesHandler);
+
+    const router = createMockRouter();
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(
+      <ScriptBatchProgress
+        router={router}
+        teamId={1}
+        location={{
+          pathname: "/controls/scripts/progress",
+          query: { status: "bogus" },
+          search: "?status=bogus",
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(
+        "/controls/scripts/progress?status=started"
+      );
+    });
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it("Replaces (does not push) the URL with ?status=started when status is missing", async () => {
+    mockServer.use(emptyTeamBatchSummariesHandler);
+
+    const router = createMockRouter();
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(
+      <ScriptBatchProgress
+        router={router}
+        teamId={1}
+        location={{
+          pathname: "/controls/scripts/progress",
+          query: {},
+          search: "",
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(
+        "/controls/scripts/progress?status=started"
+      );
+    });
+    expect(router.push).not.toHaveBeenCalled();
   });
 });

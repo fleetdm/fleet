@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 
 const baseClass = "confirm-run-script-modal";
 
@@ -45,7 +45,7 @@ const ConfirmRunScriptModal = ({
           >
             Run
           </Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

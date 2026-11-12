@@ -1,6 +1,8 @@
-import React from "react";
 import classnames from "classnames";
+import { noop } from "lodash";
+import React from "react";
 
+import FeedListItem from "components/FeedListItem";
 import {
   IActivity,
   IActivityDetails,
@@ -9,16 +11,19 @@ import {
 } from "interfaces/activity";
 import { addGravatarUrlToResource } from "utilities/helpers";
 
-import FeedListItem from "components/FeedListItem";
-
-import { noop } from "lodash";
-
 const baseClass = "activity-item";
 
 export interface IShowActivityDetailsData {
   type: string;
   details?: IActivityDetails;
   created_at?: string;
+  /** Display name of the user who triggered the activity. Empty / undefined
+   *  for Fleet-initiated activities. */
+  actor_full_name?: string;
+  /** True when no user triggered the activity (policy, auto-update, setup
+   *  experience, etc.). Used by the install-details modal to render the
+   *  actor-driven failure copy ("Fleet failed to install …"). */
+  fleet_initiated?: boolean;
 }
 
 /**
@@ -102,6 +107,8 @@ const ActivityItem = ({
       type: activity.type,
       details: activity.details,
       created_at: activity.created_at,
+      actor_full_name: activity.actor_full_name,
+      fleet_initiated: activity.fleet_initiated,
     });
   };
 

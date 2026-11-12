@@ -5,11 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
 )
 
 // Name of the DB migration job as registered in the worker. Note that although
@@ -29,7 +29,7 @@ const (
 // DBMigration is the job processor for the db_migration job.
 type DBMigration struct {
 	Datastore fleet.Datastore
-	Log       kitlog.Logger
+	Log       *slog.Logger
 }
 
 // Name returns the name of the job.
@@ -81,7 +81,7 @@ func (m *DBMigration) migrateVPPToken(ctx context.Context) error {
 		// it should've updated, as the location, org name and renew date were all
 		// dummy values after the DB migration. Log something, but otherwise
 		// continue as retrying won't change the result.
-		m.Log.Log("info", "VPP token metadata was not updated")
+		m.Log.InfoContext(ctx, "VPP token metadata was not updated")
 	}
 
 	if _, err := m.Datastore.UpdateVPPToken(ctx, tok.ID, tokenData); err != nil {

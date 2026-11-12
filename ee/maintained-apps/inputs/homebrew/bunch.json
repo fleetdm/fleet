@@ -1,0 +1,11 @@
+{
+  "name": "Bunch",
+  "unique_identifier": "com.brettterpstra.Bunch",
+  "token": "bunch",
+  "installer_format": "dmg",
+  "slug": "bunch/darwin",
+  "default_categories": [
+    "Productivity"
+  ],
+  "frozen": true
+}

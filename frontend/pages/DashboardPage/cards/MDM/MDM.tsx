@@ -1,16 +1,15 @@
 import React, { useMemo, useState } from "react";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { IMdmStatusCardData, IMdmSummaryMdmSolution } from "interfaces/mdm";
-
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import TableContainer from "components/TableContainer";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
+import { IMdmStatusCardData, IMdmSummaryMdmSolution } from "interfaces/mdm";
 
 import {
   generateSolutionsTableHeaders,
@@ -48,7 +47,7 @@ const PAGE_SIZE = 8;
 const baseClass = "home-mdm";
 
 const EmptyMdmStatus = (): JSX.Element => (
-  <EmptyTable
+  <EmptyState
     header="Unable to detect MDM enrollment"
     info={
       <>
@@ -64,7 +63,7 @@ const EmptyMdmStatus = (): JSX.Element => (
 );
 
 const EmptyMdmSolutions = (): JSX.Element => (
-  <EmptyTable
+  <EmptyState
     header="No MDM solutions detected"
     info="This report is updated every hour to protect the performance of your
       devices."
@@ -96,7 +95,7 @@ const Mdm = ({
   selectedPlatformLabelId,
   selectedTeamId,
   onClickMdmSolution,
-}: IMdmCardProps): JSX.Element => {
+}: IMdmCardProps) => {
   const [navTabIndex, setNavTabIndex] = useState(0);
 
   const onTabChange = (index: number) => {

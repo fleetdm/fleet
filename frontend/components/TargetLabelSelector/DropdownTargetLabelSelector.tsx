@@ -1,0 +1,289 @@
+import classnames from "classnames";
+import React, { ReactNode } from "react";
+
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import Radio from "components/forms/fields/Radio";
+import Spinner from "components/Spinner";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ILabelSummary } from "interfaces/label";
+import PATHS from "router/paths";
+
+const baseClass = "target-label-selector";
+
+interface ITargetChooserProps {
+  selectedTarget: string;
+  onSelect: (val: string) => void;
+  disableOptions?: boolean;
+  title: string | null;
+  subTitle?: string;
+  /** Slot rendered between the title/subtitle and the radio options. */
+  labelInfoBanner?: ReactNode;
+  /** Error for the target selection — renders in place of the title when set. */
+  error?: string | null;
+}
+
+const TargetChooser = ({
+  selectedTarget,
+  onSelect,
+  disableOptions = false,
+  title,
+  subTitle,
+  labelInfoBanner,
+  error,
+}: ITargetChooserProps) => {
+  return (
+    <div className="form-field">
+      {title && (
+        <div
+          className={classnames("form-field__label", {
+            "form-field__label--error": !!error,
+          })}
+        >
+          {error || title}
+        </div>
+      )}
+      {subTitle && <div className="form-field__subtitle">{subTitle}</div>}
+      {labelInfoBanner}
+      <Radio
+        className={`${baseClass}__radio-input`}
+        label="All hosts"
+        id="all-hosts-target-radio-btn"
+        checked={selectedTarget === "All hosts"}
+        value="All hosts"
+        name="target-type"
+        onChange={onSelect}
+        disabled={disableOptions}
+      />
+      <Radio
+        className={`${baseClass}__radio-input`}
+        label="Custom"
+        id="custom-target-radio-btn"
+        checked={selectedTarget === "Custom"}
+        value="Custom"
+        name="target-type"
+        onChange={onSelect}
+        disabled={disableOptions}
+      />
+    </div>
+  );
+};
+
+interface ILabelChooserProps {
+  isError: boolean;
+  isLoading: boolean;
+  labels: ILabelSummary[];
+  selectedLabels: Record<string, boolean>;
+  selectedCustomTarget?: string;
+  customTargetOptions?: IDropdownOption[];
+  customHelpText?: ReactNode;
+  dropdownHelpText?: ReactNode;
+  /** Replaces the scope help text with a red validation message. */
+  labelsError?: ReactNode | null;
+  onSelectCustomTarget?: (val: string) => void;
+  onSelectLabel: ({ name, value }: { name: string; value: boolean }) => void;
+  disableOptions: boolean;
+}
+
+const LabelChooser = ({
+  isError,
+  isLoading,
+  labels,
+  customHelpText,
+  dropdownHelpText,
+  labelsError,
+  selectedLabels,
+  selectedCustomTarget,
+  customTargetOptions = [],
+  onSelectCustomTarget,
+  onSelectLabel,
+  disableOptions,
+}: ILabelChooserProps) => {
+  const getHelpText = (value?: string) => {
+    if (dropdownHelpText) return dropdownHelpText;
+    return customTargetOptions.find((option) => option.value === value)
+      ?.helpText;
+  };
+
+  const errorBanner = !!labelsError && (
+    <div
+      className={`${baseClass}__description ${baseClass}__description--error`}
+    >
+      {labelsError}
+    </div>
+  );
+
+  if (isLoading) {
+    return (
+      <>
+        {errorBanner}
+        <Spinner centered={false} />
+      </>
+    );
+  }
+
+  if (isError) {
+    return (
+      <>
+        {errorBanner}
+        <DataError />
+      </>
+    );
+  }
+
+  // Not using <EmptyState/> here as we want to include short string only
+  if (!labels.length) {
+    return (
+      <div className={`${baseClass}__no-labels`}>
+        {errorBanner}
+        <CustomLink url={PATHS.LABEL_NEW_DYNAMIC} text="Add label" /> to target
+        specific hosts.
+      </div>
+    );
+  }
+
+  return (
+    <div className={`${baseClass}__custom-label-chooser`}>
+      {!!customTargetOptions.length && (
+        <Dropdown
+          value={selectedCustomTarget}
+          options={customTargetOptions}
+          searchable={false}
+          onChange={onSelectCustomTarget}
+          disabled={disableOptions}
+        />
+      )}
+      <div
+        className={classnames(`${baseClass}__description`, {
+          [`${baseClass}__description--error`]: !!labelsError,
+        })}
+      >
+        {labelsError ??
+          (customTargetOptions.length
+            ? getHelpText(selectedCustomTarget)
+            : customHelpText)}
+      </div>
+      <div
+        className={classnames(`${baseClass}__checkboxes`, {
+          [`${baseClass}__checkboxes--error`]: !!labelsError,
+        })}
+      >
+        {labels.map((label) => {
+          return (
+            <div className={`${baseClass}__label`} key={label.name}>
+              <Checkbox
+                className={`${baseClass}__checkbox`}
+                name={label.name}
+                value={!!selectedLabels[label.name]}
+                onChange={onSelectLabel}
+                parseTarget
+                disabled={disableOptions}
+              >
+                {label.name}
+              </Checkbox>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+interface IDropdownTargetLabelSelectorProps {
+  selectedTargetType: string;
+  selectedCustomTarget?: string;
+  customTargetOptions?: IDropdownOption[];
+  selectedLabels: Record<string, boolean>;
+  labels: ILabelSummary[];
+  customHelpText?: ReactNode;
+  /** set this prop to show a help text. If it is included then it will override
+   * the selected options defined `helpText`
+   */
+  dropdownHelpText?: ReactNode;
+  isLoadingLabels?: boolean;
+  isErrorLabels?: boolean;
+  className?: string;
+  onSelectTargetType: (val: string) => void;
+  onSelectCustomTarget?: (val: string) => void;
+  onSelectLabel: ({ name, value }: { name: string; value: boolean }) => void;
+  disableOptions?: boolean;
+  title?: string;
+  suppressTitle?: boolean;
+  subTitle?: string;
+  /** Rendered between the "Target" label and the All-hosts / Custom radios. */
+  labelInfoBanner?: ReactNode;
+  /** Validation error for the Custom-labels selection. Rendered in place of
+   * the "Target" title. */
+  error?: string | null;
+  /** Replaces the Custom scope's help text with a red validation message. */
+  labelsError?: ReactNode | null;
+}
+
+/**
+ * DropdownTargetLabelSelector lets the user target "All hosts" or a "Custom"
+ * set of hosts, scoped by a single label mode chosen from a dropdown (e.g.
+ * include any / include all / exclude any). Used by reports, software, and the
+ * not-yet-migrated policy forms. For the tabbed include + exclude experience,
+ * use the sibling TargetLabelSelector.
+ */
+const DropdownTargetLabelSelector = ({
+  selectedTargetType,
+  selectedCustomTarget,
+  customTargetOptions = [],
+  selectedLabels,
+  dropdownHelpText,
+  customHelpText,
+  className,
+  labels,
+  isLoadingLabels = false,
+  isErrorLabels = false,
+  onSelectTargetType,
+  onSelectCustomTarget,
+  onSelectLabel,
+  disableOptions = false,
+  title = "Target",
+  subTitle,
+  suppressTitle = false,
+  labelInfoBanner,
+  error,
+  labelsError,
+}: IDropdownTargetLabelSelectorProps) => {
+  const classNames = classnames(baseClass, className, "form", {
+    [`${baseClass}--disabled`]: disableOptions,
+  });
+
+  return (
+    <div className={classNames}>
+      <TargetChooser
+        selectedTarget={selectedTargetType}
+        onSelect={onSelectTargetType}
+        disableOptions={disableOptions}
+        title={suppressTitle ? null : title}
+        subTitle={subTitle}
+        labelInfoBanner={labelInfoBanner}
+        error={error}
+      />
+      {selectedTargetType === "Custom" && (
+        <LabelChooser
+          selectedCustomTarget={selectedCustomTarget}
+          customTargetOptions={customTargetOptions}
+          isError={isErrorLabels}
+          isLoading={isLoadingLabels}
+          labels={labels || []}
+          selectedLabels={selectedLabels}
+          customHelpText={customHelpText}
+          dropdownHelpText={dropdownHelpText}
+          labelsError={labelsError}
+          onSelectCustomTarget={onSelectCustomTarget}
+          onSelectLabel={onSelectLabel}
+          disableOptions={disableOptions}
+        />
+      )}
+    </div>
+  );
+};
+
+export default DropdownTargetLabelSelector;

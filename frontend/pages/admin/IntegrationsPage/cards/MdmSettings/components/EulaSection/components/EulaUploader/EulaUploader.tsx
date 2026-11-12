@@ -1,29 +1,32 @@
-import React, { useContext, useState } from "react";
-import { AxiosResponse } from "axios";
-
-import { IApiError } from "interfaces/errors";
-import mdmAPI from "services/entities/mdm";
-import { NotificationContext } from "context/notification";
+import React, { useState } from "react";
 
 import FileUploader from "components/FileUploader/FileUploader";
-import CustomLink from "components/CustomLink";
+import { notify } from "components/ToastNotification";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
-import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
+import {
+  EULA_PLATFORM_CONFIG,
+  EulaPlatform,
+  getErrorMessage,
+  hasExpectedExtension,
+} from "../../helpers";
 
 const baseClass = "eula-uploader";
 
 interface IEulaUploaderProps {
+  platform: EulaPlatform;
   onUpload: () => void;
 }
 
-const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+const EulaUploader = ({ platform, onUpload }: IEulaUploaderProps) => {
   const [showLoading, setShowLoading] = useState(false);
+  const { gitOpsModeEnabled } = useGitOpsMode();
+  const config = EULA_PLATFORM_CONFIG[platform];
 
   const onUploadFile = async (files: FileList | null) => {
     setShowLoading(true);
 
-    if (!files || files.length === 0) {
+    if (gitOpsModeEnabled || !files || files.length === 0) {
       setShowLoading(false);
       return;
     }
@@ -31,20 +34,23 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
     const file = files[0];
 
     // quick exit if the file type is incorrect
-    if (!file.name.includes(".pdf")) {
-      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
+    if (!hasExpectedExtension(platform, file.name)) {
+      notify.error(config.wrongTypeMessage);
+      setShowLoading(false);
+      return;
+    }
+    if (config.sizeLimit && file.size > config.sizeLimit.bytes) {
+      notify.error(config.sizeLimit.message);
       setShowLoading(false);
       return;
     }
 
     try {
-      await mdmAPI.uploadEULA(file);
-      renderFlash("success", "Successfully updated end user authentication!");
+      await config.upload(file);
+      notify.success("Successfully uploaded.");
       onUpload();
     } catch (e) {
-      const error = e as AxiosResponse<IApiError>;
-      const errMessage = getErrorMessage(error);
-      renderFlash("error", errMessage);
+      notify.error(getErrorMessage(e), { response: e });
     } finally {
       setShowLoading(false);
     }
@@ -52,22 +58,15 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
 
   return (
     <div className={baseClass}>
-      <p>
-        Require end users to agree to a EULA when they first set up their new
-        macOS hosts.{" "}
-        <CustomLink
-          url="https://fleetdm.com/learn-more-about/end-user-license-agreement"
-          text="Learn more"
-          newTab
-        />
-      </p>
       <FileUploader
-        graphicName="file-pdf"
-        message="PDF (.pdf)"
+        graphicName={config.graphicName}
+        message={config.uploadMessage}
         onFileUpload={onUploadFile}
-        accept=".pdf"
+        accept={config.extension}
         isLoading={showLoading}
+        disabled={showLoading}
         gitopsCompatible
+        gitOpsModeEnabled={gitOpsModeEnabled}
       />
     </div>
   );

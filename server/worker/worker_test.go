@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
@@ -28,6 +28,74 @@ func (t testJob) Name() string {
 
 func (t testJob) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	return t.run(ctx, argsJSON)
+}
+
+type testJobNotifier struct {
+	testJob
+	onFinalFailure func(ctx context.Context, argsJSON json.RawMessage, jobErr string) error
+}
+
+func (t testJobNotifier) OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, jobErr string) error {
+	return t.onFinalFailure(ctx, argsJSON, jobErr)
+}
+
+func TestWorkerFinalFailureNotifier(t *testing.T) {
+	ds := new(mock.Store)
+
+	argsJSON := json.RawMessage(`{"arg1":"foo"}`)
+	theJob := &fleet.Job{
+		ID:      1,
+		Name:    "test",
+		Args:    &argsJSON,
+		State:   fleet.JobStateQueued,
+		Retries: 0,
+	}
+	ds.GetFilteredQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error) {
+		if theJob.State == fleet.JobStateQueued {
+			return []*fleet.Job{theJob}, nil
+		}
+		return nil, nil
+	}
+	ds.UpdateJobFunc = func(ctx context.Context, id uint, job *fleet.Job) (*fleet.Job, error) {
+		return job, nil
+	}
+
+	logger := slog.New(slog.DiscardHandler)
+	w := NewWorker(ds, logger)
+
+	var finalFailureCalls int
+	var gotArgs json.RawMessage
+	var gotErr string
+	j := testJobNotifier{
+		testJob: testJob{
+			name: "test",
+			run: func(ctx context.Context, argsJSON json.RawMessage) error {
+				return errors.New("boom")
+			},
+		},
+		onFinalFailure: func(ctx context.Context, argsJSON json.RawMessage, jobErr string) error {
+			finalFailureCalls++
+			gotArgs = argsJSON
+			gotErr = jobErr
+			return nil
+		},
+	}
+	w.Register(j)
+
+	for i := range maxRetries + 1 {
+		require.NoError(t, w.ProcessJobs(t.Context()))
+		ds.GetFilteredQueuedJobsFuncInvoked = false
+		ds.UpdateJobFuncInvoked = false
+
+		// the hook must NOT fire on intermediate retries, only on final failure
+		if i < maxRetries {
+			require.Equal(t, 0, finalFailureCalls, "final failure handler fired before retries exhausted (iteration %d)", i)
+		}
+	}
+
+	require.Equal(t, 1, finalFailureCalls)
+	require.JSONEq(t, `{"arg1":"foo"}`, string(gotArgs))
+	require.Equal(t, "boom", gotErr)
 }
 
 func TestWorker(t *testing.T) {
@@ -56,7 +124,7 @@ func TestWorker(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	w := NewWorker(ds, logger)
 
 	// register a test job
@@ -112,7 +180,7 @@ func TestWorkerRetries(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	w := NewWorker(ds, logger)
 
 	// register a test job
@@ -188,7 +256,7 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	w := NewWorker(ds, logger)
 
 	// register a test job
@@ -241,20 +309,17 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 
 func TestWorkerWithRealDatastore(t *testing.T) {
 	ctx := context.Background()
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	// call TruncateTables immediately, because a DB migration may create jobs
-	mysql.TruncateTables(t, ds)
+	mysqltest.TruncateTables(t, ds)
 
-	oldDelayPerRetry := delayPerRetry
-	delayPerRetry = []time.Duration{
+	logger := slog.New(slog.DiscardHandler)
+	w := NewWorker(ds, logger)
+	w.delayPerRetry = []time.Duration{
 		1: 0,
 		2: 0,
 		3: time.Hour,
 	} // retry twice on the next cron, then not before an hour
-	t.Cleanup(func() { delayPerRetry = oldDelayPerRetry })
-
-	logger := kitlog.NewNopLogger()
-	w := NewWorker(ds, logger)
 
 	// register a test job
 	var jobCallCount int
@@ -334,7 +399,7 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 	require.Empty(t, jobs)
 
 	var failedJob fleet.Job
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &failedJob, "SELECT * FROM jobs WHERE id = ?", j2.ID)
 	})
 	require.Equal(t, 3, failedJob.Retries)

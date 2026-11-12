@@ -1,6 +1,7 @@
 import {
   buildQueryStringFromParams,
   getPathWithQueryParams,
+  reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from ".";
 
@@ -53,19 +54,19 @@ describe("url utilities > getPathWithQueryParams", () => {
   it("appends query string when query params are provided", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
-      software_id: 25,
+      software_version_id: 25,
       team_id: 10,
       order_key: "issues",
     };
     expect(getPathWithQueryParams(endpoint, queryParams)).toBe(
-      "/hosts/manage?software_id=25&team_id=10&order_key=issues"
+      "/hosts/manage?software_version_id=25&team_id=10&order_key=issues"
     );
   });
 
   it("filters out undefined, null, and empty string values from query params", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
-      software_id: undefined,
+      software_version_id: undefined,
       team_id: null,
       policy_response: "",
       policy_id: 4,
@@ -78,7 +79,7 @@ describe("url utilities > getPathWithQueryParams", () => {
   it("returns only the endpoint when all query params are filtered out", () => {
     const endpoint = "/hosts/manage";
     const queryParams = {
-      software_id: undefined,
+      software_version_id: undefined,
       team_id: null,
       policy_response: "",
     };
@@ -92,8 +93,8 @@ describe("url utilities > reconcileMutuallyInclusiveHostParams", () => {
     expect(
       reconcileMutuallyInclusiveHostParams({ macSettingsStatus, teamId })
     ).toEqual({
-      macos_settings: "pending",
-      team_id: 1,
+      apple_settings: "pending",
+      fleet_id: 1,
     });
   });
 
@@ -105,27 +106,27 @@ describe("url utilities > reconcileMutuallyInclusiveHostParams", () => {
         teamId,
       })
     ).toEqual({
-      macos_settings: "pending",
-      team_id: 0,
+      apple_settings: "pending",
+      fleet_id: 0,
     });
   });
 
-  it("adds team_id: 0 when macSettingsStatus is present and teamId is not", () => {
+  it("adds fleet_id: 0 when macSettingsStatus is present and teamId is not", () => {
     const [macSettingsStatus, teamId] = ["pending" as const, undefined];
     expect(
       reconcileMutuallyInclusiveHostParams({
         macSettingsStatus,
         teamId,
       })
-    ).toEqual({ macos_settings: "pending", team_id: 0 });
+    ).toEqual({ apple_settings: "pending", fleet_id: 0 });
   });
 
-  it("does not add macos_settings when teamId is present and macSettingsStatus is not", () => {
+  it("does not add apple_settings when teamId is present and macSettingsStatus is not", () => {
     const [macSettingsStatus, teamId] = [undefined, 1];
     expect(
       reconcileMutuallyInclusiveHostParams({ macSettingsStatus, teamId })
     ).toEqual({
-      team_id: 1,
+      fleet_id: 1,
     });
   });
 
@@ -145,7 +146,7 @@ describe("url utilities > reconcileMutuallyInclusiveHostParams", () => {
         osSettings: "pending",
       })
     ).toEqual({
-      team_id: 1,
+      fleet_id: 1,
     });
     expect(
       reconcileMutuallyInclusiveHostParams({
@@ -154,7 +155,77 @@ describe("url utilities > reconcileMutuallyInclusiveHostParams", () => {
         osSettings: "pending",
       })
     ).toEqual({
-      team_id: undefined,
+      fleet_id: undefined,
+    });
+  });
+});
+
+describe("url utilities > reconcileMutuallyExclusiveHostParams", () => {
+  it("keeps the disk encryption filter when a label is selected", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        diskEncryptionStatus: "verified",
+      })
+    ).toEqual({
+      os_settings_disk_encryption: "verified",
+    });
+  });
+
+  it("keeps the DEP profile error filter when a label is selected", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        depProfileError: true,
+      })
+    ).toEqual({
+      dep_profile_error: true,
+    });
+  });
+
+  it("keeps the DEP assign profile response filter when a label is selected", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        depAssignProfileResponse: "FAILED",
+      })
+    ).toEqual({
+      dep_assign_profile_response: "FAILED",
+    });
+  });
+
+  it("returns no filters for a label alone", () => {
+    expect(reconcileMutuallyExclusiveHostParams({ label: "labels/7" })).toEqual(
+      {}
+    );
+  });
+
+  it("drops params a label doesn't allow while keeping disk encryption", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        label: "labels/7",
+        diskEncryptionStatus: "verified",
+        policyId: 3,
+        policyResponse: "passing",
+      })
+    ).toEqual({
+      os_settings_disk_encryption: "verified",
+    });
+  });
+
+  it("keeps the App Store app version filter with a software title and status", () => {
+    expect(
+      reconcileMutuallyExclusiveHostParams({
+        teamId: 3,
+        softwareTitleId: 12,
+        softwareStatus: "failed",
+        appStoreAppVersionId: 5,
+      })
+    ).toEqual({
+      software_title_id: 12,
+      software_status: "failed",
+      app_store_app_version_id: 5,
+      fleet_id: 3,
     });
   });
 });

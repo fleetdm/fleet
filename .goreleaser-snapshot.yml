@@ -2,6 +2,9 @@ version: 2
 
 project_name: fleet
 
+snapshot:
+  version_template: "{{ .Env.FLEET_VERSION }}"
+
 monorepo:
   tag_prefix: fleet-
   dir: .
@@ -11,8 +14,8 @@ before:
     - make deps
     - make generate
 
-gomod:
-  proxy: true
+# gomod:
+#   proxy: true
 
 builds:
   - id: fleet
@@ -28,6 +31,9 @@ builds:
       - -tags=full,fts5,netgo
       - -trimpath
     ldflags:
+      # Reduce binary size by stripping debug symbols.
+      - -s
+      - -w
       - -extldflags "-static"
       - -X github.com/fleetdm/fleet/v4/server/version.appName={{ .ArtifactName }}
       - -X github.com/fleetdm/fleet/v4/server/version.version={{ .Version }}
@@ -48,13 +54,15 @@ builds:
     flags:
       - -trimpath
     ldflags:
+      # Reduce binary size by stripping debug symbols.
+      - -s
+      - -w
       - -X github.com/fleetdm/fleet/v4/server/version.appName={{ .ArtifactName }}
       - -X github.com/fleetdm/fleet/v4/server/version.version={{ .Version }}
       - -X github.com/fleetdm/fleet/v4/server/version.branch={{ .Branch }}
       - -X github.com/fleetdm/fleet/v4/server/version.revision={{ .FullCommit }}
       - -X github.com/fleetdm/fleet/v4/server/version.buildDate={{ time "2006-01-02" }}
       - -X github.com/fleetdm/fleet/v4/server/version.buildUser={{ .Env.USER }}
-
 
 dockers:
   - goos: linux
@@ -63,5 +71,7 @@ dockers:
       - fleet
       - fleetctl
     dockerfile: tools/fleet-docker/Dockerfile
+    build_flag_templates:
+      - "--build-arg=FLEET_VERSION={{.Version}}"
     image_templates:
-      - 'fleetdm/fleet:{{ .ShortCommit }}'
+      - 'fleetdm/fleet:{{ envOrDefault "DOCKER_IMAGE_TAG" .Branch }}'

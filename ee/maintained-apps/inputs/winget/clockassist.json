@@ -1,0 +1,11 @@
+{
+  "name": "ClockAssist",
+  "slug": "clockassist/windows",
+  "package_identifier": "ClockAssist.ClockAssist",
+  "unique_identifier": "ClockAssist",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "ignore_hash": true,
+  "default_categories": ["Productivity"]
+}

@@ -7,13 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 //go:generate go run ../../tools/osquery-agent-options agent_options_generated.go
 
-const maxAgentScriptExecutionTimeout = 3600
+const maxAgentScriptExecutionTimeout = 18000
 
 type AgentOptions struct {
 	// ScriptExecutionTimeout is the maximum time in seconds that a script can run.
@@ -28,7 +29,22 @@ type AgentOptions struct {
 	Extensions json.RawMessage `json:"extensions,omitempty"`
 	// UpdateChannels holds the configured channels for fleetd components.
 	UpdateChannels json.RawMessage `json:"update_channels,omitempty"`
+	// Orbit-agent options. Kept separate from osquery so they bypass the
+	// osquery schema validator.
+	Orbit *OrbitAgentOptions `json:"orbit,omitempty"`
 }
+
+type OrbitAgentOptions struct {
+	// DebugLoggingOnEnrollDuration is the number of seconds (0 to
+	// MaxOrbitDebugLoggingOnEnrollDurationSeconds) that every host enrolling
+	// under this scope is stamped with orbit_debug_until = now() + duration.
+	DebugLoggingOnEnrollDuration int `json:"debug_logging_on_enroll_duration"`
+}
+
+const (
+	MaxOrbitDebugLoggingOnEnrollDurationSeconds = 24 * 60 * 60 // 86400 = 24h
+	MaxOrbitDebugLoggingOnEnrollDuration        = MaxOrbitDebugLoggingOnEnrollDurationSeconds * time.Second
+)
 
 type AgentOptionsOverrides struct {
 	// Platforms is a map from platform name to the config override.
@@ -90,11 +106,13 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		if flags.HostIdentifier != "" {
 			return fmt.Errorf(flagNotSupportedErr, "--host_identifier")
 		}
-		if flags.ExtensionsAutoload != "" {
-			return fmt.Errorf(flagNotSupportedErr, "--extensions_autoload")
-		}
 		if flags.DatabasePath != "" {
 			return fmt.Errorf(flagNotSupportedErr, "--database_path")
+		}
+		// fleetd passes its own --extensions_autoload (after --flagfile, so it wins)
+		// when the extensions option is set, which would silently ignore this one.
+		if flags.ExtensionsAutoload != "" && hasExtensions(opts.Extensions) {
+			return errors.New("The --extensions_autoload flag can't be used together with the extensions option. Please remove one of them.")
 		}
 	}
 
@@ -112,6 +130,17 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		var updateChannels OrbitUpdateChannels
 		if err := JSONStrictDecode(bytes.NewReader(opts.UpdateChannels), &updateChannels); err != nil {
 			return fmt.Errorf("update_channels: %w", err)
+		}
+	}
+
+	if opts.Orbit != nil {
+		if s := opts.Orbit.DebugLoggingOnEnrollDuration; s != 0 {
+			if s < 0 {
+				return errors.New("orbit.debug_logging_on_enroll_duration must not be negative")
+			}
+			if s > MaxOrbitDebugLoggingOnEnrollDurationSeconds {
+				return fmt.Errorf("orbit.debug_logging_on_enroll_duration must not exceed %d seconds", MaxOrbitDebugLoggingOnEnrollDurationSeconds)
+			}
 		}
 	}
 
@@ -140,6 +169,16 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 	}
 
 	return nil
+}
+
+// hasExtensions reports whether the extensions agent option declares at least
+// one extension. Malformed JSON is reported by validateJSONAgentOptionsExtensions.
+func hasExtensions(raw json.RawMessage) bool {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return false
+	}
+	return len(m) > 0
 }
 
 func checkEmptyFields(prefix string, data json.RawMessage) error {
@@ -179,7 +218,7 @@ func validateJSONAgentOptionsExtensions(ctx context.Context, ds Datastore, optsE
 				// OK
 			case IsNotFound(err):
 				// Label does not exist, fail the request.
-				return fmt.Errorf("Label %q does not exist, or cannot be used on this team", labelName)
+				return fmt.Errorf("Label %q does not exist, or cannot be used on this fleet", labelName)
 			default:
 				return fmt.Errorf("get label by name: %w", err)
 			}
@@ -205,7 +244,7 @@ type osqueryAgentOptions struct {
 	FileAccesses []string            `json:"file_accesses"`
 	// Documentation for the following 2 fields is "hidden" in osquery's FIM page:
 	// https://osquery.readthedocs.io/en/stable/deployment/file-integrity-monitoring/
-	FilePathsQuery map[string][]string `json:"file_paths_query"`
+	FilePathsQuery map[string][]string `json:"file_paths_query"` //nolint:apiparamcheck // osquery FIM field
 	ExcludePaths   map[string][]string `json:"exclude_paths"`
 
 	YARA struct {
@@ -309,8 +348,11 @@ type OsqueryCommandLineFlagsMacOS struct {
 	DisableEndpointsecurityFim bool   `json:"disable_endpointsecurity_fim"`
 	EnableKeyboardEvents       bool   `json:"enable_keyboard_events"`
 	EnableMouseEvents          bool   `json:"enable_mouse_events"`
+	EsFimEnableOpenEvents      bool   `json:"es_fim_enable_open_events"`
 	EsFimMutePathLiteral       string `json:"es_fim_mute_path_literal"`
 	EsFimMutePathPrefix        string `json:"es_fim_mute_path_prefix"`
+	KeychainAccessCache        bool   `json:"keychain_access_cache"`
+	KeychainAccessInterval     uint32 `json:"keychain_access_interval"`
 }
 
 // those osquery flags are not OS-specific, but are also not visible using

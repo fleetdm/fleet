@@ -2,19 +2,31 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"database/sql"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
+	"github.com/smallstep/pkcs7"
 )
 
 const (
@@ -25,17 +37,21 @@ const (
 )
 
 var (
-	exportCmd       = flag.NewFlagSet("export", flag.ExitOnError)
-	importCmd       = flag.NewFlagSet("import", flag.ExitOnError)
-	flagKey         string
-	flagDir         string
-	flagDBUser      string
-	flagDBPass      string
-	flagDBAddress   string
-	flagDBName      string
-	flagImportName  string
-	flagImportValue string
-	flagExportName  string
+	exportCmd        = flag.NewFlagSet("export", flag.ExitOnError)
+	importCmd        = flag.NewFlagSet("import", flag.ExitOnError)
+	rolloverCmd      = flag.NewFlagSet("rollover-ca-cert", flag.ExitOnError)
+	decryptCmd       = flag.NewFlagSet("decrypt", flag.ExitOnError)
+	flagKey          string
+	flagDir          string
+	flagDBUser       string
+	flagDBPass       string
+	flagDBAddress    string
+	flagDBName       string
+	flagImportName   string
+	flagImportValue  string
+	flagExportName   string
+	flagExtendYears  int
+	flagDecryptValue string
 
 	validNames = map[fleet.MDMAssetName]struct{}{
 		fleet.MDMAssetABMCert:                  {},
@@ -52,8 +68,8 @@ var (
 )
 
 func setupSharedFlags() {
-	for _, fs := range []*flag.FlagSet{exportCmd, importCmd} {
-		fs.StringVar(&flagKey, "key", "", "Key used to encrypt the assets")
+	for _, fs := range []*flag.FlagSet{exportCmd, importCmd, rolloverCmd, decryptCmd} {
+		fs.StringVar(&flagKey, "key", "", "Key used to encrypt/decrypt the assets")
 		fs.StringVar(&flagDir, "dir", "", "Directory to put the exported assets")
 		fs.StringVar(&flagDBUser, "db-user", testUsername, "Username used to connect to the MySQL instance")
 		fs.StringVar(&flagDBPass, "db-password", testPassword, "Password used to connect to the MySQL instance")
@@ -65,7 +81,7 @@ func setupSharedFlags() {
 func setupDS(privateKey, userName, password, address, name string) *mysql.Datastore {
 	db, err := sql.Open(
 		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
+		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true&tls=skip-verify", testUsername, testPassword, testAddress),
 	)
 	if err != nil {
 		log.Fatal("opening MySQL connection:", err)
@@ -73,10 +89,11 @@ func setupDS(privateKey, userName, password, address, name string) *mysql.Datast
 	defer db.Close()
 
 	mysqlCfg := config.MysqlConfig{
-		Username: userName,
-		Password: password,
-		Address:  address,
-		Database: name,
+		Username:  userName,
+		Password:  password,
+		Address:   address,
+		Database:  name,
+		TLSConfig: "skip-verify",
 	}
 	ds, err := mysql.New(
 		mysqlCfg,
@@ -97,7 +114,7 @@ func setupDS(privateKey, userName, password, address, name string) *mysql.Datast
 
 func main() {
 	if len(os.Args) < 2 {
-		log.Fatal("invalid subcommand, expected import or export")
+		log.Fatal("invalid subcommand, expected import, export, rollover-ca-cert or decrypt") //nolint:gocritic // ignore exitAfterDefer
 	}
 
 	ctx := context.Background()
@@ -107,6 +124,8 @@ func main() {
 	importCmd.StringVar(&flagImportName, "name", "", "Name of the asset to import. Valid names are: apns_cert, apns_key, ca_cert, ca_key, abm_key, abm_cert, abm_token, scep_challenge, vpp_token")
 	importCmd.StringVar(&flagImportValue, "value", "", "Value of the asset to import")
 	exportCmd.StringVar(&flagExportName, "name", "", "Name of the asset to export. Valid names are: apns_cert, apns_key, ca_cert, ca_key, abm_key, abm_cert, abm_token, scep_challenge, vpp_token")
+	rolloverCmd.IntVar(&flagExtendYears, "extend-years", 5, "Number of years to extend the Apple MDM CA certificate from now")
+	decryptCmd.StringVar(&flagDecryptValue, "value", "", "Value of the asset to decrypt either base64 or hex encoded")
 
 	// Execute subcommands
 	switch os.Args[1] {
@@ -225,11 +244,262 @@ export FLEET_MDM_APPLE_APNS_KEY=%[1]s/apns_key.key
 export FLEET_MDM_APPLE_SCEP_CERT=%[1]s/ca_cert.crt
 export FLEET_MDM_APPLE_SCEP_KEY=%[1]s/ca_key.key
 export FLEET_MDM_APPLE_SCEP_CHALLENGE=$(cat %[1]s/scep_challenge)
-export FLEET_MDM_APPLE_BM_SERVER_TOKEN=%[1]s/abm_token
-export FLEET_MDM_APPLE_BM_CERT=%[1]s/abm_cert.crt
-export FLEET_MDM_APPLE_BM_KEY=%[1]s/abm_key.key
+export FLEET_MDM_APPLE_BUSINESS_SERVER_TOKEN=%[1]s/abm_token
+export FLEET_MDM_APPLE_BUSINESS_CERT=%[1]s/abm_cert.crt
+export FLEET_MDM_APPLE_BUSINESS_KEY=%[1]s/abm_key.key
 `, flagDir)
+	case "rollover-ca-cert":
+		if err := rolloverCmd.Parse(os.Args[2:]); err != nil {
+			log.Fatal("parsing rollover-ca-cert flags", err)
+		}
+
+		if flagKey == "" {
+			log.Fatal("-key flag is required")
+		}
+		if len(flagKey) > 32 {
+			// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
+			// infra setups generate keys that are longer than 32 bytes.
+			flagKey = flagKey[:32]
+		}
+		if flagExtendYears <= 0 {
+			log.Fatal("-extend-years must be a positive integer")
+		}
+
+		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName)
+		defer ds.Close()
+
+		assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+			fleet.MDMAssetCACert,
+			fleet.MDMAssetCAKey,
+		}, nil)
+		if err != nil {
+			log.Fatal("loading existing apple mdm ca cert and key: ", err) //nolint:gocritic // ignore exitAfterDefer
+		}
+
+		caCertAsset, ok := assets[fleet.MDMAssetCACert]
+		if !ok {
+			log.Fatal("Apple MDM CA certificate not found in database")
+		}
+		caKeyAsset, ok := assets[fleet.MDMAssetCAKey]
+		if !ok {
+			log.Fatal("Apple MDM CA private key not found in database")
+		}
+		oldCertPEM := caCertAsset.Value
+		oldKeyPEM := caKeyAsset.Value
+
+		certBlock, _ := pem.Decode(oldCertPEM)
+		if certBlock == nil || certBlock.Type != "CERTIFICATE" {
+			log.Fatal("decoding existing apple mdm ca certificate PEM")
+		}
+		oldCert, err := x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			log.Fatal("parsing existing apple mdm ca certificate: ", err)
+		}
+
+		privKeyAny, err := cryptoutil.ParsePrivateKey(oldKeyPEM, "Apple MDM CA private key")
+		if err != nil {
+			log.Fatal("parsing existing apple mdm ca key: ", err)
+		}
+		privKey, ok := privKeyAny.(*rsa.PrivateKey)
+		if !ok {
+			log.Fatal("existing apple mdm ca key is not RSA")
+		}
+		// Sanity-check that the CA cert and key match.
+		certPub, ok := oldCert.PublicKey.(*rsa.PublicKey)
+		if !ok {
+			log.Fatal("existing apple mdm ca certificate public key is not RSA")
+		}
+		if certPub.E != privKey.PublicKey.E || certPub.N.Cmp(privKey.PublicKey.N) != 0 {
+			log.Fatal("existing apple mdm ca certificate does not match stored private key")
+		}
+		if ski, err := cryptoutil.GenerateSubjectKeyID(&privKey.PublicKey); err != nil {
+			log.Fatal("generating apple mdm ca subject key id: ", err)
+		} else if len(oldCert.SubjectKeyId) > 0 {
+			if len(oldCert.SubjectKeyId) != len(ski) {
+				log.Fatal("existing apple mdm ca certificate SubjectKeyId does not match stored private key")
+			}
+			for i := range ski {
+				if ski[i] != oldCert.SubjectKeyId[i] {
+					log.Fatal("existing apple mdm ca certificate SubjectKeyId does not match stored private key")
+				}
+			}
+		}
+
+		// Reserve a fresh serial from identity_serials so the new CA cert
+		// cannot collide with any client cert that was (or will be) issued by
+		// this CA. The auto-increment value is guaranteed to be greater than
+		// every historical client serial, and consuming it here prevents
+		// SCEPDepot.Serial() from ever handing it out to a future client cert.
+		// We deliberately do not insert into identity_certificates — the CA
+		// cert itself lives in mdm_config_assets, not the depot's cert table.
+		rawDB, err := sql.Open(
+			"mysql",
+			fmt.Sprintf("%s:%s@tcp(%s)/%s?tls=skip-verify", flagDBUser, flagDBPass, flagDBAddress, flagDBName),
+		)
+		if err != nil {
+			log.Fatal("opening MySQL connection to reserve CA serial: ", err)
+		}
+		defer rawDB.Close()
+		serialRes, err := rawDB.ExecContext(ctx, `INSERT INTO identity_serials () VALUES ();`)
+		if err != nil {
+			log.Fatal("allocating new CA cert serial in identity_serials: ", err)
+		}
+		serialID, err := serialRes.LastInsertId()
+		if err != nil {
+			log.Fatal("retrieving allocated CA cert serial: ", err)
+		}
+
+		// Reuse the existing identity (Subject, SubjectKeyId, key) so that
+		// previously-issued client certs continue to chain to the same issuer
+		// after the rollover and notBefore means certificates issued before the
+		// rollover remain valid. Only the serial number and NotAfter change.
+		newSerial := big.NewInt(serialID)
+		notBefore := oldCert.NotBefore
+		notAfter := oldCert.NotAfter.AddDate(flagExtendYears, 0, 0).UTC()
+
+		tmpl := x509.Certificate{
+			Subject:               oldCert.Subject,
+			SerialNumber:          newSerial,
+			NotBefore:             notBefore,
+			NotAfter:              notAfter,
+			KeyUsage:              oldCert.KeyUsage,
+			BasicConstraintsValid: true,
+			IsCA:                  true,
+			MaxPathLen:            oldCert.MaxPathLen,
+			MaxPathLenZero:        oldCert.MaxPathLenZero,
+			SubjectKeyId:          oldCert.SubjectKeyId,
+		}
+
+		newCertDER, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, privKey.Public(), privKey)
+		if err != nil {
+			log.Fatal("creating renewed apple mdm ca certificate: ", err)
+		}
+		newCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: newCertDER})
+
+		// ReplaceMDMConfigAssets soft-deletes the existing ca_cert row (sets
+		// deletion_uuid + deleted_at) and inserts the new cert. The CA private
+		// key is untouched so existing chains stay valid.
+		if err := ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+			{Name: fleet.MDMAssetCACert, Value: newCertPEM},
+		}, nil); err != nil {
+			log.Fatal("writing renewed apple mdm ca cert to db: ", err)
+		}
+
+		log.Printf("Apple MDM CA cert rolled over.")
+		log.Printf("  common name:       %s", oldCert.Subject.CommonName)
+		log.Printf("  previous NotAfter: %s", oldCert.NotAfter.Format(time.RFC3339))
+		log.Printf("  new NotAfter:      %s", notAfter.Format(time.RFC3339))
+		log.Printf("  new serial:        %s", newSerial.String())
+		return
+	case "decrypt":
+		if err := decryptCmd.Parse(os.Args[2:]); err != nil {
+			log.Fatal("parsing decrypt flags", err)
+		}
+
+		if flagKey == "" {
+			log.Fatal("-key flag is required")
+		}
+
+		if flagDecryptValue == "" {
+			log.Fatal("-value flag is required")
+		}
+
+		if len(flagKey) > 32 {
+			// We truncate to 32 bytes because AES-256 requires a 32 byte (256 bit) PK, but some
+			// infra setups generate keys that are longer than 32 bytes.
+			flagKey = flagKey[:32]
+		}
+
+		ds := setupDS(flagKey, flagDBUser, flagDBPass, flagDBAddress, flagDBName)
+		defer ds.Close()
+		if err := decrypt(ds, flagKey, flagDecryptValue); err != nil {
+			log.Fatal("failed to decrypt value: ", err)
+		}
 	default:
-		log.Fatalf("invalid subcommand %s, valid subcommands: import, export", os.Args[1])
+		log.Fatalf("invalid subcommand %s, valid subcommands: import, export, rollover-ca-cert, decrypt", os.Args[1]) //nolint:gosec // dismiss G107
 	}
+}
+
+// aesGCMOverhead is the smallest an AES-GCM value can be: a 12 byte nonce plus
+// a 16 byte tag. Anything shorter can't be one, and must not be handed to
+// mdm.DecodeAndDecrypt, which slices off the nonce without a length check.
+const aesGCMOverhead = 12 + 16
+
+func decrypt(ds *mysql.Datastore, privateKey, value string) error {
+	candidates := decodeCandidates(value)
+	if len(candidates) == 0 {
+		return errors.New("-value is neither valid base64 nor valid hex, make sure the whole value was copied")
+	}
+
+	var failures []string
+	for _, c := range candidates {
+		// A value encrypted to a certificate parses as PKCS#7; one encrypted
+		// with the server private key doesn't. The parse result picks the
+		// scheme, and AES-GCM authentication rules out a wrong guess.
+		b64 := base64.StdEncoding.EncodeToString(c.raw)
+
+		if _, err := pkcs7.Parse(c.raw); err == nil {
+			certs, key, err := assets.CACertsAndKeyForDecryption(context.Background(), ds)
+			if err != nil {
+				err = fmt.Errorf("loading the Apple MDM CA certificate and key from the database: %w", err)
+				return err
+			}
+			decrypted, err := mdm.DecryptBase64CMSWithCerts(b64, key, certs)
+			if err != nil {
+				failures = append(failures, fmt.Sprintf("%s/CMS: %v", c.encoding, err))
+			} else {
+				fmt.Printf("Decrypted value: %s\n", decrypted)
+				return nil
+			}
+		}
+
+		if len(c.raw) < aesGCMOverhead {
+			failures = append(failures, fmt.Sprintf("%s: %d bytes is too short to be an encrypted value", c.encoding, len(c.raw)))
+			continue
+		}
+		decrypted, err := mdm.DecodeAndDecrypt(b64, privateKey)
+		if err != nil {
+			failures = append(failures, fmt.Sprintf("%s/AES-GCM: %v", c.encoding, err))
+			continue
+		}
+		fmt.Printf("Decrypted value: %s\n", decrypted)
+		return nil
+	}
+
+	return fmt.Errorf("could not decrypt the value (%s)."+
+		" Check that -key is the FLEET_SERVER_PRIVATE_KEY of the environment that escrowed this value,"+
+		" and that the value was copied in full."+
+		" A Windows (BitLocker) key needs the WSTEP certificate instead, see ./tools/mdm/decrypt-disk-encryption-key",
+		strings.Join(failures, "; "))
+}
+
+type candidate struct {
+	encoding string
+	raw      []byte
+}
+
+func decodeCandidates(value string) []candidate {
+	// Strip whitespace so values pasted across several lines work, along with
+	// the 0x prefix that MySQL clients put on binary column values.
+	value = strings.Join(strings.Fields(value), "")
+	unprefixed := strings.TrimPrefix(strings.TrimPrefix(value, "0x"), "0X")
+
+	var candidates []candidate
+	if raw, err := hex.DecodeString(unprefixed); err == nil && len(raw) > 0 {
+		candidates = append(candidates, candidate{encoding: "hex", raw: raw})
+	}
+	// Padded first, since that's how Fleet stores base64 values.
+	for _, base64Enc := range []struct {
+		name string
+		enc  *base64.Encoding
+	}{
+		{"base64", base64.StdEncoding},
+		{"base64 (unpadded)", base64.RawStdEncoding},
+	} {
+		if raw, err := base64Enc.enc.DecodeString(value); err == nil && len(raw) > 0 {
+			candidates = append(candidates, candidate{encoding: base64Enc.name, raw: raw})
+			break
+		}
+	}
+	return candidates
 }

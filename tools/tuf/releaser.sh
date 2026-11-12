@@ -143,13 +143,17 @@ update_osquery_schema_and_flags () {
     git add ./tools/osquery-agent-options/main.go
     git add ./server/fleet/agent_options_generated.go
 
-    # 3. Check for manual changes.
+    # 3. Update osquery version used for dev/test.
+    "$GO_TOOLS_DIRECTORY/replace" ./tools/tuf/test/create_repository.sh "OSQUERY_VERSION=.+\n" "OSQUERY_VERSION=$version\n"
+    git add ./tools/tuf/test/create_repository.sh
+
+    # 4. Check for manual changes.
     prompt "Make sure to check for OS-specific osquery flags in $version. If there are any make sure to 'git add' them. See ./tools/osquery-agent-options/README.md"
 
-    # 4. Commit and PR.
+    # 5. Commit and PR.
     git commit -m "Update osquery schemas and flags to $version"
     git push origin "$branch_name"
-    prompt "A PR will be created to trigger a Github Action to build osqueryd."
+    prompt "A PR will be created to update osquery schema and flags."
     gh pr create -f -B main -t "Update osquery schema and flags to $version"
     popd
 }
@@ -172,7 +176,13 @@ promote_edge_to_stable () {
 release_fleetd_to_edge () {
     echo "Releasing fleetd to edge..."
     ORBIT_TAG="orbit-v$VERSION"
-    prompt "A tag will be pushed to trigger a Github Action to build desktop and orbit."
+    if [[ "$SKIP_PR_AND_TAG_PUSH" != "1" ]]; then
+        prompt "A tag will be pushed to trigger a Github Action to build desktop and orbit."
+        pushd "$GIT_REPOSITORY_DIRECTORY"
+        git tag "$ORBIT_TAG"
+        git push origin "$ORBIT_TAG"
+        popd
+    fi
     DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY="$ARTIFACTS_DOWNLOAD_DIRECTORY/desktop"
     mkdir -p "$DESKTOP_ARTIFACT_DOWNLOAD_DIRECTORY"
     "$GO_TOOLS_DIRECTORY/download-artifacts" desktop \
@@ -226,14 +236,16 @@ create_fleetd_release_pr () {
 
 release_osqueryd_to_edge () {
     echo "Releasing osqueryd to edge..."
-    prompt "A branch and PR for bumping the osquery version will be created."
     BRANCH_NAME=release-osqueryd-v$VERSION
     if [[ "$SKIP_PR_AND_TAG_PUSH" != "1" ]]; then
+        prompt "A branch and PR for bumping the osquery version will be created."
         pushd "$GIT_REPOSITORY_DIRECTORY"
         git checkout -b "$BRANCH_NAME"
         # Update the version used to build osqueryd targets.
         "$GO_TOOLS_DIRECTORY/replace" .github/workflows/generate-osqueryd-targets.yml "OSQUERY_VERSION: .+\n" "OSQUERY_VERSION: $VERSION\n"
-        git add .github/workflows/generate-osqueryd-targets.yml
+        # Update the version used to test fleetd changes.
+        "$GO_TOOLS_DIRECTORY/replace" .github/workflows/fleet-and-orbit.yml "OSQUERY_VERSION: .+\n" "OSQUERY_VERSION: $VERSION\n"
+        git add .github/workflows/generate-osqueryd-targets.yml .github/workflows/fleet-and-orbit.yml
         git commit -m "Bump osqueryd version to $VERSION"
         git push origin "$BRANCH_NAME"
         prompt "A PR will be created to trigger a Github Action to build osqueryd."
@@ -304,13 +316,53 @@ release_to_production () {
     echo "These temporary failures are expected because it takes some time for caches to be invalidated (these errors should go away after a few minutes minutes)."
 
     if [[ $COMPONENT == "fleetd" ]]; then
-        milestone_url=$(curl -s 'https://api.github.com/repos/fleetdm/fleet/milestones?per_page=100' | jq -r ".[]|select(.title | contains(\"$VERSION\")).html_url")
+        # Match the version as a whole token so e.g. 1.2.3 doesn't match a 1.2.30 milestone.
+        milestones=$(curl -s 'https://api.github.com/repos/fleetdm/fleet/milestones?per_page=100' | jq -c --arg v "$VERSION" '[.[]|select(.title | test("(^|[^0-9.])" + ($v | gsub("\\."; "\\.")) + "($|[^0-9.])"))]')
+        milestone_count=$(jq 'length' <<< "$milestones")
+        milestone_title=""
+        milestone_url=""
+        if [[ $milestone_count == "1" ]]; then
+            milestone_title=$(jq -r '.[0].title' <<< "$milestones")
+            milestone_url=$(jq -r '.[0].html_url' <<< "$milestones")
+        fi
         prompt "Sleep 5 minutes and trigger workflow to update orbit/TUF.md"
         # Sleeping 5 minutes to allow for Cloudflare caches to clear.
         sleep 300
         gh workflow run "Update documentation of current versions of TUF fleetd components"
-        prompt "When releasing to stable, make sure to close the issues and $milestone_url milestone following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
+        conclude_fleetd_milestone
     fi
+}
+
+# Stories must go through confirm and celebrate instead of being closed with the rest of the milestone.
+conclude_fleetd_milestone () {
+    if [[ -z $milestone_title ]]; then
+        if [[ $milestone_count -gt 1 ]]; then
+            echo "Multiple milestones match fleetd $VERSION:"
+            jq -r '.[] | "  \(.title) \(.html_url)"' <<< "$milestones"
+        else
+            echo "No milestone found for fleetd $VERSION."
+        fi
+        prompt "When releasing to stable, conclude the milestone manually following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
+        return
+    fi
+    printf "Is this a stable release? If so, this script will attempt to move %s stories to 'Confirm and celebrate' and close its bugs and sub-tasks now. [yes/no] " "$milestone_title"
+    confirmed=false
+    while read -r word; do
+        if [[ "$word" == "yes" ]]; then
+            confirmed=true
+            printf "\n"
+            break
+        elif [[ "$word" == "no" ]]; then
+            printf "\n"
+            return
+        fi
+    done
+    if [[ $confirmed != true ]]; then
+        return
+    fi
+    echo "Running 'gm milestone view $milestone_title --all-issues --workflow milestone-close' (press q to exit when it finishes)..."
+    (cd "$GIT_REPOSITORY_DIRECTORY/tools/github-manage" && go run ./cmd/gm milestone view "$milestone_title" --all-issues --workflow milestone-close)
+    prompt "Confirm all $milestone_title stories are in 'Confirm and celebrate' on https://github.com/orgs/fleetdm/projects/67, then close the $milestone_url milestone following https://fleetdm.com/handbook/engineering#conclude-current-milestone."
 }
 
 prompt () {
@@ -419,19 +471,6 @@ elif [[ $ACTION == "release-to-production" ]]; then
 elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
     create_fleetd_release_pr
 elif [[ $ACTION == "update-osquery-schema" ]]; then
-    # Strip leading 'v' from `node --version` and get major
-    NODE_VERSION=$(node --version | sed 's/^v//')
-    NODE_MAJOR=${NODE_VERSION%%.*}
-
-    EXPECTED_NODE_RANGE=$(jq -r '.engines.node' package.json)
-    # Extract the first numeric sequence (major) from the range, e.g., 24 from "^24.10.0"
-    EXPECTED_MAJOR=$(echo "$EXPECTED_NODE_RANGE" | sed -E 's/^[^0-9]*([0-9]+).*/\1/')
-
-    if [[ "$NODE_MAJOR" != "$EXPECTED_MAJOR" ]]; then
-      echo "Your Node.js $NODE_VERSION does not satisfy engines.node ($EXPECTED_NODE_RANGE)."
-      echo "Please use Node $EXPECTED_MAJOR.x (e.g., 24.10.0)."
-      exit 1
-    fi
     update_osquery_schema_and_flags "$VERSION"
 else
     echo "Unsupported action: $ACTION"

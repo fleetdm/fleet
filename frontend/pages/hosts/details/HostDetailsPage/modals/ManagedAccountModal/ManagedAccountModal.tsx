@@ -1,0 +1,154 @@
+import React, { useState } from "react";
+import { useQuery } from "react-query";
+
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
+import InfoBanner from "components/InfoBanner";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import { IHostManagedAccountPasswordResponse } from "interfaces/host";
+import hostAPI from "services/entities/hosts";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { monthDayTimeFormat } from "utilities/date_format";
+
+const baseClass = "managed-account-modal";
+
+interface IManagedAccountModalProps {
+  hostId: number;
+  // TODO: For this modal the Figma dev note said "Hide option if not Admin or
+  // maintainer role." We're hiding here per the design, but the analogous
+  // RecoveryLockPasswordModal disables-with-tooltip in the same situation.
+  // We deferred this decision for now because this modal only displays for
+  // Admin or Maintainer roles
+  canRotatePassword: boolean;
+  /** The last rotation failed. The password shown is still the last one Fleet received. The reason the host
+   * reported is shown on the failure activity instead, not here. */
+  rotationFailed?: boolean;
+  onCancel: () => void;
+  onRotate: () => void;
+}
+
+const ManagedAccountModal = ({
+  hostId,
+  canRotatePassword,
+  rotationFailed = false,
+  onCancel,
+  onRotate,
+}: IManagedAccountModalProps) => {
+  const [isRotating, setIsRotating] = useState(false);
+  const [justRotated, setJustRotated] = useState(false);
+
+  const {
+    data: managedAccountData,
+    error: managedAccountError,
+    isLoading,
+  } = useQuery<
+    IHostManagedAccountPasswordResponse,
+    unknown,
+    IHostManagedAccountPasswordResponse["managed_account_password"]
+  >(
+    ["hostManagedAccountPassword", hostId],
+    () => hostAPI.getManagedAccountPassword(hostId),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      select: (data) => data.managed_account_password,
+      // prevent caching this sensitive string
+      cacheTime: 0,
+    }
+  );
+
+  const onRotatePassword = async () => {
+    setIsRotating(true);
+    try {
+      await hostAPI.rotateManagedLocalAccountPassword(hostId);
+      setJustRotated(true);
+      notify.success(
+        "Successfully sent request to rotate managed local account password."
+      );
+      // Notify parent so it can refetch host details + activities.
+      onRotate();
+    } catch (e) {
+      const msg = getErrorReason(e);
+      notify.error(
+        msg ||
+          "Couldn't send request to rotate managed local account password. Please try again.",
+        { response: e }
+      );
+    }
+    setIsRotating(false);
+  };
+
+  const showPendingRotationBanner =
+    justRotated || managedAccountData?.pending_rotation === true;
+  const autoRotateAt = managedAccountData?.auto_rotate_at;
+
+  // One banner at a time. Gated on booleans, not the reason string, so a failure without a reason still shows.
+  const renderRotationBanner = () => {
+    if (showPendingRotationBanner) {
+      return (
+        <InfoBanner color="yellow">
+          Password will rotate once the host acknowledges the request.
+        </InfoBanner>
+      );
+    }
+    // A failed row has no timer armed, so the failure outranks the auto-rotate hint.
+    if (rotationFailed) {
+      return (
+        <InfoBanner color="yellow" icon="warning">
+          Couldn&apos;t rotate password.
+        </InfoBanner>
+      );
+    }
+    if (autoRotateAt) {
+      return (
+        <InfoBanner color="yellow">
+          Password rotates automatically after{" "}
+          {monthDayTimeFormat(autoRotateAt)}.
+        </InfoBanner>
+      );
+    }
+    return null;
+  };
+
+  return (
+    <Modal title="Managed account" onExit={onCancel} className={baseClass}>
+      {isLoading && <Spinner />}
+      {managedAccountError ? (
+        <DataError />
+      ) : (
+        !isLoading && (
+          <>
+            <div className={`${baseClass}__username`}>
+              <span className={`${baseClass}__label`}>Username</span>
+              <span className={`${baseClass}__value`}>_fleetadmin</span>
+            </div>
+            <InputFieldHiddenContent
+              value={managedAccountData?.password ?? ""}
+              name="Password"
+            />
+            {renderRotationBanner()}
+            <div className="modal-cta-wrap">
+              <Button onClick={onCancel}>Close</Button>
+              {canRotatePassword && (
+                <Button
+                  variant="secondary"
+                  onClick={onRotatePassword}
+                  disabled={isRotating}
+                  className={`${baseClass}__rotate-button`}
+                  icon="refresh"
+                >
+                  {isRotating ? "Rotating..." : "Rotate password"}
+                </Button>
+              )}
+            </div>
+          </>
+        )
+      )}
+    </Modal>
+  );
+};
+
+export default ManagedAccountModal;

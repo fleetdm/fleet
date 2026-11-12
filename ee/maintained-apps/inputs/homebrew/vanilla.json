@@ -1,0 +1,10 @@
+{
+  "name": "Vanilla",
+  "unique_identifier": "net.matthewpalmer.Vanilla",
+  "token": "vanilla",
+  "installer_format": "dmg",
+  "slug": "vanilla/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Doughnut",
+  "unique_identifier": "com.cdyer.doughnut",
+  "token": "doughnut",
+  "installer_format": "dmg",
+  "slug": "doughnut/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

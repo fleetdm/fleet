@@ -51,7 +51,7 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 		pIDToPName[pID] = name
 	}
 
-	for _, v := range rXML.WinVulnerabities {
+	for _, v := range rXML.WinVulnerabilities {
 		for _, rem := range v.Remediations {
 			// We will only be able to detect vulns for which they are vendor fixes.
 			if !rem.IsVendorFix() {
@@ -93,7 +93,7 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 				// Check if the vulnerability referenced by this remediation exists, if not
 				// initialize it.
 				var vuln parsed.Vulnerability
-				if vuln, ok = b.Vulnerabities[v.CVE]; !ok {
+				if vuln, ok = b.Vulnerabilities[v.CVE]; !ok {
 					vuln = parsed.NewVulnerability(v.PublishedDateEpoch())
 				}
 				// At this point we know that the remediation is a vendor fix that targets a windows
@@ -113,7 +113,7 @@ func mapToSecurityBulletins(rXML *msrcxml.FeedResult) (map[string]*parsed.Securi
 				vFix.ProductIDs[pID] = true
 
 				// Update the bulletin
-				b.Vulnerabities[v.CVE] = vuln
+				b.Vulnerabilities[v.CVE] = vuln
 				b.VendorFixes[remediatedKBID] = vFix
 			}
 		}
@@ -160,7 +160,7 @@ func parseXML(reader io.Reader) (*msrcxml.FeedResult, error) {
 					// We only care about vulnerabilities that have a vendor fix targeting a Windows
 					// product.
 					if vuln.IncludesVendorFix(pID) {
-						r.WinVulnerabities = append(r.WinVulnerabities, vuln)
+						r.WinVulnerabilities = append(r.WinVulnerabilities, vuln)
 						break
 					}
 				}

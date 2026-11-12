@@ -1,0 +1,966 @@
+package mysql
+
+import (
+	"testing"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestManagedLocalAccount(t *testing.T) {
+	ds := CreateMySQLDS(t)
+
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"SaveAndGetPassword", testManagedLocalAccountSaveAndGetPassword},
+		{"GetStatus", testManagedLocalAccountGetStatus},
+		{"SetStatus", testManagedLocalAccountSetStatus},
+		{"GetByCommandUUID", testManagedLocalAccountGetByCommandUUID},
+		{"UpsertOverwrites", testManagedLocalAccountUpsertOverwrites},
+		{"NotFound", testManagedLocalAccountNotFound},
+		{"GetSetAccountUUID", testManagedLocalAccountGetSetAccountUUID},
+		{"MarkViewed", testManagedLocalAccountMarkViewed},
+		{"InitiateRotation", testManagedLocalAccountInitiateRotation},
+		{"CompleteRotation", testManagedLocalAccountCompleteRotation},
+		{"FailRotation", testManagedLocalAccountFailRotation},
+		{"ClearRotation", testManagedLocalAccountClearRotation},
+		{"DeferredRotation", testManagedLocalAccountDeferredRotation},
+		{"GetForAutoRotation", testManagedLocalAccountGetForAutoRotation},
+		{"GetByPendingCommandUUID", testManagedLocalAccountGetByPendingCommandUUID},
+		{"Escrow", testManagedLocalAccountEscrow},
+		{"SoftDeleteOnReenrollment", testManagedLocalAccountSoftDeleteOnReenrollment},
+		{"WindowsRotation", testManagedLocalAccountWindowsRotation},
+		{"PlatformPasswordAvailability", testManagedLocalAccountPlatformPasswordAvailability},
+		{"GetWindowsForAutoRotation", testManagedLocalAccountGetWindowsForAutoRotation},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testManagedLocalAccountSaveAndGetPassword(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := "host-uuid-1"
+	password := "TEST-PASS-WORD1"
+	cmdUUID := "cmd-uuid-1"
+
+	err := ds.SaveHostManagedLocalAccount(ctx, hostUUID, password, cmdUUID)
+	require.NoError(t, err)
+
+	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "_fleetadmin", got.Username)
+	assert.Equal(t, password, got.Password)
+	assert.False(t, got.UpdatedAt.IsZero())
+}
+
+func testManagedLocalAccountGetStatus(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := "host-uuid-status"
+	err := ds.SaveHostManagedLocalAccount(ctx, hostUUID, "pass", "cmd-status")
+	require.NoError(t, err)
+
+	// Initially status is NULL in DB → should return "pending".
+	// Post-rotation semantics: password is available whenever encrypted_password is
+	// set and status != 'failed'. The pre-ack NULL status with a stored password
+	// is therefore "available" too.
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, "pending", *status.Status)
+	assert.True(t, status.PasswordAvailable)
+	assert.False(t, status.PendingRotation)
+	assert.Nil(t, status.AutoRotateAt)
+
+	// After setting to verified, password should be available.
+	err = ds.SetHostManagedLocalAccountStatus(ctx, hostUUID, fleet.MDMDeliveryVerified)
+	require.NoError(t, err)
+
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	assert.True(t, status.PasswordAvailable)
+}
+
+func testManagedLocalAccountSetStatus(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := "host-uuid-set-status"
+	err := ds.SaveHostManagedLocalAccount(ctx, hostUUID, "pass", "cmd-set-status")
+	require.NoError(t, err)
+
+	// Set to failed.
+	err = ds.SetHostManagedLocalAccountStatus(ctx, hostUUID, fleet.MDMDeliveryFailed)
+	require.NoError(t, err)
+
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryFailed), *status.Status)
+	assert.False(t, status.PasswordAvailable)
+}
+
+func testManagedLocalAccountGetByCommandUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a real host so the host lookup in GetManagedLocalAccountByCommandUUID succeeds.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "managed-account-host",
+		OsqueryHostID:   new("managed-account-osquery-1"),
+		NodeKey:         new("managed-account-node-1"),
+		UUID:            "host-uuid-cmd",
+		Platform:        "darwin",
+		DetailUpdatedAt: ds.clock.Now(),
+		LabelUpdatedAt:  ds.clock.Now(),
+		PolicyUpdatedAt: ds.clock.Now(),
+		SeenTime:        ds.clock.Now(),
+	})
+	require.NoError(t, err)
+
+	cmdUUID := "cmd-uuid-lookup"
+	err = ds.SaveHostManagedLocalAccount(ctx, host.UUID, "pass", cmdUUID)
+	require.NoError(t, err)
+
+	got, err := ds.GetManagedLocalAccountByCommandUUID(ctx, cmdUUID)
+	require.NoError(t, err)
+	assert.Equal(t, host.UUID, got.UUID)
+	assert.Equal(t, host.ID, got.ID)
+}
+
+func testManagedLocalAccountUpsertOverwrites(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a real host so the host lookup succeeds.
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "managed-account-upsert-host",
+		OsqueryHostID:   new("managed-account-osquery-2"),
+		NodeKey:         new("managed-account-node-2"),
+		UUID:            "host-uuid-upsert",
+		Platform:        "darwin",
+		DetailUpdatedAt: ds.clock.Now(),
+		LabelUpdatedAt:  ds.clock.Now(),
+		PolicyUpdatedAt: ds.clock.Now(),
+		SeenTime:        ds.clock.Now(),
+	})
+	require.NoError(t, err)
+
+	// First save.
+	err = ds.SaveHostManagedLocalAccount(ctx, host.UUID, "old-pass", "cmd-old")
+	require.NoError(t, err)
+	err = ds.SetHostManagedLocalAccountStatus(ctx, host.UUID, fleet.MDMDeliveryVerified)
+	require.NoError(t, err)
+
+	// Upsert with new password and command UUID should reset status to NULL (pending).
+	err = ds.SaveHostManagedLocalAccount(ctx, host.UUID, "new-pass", "cmd-new")
+	require.NoError(t, err)
+
+	got, err := ds.GetHostManagedLocalAccountPassword(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, "new-pass", got.Password)
+
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, "pending", *status.Status)
+
+	// Command UUID should be the new one.
+	foundHost, err := ds.GetManagedLocalAccountByCommandUUID(ctx, "cmd-new")
+	require.NoError(t, err)
+	assert.Equal(t, host.UUID, foundHost.UUID)
+
+	// Old command UUID should no longer match.
+	_, err = ds.GetManagedLocalAccountByCommandUUID(ctx, "cmd-old")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// A re-provision must clear rotation state left over from the previous enrollment: the staged pending password
+	// targets the account that enrollment created, so a later ack must not copy it over the one we just escrowed.
+	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, host.UUID, "account-uuid-upsert"))
+	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, host.UUID, "pending-pass", "cmd-pending-rotate"))
+	// Initiate clears auto_rotate_at, so arm it directly to cover that column too.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, host.UUID)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SaveHostManagedLocalAccount(ctx, host.UUID, "final-pass", "cmd-final"))
+
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.False(t, status.PendingRotation, "re-provision must drop the staged rotation")
+	assert.Nil(t, status.AutoRotateAt, "re-provision must disarm the auto-rotation deadline")
+
+	// The ack for the abandoned rotation must be rejected rather than overwrite the re-provisioned password.
+	require.Error(t, ds.CompleteManagedLocalAccountRotation(ctx, host.UUID, "cmd-pending-rotate"))
+	got, err = ds.GetHostManagedLocalAccountPassword(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Equal(t, "final-pass", got.Password)
+}
+
+func testManagedLocalAccountNotFound(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	_, err := ds.GetHostManagedLocalAccountPassword(ctx, "nonexistent")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	_, err = ds.GetHostManagedLocalAccountStatus(ctx, "nonexistent")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	_, err = ds.GetManagedLocalAccountByCommandUUID(ctx, "nonexistent")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	_, err = ds.GetManagedLocalAccountUUID(ctx, "nonexistent")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testManagedLocalAccountGetSetAccountUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := "host-uuid-account-uuid"
+	accountUUID := "AAAAAAAA-BBBB-CCCC-DDDD-000000000001"
+
+	// No row yet.
+	_, err := ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Set before row exists is a no-op (no error). Get still returns NotFound.
+	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, hostUUID, accountUUID))
+	_, err = ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Create the row (account_uuid NULL by default).
+	require.NoError(t, ds.SaveHostManagedLocalAccount(ctx, hostUUID, "pw", "cmd-1"))
+
+	got, err := ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Nil(t, got)
+
+	// First Set populates account_uuid.
+	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, hostUUID, accountUUID))
+	got, err = ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, accountUUID, *got)
+
+	// Second Set with a different value updates it.
+	otherUUID := "AAAAAAAA-BBBB-CCCC-DDDD-000000000002"
+	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, hostUUID, otherUUID))
+	got, err = ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, otherUUID, *got)
+}
+
+// newManagedLocalAccountTestHost spins up a host row + managed-local-account row in a
+// state ready for rotation tests: encrypted_password set, account_uuid captured,
+// status='verified'. Returns the host UUID.
+func newManagedLocalAccountTestHost(t *testing.T, ds *Datastore, suffix string) string {
+	t.Helper()
+	ctx := t.Context()
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "rot-host-" + suffix,
+		ComputerName:    "Rot Host " + suffix,
+		OsqueryHostID:   new("rot-osq-" + suffix),
+		NodeKey:         new("rot-node-" + suffix),
+		UUID:            "rot-host-uuid-" + suffix,
+		Platform:        "darwin",
+		DetailUpdatedAt: ds.clock.Now(),
+		LabelUpdatedAt:  ds.clock.Now(),
+		PolicyUpdatedAt: ds.clock.Now(),
+		SeenTime:        ds.clock.Now(),
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostManagedLocalAccount(ctx, host.UUID, "init-pass-"+suffix, "init-cmd-"+suffix))
+	require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, host.UUID, "AAAAAAAA-BBBB-CCCC-DDDD-"+suffix+"00"))
+	require.NoError(t, ds.SetHostManagedLocalAccountStatus(ctx, host.UUID, fleet.MDMDeliveryVerified))
+	return host.UUID
+}
+
+func testManagedLocalAccountMarkViewed(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := newManagedLocalAccountTestHost(t, ds, "view0001")
+
+	// First view sets auto_rotate_at ~65 minutes in the future and flips status to pending.
+	rotateAt, err := ds.MarkManagedLocalAccountPasswordViewed(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now().Add(65*time.Minute), rotateAt, 30*time.Second)
+
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
+	require.NotNil(t, status.AutoRotateAt)
+	assert.True(t, status.PasswordAvailable)
+	assert.False(t, status.PendingRotation)
+
+	initiatedByFleet := false
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &initiatedByFleet, "SELECT initiated_by_fleet FROM host_managed_local_account_passwords WHERE host_uuid = ?", hostUUID)
+	})
+	assert.True(t, initiatedByFleet, "viewing password should always initially mark rotation as initiated_by_fleet")
+
+	// Second view inside the window does NOT extend the timer — the same auto_rotate_at
+	// is returned. We allow 1s of drift for the read clock.
+	rotateAt2, err := ds.MarkManagedLocalAccountPasswordViewed(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, rotateAt, rotateAt2, time.Second)
+
+	// Mark failed → next view returns notFound (failed rows are ineligible).
+	require.NoError(t, ds.SetHostManagedLocalAccountStatus(ctx, hostUUID, fleet.MDMDeliveryFailed))
+	_, err = ds.MarkManagedLocalAccountPasswordViewed(ctx, hostUUID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testManagedLocalAccountInitiateRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := newManagedLocalAccountTestHost(t, ds, "init0002")
+
+	// Pre-seed auto_rotate_at via a view so we can confirm Initiate clears it.
+	rotateAt, err := ds.MarkManagedLocalAccountPasswordViewed(ctx, hostUUID)
+	require.NoError(t, err)
+	require.False(t, rotateAt.IsZero())
+
+	// Happy path
+	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "new-pending-1", "rot-cmd-1"))
+
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.True(t, status.PendingRotation)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
+	// auto_rotate_at must be cleared once the command is staged so the API stops
+	// surfacing a stale rotation hint while the device ack is in flight.
+	assert.Nil(t, status.AutoRotateAt)
+
+	// Second initiate while one is pending → typed error.
+	err = ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "nope", "rot-cmd-2")
+	require.ErrorIs(t, err, fleet.ErrManagedLocalAccountRotationPending)
+
+	// Clear pending so we can probe the not-eligible path. Then mark failed.
+	require.NoError(t, ds.ClearManagedLocalAccountRotation(ctx, hostUUID))
+	require.NoError(t, ds.SetHostManagedLocalAccountStatus(ctx, hostUUID, fleet.MDMDeliveryFailed))
+	err = ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "nope", "rot-cmd-3")
+	require.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible)
+
+	// Missing row → notFound.
+	err = ds.InitiateManagedLocalAccountRotation(ctx, "no-such-host", "nope", "rot-cmd-x")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+func testManagedLocalAccountCompleteRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := newManagedLocalAccountTestHost(t, ds, "comp0003")
+
+	// Mark viewed so auto_rotate_at is set; this also exercises the clear-on-complete path.
+	_, err := ds.MarkManagedLocalAccountPasswordViewed(ctx, hostUUID)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "the-new-password", "rot-cmd-comp"))
+
+	// Mismatched cmdUUID → notFound.
+	err = ds.CompleteManagedLocalAccountRotation(ctx, hostUUID, "wrong-cmd")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Complete rotation with the actual command
+	require.NoError(t, ds.CompleteManagedLocalAccountRotation(ctx, hostUUID, "rot-cmd-comp"))
+
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	assert.False(t, status.PendingRotation)
+	assert.Nil(t, status.AutoRotateAt)
+
+	pwd, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "the-new-password", pwd.Password)
+}
+
+func testManagedLocalAccountFailRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := newManagedLocalAccountTestHost(t, ds, "fail0004")
+
+	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "rotation-password", "rot-cmd-fail"))
+
+	// Mismatched cmdUUID → notFound.
+	err := ds.FailManagedLocalAccountRotation(ctx, hostUUID, "wrong-cmd", "device returned error")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	require.NoError(t, ds.FailManagedLocalAccountRotation(ctx, hostUUID, "rot-cmd-fail", "device returned error"))
+
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryFailed), *status.Status)
+	assert.False(t, status.PendingRotation)
+	assert.False(t, status.PasswordAvailable, "failed rotations hide the password until reset")
+	assert.Nil(t, status.AutoRotateAt)
+
+	// Old (still-good) password is preserved.
+	pwd, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "init-pass-fail0004", pwd.Password)
+}
+
+func testManagedLocalAccountClearRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := newManagedLocalAccountTestHost(t, ds, "clr00005")
+
+	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "rotation-password", "rot-cmd-clr"))
+
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.True(t, status.PendingRotation)
+
+	require.NoError(t, ds.ClearManagedLocalAccountRotation(ctx, hostUUID))
+
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.False(t, status.PendingRotation)
+
+	// Idempotent.
+	require.NoError(t, ds.ClearManagedLocalAccountRotation(ctx, hostUUID))
+	statusAfter, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, status, statusAfter)
+}
+
+func testManagedLocalAccountDeferredRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := newManagedLocalAccountTestHost(t, ds, "def00006")
+
+	// Defer: status='pending', auto_rotate_at=NOW(6), initiated_by_fleet=0.
+	require.NoError(t, ds.MarkManagedLocalAccountRotationDeferred(ctx, hostUUID))
+
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
+	require.NotNil(t, status.AutoRotateAt)
+	initiatedByFleet := false
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &initiatedByFleet, "SELECT initiated_by_fleet FROM host_managed_local_account_passwords WHERE host_uuid = ?", hostUUID)
+	})
+	assert.False(t, initiatedByFleet, "deferred rotation should mark initiated_by_fleet=0 so it can be distinguished from view-driven rotations")
+
+	// Idempotent (no error on second call). The time will get updated to current time, but that is expected
+	require.NoError(t, ds.MarkManagedLocalAccountRotationDeferred(ctx, hostUUID))
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
+	require.NotNil(t, status.AutoRotateAt)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &initiatedByFleet, "SELECT initiated_by_fleet FROM host_managed_local_account_passwords WHERE host_uuid = ?", hostUUID)
+	})
+	assert.False(t, initiatedByFleet, "deferred rotation should mark initiated_by_fleet=0 so it can be distinguished from view-driven rotations")
+}
+
+func testManagedLocalAccountGetForAutoRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Eligible: viewed (auto_rotate_at in past), password set, account_uuid set.
+	dueHost := newManagedLocalAccountTestHost(t, ds, "due00007")
+	_, err := ds.MarkManagedLocalAccountPasswordViewed(ctx, dueHost)
+	require.NoError(t, err)
+	// Backdate auto_rotate_at into the past.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx,
+			`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, dueHost)
+		return err
+	})
+
+	// Ineligible: not viewed (auto_rotate_at NULL).
+	notViewed := newManagedLocalAccountTestHost(t, ds, "noview08")
+
+	// Ineligible: viewed but in the future.
+	future := newManagedLocalAccountTestHost(t, ds, "fut00009")
+	_, err = ds.MarkManagedLocalAccountPasswordViewed(ctx, future)
+	require.NoError(t, err)
+
+	// Ineligible: pending rotation already.
+	pending := newManagedLocalAccountTestHost(t, ds, "pen00010")
+	_, err = ds.MarkManagedLocalAccountPasswordViewed(ctx, pending)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, pending)
+	require.NoError(t, err)
+	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, pending, "p", "p-cmd"))
+
+	// Ineligible: failed.
+	failed := newManagedLocalAccountTestHost(t, ds, "fai00011")
+	require.NoError(t, ds.SetHostManagedLocalAccountStatus(ctx, failed, fleet.MDMDeliveryFailed))
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, failed)
+	require.NoError(t, err)
+
+	// Ineligible: no account_uuid.
+	noUUID := newManagedLocalAccountTestHost(t, ds, "nou00012")
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_managed_local_account_passwords SET account_uuid = NULL, auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, noUUID)
+	require.NoError(t, err)
+
+	// Ineligible: retired by a re-enrollment. auto_rotate_at is re-armed after the soft delete, which clears it, so
+	// the deleted filter is what has to exclude this row rather than a missing deadline.
+	softDeleted := newManagedLocalAccountTestHost(t, ds, "del00014")
+	require.NoError(t, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return softDeleteManagedLocalAccountPasswordDB(ctx, tx, softDeleted)
+	}))
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, softDeleted)
+	require.NoError(t, err)
+
+	// Ineligible: deferred-but-no-uuid path: even with auto_rotate_at in the past, missing
+	// account_uuid filters the row out (cron will pick up once UUID lands).
+	rows, err := ds.GetManagedLocalAccountsForAutoRotation(ctx)
+	require.NoError(t, err)
+
+	got := make(map[string]struct{})
+	for _, r := range rows {
+		got[r.HostUUID] = struct{}{}
+	}
+	_, hasDue := got[dueHost]
+	_, hasNotViewed := got[notViewed]
+	_, hasFuture := got[future]
+	_, hasPending := got[pending]
+	_, hasFailed := got[failed]
+	_, hasNoUUID := got[noUUID]
+	_, hasSoftDeleted := got[softDeleted]
+	assert.True(t, hasDue, "due host should be returned")
+	assert.False(t, hasNotViewed, "non-viewed host should not be returned")
+	assert.False(t, hasFuture, "future-rotation host should not be returned")
+	assert.False(t, hasPending, "host with pending rotation should not be returned")
+	assert.False(t, hasFailed, "failed host should not be returned")
+	assert.False(t, hasNoUUID, "host without account_uuid should not be returned")
+	assert.False(t, hasSoftDeleted, "soft-deleted host should not be returned")
+
+	// Confirm we surface initiated_by_fleet=true for view-driven rows.
+	for _, r := range rows {
+		if r.HostUUID == dueHost {
+			assert.True(t, r.InitiatedByFleet)
+			assert.NotEmpty(t, r.AccountUUID)
+		}
+	}
+}
+
+func testManagedLocalAccountGetByPendingCommandUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := newManagedLocalAccountTestHost(t, ds, "pen00013")
+	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "p", "rot-cmd-pend"))
+
+	got, err := ds.GetManagedLocalAccountByPendingCommandUUID(ctx, "rot-cmd-pend")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, hostUUID, got.UUID)
+
+	// Wrong UUID → notFound.
+	_, err = ds.GetManagedLocalAccountByPendingCommandUUID(ctx, "no-such-cmd")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+// testManagedLocalAccountEscrow walks the Windows escrow lifecycle
+func testManagedLocalAccountEscrow(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	// A real host row, so the failure case gets Windows handling rather than the stricter default.
+	hostUUID := newWindowsHostWithEnrollment(t, ds, "win-escrow-host")
+
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+
+	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "WIN-PASS-1", got.Password)
+
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	assert.True(t, status.PasswordAvailable)
+
+	// Escrow leaves account_uuid unset, which is why Windows rows have their own auto-rotation query.
+	accountUUID, err := ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Nil(t, accountUUID)
+
+	// Re-escrow (a retry, or the device re-creating the account) replaces the stored password.
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-2"))
+	got, err = ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "WIN-PASS-2", got.Password)
+
+	// A reported failure marks the row failed and records the reason, but must not destroy the stored
+	// password: it is the only copy, and the account may still exist on the device.
+	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "password reset failed"))
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryFailed), *status.Status)
+	assert.Equal(t, "password reset failed", status.Detail)
+	// On Windows the password stays readable after a failure: the host kept it, so it still works.
+	assert.True(t, status.PasswordAvailable)
+
+	got, err = ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "WIN-PASS-2", got.Password)
+
+	// A later successful escrow recovers: password replaced, back to verified, error cleared.
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-3"))
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryVerified), *status.Status)
+	assert.Empty(t, status.Detail)
+	assert.True(t, status.PasswordAvailable)
+
+	// A row that only ever recorded a failure holds no password, so reading it is a not-found.
+	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, "win-escrow-err-only-host", "create failed"))
+	_, err = ds.GetHostManagedLocalAccountPassword(ctx, "win-escrow-err-only-host")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+}
+
+// The escrowed password survives host deletion on purpose, but must not survive the enrollment that produced it.
+func testManagedLocalAccountSoftDeleteOnReenrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hostUUID := newManagedLocalAccountTestHost(t, ds, "del00015")
+
+	softDelete := func() {
+		require.NoError(t, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			return softDeleteManagedLocalAccountPasswordDB(ctx, tx, hostUUID)
+		}))
+	}
+	softDelete()
+
+	// Every read path must now behave as if the row is gone.
+	_, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	assert.True(t, fleet.IsNotFound(err), "password read: got %v", err)
+	_, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	assert.True(t, fleet.IsNotFound(err), "status read: got %v", err)
+	_, err = ds.GetManagedLocalAccountUUID(ctx, hostUUID)
+	assert.True(t, fleet.IsNotFound(err), "account uuid read: got %v", err)
+	// Rotation must report the row as absent, not as present-but-ineligible: the eligibility diagnostic runs only
+	// when the guarded UPDATE matches nothing, so it needs the same filter.
+	err = ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "ROTATE-PASS", "cmd-softdelete-rotate")
+	assert.True(t, fleet.IsNotFound(err), "rotation of a soft-deleted row: got %v", err)
+
+	// Retaining the password is the whole point of soft-deleting rather than deleting: an admin can still recover it.
+	assertPasswordRetained := func() {
+		t.Helper()
+		var stored []byte
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &stored,
+				`SELECT encrypted_password FROM host_managed_local_account_passwords WHERE host_uuid = ?`, hostUUID)
+		})
+		assert.NotEmpty(t, stored, "the escrowed password must stay recoverable from the database")
+	}
+	assertPasswordRetained()
+
+	// Re-provisioning after the new enrollment revives the row with the new password.
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "AFTER-REENROLL"))
+	got, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "AFTER-REENROLL", got.Password)
+
+	// A device-reported failure must revive the row too. The password stays in the database, and stays unreadable
+	// through the API because a failed status makes PasswordAvailable false.
+	softDelete()
+	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "policy rejected"))
+	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, "policy rejected", status.Detail)
+	assert.False(t, status.PasswordAvailable, "a failed row must not offer its password")
+	assertPasswordRetained()
+}
+
+// newWindowsHostWithEnrollment creates a Windows host and its MDM enrollment row and returns the host UUID. The
+// enrollment carries the request flag; the host row supplies the platform.
+func newWindowsHostWithEnrollment(t *testing.T, ds *Datastore, name string) string {
+	ctx := t.Context()
+	h, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      name,
+		OsqueryHostID: new("osquery-" + name),
+		NodeKey:       new("node-key-" + name),
+		UUID:          "uuid-" + name,
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         "enrolled",
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          name,
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		HostUUID:               h.UUID,
+	}))
+	return h.UUID
+}
+
+// rotationRequested reads the flag the orbit config check-in gates the re-provision notification on.
+func rotationRequested(t *testing.T, ds *Datastore, hostUUID string) bool {
+	var requested bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &requested,
+			`SELECT managed_local_account_rotation_requested FROM mdm_windows_enrollments
+			 WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1`, hostUUID)
+	})
+	return requested
+}
+
+func testManagedLocalAccountWindowsRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("requests a rotation and clears the timer", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-1")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+		// Arm the view timer so we can prove Initiate spends it.
+		_, err := ds.MarkManagedLocalAccountPasswordViewed(ctx, hostUUID)
+		require.NoError(t, err)
+
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID))
+
+		assert.True(t, rotationRequested(t, ds, hostUUID))
+		status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
+		assert.True(t, status.PendingRotation, "an outstanding request must read as pending to the UI")
+		assert.Nil(t, status.AutoRotateAt, "the timer is spent once the device has been asked")
+	})
+
+	t.Run("rejects a second request while one is outstanding", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-2")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID))
+
+		err := ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, fleet.ErrManagedLocalAccountRotationPending)
+	})
+
+	t.Run("clearing the request reports whether one was outstanding", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-3")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+
+		// Nothing outstanding yet: this is how the escrow endpoint tells a creation from a rotation.
+		cleared, err := ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, hostUUID)
+		require.NoError(t, err)
+		assert.False(t, cleared)
+
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID))
+		cleared, err = ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, hostUUID)
+		require.NoError(t, err)
+		assert.True(t, cleared)
+		assert.False(t, rotationRequested(t, ds, hostUUID))
+	})
+
+	t.Run("a host with no Windows MDM enrollment cannot be asked", func(t *testing.T) {
+		ctx := t.Context()
+		hostUUID := "win-rot-no-enrollment"
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+
+		err := ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID)
+		require.Error(t, err)
+		assert.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("a row with no password is not eligible", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-4")
+		// A creation that failed before ever producing a password.
+		require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "could not create account"))
+
+		err := ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible)
+	})
+
+	t.Run("a failed rotation can be retried, and clears the stale error", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-5")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID))
+
+		// The device reports it could not set the new password.
+		require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "NERR_PasswordTooShort"))
+		_, err := ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, hostUUID)
+		require.NoError(t, err)
+
+		// Windows keeps a failed row's password readable, so the admin can ask again.
+		status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+		require.NoError(t, err)
+		assert.True(t, status.PasswordAvailable, "a failed rotation left the working password in place")
+		assert.Equal(t, "NERR_PasswordTooShort", status.Detail)
+
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID),
+			"a previous failure must not block a fresh request")
+		status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+		require.NoError(t, err)
+		assert.Empty(t, status.Detail, "the stale reason is cleared once a new rotation is under way")
+		require.NotNil(t, status.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
+	})
+
+	t.Run("auto-rotation re-checks due and failed on the writer", func(t *testing.T) {
+		// The cron selects from the replica; the row may have changed by the time it initiates.
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-rot-6")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+
+		err := ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID)
+		require.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible, "no timer armed")
+		assert.False(t, rotationRequested(t, ds, hostUUID))
+
+		setAutoRotateAt(t, ds, hostUUID, time.Now().Add(time.Hour))
+		err = ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID)
+		require.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible, "timer not due yet")
+		assert.False(t, rotationRequested(t, ds, hostUUID))
+
+		setAutoRotateAt(t, ds, hostUUID, time.Now().Add(-time.Minute))
+		require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "policy rejected the password"))
+		err = ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID)
+		require.ErrorIs(t, err, fleet.ErrManagedLocalAccountNotEligible, "failed rows are not retried unasked")
+		assert.False(t, rotationRequested(t, ds, hostUUID))
+
+		// The manual path still accepts the same failed row.
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, hostUUID))
+		assert.True(t, rotationRequested(t, ds, hostUUID))
+		_, err = ds.ClearMDMWindowsManagedLocalAccountRotationRequest(ctx, hostUUID)
+		require.NoError(t, err)
+
+		// Due, not failed: the cron path goes through.
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-2"))
+		setAutoRotateAt(t, ds, hostUUID, time.Now().Add(-time.Minute))
+		require.NoError(t, ds.InitiateWindowsManagedLocalAccountAutoRotation(ctx, hostUUID))
+		assert.True(t, rotationRequested(t, ds, hostUUID))
+	})
+}
+
+func testManagedLocalAccountPlatformPasswordAvailability(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("windows keeps a failed row's password available", func(t *testing.T) {
+		hostUUID := newWindowsHostWithEnrollment(t, ds, "win-avail")
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "WIN-PASS-1"))
+		require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "policy rejected the password"))
+
+		status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+		require.NoError(t, err)
+		assert.True(t, status.PasswordAvailable)
+	})
+
+	t.Run("macos still hides a failed row", func(t *testing.T) {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "mac-avail",
+			OsqueryHostID: new("osquery-mac-avail"),
+			NodeKey:       new("node-key-mac-avail"),
+			UUID:          "uuid-mac-avail",
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		require.NoError(t, ds.SaveHostManagedLocalAccount(ctx, h.UUID, "MAC-PASS-1", "cmd-mac-avail"))
+		require.NoError(t, ds.SetManagedLocalAccountUUID(ctx, h.UUID, "acct-mac-avail"))
+		require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, h.UUID, "MAC-PASS-2", "cmd-mac-avail-2"))
+		require.NoError(t, ds.FailManagedLocalAccountRotation(ctx, h.UUID, "cmd-mac-avail-2", "device returned Error"))
+
+		status, err := ds.GetHostManagedLocalAccountStatus(ctx, h.UUID)
+		require.NoError(t, err)
+		assert.False(t, status.PasswordAvailable, "macOS behaviour is unchanged; a separate story covers it")
+	})
+
+	t.Run("a row with no host falls through to the stricter handling", func(t *testing.T) {
+		hostUUID := "orphan-avail"
+		require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, hostUUID, "PASS-1"))
+		require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, hostUUID, "boom"))
+
+		status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+		require.NoError(t, err, "a missing hosts row must not hide the account row entirely")
+		assert.False(t, status.PasswordAvailable)
+	})
+}
+
+func testManagedLocalAccountGetWindowsForAutoRotation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Eligible: elapsed timer, password present, enrolled, nothing outstanding.
+	eligible := newWindowsHostWithEnrollment(t, ds, "win-auto-1")
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, eligible, "WIN-PASS-1"))
+	setAutoRotateAt(t, ds, eligible, time.Now().Add(-time.Minute))
+
+	// Not due yet.
+	notDue := newWindowsHostWithEnrollment(t, ds, "win-auto-2")
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, notDue, "WIN-PASS-1"))
+	setAutoRotateAt(t, ds, notDue, time.Now().Add(time.Hour))
+
+	// Failed rows are left alone: the cron must not retry a standing cause every tick.
+	failed := newWindowsHostWithEnrollment(t, ds, "win-auto-3")
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, failed, "WIN-PASS-1"))
+	setAutoRotateAt(t, ds, failed, time.Now().Add(-time.Minute))
+	require.NoError(t, ds.ReportManagedLocalAccountEscrowError(ctx, failed, "policy rejected the password"))
+
+	// Already asked.
+	outstanding := newWindowsHostWithEnrollment(t, ds, "win-auto-4")
+	require.NoError(t, ds.SaveHostManagedLocalAccountFromEscrow(ctx, outstanding, "WIN-PASS-1"))
+	setAutoRotateAt(t, ds, outstanding, time.Now().Add(-time.Minute))
+	require.NoError(t, ds.InitiateWindowsManagedLocalAccountRotation(ctx, outstanding))
+	setAutoRotateAt(t, ds, outstanding, time.Now().Add(-time.Minute))
+
+	// A macOS row with an elapsed timer belongs to the Apple query, not this one.
+	macH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "mac-auto",
+		OsqueryHostID: new("osquery-mac-auto"),
+		NodeKey:       new("node-key-mac-auto"),
+		UUID:          "uuid-mac-auto",
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SaveHostManagedLocalAccount(ctx, macH.UUID, "MAC-PASS-1", "cmd-mac-auto"))
+	setAutoRotateAt(t, ds, macH.UUID, time.Now().Add(-time.Minute))
+
+	rows, err := ds.GetWindowsManagedLocalAccountsForAutoRotation(ctx)
+	require.NoError(t, err)
+
+	// Membership rather than an exact set: the subtests share one datastore, so asserting the whole result would
+	// couple this to whatever rows the others leave behind.
+	got := make(map[string]struct{}, len(rows))
+	for _, r := range rows {
+		got[r.HostUUID] = struct{}{}
+	}
+	_, hasEligible := got[eligible]
+	_, hasNotDue := got[notDue]
+	_, hasFailed := got[failed]
+	_, hasOutstanding := got[outstanding]
+	_, hasMac := got[macH.UUID]
+	assert.True(t, hasEligible, "due host should be returned")
+	assert.False(t, hasNotDue, "host whose timer has not elapsed should not be returned")
+	assert.False(t, hasFailed, "failed host should not be returned")
+	assert.False(t, hasOutstanding, "host with a rotation already requested should not be returned")
+	assert.False(t, hasMac, "macOS host belongs to the Apple query")
+}
+
+// setAutoRotateAt moves a row's rotation deadline so the cron query can be exercised without waiting on the view timer.
+func setAutoRotateAt(t *testing.T, ds *Datastore, hostUUID string, at time.Time) {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(),
+			`UPDATE host_managed_local_account_passwords SET auto_rotate_at = ?, initiated_by_fleet = 1 WHERE host_uuid = ?`,
+			at, hostUUID)
+		return err
+	})
+}

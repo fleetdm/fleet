@@ -1,0 +1,25 @@
+.calendar-events-modal {
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: px-to-rem(16);
+  }
+
+  &__not-configured {
+    display: flex;
+    flex-direction: column;
+    gap: px-to-rem(24);
+  }
+
+  .form-fields {
+    &--disabled {
+      @include disabled;
+    }
+  }
+
+  pre {
+    box-sizing: border-box;
+    margin: 0;
+  }
+}

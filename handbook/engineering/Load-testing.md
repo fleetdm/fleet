@@ -10,7 +10,7 @@ This document reports the minimum resources for successfully running Fleet with 
 
 The Fleet load tests are conducted with a Fleet server that contains 2 packs, with ~6 queries each, and 6 labels.
 
-A test is deemed successful when the Fleet server is able to receive and make requests to the specified number of hosts without over utilizing the specified resources. In addition, a successful test must report that the Fleet server can run a live query against the specified number of hosts.
+A test is deemed successful when the Fleet server is able to receive and make requests to the specified number of hosts without over utilizing the specified resources. In addition, a successful test must report that the Fleet server can run a live report against the specified number of hosts.
 
 ## Results
 

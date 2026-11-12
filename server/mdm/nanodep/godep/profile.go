@@ -11,7 +11,7 @@ import (
 // See https://developer.apple.com/documentation/devicemanagement/profile
 type Profile struct {
 	ProfileName  string `json:"profile_name"`
-	URL          string `json:"url"`
+	URL          string `json:"url,omitempty"`
 	AllowPairing bool   `json:"allow_pairing,omitempty"`
 	IsSupervised bool   `json:"is_supervised,omitempty"`
 	IsMultiUser  bool   `json:"is_multi_user,omitempty"`

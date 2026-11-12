@@ -1,36 +1,41 @@
-import React, { useContext, useMemo, useState } from "react";
-
-import { NotificationContext } from "context/notification";
-import certificatesAPI from "services/entities/certificates";
-import {
-  ICertificateAuthorityPartial,
-  ICertificateAuthorityType,
-} from "interfaces/certificates";
+import React, { useMemo, useState } from "react";
 
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { IFormErrors } from "hooks/useFormValidation";
+import {
+  ICertificateAuthorityPartial,
+  ICertificateAuthorityType,
+} from "interfaces/certificates";
+import certificatesAPI from "services/entities/certificates";
+
+import CustomESTForm, {
+  ICustomESTFormData,
+} from "../CustomESTForm/CustomESTForm";
+import CustomSCEPForm from "../CustomSCEPForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
+import DigicertForm from "../DigicertForm";
+import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import EJBCAForm from "../EJBCAForm";
+import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
+import GoogleCASForm from "../GoogleCASForm";
+import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
+import HydrantForm from "../HydrantForm";
+import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import NDESForm from "../NDESForm";
+import { INDESFormData } from "../NDESForm/NDESForm";
+import SmallstepForm, {
+  ISmallstepFormData,
+} from "../SmallstepForm/SmallstepForm";
 
 import {
   generateAddCertAuthorityData,
   generateDropdownOptions,
   getErrorMessage,
+  handleEJBCAServerError,
 } from "./helpers";
-
-import DigicertForm from "../DigicertForm";
-import { IDigicertFormData } from "../DigicertForm/DigicertForm";
-import NDESForm from "../NDESForm";
-import { INDESFormData } from "../NDESForm/NDESForm";
-import CustomSCEPForm from "../CustomSCEPForm";
-import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
-import HydrantForm from "../HydrantForm";
-import { IHydrantFormData } from "../HydrantForm/HydrantForm";
-import SmallstepForm, {
-  ISmallstepFormData,
-} from "../SmallstepForm/SmallstepForm";
-import CustomESTForm, {
-  ICustomESTFormData,
-} from "../CustomESTForm/CustomESTForm";
 
 export type ICertFormData =
   | IDigicertFormData
@@ -38,7 +43,9 @@ export type ICertFormData =
   | INDESFormData
   | ICustomSCEPFormData
   | ISmallstepFormData
-  | ICustomESTFormData;
+  | ICustomESTFormData
+  | IEJBCAFormData
+  | IGoogleCASFormData;
 
 const baseClass = "add-cert-authority-modal";
 
@@ -51,8 +58,6 @@ const AddCertAuthorityModal = ({
   certAuthorities,
   onExit,
 }: IAddCertAuthorityModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const dropdownOptions = useMemo(() => {
     return generateDropdownOptions(
       certAuthorities.some((cert) => cert.type === "ndes_scep_proxy")
@@ -66,6 +71,10 @@ const AddCertAuthorityModal = ({
     dropdownOptions[0].value as ICertificateAuthorityType
   );
   const [isAdding, setIsAdding] = useState(false);
+  const [
+    ejbcaServerErrors,
+    setEJBCAServerErrors,
+  ] = useState<IFormErrors | null>(null);
   const [digicertFormData, setDigicertFormData] = useState<IDigicertFormData>({
     name: "",
     url: "https://one.digicert.com",
@@ -118,6 +127,8 @@ const AddCertAuthorityModal = ({
 
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
+    // the EJBCA form starts empty when it is shown again, so the errors of the last request don't belong to it
+    setEJBCAServerErrors(null);
   };
 
   const onChangeForm = (update: { name: string; value: string }) => {
@@ -158,7 +169,7 @@ const AddCertAuthorityModal = ({
     });
   };
 
-  const onAddCertAuthority = async () => {
+  const onAddCertAuthority = async (submittedFormData?: ICertFormData) => {
     let formData: ICertFormData;
     switch (certAuthorityType) {
       case "digicert":
@@ -179,6 +190,13 @@ const AddCertAuthorityModal = ({
       case "custom_est_proxy":
         formData = customESTFormData;
         break;
+      case "google_cas":
+        // This form keeps its own data and passes it in on submit.
+        if (!submittedFormData) {
+          return;
+        }
+        formData = submittedFormData;
+        break;
       default:
         return;
     }
@@ -193,10 +211,29 @@ const AddCertAuthorityModal = ({
     setIsAdding(true);
     try {
       await certificatesAPI.addCertificateAuthority(addCertAuthorityData);
-      renderFlash("success", "Successfully added your certificate authority.");
+      notify.success("Successfully added your certificate authority.");
       onExit();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e, certAuthorityType), { response: e });
+    }
+    setIsAdding(false);
+  };
+
+  const onAddEJBCA = async (formData: IEJBCAFormData) => {
+    const addCertAuthorityData = generateAddCertAuthorityData(
+      "ejbca",
+      formData
+    );
+    if (!addCertAuthorityData) {
+      return;
+    }
+    setIsAdding(true);
+    try {
+      await certificatesAPI.addCertificateAuthority(addCertAuthorityData);
+      notify.success("Successfully added your certificate authority.");
+      onExit();
+    } catch (e) {
+      handleEJBCAServerError(e, "add", setEJBCAServerErrors);
     }
     setIsAdding(false);
   };
@@ -276,6 +313,27 @@ const AddCertAuthorityModal = ({
             onCancel={onExit}
           />
         );
+      case "ejbca":
+        return (
+          <EJBCAForm
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            serverErrors={ejbcaServerErrors}
+            onSubmit={onAddEJBCA}
+            onCancel={onExit}
+          />
+        );
+      case "google_cas":
+        return (
+          <GoogleCASForm
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
       default:
         return null;
     }
@@ -289,16 +347,14 @@ const AddCertAuthorityModal = ({
       onExit={onExit}
       isContentDisabled={isAdding}
     >
-      <>
-        <Dropdown
-          options={dropdownOptions}
-          value={certAuthorityType}
-          className={`${baseClass}__cert-authority-dropdown`}
-          onChange={onChangeDropdown}
-          searchable={false}
-        />
-        {renderForm()}
-      </>
+      <Dropdown
+        options={dropdownOptions}
+        value={certAuthorityType}
+        className={`${baseClass}__cert-authority-dropdown`}
+        onChange={onChangeDropdown}
+        searchable={false}
+      />
+      {renderForm()}
     </Modal>
   );
 };

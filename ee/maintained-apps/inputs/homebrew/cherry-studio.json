@@ -1,0 +1,10 @@
+{
+  "name": "Cherry Studio",
+  "unique_identifier": "com.kangfenmao.CherryStudio",
+  "token": "cherry-studio",
+  "installer_format": "dmg",
+  "slug": "cherry-studio/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

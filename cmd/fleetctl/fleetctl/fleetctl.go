@@ -1,8 +1,10 @@
 package fleetctl
 
 import (
+	"bytes"
 	"errors"
 	"io"
+	"os"
 
 	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
 	"github.com/fleetdm/fleet/v4/server/version"
@@ -35,7 +37,6 @@ func CreateApp(
 	app.Commands = []*cli.Command{
 		apiCommand(),
 		applyCommand(),
-		deleteCommand(),
 		setupCommand(),
 		loginCommand(),
 		logoutCommand(),
@@ -74,6 +75,20 @@ func CreateApp(
 		runScriptCommand(),
 		gitopsCommand(),
 		generateGitopsCommand(),
+		newCommand(),
 	}
+	registerRemovedCommands(app)
+	registerRemovedFlags(app)
 	return app
+}
+
+func RunApp(args []string) (*bytes.Buffer, error) {
+	// first arg must be the binary name. Allow tests to omit it.
+	args = append([]string{""}, args...)
+
+	w := new(bytes.Buffer)
+	app := CreateApp(nil, w, os.Stderr, func(_ *cli.Context, _ error) {})
+	StashRawArgs(app, args)
+	err := app.Run(args)
+	return w, err
 }

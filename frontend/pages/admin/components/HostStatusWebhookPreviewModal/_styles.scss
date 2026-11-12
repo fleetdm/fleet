@@ -1,7 +1,17 @@
 .host-status-webhook-preview-modal {
-  .flex-end {
-    margin-top: 20px;
-    display: flex;
-    justify-content: flex-end;
+  .modal__content {
+    @include vertical-modal-layout;
+  }
+
+  .modal-cta-wrap {
+    margin-top: 0; // Defer to gap styling
+  }
+
+  p {
+    margin: 0;
+  }
+
+  pre {
+    margin: 0;
   }
 }

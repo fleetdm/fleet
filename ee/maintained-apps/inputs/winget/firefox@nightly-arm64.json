@@ -1,0 +1,14 @@
+{
+  "name": "Mozilla Firefox Nightly (ARM64)",
+  "slug": "firefox@nightly-arm64/windows",
+  "package_identifier": "Mozilla.Firefox.Nightly.MSIX",
+  "unique_identifier": "Firefox Nightly",
+  "open_process_names": ["firefox.exe"],
+  "program_publisher": "Mozilla Corporation",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/firefox_nightly_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/firefox_nightly_uninstall.ps1",
+  "installer_arch": "arm64",
+  "installer_type": "msix",
+  "installer_scope": "user",
+  "default_categories": ["Browsers"]
+}

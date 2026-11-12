@@ -12,21 +12,26 @@
     height: 24px;
   }
 
-  .software-name {
-    @include ellipse-text();
-    max-width: 300px;
-  }
+  &__install-icon-with-tooltip,
+  &__configuration-icon-with-tooltip {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-small;
 
-  @media (max-width: ($break-md - 1)) {
-    .software-name {
-      max-width: 250px;
+    // TooltipWrapper renders its child inside a span that defaults to
+    // text-baseline alignment. Re-center so the icon sits in the row's
+    // vertical middle wherever this component is used.
+    .component__tooltip-wrapper__element {
+      display: inline-flex;
+      align-items: center;
+
+      // Configuration icon wraps its <Icon> in an aria-hidden span; without
+      // this, the span's inline baseline leaves the SVG sitting high.
+      > span {
+        display: inline-flex;
+        align-items: center;
+      }
     }
-  }
-
-  &__install-icon {
-    // TODO: we do not want to use !important but have to for now. This is
-    // the same issue as the .software-name-cell class display value.
-    display: inline-flex !important;
   }
 
   &__install-tooltip-text {

@@ -1,5 +1,6 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
+
 import { createMockHostPastActivity } from "__mocks__/activityMock";
 
 import LockHostActivityItem from "./LockedHostActivityItem";
@@ -36,6 +37,6 @@ describe("LockHostActivityItem", () => {
       />
     );
 
-    expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("info-icon")).not.toBeInTheDocument();
   });
 });

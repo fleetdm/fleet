@@ -16,6 +16,7 @@ const (
 	aggregatedStatsTypeMunkiIssues          = "munki_issues"
 	aggregatedStatsTypeOSVersions           = "os_versions"
 	aggregatedStatsTypePolicyViolationsDays = "policy_violation_days"
+	aggregatedStatsTypeAIGeneratedProfiles  = "ai_generated_profiles"
 	// those types are partial because the actual stats type is by platform,
 	// which is computed with this stats type and the platform type (see
 	// platformKey function).
@@ -82,14 +83,60 @@ func setP50AndP95Map(
 }
 
 func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
-	err := walkIdsInTable(
-		ctx, ds.reader(ctx), "queries", func(queryID uint) error {
-			return ds.CalculateAggregatedPerfStatsPercentiles(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
-		})
+	// Only process queries that actually have execution data in
+	// scheduled_query_stats, instead of walking all query IDs (most of
+	// which are saved/unscheduled queries with no stats). This avoids
+	// running 5 expensive percentile queries per query that would all
+	// return no rows.
+	rows, err := ds.reader(ctx).QueryxContext(ctx,
+		`SELECT q.id FROM queries q WHERE EXISTS (SELECT 1 FROM scheduled_query_stats sqs WHERE sqs.scheduled_query_id = q.id AND sqs.executions > 0)`)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "looping through query ids")
+		return ctxerr.Wrap(ctx, err, "querying query ids with execution data")
 	}
+	defer rows.Close()
 
+	for rows.Next() {
+		var queryID uint
+		if err := rows.Scan(&queryID); err != nil {
+			return ctxerr.Wrap(ctx, err, "scanning query id")
+		}
+		if err := ds.CalculateAggregatedPerfStatsPercentiles(
+			ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "calculating stats for query")
+		}
+	}
+	return rows.Err()
+}
+
+// deleteQueryStatsBatchSize is a var so tests can exercise multiple batches.
+var deleteQueryStatsBatchSize = 5000
+
+// DeleteOrphanedQueryStats deletes stats left behind when deleteQueryStats fails, e.g. on a lock
+// wait timeout during a bulk report delete.
+func (ds *Datastore) DeleteOrphanedQueryStats(ctx context.Context) error {
+	var queryIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &queryIDs,
+		`SELECT DISTINCT scheduled_query_id FROM scheduled_query_stats WHERE scheduled_query_id NOT IN (SELECT id FROM queries)`); err != nil {
+		return ctxerr.Wrap(ctx, err, "selecting stats of deleted queries")
+	}
+	for _, queryID := range queryIDs {
+		for {
+			res, err := ds.writer(ctx).ExecContext(ctx,
+				`DELETE FROM scheduled_query_stats WHERE scheduled_query_id = ? LIMIT ?`, queryID, deleteQueryStatsBatchSize)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "deleting stats of deleted query %d", queryID)
+			}
+			if n, _ := res.RowsAffected(); n < int64(deleteQueryStatsBatchSize) {
+				break
+			}
+		}
+	}
+	if _, err := ds.writer(ctx).ExecContext(ctx,
+		`DELETE FROM aggregated_stats WHERE type = ? AND id NOT IN (SELECT id FROM queries)`,
+		fleet.AggregatedStatsTypeScheduledQuery); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting aggregated stats of deleted queries")
+	}
 	return nil
 }
 
@@ -145,29 +192,4 @@ func getTotalExecutionsQuery(aggregate fleet.AggregatedStatsType) string {
 		return scheduledQueryTotalExecutions
 	}
 	return ""
-}
-
-func walkIdsInTable(
-	ctx context.Context,
-	tx sqlx.QueryerContext,
-	table string,
-	visitFunc func(id uint) error,
-) error {
-	rows, err := tx.QueryxContext(ctx, fmt.Sprintf(`SELECT id FROM %s`, table))
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "querying %s ids", table)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var id uint
-
-		if err := rows.Scan(&id); err != nil {
-			return ctxerr.Wrapf(ctx, err, "scanning id for %s", table)
-		}
-		if err := visitFunc(id); err != nil {
-			return ctxerr.Wrapf(ctx, err, "running visitFunc for %s", table)
-		}
-	}
-	return nil
 }

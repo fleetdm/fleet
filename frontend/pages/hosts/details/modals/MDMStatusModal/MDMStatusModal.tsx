@@ -1,0 +1,594 @@
+import { AxiosError } from "axios";
+import { addHours, differenceInMinutes } from "date-fns";
+import React, { useState } from "react";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import Icon from "components/Icon";
+import { IconNames } from "components/icons";
+import List from "components/List";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import {
+  MdmEnrollmentStatus,
+  MDM_ENROLLMENT_STATUS_UI_MAP,
+  canTriggerAPNSPing,
+} from "interfaces/mdm";
+import {
+  HostPlatform,
+  isAppleDevice as isAppleDevicePlatform,
+  isWindows,
+} from "interfaces/platform";
+import { IUser } from "interfaces/user";
+import paths from "router/paths";
+import hostAPI, {
+  DEPDeviceStatus,
+  IDepAssignmentHostResponse,
+} from "services/entities/hosts";
+import {
+  DEFAULT_EMPTY_CELL_VALUE,
+  INITIAL_FLEET_DATE,
+  LEARN_MORE_ABOUT_BASE_LINK,
+  MDM_STATUS_PENDING_TOOLTIP_BY_PLATFORM,
+  MDM_STATUS_TOOLTIP,
+} from "utilities/constants";
+import { internationalTimeFormat } from "utilities/helpers";
+import permissions from "utilities/permissions";
+import { getPathWithQueryParams } from "utilities/url";
+
+const baseClass = "mdm-status-modal";
+
+interface IMDMStatusModal {
+  fleetId: number | null;
+  hostId: number;
+  platform: HostPlatform;
+  enrollmentStatus: MdmEnrollmentStatus;
+  depProfileError?: boolean;
+  router: InjectedRouter;
+  isPremiumTier?: boolean;
+  lastMDMCheckIn: string | null;
+  connectedToFleet?: boolean;
+  onSuccessfulCheckIn: () => void;
+  user: IUser | null;
+  onExit: () => void;
+}
+
+/** "" represents any other status not reported by apple to render fallback "---" */
+type ProfileStatusCode = "" | "empty" | "removed" | "assigned" | "pushed";
+
+type DepAssignProfileResponseErrors = Exclude<
+  DEPDeviceStatus,
+  "SUCCESS" | undefined
+>;
+
+const PROFILE_STATUS_UI_MAP: Record<
+  ProfileStatusCode,
+  { label: string; tooltip: JSX.Element | string }
+> = {
+  "": {
+    label: DEFAULT_EMPTY_CELL_VALUE,
+    tooltip: "Unknown profile status reported by Apple.",
+  },
+  empty: {
+    label: "Empty",
+    tooltip: "No profile assigned to this host.",
+  },
+  removed: {
+    label: "Removed",
+    tooltip: "Profile was removed from this host.",
+  },
+  assigned: {
+    label: "Assigned",
+    tooltip: (
+      <>
+        Profile is assigned in AB, and AB <br />
+        is preparing to push it to the host.
+      </>
+    ),
+  },
+  pushed: {
+    label: "Pushed",
+    tooltip: "Profile has been delivered to the host.",
+  },
+};
+
+const getProfileStatusUI = (raw?: string | null) => {
+  // If Apple sends some unexpected string (e.g., "abc"),
+  // treat it as "" so we use the DEFAULT_EMPTY_CELL_VALUE + unknown tooltip.
+  const label = (PROFILE_STATUS_UI_MAP[raw as ProfileStatusCode]
+    ? raw
+    : "") as ProfileStatusCode;
+
+  return PROFILE_STATUS_UI_MAP[label] ?? PROFILE_STATUS_UI_MAP[""];
+};
+
+const DEFAULT_DEP_ERROR_MESSAGE =
+  "Fleet can't retrieve data from Apple right now. Please try again later.";
+
+export const getThrottleCopy = (responseUpdatedAt?: string | null) => {
+  if (!responseUpdatedAt) {
+    return "when available.";
+  }
+
+  // responseUpdatedAt is an ISO 8601 string with Z (UTC), e.g. "2026-03-25T20:15:19Z"
+  const lastTime = new Date(responseUpdatedAt);
+
+  if (Number.isNaN(lastTime.getTime())) {
+    return "when available.";
+  }
+
+  const retryAt = addHours(lastTime, 24);
+  const now = new Date();
+
+  if (now >= retryAt) {
+    return "when available.";
+  }
+
+  const minutesRemaining = differenceInMinutes(retryAt, now);
+
+  if (minutesRemaining <= 0) {
+    return "when available.";
+  }
+
+  if (minutesRemaining < 60) {
+    return "in <1 hour";
+  }
+
+  const hours = Math.floor(minutesRemaining / 60);
+  return `in ${hours} hour${hours === 1 ? "" : "s"}`;
+};
+
+interface IStatusRowItem {
+  id: string;
+  value: string;
+  render: (item: IStatusRowItem) => JSX.Element;
+}
+
+interface IProfileRowItem {
+  id: string;
+  name: string;
+  nameTooltip?: JSX.Element | string;
+  status: string;
+  statusIconName?: IconNames;
+  statusTooltip?: JSX.Element | string;
+}
+
+const MDMStatusModal = ({
+  fleetId,
+  hostId,
+  user,
+  enrollmentStatus,
+  depProfileError = false,
+  isPremiumTier = false,
+  platform,
+  lastMDMCheckIn,
+  connectedToFleet = false,
+  onSuccessfulCheckIn,
+  router,
+  onExit,
+}: IMDMStatusModal) => {
+  const isAppleDevice = isAppleDevicePlatform(platform);
+  const {
+    data: depAssignmentData,
+    isFetching: isLoadingDepAssignment,
+    isError: isDepAssignmentError,
+  } = useQuery<IDepAssignmentHostResponse, AxiosError>(
+    ["dep-assignment", hostId],
+    () => hostAPI.getDepAssignment(hostId),
+    {
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: false,
+    }
+  );
+  const [isCheckingIn, setIsCheckingIn] = useState(false);
+
+  const enrollmentFilterValue =
+    MDM_ENROLLMENT_STATUS_UI_MAP[enrollmentStatus].filterValue;
+
+  const handleClickStatusRow = () => {
+    const path = getPathWithQueryParams(paths.MANAGE_HOSTS, {
+      mdm_enrollment_status: enrollmentFilterValue,
+      fleet_id: fleetId,
+    });
+    router.push(path);
+  };
+
+  const handleClickCheckInNow = async () => {
+    setIsCheckingIn(true);
+
+    try {
+      await hostAPI.apnsPing(hostId);
+      notify.success("Successfully sent request to check in.");
+      onSuccessfulCheckIn();
+    } catch (error) {
+      notify.error("Failed to send an APNS ping.", { response: error });
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  const handleClickProfileRow = (item: IProfileRowItem) => {
+    // Only handle the profile error row
+    if (item.id !== "profile-error") {
+      return;
+    }
+
+    const raw = (depAssignmentData?.host_dep_assignment
+      ?.assign_profile_response || "") as DepAssignProfileResponseErrors;
+
+    let responseParam: string | undefined;
+
+    switch (raw) {
+      case "FAILED":
+        responseParam = "FAILED";
+        break;
+      case "THROTTLED":
+        responseParam = "THROTTLED";
+        break;
+      case "NOT_ACCESSIBLE":
+        responseParam = "NOT_ACCESSIBLE";
+        break;
+      default:
+        // No navigation for other responses
+        return;
+    }
+
+    const path = getPathWithQueryParams(paths.MANAGE_HOSTS, {
+      dep_assign_profile_response: responseParam,
+      fleet_id: fleetId,
+    });
+
+    router.push(path);
+  };
+
+  const renderMDMStatusRow = (item: IStatusRowItem) => {
+    const { value } = item;
+    const status = value as MdmEnrollmentStatus;
+    let statusTooltip = MDM_STATUS_TOOLTIP[status];
+    if (status === "Pending") {
+      statusTooltip = isWindows(platform)
+        ? MDM_STATUS_PENDING_TOOLTIP_BY_PLATFORM.windows
+        : MDM_STATUS_PENDING_TOOLTIP_BY_PLATFORM.apple;
+    }
+
+    return (
+      <>
+        <div className={`${baseClass}__status`}>
+          <div className={`${baseClass}__status-title`}>MDM status</div>
+          <div className={`${baseClass}__status-value`}>
+            {statusTooltip ? (
+              <TooltipWrapper tipContent={statusTooltip}>
+                {MDM_ENROLLMENT_STATUS_UI_MAP[status].displayName}
+              </TooltipWrapper>
+            ) : (
+              MDM_ENROLLMENT_STATUS_UI_MAP[status].displayName
+            )}
+          </div>
+        </div>
+        <ViewAllHostsLink
+          queryParams={{ mdm_enrollment_status: enrollmentFilterValue }}
+          variant="secondary"
+          noLink
+        />
+      </>
+    );
+  };
+
+  const renderMDMCheckinRow = (item: IStatusRowItem) => {
+    const { value: lastCheckIn } = item;
+
+    const canSeeButton =
+      canTriggerAPNSPing({
+        platform,
+        mdm: {
+          connected_to_fleet: connectedToFleet,
+          enrollment_status: enrollmentStatus,
+        },
+      }) && permissions.isGlobalOrTeamObserverOrAbove(user, fleetId ?? null);
+
+    return (
+      <>
+        <div className={`${baseClass}__status`}>
+          <div className={`${baseClass}__status-title`}>Last MDM check-in</div>
+          <div className={`${baseClass}__status-value`}>
+            {lastCheckIn
+              ? internationalTimeFormat(new Date(lastCheckIn))
+              : "Never"}
+          </div>
+        </div>
+        {canSeeButton && (
+          <Button
+            onClick={handleClickCheckInNow}
+            icon="refresh"
+            variant="secondary"
+            size="small"
+            disabled={isCheckingIn}
+            isLoading={isCheckingIn}
+          >
+            Check in now
+          </Button>
+        )}
+      </>
+    );
+  };
+
+  const renderProfileRow = (item: IProfileRowItem) => {
+    const isErrorRow = item.id === "profile-error";
+
+    return (
+      <>
+        <div className={`${baseClass}__status`}>
+          <div className={`${baseClass}__status-title`}>
+            {item.nameTooltip ? (
+              <TooltipWrapper tipContent={item.nameTooltip}>
+                {item.name}
+              </TooltipWrapper>
+            ) : (
+              item.name
+            )}
+          </div>
+          <div className={`${baseClass}__status-value`}>
+            {item.statusIconName && <Icon name={item.statusIconName} />}
+            {item.statusTooltip ? (
+              <TooltipWrapper tipContent={item.statusTooltip}>
+                {item.status}
+              </TooltipWrapper>
+            ) : (
+              item.status
+            )}
+          </div>
+        </div>
+        {isErrorRow && (
+          <ViewAllHostsLink
+            queryParams={{
+              dep_assign_profile_response: (
+                depAssignmentData?.host_dep_assignment
+                  ?.assign_profile_response || ""
+              ).toLowerCase(),
+            }}
+            variant="secondary"
+            noLink
+          />
+        )}
+      </>
+    );
+  };
+
+  const renderMDMStatus = () => {
+    const data: IStatusRowItem[] = [
+      {
+        id: "mdm-status",
+        value: enrollmentStatus,
+        render: renderMDMStatusRow,
+      },
+    ];
+
+    if (lastMDMCheckIn !== null || connectedToFleet) {
+      data.push({
+        id: "mdm-checkin",
+        value: lastMDMCheckIn ?? "",
+        render: renderMDMCheckinRow,
+      });
+    }
+
+    return (
+      <List<IStatusRowItem>
+        data={data}
+        renderItemRow={(item) => item.render(item)}
+        isRowClickable={(row) => row.id === "mdm-status"}
+        onClickRow={(row) => {
+          if (row.id === "mdm-status" && handleClickStatusRow)
+            handleClickStatusRow();
+        }}
+      />
+    );
+  };
+
+  const renderProfileAssignmentList = () => {
+    if (isLoadingDepAssignment) {
+      return <Spinner />;
+    }
+
+    if (isDepAssignmentError || !depAssignmentData) {
+      return (
+        <DataError singleCustomLine description={DEFAULT_DEP_ERROR_MESSAGE} />
+      );
+    }
+
+    // host_dep_assignment present but no dep_device means Apple didn't return
+    // device details -- dep_device_error explains why, if known.
+    if (
+      depAssignmentData.host_dep_assignment &&
+      !depAssignmentData.dep_device
+    ) {
+      return (
+        <DataError
+          singleCustomLine
+          className={`${baseClass}__dep-error`}
+          description={
+            depAssignmentData.dep_device_error ?? DEFAULT_DEP_ERROR_MESSAGE
+          }
+        />
+      );
+    }
+
+    const depDevice = depAssignmentData.dep_device;
+    if (!depDevice) {
+      // host_dep_assignment is expected to be present whenever this section
+      // renders (see the parent's gating condition below) -- the case above
+      // already covers host_dep_assignment set with no dep_device (including
+      // the NOT_ACCESSIBLE/NOT_FOUND case, via dep_device_error).
+      return null;
+    }
+
+    const PROFILE_ASSIGNMENT_ERROR_UI_MAP: Record<
+      Exclude<DEPDeviceStatus, "SUCCESS" | undefined>,
+      { label: JSX.Element | string; tooltip: JSX.Element | string }
+    > = {
+      THROTTLED: {
+        label: "Throttled",
+        tooltip: (
+          <>
+            Migration or new Mac setup won&apos;t work. Fleet hit Apple&apos;s
+            API rate limit when preparing the macOS Setup Assistant for this
+            host. Fleet will try again{" "}
+            {getThrottleCopy(
+              depAssignmentData.host_dep_assignment?.response_updated_at
+            )}
+          </>
+        ),
+      },
+      FAILED: {
+        label: "Failed",
+        tooltip: (
+          <>
+            Migration or new Mac setup won&apos;t work. Apple&apos;s servers
+            rejected the request to assign a profile to a host. Fleet will try
+            again every hour.
+          </>
+        ),
+      },
+      NOT_ACCESSIBLE: {
+        label: "Not accessible",
+        tooltip: (
+          <>
+            Migration or new Mac setup won&apos;t work. Details are not
+            accessible from Apple Business (AB). Verify the host is assigned to
+            your MDM server and Fleet has access permissions.
+          </>
+        ),
+      },
+    };
+
+    const getProfileAssignmentError = (raw?: DepAssignProfileResponseErrors) =>
+      raw ? PROFILE_ASSIGNMENT_ERROR_UI_MAP[raw] : undefined;
+
+    const data: IProfileRowItem[] = [
+      {
+        id: "profile-assigned",
+        name: "Profile assigned",
+        nameTooltip: (
+          <>
+            The last time Apple reported a profile was assigned
+            <br />
+            to this host in Apple Business.
+          </>
+        ),
+        // Follow current pattern of international time format for dates in UI
+        status:
+          !depDevice.profile_assign_time ||
+          depDevice.profile_assign_time < INITIAL_FLEET_DATE
+            ? "Never"
+            : internationalTimeFormat(new Date(depDevice.profile_assign_time)),
+      },
+      {
+        id: "profile-pushed",
+        name: "Profile pushed",
+        nameTooltip: (
+          <>
+            The last time Apple reported the host retrieved its <br />
+            assigned profile. If a profile wasn&apos;t pushed, the <br />
+            host won&apos;t be able to turn on MDM.
+          </>
+        ),
+        // Follow current pattern of international time format for dates in UI
+        status:
+          !depDevice.profile_push_time ||
+          depDevice.profile_push_time < INITIAL_FLEET_DATE
+            ? "Never"
+            : internationalTimeFormat(new Date(depDevice.profile_push_time)),
+      },
+      {
+        id: "profile-status",
+        name: "Profile status",
+        status: getProfileStatusUI(depDevice.profile_status).label,
+        statusTooltip:
+          depDevice.profile_status === ""
+            ? DEFAULT_EMPTY_CELL_VALUE
+            : getProfileStatusUI(depDevice.profile_status).tooltip,
+      },
+    ];
+
+    if (depProfileError && depAssignmentData) {
+      const assignmentError = getProfileAssignmentError(
+        depAssignmentData.host_dep_assignment
+          ?.assign_profile_response as DepAssignProfileResponseErrors
+      );
+
+      if (assignmentError) {
+        data.push({
+          id: "profile-error",
+          name: "Profile assignment error",
+          status: String(assignmentError.label),
+          statusIconName: "error",
+          statusTooltip: assignmentError.tooltip,
+        });
+      }
+    }
+
+    return (
+      <List<IProfileRowItem>
+        data={data}
+        renderItemRow={renderProfileRow}
+        onClickRow={handleClickProfileRow}
+        isRowClickable={(item) => item.id === "profile-error"}
+      />
+    );
+  };
+
+  const renderProfileAssignment = () => {
+    return (
+      <div className={`${baseClass}__profile-assignment`}>
+        <p>
+          <b>Profile assignment</b>
+        </p>
+        <p>
+          Details about automatic enrollment profile from Apple Business.{" "}
+          <CustomLink
+            text="Learn more"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/abm-issues`}
+            newTab
+          />
+        </p>
+        {renderProfileAssignmentList()}
+      </div>
+    );
+  };
+
+  const renderFooter = () => (
+    <ModalFooter
+      primaryButtons={
+        <Button type="button" onClick={onExit}>
+          Close
+        </Button>
+      }
+    />
+  );
+
+  return (
+    <Modal title="MDM status" className={baseClass} onExit={onExit}>
+      {renderMDMStatus()}
+      {isPremiumTier &&
+        isAppleDevice &&
+        // Only render the profile assignment section if this host has an actual
+        // host_dep_assignment entry, in which case we expect there to be data to
+        // render. While loading or on query error, keep the section visible so
+        // renderProfileAssignmentList can show its spinner or DataError.
+        (isLoadingDepAssignment ||
+          isDepAssignmentError ||
+          depAssignmentData?.host_dep_assignment) &&
+        renderProfileAssignment()}
+      {renderFooter()}
+    </Modal>
+  );
+};
+
+export default MDMStatusModal;

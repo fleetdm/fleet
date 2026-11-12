@@ -1,5 +1,5 @@
-import React from "react";
 import classnames from "classnames";
+import React, { useEffect, useState } from "react";
 
 type Size = "x-small" | "small" | "medium";
 type PaddingSize = "small" | "medium";
@@ -12,12 +12,18 @@ interface ISpinnerProps {
   size?: Size;
   /** The size of the spinner padding. `"medium"` 120px (default), `"small"` 60px */
   verticalPadding?: PaddingSize;
-  /** Include the background container styling for the spinner. defaults: `true` */
-  includeContainer?: boolean;
   /** Center the spinner in its parent. defaults: `true` */
   centered?: boolean;
   className?: string;
   variant?: "mobile";
+  /**
+   * Delay in ms before the spinner becomes visible. If the spinner unmounts
+   * before the delay elapses, it never renders — avoiding a flash when the
+   * underlying load finishes quickly. Defaults to `250`. Pass `0` to show
+   * immediately (e.g. when a spinner represents ongoing work rather than a
+   * load, like pending install/uninstall states).
+   */
+  delay?: number;
 }
 
 const Spinner = ({
@@ -26,18 +32,27 @@ const Spinner = ({
   white,
   size = "medium",
   verticalPadding = "medium",
-  includeContainer = true,
   centered = true,
   className,
   variant = undefined,
-}: ISpinnerProps): JSX.Element => {
+  delay = 250,
+}: ISpinnerProps): JSX.Element | null => {
+  const [visible, setVisible] = useState(delay === 0);
+
+  useEffect(() => {
+    if (delay === 0) return undefined;
+    const id = setTimeout(() => setVisible(true), delay);
+    return () => clearTimeout(id);
+  }, [delay]);
+
+  if (!visible) return null;
+
   const classOptions = classnames(`loading-spinner`, className, size, {
     small,
     button,
     white,
     centered,
     "small-padding": verticalPadding === "small",
-    "include-container": includeContainer && variant !== "mobile",
     "mobile-view": variant === "mobile",
   });
   return (

@@ -1,0 +1,10 @@
+{
+  "name": "Yaak",
+  "unique_identifier": "app.yaak.desktop",
+  "token": "yaak",
+  "installer_format": "dmg",
+  "slug": "yaak/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

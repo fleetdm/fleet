@@ -1,0 +1,10 @@
+{
+  "name": "Remote Buddy",
+  "unique_identifier": "com.iospirit.RemoteBuddy",
+  "token": "remote-buddy",
+  "installer_format": "zip",
+  "slug": "remote-buddy/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

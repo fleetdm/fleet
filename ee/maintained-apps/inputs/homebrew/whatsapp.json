@@ -3,6 +3,8 @@
   "slug": "whatsapp/darwin",
   "unique_identifier": "net.whatsapp.WhatsApp",
   "token": "whatsapp",
-  "installer_format": "zip",
-  "default_categories": ["Communication"]
+  "installer_format": "dmg",
+  "default_categories": [
+    "Communication"
+  ]
 }

@@ -1,0 +1,32 @@
+{
+  "formulae": [
+    {
+      "name": "blake3",
+      "full_name": "blake3",
+      "installed": [{ "version": "1.8.3" }],
+      "versions": { "stable": "1.8.5", "head": null, "bottle": true }
+    },
+    {
+      "name": "git",
+      "full_name": "git",
+      "installed": [{ "version": "2.53.0" }],
+      "versions": { "stable": "2.55.0", "head": null, "bottle": true }
+    }
+  ],
+  "casks": [
+    {
+      "token": "mitmproxy",
+      "name": ["mitmproxy"],
+      "version": "12.2.3",
+      "installed": "12.2.1",
+      "auto_updates": null
+    },
+    {
+      "token": "google-chrome",
+      "name": ["Google Chrome"],
+      "version": "121.0",
+      "installed": "120.0",
+      "auto_updates": true
+    }
+  ]
+}

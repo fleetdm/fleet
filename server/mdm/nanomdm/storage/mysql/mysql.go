@@ -7,16 +7,16 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
+	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
-	"github.com/micromdm/nanolib/log"
-	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
 // Schema holds the schema for the NanoMDM MySQL storage.
@@ -27,7 +27,7 @@ var Schema string
 var ErrNoCert = errors.New("no certificate in MDM Request")
 
 type MySQLStorage struct {
-	logger        log.Logger
+	logger        *slog.Logger
 	db            *sql.DB
 	rm            bool
 	asyncLastSeen *asyncLastSeen
@@ -38,7 +38,7 @@ type config struct {
 	driver        string
 	dsn           string
 	db            *sql.DB
-	logger        log.Logger
+	logger        *slog.Logger
 	rm            bool
 	asyncCap      int
 	asyncInterval time.Duration
@@ -53,7 +53,7 @@ func WithReaderFunc(readerFunc func(ctx context.Context) fleet.DBReader) Option 
 	}
 }
 
-func WithLogger(logger log.Logger) Option {
+func WithLogger(logger *slog.Logger) Option {
 	return func(c *config) {
 		c.logger = logger
 	}
@@ -96,7 +96,7 @@ func New(opts ...Option) (*MySQLStorage, error) {
 		asyncLastSeenCap           = 1000
 	)
 
-	cfg := &config{logger: log.NopLogger, driver: "mysql", asyncCap: asyncLastSeenCap, asyncInterval: asyncLastSeenFlushInterval}
+	cfg := &config{logger: slog.New(slog.DiscardHandler), driver: "mysql", asyncCap: asyncLastSeenCap, asyncInterval: asyncLastSeenFlushInterval}
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -143,6 +143,10 @@ func (s *MySQLStorage) StoreAuthenticate(r *mdm.Request, msg *mdm.Authenticate) 
 	if r.Certificate != nil {
 		pemCert = cryptoutil.PEMCertificate(r.Certificate.Raw)
 	}
+	// When a device undergoes SCEP certificate renewal, it sends a new
+	// Authenticate message. We must preserve the existing bootstrap token
+	// during renewal; clearing it causes commands that depend on it (e.g.
+	// EraseDevice) to fail. See https://github.com/fleetdm/fleet/issues/41167
 	_, err := s.db.ExecContext(
 		r.Context, `
 INSERT INTO nano_devices
@@ -153,12 +157,21 @@ ON DUPLICATE KEY
 UPDATE
     identity_cert = VALUES(identity_cert),
     serial_number = VALUES(serial_number),
-    bootstrap_token_b64 = NULL,
-    bootstrap_token_at = NULL,
+    bootstrap_token_b64 = IF(
+        EXISTS(SELECT 1 FROM nano_cert_auth_associations nca WHERE nca.id = ? AND nca.renew_command_uuid IS NOT NULL),
+        bootstrap_token_b64,
+        NULL
+    ),
+    bootstrap_token_at = IF(
+        EXISTS(SELECT 1 FROM nano_cert_auth_associations nca WHERE nca.id = ? AND nca.renew_command_uuid IS NOT NULL),
+        bootstrap_token_at,
+        NULL
+    ),
     authenticate = VALUES(authenticate),
     authenticate_at = CURRENT_TIMESTAMP;`,
-		r.ID, pemCert, nullEmptyString(msg.SerialNumber), msg.Raw,
+		r.ID, pemCert, nullEmptyString(msg.SerialNumber), msg.Raw, r.ID, r.ID,
 	)
+
 	return err
 }
 
@@ -180,9 +193,7 @@ func (s *MySQLStorage) storeUserTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate
 	// there shouldn't be an Unlock Token on the user channel, but
 	// complain if there is to warn an admin
 	if len(msg.UnlockToken) > 0 {
-		ctxlog.Logger(r.Context, s.logger).Info(
-			"msg", "Unlock Token on user channel not stored",
-		)
+		s.logger.InfoContext(r.Context, "Unlock Token on user channel not stored")
 	}
 	_, err := s.db.ExecContext(
 		r.Context, `
@@ -224,12 +235,28 @@ func (s *MySQLStorage) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) er
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(
+
+	return common_mysql.WithTxx(r.Context, sqlx.NewDb(s.db, ""), func(tx sqlx.ExtContext) error {
+		return s.storeEnrollment(r, tx, msg, deviceId, userId)
+	}, s.logger)
+}
+
+// storeEnrollment upserts the enrollment and its seen time in one transaction: token_update_tally
+// gates first-enrollment work, so a committed tally bump followed by a failed seen-time write would
+// let the device's retry over-count it. The seen time is written here, synchronously, rather than
+// through the async batch because a freshly enrolled host must report a check-in time right away.
+func (s *MySQLStorage) storeEnrollment(r *mdm.Request, tx sqlx.ExtContext, msg *mdm.TokenUpdate, deviceId, userId string) error {
+	var certSerial int64
+	if r.Certificate != nil {
+		certSerial = r.Certificate.SerialNumber.Int64()
+	}
+	_, err := tx.ExecContext(
 		r.Context, `
 INSERT INTO nano_enrollments
-	(id, device_id, user_id, type, topic, push_magic, token_hex, last_seen_at, token_update_tally)
+	(id, device_id, user_id, type, topic, push_magic, token_hex, token_update_tally, hardware_attested)
 VALUES
-	(?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1)
+	(?, ?, ?, ?, ?, ?, ?, 1,
+	 EXISTS(SELECT 1 FROM acme_orders WHERE issued_certificate_serial = ?))
 ON DUPLICATE KEY
 UPDATE
     device_id = VALUES(device_id),
@@ -239,8 +266,8 @@ UPDATE
     push_magic = VALUES(push_magic),
     token_hex = VALUES(token_hex),
     enabled = 1,
-    last_seen_at = CURRENT_TIMESTAMP,
-    token_update_tally = nano_enrollments.token_update_tally + 1;`,
+    token_update_tally = nano_enrollments.token_update_tally + 1,
+	hardware_attested = VALUES(hardware_attested);`,
 		r.ID,
 		deviceId,
 		nullEmptyString(userId),
@@ -248,8 +275,12 @@ UPDATE
 		msg.Topic,
 		msg.PushMagic,
 		msg.Token.String(),
+		certSerial,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	return upsertSeenTime(r.Context, tx, r.ID)
 }
 
 func (s *MySQLStorage) RetrieveTokenUpdateTally(ctx context.Context, id string) (int, error) {
@@ -302,29 +333,71 @@ func (s *MySQLStorage) Disable(r *mdm.Request) error {
 	if r.ParentID != "" {
 		return errors.New("can only disable a device channel")
 	}
-	_, err := s.db.ExecContext(
+	return common_mysql.WithTxx(r.Context, sqlx.NewDb(s.db, ""), func(tx sqlx.ExtContext) error {
+		return s.disable(r, tx)
+	}, s.logger)
+}
+
+// disable flips the enrollments off and bumps their seen times in one transaction so a mid-way
+// failure can't leave a bumped seen time on a still-enabled enrollment (the enabled=1 filter in
+// the chart online-hosts query relies on the two moving together). The id capture is a plain
+// consistent read on purpose: a locking read (SELECT ... FOR UPDATE or INSERT ... SELECT) would
+// take shared/exclusive next-key locks on the enrollment rows before the UPDATE's exclusive
+// locks, inviting deadlocks with concurrent Disable/StoreTokenUpdate calls. The residual race —
+// an enrollment re-enabled between the SELECT and the UPDATE gets disabled without a seen-time
+// bump — is accepted: readers only consider seen times of enabled = 1 enrollments, so the
+// missing bump is invisible to them.
+func (s *MySQLStorage) disable(r *mdm.Request, tx sqlx.ExtContext) error {
+	var ids []string
+	if err := sqlx.SelectContext(r.Context, tx, &ids,
+		`SELECT id FROM nano_enrollments WHERE device_id = ? AND enabled = 1 ORDER BY id`, r.ID); err != nil {
+		return err
+	}
+
+	if _, err := tx.ExecContext(
 		r.Context,
-		`UPDATE nano_enrollments SET enabled = 0, token_update_tally = 0, last_seen_at = CURRENT_TIMESTAMP WHERE device_id = ? AND enabled = 1;`,
+		`UPDATE nano_enrollments SET enabled = 0, token_update_tally = 0 WHERE device_id = ? AND enabled = 1;`,
 		r.ID,
-	)
+	); err != nil {
+		return err
+	}
+
+	if len(ids) == 0 {
+		return nil
+	}
+	stmt, args := seenTimesUpsert(ids)
+	_, err := tx.ExecContext(r.Context, stmt, args...)
 	return err
 }
 
-func (s *MySQLStorage) updateLastSeen(r *mdm.Request) (err error) {
+// seenTimesUpsert builds a multi-row nano_seen_times upsert for the given enrollment ids. Callers
+// must pass ids in a consistent (sorted) order: concurrent flushes and Disable/StoreTokenUpdate
+// upserts can deadlock among themselves without consistent lock ordering.
+func seenTimesUpsert(ids []string) (string, []any) {
+	stmt := `INSERT INTO nano_seen_times (id, seen_time) VALUES ` +
+		strings.TrimSuffix(strings.Repeat("(?, CURRENT_TIMESTAMP),", len(ids)), ",") +
+		` ON DUPLICATE KEY UPDATE seen_time = CURRENT_TIMESTAMP`
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	return stmt, args
+}
+
+func (s *MySQLStorage) updateLastSeen(r *mdm.Request) error {
 	if s.asyncLastSeen != nil {
 		s.asyncLastSeen.markHostSeen(r.Context, r.ID)
 		return nil
 	}
+	return upsertSeenTime(r.Context, s.db, r.ID)
+}
 
-	_, err = s.db.ExecContext(
-		r.Context,
-		`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		r.ID,
-	)
-	if err != nil {
-		err = fmt.Errorf("updating last seen: %w", err)
+func upsertSeenTime(ctx context.Context, db sqlx.ExecerContext, id string) error {
+	stmt, args := seenTimesUpsert([]string{id})
+	if _, err := db.ExecContext(ctx, stmt, args...); err != nil {
+		return fmt.Errorf("updating last seen: %w", err)
 	}
-	return
+	return nil
 }
 
 func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
@@ -332,22 +405,33 @@ func (s *MySQLStorage) updateLastSeenBatch(ctx context.Context, ids []string) {
 		return
 	}
 
-	stmt, args, err := sqlx.In(`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id IN (?)`, ids)
-	if err != nil {
-		s.logger.Info("msg", "error building nano_enrollments.last_seen_at sql", "err", err)
-		return
-	}
-
-	err = common_mysql.WithRetryTxx(ctx, sqlx.NewDb(s.db, ""), func(tx sqlx.ExtContext) error {
+	// ids arrive sorted from seenSet.getAndClearLocked; see seenTimesUpsert on why order matters.
+	stmt, args := seenTimesUpsert(ids)
+	err := common_mysql.WithRetryTxx(ctx, sqlx.NewDb(s.db, ""), func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, stmt, args...)
 		return err
-	}, loggerWrapper{s.logger})
+	}, s.logger)
 	if err != nil {
-		s.logger.Info("msg", "error batch updating nano_enrollments.last_seen_at", "err", err)
+		s.logger.ErrorContext(ctx, "error batch updating nano_seen_times", "err", err)
 	}
 }
 
-func (s *MySQLStorage) ExpandEmbeddedSecrets(_ context.Context, document string) (string, error) {
-	s.logger.Info("level", "error", "err", "MySQLStorage.ExpandEmbeddedSecrets not implemented")
+func (s *MySQLStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
+	s.logger.ErrorContext(ctx, "MySQLStorage.ExpandEmbeddedSecrets not implemented")
 	return document, nil
+}
+
+func (s *MySQLStorage) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	s.logger.ErrorContext(ctx, "MySQLStorage.ExpandHostSecrets not implemented")
+	return document, nil
+}
+
+func (s *MySQLStorage) SetRecoveryLockFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error {
+	s.logger.ErrorContext(ctx, "MySQLStorage.SetRecoveryLockFailed not implemented")
+	return nil
+}
+
+func (s *MySQLStorage) SetDiskEncryptionKeyRotationFailed(ctx context.Context, hostUUID string, commandUUID string, errorMsg string) error {
+	s.logger.ErrorContext(ctx, "MySQLStorage.SetDiskEncryptionKeyRotationFailed not implemented")
+	return nil
 }

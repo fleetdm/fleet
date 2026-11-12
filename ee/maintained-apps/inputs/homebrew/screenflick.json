@@ -1,0 +1,10 @@
+{
+  "name": "Screenflick",
+  "unique_identifier": "com.araeliumgroup.screenflick",
+  "token": "screenflick",
+  "installer_format": "zip",
+  "slug": "screenflick/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

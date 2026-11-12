@@ -1,0 +1,114 @@
+.policy-details-page {
+  @include vertical-page-layout;
+
+  p {
+    margin: 0; // Until this is an app-wide style
+  }
+
+  &__title-bar {
+    display: flex;
+    justify-content: space-between;
+    gap: $pad-xlarge;
+  }
+
+  &__name-description,
+  &__platform-list {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__name-description {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__platform-list {
+    flex-direction: row;
+  }
+
+  &__action-button-container {
+    display: flex;
+    justify-content: flex-end;
+    min-width: max-content;
+    gap: $pad-medium;
+  }
+
+  &__policy-description {
+    p {
+      white-space: pre-wrap;
+    }
+  }
+
+  &__policy-name {
+    font-size: $large;
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    overflow: hidden;
+
+    .tooltip-truncated-text {
+      min-width: 0;
+    }
+
+    .critical-policy-icon {
+      flex-shrink: 0;
+    }
+  }
+
+  &__author-info {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__platform-item {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
+
+  &__automations--multi {
+    // With more than one automation, floor the DataSet at 300px so
+    // TruncatedTextList has room to render before collapsing to a "+N more"
+    // pill; combined with `max-width` below and `flex-wrap` on __properties,
+    // the DataSet stays a fixed 300px and either fits inline or wraps
+    // cleanly to its own row.
+    min-width: 300px;
+  }
+
+  &__automations {
+    // Cap the DataSet width so a long list doesn't push __properties to a
+    // second row when the first still has room — content beyond the cap
+    // falls into TruncatedTextList's "+N more" pill.
+    max-width: 300px;
+
+    .software-icon,
+    .graphic {
+      margin-right: $pad-xsmall;
+      flex-shrink: 0;
+    }
+  }
+
+  &__details {
+    .data-set {
+      gap: $pad-small;
+    }
+
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    padding: $pad-xlarge;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+  }
+
+  &__properties {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: $pad-medium $pad-xlarge;
+  }
+}

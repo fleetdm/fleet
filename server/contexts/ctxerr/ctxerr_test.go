@@ -316,13 +316,54 @@ func TestHandle(t *testing.T) {
 		ctx = NewContext(ctx, eh)
 		Handle(ctx, err)
 	})
+
+	t.Run("does not store client errors in the error handler", func(t *testing.T) {
+		cases := []struct {
+			name string
+			err  error
+		}{
+			{"NotFound", Wrap(context.Background(), &mockNotFoundError{notFound: true}, "wrap")},
+			{"Exists", Wrap(context.Background(), &mockExistsError{exists: true}, "wrap")},
+			{"Conflict", Wrap(context.Background(), &mockConflictError{conflict: true}, "wrap")},
+			{"IsClientError", Wrap(context.Background(), &mockClientError{isClient: true}, "wrap")},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				ctx := context.Background()
+				eh := MockHandler{}
+				eh.StoreImpl = func(serr error) {
+					t.Fatalf("Store should not be called for client errors, got: %v", serr)
+				}
+				ctx = NewContext(ctx, eh)
+				Handle(ctx, tc.err)
+			})
+		}
+	})
+
+	t.Run("stores server errors in the error handler", func(t *testing.T) {
+		ctx := context.Background()
+		eh := MockHandler{}
+		err := Wrap(ctx, errors.New("boom"), "wrap")
+		called := false
+		eh.StoreImpl = func(serr error) {
+			called = true
+			var ferr *FleetError
+			require.ErrorAs(t, serr, &ferr)
+		}
+		ctx = NewContext(ctx, eh)
+		Handle(ctx, err)
+		require.True(t, called, "Store must be called for server errors")
+	})
 }
 
 func TestAdditionalMetadata(t *testing.T) {
 	t.Run("saves additional data about the host if present", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		hctx := host.NewContext(ctx, &fleet.Host{Platform: "test_platform", OsqueryVersion: "5.0"})
+		h := &fleet.Host{Platform: "test_platform", OsqueryVersion: "5.0"}
+		hctx := host.NewContext(ctx, h)
+		// Register the host as an error context provider
+		hctx = AddErrorContextProvider(hctx, &host.HostAttributeProvider{Host: h})
 		err := New(hctx, "with host context").(*FleetError)
 
 		require.JSONEq(t, string(err.data), `{"host":{"osquery_version":"5.0","platform":"test_platform"},"timestamp":"1969-06-19T21:44:05Z"}`)
@@ -331,7 +372,10 @@ func TestAdditionalMetadata(t *testing.T) {
 	t.Run("saves additional data about the viewer if present", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		vctx := viewer.NewContext(ctx, viewer.Viewer{Session: &fleet.Session{ID: 1}, User: &fleet.User{SSOEnabled: true}})
+		v := viewer.Viewer{Session: &fleet.Session{ID: 1}, User: &fleet.User{SSOEnabled: true}}
+		vctx := viewer.NewContext(ctx, v)
+		// Register the viewer as an error context provider
+		vctx = AddErrorContextProvider(vctx, &v)
 		err := New(vctx, "with host context").(*FleetError)
 
 		require.JSONEq(t, string(err.data), `{"viewer":{"is_logged_in":true,"sso_enabled":true},"timestamp":"1969-06-19T21:44:05Z"}`)
@@ -379,5 +423,136 @@ func TestLogFields(t *testing.T) {
 		require.True(t, ok)
 		got := ferr.LogFields()
 		require.ElementsMatch(t, c.want, got)
+	}
+}
+
+// mockClientError implements ErrWithIsClientError for testing.
+type mockClientError struct{ isClient bool }
+
+func (e *mockClientError) Error() string       { return "mock error" }
+func (e *mockClientError) IsClientError() bool { return e.isClient }
+
+// mockStatusCoder implements StatusCode() for testing.
+type mockStatusCoder struct{ code int }
+
+func (e *mockStatusCoder) Error() string   { return "status error" }
+func (e *mockStatusCoder) StatusCode() int { return e.code }
+
+// mockNotFoundError implements IsNotFound() for testing.
+type mockNotFoundError struct{ notFound bool }
+
+func (e *mockNotFoundError) Error() string    { return "not found" }
+func (e *mockNotFoundError) IsNotFound() bool { return e.notFound }
+
+// mockExistsError implements IsExists() for testing.
+type mockExistsError struct{ exists bool }
+
+func (e *mockExistsError) Error() string  { return "already exists" }
+func (e *mockExistsError) IsExists() bool { return e.exists }
+
+// mockConflictError implements IsConflict() for testing.
+type mockConflictError struct{ conflict bool }
+
+func (e *mockConflictError) Error() string    { return "conflict" }
+func (e *mockConflictError) IsConflict() bool { return e.conflict }
+
+func TestIsClientError(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "generic error",
+			err:      errors.New("generic error"),
+			expected: false,
+		},
+		{
+			name:     "context.Canceled",
+			err:      context.Canceled,
+			expected: true,
+		},
+		{
+			name:     "wrapped context.Canceled",
+			err:      fmt.Errorf("wrapped: %w", context.Canceled),
+			expected: true,
+		},
+		{
+			name:     "context.DeadlineExceeded - not a client error (could be DB/upstream timeout)",
+			err:      context.DeadlineExceeded,
+			expected: false,
+		},
+		{
+			name:     "InvalidArgumentError (implements IsClientError)",
+			err:      &fleet.InvalidArgumentError{},
+			expected: true,
+		},
+		{
+			name:     "IsClientError returns true",
+			err:      &mockClientError{isClient: true},
+			expected: true,
+		},
+		{
+			name:     "IsClientError returns false",
+			err:      &mockClientError{isClient: false},
+			expected: false,
+		},
+		{
+			name:     "status coder 4xx",
+			err:      &mockStatusCoder{code: 422},
+			expected: true,
+		},
+		{
+			name:     "status coder 5xx",
+			err:      &mockStatusCoder{code: 500},
+			expected: false,
+		},
+		{
+			name:     "IsNotFound (no IsClientError)",
+			err:      &mockNotFoundError{notFound: true},
+			expected: true,
+		},
+		{
+			name:     "IsNotFound wrapped",
+			err:      fmt.Errorf("wrap: %w", &mockNotFoundError{notFound: true}),
+			expected: true,
+		},
+		{
+			name:     "IsNotFound returning false is not a client error",
+			err:      &mockNotFoundError{notFound: false},
+			expected: false,
+		},
+		{
+			name:     "IsExists (no IsClientError)",
+			err:      &mockExistsError{exists: true},
+			expected: true,
+		},
+		{
+			name:     "IsExists wrapped",
+			err:      fmt.Errorf("wrap: %w", &mockExistsError{exists: true}),
+			expected: true,
+		},
+		{
+			name:     "IsConflict (no IsClientError)",
+			err:      &mockConflictError{conflict: true},
+			expected: true,
+		},
+		{
+			name:     "IsConflict wrapped",
+			err:      fmt.Errorf("wrap: %w", &mockConflictError{conflict: true}),
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isClientError(tt.err)
+			assert.Equal(t, tt.expected, result)
+		})
 	}
 }

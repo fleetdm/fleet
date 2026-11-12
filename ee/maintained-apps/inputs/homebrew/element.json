@@ -1,0 +1,10 @@
+{
+  "name": "Element",
+  "unique_identifier": "im.riot.app",
+  "token": "element",
+  "installer_format": "zip",
+  "slug": "element/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

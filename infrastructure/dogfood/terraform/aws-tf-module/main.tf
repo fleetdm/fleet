@@ -23,7 +23,7 @@ terraform {
     }
     docker = {
       source  = "kreuzwerker/docker"
-      version = "3.0.2"
+      version = "3.6.2"
     }
   }
 }
@@ -47,36 +47,62 @@ variable "cloudfront_private_key" {}
 variable "webhook_url" {
   description = "Webhook URL used for Webhook Logging Destination"
 }
+variable "otel_bearer_token" {
+  sensitive   = true
+  description = "Bearer token for OTLP ingest into SigNoz."
+}
 
 data "aws_caller_identity" "current" {}
 
 locals {
-  customer       = "fleet-dogfood"
-  fleet_image    = var.fleet_image # Set this to the version of fleet to be deployed
-  geolite2_image = "${aws_ecr_repository.fleet.repository_url}:${split(":", var.fleet_image)[1]}-geolite2-${formatdate("YYYYMMDDhhmm", timestamp())}"
+  customer    = "fleet-dogfood"
+  fleet_image = var.fleet_image # Set this to the version of fleet to be deployed
+  # Tag component for the geolite2 image. Handle both ":tag" and "@sha256:digest" refs
+  # so deploying a digest-pinned image (e.g. from main) yields a clean tag, not a 64-char hex.
+  # For tag refs, take the last ":" segment so registries with a port (host:5000/repo:tag) still resolve to the tag.
+  fleet_image_tag = strcontains(var.fleet_image, "@sha256:") ? "sha256-${substr(split("@sha256:", var.fleet_image)[1], 0, 12)}" : reverse(split(":", var.fleet_image))[0]
+  geolite2_image  = "${aws_ecr_repository.fleet.repository_url}:${local.fleet_image_tag}-geolite2-${formatdate("YYYYMMDDhhmm", timestamp())}"
   extra_environment_variables = {
-    FLEET_LICENSE_KEY   = var.fleet_license
-    FLEET_LOGGING_DEBUG = "true"
-    FLEET_LOGGING_JSON  = "true"
+    FLEET_LICENSE_KEY             = var.fleet_license
+    FLEET_LOGGING_DEBUG           = "true"
+    FLEET_LOGGING_JSON            = "true"
+    FLEET_LOGGING_TRACING_ENABLED = "true"
+    FLEET_LOGGING_TRACING_TYPE    = "opentelemetry"
+    OTEL_SERVICE_NAME             = "fleet"
+    OTEL_RESOURCE_ATTRIBUTES      = "deployment.environment.name=${local.customer},deployment.environment=${local.customer}"
+    OTEL_EXPORTER_OTLP_ENDPOINT   = "https://otlp.signoz.dogfood.fleetdm.com"
     # FLEET_LOGGING_TRACING_ENABLED              = "true"
     # FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
+    FLEET_LOGGING_ENABLE_TOPICS                = "deprecated-field-names"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "10"
     FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = "10"
+    FLEET_MYSQL_CONN_MAX_LIFETIME              = "14400"
+    FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME = "14400"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
+    FLEET_OSQUERY_POLICY_UPDATE_INTERVAL       = "30m"
     # ELASTIC_APM_SERVER_URL                     = var.elastic_url
     # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     # ELASTIC_APM_SERVICE_NAME                   = "dogfood"
     FLEET_CALENDAR_PERIODICITY = var.fleet_calendar_periodicity
     # Webhook Results & Status Logging Destination
-    FLEET_WEBHOOK_STATUS_URL        = var.webhook_url
-    FLEET_WEBHOOK_RESULT_URL        = var.webhook_url
-    FLEET_OSQUERY_RESULT_LOG_PLUGIN = var.webhook_url != "" ? "webhook" : ""
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
+    FLEET_SERVER_GZIP_RESPONSES     = "true"
+    # https://github.com/fleetdm/fleet/issues/38366
+    FLEET_MDM_ALLOW_ALL_DECLARATIONS     = "true"
+    FLEET_MDM_ALLOW_CUSTOM_ACTIVATIONS   = "true"
+    FLEET_WEBSOCKET_TRANSPORT_ENABLED    = "true"
+    FLEET_WEBSOCKET_ORBIT_CONFIG_ENABLED = "true"
+    FLEET_OSQUERY_CONFIG_ETAGS           = "true"
+    FLEET_OSQUERY_REDIS_CONFIG_ETAGS     = "true"
+    FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE = "true"
+    # FLEET_SERVER_ENABLE_CSP              = "true"
 
     # Load TLS Certificate for RDS Authentication
-    FLEET_MYSQL_TLS_CA              = local.cert_path
-    FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
+    FLEET_MYSQL_TLS_CA                  = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
+    FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
+    FLEET_ENABLE_LOG_TOPICS             = "deprecated-field-names"
   }
   entra_conditional_access_secrets = {
     # Entra Conditional Access Proxy API Key
@@ -84,6 +110,9 @@ locals {
   }
   sentry_secrets = {
     FLEET_SENTRY_DSN = "${aws_secretsmanager_secret.sentry.arn}:FLEET_SENTRY_DSN::"
+  }
+  signoz_secrets = {
+    OTEL_EXPORTER_OTLP_HEADERS = "${aws_secretsmanager_secret.signoz_otel_bearer_token.arn}:OTEL_EXPORTER_OTLP_HEADERS::"
   }
   # idp_metadata_file = "${path.module}/files/idp-metadata.xml"
 
@@ -130,19 +159,52 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.18.3"
+  source          = "github.com/fleetdm/fleet-terraform?ref=tf-mod-root-v1.31.1"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
-    name = local.customer
+    name                                            = local.customer
+    enable_flow_log                                 = true
+    create_flow_log_cloudwatch_log_group            = true
+    create_flow_log_cloudwatch_iam_role             = true
+    flow_log_max_aggregation_interval               = 60
+    flow_log_cloudwatch_log_group_name_prefix       = "/aws/vpc-flow-logs/"
+    flow_log_cloudwatch_log_group_name_suffix       = local.customer
+    flow_log_cloudwatch_log_group_retention_in_days = 365
+
+    default_network_acl_ingress = [
+      { rule_no = 100, action = "allow", protocol = "tcp", from_port = 0, to_port = 21, cidr_block = "0.0.0.0/0" },
+      { rule_no = 101, action = "allow", protocol = "tcp", from_port = 23, to_port = 3388, cidr_block = "0.0.0.0/0" },
+      { rule_no = 102, action = "allow", protocol = "tcp", from_port = 3390, to_port = 65535, cidr_block = "0.0.0.0/0" },
+      { rule_no = 103, action = "allow", protocol = "udp", from_port = 0, to_port = 21, cidr_block = "0.0.0.0/0" },
+      { rule_no = 104, action = "allow", protocol = "udp", from_port = 23, to_port = 3388, cidr_block = "0.0.0.0/0" },
+      { rule_no = 105, action = "allow", protocol = "udp", from_port = 3390, to_port = 65535, cidr_block = "0.0.0.0/0" },
+      { rule_no = 106, action = "allow", protocol = "icmp", from_port = 0, to_port = 0, icmp_type = "8", icmp_code = "-1", cidr_block = "0.0.0.0/0" },
+      { rule_no = 110, action = "deny", protocol = "-1", from_port = 0, to_port = 0, ipv6_cidr_block = "::/0" },
+    ]
+    default_network_acl_egress = [
+      { rule_no = 100, action = "allow", protocol = "-1", from_port = 0, to_port = 0, cidr_block = "0.0.0.0/0" },
+      { rule_no = 110, action = "deny", protocol = "-1", from_port = 0, to_port = 0, ipv6_cidr_block = "::/0" },
+    ]
   }
   rds_config = {
     preferred_maintenance_window = "fri:04:00-fri:05:00"
-    name                         = local.customer
-    engine_version               = "8.0.mysql_aurora.3.08.2"
-    snapshot_identifier          = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
+    name                         = "${local.customer}-1"
+    engine_version               = "8.0.mysql_aurora.3.10.3"
+    instance_class               = "db.t4g.medium"
+    replicas                     = 2
+
+    restore_to_point_in_time = {
+      source_cluster_identifier = local.customer
+      restore_to_time           = "2026-03-09T22:40:59Z"
+    }
+    # snapshot_identifier          = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
+
     db_parameters = {
       # 8mb up from 262144 (256k) default
       sort_buffer_size = 8388608
+    }
+    db_cluster_parameters = {
+      require_secure_transport = "ON"
     }
     # VPN
     allowed_cidr_blocks     = ["10.255.1.0/24", "10.255.2.0/24", "10.255.3.0/24"]
@@ -152,7 +214,12 @@ module "main" {
     }
   }
   redis_config = {
-    name = local.customer
+    name           = local.customer
+    engine         = "redis"
+    engine_version = "7.1"
+    family         = "redis7"
+    # Reference-architecture size for <=5k hosts
+    instance_type = "cache.t4g.small"
     log_delivery_configuration = [{
       destination      = "dogfood-redis-logs"
       destination_type = "cloudwatch-logs"
@@ -162,6 +229,17 @@ module "main" {
   }
   ecs_cluster = {
     cluster_name = local.customer
+    cluster_configuration = {
+      execute_command_configuration = {
+        logging = "OVERRIDE"
+        log_configuration = {
+          cloud_watch_log_group_name = "/aws/ecs/${local.customer}"
+        }
+      }
+    }
+    cloudwatch_log_group = {
+      retention_in_days = 365
+    }
   }
   fleet_config = {
     image    = local.geolite2_image
@@ -197,17 +275,24 @@ module "main" {
       module.ses.fleet_extra_environment_variables,
       local.extra_environment_variables,
       module.geolite2.extra_environment_variables,
-      module.vuln-processing.extra_environment_variables
+      module.vuln-processing.extra_environment_variables,
+      module.firehose-logging.fleet_extra_environment_variables
     )
     extra_execution_iam_policies = concat(
       module.mdm.extra_execution_iam_policies,
-      [aws_iam_policy.sentry.arn, aws_iam_policy.osquery_sidecar.arn, aws_iam_policy.entra_conditional_access.arn],
+      [
+        aws_iam_policy.sentry.arn,
+        aws_iam_policy.osquery_sidecar.arn,
+        aws_iam_policy.entra_conditional_access.arn,
+        aws_iam_policy.signoz_otel_bearer_token.arn
+      ],
       module.cloudfront-software-installers.extra_execution_iam_policies,
     ) #, module.saml_auth_proxy.fleet_extra_execution_policies)
     extra_secrets = merge(
       local.entra_conditional_access_secrets,
       module.mdm.extra_secrets,
       local.sentry_secrets,
+      local.signoz_secrets,
       module.cloudfront-software-installers.extra_secrets
     )
     private_key_secret_name = "${local.customer}-fleet-server-private-key"
@@ -220,6 +305,7 @@ module "main" {
       bucket_prefix                      = "${local.customer}-software-installers-"
       create_kms_key                     = true
       kms_alias                          = "${local.customer}-software-installers"
+      cloudfront_distribution_arn        = "arn:aws:cloudfront::160035666661:distribution/E3T927IDMQ7AE4"
       enable_bucket_versioning           = true
       expire_noncurrent_versions         = true
       noncurrent_version_expiration_days = 30
@@ -316,6 +402,40 @@ module "main" {
       enabled = true
     }
     idle_timeout = 905
+
+    # Only serve requests addressed to the canonical hostname. Any other Host
+    # (raw ALB IP, spoofed Host, scanners) is rejected at the edge with a 403 so
+    # that hostname-scoped WAF rules cannot be bypassed by hitting the load
+    # balancer directly.
+    #
+    # This is done with two listener rules rather than by overriding the default
+    # action: the underlying terraform-aws-modules/alb module always emits a
+    # forward default action, so the lower-priority catch-all rule below is what
+    # actually rejects non-canonical traffic (the default action is never hit).
+    https_listener_rules = [
+      {
+        priority = 100
+        conditions = [{
+          host_headers = ["dogfood.fleetdm.com"]
+        }]
+        actions = [{
+          type               = "forward"
+          target_group_index = 0
+        }]
+      },
+      {
+        priority = 200
+        conditions = [{
+          path_patterns = ["/*"]
+        }]
+        actions = [{
+          type         = "fixed-response"
+          content_type = "text/plain"
+          message_body = "Forbidden"
+          status_code  = "403"
+        }]
+      },
+    ]
     #    extra_target_groups = [
     #      {
     #        name             = module.saml_auth_proxy.name
@@ -427,11 +547,36 @@ data "aws_iam_policy_document" "sentry" {
   }
 }
 
+resource "aws_secretsmanager_secret" "signoz_otel_bearer_token" {
+  name = "${local.customer}-signoz-otel-bearer-token"
+}
+
+resource "aws_secretsmanager_secret_version" "signoz_otel_bearer_token" {
+  secret_id = aws_secretsmanager_secret.signoz_otel_bearer_token.id
+  secret_string = jsonencode({
+    OTEL_EXPORTER_OTLP_HEADERS = "Authorization=Bearer ${var.otel_bearer_token}"
+  })
+}
+
+resource "aws_iam_policy" "signoz_otel_bearer_token" {
+  name   = "fleet-signoz-otel-bearer-token-policy"
+  policy = data.aws_iam_policy_document.signoz_otel_bearer_token.json
+}
+
+data "aws_iam_policy_document" "signoz_otel_bearer_token" {
+  statement {
+    actions = [
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [aws_secretsmanager_secret.signoz_otel_bearer_token.arn]
+  }
+}
+
 module "migrations" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.1"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.2"
   ecs_cluster              = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.main.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.main.byo-vpc.byo-db.byo-ecs.task_definition.revision
@@ -453,25 +598,24 @@ module "mdm" {
   abm_secret_name    = null
 }
 
-# can deprecate once we get webhooks rolling
 module "firehose-logging" {
-  source                = "github.com/fleetdm/fleet-terraform//addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.3"
+  source                = "github.com/fleetdm/fleet-terraform//addons/byo-firehose-logging-destination/firehose?ref=tf-mod-addon-byo-firehose-logging-destination-firehose-v2.0.4"
   firehose_results_name = "osquery_results"
   firehose_status_name  = "osquery_status"
   firehose_audit_name   = "fleet_audit"
-  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20250115232230102400000003"
-  region                = data.aws_region.current.region
+  iam_role_arn          = "arn:aws:iam::273354660820:role/terraform-20260217045329203000000002"
+  region                = "us-east-1"
 }
 
 module "osquery-carve" {
-  source = "github.com/fleetdm/fleet-terraform//addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.1.1"
+  source = "github.com/fleetdm/fleet-terraform//addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.4.0"
   osquery_carve_s3_bucket = {
     name = "fleet-${local.customer}-osquery-carve"
   }
 }
 
 module "monitoring" {
-  source                 = "github.com/fleetdm/fleet-terraform//addons/monitoring?ref=tf-mod-addon-monitoring-v1.8.0"
+  source                 = "github.com/fleetdm/fleet-terraform//addons/monitoring?ref=tf-mod-addon-monitoring-v1.12.0"
   customer_prefix        = local.customer
   fleet_ecs_service_name = module.main.byo-vpc.byo-db.byo-ecs.service.name
   albs = [
@@ -507,14 +651,16 @@ module "monitoring" {
     mysql_host                 = module.main.byo-vpc.rds.cluster_reader_endpoint
     mysql_database             = module.main.byo-vpc.rds.cluster_database_name
     mysql_user                 = module.main.byo-vpc.rds.cluster_master_username
-    mysql_password_secret_name = "${local.customer}-database-password"
+    mysql_password_secret_name = "${local.customer}-1-database-password"
+    mysql_tls_config           = "true"
     rds_security_group_id      = module.main.byo-vpc.rds.security_group_id
     subnet_ids                 = module.main.vpc.private_subnets
     vpc_id                     = module.main.vpc.vpc_id
     # Format of https://pkg.go.dev/time#ParseDuration
     delay_tolerance = "4h"
     # Interval format for: https://docs.aws.amazon.com/scheduler/latest/UserGuide/schedule-types.html#rate-based
-    run_interval = "1 hour"
+    run_interval          = "1 hour"
+    log_retention_in_days = 365
     # Optional: ignore_list = ["comma", "delimited", "cron", "names", "to", "ignore"]
     # ignore_list = []
   }
@@ -548,7 +694,7 @@ module "monitoring" {
 }
 
 module "logging_alb" {
-  source        = "github.com/fleetdm/fleet-terraform//addons/logging-alb?ref=tf-mod-addon-logging-alb-v1.4.0"
+  source        = "github.com/fleetdm/fleet-terraform/addons/logging-alb?depth=1&ref=tf-mod-addon-logging-alb-v2.2.2"
   prefix        = local.customer
   enable_athena = true
 }
@@ -631,7 +777,7 @@ module "notify_slack_p2" {
 }
 
 module "ses" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.1"
   zone_id           = aws_route53_zone.main.zone_id
   domain            = "dogfood.fleetdm.com"
   extra_txt_records = []
@@ -684,14 +830,14 @@ module "ses" {
 # }
 
 module "geolite2" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/geolite2?ref=tf-mod-addon-geolite2-v1.0.1"
   fleet_image       = var.fleet_image
   destination_image = local.geolite2_image
   license_key       = var.geolite2_license
 }
 
 module "vuln-processing" {
-  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.3.0"
+  source                              = "github.com/fleetdm/fleet-terraform//addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.5.0"
   ecs_cluster                         = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   execution_iam_role_arn              = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
   subnets                             = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
@@ -752,12 +898,15 @@ resource "aws_iam_policy" "osquery_sidecar" {
 }
 
 module "cloudfront-software-installers" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v1.1.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v3.0.0"
   customer          = local.customer
   s3_bucket         = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config.bucket_name
-  s3_kms_key_id     = module.main.byo-vpc.byo-db.byo-ecs.fleet_s3_software_installers_config.kms_key_id
   public_key        = var.cloudfront_public_key
   private_key       = var.cloudfront_private_key
   enable_logging    = true
   logging_s3_bucket = module.logging_alb.log_s3_bucket_id
+}
+
+output "vpc" {
+  value = module.main.vpc
 }

@@ -1,0 +1,10 @@
+{
+  "name": "Loopback",
+  "unique_identifier": "com.rogueamoeba.Loopback",
+  "token": "loopback",
+  "installer_format": "zip",
+  "slug": "loopback/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

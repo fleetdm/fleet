@@ -1,7 +1,10 @@
-import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+
 import CustomLink from "components/CustomLink";
+
 import InfoBanner from ".";
+
 import "../../index.scss";
 
 const meta: Meta<typeof InfoBanner> = {
@@ -10,11 +13,7 @@ const meta: Meta<typeof InfoBanner> = {
   argTypes: {
     color: {
       control: { type: "select" },
-      options: ["purple", "yellow", "grey"],
-    },
-    borderRadius: {
-      control: { type: "select" },
-      options: ["medium", "xlarge"],
+      options: ["yellow", "grey"],
     },
     pageLevel: { control: "boolean" },
     closable: { control: "boolean" },
@@ -59,8 +58,7 @@ export const Playground: Story = {
   args: {
     children: defaultChildren,
     cta: sampleCta,
-    color: "purple",
-    borderRadius: "medium",
+    color: "grey",
     pageLevel: false,
     closable: true,
     icon: "info",

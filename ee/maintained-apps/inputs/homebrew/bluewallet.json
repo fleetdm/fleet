@@ -1,0 +1,10 @@
+{
+  "name": "BlueWallet",
+  "unique_identifier": "io.bluewallet.bluewallet",
+  "token": "bluewallet",
+  "installer_format": "dmg",
+  "slug": "bluewallet/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 )
 
 // OsqueryDistributedQueryResults represents the format of the results of an
@@ -77,19 +77,38 @@ type PermissivePacks map[string]PermissivePackContent
 
 // DatastoreEnrollOsqueryConfig holds the configuration for datastore Host enrollment
 type DatastoreEnrollOsqueryConfig struct {
-	IsMDMEnabled     bool
-	OsqueryHostID    string
-	HardwareUUID     string
-	HardwareSerial   string
-	NodeKey          string
-	TeamID           *uint
-	Cooldown         time.Duration
-	IdentityCert     *types.HostIdentityCertificate
-	IgnoreTeamUpdate bool // when true the host's team won't be updated on enrollment where an entry already exists.
+	IsMDMEnabled   bool
+	OsqueryHostID  string
+	HardwareUUID   string
+	HardwareSerial string
+	NodeKey        string
+	TeamID         *uint
+	Cooldown       time.Duration
+	IdentityCert   *types.HostIdentityCertificate
+
+	// OneTimeEnrollSecretID is set when the agent presented a one-time enroll
+	// secret; the enrollment consumes it for the osquery plane.
+	OneTimeEnrollSecretID *uint
+	// RejectSharedSecretForAppleMDMHosts refuses a shared enroll secret that would
+	// claim an Apple host enrolled in Fleet MDM or assigned to Fleet in ABM.
+	RejectSharedSecretForAppleMDMHosts bool
+	// RejectSharedSecretForWindowsMDMHosts refuses a shared enroll secret that would claim a Windows host enrolled in Fleet MDM.
+	RejectSharedSecretForWindowsMDMHosts bool
+
+	// Created, when non-nil, is set to true if enrollment inserted a new hosts row.
+	Created *bool
 }
 
 // DatastoreEnrollOsqueryOption is a functional option for configuring datastore Host enrollment
 type DatastoreEnrollOsqueryOption func(*DatastoreEnrollOsqueryConfig)
+
+// WithEnrollOsqueryCreated sets *created to true when enrollment inserts a new hosts row
+// rather than re-enrolling an existing one.
+func WithEnrollOsqueryCreated(created *bool) DatastoreEnrollOsqueryOption {
+	return func(c *DatastoreEnrollOsqueryConfig) {
+		c.Created = created
+	}
+}
 
 // WithEnrollOsqueryMDMEnabled sets the MDM enabled flag for datastore Host enrollment
 func WithEnrollOsqueryMDMEnabled(enabled bool) DatastoreEnrollOsqueryOption {
@@ -140,16 +159,26 @@ func WithEnrollOsqueryCooldown(cooldown time.Duration) DatastoreEnrollOsqueryOpt
 	}
 }
 
-func WithEnrollOsqueryIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollOsqueryOption {
+func WithEnrollOsqueryOneTimeEnrollSecret(id uint) DatastoreEnrollOsqueryOption {
 	return func(c *DatastoreEnrollOsqueryConfig) {
-		c.IdentityCert = identityCert
+		c.OneTimeEnrollSecretID = &id
 	}
 }
 
-// WithEnrollOsqueryIgnoreTeamUpdate sets whether to ignore team updates for datastore Host enrollment
-// it only acts on existing hosts (i.e. it won't ignore the team id on new hosts)
-func WithEnrollOsqueryIgnoreTeamUpdate(ignore bool) DatastoreEnrollOsqueryOption {
+func WithEnrollOsqueryRejectSharedSecretForAppleMDMHosts(reject bool) DatastoreEnrollOsqueryOption {
 	return func(c *DatastoreEnrollOsqueryConfig) {
-		c.IgnoreTeamUpdate = ignore
+		c.RejectSharedSecretForAppleMDMHosts = reject
+	}
+}
+
+func WithEnrollOsqueryRejectSharedSecretForWindowsMDMHosts(reject bool) DatastoreEnrollOsqueryOption {
+	return func(c *DatastoreEnrollOsqueryConfig) {
+		c.RejectSharedSecretForWindowsMDMHosts = reject
+	}
+}
+
+func WithEnrollOsqueryIdentityCert(identityCert *types.HostIdentityCertificate) DatastoreEnrollOsqueryOption {
+	return func(c *DatastoreEnrollOsqueryConfig) {
+		c.IdentityCert = identityCert
 	}
 }

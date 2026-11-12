@@ -1,0 +1,10 @@
+{
+  "name": "LocationSimulator",
+  "unique_identifier": "de.davidklopp.locationsimulator",
+  "token": "locationsimulator",
+  "installer_format": "zip",
+  "slug": "locationsimulator/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

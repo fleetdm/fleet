@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist SYSTEM "file://localhost/System/Library/DTDs/PropertyList.dtd">
+<plist version="1.0">
+  <dict>
+    <key>PayloadContent</key>
+    <array>
+      <dict>
+        <key>VPN</key>
+        <dict>
+          <key>AuthenticationMethod</key>
+          <string>Password</string>
+          <key>RemoteAddress</key>
+          <string>TODO: REMOTE ADDRESS URL</string>
+        </dict>
+        <key>Proxies</key>
+        <dict />
+        <key>VendorConfig</key>
+        <dict>
+          <key>saml-use-default-browser</key>
+          <string>true</string>
+        </dict>
+        <key>VPNType</key>
+        <string>VPN</string>
+        <key>VPNSubType</key>
+        <string>com.paloaltonetworks.globalprotect.vpn</string>
+        <key>UserDefinedName</key>
+        <string>GlobalProtect VPN</string>
+        <key>PayloadDisplayName</key>
+        <string>GlobalProtect Configuration</string>
+        <key>PayloadType</key>
+        <string>com.apple.vpn.managed</string>
+        <key>PayloadUUID</key>
+        <string>02780BA4-96ED-40E1-970F-4DA56764E0C2</string>
+        <key>PayloadIdentifier</key>
+        <string>com.fleetdm.ios.globalprotect.vpn</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+      </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>GlobalProtect VPN Settings</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>19C9E483-B3C6-4387-BC8B-9CCFC7E385DD</string>
+    <key>PayloadIdentifier</key>
+    <string>com.fleetdm.ios.globalprotect.vpn</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+    <key>PayloadRemovalDisallowed</key>
+    <true />
+    <key>PayloadScope</key>
+    <string>System</string>
+  </dict>
+</plist>

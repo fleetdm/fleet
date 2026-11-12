@@ -7,20 +7,23 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/go-kit/kit/transport"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/groob/finalizer/logutil"
 )
 
-func MakeHTTPHandler(e *Endpoints, svc Service, logger kitlog.Logger) http.Handler {
+func MakeHTTPHandler(e *Endpoints, svc Service, logger *slog.Logger) http.Handler {
+	kitLogger := kitlogadapter.NewLogger(logger)
 	opts := []kithttp.ServerOption{
-		kithttp.ServerErrorLogger(logger),
-		kithttp.ServerFinalizer(logutil.NewHTTPLogger(logger).LoggingFinalizer),
+		kithttp.ServerErrorLogger(kitLogger),
+		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
 	r := mux.NewRouter()
@@ -40,10 +43,11 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger kitlog.Logger) http.Handl
 	return r
 }
 
-func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger kitlog.Logger) http.Handler {
+func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *slog.Logger) http.Handler {
+	kitLogger := kitlogadapter.NewLogger(logger)
 	opts := []kithttp.ServerOption{
-		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(logger)),
-		kithttp.ServerFinalizer(logutil.NewHTTPLogger(logger).LoggingFinalizer),
+		kithttp.ServerErrorHandler(transport.NewLogErrorHandler(kitLogger)),
+		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
 	r := mux.NewRouter()
@@ -87,7 +91,9 @@ func EncodeSCEPRequest(ctx context.Context, r *http.Request, request interface{}
 		if len(req.Message) > 0 {
 			var msg string
 			if req.Operation == "PKIOperation" {
-				msg = base64.URLEncoding.EncodeToString(req.Message)
+				// Use standard base64 encoding (with + and /) as expected by SCEP servers.
+				// The subsequent params.Encode() call will URL-encode the + and / characters.
+				msg = base64.StdEncoding.EncodeToString(req.Message)
 			} else {
 				msg = string(req.Message)
 			}
@@ -159,24 +165,47 @@ func decodeSCEPRequestWithIdentifier(_ context.Context, r *http.Request) (interf
 	return request, nil
 }
 
+// rawQueryParam extracts a query parameter value from the raw query string
+// without decoding '+' as space. This is necessary because url.Values.Get()
+// performs HTML-form decoding ('+' -> space), which is wrong for RFC 3986 query
+// strings where '+' is a literal character. See #45291.
+func rawQueryParam(rawQuery, key string) (value string, ok bool) {
+	for rawQuery != "" {
+		var part string
+		if before, after, found := strings.Cut(rawQuery, "&"); found {
+			part, rawQuery = before, after
+		} else {
+			part, rawQuery = rawQuery, ""
+		}
+		if k, v, found := strings.Cut(part, "="); found && k == key {
+			return v, true
+		} else if !found && k == key {
+			return "", true
+		}
+	}
+	return "", false
+}
+
 // extract message from request
 func message(r *http.Request) ([]byte, error) {
 	switch r.Method {
 	case "GET":
 		var msg string
 		q := r.URL.Query()
-		if _, ok := q["message"]; ok {
-			msg = q.Get("message")
-		}
 		op := q.Get("operation")
 		if op == "PKIOperation" {
-			if len(msg) == 0 {
+			// For PKIOperation, read the message from the raw query string
+			// to preserve literal '+' characters in the base64 payload.
+			// url.Values.Get() decodes '+' as space (correct for form-encoded
+			// POST bodies, wrong for query strings per RFC 3986). See #45291.
+			rawMsg, hasMsg := rawQueryParam(r.URL.RawQuery, "message")
+			if !hasMsg || len(rawMsg) == 0 {
 				return nil, &BadRequestError{Message: "missing PKIOperation message"}
 			}
 
-			msg2, err := url.PathUnescape(msg)
+			msg2, err := url.PathUnescape(rawMsg)
 			if err != nil {
-				return nil, &BadRequestError{Message: fmt.Sprintf("invalid PKIOperation message: %s", msg)}
+				return nil, &BadRequestError{Message: fmt.Sprintf("invalid PKIOperation message: %s", rawMsg)}
 			}
 
 			decoded, err := base64.StdEncoding.DecodeString(msg2)
@@ -185,6 +214,9 @@ func message(r *http.Request) ([]byte, error) {
 			}
 
 			return decoded, nil
+		}
+		if _, ok := q["message"]; ok {
+			msg = q.Get("message")
 		}
 		return []byte(msg), nil
 	case "POST":
@@ -238,14 +270,23 @@ func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response int
 	return nil
 }
 
+// ResponseStatusError is a SCEP server's HTTP error response. The status is a field rather than a
+// StatusCode method so that the error never sets the status of a Fleet response it reaches.
+type ResponseStatusError struct {
+	Code   int
+	Status string
+	Body   string
+}
+
+func (e ResponseStatusError) Error() string {
+	return fmt.Sprintf("http request failed with status %s, msg: %s", e.Status, e.Body)
+}
+
 // DecodeSCEPResponse decodes a SCEP response
 func DecodeSCEPResponse(ctx context.Context, r *http.Response) (interface{}, error) {
 	if r.StatusCode != http.StatusOK && r.StatusCode >= 400 {
 		body, _ := io.ReadAll(io.LimitReader(r.Body, 4096))
-		return nil, fmt.Errorf("http request failed with status %s, msg: %s",
-			r.Status,
-			string(body),
-		)
+		return nil, ResponseStatusError{Code: r.StatusCode, Status: r.Status, Body: string(body)}
 	}
 	data, err := io.ReadAll(io.LimitReader(r.Body, maxPayloadSize))
 	if err != nil {

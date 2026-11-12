@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/urfave/cli/v2"
 )
 
 func TestConfigCommand(t *testing.T) {
@@ -34,7 +35,7 @@ func TestConfigCommand(t *testing.T) {
 				configFile := filepath.Join(dir, "config")
 
 				baseFlags := []string{"config", "set", "--config", configFile}
-				RunAppCheckErr(t, append(baseFlags, c.setFlags...), c.wantErr)
+				runAppCheckErr(t, append(baseFlags, c.setFlags...), c.wantErr)
 			})
 		}
 	})
@@ -129,7 +130,7 @@ func TestConfigCommand(t *testing.T) {
 				} else {
 					c.context = "default"
 				}
-				RunAppForTest(t, append(baseFlags, c.setFlags...))
+				runAppForTest(t, append(baseFlags, c.setFlags...))
 
 				cfg, err := readConfig(configFile)
 				require.NoError(t, err)
@@ -138,6 +139,57 @@ func TestConfigCommand(t *testing.T) {
 				require.Equal(t, c.want, cfgCtx)
 			})
 		}
+	})
+
+	t.Run("unset tls-skip-verify and clear rootca", func(t *testing.T) {
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config")
+
+		runAppForTest(t, []string{
+			"config", "set", "--config", configFile,
+			"--tls-skip-verify", "--rootca", "./rootca",
+		})
+
+		populated, err := readConfig(configFile)
+		require.NoError(t, err)
+		require.True(t, populated.Contexts["default"].TLSSkipVerify)
+		require.Equal(t, "./rootca", populated.Contexts["default"].RootCA)
+
+		runAppForTest(t, []string{
+			"config", "set", "--config", configFile,
+			"--tls-skip-verify=false", "--rootca", "",
+		})
+
+		cfg, err := readConfig(configFile)
+		require.NoError(t, err)
+		cfgCtx, ok := cfg.Contexts["default"]
+		require.True(t, ok)
+		require.False(t, cfgCtx.TLSSkipVerify)
+		require.Empty(t, cfgCtx.RootCA)
+	})
+
+	t.Run("unset tls-skip-verify on its own", func(t *testing.T) {
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config")
+
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--tls-skip-verify"})
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--tls-skip-verify=false"})
+
+		cfg, err := readConfig(configFile)
+		require.NoError(t, err)
+		require.False(t, cfg.Contexts["default"].TLSSkipVerify)
+	})
+
+	t.Run("clear rootca on its own", func(t *testing.T) {
+		dir := t.TempDir()
+		configFile := filepath.Join(dir, "config")
+
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--rootca", "./rootca"})
+		runAppForTest(t, []string{"config", "set", "--config", configFile, "--rootca", ""})
+
+		cfg, err := readConfig(configFile)
+		require.NoError(t, err)
+		require.Empty(t, cfg.Contexts["default"].RootCA)
 	})
 }
 
@@ -156,7 +208,7 @@ func TestCustomHeadersConfig(t *testing.T) {
 	defer srv.Close()
 	t.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
 
-	RunAppForTest(t, []string{
+	runAppForTest(t, []string{
 		"config", "set",
 		"--config", configFile,
 		"--token", "abcd",
@@ -164,6 +216,49 @@ func TestCustomHeadersConfig(t *testing.T) {
 		"--custom-header", "X-Fleet-MoreTest:another",
 		"--address", srv.URL,
 	})
-	RunAppNoChecks([]string{"get", "packs", "--config", configFile}) //nolint:errcheck
+	runAppNoChecks([]string{"get", "packs", "--config", configFile}) //nolint:errcheck
 	require.True(t, called)
+}
+
+func TestConfigGetShowsHelp(t *testing.T) {
+	t.Run("config get without args shows help", func(t *testing.T) {
+		w, err := runAppNoChecks([]string{"config", "get"})
+		require.NoError(t, err)
+		output := w.String()
+		require.Contains(t, output, "NAME:")
+		require.Contains(t, output, "fleetctl config get")
+		require.Contains(t, output, "Get a config option")
+	})
+
+	t.Run("config get with invalid key shows help", func(t *testing.T) {
+		w, err := runAppNoChecks([]string{"config", "get", "invalidkey"})
+		require.NoError(t, err)
+		output := w.String()
+		require.Contains(t, output, "NAME:")
+		require.Contains(t, output, "fleetctl config get")
+		require.Contains(t, output, "Get a config option")
+	})
+
+	t.Run("config set without flags shows help", func(t *testing.T) {
+		w, err := runAppNoChecks([]string{"config", "set"})
+		require.NoError(t, err)
+		output := w.String()
+		require.Contains(t, output, "NAME:")
+		require.Contains(t, output, "fleetctl config set")
+		require.Contains(t, output, "Set config options")
+	})
+}
+
+// package reads the fleet name from the same config file
+// as other commands: --config, CONFIG, or the default.
+func TestPackageConfigFlag(t *testing.T) {
+	var flag *cli.StringFlag
+	for _, f := range packageCommand().Flags {
+		if sf, ok := f.(*cli.StringFlag); ok && sf.Name == "config" {
+			flag = sf
+		}
+	}
+	require.NotNil(t, flag)
+	require.Equal(t, []string{"CONFIG"}, flag.EnvVars)
+	require.Equal(t, defaultConfigPath(), flag.Value)
 }

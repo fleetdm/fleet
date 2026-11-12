@@ -1,0 +1,10 @@
+{
+  "name": "AirDroid",
+  "unique_identifier": "com.sandstudio.airdroid",
+  "token": "airdroid",
+  "installer_format": "dmg",
+  "slug": "airdroid/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

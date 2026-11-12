@@ -1,0 +1,10 @@
+{
+  "name": "JASP",
+  "unique_identifier": "org.jaspstats.jasp",
+  "token": "jasp",
+  "installer_format": "dmg",
+  "slug": "jasp/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

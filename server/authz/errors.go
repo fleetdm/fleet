@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 )
 
 const (
@@ -15,6 +16,7 @@ const (
 
 // Forbidden is the error type for authorization errors
 type Forbidden struct {
+	message  string
 	internal string
 	subject  *fleet.User
 	object   interface{}
@@ -37,6 +39,9 @@ func ForbiddenWithInternal(internal string, subject *fleet.User, object, action 
 
 // Error implements the error interface.
 func (e *Forbidden) Error() string {
+	if e.message != "" {
+		return e.message
+	}
 	return ForbiddenErrorMessage
 }
 
@@ -44,6 +49,13 @@ func (e *Forbidden) Error() string {
 func (e *Forbidden) StatusCode() int {
 	return http.StatusForbidden
 }
+
+func (e *Forbidden) IsClientError() bool {
+	return true
+}
+
+// Forbidden implements platform_authz.Forbidden interface.
+func (e *Forbidden) Forbidden() {}
 
 // Internal allows the internal error message to be logged.
 func (e *Forbidden) Internal() string {
@@ -66,27 +78,15 @@ func (e *Forbidden) LogFields() []interface{} {
 
 // CheckMissing is the error to return when no authorization check was performed
 // by the service.
-type CheckMissing struct {
-	response interface{}
-
-	fleet.ErrorWithUUID
-}
+//
+// Deprecated: Use platform_http.CheckMissing instead. This alias is kept for
+// backward compatibility.
+type CheckMissing = platform_http.CheckMissing
 
 // CheckMissingWithResponse creates a new error indicating the authorization
 // check was missed, and including the response for further analysis by the error
 // encoder.
-func CheckMissingWithResponse(response interface{}) *CheckMissing {
-	return &CheckMissing{response: response}
-}
-
-func (e *CheckMissing) Error() string {
-	return ForbiddenErrorMessage
-}
-
-func (e *CheckMissing) Internal() string {
-	return "Missing authorization check"
-}
-
-func (e *CheckMissing) Response() interface{} {
-	return e.response
-}
+//
+// Deprecated: Use platform_http.CheckMissingWithResponse instead. This alias is
+// kept for backward compatibility.
+var CheckMissingWithResponse = platform_http.CheckMissingWithResponse

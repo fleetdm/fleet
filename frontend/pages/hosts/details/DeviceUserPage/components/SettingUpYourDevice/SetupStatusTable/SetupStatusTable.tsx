@@ -1,9 +1,8 @@
 import React from "react";
 
-import { ISetupStep } from "interfaces/setup";
-
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import { ISetupStep } from "interfaces/setup";
 
 import generateColumnConfigs from "./SetupStatusTableConfig";
 
@@ -37,7 +36,7 @@ const SetupStatusTable = ({ statuses }: ISetupStatusTableProps) => {
         pageSize={statuses.length}
         emptyComponent={() => (
           // will never be empty
-          <EmptyTable
+          <EmptyState
             header="No setup steps to complete"
             info="Setup items will appear here"
           />

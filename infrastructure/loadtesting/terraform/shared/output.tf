@@ -25,3 +25,7 @@ output "ecr-kms" {
 output "enroll_secret" {
   value = aws_secretsmanager_secret.enroll_secret
 }
+
+output "android_google_credentials" {
+  value = aws_secretsmanager_secret.android_google_credentials
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -240,6 +242,126 @@ func TestBypassAppConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "C", ac.OrgInfo.OrgName)
 	require.False(t, mockedDS.AppConfigFuncInvoked)
+}
+
+func TestCachedWindowsEnrollmentDefaultFleet(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS)
+	ctx := t.Context()
+
+	storedFleetID := new(uint(7))
+	mockedDS.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		if storedFleetID == nil {
+			return nil, "", nil
+		}
+		return new(*storedFleetID), "Workstations", nil
+	}
+	mockedDS.SetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context, fleetID *uint) error {
+		storedFleetID = fleetID
+		return nil
+	}
+
+	// first read hits the DB and populates the cache
+	fleetID, fleetName, err := ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, fleetID)
+	require.Equal(t, uint(7), *fleetID)
+	require.Equal(t, "Workstations", fleetName)
+	require.True(t, mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+	mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked = false
+
+	// mutating the returned pointer must not poison the cache (clone semantics)
+	*fleetID = 99
+
+	// second read is served from the cache
+	fleetID, fleetName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, fleetID)
+	require.Equal(t, uint(7), *fleetID)
+	require.Equal(t, "Workstations", fleetName)
+	require.False(t, mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+
+	// writing through the cached store invalidates the cached entry
+	require.NoError(t, ds.SetWindowsEnrollmentDefaultFleet(ctx, nil))
+	require.True(t, mockedDS.SetWindowsEnrollmentDefaultFleetFuncInvoked)
+
+	fleetID, fleetName, err = ds.GetWindowsEnrollmentDefaultFleet(ctx)
+	require.NoError(t, err)
+	require.Nil(t, fleetID)
+	require.Empty(t, fleetName)
+	require.True(t, mockedDS.GetWindowsEnrollmentDefaultFleetFuncInvoked)
+}
+
+func TestCachedEULAMetadata(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithEULAMetadataExpiration(time.Second))
+	ctx := t.Context()
+
+	stored := map[fleet.MDMEULAPlatform]*fleet.MDMEULA{}
+	reads := map[fleet.MDMEULAPlatform]int{}
+	mockedDS.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
+		reads[platform]++
+		eula, ok := stored[platform]
+		if !ok {
+			return nil, common_mysql.NotFound("MDMEULA")
+		}
+		clone := *eula
+		return &clone, nil
+	}
+	mockedDS.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
+		stored[eula.Platform] = eula
+		return nil
+	}
+	mockedDS.MDMDeleteEULAFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform, token string) error {
+		delete(stored, platform)
+		return nil
+	}
+	const windows = fleet.MDMEULAPlatformWindows
+
+	// "none uploaded" is cached too: it is the common answer
+	_, err := ds.MDMGetEULAMetadata(ctx, windows)
+	require.True(t, fleet.IsNotFound(err))
+	_, err = ds.MDMGetEULAMetadata(ctx, windows)
+	require.True(t, fleet.IsNotFound(err))
+	require.Equal(t, 1, reads[windows])
+
+	// a write through the cached store invalidates the entry
+	require.NoError(t, ds.MDMInsertEULA(ctx, &fleet.MDMEULA{Platform: windows, Token: "t1", Sha256: []byte{1, 2}}))
+	eula, err := ds.MDMGetEULAMetadata(ctx, windows)
+	require.NoError(t, err)
+	require.Equal(t, "t1", eula.Token)
+	require.Equal(t, 2, reads[windows])
+
+	// served from the cache, and mutating the result must not poison it
+	eula.Sha256[0] = 9
+	eula, err = ds.MDMGetEULAMetadata(ctx, windows)
+	require.NoError(t, err)
+	require.Equal(t, []byte{1, 2}, eula.Sha256)
+	require.Equal(t, 2, reads[windows])
+
+	// platforms are cached independently
+	_, err = ds.MDMGetEULAMetadata(ctx, fleet.MDMEULAPlatformDarwin)
+	require.True(t, fleet.IsNotFound(err))
+	require.Equal(t, 1, reads[fleet.MDMEULAPlatformDarwin])
+
+	// deleting invalidates as well
+	require.NoError(t, ds.MDMDeleteEULA(ctx, windows, "t1"))
+	_, err = ds.MDMGetEULAMetadata(ctx, windows)
+	require.True(t, fleet.IsNotFound(err))
+	require.Equal(t, 3, reads[windows])
+
+	// a write on another instance is only seen once the entry expires
+	stored[windows] = &fleet.MDMEULA{Platform: windows, Token: "t2"}
+	_, err = ds.MDMGetEULAMetadata(ctx, windows)
+	require.True(t, fleet.IsNotFound(err))
+	require.Eventually(t, func() bool {
+		eula, err := ds.MDMGetEULAMetadata(ctx, windows)
+		return err == nil && eula.Token == "t2"
+	}, 3*time.Second, 50*time.Millisecond)
 }
 
 func TestCachedPacksforHost(t *testing.T) {
@@ -472,7 +594,6 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         false,
 		EnableSoftwareInventory: true,
 		AdditionalQueries:       &aq,
-		DetailQueryOverrides:    map[string]*string{"a": ptr.String("A"), "b": ptr.String("B")},
 	}
 
 	testTeam := fleet.Team{
@@ -515,11 +636,9 @@ func TestCachedTeamFeatures(t *testing.T) {
 	require.NotSame(t, &testFeatures, features)
 	require.False(t, mockedDS.TeamFeaturesFuncInvoked)
 
-	// changing e.g. the DetailQueryOverrides map doesn't affect the stored value
-	ptrA := features.DetailQueryOverrides["a"]
-	*ptrA = "AAA"
-	features.DetailQueryOverrides["c"] = ptr.String("C")
-	require.NotEqual(t, testFeatures.DetailQueryOverrides, features.DetailQueryOverrides)
+	// changing e.g. the AdditionalQueries bytes doesn't affect the stored value
+	(*features.AdditionalQueries)[0] = '['
+	require.NotEqual(t, testFeatures.AdditionalQueries, features.AdditionalQueries)
 
 	// saving a team updates features in cache
 	aq = json.RawMessage(`{"bar": "baz"}`)
@@ -527,7 +646,6 @@ func TestCachedTeamFeatures(t *testing.T) {
 		EnableHostUsers:         true,
 		EnableSoftwareInventory: false,
 		AdditionalQueries:       &aq,
-		DetailQueryOverrides:    map[string]*string{"c": ptr.String("C")},
 	}
 	updateTeam := &fleet.Team{
 		ID:        testTeam.ID,
@@ -575,8 +693,8 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:                 []fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
-			DeprecatedEnableDiskEncryption: ptr.Bool(false),
+			CustomSettings:       []fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
+			EnableDiskEncryption: optjson.SetBool(false),
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			BootstrapPackage: optjson.SetString("bootstrap"),
@@ -634,8 +752,8 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 			Deadline:       optjson.SetString("2022-03-01"),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:                 nil,
-			DeprecatedEnableDiskEncryption: ptr.Bool(true),
+			CustomSettings:       nil,
+			EnableDiskEncryption: optjson.SetBool(true),
 		},
 	}
 	updateTeam := &fleet.Team{
@@ -721,40 +839,53 @@ func TestCachedQueryByName(t *testing.T) {
 	require.True(t, mockedDS.QueryByNameFuncInvoked)
 }
 
-func TestCachedResultCountForQuery(t *testing.T) {
+func TestCachedQueriesPerHost(t *testing.T) {
 	t.Parallel()
 
 	mockedDS := new(mock.Store)
-	ds := New(mockedDS, WithQueryResultsCountExpiration(100*time.Millisecond))
+	ds := New(mockedDS, WithQueriesPerHostExpiration(100*time.Millisecond))
 
-	testCount := 1
-	mockedDS.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
-		return testCount, nil
+	scheduled := []uint{1, 2}
+	mockedDS.QueriesPerHostFunc = func(ctx context.Context, hostID uint, teamID *uint) ([]uint, error) {
+		return scheduled, nil
 	}
 
 	// first call gets the result from the DB
-	c1, err := ds.ResultCountForQuery(context.Background(), 1)
+	queryIDs, err := ds.QueriesPerHost(context.Background(), 1, nil)
 	require.NoError(t, err)
-	require.Equal(t, testCount, c1)
-	require.True(t, mockedDS.ResultCountForQueryFuncInvoked)
-	mockedDS.ResultCountForQueryFuncInvoked = false
+	require.Equal(t, []uint{1, 2}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
+	mockedDS.QueriesPerHostFuncInvoked = false
 
-	// change "stored" count.
-	testCount = 2
+	scheduled = []uint{3}
 
 	// this call gets it from the cache
-	c2, err := ds.ResultCountForQuery(context.Background(), 1)
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 1, nil)
 	require.NoError(t, err)
-	require.Equal(t, c1, c2) // returns the old cached value
-	require.False(t, mockedDS.ResultCountForQueryFuncInvoked)
+	require.Equal(t, []uint{1, 2}, queryIDs)
+	require.False(t, mockedDS.QueriesPerHostFuncInvoked)
+
+	// another host is cached separately
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 2, nil)
+	require.NoError(t, err)
+	require.Equal(t, []uint{3}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
+	mockedDS.QueriesPerHostFuncInvoked = false
+
+	// so is the same host on a team, so a transfer never reads the previous team's schedule
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 1, new(uint(1)))
+	require.NoError(t, err)
+	require.Equal(t, []uint{3}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
+	mockedDS.QueriesPerHostFuncInvoked = false
 
 	time.Sleep(200 * time.Millisecond)
 
 	// this call gets it from the DB again since the cache expired
-	c3, err := ds.ResultCountForQuery(context.Background(), 1)
+	queryIDs, err = ds.QueriesPerHost(context.Background(), 1, nil)
 	require.NoError(t, err)
-	require.Equal(t, testCount, c3)
-	require.True(t, mockedDS.ResultCountForQueryFuncInvoked)
+	require.Equal(t, []uint{3}, queryIDs)
+	require.True(t, mockedDS.QueriesPerHostFuncInvoked)
 }
 
 func TestGetAllMDMConfigAssetsByName(t *testing.T) {
@@ -980,4 +1111,81 @@ func TestCachedYaraRules(t *testing.T) {
 	require.Equal(t, testRule1, rule1Expired) // new value from DB
 	require.Same(t, testRule1, rule1Expired)
 	require.True(t, mockedDS.YaraRuleByNameFuncInvoked) // from DB after expiration
+}
+
+func TestCachedFMANamesByIdentifier(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithFMANamesByIdentifierExpiration(100*time.Millisecond))
+
+	fmaNames := map[string]string{
+		"com.microsoft.VSCode":    "Microsoft Visual Studio Code",
+		"com.1password.1password": "1Password",
+	}
+
+	mockedDS.GetFMANamesByIdentifierFunc = func(ctx context.Context) (map[string]string, error) {
+		// Return a copy to avoid mutation
+		result := make(map[string]string, len(fmaNames))
+		maps.Copy(result, fmaNames)
+		return result, nil
+	}
+
+	mockedDS.UpsertMaintainedAppFunc = func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
+		return app, nil
+	}
+
+	// Test 1: Initial call hits the DB
+	names, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Len(t, names, 2)
+	require.Equal(t, "Microsoft Visual Studio Code", names["com.microsoft.VSCode"])
+	require.Equal(t, "1Password", names["com.1password.1password"])
+	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
+	mockedDS.GetFMANamesByIdentifierFuncInvoked = false
+
+	// Test 2: Second call uses cache
+	names2, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Len(t, names2, 2)
+	require.False(t, mockedDS.GetFMANamesByIdentifierFuncInvoked) // from cache
+
+	// Test 3: Modifying returned map doesn't affect cache
+	names2["com.microsoft.VSCode"] = "Modified"
+	names3, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "Microsoft Visual Studio Code", names3["com.microsoft.VSCode"]) // still original
+
+	// Test 4: UpsertMaintainedApp invalidates cache
+	_, err = ds.UpsertMaintainedApp(context.Background(), &fleet.MaintainedApp{
+		Name:             "New App",
+		Slug:             "new-app/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.new.app",
+	})
+	require.NoError(t, err)
+	require.True(t, mockedDS.UpsertMaintainedAppFuncInvoked)
+
+	// Update mock to return new data
+	fmaNames["com.new.app"] = "New App"
+
+	// Next call should hit DB again since cache was invalidated
+	names4, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Len(t, names4, 3)
+	require.Equal(t, "New App", names4["com.new.app"])
+	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
+	mockedDS.GetFMANamesByIdentifierFuncInvoked = false
+
+	// Test 5: Cache expiration
+	time.Sleep(200 * time.Millisecond)
+
+	// Update mock to return different data
+	fmaNames["com.microsoft.VSCode"] = "VS Code Updated"
+
+	// This call should get from DB again since cache expired
+	names5, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "VS Code Updated", names5["com.microsoft.VSCode"])
+	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
 }

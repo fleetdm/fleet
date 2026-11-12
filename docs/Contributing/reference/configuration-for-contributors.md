@@ -1,6 +1,6 @@
 # Configuration for contributors
 
-Don't use these Fleet server configuration options. For Fleet server configuraiton, please use the public [Fleet server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration) instead. For YAML, please use the [public GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files) instead.
+Don't use these Fleet server configuration options. For Fleet server configuration, please use the public [Fleet server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration) instead. For YAML, please use the [public GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files) instead.
 
 These options in this document are only used when contributing to Fleet. They frequently change to reflect current functionality.
 
@@ -111,7 +111,7 @@ An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). De
 
 ### mdm.apple_bm_server_token_bytes
 
-This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager.
+This is the content of the Apple Business encrypted server token downloaded from Apple Business.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
@@ -126,7 +126,7 @@ This is the content of the Apple Business Manager encrypted server token downloa
 
 ### mdm.apple_bm_cert_bytes
 
-This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
+This is the content of the Apple Business certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
@@ -141,7 +141,7 @@ This is the content of the Apple Business Manager certificate. The certificate i
 
 ### mdm.apple_bm_key_bytes
 
-This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`.
+This is the content of the PEM-encoded private key for the Apple Business. It's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
@@ -180,35 +180,57 @@ Whether to send anonymous usage statistics. Overrides the value set by `enable_a
     enable_analytics: false
   ```
 
-### microsoft_compliance_partner.proxy_api_key
-
-For managed cloud customers only. The Fleet team sets this key.
-
-Key that allows the Fleet server to communicate to the Microsoft compliance partner proxy on fleetdm.com.
-
-- Default value: ""
-- Environment variable: `FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY`
-- Config file format:
-  ```yaml
-  microsoft_compliance_partner:
-    proxy_api_key: foobar
-  ```
-
 ### mdm.enable_custom_os_updates_and_filevault
 
-> Experimental feature. This feature will be removed when Fleet adds the ability to add custom OS update and FileVault profiles via Fleet's UI, API, and YAML.
+Documentation for setting has moved to the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-enable-custom-os-updates-and-filevault) reference.
 
-This configuration option is not production ready. There will be conflicts between custom OS updates / FileVault configuration profiles and the profiles Fleet for these features under-the-hood. This haven't been tested by Fleet.
+### logging.tracing_enabled
 
-If set to `true`, Fleet allows users to add the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) profile, [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
+Enables OpenTelemetry tracing and metrics export. When enabled, traces and metrics are sent to the OTLP endpoint configured via the standard `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
+
+By default, OpenTelemetry is used. Set `tracing_type` to `elasticapm` only if you want to use Elastic APM instead.
 
 - Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
+- Environment variable: `FLEET_LOGGING_TRACING_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    tracing_enabled: true
+    # tracing_type: elasticapm  # Only set if using Elastic APM instead of OpenTelemetry
+  ```
+
+### logging.otel_logs_enabled
+
+Enables exporting logs to an OpenTelemetry collector in addition to stderr output. When enabled, logs are sent to the OTLP endpoint configured via the standard `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable. Logs are automatically correlated with traces via `trace_id` and `span_id` attributes.
+
+> **Note:** All log levels, including debug, are always sent to the OpenTelemetry collector regardless of the `logging.debug` setting. The `logging.debug` flag only controls what appears in stderr output.
+
+> **Note:** This option requires `logging.tracing_enabled` to be set to `true`. Fleet will fail to start if `otel_logs_enabled` is `true` but `tracing_enabled` is `false`.
+
+- Default value: `false`
+- Environment variable: `FLEET_LOGGING_OTEL_LOGS_ENABLED`
+- Config file format:
+  ```yaml
+  logging:
+    tracing_enabled: true
+    otel_logs_enabled: true
+  ```
+
+### mdm.apple_machineinfo_verify
+
+Whether Fleet verifies the CMS/PKCS7 signature on Apple's `x-apple-aspen-deviceinfo` (MachineInfo) blob during MDM enrollment. When enabled (the default), enrollment requests whose MachineInfo signature does not verify against Apple's device-identity CA are rejected. Set to `false` to run verification in audit mode, where failures are logged but enrollment is allowed to proceed.
+
+- Default value: true
+- Environment variable: `FLEET_MDM_APPLE_MACHINEINFO_VERIFY`
 - Config file format:
   ```yaml
   mdm:
-    enable_custom_os_updates_and_filevault: true
+    apple_machineinfo_verify: false
   ```
+
+### mdm.allow_all_declarations
+
+Documentation for setting has moved to the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) reference.
 
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
 

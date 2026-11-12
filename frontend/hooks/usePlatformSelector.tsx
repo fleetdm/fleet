@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
 import { forEach } from "lodash";
+import React, { useCallback, useEffect, useState } from "react";
 
+import PlatformSelector from "components/PlatformSelector";
 import {
   CommaSeparatedPlatformString,
   QUERYABLE_PLATFORMS,
@@ -8,13 +9,11 @@ import {
 } from "interfaces/platform";
 import { IPolicySoftwareToInstall } from "interfaces/policy";
 
-import PlatformSelector from "components/PlatformSelector";
-
 export interface IPlatformSelector {
   setSelectedPlatforms: (platforms: string[]) => void;
   getSelectedPlatforms: () => QueryablePlatform[];
   isAnyPlatformSelected: boolean;
-  render: () => JSX.Element;
+  render: (error?: string | null) => JSX.Element;
   disabled?: boolean;
   installSoftware?: IPolicySoftwareToInstall;
   currentTeamId?: number;
@@ -65,24 +64,28 @@ const usePlatformSelector = (
     platformContext && setSelectedPlatforms(platformContext.split(","));
   }, [platformContext]);
 
-  const render = useCallback(() => {
-    return (
-      <PlatformSelector
-        baseClass={baseClass}
-        checkDarwin={checkDarwin}
-        checkWindows={checkWindows}
-        checkLinux={checkLinux}
-        checkChrome={checkChrome}
-        setCheckDarwin={setCheckDarwin}
-        setCheckWindows={setCheckWindows}
-        setCheckLinux={setCheckLinux}
-        setCheckChrome={setCheckChrome}
-        disabled={disabled}
-        installSoftware={installSoftware}
-        currentTeamId={currentTeamId}
-      />
-    );
-  }, [checkDarwin, checkWindows, checkLinux, checkChrome, disabled]);
+  const render = useCallback(
+    (error?: string | null) => {
+      return (
+        <PlatformSelector
+          baseClass={baseClass}
+          checkDarwin={checkDarwin}
+          checkWindows={checkWindows}
+          checkLinux={checkLinux}
+          checkChrome={checkChrome}
+          setCheckDarwin={setCheckDarwin}
+          setCheckWindows={setCheckWindows}
+          setCheckLinux={setCheckLinux}
+          setCheckChrome={setCheckChrome}
+          disabled={disabled}
+          installSoftware={installSoftware}
+          currentTeamId={currentTeamId}
+          error={error}
+        />
+      );
+    },
+    [checkDarwin, checkWindows, checkLinux, checkChrome, disabled]
+  );
 
   return {
     setSelectedPlatforms,

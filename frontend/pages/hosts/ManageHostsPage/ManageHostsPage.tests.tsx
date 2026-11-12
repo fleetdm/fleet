@@ -1,0 +1,810 @@
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import React from "react";
+
+import createMockConfig from "__mocks__/configMock";
+import { createMockTeamSummary } from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
+import { notify } from "components/ToastNotification";
+import mockServer from "test/mock-server";
+import { createCustomRenderer, baseUrl } from "test/test-utils";
+
+import { defaultHiddenColumns } from "./HostTableConfig";
+import ManageHostsPage from "./ManageHostsPage";
+
+// Exporting hosts wraps the CSV response in a File and hands it to
+// FileSaver.saveAs, which is a no-op in jsdom — mock it out so the click
+// handler completes without touching the DOM download machinery.
+jest.mock("file-saver");
+
+const mockAppContext = {
+  isGlobalAdmin: true,
+  isGlobalMaintainer: false,
+  isOnGlobalTeam: true,
+  isOnlyObserver: false,
+  isPremiumTier: false,
+  isFreeTier: true,
+  currentUser: createMockUser({ global_role: "admin" }),
+  config: createMockConfig(),
+  setFilteredHostsPath: jest.fn(),
+  setFilteredPoliciesPath: jest.fn(),
+  setFilteredQueriesPath: jest.fn(),
+  setFilteredSoftwarePath: jest.fn(),
+};
+
+// Handlers
+
+const getConfigHandler = () =>
+  http.get(baseUrl("/config"), () => {
+    return HttpResponse.json(createMockConfig());
+  });
+
+const getLabelsHandler = () =>
+  http.get(baseUrl("/labels"), () => {
+    return HttpResponse.json({ labels: [] });
+  });
+
+const getHostsHandler = (hosts: Record<string, unknown>[] = []) =>
+  http.get(baseUrl("/hosts"), () => {
+    return HttpResponse.json({ hosts });
+  });
+
+const getHostsCountHandler = (count: number) =>
+  http.get(baseUrl("/hosts/count"), () => {
+    return HttpResponse.json({ count });
+  });
+
+const getGlobalEnrollSecretsHandler = () =>
+  http.get(baseUrl("/spec/enroll_secret"), () => {
+    return HttpResponse.json({
+      spec: { secrets: [{ secret: "test-secret" }] },
+    });
+  });
+
+const getMeHandler = () =>
+  http.get(baseUrl("/me"), () => {
+    return HttpResponse.json({
+      user: createMockUser({ global_role: "admin" }),
+    });
+  });
+
+// Mock props
+
+interface IMockPropsOverrides {
+  location?: {
+    pathname?: string;
+    search?: string;
+    hash?: string;
+    query?: Record<string, string>;
+  };
+  [key: string]: unknown;
+}
+
+const createMockProps = (overrides?: IMockPropsOverrides) => ({
+  route: { path: "hosts/manage" },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    goBack: jest.fn(),
+    goForward: jest.fn(),
+    go: jest.fn(),
+    setRouteLeaveHook: jest.fn(),
+    isActive: jest.fn(),
+    createHref: jest.fn(),
+    createPath: jest.fn(),
+  },
+  params: {},
+  location: {
+    pathname: "/hosts/manage",
+    search: "",
+    hash: "",
+    query: {},
+    ...overrides?.location,
+  },
+  ...overrides,
+});
+
+const setupHandlers = (
+  hostCount: number,
+  hosts: Record<string, unknown>[] = []
+) => {
+  mockServer.use(
+    getConfigHandler(),
+    getLabelsHandler(),
+    getHostsHandler(hosts),
+    getHostsCountHandler(hostCount),
+    getGlobalEnrollSecretsHandler(),
+    getMeHandler()
+  );
+};
+
+describe("ManageHostsPage", () => {
+  it("renders truly empty state with disabled controls", async () => {
+    setupHandlers(0);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    render(<ManageHostsPage {...(createMockProps() as any)} />);
+
+    // Empty state copy
+    expect(await screen.findByText("No hosts")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Fleet refers to computers, servers, and mobile devices as hosts/
+      )
+    ).toBeInTheDocument();
+
+    // Host count
+    expect(screen.getByText("0 hosts")).toBeInTheDocument();
+
+    // Controls are disabled
+    expect(
+      screen.getByRole("button", { name: /export hosts/i })
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /edit columns/i })
+    ).toBeDisabled();
+    expect(screen.getByPlaceholderText(/search name/i)).toBeDisabled();
+
+    // Add hosts button still visible in the page header, next to the
+    // settings gear menu (which now contains Enroll secrets).
+    const headerWrap = screen
+      .getByRole("button", { name: "Hosts page settings" })
+      .closest(".manage-hosts__button-wrap");
+    expect(
+      within(headerWrap as HTMLElement).getByText("Add hosts")
+    ).toBeInTheDocument();
+  });
+
+  it("shows the no enroll secrets banner with an Add enroll secret link", async () => {
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/spec/enroll_secret"), () => {
+        return HttpResponse.json({ spec: { secrets: [] } });
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    render(<ManageHostsPage {...(createMockProps() as any)} />);
+
+    expect(
+      await screen.findByText(/you have no enroll secrets\./i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/new hosts will not enroll until an enroll secret/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /add enroll secret/i })
+    ).toBeInTheDocument();
+  });
+
+  it("opens the Add hosts modal in its no enroll secrets state instead of crashing", async () => {
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/spec/enroll_secret"), () => {
+        return HttpResponse.json({ spec: { secrets: [] } });
+      }),
+      http.get(baseUrl("/config/certificate"), () => {
+        return HttpResponse.json({ certificate_chain: "" });
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const { user } = render(
+      <ManageHostsPage {...(createMockProps() as any)} />
+    );
+
+    await screen.findByText(/you have no enroll secrets\./i);
+    const headerWrap = screen
+      .getByRole("button", { name: "Hosts page settings" })
+      .closest(".manage-hosts__button-wrap");
+    await user.click(within(headerWrap as HTMLElement).getByText("Add hosts"));
+
+    // The banner carries the same copy and CTA, so scope to the modal.
+    await waitFor(() => {
+      expect(document.querySelector(".add-hosts-modal")).toBeInTheDocument();
+    });
+    const modal = within(
+      document.querySelector(".add-hosts-modal") as HTMLElement
+    );
+    expect(
+      modal.getByRole("button", { name: /add enroll secret/i })
+    ).toBeInTheDocument();
+    expect(
+      modal.getByText(/new hosts will not enroll until an enroll secret/i)
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    {
+      name: "Apple",
+      auth: { mdm_apple_one_time_enroll_secrets: true },
+      modalText: /only apple hosts that automatically enroll/i,
+    },
+    {
+      name: "Windows",
+      auth: { mdm_windows_one_time_enroll_secrets: true },
+      modalText: /only windows hosts that automatically enroll/i,
+    },
+    {
+      name: "Apple and Windows",
+      auth: {
+        mdm_apple_one_time_enroll_secrets: true,
+        mdm_windows_one_time_enroll_secrets: true,
+      },
+      modalText: /only hosts that automatically enroll via apple's automated device enrollment \(ADE\), microsoft entra ID, or autopilot/i,
+    },
+  ])(
+    "hides the no enroll secrets banner but keeps Add hosts when $name one-time enroll secrets are on",
+    async ({ auth, modalText }) => {
+      setupHandlers(0);
+      mockServer.use(
+        http.get(baseUrl("/spec/enroll_secret"), () => {
+          return HttpResponse.json({ spec: { secrets: [] } });
+        }),
+        http.get(baseUrl("/config/certificate"), () => {
+          return HttpResponse.json({ certificate_chain: "" });
+        })
+      );
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            ...mockAppContext,
+            config: createMockConfig({ auth }),
+          },
+        },
+      });
+
+      const { user } = render(
+        <ManageHostsPage {...(createMockProps() as any)} />
+      );
+
+      expect(await screen.findByText("No hosts")).toBeInTheDocument();
+
+      const headerWrap = screen
+        .getByRole("button", { name: "Hosts page settings" })
+        .closest(".manage-hosts__button-wrap");
+      await user.click(
+        within(headerWrap as HTMLElement).getByText("Add hosts")
+      );
+
+      expect(await screen.findByText(modalText)).toBeInTheDocument();
+      // The modal's no-secret state proves the secrets request finished, so
+      // the only "no enroll secrets" message left is the modal's, not the banner's.
+      expect(screen.getAllByText(/you have no enroll secrets\./i)).toHaveLength(
+        1
+      );
+    }
+  );
+
+  it("renders the settings gear menu with its options", async () => {
+    setupHandlers(0);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const { user } = render(
+      <ManageHostsPage {...(createMockProps() as any)} />
+    );
+
+    await screen.findByText("No hosts");
+
+    const gear = screen.getByRole("button", { name: "Hosts page settings" });
+    expect(gear).toBeInTheDocument();
+
+    await user.click(gear);
+
+    expect(screen.getByText("Enroll secrets")).toBeInTheDocument();
+    expect(screen.getByText("Custom host vitals")).toBeInTheDocument();
+    expect(screen.getByText("Activity automations")).toBeInTheDocument();
+  });
+
+  it("disables Activity automations on Fleet Free with a premium tooltip", async () => {
+    setupHandlers(0);
+    // mockAppContext is Free tier (isPremiumTier: false).
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const { user } = render(
+      <ManageHostsPage {...(createMockProps() as any)} />
+    );
+
+    await screen.findByText("No hosts");
+    await user.click(
+      screen.getByRole("button", { name: "Hosts page settings" })
+    );
+
+    const option = screen
+      .getByText("Activity automations")
+      .closest('[data-testid="dropdown-option"]');
+    expect(option).toHaveAttribute("aria-disabled", "true");
+
+    await user.hover(screen.getByText("Activity automations"));
+    expect(
+      await screen.findByText(
+        "Activity automations are available in Fleet Premium."
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("shows an error and keeps the modal closed when activity automations fail to load", async () => {
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/fleets"), () => {
+        return HttpResponse.json({
+          fleets: [{ id: 1, name: "Team 1", description: "" }],
+        });
+      }),
+      http.get(baseUrl("/fleets/1/secrets"), () => {
+        return HttpResponse.json({ secrets: [] });
+      }),
+      // the activity automations settings load fails
+      http.get(baseUrl("/fleets/1"), () => {
+        return HttpResponse.json(
+          { message: "internal error" },
+          { status: 500 }
+        );
+      })
+    );
+
+    const errorSpy = jest
+      .spyOn(notify, "error")
+      .mockImplementation(() => "toast-id");
+    try {
+      const premiumAdminContext = {
+        ...mockAppContext,
+        isPremiumTier: true,
+        isFreeTier: false,
+        availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+        setCurrentTeam: jest.fn(),
+      };
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: premiumAdminContext },
+      });
+
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: "?fleet_id=1",
+          hash: "",
+          query: { fleet_id: "1" },
+        },
+      });
+      const { user } = render(<ManageHostsPage {...(props as any)} />);
+
+      await screen.findByText("No hosts");
+      await user.click(
+        screen.getByRole("button", { name: "Hosts page settings" })
+      );
+      await user.click(screen.getByText("Activity automations"));
+
+      // The load fails: the user is notified and the modal never mounts —
+      // mounting it would seed disabled defaults that, if saved, overwrite
+      // the configured webhook.
+      await waitFor(() => {
+        expect(errorSpy).toHaveBeenCalledWith(
+          "Could not load activity automations. Please try again."
+        );
+      });
+      // Assert on the modal's description ("Activity automations" would also
+      // match the gear menu item).
+      expect(
+        screen.queryByText(/Send webhooks for host-level activities/)
+      ).not.toBeInTheDocument();
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("sends the App Store app version filter and the mapped fleet_name sort key from the URL with the host list and count requests", async () => {
+    let listedVersionId: string | null = null;
+    let countedVersionId: string | null = null;
+    let listedOrderKey: string | null = null;
+    setupHandlers(0);
+    mockServer.use(
+      http.get(baseUrl("/fleets"), () => {
+        return HttpResponse.json({
+          fleets: [{ id: 1, name: "Team 1", description: "" }],
+        });
+      }),
+      http.get(baseUrl("/fleets/1/secrets"), () => {
+        return HttpResponse.json({ secrets: [] });
+      }),
+      http.get(baseUrl("/hosts"), ({ request }) => {
+        const params = new URL(request.url).searchParams;
+        listedVersionId = params.get("app_store_app_version_id");
+        listedOrderKey = params.get("order_key");
+        return HttpResponse.json({ hosts: [] });
+      }),
+      http.get(baseUrl("/hosts/count"), ({ request }) => {
+        countedVersionId = new URL(request.url).searchParams.get(
+          "app_store_app_version_id"
+        );
+        return HttpResponse.json({ count: 0 });
+      })
+    );
+
+    const premiumAdminContext = {
+      ...mockAppContext,
+      isPremiumTier: true,
+      isFreeTier: false,
+      availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+      setCurrentTeam: jest.fn(),
+    };
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: premiumAdminContext },
+    });
+
+    const props = createMockProps({
+      location: {
+        pathname: "/hosts/manage",
+        search:
+          "?fleet_id=1&software_title_id=12&software_status=failed&app_store_app_version_id=5&order_key=team_name",
+        hash: "",
+        query: {
+          fleet_id: "1",
+          software_title_id: "12",
+          software_status: "failed",
+          app_store_app_version_id: "5",
+          order_key: "team_name",
+        },
+      },
+    });
+    render(<ManageHostsPage {...(props as any)} />);
+
+    // open the hosts page filtered by an App Store app version, both requests should filter by that version
+    await waitFor(() => expect(listedVersionId).toBe("5"));
+    await waitFor(() => expect(countedVersionId).toBe("5"));
+    // a legacy team_name sort key in the URL is sent as fleet_name
+    expect(listedOrderKey).toBe("fleet_name");
+  });
+
+  it("renders filtered empty state with enabled controls", async () => {
+    setupHandlers(0);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const props = createMockProps({
+      location: {
+        pathname: "/hosts/manage",
+        search: "?query=nonexistent",
+        hash: "",
+        query: { query: "nonexistent" },
+      },
+    });
+
+    render(<ManageHostsPage {...(props as any)} />);
+
+    // Filtered empty state copy
+    expect(
+      await screen.findByText("No hosts match your filters")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Recently enrolled hosts will appear here after their first check-in/
+      )
+    ).toBeInTheDocument();
+
+    // Controls are NOT disabled
+    expect(screen.getByPlaceholderText(/search name/i)).not.toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /edit columns/i })
+    ).not.toBeDisabled();
+  });
+
+  it("renders filtered empty state for query param filters with enabled controls", async () => {
+    setupHandlers(0);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const props = createMockProps({
+      location: {
+        pathname: "/hosts/manage",
+        search: "?low_disk_space=32",
+        hash: "",
+        query: { low_disk_space: "32" },
+      },
+    });
+
+    render(<ManageHostsPage {...(props as any)} />);
+
+    // Filtered empty state copy (not the truly empty state)
+    expect(
+      await screen.findByText("No hosts match your filters")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Recently enrolled hosts will appear here after their first check-in/
+      )
+    ).toBeInTheDocument();
+
+    // Controls are NOT disabled
+    expect(screen.getByPlaceholderText(/search name/i)).not.toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /edit columns/i })
+    ).not.toBeDisabled();
+  });
+
+  it("renders populated state with enabled controls", async () => {
+    const mockHost = {
+      id: 1,
+      hostname: "test-host",
+      display_name: "test-host",
+      display_text: "test-host",
+      status: "online",
+      platform: "darwin",
+      os_name: "macOS",
+      os_version: "14.0",
+      fleet_id: null,
+      fleet_name: null,
+      primary_ip: "192.168.1.1",
+      primary_mac: "00:00:00:00:00:00",
+      seen_time: "2024-01-01T00:00:00Z",
+      hardware_serial: "ABC123",
+      computer_name: "test-host",
+      cpu_type: "x86_64",
+      memory: 8000000000,
+      issues: { total_issues_count: 0, failing_policies_count: 0 },
+    };
+
+    setupHandlers(1, [mockHost]);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    render(<ManageHostsPage {...(createMockProps() as any)} />);
+
+    expect(await screen.findByText("1 host")).toBeInTheDocument();
+
+    // Controls are NOT disabled
+    expect(screen.getByPlaceholderText(/search name/i)).not.toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /export hosts/i })
+    ).not.toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /edit columns/i })
+    ).not.toBeDisabled();
+  });
+
+  it.each([
+    {
+      tier: "Free",
+      isPremiumTier: false,
+      hasSelection: false,
+      fleetColumn: false,
+    },
+    {
+      tier: "Premium",
+      isPremiumTier: true,
+      hasSelection: true,
+      fleetColumn: true,
+    },
+    {
+      tier: "Premium with the Fleet column saved as hidden under team_name",
+      isPremiumTier: true,
+      hasSelection: true,
+      savedHidden: "team_name",
+      fleetColumn: false,
+    },
+  ])(
+    "for a technician on Fleet $tier: selection $hasSelection, Fleet column $fleetColumn",
+    async ({ isPremiumTier, hasSelection, savedHidden, fleetColumn }) => {
+      setupHandlers(1, [
+        {
+          id: 1,
+          hostname: "test-host",
+          display_name: "test-host",
+          status: "online",
+          platform: "darwin",
+          fleet_id: 1,
+          fleet_name: "Workstations",
+          issues: { total_issues_count: 0, failing_policies_count: 0 },
+        },
+      ]);
+      mockServer.use(
+        http.get(baseUrl("/fleets"), () => {
+          return HttpResponse.json({
+            fleets: [{ id: 1, name: "Team 1", description: "" }],
+          });
+        })
+      );
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            ...mockAppContext,
+            isPremiumTier,
+            isFreeTier: !isPremiumTier,
+            availableTeams: [createMockTeamSummary({ id: 1, name: "Team 1" })],
+            setCurrentTeam: jest.fn(),
+            isGlobalAdmin: false,
+            isGlobalTechnician: true,
+            currentUser: createMockUser({ global_role: "technician" }),
+            ...(savedHidden && {
+              userSettings: {
+                hidden_host_columns: [...defaultHiddenColumns, savedHidden],
+              } as any,
+            }),
+          },
+        },
+      });
+
+      // Free redirects away any fleet_id; Premium waits for a valid one.
+      const fleetId = isPremiumTier ? "1" : undefined;
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: fleetId ? `?fleet_id=${fleetId}` : "",
+          hash: "",
+          query: fleetId ? { fleet_id: fleetId } : {},
+        },
+      });
+      render(<ManageHostsPage {...(props as any)} />);
+
+      expect(await screen.findByText("1 host")).toBeInTheDocument();
+      expect(screen.queryAllByRole("checkbox").length > 0).toBe(hasSelection);
+
+      // The Fleet column reads fleet_name and only exists on Premium, unless hidden. The table re-renders when the fleets load, so retry.
+      await waitFor(() => {
+        expect(screen.queryByText("Workstations") !== null).toBe(fleetColumn);
+      });
+    }
+  );
+
+  it("substitutes the display-only 'agent' column with real fields when exporting to CSV", async () => {
+    const mockHost = {
+      id: 1,
+      hostname: "test-host",
+      display_name: "test-host",
+      display_text: "test-host",
+      status: "online",
+      platform: "darwin",
+      os_name: "macOS",
+      os_version: "14.0",
+      fleet_id: null,
+      fleet_name: null,
+      seen_time: "2024-01-01T00:00:00Z",
+      issues: { total_issues_count: 0, failing_policies_count: 0 },
+    };
+
+    // Capture the `columns` query param sent to the hosts report endpoint. The
+    // "agent" column is a display-only column (it coalesces orbit and osquery
+    // versions) with no corresponding CSV field on the backend, so the request
+    // must send the underlying fields instead — otherwise the backend rejects
+    // it with "invalid column name" and the export fails (#47085).
+    let exportedColumns: string | null = null;
+    setupHandlers(1, [mockHost]);
+    mockServer.use(
+      http.get(baseUrl("/hosts/report"), ({ request }) => {
+        exportedColumns = new URL(request.url).searchParams.get("columns");
+        return HttpResponse.text("hostname\ntest-host\n");
+      })
+    );
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: mockAppContext },
+    });
+
+    const user = userEvent.setup();
+    render(<ManageHostsPage {...(createMockProps() as any)} />);
+
+    expect(await screen.findByText("1 host")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /export hosts/i }));
+
+    await waitFor(() => expect(exportedColumns).not.toBeNull());
+
+    const columns = ((exportedColumns as unknown) as string).split(",");
+    // The derived "agent" column is replaced by the real CSV fields...
+    expect(columns).toContain("orbit_version");
+    expect(columns).toContain("osquery_version");
+    // ...and neither "agent" nor the display-only "selection" column is sent.
+    expect(columns).not.toContain("agent");
+    expect(columns).not.toContain("selection");
+  });
+
+  describe("software_id → software_version_id redirect", () => {
+    it("rewrites ?software_id=N to ?software_version_id=N", async () => {
+      setupHandlers(0);
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: mockAppContext },
+      });
+
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: "?software_id=42",
+          query: { software_id: "42" },
+        },
+      }) as any;
+      render(<ManageHostsPage {...props} />);
+
+      await waitFor(() =>
+        expect(props.router.replace).toHaveBeenCalledWith({
+          pathname: "/hosts/manage",
+          query: { software_version_id: "42" },
+        })
+      );
+    });
+
+    it("preserves every other query param through the redirect", async () => {
+      setupHandlers(0);
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: mockAppContext },
+      });
+
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: "?software_id=42&fleet_id=7&os_name=Ubuntu&os_version=22.04",
+          query: {
+            software_id: "42",
+            fleet_id: "7",
+            os_name: "Ubuntu",
+            os_version: "22.04",
+          },
+        },
+      }) as any;
+      render(<ManageHostsPage {...props} />);
+
+      await waitFor(() =>
+        expect(props.router.replace).toHaveBeenCalledWith({
+          pathname: "/hosts/manage",
+          query: {
+            software_version_id: "42",
+            fleet_id: "7",
+            os_name: "Ubuntu",
+            os_version: "22.04",
+          },
+        })
+      );
+    });
+
+    it("drops software_id and keeps software_version_id when both are present", async () => {
+      setupHandlers(0);
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: { app: mockAppContext },
+      });
+
+      const props = createMockProps({
+        location: {
+          pathname: "/hosts/manage",
+          search: "?software_id=42&software_version_id=99",
+          query: { software_id: "42", software_version_id: "99" },
+        },
+      }) as any;
+      render(<ManageHostsPage {...props} />);
+
+      await waitFor(() =>
+        expect(props.router.replace).toHaveBeenCalledWith({
+          pathname: "/hosts/manage",
+          query: { software_version_id: "99" },
+        })
+      );
+    });
+  });
+});

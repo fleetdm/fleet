@@ -51,20 +51,29 @@ func (t *Task) RecordLabelQueryExecutions(ctx context.Context, host *fleet.Host,
 	// KEYS[2]: keyTs  (labelMembershipReportedKey)
 	// ARGV[1]: timestamp for "reported at"
 	// ARGV[2]: ttl for both keys
-	// ARGV[3..]: the arguments to ZADD to keySet
+	// ARGV[3..]: the arguments to ZADD to keySet (may be empty if every label
+	// query errored this run)
 	script := redigo.NewScript(2, `
-    redis.call('ZADD', KEYS[1], unpack(ARGV, 3))
-    redis.call('EXPIRE', KEYS[1], ARGV[2])
+    if #ARGV > 2 then
+      redis.call('ZADD', KEYS[1], unpack(ARGV, 3))
+      redis.call('EXPIRE', KEYS[1], ARGV[2])
+    end
     redis.call('SET', KEYS[2], ARGV[1])
     return redis.call('EXPIRE', KEYS[2], ARGV[2])
   `)
 
-	// convert results to ZADD arguments, store as -1 for delete, +1 for insert
+	// convert results to ZADD arguments, store as -1 for delete, +1 for insert.
+	// A nil result means the label query errored (e.g. extension socket
+	// unavailable) rather than returning a definitive 0 rows, so it is skipped
+	// entirely to leave existing membership untouched.
 	args := make(redigo.Args, 0, 4+(len(results)*2))
 	args = args.Add(keySet, keyTs, ts.Unix(), int(ttl.Seconds()))
 	for k, v := range results {
+		if v == nil {
+			continue
+		}
 		score := -1
-		if v != nil && *v {
+		if *v {
 			score = 1
 		}
 		args = args.Add(score, k)

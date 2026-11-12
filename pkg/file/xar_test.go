@@ -2,12 +2,16 @@ package file
 
 import (
 	"bytes"
+	"compress/zlib"
+	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -102,6 +106,13 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			expectedVersion:    "go1.22.4",
 			expectedBundleID:   "org.golang.go",
 			expectedPackageIDs: []string{"org.golang.go"},
+		},
+		{
+			file:               "distribution-globalprotect.xml",
+			expectedName:       "GlobalProtect",
+			expectedVersion:    "6.2.8-948",
+			expectedBundleID:   "com.paloaltonetworks.globalprotect.pkg",
+			expectedPackageIDs: []string{"com.paloaltonetworks.globalprotect.pkg"},
 		},
 		{
 			file:             "distribution-microsoft-teams.xml",
@@ -340,10 +351,60 @@ func TestIsValidAppFilePath(t *testing.T) {
 		{"Applications/Foo with spaces.app", true},
 		{"Applications/foo", false},
 		{"foo", true},
+		{"Applications/foo.app/bar.app", false},
+		{"Applications/foo.app/Helpers/bar.app", false},
 	}
 
 	for _, test := range tests {
 		_, ok := isValidAppFilePath(test.input)
 		require.Equal(t, test.expected, ok, test.input)
 	}
+}
+
+// buildXAR returns a XAR whose TOC holds a single file element with the given
+// name. A nil heap produces an element with no <data> child.
+func buildXAR(t *testing.T, name string, heap []byte) []byte {
+	t.Helper()
+	data := ""
+	if heap != nil {
+		data = fmt.Sprintf(`<data><length>%d</length><offset>0</offset><size>%d</size><encoding style="application/octet-stream"/></data>`, len(heap), len(heap))
+	}
+	toc := `<?xml version="1.0" encoding="UTF-8"?><xar><toc><file id="1"><name>` + name + `</name>` + data + `</file></toc></xar>`
+
+	var z bytes.Buffer
+	zw := zlib.NewWriter(&z)
+	_, err := zw.Write([]byte(toc))
+	require.NoError(t, err)
+	require.NoError(t, zw.Close())
+
+	var out bytes.Buffer
+	for _, v := range []any{uint32(0x78617221), uint16(xarHeaderSize), uint16(1), int64(z.Len()), int64(len(toc)), uint32(0)} {
+		require.NoError(t, binary.Write(&out, binary.BigEndian, v))
+	}
+	out.Write(z.Bytes())
+	out.Write(heap)
+	return out.Bytes()
+}
+
+func TestExtractXARMetadataFileWithoutData(t *testing.T) {
+	extract := func(t *testing.T, pkg []byte) (*InstallerMetadata, error) {
+		tfr, err := fleet.NewTempFileReader(bytes.NewReader(pkg), t.TempDir)
+		require.NoError(t, err)
+		t.Cleanup(func() { tfr.Close() })
+		return ExtractInstallerMetadata(tfr)
+	}
+
+	for _, name := range []string{"Distribution", "PackageInfo"} {
+		t.Run(name+" without data", func(t *testing.T) {
+			_, err := extract(t, buildXAR(t, name, nil))
+			require.ErrorIs(t, err, ErrInvalidInstaller)
+		})
+	}
+
+	t.Run("PackageInfo with data", func(t *testing.T) {
+		meta, err := extract(t, buildXAR(t, "PackageInfo", []byte(`<pkg-info identifier="com.example.app" version="1.2.3"></pkg-info>`)))
+		require.NoError(t, err)
+		require.Equal(t, "1.2.3", meta.Version)
+		require.Equal(t, []string{"com.example.app"}, meta.PackageIDs)
+	})
 }

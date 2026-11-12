@@ -8,7 +8,7 @@ const generateDuplicateMessage = (msg: string) => {
   const orgName = msg.split("'")[1];
   return (
     <>
-      Couldn&apos;t add. There&apos;s already an ABM connection for the{" "}
+      Couldn&apos;t add. There&apos;s already an AB connection for the{" "}
       <b>{orgName}</b> organization.
     </>
   );
@@ -17,7 +17,7 @@ const generateDuplicateMessage = (msg: string) => {
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (err: unknown) => {
   const duplicateEntryReason = getErrorReason(err, {
-    reasonIncludes: "Duplicate entry",
+    reasonIncludes: "Apple Business Manager connection already exists",
   });
   const invalidTokenReason = getErrorReason(err, {
     reasonIncludes: "Invalid token",

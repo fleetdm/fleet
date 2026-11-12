@@ -1,0 +1,10 @@
+{
+  "name": "PicView",
+  "unique_identifier": "com.ruben2776.picview",
+  "token": "picview",
+  "installer_format": "dmg",
+  "slug": "picview/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

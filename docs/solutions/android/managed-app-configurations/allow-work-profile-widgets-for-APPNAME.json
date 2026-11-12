@@ -1,0 +1,7 @@
+{
+  "managedConfiguration": {
+    "APPNAME Widget": "Allow Work Profile Widgets for APPNAME",
+    "config": true
+  },
+  "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
+}

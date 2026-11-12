@@ -5,7 +5,7 @@
     <meta name="robots" content="noindex" />
     <link rel="shortcut icon" href="{{.URLPrefix}}/assets/favicon.ico" />
     <title>Fleet</title>
-    <style>
+    <style nonce="{{.CSPNonce}}">
       @font-face {
         font-family: "Inter";
         font-weight: 400;
@@ -14,9 +14,9 @@
       }
       @font-face {
         font-family: "Inter";
-        font-weight: 700;
-        src: url("../assets/fonts/inter/Inter-Bold.woff2") format("woff2"),
-          url("../assets/fonts/inter/Inter-Bold.woff") format("woff");
+        font-weight: 600;
+        src: url("../assets/fonts/inter/Inter-Semibold.woff2") format("woff2"),
+          url("../assets/fonts/inter/Inter-Semibold.woff") format("woff");
       }
 
       html {
@@ -47,7 +47,7 @@
         padding: 8px 16px;
         border-radius: 4px;
         text-decoration: none;
-        font-weight: 700;
+        font-weight: 600;
         font-size: 14px;
         line-height: 21px;
         text-align: center;
@@ -58,12 +58,15 @@
         border-bottom: 1px solid #e2e4ea;
       }
 
-      h1 {
-        margin-bottom: 8px;
-      }
-
       p {
         font-size: 14px;
+      }
+
+      a {
+        color: #515774;
+        text-decoration: none;
+        font-weight: 600;
+        border-bottom: 1px solid #e2e4ea;
       }
 
       ol {
@@ -72,6 +75,7 @@
         gap: 48px;
         list-style: none;
         padding: 0;
+        margin: 0;
       }
 
       li {
@@ -83,6 +87,29 @@
 
       .android-content {
         margin-top: 48px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+      }
+
+      /* The other screens' headings inherit the body colour; the design asks
+         for the darker navy here. Scoped rather than set on h1 so the
+         instruction screens keep the colour they ship with today. */
+      .next-steps-heading {
+        color: #192147;
+      }
+
+      /* Unlike the step lists, this screen's copy is three short lines, so it
+         drops the 48px offset they add and sits on the section's own spacing. */
+      .next-steps-lines {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
+      .switch-browser-content {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
@@ -117,7 +144,52 @@
       #main-content {
         margin: 0 auto;
         padding: 48px 24px;
-        max-width: 800px;
+        max-width: 1000px;
+      }
+
+      .device-instructions-content {
+        display: flex;
+        flex-direction: column;
+        gap: 48px;
+      }
+
+      .content-with-sidebar {
+        display: flex;
+        justify-content: space-between;
+        gap: 64px;
+      }
+
+      .mobile-enroll-sidebar p {
+        max-width: 208px;
+        font-weight: bold;
+      }
+
+      .qr-subtext {
+        font-size: 11px;
+        font-weight: 400;
+        color: #8b8fa8;
+        text-align: left;
+        max-width: 208px;
+        margin-top: 8px;
+      }
+
+      .qr-container .qr-code:not(:first-child) {
+        margin-top: 24px;
+      }
+
+      .qr-container--standalone {
+        align-self: flex-start;
+      }
+
+      .qr-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        background-color: #f9fafc;
+        padding: 24px;
+        border: 1px solid #e2e4ea;
+        border-radius: 8px;
       }
 
       .device-enroll-message {
@@ -139,7 +211,74 @@
         text-align: center;
       }
 
-      @media screen and (max-width: 430px) {
+      .byod-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .byod-tab {
+        cursor: pointer;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        line-height: 21px;
+        font-weight: 400;
+        color: #515774;
+        background: transparent;
+        border: none;
+        font-family: inherit;
+      }
+
+      .byod-tab.active {
+        background-color: #f9fafc;
+        color: #25234a;
+        font-weight: 600;
+      }
+
+      .byod-info-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px;
+        background-color: #f9fafc;
+        border: 1px solid #e2e4ea;
+        border-radius: 8px;
+        font-size: 14px;
+        margin-bottom: 24px;
+      }
+
+      .byod-info-banner-icon {
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .byod-learn-more {
+        color: #515774;
+        font-weight: 400;
+        text-decoration: underline;
+        text-underline-offset: 4px;
+        text-decoration-color: #c5c7d1;
+        border-bottom: none;
+        white-space: nowrap;
+      }
+
+      .byod-learn-more:hover {
+        color: #192147;
+        text-decoration-color: #192147;
+      }
+
+      .byod-learn-more-icon {
+        margin-left: 3px;
+        vertical-align: -1px;
+        color: inherit;
+      }
+
+      @media screen and (max-width: 1344px) and (pointer: coarse) {
+        .device-instructions-content {
+          gap: 24px;
+        }
+
         .enroll-link {
           width: 100%;
         }
@@ -147,122 +286,301 @@
     </style>
   </head>
   <body>
-    <!-- unsupported platform content -->
+    <!-- unsupported platform content, not macos, ios, ipados, or android -->
     <template id="unsupported-template">
-      <h1>How to enroll your device to Fleet</h1>
-      <p class="page-description">
-        To enroll your Mac, iPhone, iPad, or Android device, please open this
-        page on your device.
-      </p>
+      <div class="content-with-sidebar">
+        <section class="device-instructions-content">
+          <h1>How to enroll your device to Fleet</h1>
+          <p class="page-description">
+            To enroll your Mac, please open this page on your device.
+          </p>
+        </section>
+        <section class="mobile-enroll-sidebar">
+          <div class="qr-container">
+            <p>Trying to enroll your mobile device?</p>
+            <canvas class="qr-code"></canvas>
+            <p class="qr-subtext">Opens this page on your mobile device</p>
+          </div>
+        </section>
+      </div>
     </template>
 
-    <!-- android content -->
+    <!-- shown when Apple MDM is off but Android MDM is on, and the enroll
+         link (generated from the Android BYOD tab) is opened on a Mac/iOS
+         device instead of the Android device it was meant for -->
+    <template id="android-redirect-template">
+      <section class="device-instructions-content">
+        <h1>How to enroll your Android device to Fleet</h1>
+        <p>Scan this QR code and follow the instructions on your device.</p>
+        <div class="qr-container qr-container--standalone">
+          <canvas class="qr-code"></canvas>
+        </div>
+        <p>
+          Trying to enroll your Mac or iPhone? Please contact your IT admin.
+          Apple MDM is turned off.
+        </p>
+      </section>
+    </template>
+
+    <!-- android content when not fully managed-->
     <template id="android-template">
-      <h1>How to enroll your Android device to Fleet</h1>
-      <div class="android-content">
-        <p>Select <b>Enroll</b> and follow the steps.</p>
-        <a class="enroll-link" href="" target="_blank">Enroll</a>
-      </div>
+      <section class="device-instructions-content">
+        <h1>How to enroll your Android device to Fleet</h1>
+        <div class="android-content">
+          <p>Select <b>Enroll</b> and follow the steps.</p>
+          <a class="enroll-link" href="" target="_blank">Enroll</a>
+        </div>
+      </section>
+    </template>
+
+    <!-- content for the /enroll/next-steps page, shown after selecting Enroll -->
+    <template id="android-next-steps-template">
+      <section class="device-instructions-content">
+        <h1 class="next-steps-heading">After setup...</h1>
+        <div class="next-steps-lines">
+          <p>You're done! &#127881;</p>
+          <p>Close this page after you set up your work profile.</p>
+          <p>
+            Having issues? <a class="try-again-link" href="">Try again</a>.
+          </p>
+        </div>
+      </section>
+    </template>
+
+    <!-- content when full managed is enabled. This will show for any platform, despite the copy referencing Android -->
+    <template id="fully-managed-template">
+      <section class="device-instructions-content">
+        <h1>How to enroll your Android device to Fleet</h1>
+        <ol class="fully-managed-instructions">
+          <li>
+            <p>
+              <span>1.</span>
+              <span>
+                Turn on your new device or
+                <a
+                  target="_blank"
+                  href="https://support.google.com/android/answer/6088915?hl=en"
+                >
+                  factory reset it
+                  <svg
+                    width="9"
+                    height="9"
+                    viewBox="0 0 9 9"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <rect
+                      x="0.5"
+                      y="0.5"
+                      width="8"
+                      height="8"
+                      rx="2"
+                      stroke="#515774"
+                    />
+                    <path
+                      d="M3.49992 2.83325H6.16659M6.16659 2.83325V5.49992M6.16659 2.83325L2.83325 6.16659"
+                      stroke="#515774"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </a>
+              </span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>2.</span>
+              <span>
+                On the very first screen, tap the screen six times in a blank
+                area.
+              </span>
+            </p>
+          </li>
+          <li>
+            <p>
+              <span>3.</span>
+              <span>Scan QR code below with the QR reader that shows up.</span>
+            </p>
+            <div class="qr-container">
+              <canvas class="qr-code"></canvas>
+            </div>
+          </li>
+          <li>
+            <p>
+              <span>4.</span>
+              <span>
+                Connect to Wi-Fi and follow the instructions on the screen.
+              </span>
+            </p>
+          </li>
+        </ol>
+        <p>QR code invalid? Refresh the page.</p>
+      </section>
     </template>
 
     <!-- ios, ipados content -->
     <template id="ios-ipad-template">
-      <h1>
-        How to enroll your
-        <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
-        Fleet
-      </h1>
-      <ol>
-        <li>
-          <p>
-            <span>1.</span>
-            <span>
-              Tap the button below to download the Fleet profile. When prompted, tap <b>Allow</b>.
-            </span>
-          </p>
-          <a class="download-link" href="{{.EnrollURL}}">Download</a>
-        </li>
-        <li>
-          <p>
-            <span>2.</span>
-            <span>
-              Go to <b>Settings > Profile Downloaded</b>.
-            </span>
-          </p>
-          <div class="profile-downloaded-container">
-            <img
-              class="profile-downloaded-img"
-              src=""
-              alt="select profile downloaded in settings"
-            />
+      <section class="device-instructions-content">
+        <h1>
+          How to enroll your
+          <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
+          Fleet
+        </h1>
+        <div>
+          <div class="byod-tabs" role="tablist">
+            <button type="button" class="byod-tab byod-tab--personal" role="tab" aria-selected="false" data-byod="personal">Personal (BYOD)</button>
+            <button type="button" class="byod-tab byod-tab--company active" role="tab" aria-selected="true" data-byod="company">Company-owned</button>
           </div>
-        </li>
-        <li>
-          <p>
-            <span>3.</span>
-            <span>Tap <b>Install</b>. You'll see a few warnings, which is expected.
-            Tap <b>Install</b> again when prompted.</span>
-          </p>
-          <div class="install-profile-container">
-            <img class="install-profile-img" src="" alt="select install" />
+          <div class="byod-info-banner">
+            <span class="byod-info-banner-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M8.5 14.5C11.8137 14.5 14.5 11.8137 14.5 8.5C14.5 5.18629 11.8137 2.5 8.5 2.5C5.18629 2.5 2.5 5.18629 2.5 8.5C2.5 11.8137 5.18629 14.5 8.5 14.5ZM8.5 16.5C12.9183 16.5 16.5 12.9183 16.5 8.5C16.5 4.08172 12.9183 0.5 8.5 0.5C4.08172 0.5 0.5 4.08172 0.5 8.5C0.5 12.9183 4.08172 16.5 8.5 16.5ZM8.5 12.5C7.94772 12.5 7.5 12.0523 7.5 11.5L7.5 8.5C7.5 7.94772 7.94771 7.5 8.5 7.5C9.05228 7.5 9.5 7.94772 9.5 8.5V11.5C9.5 12.0523 9.05229 12.5 8.5 12.5ZM8.5 4.5C7.94772 4.5 7.5 4.94772 7.5 5.5C7.5 6.05228 7.94772 6.5 8.5 6.5C9.05229 6.5 9.5 6.05228 9.5 5.5C9.5 4.94772 9.05228 4.5 8.5 4.5Z" fill="#515774"/>
+              </svg>
+            </span>
+            <span class="byod-info-banner-text">
+              <span data-byod-content="personal" hidden>Your organization can only remotely remove work data and settings. They cannot wipe your device or lock you out. <a class="byod-learn-more" href="https://fleetdm.com/learn-more-about/byod-transparency" target="_blank" rel="noopener noreferrer">Learn more<svg class="byod-learn-more-icon" width="9" height="9" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="8" height="8" x="1" y="1" fill="none" stroke="currentColor" rx="2"/><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M4 3.333h2.667m0 0V6m0-2.667L3.333 6.668"/></svg></a></span>
+              <span data-byod-content="company">Your organization can see and delete all device information.</span>
+            </span>
           </div>
-        </li>
-        <li>
-          <p>
-            When you see the <b>Remote Management</b> screen, tap
-            <b>Trust</b> to finish.
-          </p>
-        </li>
-      </ol>
+        </div>
+        <ol>
+          <li>
+            <p>
+              <span>1.</span>
+              <span>
+                Tap the button below to download the Fleet profile. When
+                prompted, tap <b>Allow</b>.
+              </span>
+            </p>
+            <a class="download-link" href="{{.EnrollURL}}" data-base-href="{{.EnrollURL}}">Download</a>
+          </li>
+          <li>
+            <p>
+              <span>2.</span>
+              <span>Go to <b>Settings > Profile Downloaded</b>.</span>
+            </p>
+            <div class="profile-downloaded-container">
+              <img
+                class="profile-downloaded-img"
+                src=""
+                alt="select profile downloaded in settings"
+              />
+            </div>
+          </li>
+          <li>
+            <p>
+              <span>3.</span>
+              <span>
+                Tap <b>Install</b>. You'll see a red <b>Not Verified</b> warning, which is
+                expected. Tap <b>Install</b> again when prompted.
+              </span>
+            </p>
+            <div class="install-profile-container">
+              <img class="install-profile-img" src="" alt="select install" />
+            </div>
+          </li>
+          <li>
+            <p>
+              <span>4.</span>
+              <span>
+                When you see the <b>Remote Management</b> screen, tap
+                <b>Trust</b>.
+              </span>
+            </p>
+          </li>
+        </ol>
+        <p>Done! You can close this tab.</p>
+      </section>
     </template>
 
-    <!-- ios, ipados content -->
+    <!-- macos content -->
     <template id="macos-template">
-      <h1>Turn on MDM</h1>
-      <ol>
-        <li>
+      <div class="content-with-sidebar">
+        <section class="device-instructions-content">
+          <h1>How to turn on MDM on your Mac</h1>
+          <div>
+            <div class="byod-tabs" role="tablist">
+              <button type="button" class="byod-tab byod-tab--personal" role="tab" aria-selected="false" data-byod="personal">Personal (BYOD)</button>
+              <button type="button" class="byod-tab byod-tab--company active" role="tab" aria-selected="true" data-byod="company">Company-owned</button>
+            </div>
+            <div class="byod-info-banner">
+              <span class="byod-info-banner-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 17 17" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path fill-rule="evenodd" clip-rule="evenodd" d="M8.5 14.5C11.8137 14.5 14.5 11.8137 14.5 8.5C14.5 5.18629 11.8137 2.5 8.5 2.5C5.18629 2.5 2.5 5.18629 2.5 8.5C2.5 11.8137 5.18629 14.5 8.5 14.5ZM8.5 16.5C12.9183 16.5 16.5 12.9183 16.5 8.5C16.5 4.08172 12.9183 0.5 8.5 0.5C4.08172 0.5 0.5 4.08172 0.5 8.5C0.5 12.9183 4.08172 16.5 8.5 16.5ZM8.5 12.5C7.94772 12.5 7.5 12.0523 7.5 11.5L7.5 8.5C7.5 7.94772 7.94771 7.5 8.5 7.5C9.05228 7.5 9.5 7.94772 9.5 8.5V11.5C9.5 12.0523 9.05229 12.5 8.5 12.5ZM8.5 4.5C7.94772 4.5 7.5 4.94772 7.5 5.5C7.5 6.05228 7.94772 6.5 8.5 6.5C9.05229 6.5 9.5 6.05228 9.5 5.5C9.5 4.94772 9.05228 4.5 8.5 4.5Z" fill="#515774"/>
+                </svg>
+              </span>
+              <span class="byod-info-banner-text">
+                <span data-byod-content="personal" hidden>Your organization can only remotely remove work data and settings. They cannot wipe your device or lock you out. <a class="byod-learn-more" href="https://fleetdm.com/learn-more-about/byod-transparency" target="_blank" rel="noopener noreferrer">Learn more<svg class="byod-learn-more-icon" width="9" height="9" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="8" height="8" x="1" y="1" fill="none" stroke="currentColor" rx="2"/><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="M4 3.333h2.667m0 0V6m0-2.667L3.333 6.668"/></svg></a></span>
+                <span data-byod-content="company">Your organization can see and delete all device information.</span>
+              </span>
+            </div>
+          </div>
+          <ol>
+            <li>
+              <p>
+                <span>1.</span>
+                <span>
+                  Tap the button below to download the Fleet profile. Open it.
+                  You'll see a warning, which is expected.
+                </span>
+              </p>
+              <a class="download-link" href="{{.EnrollURL}}" data-base-href="{{.EnrollURL}}">Download</a>
+            </li>
+            <li>
+              <p>
+                <span>2.</span>
+                <span>
+                  Go to the Apple menu in the top left corner of your screen.
+                  Select
+                  <b>System Settings</b>.
+                </span>
+              </p>
+            </li>
+            <li>
+              <p>
+                <span>3.</span>
+                <span>
+                  Go to <b>Profile Downloaded</b>. Double-click the
+                  <b>[Organization name] enrollment</b> profile.
+                </span>
+              </p>
+            </li>
+            <li>
+              <p>
+                <span>4.</span>
+                <span>Select <b>Install</b>. Enter your password.</span>
+              </p>
+            </li>
+          </ol>
+          <p>Done! You can close this tab.</p>
+        </section>
+        <section class="mobile-enroll-sidebar">
+          <div class="qr-container">
+            <p>Trying to enroll your mobile device?</p>
+            <canvas class="qr-code"></canvas>
+            <p class="qr-subtext">Opens this page on your mobile device</p>
+          </div>
+        </section>
+      </div>
+    </template>
+
+    <!-- Open in Safari content (iOS/iPadOS only) -->
+    <template id="open-in-safari-template">
+      <section class="device-instructions-content">
+        <h1>Please open in Safari</h1>
+        <div class="switch-browser-content">
           <p>
-            <span>1.</span>
-            <span> 
-              Tap the button below to download the Fleet profile. Double click on it.
-              You'll see a warning, which is expected.
-            </span>
+            To enroll your device, this page needs to be opened in
+            <b>Safari</b>.
           </p>
-          <a class="download-link" href="{{.EnrollURL}}">Download</a>
-        </li>
-        <li>
-          <p>
-            <span>2.</span>
-            <span>
-              Go to the Apple menu in the top left corner of your screen. Select
-              <b>System Settings</b>.
-            </span>
+          <button class="enroll-link open-safari-btn">Open in Safari</button>
+          <p class="safari-fallback-msg" style="display: none">
+            URL copied to clipboard. Please open <b>Safari</b> and paste the
+            URL.
           </p>
-        </li>
-        <li>
-          <p>
-            <span>3.</span>
-            <span>
-              Go to <b>Profile Downloaded</b>. Double-click the
-              <b>[Organization name] enrollment</b> profile.
-            </span>
-          </p>
-        </li>
-        <li>
-          <p>
-            <span>4.</span>
-            <span>Select <b>Install</b>. Enter your password.</span>
-          </p>
-        </li>
-        <li>
-          <p>
-            <span>5.</span>
-            <span>Go back to your <b>My device</b> page. Select
-              <b>Refetch</b> to tell your organization that MDM is on.
-            </span>
-          </p>
-        </li>
-      </ol>
+        </div>
+      </section>
     </template>
 
     <!-- Error content -->
@@ -294,13 +612,29 @@
     <!-- container for the dynamic content -->
     <section id="main-content"></section>
 
-    <script>
+    <!-- using qrcode library to generate QR codes -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/qrcode/1.5.1/qrcode.min.js"
+      integrity="sha512-PEhlWBZBrQL7flpJPY8lXx8tIN7HWX912GzGhFTDqA3iWFrakVH3lVHomCoU9BhfKzgxfEk6EG2C3xej+9srOQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+      defer
+      nonce="{{.CSPNonce}}"
+    ></script>
+
+    <script nonce="{{.CSPNonce}}">
       const ANDROID_GET_TOKEN_URL =
         "{{.URLPrefix}}/api/v1/fleet/android_enterprise/enrollment_token";
       // using string comparison to satisfy the linter.
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
+      const IS_APPLE_MANUAL_ENROLLMENT_BLOCKED = "{{.AppleManualEnrollmentBlocked}}" == "true";
+      const IS_NEXT_STEPS = "{{.NextSteps}}" === "true";
       const ERROR_MESSAGE = "{{.ErrorMessage}}";
+      const isFullyManaged = new URLSearchParams(window.location.search).has(
+        "fully_managed",
+        true
+      );
 
       const getPlatform = () => {
         const userAgent = navigator.userAgent;
@@ -329,6 +663,90 @@
         }
       };
 
+      // Detects if the browser is Safari on iOS/iPadOS
+      // Other browsers on iOS: CriOS (Chrome), FxiOS (Firefox), EdgiOS (Edge), OPiOS or OPT (Opera)
+      // Brave (Brave)
+      const isSafariBrowser = () => {
+        const ua = navigator.userAgent;
+        return (
+          /Safari/i.test(ua) &&
+          !/CriOS/i.test(ua) &&
+          !/FxiOS/i.test(ua) &&
+          !/EdgiOS/i.test(ua) &&
+          !/OPiOS/i.test(ua) &&
+          !/OPT/i.test(ua) &&
+          !/Brave/i.test(ua)
+        );
+      };
+
+      // Attempts to open the current URL in Safari, falls back to clipboard copy
+      const openInSafari = async () => {
+        const currentUrl = window.location.href;
+        const safariUrl = currentUrl.replace(
+          /^https?:\/\//,
+          "x-safari-https://"
+        );
+
+        // Track if the page loses focus (indicates Safari opened)
+        let didNavigate = false;
+        const handleBlur = () => {
+          didNavigate = true;
+        };
+        window.addEventListener("blur", handleBlur);
+
+        // Try to open Safari via URL scheme
+        window.location.href = safariUrl;
+
+        // Wait a moment to see if navigation occurred
+        setTimeout(async () => {
+          window.removeEventListener("blur", handleBlur);
+
+          if (!didNavigate) {
+            // URL scheme didn't work, fall back to clipboard
+            try {
+              await navigator.clipboard.writeText(currentUrl);
+              const fallbackMsg = document.querySelector(
+                ".safari-fallback-msg"
+              );
+              const openBtn = document.querySelector(".open-safari-btn");
+              if (fallbackMsg) {
+                fallbackMsg.style.display = "block";
+              }
+              if (openBtn) {
+                openBtn.textContent = "URL Copied";
+                openBtn.disabled = true;
+                openBtn.style.backgroundColor = "#6A6A6A";
+              }
+            } catch (err) {
+              console.error("Failed to copy URL to clipboard", err);
+            }
+          }
+        }, 500);
+      };
+
+      /**
+       * Renders a QR code for the given text into the specified element.
+       * @param {string} text - The text to encode in the QR code.
+       * @param {HTMLElement} element - The HTML element where the QR code will be rendered.
+       * @param {Object} [options] - Optional configuration for the QR code (e.g., width, margin,
+       * color). valid options can be found here:
+       * https://github.com/soldair/node-qrcode?tab=readme-ov-file#options-9
+       */
+      const renderQRCode = (text, element, options) => {
+        let QROptions = {
+          width: 208,
+          margin: 0,
+          color: { dark: "#515774", light: "#F9FAFC" },
+        };
+
+        if (options) {
+          QROptions = { ...QROptions, ...options };
+        }
+        QRCode.toCanvas(element, text, QROptions, function (error) {
+          if (error) console.error("problem with rendering QR code", error);
+        });
+      };
+
       const getTemplateIdFromPlatform = (platform) => {
         switch (true) {
           case platform === "android":
@@ -352,8 +770,139 @@
         }
       };
 
+      // Wires up the Personal (BYOD) / Company-owned tabs that appear on the
+      // macOS, iOS, and iPadOS instruction screens. The active tab determines
+      // both the visible info-banner copy and whether the Download link's URL
+      // includes &byod=true (consumed by the OTA endpoint to strip lock/erase
+      // rights from the enrollment profile for personal devices).
+      //
+      // The default selection follows the byod URL query param (set by the
+      // Add hosts modal when an admin chooses "Personal (BYOD)"); only an
+      // explicit byod=true selects personal — everything else (absent param,
+      // byod=false, byod=0) defaults to company-owned.
+      const wireBYODTabs = () => {
+        const tabs = document.querySelectorAll(".byod-tab");
+        if (tabs.length === 0) {
+          return;
+        }
+        const downloadLink = document.querySelector(".download-link");
+        if (!downloadLink) {
+          return;
+        }
+        const baseHref = downloadLink.getAttribute("data-base-href") || downloadLink.getAttribute("href");
+
+        const params = new URLSearchParams(window.location.search);
+        const initial =
+          params.get("byod") === "true" || params.get("byod") === "1"
+            ? "personal"
+            : "company";
+
+        const setSelection = (selection) => {
+          tabs.forEach((tab) => {
+            const isActive = tab.getAttribute("data-byod") === selection;
+            tab.classList.toggle("active", isActive);
+            tab.setAttribute("aria-selected", isActive ? "true" : "false");
+          });
+          document
+            .querySelectorAll("[data-byod-content]")
+            .forEach((el) => {
+              el.hidden = el.getAttribute("data-byod-content") !== selection;
+            });
+          // Append byod=true to the OTA download URL for BYOD; remove it for
+          // company-owned. Routing the DOM-sourced href through the URL parser
+          // keeps existing query params intact, resolves relative URLs against
+          // the origin, and avoids reinterpreting that value unsafely.
+          try {
+            const downloadUrl = new URL(baseHref, window.location.origin);
+            if (selection === "personal") {
+              downloadUrl.searchParams.set("byod", "true");
+            } else {
+              downloadUrl.searchParams.delete("byod");
+            }
+            downloadLink.setAttribute("href", downloadUrl.toString());
+          } catch (e) {
+            // baseHref came from the DOM; if it can't be parsed as a URL, leave
+            // the server-rendered href untouched rather than reinterpreting it.
+          }
+          // The QR opens this page on a mobile device, which picks its default
+          // tab from the byod param, so keep it in step with the selection.
+          const qrCode = document.querySelector(".qr-code");
+          if (qrCode) {
+            const pageUrl = new URL(window.location.href);
+            if (selection === "personal") {
+              pageUrl.searchParams.set("byod", "true");
+            } else {
+              pageUrl.searchParams.delete("byod");
+            }
+            renderQRCode(pageUrl.toString(), qrCode);
+          }
+        };
+
+        tabs.forEach((tab) => {
+          tab.addEventListener("click", () => {
+            setSelection(tab.getAttribute("data-byod"));
+          });
+        });
+
+        setSelection(initial);
+      };
+
       const setEnrollTokenUrl = (url) => {
         document.querySelector(".enroll-link").setAttribute("href", url);
+      };
+
+      // Both pages carry the enroll secret: /enroll needs it to mint a token,
+      // and next-steps needs it so a non-Android visitor can be sent back to a
+      // working /enroll rather than to an "invalid URL" error.
+      const buildEnrollPath = (path) => {
+        const enrollSecret = getEnrollmentSecret();
+        if (!enrollSecret) {
+          return `{{.URLPrefix}}${path}`;
+        }
+        return `{{.URLPrefix}}${path}?enroll_secret=${encodeURIComponent(
+          enrollSecret
+        )}`;
+      };
+
+      // Held in an object so tests can replace them: location is unforgeable,
+      // and the only thing a test environment can otherwise observe is that
+      // some navigation happened, not where to.
+      const navigateTo = {
+        assign: (url) => window.location.assign(url),
+        replace: (url) => window.location.replace(url),
+      };
+
+      // Selecting Enroll sends this tab to the next-steps page, so the Enroll
+      // button is gone by the time the user comes back and can't be used twice.
+      // The link keeps its href and target, so the enrollment hand-off still
+      // opens in its own tab and long-press still works.
+      const wireEnrollNavigation = () => {
+        const enrollLink = document.querySelector(".enroll-link");
+        if (!enrollLink) {
+          return;
+        }
+
+        // Going back from next-steps restores this page from the back/forward
+        // cache with its scripts frozen, so the Enroll link would still carry
+        // the token that has already been spent. Reload to mint a fresh one,
+        // otherwise Back is another way to hit the double-enrollment error.
+        window.addEventListener("pageshow", (event) => {
+          if (event.persisted) {
+            window.location.reload();
+          }
+        });
+
+        enrollLink.addEventListener("click", () => {
+          // Yielded to the next task rather than navigating straight away.
+          // Starting this tab's navigation inside the click leaves Chrome on
+          // Android treating the link's own target="_blank" tab as a pop-up
+          // from a page that is leaving: it blocks it, and the user lands on
+          // next-steps having never enrolled. One task is enough for the link
+          // activation to finish; it is not a wait for enrollment to happen.
+          setTimeout(() => {
+            navigateTo.assign(buildEnrollPath("/enroll/next-steps"));
+          }, 0);
+        });
       };
 
       // dynmaic content rendering for ios and ipad only
@@ -380,6 +929,17 @@
         ).src = `{{.URLPrefix}}/assets/images/${osImagePrefix}-install-profile.png`;
       };
 
+      // Renders Android BYOD enrollment instructions (QR code pointing back
+      // at this same link) for the case where the enroll link was opened on
+      // a Mac/iPhone/iPad that has Apple MDM off but Android MDM on. Without
+      // this, the Android BYOD link (which carries no platform marker, see
+      // AndroidPanel.tsx) would otherwise show an irrelevant "Apple MDM is
+      // turned off" error.
+      const renderAndroidRedirect = () => {
+        renderContent("android-redirect-template");
+        renderQRCode(window.location.href, document.querySelector(".qr-code"));
+      };
+
       const renderError = (title, description) => {
         const template = document.getElementById("error-template");
         if (template) {
@@ -395,20 +955,23 @@
         return urlParams.get("enroll_secret");
       };
 
-      const getEnrollmentToken = async () => {
+      const getEnrollmentToken = async (fullyManaged) => {
         const enrollSecret = getEnrollmentSecret();
 
-        const response = await fetch(
-          `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
-            enrollSecret
-          )}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
+        let url = `${ANDROID_GET_TOKEN_URL}?enroll_secret=${encodeURIComponent(
+          enrollSecret
+        )}`;
+
+        if (fullyManaged) {
+          url = url.concat("&fully_managed=true");
+        }
+
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
         if (!response.ok) {
           throw new Error("Failed to get enrollment token");
         }
@@ -417,11 +980,21 @@
 
       // here we render the page content
       document.addEventListener("DOMContentLoaded", async function () {
-        const platform = getPlatform();
-
-        // quick exit if platform is unsupported
-        if (platform === "unsupported") {
-          renderContent("unsupported-template");
+        // The next-steps page is informational: it needs no token and no enroll
+        // secret of its own, so it is handled before those checks. Only Android
+        // is sent here in the first place; anyone else is returned to /enroll.
+        if (IS_NEXT_STEPS) {
+          if (getPlatform() !== "android") {
+            navigateTo.replace(buildEnrollPath("/enroll"));
+            return;
+          }
+          renderContent("android-next-steps-template");
+          // An ordinary link, so it loads /enroll in this tab and mints a
+          // fresh token for anyone whose hand-off didn't take.
+          const tryAgainLink = document.querySelector(".try-again-link");
+          if (tryAgainLink) {
+            tryAgainLink.setAttribute("href", buildEnrollPath("/enroll"));
+          }
           return;
         }
 
@@ -433,11 +1006,53 @@
           return;
         }
 
-        // check if the enroll secret is valid.
+        // check if there is an enrollment secret
         if (!getEnrollmentSecret()) {
           renderError(
             "This URL is invalid.",
-            "Enroll secret is invalid. Please contact your IT admin."
+            "Enroll secret is missing. Please contact your IT admin."
+          );
+          return;
+        }
+
+        const platform = getPlatform();
+
+        if (isFullyManaged) {
+          if (platform === "android" && !ANDROID_MDM_ENABLED) {
+            renderError(
+              "Android MDM is turned off.",
+              "To enroll your Android device please contact your IT admin."
+            );
+            return;
+          }
+
+          try {
+            const data = await getEnrollmentToken(true);
+            if (!data.android_enrollment_qr_code) {
+              throw new Error("Failed to get QR code");
+            }
+            renderContent("fully-managed-template");
+            renderQRCode(
+              data.android_enrollment_qr_code,
+              document.querySelector(".qr-code"),
+              { width: 245, color: { dark: "#515774", light: "#fff" } }
+            );
+          } catch (error) {
+            renderError(
+              "Couldn't get Android enrollment token.",
+              "Please refresh the page. If the issue continues, contact your IT admin."
+            );
+            return;
+          }
+          return;
+        }
+
+        // render unsupported platform content. Unsupported means not macos, ios, ipad, or android
+        if (platform === "unsupported") {
+          renderContent("unsupported-template");
+          renderQRCode(
+            window.location.href,
+            document.querySelector(".qr-code")
           );
           return;
         }
@@ -462,10 +1077,11 @@
               throw new Error("Failed to get enrollment token");
             }
             setEnrollTokenUrl(data.android_enrollment_url);
+            wireEnrollNavigation();
           } catch (error) {
             renderError(
-              "This URL is invalid.",
-              "Enroll secret is invalid. Please contact your IT admin."
+              "Couldn't get Android enrollment token.",
+              "Please refresh the page. If the issue continues, contact your IT admin."
             );
             return;
           }
@@ -473,7 +1089,18 @@
 
         // handle rendering for macos
         if (platform === "macos") {
+          if (IS_APPLE_MANUAL_ENROLLMENT_BLOCKED) {
+            renderError(
+              "This URL is invalid or expired.",
+              "IT blocked manual enrollments. Please reach out to your IT admin."
+            );
+            return;
+          }
           if (!MAC_MDM_ENABLED) {
+            if (ANDROID_MDM_ENABLED) {
+              renderAndroidRedirect();
+              return;
+            }
             renderError(
               "Apple MDM is turned off.",
               "To enroll your Mac device please contact your IT admin."
@@ -481,19 +1108,47 @@
             return;
           }
           renderContent(templateId);
+          renderQRCode(
+            window.location.href,
+            document.querySelector(".qr-code")
+          );
+          wireBYODTabs();
         }
 
         // handle rendering for ios and ipad
         if (platform === "ios" || platform === "ipad") {
+          if (IS_APPLE_MANUAL_ENROLLMENT_BLOCKED) {
+            renderError(
+              "This URL is invalid or expired.",
+              "IT blocked manual enrollments. Please reach out to your IT admin."
+            );
+            return;
+          }
           if (!MAC_MDM_ENABLED) {
+            if (ANDROID_MDM_ENABLED) {
+              renderAndroidRedirect();
+              return;
+            }
             const description = `To enroll your ${
               platform === "ios" ? "iPhone" : "iPad"
             } please contact your IT admin.`;
             renderError("Apple MDM is turned off.", description);
             return;
           }
+
+          // Check if user is NOT in Safari - redirect them to Safari
+          if (!isSafariBrowser()) {
+            renderContent("open-in-safari-template");
+            const openBtn = document.querySelector(".open-safari-btn");
+            if (openBtn) {
+              openBtn.addEventListener("click", openInSafari);
+            }
+            return;
+          }
+
           renderContent(templateId);
           setIosIpadContent(platform);
+          wireBYODTabs();
         }
       });
     </script>

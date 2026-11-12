@@ -5,22 +5,32 @@
   var me;
   var isHomepage;
   var currentSection;
-  var showHeaderCTA;
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
+  var hideFooter;// Hides the footer.
   var showAdminLinks;// Shows links to admin pages to admin users.
-  var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
-  var hideStartCTA;
   var showConfigurationProfileLayout;
+  var announcementBanner;// Set by the custom hook from config/announcement-banner.js.
+  var disableChatbotAndIndexing;// Disables the chatbot and adds a noindex meta tag. Used on pages linked to from Fleet.
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
-  var defaultMetaDescription = 'Open-source '+(['it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(primaryBuyingSituation) ? 'IT' : ['security-misc','security-vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
+  var showSearchInMobileMenu;// Shows the Algolia DocSearch input in the mobile navigation menu.
+  var defaultMetaDescription = `Manage, update, and secure all your devices like it's 2026`;
   var corporationDisplayName = 'Fleet' + (['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? ' Device Management' : '') + ' Inc.'; // « Fleet has a DBA as "Fleet", with an official Delaware corporation name of "Fleet Device Management Inc".  -mikermcneil, 2024-03-01
 %><!DOCTYPE html>
 <html>
   <head>
     <title>Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %></title>
     <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
+    <% /* [?]: https://developers.google.com/search/docs/appearance/site-names#json-ld */%>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Fleet",
+      "url": "https://fleetdm.com/"
+    }
+    </script>
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -34,12 +44,55 @@
     <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-cloud-city-1200x627@2x.png' %>" />
     <meta property="og:title" content="Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
+    <% if(typeof pageFaqForSeo !== 'undefined'){ %>
+    <script type="application/ld+json">
+      <%- pageFaqForSeo %>
+    </script>
+    <% } %>
+    <% if (sails.config.environment === 'production') { %>
+    <% /* ConsentMode */ %>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+          dataLayer.push(arguments);
+      }
+      gtag("consent", "default", {
+          ad_storage: "denied",
+          ad_user_data: "denied",
+          ad_personalization: "denied",
+          analytics_storage: "denied",
+          functionality_storage: "denied",
+          personalization_storage: "denied",
+          security_storage: "granted",
+          wait_for_update: 2000,
+      });
+      gtag("set", "ads_data_redaction", true);
+    </script>
+
+    <% /* Global site tag (gtag.js) - Google Analytics */%>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
+    <script>
+      window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
+  	// Google Ads configuration (including Enhanced Conversions)
+  	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
+    </script>
+
+    <% /* Microsoft UET tag with consent mode. */ %>
+    <script>(function(w, d, t, u, o) {w[u] = w[u] || [], o.ts = (new Date).getTime();var n = d.createElement(t);n.src = "https://bat.bing.net/bat.js?ti=" + o.ti + ("uetq" != u ? "&q=" + u : ""),n.async = 1, n.onload = n.onreadystatechange = function() {var s = this.readyState;s && "loaded" !== s && "complete" !== s ||(o.q = w[u], w[u] = new UET(o), w[u].push("pageLoad"),n.onload = n.onreadystatechange = null)};var i = d.getElementsByTagName(t)[0];i.parentNode.insertBefore(n, i);})(window, document, "script", "uetq", {ti: "187287175",enableAutoSpaTracking: true});</script>
+    <script>
+      window.uetq = window.uetq || [];
+      window.uetq.push('consent', 'default', {'ad_storage': 'denied'});
+    </script>
+
+    <% /* Cookie consent banner */ %>
+    <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
+    <% } %>
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
     Google Fonts, etc. - above the «body» to prevent the page flickering when fonts
     load.) */ %>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Roboto+Mono:ital,wght@0,200;0,300;0,400;0,500;0,700;1,200;1,300;1,400;1,500;1,700&family=Source+Code+Pro:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Lato:wght@400;700;900&family=Roboto+Mono:ital,wght@0,200;0,300;0,400;0,500;0,700;1,200;1,300;1,400;1,500;1,700&family=Source+Code+Pro:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <% /* Certain scripts, normally analytics tools like Google Tag Manager and
     Google Analytics, should only be included in production: */
     if (sails.config.environment === 'production') { %>
@@ -57,14 +110,9 @@
     !function(r){var e={};function o(n){if(e[n])return e[n].exports;var t=e[n]={i:n,l:!1,exports:{}};return r[n].call(t.exports,t,t.exports,o),t.l=!0,t.exports}o.m=r,o.c=e,o.d=function(r,e,n){o.o(r,e)||Object.defineProperty(r,e,{enumerable:!0,get:n})},o.r=function(r){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(r,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(r,"__esModule",{value:!0})},o.t=function(r,e){if(1&e&&(r=o(r)),8&e)return r;if(4&e&&"object"==typeof r&&r&&r.__esModule)return r;var n=Object.create(null);if(o.r(n),Object.defineProperty(n,"default",{enumerable:!0,value:r}),2&e&&"string"!=typeof r)for(var t in r)o.d(n,t,function(e){return r[e]}.bind(null,t));return n},o.n=function(r){var e=r&&r.__esModule?function(){return r.default}:function(){return r};return o.d(e,"a",e),e},o.o=function(r,e){return Object.prototype.hasOwnProperty.call(r,e)},o.p="",o(o.s=0)}([function(r,e,o){"use strict";var n=o(1),t=o(5);_rollbarConfig=_rollbarConfig||{},_rollbarConfig.rollbarJsUrl=_rollbarConfig.rollbarJsUrl||"https://cdn.rollbar.com/rollbarjs/refs/tags/v2.22.0/rollbar.min.js",_rollbarConfig.async=void 0===_rollbarConfig.async||_rollbarConfig.async;var a=n.setupShim(window,_rollbarConfig),l=t(_rollbarConfig);window.rollbar=n.Rollbar,a.loadFull(window,document,!_rollbarConfig.async,_rollbarConfig,l)},function(r,e,o){"use strict";var n=o(2),t=o(3);function a(r){return function(){try{return r.apply(this,arguments)}catch(r){try{console.error("[Rollbar]: Internal error",r)}catch(r){}}}}var l=0;function i(r,e){this.options=r,this._rollbarOldOnError=null;var o=l++;this.shimId=function(){return o},"undefined"!=typeof window&&window._rollbarShims&&(window._rollbarShims[o]={handler:e,messages:[]})}var s=o(4),d=function(r,e){return new i(r,e)},c=function(r){return new s(d,r)};function u(r){return a((function(){var e=this,o=Array.prototype.slice.call(arguments,0),n={shim:e,method:r,args:o,ts:new Date};window._rollbarShims[this.shimId()].messages.push(n)}))}i.prototype.loadFull=function(r,e,o,n,t){var l=!1,i=e.createElement("script"),s=e.getElementsByTagName("script")[0],d=s.parentNode;i.crossOrigin="",i.src=n.rollbarJsUrl,o||(i.async=!0),i.onload=i.onreadystatechange=a((function(){if(!(l||this.readyState&&"loaded"!==this.readyState&&"complete"!==this.readyState)){i.onload=i.onreadystatechange=null;try{d.removeChild(i)}catch(r){}l=!0,function(){var e;if(void 0===r._rollbarDidLoad){e=new Error("rollbar.js did not load");for(var o,n,a,l,i=0;o=r._rollbarShims[i++];)for(o=o.messages||[];n=o.shift();)for(a=n.args||[],i=0;i<a.length;++i)if("function"==typeof(l=a[i])){l(e);break}}"function"==typeof t&&t(e)}()}})),d.insertBefore(i,s)},i.prototype.wrap=function(r,e,o){try{var n;if(n="function"==typeof e?e:function(){return e||{}},"function"!=typeof r)return r;if(r._isWrap)return r;if(!r._rollbar_wrapped&&(r._rollbar_wrapped=function(){o&&"function"==typeof o&&o.apply(this,arguments);try{return r.apply(this,arguments)}catch(o){var e=o;throw e&&("string"==typeof e&&(e=new String(e)),e._rollbarContext=n()||{},e._rollbarContext._wrappedSource=r.toString(),window._rollbarWrappedError=e),e}},r._rollbar_wrapped._isWrap=!0,r.hasOwnProperty))for(var t in r)r.hasOwnProperty(t)&&(r._rollbar_wrapped[t]=r[t]);return r._rollbar_wrapped}catch(e){return r}};for(var p="log,debug,info,warn,warning,error,critical,global,configure,handleUncaughtException,handleAnonymousErrors,handleUnhandledRejection,captureEvent,captureDomContentLoaded,captureLoad".split(","),f=0;f<p.length;++f)i.prototype[p[f]]=u(p[f]);r.exports={setupShim:function(r,e){if(r){var o=e.globalAlias||"Rollbar";if("object"==typeof r[o])return r[o];r._rollbarShims={},r._rollbarWrappedError=null;var l=new c(e);return a((function(){e.captureUncaught&&(l._rollbarOldOnError=r.onerror,n.captureUncaughtExceptions(r,l,!0),e.wrapGlobalEventHandlers&&t(r,l,!0)),e.captureUnhandledRejections&&n.captureUnhandledRejections(r,l,!0);var a=e.autoInstrument;return!1!==e.enabled&&(void 0===a||!0===a||"object"==typeof a&&a.network)&&r.addEventListener&&(r.addEventListener("load",l.captureLoad.bind(l)),r.addEventListener("DOMContentLoaded",l.captureDomContentLoaded.bind(l))),r[o]=l,l}))()}},Rollbar:c}},function(r,e,o){"use strict";function n(r,e,o,n){r._rollbarWrappedError&&(n[4]||(n[4]=r._rollbarWrappedError),n[5]||(n[5]=r._rollbarWrappedError._rollbarContext),r._rollbarWrappedError=null);var t=e.handleUncaughtException.apply(e,n);o&&o.apply(r,n),"anonymous"===t&&(e.anonymousErrorsPending+=1)}r.exports={captureUncaughtExceptions:function(r,e,o){if(r){var t;if("function"==typeof e._rollbarOldOnError)t=e._rollbarOldOnError;else if(r.onerror){for(t=r.onerror;t._rollbarOldOnError;)t=t._rollbarOldOnError;e._rollbarOldOnError=t}e.handleAnonymousErrors();var a=function(){var o=Array.prototype.slice.call(arguments,0);n(r,e,t,o)};o&&(a._rollbarOldOnError=t),r.onerror=a}},captureUnhandledRejections:function(r,e,o){if(r){"function"==typeof r._rollbarURH&&r._rollbarURH.belongsToShim&&r.removeEventListener("unhandledrejection",r._rollbarURH);var n=function(r){var o,n,t;try{o=r.reason}catch(r){o=void 0}try{n=r.promise}catch(r){n="[unhandledrejection] error getting `promise` from event"}try{t=r.detail,!o&&t&&(o=t.reason,n=t.promise)}catch(r){}o||(o="[unhandledrejection] error getting `reason` from event"),e&&e.handleUnhandledRejection&&e.handleUnhandledRejection(o,n)};n.belongsToShim=o,r._rollbarURH=n,r.addEventListener("unhandledrejection",n)}}}},function(r,e,o){"use strict";function n(r,e,o){if(e.hasOwnProperty&&e.hasOwnProperty("addEventListener")){for(var n=e.addEventListener;n._rollbarOldAdd&&n.belongsToShim;)n=n._rollbarOldAdd;var t=function(e,o,t){n.call(this,e,r.wrap(o),t)};t._rollbarOldAdd=n,t.belongsToShim=o,e.addEventListener=t;for(var a=e.removeEventListener;a._rollbarOldRemove&&a.belongsToShim;)a=a._rollbarOldRemove;var l=function(r,e,o){a.call(this,r,e&&e._rollbar_wrapped||e,o)};l._rollbarOldRemove=a,l.belongsToShim=o,e.removeEventListener=l}}r.exports=function(r,e,o){if(r){var t,a,l="EventTarget,Window,Node,ApplicationCache,AudioTrackList,ChannelMergerNode,CryptoOperation,EventSource,FileReader,HTMLUnknownElement,IDBDatabase,IDBRequest,IDBTransaction,KeyOperation,MediaController,MessagePort,ModalWindow,Notification,SVGElementInstance,Screen,TextTrack,TextTrackCue,TextTrackList,WebSocket,WebSocketWorker,Worker,XMLHttpRequest,XMLHttpRequestEventTarget,XMLHttpRequestUpload".split(",");for(t=0;t<l.length;++t)r[a=l[t]]&&r[a].prototype&&n(e,r[a].prototype,o)}}},function(r,e,o){"use strict";function n(r,e){this.impl=r(e,this),this.options=e,function(r){for(var e=function(r){return function(){var e=Array.prototype.slice.call(arguments,0);if(this.impl[r])return this.impl[r].apply(this.impl,e)}},o="log,debug,info,warn,warning,error,critical,global,configure,handleUncaughtException,handleAnonymousErrors,handleUnhandledRejection,_createItem,wrap,loadFull,shimId,captureEvent,captureDomContentLoaded,captureLoad".split(","),n=0;n<o.length;n++)r[o[n]]=e(o[n])}(n.prototype)}n.prototype._swapAndProcessMessages=function(r,e){var o,n,t;for(this.impl=r(this.options);o=e.shift();)n=o.method,t=o.args,this[n]&&"function"==typeof this[n]&&("captureDomContentLoaded"===n||"captureLoad"===n?this[n].apply(this,[t[0],o.ts]):this[n].apply(this,t));return this},r.exports=n},function(r,e,o){"use strict";r.exports=function(r){return function(e){if(!e&&!window._rollbarInitialized){for(var o,n,t=(r=r||{}).globalAlias||"Rollbar",a=window.rollbar,l=function(r){return new a(r)},i=0;o=window._rollbarShims[i++];)n||(n=o.handler),o.handler._swapAndProcessMessages(l,o.messages);window[t]=n,window._rollbarInitialized=!0}}}}]);
     // End Rollbar Snippet
     </script>
-    <% /* Cookie consent banner */ %>
-    <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
-    <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
-    <% /* Global site tag (gtag.js) - Google Analytics */%>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
-    <script>
-      window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
-    </script>
+
+    <% /* Google Analytics, Google Tag Manager, Qualified etc. */ %>
+
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
       _linkedin_partner_id = "4365817";
@@ -83,16 +131,45 @@
     <noscript>
       <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=4365817&fmt=gif" />
     </noscript>
-    <% /* Clay */ %>
-    <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
+    <% /* Meta Pixel */ %>
+    <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '932068693177308');
+    fbq('track', 'PageView');
+    </script>
+    <noscript>
+      <img height="1" width="1" style="display:none" alt="" src="https://www.facebook.com/tr?id=932068693177308&ev=PageView&noscript=1" />
+    </noscript>
     <% /* Snitcher */ %>
     <script>
-        !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
-        (s[i].q=s[i].q||[]).push(arguments)});s[i].l=+new Date;c=n.createElement(t);
-        h=n.getElementsByTagName(t)[0];c.src='//snid.snitcher.com/8416878.js';
-        h.parentNode.insertBefore(c,h)}(window,document,'snid','script');
-        snid('verify', '8416878');
+      !function (e) { "use strict"; var t = e && e.namespace; if (t && e.profileId && e.cdn) { var i = window[t]; if (i && Array.isArray(i) || (i = window[t] = []), !i.initialized && !i._loaded) if (i._loaded) console && console.warn("[Radar] Duplicate initialization attempted"); else { i._loaded = !0;["track", "page", "identify", "group", "alias", "ready", "debug", "on", "off", "once", "trackClick", "trackSubmit", "trackLink", "trackForm", "pageview", "screen", "reset", "register", "setAnonymousId", "addSourceMiddleware", "addIntegrationMiddleware", "addDestinationMiddleware", "giveCookieConsent"].forEach((function (e) { var a; i[e] = (a = e, function () { var e = window[t]; if (e.initialized) return e[a].apply(e, arguments); var i = [].slice.call(arguments); return i.unshift(a), e.push(i), e }) })), -1 === e.apiEndpoint.indexOf("http") && (e.apiEndpoint = "https://" + e.apiEndpoint), i.bootstrap = function () { var t, i = document.createElement("script"); i.async = !0, i.type = "text/javascript", i.id = "__radar__", i.setAttribute("data-settings", JSON.stringify(e)), i.src = [-1 !== (t = e.cdn).indexOf("http") ? "" : "https://", t, "/releases/latest/radar.min.js"].join(""); var a = document.scripts[0]; a.parentNode.insertBefore(i, a) }, i.bootstrap() } } else "undefined" != typeof console && console.error("[Radar] Configuration incomplete") }({
+        "apiEndpoint": "radar.snitcher.com",
+        "cdn": "cdn.snitcher.com",
+        "namespace": "Snitcher",
+        "profileId": "8416878"
+      });
     </script>
+    <% /* Reddit */ %>
+    <script>
+    !function(w,d){if(!w.rdt){var p=w.rdt=function(){p.sendEvent?p.sendEvent.apply(p,arguments):p.callQueue.push(arguments)};p.callQueue=[];var t=d.createElement("script");t.src="https://www.redditstatic.com/ads/pixel.js?pixel_id=a2_j930ircnvcyb",t.async=!0;var s=d.getElementsByTagName("script")[0];s.parentNode.insertBefore(t,s)}}(window,document);rdt('init','a2_j930ircnvcyb');rdt('track', 'PageVisit');
+    </script>
+    <% /* Qualified */ %>
+    <% if(!disableChatbotAndIndexing) {%>
+      <script>
+        (function(w,q){w['QualifiedObject']=q;w[q]=w[q]||function(){
+        (w[q].q=w[q].q||[]).push(arguments)};})(window,'qualified')
+      </script>
+      <script async src="https://js.qualified.com/qualified.js?token=kdbyrPDkGjPxVmAd"></script>
+    <% } else {%>
+      <meta name="robots" content="noindex">
+    <% } %>
     <% /* Hotjar code */ %>
     <script>
       (function(h,o,t,j,a,r){
@@ -127,7 +204,7 @@
     <!--STYLES END-->
   </head>
   <body>
-    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : showConfigurationProfileLayout ? 'header-hidden' : '' %> collapse"  id="navbarToggleExternalContent">
+    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : (showConfigurationProfileLayout || hideFooter) ? 'header-hidden' : '' %> collapse"  id="navbarToggleExternalContent">
       <%// Page header%>
       <% if(!showConfigurationProfileLayout) {%>
       <div class="header" purpose="header-container" hide-when-scrolled data-nosnippet>
@@ -155,54 +232,130 @@
                 </div>
                 <div purpose="mobile-nav-container" id="mobileDropdowns">
                   <div purpose="mobile-dropdown-menus">
+                    <form purpose="google-search" id="mobile-article-search-form">
+                      <div purpose="mobile-search" class="<%- showSearchInMobileMenu ? 'd-flex' : 'd-none'%>">
+                        <label for="mobile-search" purpose="mobile-search-container" class="input-group d-flex flex-nowrap mb-0">
+                          <div class="input-group-prepend">
+                            <span class="input-group-text border-0 bg-transparent" >
+                              <img style="height: 16px; width: 16px;" class="search" alt="search" src="/images/icon-search-16x16@2x.png">
+                            </span>
+                          </div>
+                          <div purpose="inner-search-input" class="form-control border-0">
+                            <input class="docsearch-input pr-1" id="mobile-search" placeholder="Search" aria-label="Search"/>
+                          </div>
+                          <button type="submit" form="mobile-article-search-form" aria-label="Search" class="input-group-append d-flex align-items-center" purpose="searchbar-submit">
+                            ⏎
+                          </button>
+                        </label>
+                      </div>
+                    </form>
                     <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">
                       <div><p>Solutions</p></div>
                       <div><img src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="a small chevron"></div>
                     </div>
 
                     <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start">
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="device-management" href="/device-management">
-
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="apple" href="/apple">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Device management">
+                            <img src="/images/nav-icon-apple-40x40@2x.png" alt="Apple device management">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Device management
+                              Apple device management
                             </p>
                             <p purpose="nav-item-body">
-                              Remotely manage, and protect laptops and mobile devices.
+                              Manage every Mac, iPhone, and iPad.
                             </p>
                           </div>
                         </div>
                       </a>
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="windows" href="/windows">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Orchestration">
+                            <img src="/images/nav-icon-windows-40x40@2x.png" alt="Windows device management">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Orchestration
+                              Windows device management
                             </p>
                             <p purpose="nav-item-body">
-                              Automate tasks across devices, from app installs to scripts.
+                              Patch apps and manage every Windows setting.
                             </p>
                           </div>
                         </div>
                       </a>
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="software-management" href="/software-management">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-software-40x40@2x.png" alt="Software management">
+                            <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux device management">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Software management
+                              Linux device management
                             </p>
                             <p purpose="nav-item-body">
-                              Inventory, patch, and manage installed software.
+                              Manage Linux devices with full visibility and control.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Endpoint governance" href="/endpoint-governance">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-security-and-control-40x40@2x.png" alt="Endpoint governance">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Endpoint governance
+                            </p>
+                            <p purpose="nav-item-body">
+                              Secure every extension, package, and AI tool running on your devices.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="europe" href="/europe">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-europe-40x40@2x.png" alt="Europe">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Device management for Europe
+                            </p>
+                            <p purpose="nav-item-body">
+                              Keep device data in the EU. Manage Windows, macOS, Linux, and mobile devices from one independent platform.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Aviation" href="/aviation">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-aviation-40x40@2x.png" alt="Aviation">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Aviation
+                            </p>
+                            <p purpose="nav-item-body">
+                              Keep the airframe, swap the engine. Device management for aviation.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Pharma 4.0" href="/pharma">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-pharma-40x40@2x.png" alt="Pharma 4.0">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Pharma 4.0
+                            </p>
+                            <p purpose="nav-item-body">
+                              Device management with change control for life sciences.
                             </p>
                           </div>
                         </div>
@@ -225,80 +378,11 @@
                     </div>
 
                     <hr>
-                    <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCustomers" aria-haspopup="true" aria-expanded="false">
-                      <div><p>Customers</p></div>
-                      <div>
-                        <img src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="a small chevron">
-                      </div>
-                    </div>
-                    <div id="mobileNavbarToggleCustomers" purpose="mobile-dropdown" class="collapse align-items-start">
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Stripe + Fleet" href="/case-study/stripe">
-                        <div purpose="dropdown-item-link">
-                          <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-stripe-40x40@2x.png" alt="Fintech + Fleet">
-                          </div>
-                          <div purpose="dropdown-item-text">
-                            <p purpose="nav-item-heading">
-                              Stripe + Fleet
-                            </p>
-                            <p purpose="nav-item-body">
-                              Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually
-                            </p>
-                          </div>
-                        </div>
-                      </a>
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Foursquare + Fleet" href="/case-study/foursquare">
-                        <div purpose="dropdown-item-link">
-                          <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-foursquare-40x40@2x.png" alt="Foursquare + Fleet">
-                          </div>
-                          <div purpose="dropdown-item-text">
-                            <div purpose="dropdown-item-text">
-                              <p purpose="nav-item-heading">
-                                Foursquare + Fleet
-                              </p>
-                              <p purpose="nav-item-body">
-                                Foursquare quickly migrates to Fleet for device management.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </a>
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Faire + Fleet" href="/case-study/faire">
-                        <div purpose="dropdown-item-link">
-                          <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-faire-40x40@2x.png" alt="Faire + Fleet">
-                          </div>
-                          <div purpose="dropdown-item-text">
-                            <div purpose="dropdown-item-text">
-                              <p purpose="nav-item-heading">
-                                Faire + Fleet
-                              </p>
-                              <p purpose="nav-item-body">
-                                Faire secures Macs with CIS benchmarks and Fleet
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </a>
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="What people are saying" href="/testimonials">
-                        <div purpose="dropdown-item-link">
-                          <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-testimonials-40x40@2x.png" alt="What people are saying">
-                          </div>
-                          <div purpose="dropdown-item-text">
-                            <p purpose="nav-item-heading">
-                              What people are saying
-                            </p>
-                            <p purpose="nav-item-body">
-                              Stories from the Fleet community.
-                            </p>
-                          </div>
-                        </div>
-                      </a>
-                    </div>
+                    <a purpose="mobile-dropdown-toggle" href="/customers" class="d-flex align-items-center">Customers</a>
                     <hr>
                     <a purpose="mobile-dropdown-toggle" href="/pricing" class="d-flex align-items-center">Pricing</a>
+                    <hr>
+                    <a purpose="mobile-dropdown-toggle" href="/partners" class="d-flex align-items-center">Partners</a>
                     <hr>
                     <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleMore">
                       <div><p>More</p></div>
@@ -344,14 +428,14 @@
                           </div>
                         </div>
                       </a>
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="News" href="/announcements">
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Releases / news" href="/announcements">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-news-40x40@2x.png" alt="News">
+                            <img src="/images/nav-icon-news-40x40@2x.png" alt="Releases / news">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              News
+                              Releases / news
                             </p>
                           </div>
                         </div>
@@ -380,29 +464,54 @@
                           </div>
                         </div>
                       </a>
-                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/o/fleet-63487049103" target="_blank" no-icon>
-                        <div purpose="dropdown-cta-link">
-                          <div purpose="dropdown-cta-image">
+                      <div purpose="mobile-dropdown-ctas">
+                        <a purpose="dropdown-cta" data-dropdown-option="" href="/gitops-workshop" no-icon>
+                          <div purpose="dropdown-cta-link">
+                            <div purpose="dropdown-cta-image">
+                            </div>
+                            <div class="d-flex flex-column justify-content-center align-items-center">
+                            <div purpose="dropdown-cta-text">
+                              <p purpose="dropdown-cta-heading">
+                                Free workshops for beginners
+                              </p>
+                              <p purpose="dropdown-cta-body">
+                                GitOps, Apple, and Windows certifications.
+                              </p>
+                              <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
+                                <span purpose="button-text">Join us</span>
+                                <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                                  <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                                  <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                              </span>
+                            </div>
+                            </div>
                           </div>
-                          <div class="d-flex flex-column justify-content-center align-items-center">
-                          <div purpose="dropdown-cta-text">
-                            <p purpose="dropdown-cta-heading">
-                              GitOps for device management
-                            </p>
-                            <p purpose="dropdown-cta-body">
-                              In-person workshop for beginners.
-                            </p>
-                            <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
-                              <span purpose="button-text">Join us</span>
-                              <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                                <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                                <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                              </svg>
-                            </span>
+                        </a>
+                        <a purpose="dropdown-cta" data-dropdown-option="" href="/fast-track" no-icon>
+                          <div purpose="dropdown-cta-link">
+                            <div purpose="dropdown-cta-image" class="fast-track">
+                            </div>
+                            <div class="d-flex flex-column justify-content-center align-items-center">
+                            <div purpose="dropdown-cta-text">
+                              <p purpose="dropdown-cta-heading">
+                                Fast Track
+                              </p>
+                              <p purpose="dropdown-cta-body">
+                                Get production-ready with help from Fleet experts.
+                              </p>
+                              <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
+                                <span purpose="button-text">Learn more</span>
+                                <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                                  <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                                  <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                              </span>
+                            </div>
+                            </div>
                           </div>
-                          </div>
-                        </div>
-                      </a>
+                        </a>
+                      </div>
                     </div>
 
                     <% if(_.has(me, 'id')) {%>
@@ -416,33 +525,21 @@
                         <a purpose="mobile-dropdown-link" href="/query-generator">Generate queries</a>
                         <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
                         <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
+                        <a purpose="mobile-dropdown-link" href="/admin/reset-trial">Reset local Fleet Premium trial</a>
+                        <a purpose="mobile-dropdown-link" href="/admin/superadmins">Manage superadmins</a>
                       </div>
                     <%}%>
                   </div>
-                  <%if(!hideGetStartedButton){%>
                   <div purpose="mobile-nav-cta" class="d-flex flex-row align-items-center">
-
-                    <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                    <%if(_.has(me, 'id')) {%>
-                      <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
+                    <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact?talkToUs" no-underline>Get a demo</a>
+<!--                       <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
                         Try it yourself
                         <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
                           <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
                           <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
-                      </a>
-                    </div>
-                    <% } else {%>
-                      <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
-                        Try it yourself
-                        <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                          <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                          <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                      </a>
-                    </div>
-                    <% }%>
-                  <% }%>
+                      </a> -->
+                  </div>
                 </div>
               </div>
               <%/* Desktop Navigation bar */%>
@@ -452,164 +549,187 @@
                   <a purpose="header-nav-btn" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>">
                     Solutions <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron">
                   </a>
-                  <div purpose="header-dropdown" class="dropdown-menu solutions-dropdown">
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="device-management" href="/device-management">
+                  <div purpose="header-dropdown" class="dropdown-menu solutions-dropdown flex-row">
 
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Device management">
-                        </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Device management</p>
-                          <p purpose="nav-item-body">
-                            Remotely manage, and protect laptops and mobile devices.
-                          </p>
-                        </div>
-                      </div>
-                    </a>
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Orchestration">
-                        </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Orchestration
-                          </p>
-                          <p purpose="nav-item-body">
-                            Automate tasks across devices, from app installs to scripts.
-                          </p>
-                        </div>
-                      </div>
-                    </a>
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="software-management" href="/software-management">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-software-40x40@2x.png" alt="Software management">
-                        </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Software management
-                          </p>
-                          <p purpose="nav-item-body">
-                            Inventory, patch, and manage installed software.
-                          </p>
-                        </div>
-                      </div>
-                    </a>
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-integrations-40x40@2x.png" alt="Extend Fleet">
-                        </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Extend Fleet
-                          </p>
-                          <p purpose="nav-item-body">
-                            Integrate your favorite tools with Fleet.
-                          </p>
-                        </div>
-                      </div>
-                    </a>
-                  </div>
-                </div>
-
-                <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'customers' ? 'current-section' : '' %>">Customers <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron"></a>
-
-                  <div purpose="header-dropdown" class="dropdown-menu customers-dropdown">
-
-                    <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Stripe + Fleet" href="/case-study/stripe">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-stripe-40x40@2x.png" alt="Stripe + Fleet">
-                        </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Stripe + Fleet
-                          </p>
-                          <p purpose="nav-item-body">
-                            Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually
-                          </p>
-                        </div>
-                      </div>
-                    </a>
-                    <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Foursquare + Fleet" href="/case-study/foursquare">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-foursquare-40x40@2x.png" alt="Foursquare + Fleet">
-                        </div>
-                        <div purpose="dropdown-item-text">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="apple" href="/apple">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-apple-40x40@2x.png" alt="Apple device management">
+                          </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Foursquare + Fleet
+                              Apple device management
                             </p>
                             <p purpose="nav-item-body">
-                              Foursquare cut costs and gained 114% ROI with Fleet
+                              Manage every Mac, iPhone, and iPad.
                             </p>
                           </div>
                         </div>
-                      </div>
-                    </a>
-                    <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Foursquare + Fleet" href="/case-study/faire">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-faire-40x40@2x.png" alt="Faire + Fleet">
-                        </div>
-                        <div purpose="dropdown-item-text">
+                      </a>
+
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="windows" href="/windows">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-windows-40x40@2x.png" alt="Windows device management">
+                          </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              Faire + Fleet
+                              Windows device management
                             </p>
                             <p purpose="nav-item-body">
-                              Faire secures Macs with CIS benchmarks and Fleet
+                              Patch apps and manage every Windows setting.
                             </p>
                           </div>
                         </div>
-                      </div>
-                    </a>
-                    <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="What people are saying" href="/testimonials">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-testimonials-40x40@2x.png" alt="What people are saying">
+                      </a>
+
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux device management">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Linux device management
+                            </p>
+                            <p purpose="nav-item-body">
+                              Manage Linux devices with full visibility and control.
+                            </p>
+                          </div>
                         </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            What people are saying
-                          </p>
-                          <p purpose="nav-item-body">
-                            Stories from the Fleet community.
-                          </p>
+                      </a>
+
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Endpoint governance" href="/endpoint-governance">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-security-and-control-40x40@2x.png" alt="Endpoint governance">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Endpoint governance
+                            </p>
+                            <p purpose="nav-item-body">
+                              Secure every extension, package, and AI tool running on your devices.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </a>
+                      </a>
+
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="europe" href="/europe">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-europe-40x40@2x.png" alt="Europe">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Device management for Europe
+                            </p>
+                            <p purpose="nav-item-body">
+                              Keep device data in the EU.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Aviation" href="/aviation">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-aviation-40x40@2x.png" alt="Aviation">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Aviation
+                            </p>
+                            <p purpose="nav-item-body">
+                              Keep the airframe, swap the engine. Device management for aviation.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Pharma 4.0" href="/pharma">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-pharma-40x40@2x.png" alt="Pharma 4.0">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Pharma 4.0
+                            </p>
+                            <p purpose="nav-item-body">
+                              Device management with change control for life sciences.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-integrations-40x40@2x.png" alt="Extend Fleet">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Extend Fleet
+                            </p>
+                            <p purpose="nav-item-body">
+                              Integrate your favorite tools with Fleet.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
 
                   </div>
                 </div>
+
+                <a purpose="header-nav-btn" href="/customers" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'customers' ? 'current-section' : '' %>">Customers</a>
 
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="width: 72px; text-decoration: none; line-height: 23px;">Pricing</a>
+
+                <a purpose="header-nav-btn" button-text="Partners" href="/partners" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'partners' ? 'current-section' : '' %>" style="width: 85px; text-decoration: none; line-height: 23px;">Partners</a>
 
 
                 <div purpose="dropdown-button" class="btn-group" >
                   <span purpose="header-nav-btn" button-text="More" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'more' ? 'current-section' : '' %>" >More <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron"></span>
                   <div purpose="header-dropdown" class="dropdown-menu more-dropdown flex-row">
                     <div purpose="dropdown-cta-column">
-                      <a purpose="dropdown-cta" data-dropdown-option="" href="https://www.eventbrite.com/o/fleet-63487049103" target="_blank" no-icon>
+                      <a purpose="dropdown-cta" data-dropdown-option="" href="/gitops-workshop" no-icon>
                         <div purpose="dropdown-cta-link">
                           <div purpose="dropdown-cta-image">
                           </div>
                           <div class="d-flex flex-column justify-content-center align-items-center">
                           <div purpose="dropdown-cta-text">
                             <p purpose="dropdown-cta-heading">
-                              GitOps for device management
+                              Free workshops for beginners
                             </p>
                             <p purpose="dropdown-cta-body">
-                              In-person workshop for beginners.
+                              GitOps, Apple, and Windows certifications.
                             </p>
                             <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
                               <span purpose="button-text">Join us</span>
+                              <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                                <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                                <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                              </svg>
+                            </span>
+                          </div>
+                          </div>
+                        </div>
+                      </a>
+                      <a purpose="dropdown-cta" data-dropdown-option="" href="/fast-track" no-icon>
+                        <div purpose="dropdown-cta-link">
+                          <div purpose="dropdown-cta-image" class="fast-track">
+                          </div>
+                          <div class="d-flex flex-column justify-content-center align-items-center">
+                          <div purpose="dropdown-cta-text">
+                            <p purpose="dropdown-cta-heading">
+                              Fast Track
+                            </p>
+                            <p purpose="dropdown-cta-body">
+                              Get production-ready with help from Fleet experts.
+                            </p>
+                            <span href="/todo" purpose="cta-animated-arrow-button" target="_blank">
+                              <span purpose="button-text">Learn more</span>
                               <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
                                 <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
                                 <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -659,14 +779,14 @@
                       </a>
                     </div>
                     <div purpose="dropdown-column">
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="News" href="/announcements">
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Releases / news" href="/announcements">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-news-40x40@2x.png" alt="News">
+                            <img src="/images/nav-icon-news-40x40@2x.png" alt="Releases / news">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              News
+                              Releases / news
                             </p>
                           </div>
                         </div>
@@ -699,29 +819,17 @@
 
                   </div>
                 </div>
-
+                <!-- <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
+                  Try it yourself
+                  <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                    <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                    <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </a> -->
+                <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact?talkToUs" no-underline>Get a demo</a>
                 <% if(_.has(me, 'id')) {%>
-                  <%if(!hideGetStartedButton){%>
-                    <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
-                      Try it yourself
-                      <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                        <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                        <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </a>
-                    <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                  <% }%>
                   <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
-                <% } else if(!hideGetStartedButton) {%>
-                  <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
-                    Try it yourself
-                    <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                      <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                      <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </a>
-                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                <% }%>
+                <% } %>
               </div>
             </div>
           <% } else {%>
@@ -745,14 +853,32 @@
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/query-generator">Generate queries</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/reset-trial">Reset Premium trial</a>
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/superadmins">Manage superadmins</a>
               </div>
             </div>
           <%} %>
         </div>
+        <%// Announcement banner (configured in config/announcement-banner.js).  Inside the header so it sticks with it. %>
+        <% if (announcementBanner && !hideHeaderLinks && !showConfigurationProfileLayout) { %>
+        <a purpose="announcement-banner" href="<%= announcementBanner.href %>" no-underline data-nosnippet>
+          <span purpose="banner-flutes" aria-hidden="true"></span>
+          <span purpose="banner-label">
+            <span purpose="banner-text" class="<%= announcementBanner.textForSmallScreens ? 'has-short-text' : '' %>"><%= announcementBanner.text %></span>
+            <% if (announcementBanner.textForSmallScreens) { %><span purpose="banner-short-text"><%= announcementBanner.textForSmallScreens %></span><% } %>
+            <svg purpose="banner-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+              <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+              <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+        </a>
+        <% } %>
       </div>
       <% } %>
 
+
       <%- body %>
+      <% if(!hideFooter) {%>
       <% if(!showConfigurationProfileLayout) {%>
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
       <% if(!hideFooterLinks) { %>
@@ -765,25 +891,25 @@
               </a>
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
-              <strong purpose="footer-nav-header">Multi platform</strong>
+              <strong purpose="footer-nav-header">Solutions</strong>
               <a href="/device-management">Device management</a>
-              <a href="/orchestration">Orchestration</a>
               <a href="/software-management">Software management</a>
-              <a href="/integrations">Integrations</a>
+              <a href="/support">Support</a>
               <a href="/pricing">Pricing</a>
+              <a href="/partners">Partners</a>
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Documentation</strong>
-              <a href="/support">Support</a>
               <a href="/docs">Docs</a>
               <a href="/docs/rest-api">API</a>
               <a href="/releases">Release notes</a>
+              <a href="/download">Downloads</a>
               <a href="/new-license">Get your license</a><!-- «« FUTURE: Personalize this based on whether logged in -->
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Company</strong>
               <a href="/handbook/company">About</a>
-              <a href="/announcements">News</a>
+              <a href="/trust">Trust</a>
               <a href="/apply">Jobs</a>
               <a href="/logos">Logos/artwork</a>
               <a href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
@@ -792,9 +918,11 @@
 
           <div purpose="footer-bottom">
             <div purpose="legal-and-social-nav" class="d-flex flex-lg-row flex-column align-items-lg-center justify-content-lg-between">
-
+              <div class="d-flex flex-column">
               <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
+                  <a purpose="iso-27001-badge" class="d-flex" href="https://www.iafcertsearch.org/certification/yQhogZVJ691JeF2brdffVk3Q" target="_blank" no-icon><img src="/images/badge-iso27001-48x48@2x.png" alt="ISO 27001 certified"></a>
+                  <a purpose="gdpr-badge" class="d-flex" href="/trust" target="_blank" no-icon><img src="/images/badge-gdpr-48x48@2x.png" alt="GDPR compliant"></a>
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
                   <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
                 </div>
@@ -803,6 +931,9 @@
                   <span purpose="legal-links">
                     <a href="/legal/privacy">Privacy</a>
                   </span>
+                </div>
+              </div>
+                <div purpose="cky-button-container" class="d-block">
                 </div>
               </div>
 
@@ -836,6 +967,8 @@
 
               <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
+                  <a purpose="iso-27001-badge" class="d-flex" href="https://www.iafcertsearch.org/certification/yQhogZVJ691JeF2brdffVk3Q" target="_blank" no-icon><img src="/images/badge-iso27001-48x48@2x.png" alt="ISO 27001 certified"></a>
+                  <a purpose="gdpr-badge" class="d-flex" href="/trust" target="_blank" no-icon><img src="/images/badge-gdpr-48x48@2x.png" alt="GDPR compliant"></a>
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
                   <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
                 </div>
@@ -871,6 +1004,8 @@
           </div>
       <% } %>
       <% } %>
+      <% } %>
+    </div>
     <% /*
       Client-side JavaScript
       ========================
@@ -879,9 +1014,6 @@
       by the asset pipeline between "SCRIPTS" and "SCRIPTS END", or both.
       (https://sailsjs.com/docs/concepts/assets/task-automation)
     */ %>
-    <%/* Stripe.js */%>
-    <script src="https://js.stripe.com/v3/"></script>
-
     <%/* bowser.js (for browser detection) -- included inline to avoid issues with minification that could affect the unsupported browser overlay */%>
     <script>!function(e,i,s){if("undefined"!=typeof module&&module.exports)module.exports=s();else if("function"==typeof define&&define.amd)define(i,s);else e[i]=s()}(this,"bowser",function(){var e=true;function i(i){function s(e){var s=i.match(e);return s&&s.length>1&&s[1]||""}function o(e){var s=i.match(e);return s&&s.length>1&&s[2]||""}var r=s(/(ipod|iphone|ipad)/i).toLowerCase(),n=/like android/i.test(i),t=!n&&/android/i.test(i),a=/nexus\s*[0-6]\s*/i.test(i),d=!a&&/nexus\s*[0-9]+/i.test(i),l=/CrOS/.test(i),f=/silk/i.test(i),m=/sailfish/i.test(i),v=/tizen/i.test(i),p=/(web|hpw)os/i.test(i),c=/windows phone/i.test(i),u=/SamsungBrowser/i.test(i),h=!c&&/windows/i.test(i),w=!r&&!f&&/macintosh/i.test(i),b=!t&&!m&&!v&&!p&&/linux/i.test(i),g=o(/edg([ea]|ios)\/(\d+(\.\d+)?)/i),k=s(/version\/(\d+(\.\d+)?)/i),x=/tablet/i.test(i)&&!/tablet pc/i.test(i),y=!x&&/[^-]mobi/i.test(i),S=/xbox/i.test(i),B;if(/opera/i.test(i))B={name:"Opera",opera:e,version:k||s(/(?:opera|opr|opios)[\s\/](\d+(\.\d+)?)/i)};else if(/opr\/|opios/i.test(i))B={name:"Opera",opera:e,version:s(/(?:opr|opios)[\s\/](\d+(\.\d+)?)/i)||k};else if(/SamsungBrowser/i.test(i))B={name:"Samsung Internet for Android",samsungBrowser:e,version:k||s(/(?:SamsungBrowser)[\s\/](\d+(\.\d+)?)/i)};else if(/coast/i.test(i))B={name:"Opera Coast",coast:e,version:k||s(/(?:coast)[\s\/](\d+(\.\d+)?)/i)};else if(/yabrowser/i.test(i))B={name:"Yandex Browser",yandexbrowser:e,version:k||s(/(?:yabrowser)[\s\/](\d+(\.\d+)?)/i)};else if(/ucbrowser/i.test(i))B={name:"UC Browser",ucbrowser:e,version:s(/(?:ucbrowser)[\s\/](\d+(?:\.\d+)+)/i)};else if(/mxios/i.test(i))B={name:"Maxthon",maxthon:e,version:s(/(?:mxios)[\s\/](\d+(?:\.\d+)+)/i)};else if(/epiphany/i.test(i))B={name:"Epiphany",epiphany:e,version:s(/(?:epiphany)[\s\/](\d+(?:\.\d+)+)/i)};else if(/puffin/i.test(i))B={name:"Puffin",puffin:e,version:s(/(?:puffin)[\s\/](\d+(?:\.\d+)?)/i)};else if(/sleipnir/i.test(i))B={name:"Sleipnir",sleipnir:e,version:s(/(?:sleipnir)[\s\/](\d+(?:\.\d+)+)/i)};else if(/k-meleon/i.test(i))B={name:"K-Meleon",kMeleon:e,version:s(/(?:k-meleon)[\s\/](\d+(?:\.\d+)+)/i)};else if(c){B={name:"Windows Phone",osname:"Windows Phone",windowsphone:e};if(g){B.msedge=e;B.version=g}else{B.msie=e;B.version=s(/iemobile\/(\d+(\.\d+)?)/i)}}else if(/msie|trident/i.test(i))B={name:"Internet Explorer",msie:e,version:s(/(?:msie |rv:)(\d+(\.\d+)?)/i)};else if(l)B={name:"Chrome",osname:"Chrome OS",chromeos:e,chromeBook:e,chrome:e,version:s(/(?:chrome|crios|crmo)\/(\d+(\.\d+)?)/i)};else if(/edg([ea]|ios)/i.test(i))B={name:"Microsoft Edge",msedge:e,version:g};else if(/vivaldi/i.test(i))B={name:"Vivaldi",vivaldi:e,version:s(/vivaldi\/(\d+(\.\d+)?)/i)||k};else if(m)B={name:"Sailfish",osname:"Sailfish OS",sailfish:e,version:s(/sailfish\s?browser\/(\d+(\.\d+)?)/i)};else if(/seamonkey\//i.test(i))B={name:"SeaMonkey",seamonkey:e,version:s(/seamonkey\/(\d+(\.\d+)?)/i)};else if(/firefox|iceweasel|fxios/i.test(i)){B={name:"Firefox",firefox:e,version:s(/(?:firefox|iceweasel|fxios)[ \/](\d+(\.\d+)?)/i)};if(/\((mobile|tablet);[^\)]*rv:[\d\.]+\)/i.test(i)){B.firefoxos=e;B.osname="Firefox OS"}}else if(f)B={name:"Amazon Silk",silk:e,version:s(/silk\/(\d+(\.\d+)?)/i)};else if(/phantom/i.test(i))B={name:"PhantomJS",phantom:e,version:s(/phantomjs\/(\d+(\.\d+)?)/i)};else if(/slimerjs/i.test(i))B={name:"SlimerJS",slimer:e,version:s(/slimerjs\/(\d+(\.\d+)?)/i)};else if(/blackberry|\bbb\d+/i.test(i)||/rim\stablet/i.test(i))B={name:"BlackBerry",osname:"BlackBerry OS",blackberry:e,version:k||s(/blackberry[\d]+\/(\d+(\.\d+)?)/i)};else if(p){B={name:"WebOS",osname:"WebOS",webos:e,version:k||s(/w(?:eb)?osbrowser\/(\d+(\.\d+)?)/i)};/touchpad\//i.test(i)&&(B.touchpad=e)}else if(/bada/i.test(i))B={name:"Bada",osname:"Bada",bada:e,version:s(/dolfin\/(\d+(\.\d+)?)/i)};else if(v)B={name:"Tizen",osname:"Tizen",tizen:e,version:s(/(?:tizen\s?)?browser\/(\d+(\.\d+)?)/i)||k};else if(/qupzilla/i.test(i))B={name:"QupZilla",qupzilla:e,version:s(/(?:qupzilla)[\s\/](\d+(?:\.\d+)+)/i)||k};else if(/chromium/i.test(i))B={name:"Chromium",chromium:e,version:s(/(?:chromium)[\s\/](\d+(?:\.\d+)?)/i)||k};else if(/chrome|crios|crmo/i.test(i))B={name:"Chrome",chrome:e,version:s(/(?:chrome|crios|crmo)\/(\d+(\.\d+)?)/i)};else if(t)B={name:"Android",version:k};else if(/safari|applewebkit/i.test(i)){B={name:"Safari",safari:e};if(k)B.version=k}else if(r){B={name:"iphone"==r?"iPhone":"ipad"==r?"iPad":"iPod"};if(k)B.version=k}else if(/googlebot/i.test(i))B={name:"Googlebot",googlebot:e,version:s(/googlebot\/(\d+(\.\d+))/i)||k};else B={name:s(/^(.*)\/(.*) /),version:o(/^(.*)\/(.*) /)};if(!B.msedge&&/(apple)?webkit/i.test(i)){if(/(apple)?webkit\/537\.36/i.test(i)){B.name=B.name||"Blink";B.blink=e}else{B.name=B.name||"Webkit";B.webkit=e}if(!B.version&&k)B.version=k}else if(!B.opera&&/gecko\//i.test(i)){B.name=B.name||"Gecko";B.gecko=e;B.version=B.version||s(/gecko\/(\d+(\.\d+)?)/i)}if(!B.windowsphone&&(t||B.silk)){B.android=e;B.osname="Android"}else if(!B.windowsphone&&r){B[r]=e;B.ios=e;B.osname="iOS"}else if(w){B.mac=e;B.osname="macOS"}else if(S){B.xbox=e;B.osname="Xbox"}else if(h){B.windows=e;B.osname="Windows"}else if(b){B.linux=e;B.osname="Linux"}function O(e){switch(e){case"NT":return"NT";case"XP":return"XP";case"NT 5.0":return"2000";case"NT 5.1":return"XP";case"NT 5.2":return"2003";case"NT 6.0":return"Vista";case"NT 6.1":return"7";case"NT 6.2":return"8";case"NT 6.3":return"8.1";case"NT 10.0":return"10";default:return undefined}}var T="";if(B.windows)T=O(s(/Windows ((NT|XP)( \d\d?.\d)?)/i));else if(B.windowsphone)T=s(/windows phone (?:os)?\s?(\d+(\.\d+)*)/i);else if(B.mac){T=s(/Mac OS X (\d+([_\.\s]\d+)*)/i);T=T.replace(/[_\s]/g,".")}else if(r){T=s(/os (\d+([_\s]\d+)*) like mac os x/i);T=T.replace(/[_\s]/g,".")}else if(t)T=s(/android[ \/-](\d+(\.\d+)*)/i);else if(B.webos)T=s(/(?:web|hpw)os\/(\d+(\.\d+)*)/i);else if(B.blackberry)T=s(/rim\stablet\sos\s(\d+(\.\d+)*)/i);else if(B.bada)T=s(/bada\/(\d+(\.\d+)*)/i);else if(B.tizen)T=s(/tizen[\/\s](\d+(\.\d+)*)/i);if(T)B.osversion=T;var P=!B.windows&&T.split(".")[0];if(x||d||"ipad"==r||t&&(3==P||P>=4&&!y)||B.silk)B.tablet=e;else if(y||"iphone"==r||"ipod"==r||t||a||B.blackberry||B.webos||B.bada)B.mobile=e;if(B.msedge||B.msie&&B.version>=10||B.yandexbrowser&&B.version>=15||B.vivaldi&&B.version>=1||B.chrome&&B.version>=20||B.samsungBrowser&&B.version>=4||B.firefox&&B.version>=20||B.safari&&B.version>=6||B.opera&&B.version>=10||B.ios&&B.osversion&&B.osversion.split(".")[0]>=6||B.blackberry&&B.version>=10.1||B.chromium&&B.version>=20)B.a=e;else if(B.msie&&B.version<10||B.chrome&&B.version<20||B.firefox&&B.version<20||B.safari&&B.version<6||B.opera&&B.version<10||B.ios&&B.osversion&&B.osversion.split(".")[0]<6||B.chromium&&B.version<20)B.c=e;else B.x=e;return B}var s=i("undefined"!==typeof navigator?navigator.userAgent||"":"");s.test=function(e){for(var i=0;i<e.length;++i){var o=e[i];if("string"===typeof o)if(o in s)return true}return false};function o(e){return e.split(".").length}function r(e,i){var s=[],o;if(Array.prototype.map)return Array.prototype.map.call(e,i);for(o=0;o<e.length;o++)s.push(i(e[o]));return s}function n(e){var i=Math.max(o(e[0]),o(e[1]));var s=r(e,function(e){var s=i-o(e);e+=new Array(s+1).join(".0");return r(e.split("."),function(e){return new Array(20-e.length).join("0")+e}).reverse()});while(--i>=0)if(s[0][i]>s[1][i])return 1;else if(s[0][i]===s[1][i]){if(0===i)return 0}else return-1}function t(e,o,r){var t=s;if("string"===typeof o){r=o;o=void 0}if(void 0===o)o=false;if(r)t=i(r);var a=""+t.version;for(var d in e)if(e.hasOwnProperty(d))if(t[d]){if("string"!==typeof e[d])throw new Error("Browser version in the minVersion map should be a string: "+d+": "+String(e));return n([a,e[d]])<0}return o}function a(e,i,s){return!t(e,i,s)}s.isUnsupportedBrowser=t;s.compareVersions=n;s.check=a;s._detect=i;s.detect=i;return s});</script>
 
@@ -904,88 +1036,120 @@
     <script src="/dependencies/moment.js"></script>
     <script src="/dependencies/parasails.js"></script>
     <script src="/js/cloud.setup.js"></script>
+    <script src="/js/components/ai-tool-graphic.component.js"></script>
     <script src="/js/components/ajax-button.component.js"></script>
     <script src="/js/components/ajax-form.component.js"></script>
+    <script src="/js/components/ajax-overlay.component.js"></script>
     <script src="/js/components/animated-arrow-button.component.js"></script>
     <script src="/js/components/bar-chart.component.js"></script>
+    <script src="/js/components/bubble.component.js"></script>
     <script src="/js/components/call-to-action.component.js"></script>
+    <script src="/js/components/cloud-city.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
+    <script src="/js/components/code-block-copy-buttons.component.js"></script>
+    <script src="/js/components/demo-request-form.component.js"></script>
     <script src="/js/components/docs-nav-and-search.component.js"></script>
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/logo-carousel.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
     <script src="/js/components/multifield.component.js"></script>
     <script src="/js/components/open-positions.component.js"></script>
-    <script src="/js/components/parallax-city.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
-    <script src="/js/components/signup-button.component.js"></script>
-    <script src="/js/components/signup-modal.component.js"></script>
-    <script src="/js/components/stripe-card-element.component.js"></script>
-    <script src="/js/utilities/open-stripe-checkout.js"></script>
-    <script src="/js/pages/account/account-overview.page.js"></script>
+    <script src="/js/components/teams-chat-graphic.component.js"></script>
     <script src="/js/pages/account/edit-password.page.js"></script>
     <script src="/js/pages/account/edit-profile.page.js"></script>
     <script src="/js/pages/admin/email-preview.page.js"></script>
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
     <script src="/js/pages/admin/query-generator.page.js"></script>
+    <script src="/js/pages/admin/reset-trial.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
-    <script src="/js/pages/app-details.page.js"></script>
-    <script src="/js/pages/app-library.page.js"></script>
+    <script src="/js/pages/admin/superadmins.page.js"></script>
+    <script src="/js/pages/ai-in-it.page.js"></script>
+    <script src="/js/pages/apple.page.js"></script>
+    <script src="/js/pages/arch-linux-management.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/articles/basic-comparison.page.js"></script>
+    <script src="/js/pages/articles/basic-webinar.page.js"></script>
+    <script src="/js/pages/articles/basic-whitepaper.page.js"></script>
     <script src="/js/pages/articles/case-study.page.js"></script>
-    <script src="/js/pages/command-details.page.js"></script>
+    <script src="/js/pages/aviation.page.js"></script>
+    <script src="/js/pages/capex-savings.page.js"></script>
     <script src="/js/pages/configuration-builder.page.js"></script>
+    <script src="/js/pages/configuration-generator.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
+    <script src="/js/pages/customers.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>
+    <script src="/js/pages/cybersecurity.page.js"></script>
     <script src="/js/pages/deals.page.js"></script>
+    <script src="/js/pages/deployment.page.js"></script>
     <script src="/js/pages/device-management.page.js"></script>
+    <script src="/js/pages/docs/app-details.page.js"></script>
+    <script src="/js/pages/docs/app-library.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
+    <script src="/js/pages/docs/command-details.page.js"></script>
+    <script src="/js/pages/docs/mdm-commands.page.js"></script>
+    <script src="/js/pages/docs/os-settings.page.js"></script>
+    <script src="/js/pages/docs/osquery-table-details.page.js"></script>
+    <script src="/js/pages/docs/policy-details.page.js"></script>
+    <script src="/js/pages/docs/policy-library.page.js"></script>
+    <script src="/js/pages/docs/report-details.page.js"></script>
+    <script src="/js/pages/docs/report-library.page.js"></script>
+    <script src="/js/pages/docs/script-details.page.js"></script>
+    <script src="/js/pages/docs/script-library.page.js"></script>
+    <script src="/js/pages/docs/vital-details.page.js"></script>
+    <script src="/js/pages/download.page.js"></script>
+    <script src="/js/pages/endpoint-governance.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>
     <script src="/js/pages/entrance/forgot-password.page.js"></script>
     <script src="/js/pages/entrance/login.page.js"></script>
     <script src="/js/pages/entrance/new-password.page.js"></script>
     <script src="/js/pages/entrance/signup.page.js"></script>
+    <script src="/js/pages/europe.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
     <script src="/js/pages/fast-track.page.js"></script>
     <script src="/js/pages/fleet-premium-trial.page.js"></script>
     <script src="/js/pages/fleetctl-preview.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
+    <script src="/js/pages/infrastructure-as-code.page.js"></script>
     <script src="/js/pages/integrations.page.js"></script>
+    <script src="/js/pages/landing-pages/android-mdm.page.js"></script>
+    <script src="/js/pages/landing-pages/apple-mdm.page.js"></script>
+    <script src="/js/pages/landing-pages/autonomous-endpoint-management.page.js"></script>
+    <script src="/js/pages/landing-pages/on-premise.page.js"></script>
+    <script src="/js/pages/landing-pages/open-source.page.js"></script>
+    <script src="/js/pages/landing-pages/patch-faster.page.js"></script>
+    <script src="/js/pages/landing-pages/replace-jamf.page.js"></script>
+    <script src="/js/pages/landing-pages/windows-mdm.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
-    <script src="/js/pages/mdm-commands.page.js"></script>
-    <script src="/js/pages/meetups.page.js"></script>
+    <script src="/js/pages/linux-management.page.js"></script>
     <script src="/js/pages/microsoft-proxy/remediate.page.js"></script>
     <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
-    <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/okta-conditional-access-error.page.js"></script>
-    <script src="/js/pages/os-settings.page.js"></script>
-    <script src="/js/pages/osquery-table-details.page.js"></script>
-    <script src="/js/pages/policy-details.page.js"></script>
-    <script src="/js/pages/policy-library.page.js"></script>
+    <script src="/js/pages/omarchy.page.js"></script>
+    <script src="/js/pages/partners.page.js"></script>
+    <script src="/js/pages/pharma.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
-    <script src="/js/pages/query-detail.page.js"></script>
-    <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
-    <script src="/js/pages/script-details.page.js"></script>
-    <script src="/js/pages/scripts.page.js"></script>
+    <script src="/js/pages/security-and-control.page.js"></script>
     <script src="/js/pages/software-management.page.js"></script>
     <script src="/js/pages/start.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
-    <script src="/js/pages/testimonials.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
-    <script src="/js/pages/vital-details.page.js"></script>
+    <script src="/js/pages/visibility-and-reporting.page.js"></script>
+    <script src="/js/pages/windows.page.js"></script>
+    <script src="/js/pages/workshops.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.
@@ -1010,7 +1174,7 @@
         };
         var LATEST_SUPPORTED_VERSION_BY_USER_AGENT = {
           msedge: '84',//« earliest version to support the gap css property.
-          safari: '14',//« earliest version that suppports the gap css property.
+          safari: '15',//« earliest version that fully supports the gap css property.
           firefox: '103',//« earliest version to support the backdrop filter css property.
           chrome: '84',//« earliest version to support the gap css property.
           opera: '70',//« earliest version to support the gap css property.
@@ -1092,13 +1256,6 @@
       $(function() {
         $('[data-hide-until-rendered]').removeClass('invisible'); // Note: invisible is a bootstrap 4 class
       });
-      // Clean up URLs that contain UTM parameters
-      $(function() {
-        if (window.location.search && window.location.search.includes('utm_content')) {
-          let queryParameterLessUrl = window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.hash;
-          window.history.replaceState({}, '', queryParameterLessUrl);// https://caniuse.com/mdn-api_history_replacestate
-        }
-      });
 
       // Adding hover events to header dropdown menus.
       $(function(){
@@ -1112,6 +1269,178 @@
           $(this).children('.dropdown-toggle').attr('aria-expanded', false);
         });
       });
+      // Add an event listener to watch for the cookie banner loading.
+      document.addEventListener("cookieyes_banner_load", function (eventData) {
+        //  Check the value in the JSON eventData and perform the desired action.
+        if(eventData.detail) {
+          if(eventData.detail.activeLaw === 'ccpa'){
+            // If this user sees a cookieyes banner for CCPA, add a "Do not sell or share my personal information" link to the bottom of the website footer.
+            $('div[purpose="cky-button-container"]').append(
+              '<a purpose="cky-button">Do Not Sell or Share My Personal Information</a>'
+            );
+            // Add a click event to the added button to bring up the cookie yes menu.
+            $(function(){
+              $('a[purpose="cky-button"]').click(
+                function() {
+                  revisitCkyConsent()
+                }
+              );
+            });
+          }
+        }
+      });
     </script>
+    <script>
+      // Announcement banner: lights the flutes of reeded glass.  (Styled in layout.less.)
+      (function(){
+        var banner = document.querySelector('[purpose="announcement-banner"]');
+        if (!banner) { return; }
+        var flutesContainer = banner.querySelector('[purpose="banner-flutes"]');
+        var flutes = [];
+        var RESTING_LIT = 0.15;
+        // On hover, the glass near the cursor reflects a stretch of the cloud city.  The art repeats as needed, every other copy
+        // mirrored so the seams don't show, and each reed shows its own slightly shifted slice.
+        var REFLECTION_WIDTH = 1200;
+        var isReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        // The light is a soft pool (center, width, brightness) that springs toward its target, so it glides between flutes.
+        // At rest it sits broad and to the left, like the shine on our buttons.  `reveal` is how much of the reflection shows around it.
+        var restingLight = function(){ return { center: banner.offsetWidth * 0.22, width: banner.offsetWidth * 0.3, brightness: 0.45, reveal: 0 }; };
+        var light = restingLight();
+        var lightTarget = restingLight();
+        var lightVelocity = { center: 0, width: 0, brightness: 0, reveal: 0 };
+        var revealCenter = 0;// « follows the light while hovered, then stays put as the reflection fades
+        var glint;// « { startedAt, duration } while a glint is crossing
+        var frameRequest;
+        var lastFrameAt;
+
+        var buildFlutes = function() {
+          flutesContainer.innerHTML = '';
+          // Flutes widen from left to right: fine reeds at the left, broad ones at the right.
+          var totalWidth = banner.offsetWidth + 48;
+          for (var x = 0; x < totalWidth;) {
+            var fluteWidth = 6 + 46 * Math.pow(x / totalWidth, 1.4);
+            var flute = flutesContainer.appendChild(document.createElement('span'));
+            flute.setAttribute('purpose', 'banner-flute');
+            flute.style.flexBasis = fluteWidth.toFixed(1) + 'px';
+            x += fluteWidth;
+          }
+          flutes = Array.prototype.slice.call(flutesContainer.children);
+          var bannerLeft = flutesContainer.offsetLeft;
+          flutes.forEach(function(flute, i){
+            var fluteLeft = bannerLeft + flute.offsetLeft;
+            var refraction = Math.sin(i * 2.3) * Math.min(6, flute.offsetWidth * 0.25);
+            var html = '';
+            for (var tile = Math.floor((fluteLeft - 8) / REFLECTION_WIDTH); tile * REFLECTION_WIDTH < fluteLeft + flute.offsetWidth + 8; tile++) {
+              html += '<img purpose="reflected-city" alt="" src="/images/banner-reflected-cloud-city-1200x110.svg"' + (Math.abs(tile) % 2 === 1 ? ' class="mirrored"' : '') + ' style="left: ' + (tile * REFLECTION_WIDTH - fluteLeft + refraction).toFixed(1) + 'px">';
+            }
+            flute.innerHTML = html;
+          });
+        };
+
+        var render = function(now) {
+          frameRequest = undefined;
+          var isSettling = false;
+          var secondsElapsed = Math.min(0.05, (now - (lastFrameAt || now)) / 1000);
+          lastFrameAt = now;
+          // A critically damped spring, so the light eases in as it sets off and eases out as it arrives, without overshooting.
+          var SPRING_FREQUENCY = 13;
+          ['center', 'width', 'brightness', 'reveal'].forEach(function(key){
+            var delta = lightTarget[key] - light[key];
+            var threshold = key === 'brightness' || key === 'reveal' ? 0.005 : 0.5;
+            if (isReducedMotion) { light[key] = lightTarget[key]; lightVelocity[key] = 0; return; }
+            lightVelocity[key] += (SPRING_FREQUENCY * SPRING_FREQUENCY * delta - 2 * SPRING_FREQUENCY * lightVelocity[key]) * secondsElapsed;
+            light[key] += lightVelocity[key] * secondsElapsed;
+            if (Math.abs(delta) > threshold || Math.abs(lightVelocity[key]) > threshold) { isSettling = true; }
+          });
+          var glintCenter;
+          if (glint) {
+            var progress = (now - glint.startedAt) / glint.duration;
+            if (progress >= 1) { glint = undefined; } else { glintCenter = -60 + (banner.offsetWidth + 120) * progress * progress; }
+          }
+          if (!isSettling && !glint) { lastFrameAt = undefined; }
+          if (lightTarget.reveal > 0) { revealCenter = light.center; }
+          var bannerLeft = flutesContainer.offsetLeft;
+          flutes.forEach(function(flute){
+            var fluteCenter = bannerLeft + flute.offsetLeft + flute.offsetWidth / 2;
+            var lit = light.brightness * Math.exp(-Math.pow((fluteCenter - light.center) / light.width, 2));
+            if (glintCenter !== undefined) {
+              lit = Math.max(lit, 0.9 * Math.exp(-Math.pow((fluteCenter - glintCenter) / 22, 2)));
+            }
+            flute.style.setProperty('--lit', Math.min(1, RESTING_LIT + lit).toFixed(3));
+            flute.style.setProperty('--reveal', (Math.max(0, light.reveal) * Math.exp(-Math.pow((fluteCenter - revealCenter) / 125, 2))).toFixed(3));
+          });
+          if (isSettling || glint) { frameRequest = window.requestAnimationFrame(render); }
+        };
+        var requestRender = function() {
+          if (!frameRequest) { frameRequest = window.requestAnimationFrame(render); }
+        };
+
+        // Pages whose sticky elements sit just below the header offset them by this.  (See e.g. basic-documentation.less.)
+        var publishBannerHeight = function() {
+          document.documentElement.style.setProperty('--announcement-banner-height', banner.offsetHeight + 'px');
+        };
+        publishBannerHeight();
+        buildFlutes();
+        banner.classList.add('fluted');
+        requestRender();
+
+        // Rebuild right away (not debounced), so a sudden jump in width, like going fullscreen, never shows the glass half-built.
+        var builtForWidth = banner.offsetWidth;
+        window.addEventListener('resize', function() {
+          if (banner.offsetWidth === builtForWidth) { return; }
+          builtForWidth = banner.offsetWidth;
+          publishBannerHeight();
+          buildFlutes();
+          if (!banner.matches(':hover')) { light = restingLight(); lightTarget = restingLight(); }
+          if (frameRequest) { window.cancelAnimationFrame(frameRequest); }
+          render(performance.now());
+        });
+        banner.addEventListener('pointermove', function(event) {
+          lightTarget = { center: event.clientX - banner.getBoundingClientRect().left, width: 70, brightness: 0.8, reveal: 1 };
+          requestRender();
+        });
+        banner.addEventListener('pointerleave', function() {
+          lightTarget = restingLight();
+          requestRender();
+        });
+
+        if (isReducedMotion) { return; }
+        (function scheduleNextGlint(){
+          // Irregular on purpose: 6–30s apart, each at a slightly different speed.
+          setTimeout(function(){
+            if (!document.hidden && !banner.matches(':hover')) {
+              glint = { startedAt: performance.now(), duration: 400 + Math.random() * 350 };
+              requestRender();
+            }
+            scheduleNextGlint();
+          }, 6000 + Math.random() * 24000);
+        })();
+      })();
+    </script>
+    <script>
+      // Sends search queries to a scoped Google search. (Searches from the handbook are scoped to /handbook.)
+      document.addEventListener('submit', function(event) {
+        var form = event.target.closest('form[purpose="google-search"]');
+        if (!form) { return; }
+        event.preventDefault();
+        var input = form.querySelector('input');
+        var searchQuery = (input ? input.value : '').trim();
+        if (!searchQuery) { return; }
+        var searchScope = /^\/handbook(\/|$)/.test(window.location.pathname) ? 'site:fleetdm.com/handbook ' : 'site:fleetdm.com ';
+        window.open('https://www.google.com/search?q=' + encodeURIComponent(searchScope + searchQuery), '_blank', 'noopener');
+      });
+    </script>
+    <% if (sails.config.environment === 'production') { %>
+    <% /* ActiveCampaign */ %>
+    <script>
+      (function(e,t,o,n,p,r,i){e.visitorGlobalObjectAlias=n;e[e.visitorGlobalObjectAlias]=e[e.visitorGlobalObjectAlias]||function(){(e[e.visitorGlobalObjectAlias].q=e[e.visitorGlobalObjectAlias].q||[]).push(arguments)};e[e.visitorGlobalObjectAlias].l=(new Date).getTime();r=t.createElement("script");r.src=o;r.async=true;i=t.getElementsByTagName("script")[0];i.parentNode.insertBefore(r,i)})(window,document,"https://diffuser-cdn.app-us1.com/diffuser/diffuser.js","vgo");
+      vgo('setAccount', '652899825');
+      vgo('setTrackByDefault', true);
+      vgo('process');
+    </script>
+    <% /* Clay */ %>
+    <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
+   <% } %>
   </body>
 </html>

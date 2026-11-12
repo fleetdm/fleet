@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -16,13 +18,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	ws "github.com/fleetdm/fleet/v4/server/websocket"
-	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,7 +34,11 @@ import (
 func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	t.Skip("Seems to be a bit problematic in CI")
 
-	store := pubsub.SetupRedisForTest(t, false, false)
+	store := pubsub.NewRedisQueryResults(
+		redistest.SetupRedis(t, "zz", false, false, false),
+		false,
+		slog.New(slog.DiscardHandler),
+	)
 
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
@@ -61,11 +68,6 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
 		return fleet.TargetMetrics{TotalHosts: 1}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return &fleet.Session{
 			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
@@ -84,7 +86,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 		},
 		nil,
 	)
-	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(nil)
+	lq.On("QueryCompletedByHost", strconv.Itoa(int(campaign.ID)), host.ID).Return(true, nil)
 	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1}).Return(nil)
 	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{
 		User: &fleet.User{
@@ -96,7 +98,7 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.NoError(t, err)
 
-	pathHandler := makeStreamDistributedQueryCampaignResultsHandler(config.TestConfig().Server, svc, kitlog.NewNopLogger())
+	pathHandler := makeStreamDistributedQueryCampaignResultsHandler(config.TestConfig().Server, svc, slog.New(slog.DiscardHandler))
 	s := httptest.NewServer(pathHandler("/api/latest/fleet/results/"))
 	defer s.Close()
 	// Convert http://127.0.0.1 to ws://127.0.0.1
@@ -166,6 +168,81 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 		newActiveConn = s.ActiveCount
 	}
 	require.Equal(t, prevActiveConn-1, newActiveConn)
+}
+
+// TestStreamCampaignResultsDoesNotLeakCampaignExistence ensures that
+// selecting a nonexistent campaign and selecting a campaign owned by another
+// user produce the exact same websocket error message. Distinct messages
+// here would let an authenticated user enumerate other users' live query
+// campaigns by observing which response they get.
+func TestStreamCampaignResultsDoesNotLeakCampaignExistence(t *testing.T) {
+	ds := new(mock.Store)
+	svc, _ := newTestService(t, ds, nil, nil)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
+		return &fleet.Session{
+			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
+			ID:              1,
+			AccessedAt:      time.Now(),
+			UserID:          1,
+			Key:             "observer-token",
+		}, nil
+	}
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return &fleet.User{ID: 1, GlobalRole: new(fleet.RoleObserver)}, nil
+	}
+	ds.MarkSessionAccessedFunc = func(context.Context, *fleet.Session) error {
+		return nil
+	}
+
+	othersCampaignID := uint(99)
+	ds.DistributedQueryCampaignFunc = func(ctx context.Context, id uint) (*fleet.DistributedQueryCampaign, error) {
+		if id == othersCampaignID {
+			// Owned by a different user than the one authenticating below.
+			return &fleet.DistributedQueryCampaign{ID: othersCampaignID, UserID: 2}, nil
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	pathHandler := makeStreamDistributedQueryCampaignResultsHandler(config.TestConfig().Server, svc, slog.New(slog.DiscardHandler))
+	s := httptest.NewServer(pathHandler("/api/{fleetversion:(?:v1|2022-04)}/fleet/results/"))
+	defer s.Close()
+	u := "ws" + strings.TrimPrefix(s.URL, "http") + "/api/2022-04/fleet/results/websocket"
+
+	dialer := &websocket.Dialer{
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: 45 * time.Second,
+		TLSClientConfig:  &tls.Config{InsecureSkipVerify: true},
+	}
+
+	selectCampaign := func(t *testing.T, campaignID uint) string {
+		conn, _, err := dialer.Dial(u, nil)
+		require.NoError(t, err)
+		defer conn.Close()
+
+		require.NoError(t, conn.WriteJSON(ws.JSONMessage{
+			Type: "auth",
+			Data: map[string]any{"token": "observer-token"},
+		}))
+		require.NoError(t, conn.WriteJSON(ws.JSONMessage{
+			Type: "select_campaign",
+			Data: map[string]any{"campaign_id": campaignID},
+		}))
+
+		_, msg, err := conn.ReadMessage()
+		require.NoError(t, err)
+		return string(msg)
+	}
+
+	nonExistentMsg := selectCampaign(t, 999999) // waits out the replica-lag retry/timeout
+	otherUsersMsg := selectCampaign(t, othersCampaignID)
+
+	assert.Equal(t, nonExistentMsg, otherUsersMsg,
+		"a nonexistent campaign and one owned by another user must be indistinguishable")
+	assert.Contains(t, nonExistentMsg, "forbidden")
 }
 
 func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
@@ -247,7 +324,7 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 	done := make(chan struct{}, 1)
 	go func() {
 		for {
-			aggStats, err = mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
+			aggStats, err = mysqltest.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
 			if usingReplica && err != nil {
 				time.Sleep(30 * time.Millisecond)
 			} else {
@@ -264,7 +341,7 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 		if err != nil {
 			lastErr = err.Error()
 		}
-		aggStats, err = mysql.GetAggregatedStats(
+		aggStats, err = mysqltest.GetAggregatedStats(
 			ctxdb.RequirePrimary(ctx, true), svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID,
 		)
 		if err != nil {
@@ -347,7 +424,7 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 	done = make(chan struct{}, 1)
 	go func() {
 		for {
-			newAggStats, err = mysql.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
+			newAggStats, err = mysqltest.GetAggregatedStats(ctx, svc.ds.(*mysql.Datastore), fleet.AggregatedStatsTypeScheduledQuery, queryID)
 			if usingReplica && (*aggStats.SystemTimeP50 == *newAggStats.SystemTimeP50 ||
 				*aggStats.SystemTimeP95 == *newAggStats.SystemTimeP95 ||
 				*aggStats.UserTimeP50 == *newAggStats.UserTimeP50 ||
@@ -393,14 +470,14 @@ func testUpdateStats(t *testing.T, ds *mysql.Datastore, usingReplica bool) {
 }
 
 func TestUpdateStats(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	defer mysql.TruncateTables(t, ds)
+	ds := mysqltest.CreateMySQLDS(t)
+	defer mysqltest.TruncateTables(t, ds)
 	testUpdateStats(t, ds, false)
 }
 
 func TestIntegrationsUpdateStatsOnReplica(t *testing.T) {
-	ds := mysql.CreateMySQLDSWithReplica(t, nil)
-	defer mysql.TruncateTables(t, ds)
+	ds := mysqltest.CreateMySQLDSWithReplica(t, nil)
+	defer mysqltest.TruncateTables(t, ds)
 	testUpdateStats(t, ds, true)
 }
 

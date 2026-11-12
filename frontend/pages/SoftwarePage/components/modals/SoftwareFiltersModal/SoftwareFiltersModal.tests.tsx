@@ -1,11 +1,17 @@
-import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
+
+import {
+  SEVERITY_RANGE_INVALID_MSG,
+  SEVERITY_SCORE_RANGE_ERROR,
+} from "components/SeverityFilter";
+import { SOFTWARE_TYPES } from "interfaces/software";
+import { renderWithSetup } from "test/test-utils";
 
 import SoftwareFiltersModal from "./SoftwareFiltersModal";
 
-const vulnFiltersDefault = {
+const filtersDefault = {
   vulnerable: false,
   exploit: false,
   minCvssScore: undefined,
@@ -17,27 +23,69 @@ const renderModal = (props = {}) =>
     <SoftwareFiltersModal
       onExit={noop}
       onSubmit={noop}
-      vulnFilters={vulnFiltersDefault}
+      filters={filtersDefault}
       isPremiumTier
       {...props}
     />
   );
+
+const setUpModal = (props = {}) =>
+  renderWithSetup(
+    <SoftwareFiltersModal
+      onExit={noop}
+      onSubmit={noop}
+      filters={filtersDefault}
+      isPremiumTier
+      {...props}
+    />
+  );
+
+const openAdvanced = async (
+  user: ReturnType<typeof renderWithSetup>["user"]
+) => {
+  await user.click(screen.getByRole("button", { name: "Advanced" }));
+};
+
+// react-select renders its options as plain divs, so target them by the testid
+// the shared custom Option component sets rather than by role.
+const selectSeverity = async (
+  user: ReturnType<typeof renderWithSetup>["user"],
+  label: string
+) => {
+  await user.click(screen.getByRole("combobox", { name: "Severity" }));
+  const option = screen
+    .getAllByTestId("dropdown-option")
+    .find((el) => el.textContent?.startsWith(label));
+  if (!option) {
+    throw new Error(`No severity option matching "${label}"`);
+  }
+  await user.click(option);
+};
 
 describe("SoftwareFiltersModal component", () => {
   it("renders modal title and form fields", () => {
     renderModal();
     expect(screen.getByText(/Filters/i)).toBeInTheDocument();
     expect(screen.getByText(/Vulnerable software/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Min score/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Max score/i)).toBeInTheDocument();
+    expect(screen.getByText("CISA known exploit (KEV)")).toBeInTheDocument();
     expect(screen.getByText(/Has known exploit/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Advanced" })
+    ).toBeInTheDocument();
+    // Advanced is collapsed by default.
+    expect(
+      screen.queryByRole("combobox", { name: "Severity" })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Apply/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Cancel/i })).toBeInTheDocument();
   });
 
-  it("disables input fields when Vulnerable software is off", () => {
-    renderModal();
-    expect(screen.getByRole("combobox")).toBeDisabled(); // Disabled dropdown
+  it("disables input fields when Vulnerable software is off", async () => {
+    const { user } = setUpModal({
+      filters: { ...filtersDefault, minCvssScore: 2 },
+    });
+    await openAdvanced(user);
+    expect(screen.getByRole("combobox", { name: "Severity" })).toBeDisabled();
     expect(screen.getByLabelText(/Min score/i)).toBeDisabled();
     expect(screen.getByLabelText(/Max score/i)).toBeDisabled();
     const checkbox = screen.getByRole("checkbox", {
@@ -47,16 +95,11 @@ describe("SoftwareFiltersModal component", () => {
   });
 
   it("enables input fields when Vulnerable software is toggled on", async () => {
-    const { user } = renderWithSetup(
-      <SoftwareFiltersModal
-        onExit={noop}
-        onSubmit={noop}
-        vulnFilters={vulnFiltersDefault}
-        isPremiumTier
-      />
-    );
+    const { user } = setUpModal({
+      filters: { ...filtersDefault, minCvssScore: 2 },
+    });
     await user.click(screen.getByRole("switch"));
-    expect(screen.getByRole("combobox")).toBeEnabled(); // Enabled dropdown
+    expect(screen.getByRole("combobox", { name: "Severity" })).toBeEnabled();
     expect(screen.getByLabelText(/Min score/i)).toBeEnabled();
     expect(screen.getByLabelText(/Max score/i)).toBeEnabled();
     const checkbox = screen.getByRole("checkbox", {
@@ -65,66 +108,151 @@ describe("SoftwareFiltersModal component", () => {
     expect(checkbox).toHaveAttribute("aria-disabled", "false");
   });
 
-  it("shows validation errors for non-numeric or out-of-range scores", async () => {
-    const { user } = renderWithSetup(
-      <SoftwareFiltersModal
-        onExit={noop}
-        onSubmit={noop}
-        vulnFilters={vulnFiltersDefault}
-        isPremiumTier
-      />
-    );
-    await user.click(screen.getByRole("switch"));
-    const minInput = screen.getByLabelText(/Min score/i);
-    const maxInput = screen.getByLabelText(/Max score/i);
+  // Per frontend/docs/patterns.md#data-validation: Apply stays enabled, errors
+  // appear on blur of a dirty field or on a submit attempt, and clear on focus.
+  describe("validation lifecycle", () => {
+    // Once an error replaces the label, getByLabelText can no longer find the
+    // field, so address the score inputs by name.
+    const scoreInput = (field: "minScore" | "maxScore") =>
+      document.querySelector(`input[name="${field}"]`) as HTMLInputElement;
 
-    // Out of range
-    await user.type(minInput, "11");
-    expect(screen.getByText(/Must be from 0-10/i)).toBeInTheDocument();
+    const setUpEnabled = async (props = {}) => {
+      const rendered = setUpModal(props);
+      await rendered.user.click(screen.getByRole("switch"));
+      await openAdvanced(rendered.user);
+      return rendered;
+    };
 
-    await user.clear(minInput);
-    await user.type(minInput, "-1");
-    expect(screen.getByText(/Must be from 0-10/i)).toBeInTheDocument();
+    it("keeps Apply enabled with invalid input", async () => {
+      const { user } = await setUpEnabled();
 
-    await user.clear(minInput);
-    await user.type(minInput, "5.55");
-    expect(screen.getByText(/Must be from 0-10/i)).toBeInTheDocument();
+      await user.type(scoreInput("minScore"), "11");
 
-    // Valid value, but min > max
-    await user.clear(minInput);
-    await user.type(minInput, "7");
-    await user.clear(maxInput);
-    await user.type(maxInput, "3");
-
-    const applyButton = screen.getByRole("button", { name: /Apply/i });
-
-    await user.hover(applyButton);
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Minimum CVSS score cannot be greater/i)
-      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Apply/i })).toBeEnabled();
     });
-    expect(screen.getByRole("button", { name: /Apply/i })).toBeDisabled();
+
+    it("shows nothing while typing, then the error on blur", async () => {
+      const { user } = await setUpEnabled();
+
+      await user.type(scoreInput("minScore"), "11");
+      expect(
+        screen.queryByText(SEVERITY_SCORE_RANGE_ERROR)
+      ).not.toBeInTheDocument();
+
+      await user.tab();
+      expect(screen.getByText(SEVERITY_SCORE_RANGE_ERROR)).toBeInTheDocument();
+    });
+
+    it("clears the error on focus, restoring the label", async () => {
+      const { user } = await setUpEnabled();
+
+      await user.type(scoreInput("minScore"), "11");
+      await user.tab();
+      expect(screen.getByText(SEVERITY_SCORE_RANGE_ERROR)).toBeInTheDocument();
+
+      await user.click(scoreInput("minScore"));
+      expect(
+        screen.queryByText(SEVERITY_SCORE_RANGE_ERROR)
+      ).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/Min score/i)).toBeInTheDocument();
+    });
+
+    it("keeps the Advanced section open while a score error is being fixed", async () => {
+      const { user } = await setUpEnabled();
+
+      await user.type(scoreInput("minScore"), "11");
+      await user.tab();
+      expect(screen.getByText(SEVERITY_SCORE_RANGE_ERROR)).toBeInTheDocument();
+
+      // Collapsing is ignored while an error shows, so the field stays put.
+      await user.click(screen.getByRole("button", { name: "Advanced" }));
+      expect(scoreInput("minScore")).toBeInTheDocument();
+
+      // Focusing to fix the value clears the error without unmounting the field.
+      await user.click(scoreInput("minScore"));
+      expect(
+        screen.queryByText(SEVERITY_SCORE_RANGE_ERROR)
+      ).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/Min score/i)).toBeInTheDocument();
+    });
+
+    it("shows an inverted range on the maximum, the dependent field", async () => {
+      const { user } = await setUpEnabled();
+
+      await user.type(scoreInput("minScore"), "7");
+      await user.type(scoreInput("maxScore"), "3");
+      await user.tab();
+
+      expect(screen.getByText(SEVERITY_RANGE_INVALID_MSG)).toBeInTheDocument();
+      // Attached to Max, so Min keeps its label.
+      expect(screen.getByLabelText(/Min score/i)).toBeInTheDocument();
+    });
+
+    it("surfaces every error and does not submit when Apply is clicked", async () => {
+      const onSubmitSpy = jest.fn();
+      const rendered = setUpModal({ onSubmit: onSubmitSpy });
+      const { user } = rendered;
+      await user.click(screen.getByRole("switch"));
+      await openAdvanced(user);
+
+      await user.type(scoreInput("minScore"), "11");
+      await user.click(screen.getByRole("button", { name: /Apply/i }));
+
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+      expect(screen.getByText(SEVERITY_SCORE_RANGE_ERROR)).toBeInTheDocument();
+    });
+
+    it("drops the error when Vulnerable software is switched off", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = await setUpEnabled({ onSubmit: onSubmitSpy });
+
+      await user.type(scoreInput("minScore"), "11");
+      await user.tab();
+      expect(screen.getByText(SEVERITY_SCORE_RANGE_ERROR)).toBeInTheDocument();
+
+      // Disabled fields are never in an error state, and the scores are not
+      // submitted while the filter is off.
+      await user.click(screen.getByRole("switch"));
+      expect(
+        screen.queryByText(SEVERITY_SCORE_RANGE_ERROR)
+      ).not.toBeInTheDocument();
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole("button", { name: /Apply/i }));
+      expect(onSubmitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          vulnerable: false,
+          minCvssScore: undefined,
+          maxCvssScore: undefined,
+        })
+      );
+    });
+
+    it("clears a score error when the severity option changes", async () => {
+      const { user } = await setUpEnabled();
+
+      await user.type(scoreInput("minScore"), "11");
+      await user.tab();
+      expect(screen.getByText(SEVERITY_SCORE_RANGE_ERROR)).toBeInTheDocument();
+
+      await selectSeverity(user, "High severity");
+
+      expect(
+        screen.queryByText(SEVERITY_SCORE_RANGE_ERROR)
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("calls onSubmit with the correct values when form is valid", async () => {
     const onSubmitSpy = jest.fn();
-    const { user } = renderWithSetup(
-      <SoftwareFiltersModal
-        onExit={noop}
-        onSubmit={onSubmitSpy}
-        vulnFilters={vulnFiltersDefault}
-        isPremiumTier
-      />
-    );
+    const { user } = setUpModal({ onSubmit: onSubmitSpy });
     await user.click(screen.getByRole("switch"));
+    await openAdvanced(user);
 
     const minInput = screen.getByLabelText(/Min score/i);
     const maxInput = screen.getByLabelText(/Max score/i);
 
-    await user.clear(minInput);
     await user.type(minInput, "3");
-    await user.clear(maxInput);
     await user.type(maxInput, "8.5");
 
     // Enable "Has known exploit"
@@ -138,28 +266,278 @@ describe("SoftwareFiltersModal component", () => {
       exploit: true,
       minCvssScore: 3,
       maxCvssScore: 8.5,
+      types: [],
     });
   });
 
-  it("shows and resets severity dropdown according to score inputs", async () => {
-    const { user } = renderWithSetup(
-      <SoftwareFiltersModal
-        onExit={noop}
-        onSubmit={noop}
-        vulnFilters={vulnFiltersDefault}
-        isPremiumTier
-      />
-    );
+  it("submits the bounds of the selected preset", async () => {
+    const onSubmitSpy = jest.fn();
+    const { user } = setUpModal({ onSubmit: onSubmitSpy });
+    await user.click(screen.getByRole("switch"));
+    await openAdvanced(user);
+    await selectSeverity(user, "High severity");
+
+    await user.click(screen.getByRole("button", { name: /Apply/i }));
+
+    expect(onSubmitSpy).toHaveBeenCalledWith({
+      vulnerable: true,
+      exploit: undefined,
+      minCvssScore: 7,
+      maxCvssScore: 8.9,
+      types: [],
+    });
+  });
+
+  it("submits no CVSS bounds for Any severity", async () => {
+    const onSubmitSpy = jest.fn();
+    const { user } = setUpModal({
+      onSubmit: onSubmitSpy,
+      filters: {
+        ...filtersDefault,
+        minCvssScore: 7,
+        maxCvssScore: 8.9,
+      },
+    });
+    await user.click(screen.getByRole("switch"));
+    await selectSeverity(user, "Any severity");
+
+    await user.click(screen.getByRole("button", { name: /Apply/i }));
+
+    expect(onSubmitSpy).toHaveBeenCalledWith({
+      vulnerable: true,
+      exploit: undefined,
+      minCvssScore: undefined,
+      maxCvssScore: undefined,
+      types: [],
+    });
+  });
+
+  it("submits a lone 0 minimum rather than clearing the filter", async () => {
+    const onSubmitSpy = jest.fn();
+    const { user } = setUpModal({ onSubmit: onSubmitSpy });
+    await user.click(screen.getByRole("switch"));
+    await openAdvanced(user);
+
+    // A lone "0" in Min used to collapse the control to "Any severity" while
+    // still submitting min_cvss_score=0.
+    await user.type(screen.getByLabelText(/Min score/i), "0");
+    await user.click(screen.getByRole("button", { name: /Apply/i }));
+
+    expect(onSubmitSpy).toHaveBeenCalledWith({
+      vulnerable: true,
+      exploit: undefined,
+      minCvssScore: 0,
+      maxCvssScore: undefined,
+      types: [],
+    });
+  });
+
+  describe("Enter key", () => {
+    it("neither toggles Vulnerable software nor applies from the type search", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = setUpModal({
+        availableTypes: SOFTWARE_TYPES,
+        onSubmit: onSubmitSpy,
+      });
+
+      await user.type(
+        screen.getByPlaceholderText("Search types"),
+        "chrome{Enter}"
+      );
+
+      expect(screen.getByRole("switch")).toHaveAttribute(
+        "aria-checked",
+        "false"
+      );
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+    });
+
+    it("applies the filters from a score field without toggling Vulnerable software", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = setUpModal({ onSubmit: onSubmitSpy });
+      await user.click(screen.getByRole("switch"));
+      await openAdvanced(user);
+
+      await user.type(screen.getByLabelText(/Min score/i), "3{Enter}");
+
+      expect(onSubmitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ vulnerable: true, minCvssScore: 3 })
+      );
+    });
+
+    it("keeps validating when a score field submits", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = setUpModal({ onSubmit: onSubmitSpy });
+      await user.click(screen.getByRole("switch"));
+      await openAdvanced(user);
+
+      await user.type(screen.getByLabelText(/Min score/i), "11{Enter}");
+
+      expect(onSubmitSpy).not.toHaveBeenCalled();
+      expect(screen.getByRole("switch")).toHaveAttribute(
+        "aria-checked",
+        "true"
+      );
+    });
+  });
+
+  it("shows only Types and Vulnerable software on Fleet Free", () => {
+    renderModal({ isPremiumTier: false, availableTypes: SOFTWARE_TYPES });
+
+    expect(screen.getByText("Types")).toBeInTheDocument();
+    expect(screen.getByText(/Vulnerable software/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText("CISA known exploit (KEV)")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Has known exploit/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Advanced" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("combobox", { name: "Severity" })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Min score/i)).not.toBeInTheDocument();
+  });
+
+  it("opens Advanced when a severity filter is already applied", () => {
+    renderModal({
+      filters: {
+        ...filtersDefault,
+        vulnerable: true,
+        minCvssScore: 7,
+        maxCvssScore: 8.9,
+      },
+    });
+
+    expect(
+      screen.getByRole("combobox", { name: "Severity" })
+    ).toBeInTheDocument();
+  });
+
+  it("opens Advanced when turning on Vulnerable software activates a severity", async () => {
+    // Bounds without vulnerable=true (e.g. a hand-edited URL) start hidden, but
+    // the switch makes them part of the submission.
+    const { user } = setUpModal({
+      filters: { ...filtersDefault, minCvssScore: 7, maxCvssScore: 8.9 },
+    });
+    expect(
+      screen.queryByRole("combobox", { name: "Severity" })
+    ).not.toBeInTheDocument();
+
     await user.click(screen.getByRole("switch"));
 
-    // If both min/max are cleared, selects "Any severity".
-    const minInput = screen.getByLabelText(/Min score/i);
-    const maxInput = screen.getByLabelText(/Max score/i);
+    expect(
+      screen.getByRole("combobox", { name: "Severity" })
+    ).toBeInTheDocument();
+  });
 
-    await user.clear(minInput);
-    await user.clear(maxInput);
+  it("keeps Advanced collapsed when turning on Vulnerable software with Any severity", async () => {
+    const { user } = setUpModal();
 
-    // The severity select should now show "Any severity"
-    expect(screen.getByText(/Any severity/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("switch"));
+
+    expect(
+      screen.queryByRole("combobox", { name: "Severity" })
+    ).not.toBeInTheDocument();
+  });
+
+  describe("AI tools", () => {
+    const aiToolsSwitch = () =>
+      screen.queryByRole("switch", { name: "AI tools" });
+
+    it("renders above Vulnerable software, off by default", () => {
+      renderModal({ showAiToolFilter: true });
+
+      const switches = screen.getAllByRole("switch");
+      expect(switches).toHaveLength(2);
+      expect(switches[0]).toBe(aiToolsSwitch());
+      expect(aiToolsSwitch()).toHaveAttribute("aria-checked", "false");
+    });
+
+    it("starts on when the filter is applied", () => {
+      renderModal({
+        showAiToolFilter: true,
+        filters: { ...filtersDefault, aiTool: true },
+      });
+
+      expect(aiToolsSwitch()).toHaveAttribute("aria-checked", "true");
+    });
+
+    it("is hidden on Fleet Free", () => {
+      renderModal({ showAiToolFilter: true, isPremiumTier: false });
+
+      expect(aiToolsSwitch()).not.toBeInTheDocument();
+      expect(screen.getByText(/Vulnerable software/i)).toBeInTheDocument();
+    });
+
+    it("is hidden unless the page asks for it", () => {
+      renderModal();
+
+      expect(aiToolsSwitch()).not.toBeInTheDocument();
+    });
+
+    it("submits the AI tools filter without Vulnerable software", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = setUpModal({
+        showAiToolFilter: true,
+        onSubmit: onSubmitSpy,
+      });
+
+      await user.click(screen.getByRole("switch", { name: "AI tools" }));
+      await user.click(screen.getByRole("button", { name: /Apply/i }));
+
+      expect(onSubmitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ aiTool: true, vulnerable: false })
+      );
+    });
+
+    it("submits no AI tools filter when switched off", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = setUpModal({
+        showAiToolFilter: true,
+        filters: { ...filtersDefault, aiTool: true },
+        onSubmit: onSubmitSpy,
+      });
+
+      await user.click(screen.getByRole("switch", { name: "AI tools" }));
+      await user.click(screen.getByRole("button", { name: /Apply/i }));
+
+      expect(onSubmitSpy.mock.calls[0][0].aiTool).toBeFalsy();
+    });
+  });
+
+  describe("Types picker", () => {
+    it("is not rendered without a list of types", () => {
+      renderModal();
+
+      expect(screen.queryByText("Types")).not.toBeInTheDocument();
+      expect(
+        screen.queryByPlaceholderText("Search types")
+      ).not.toBeInTheDocument();
+    });
+
+    it("submits the selected types", async () => {
+      const onSubmitSpy = jest.fn();
+      const { user } = setUpModal({
+        availableTypes: SOFTWARE_TYPES,
+        onSubmit: onSubmitSpy,
+      });
+
+      await user.click(screen.getByRole("checkbox", { name: "App (macOS)" }));
+      await user.click(
+        screen.getByRole("checkbox", { name: "Browser extension (Brave)" })
+      );
+      await user.click(
+        screen.getByRole("checkbox", { name: "IDE extension (Cursor)" })
+      );
+      await user.click(screen.getByRole("button", { name: /Apply/i }));
+
+      expect(onSubmitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          vulnerable: false,
+          types: ["macos_app", "brave_extension", "cursor_extension"],
+        })
+      );
+    });
   });
 });

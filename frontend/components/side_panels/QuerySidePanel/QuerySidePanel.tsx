@@ -1,19 +1,18 @@
 import React from "react";
 
+import CustomLink from "components/CustomLink";
+import FleetMarkdown from "components/FleetMarkdown";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import Icon from "components/Icon/Icon";
 import { IOsQueryTable } from "interfaces/osquery_table";
 import { osqueryTableNames } from "utilities/osquery_tables";
 
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import FleetMarkdown from "components/FleetMarkdown";
-import CustomLink from "components/CustomLink";
-import Icon from "components/Icon/Icon";
-
+import EventedTableTag from "./EventedTableTag";
 import QueryTableColumns from "./QueryTableColumns";
-import QueryTablePlatforms from "./QueryTablePlatforms";
 import QueryTableExample from "./QueryTableExample";
 import QueryTableNotes from "./QueryTableNotes";
-import EventedTableTag from "./EventedTableTag";
+import QueryTablePlatforms from "./QueryTablePlatforms";
 
 interface IQuerySidePanel {
   selectedOsqueryTable: IOsQueryTable;
@@ -40,22 +39,31 @@ const QuerySidePanel = ({
 
   const mdmRequired = name === "managed_policies";
 
-  const onSelectTable = (value: string) => {
-    onOsqueryTableSelect(value);
+  const onSelectTable = (option: CustomOptionType | null) => {
+    if (!option) {
+      return;
+    }
+
+    onOsqueryTableSelect(option.value);
   };
 
   const renderTableSelect = () => {
-    const tableNames = osqueryTableNames.map((tableName: string) => {
-      return { label: tableName, value: tableName };
-    });
+    const tableNames: CustomOptionType[] = osqueryTableNames.map(
+      (tableName: string) => ({
+        label: tableName,
+        value: tableName,
+      })
+    );
 
     return (
-      <Dropdown
+      <DropdownWrapper
+        name="osquery-table-select"
         options={tableNames}
         value={name}
         onChange={onSelectTable}
-        placeholder="Choose Table..."
+        placeholder="Select a table"
         className={`${baseClass}__table-select`}
+        isSearchable
       />
     );
   };
@@ -73,33 +81,35 @@ const QuerySidePanel = ({
           }
         }}
       >
-        <Icon name="close" color="ui-fleet-black-50" size="small" />
+        <Icon name="close" color="ui-fleet-black-50" />
       </div>
-      <div className={`${baseClass}__choose-table`}>
-        <h2 className={`${baseClass}__header`}>
-          Tables
-          <span className={`${baseClass}__table-count`}>
-            {osqueryTableNames.length}
-          </span>
-        </h2>
-        {renderTableSelect()}
+      <div className={baseClass}>
+        <div className={`${baseClass}__choose-table`}>
+          <h2 className={`${baseClass}__header`}>
+            Tables
+            <span className={`${baseClass}__table-count`}>
+              {osqueryTableNames.length}
+            </span>
+          </h2>
+          {renderTableSelect()}
+        </div>
+        {evented && <EventedTableTag selectedTableName={name} />}
+        {mdmRequired && (
+          <span className={`${baseClass}__mdm-required`}>Requires MDM</span>
+        )}
+        <div className={`${baseClass}__description`}>
+          <FleetMarkdown markdown={description} />
+        </div>
+        <QueryTablePlatforms platforms={platforms} />
+        <QueryTableColumns columns={columns} />
+        {examples && <QueryTableExample example={examples} />}
+        {notes && <QueryTableNotes notes={notes} />}
+        <CustomLink
+          url={`https://www.fleetdm.com/tables/${name}`}
+          text="Source"
+          newTab
+        />
       </div>
-      {evented && <EventedTableTag selectedTableName={name} />}
-      {mdmRequired && (
-        <span className={`${baseClass}__mdm-required`}>Requires MDM</span>
-      )}
-      <div className={`${baseClass}__description`}>
-        <FleetMarkdown markdown={description} />
-      </div>
-      <QueryTablePlatforms platforms={platforms} />
-      <QueryTableColumns columns={columns} />
-      {examples && <QueryTableExample example={examples} />}
-      {notes && <QueryTableNotes notes={notes} />}
-      <CustomLink
-        url={`https://www.fleetdm.com/tables/${name}`}
-        text="Source"
-        newTab
-      />
     </>
   );
 };

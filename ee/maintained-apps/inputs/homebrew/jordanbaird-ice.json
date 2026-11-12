@@ -1,0 +1,10 @@
+{
+  "name": "Ice",
+  "unique_identifier": "com.jordanbaird.Ice",
+  "token": "jordanbaird-ice",
+  "installer_format": "zip",
+  "slug": "jordanbaird-ice/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

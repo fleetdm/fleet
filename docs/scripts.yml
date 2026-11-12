@@ -14,7 +14,7 @@
 
     echo "Then, ask the end user to type in /Users/Shared, press Return, and locate orbit.stderr.log (Orbit logs) and fleet-desktop.log (Fleet Desktop logs) files."
 
-- name: Create conditional access allow file.
+- name: Create conditional access allow file
   platform: macos
   description: Create an allow file used for Microsoft Entra conditional access.
   script: |
@@ -594,6 +594,21 @@
         bash -c "bash $0 remove >/dev/null 2>/dev/null </dev/null &"
     fi
 
+- name: Disable Wi-Fi auto-join
+  platform: macos
+  description: Disables auto-join for a specified Wi-Fi network (SSID). Update the SSID variable to match the target network name.
+  script: |
+    #!/bin/bash
+
+    # Disable Wi-Fi auto-join for a specified SSID (ie, the network name string on a Mac)
+    # Based on Alan Siu's approach: https://www.alansiu.net/2026/01/22/scripting-disabling-auto-join-for-wi-fi-networks/
+
+    /usr/sbin/ipconfig setverbose 1
+    ntwknm="$(/usr/sbin/ipconfig getsummary "$(/usr/sbin/scutil --nwi | /usr/bin/awk '/Network interfaces:/{print $NF}')" | /usr/bin/awk -v ORS="," -F ' : ' '!/<dictionary>/&&!/<array>/&&!/}/{gsub("^[[:space:]]*","",$0);print "\x22"$1"\x22"":""\x22"$2"\x22"}' | /usr/bin/sed 's/^/{/;s/,$/}/' | /usr/bin/jq -r '.SSID')"
+    /usr/sbin/ipconfig setverbose 0
+    
+    /usr/bin/defaults write /Library/Preferences/com.apple.wifi.known-networks wifi.network.ssid."$ntwknm" -dict-add AutoJoinDisabled -bool TRUE
+
 #
 #  ╦ ╦╦╔╗╔╔╦╗╔═╗╦ ╦╔═╗
 #  ║║║║║║║ ║║║ ║║║║╚═╗
@@ -680,6 +695,22 @@
   platform: windows
   description: Removes the fleetd agent from a Windows device.
   script: |
+    Add-Type -TypeDefinition @"
+    using System;
+    using System.Runtime.InteropServices;
+
+    public class MdmRegistration
+    {
+        [DllImport("mdmregistration.dll", SetLastError = true)]
+        public static extern int UnregisterDeviceWithManagement(IntPtr pDeviceID);
+
+        public static int UnregisterDevice()
+        {
+            return UnregisterDeviceWithManagement(IntPtr.Zero);
+        }
+    }
+    "@ -Language CSharp
+
     function Test-Administrator
     {
         [OutputType([bool])]
@@ -747,6 +778,31 @@
           }
         }
 
+        #Remove MSI product registration to prevent stale source path errors (error 1612)
+        #when the original install source (e.g. a network share) is no longer available.
+        $packedGuids = @()
+        Get-ChildItem "HKLM:\SOFTWARE\Classes\Installer\Products" -ErrorAction "SilentlyContinue" | ForEach-Object {
+          if ($_.GetValue("ProductName") -eq "Fleet osquery") {
+            $packedGuids += $_.PSChildName
+            Remove-Item $_.PSPath -Recurse -Force -ErrorAction "SilentlyContinue"
+          }
+        }
+        #Also scan UserData directly in case the Products key was already removed by a previous run
+        Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Installer\UserData" -ErrorAction "SilentlyContinue" | ForEach-Object {
+          $productsPath = Join-Path $_.PSPath "Products"
+          if (Test-Path $productsPath) {
+            Get-ChildItem $productsPath -ErrorAction "SilentlyContinue" | ForEach-Object {
+              $instProps = Join-Path $_.PSPath "InstallProperties"
+              if ((Test-Path $instProps) -and ((Get-ItemProperty $instProps -ErrorAction "SilentlyContinue").DisplayName -eq "Fleet osquery")) {
+                $packedGuids += $_.PSChildName
+              }
+              if ($packedGuids -contains $_.PSChildName) {
+                Remove-Item $_.PSPath -Recurse -Force -ErrorAction "SilentlyContinue"
+              }
+            }
+          }
+        }
+
         # Write success log
         "Fleetd successfully removed at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
       }
@@ -769,8 +825,6 @@
           Exit -1
         }
 
-        Write-Host "About to uninstall fleetd..."
-
         if ($args[0] -eq "remove") {
           # "remove" is received as argument to the script when called as the
           # sub-process that will actually remove the fleet agent.
@@ -789,6 +843,62 @@
             Exit -1
           }
         } else {
+          # Turn off MDM first so Fleet cannot re-enable it before fleetd is removed.
+
+          # Check 1: Fleet-specific enrollment (ProviderID + EnrollmentState)
+          $enrollmentKey = Get-Item -Path HKLM:\SOFTWARE\Microsoft\Enrollments\* -ErrorAction SilentlyContinue | Get-ItemProperty | Where-Object {$_.ProviderID -eq 'Fleet'} | Where-Object {$_.EnrollmentState -match '1|3|6|13'}
+          $mdmEnrolled = $null -ne $enrollmentKey
+
+          # Check 2: fallback via DiscoveryServiceFullURL
+          $enrollmentsPath = "HKLM:\SOFTWARE\Microsoft\Enrollments"
+          if (-not $mdmEnrolled) {
+              if (Test-Path $enrollmentsPath) {
+                  $enrollmentKeys = Get-ChildItem -Path $enrollmentsPath -ErrorAction SilentlyContinue
+                  foreach ($key in $enrollmentKeys) {
+                      if ($null -ne (Get-ItemProperty -Path $key.PSPath -Name "DiscoveryServiceFullURL" -ErrorAction SilentlyContinue)) {
+                          $mdmEnrolled = $true
+                          break
+                      }
+                  }
+              }
+          }
+
+          if ($mdmEnrolled) {
+              $result = [MdmRegistration]::UnregisterDevice()
+
+              if ($result -ne 0) {
+                  throw "UnregisterDeviceWithManagement failed with error code: $result"
+              }
+
+              Write-Host "Device unregistration called successfully."
+
+              $clearedCount = 0
+
+              if (Test-Path $enrollmentsPath) {
+                  $enrollmentKeys = Get-ChildItem -Path $enrollmentsPath -ErrorAction SilentlyContinue
+
+                  foreach ($key in $enrollmentKeys) {
+                      if ($null -ne (Get-ItemProperty -Path $key.PSPath -Name "DiscoveryServiceFullURL" -ErrorAction SilentlyContinue)) {
+                          try {
+                              Remove-ItemProperty -Path $key.PSPath -Name "DiscoveryServiceFullURL" -ErrorAction Stop
+                              $clearedCount++
+                              Write-Host "Cleared DiscoveryServiceFullURL from enrollment key: $($key.PSChildName)"
+                          } catch {
+                              Write-Warning "Failed to clear DiscoveryServiceFullURL from $($key.PSChildName): $_"
+                          }
+                      }
+                  }
+              }
+
+              if ($clearedCount -gt 0) {
+                  Write-Host "Cleared DiscoveryServiceFullURL from $clearedCount enrollment key(s)."
+              } else {
+                  Write-Host "Turning off MDM completed. The UnregisterDeviceWithManagement API automatically cleared the registry values."
+              }
+          } else {
+              Write-Host "MDM is not turned on. Skipping MDM unregistration."
+          }
+
           # when this script is executed from fleetd, it does not immediately
           # remove the agent. Instead, it starts a new detached process that
           # will do the actual removal.
@@ -797,7 +907,7 @@
           Write-Host "Executing detached child process"
 
           $execName = $MyInvocation.ScriptName
-          $proc = Start-Process -PassThru -FilePath "powershell" -WindowStyle Hidden -ArgumentList "-MTA", "-ExecutionPolicy", "Bypass", "-File", "$execName remove"
+          $proc = Start-Process -PassThru -FilePath "powershell" -WindowStyle Hidden -ArgumentList "-MTA", "-ExecutionPolicy", "Bypass", "-File", "`"$execName`"", "remove"
 
           # Log the process ID
           "Started removal process with ID: $($proc.Id) at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
@@ -806,9 +916,8 @@
           Write-Host "Removal process started: $($proc.Id)."
         }
       } catch {
-        Write-Host "Error: Entry point"
-        Write-Host "$(Resolve-Error-Detailed)"
-        Exit -1
+        Write-Error "Error running fleetd unenrollment script: $_"
+        exit 1
       }
     }
 

@@ -1,10 +1,10 @@
+import { AxiosError } from "axios";
 import React from "react";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import DataError from "components/DataError";
-import { AxiosError } from "axios";
 import { IMdmApple } from "interfaces/mdm";
+
 import SectionCard from "../../SectionCard";
 
 const baseClass = "apple-mdm-card";
@@ -36,8 +36,7 @@ const SeeDetailsAppleMdmCard = ({
     <SectionCard
       iconName="success"
       cta={
-        <Button onClick={onClickDetails} variant="inverse">
-          <Icon name="pencil" />
+        <Button onClick={onClickDetails} variant="subdued" icon="pencil">
           Edit
         </Button>
       }

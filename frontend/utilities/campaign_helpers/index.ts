@@ -1,3 +1,4 @@
+import { notify } from "components/ToastNotification";
 import {
   ICampaign,
   ICampaignState,
@@ -5,8 +6,6 @@ import {
   IHostWithQueryResults,
 } from "interfaces/campaign";
 import { IHost } from "interfaces/host";
-import { useContext } from "react";
-import { NotificationContext } from "context/notification";
 
 interface IResult {
   type: "result";
@@ -149,7 +148,6 @@ const updateCampaignStateFromStatus = (
 
 export const updateCampaignState = (socketData: ISocketData) => {
   return ({ campaign }: ICampaignState) => {
-    const { renderFlash } = useContext(NotificationContext);
     switch (socketData.type) {
       case "totals":
         return updateCampaignStateFromTotals(campaign, socketData);
@@ -162,8 +160,7 @@ export const updateCampaignState = (socketData: ISocketData) => {
           const campaignID = socketData.data.substring(
             socketData.data.indexOf("=") + 1
           );
-          renderFlash(
-            "error",
+          notify.error(
             `Fleet's connection to Redis failed (campaign ID ${campaignID}). If this issue persists, please contact your administrator.`
           );
         }

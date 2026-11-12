@@ -1,27 +1,26 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-import usersAPI from "services/entities/users";
-import configAPI from "services/entities/config";
-import formatErrorResponse from "utilities/format_error_response";
-
-// @ts-ignore
-import ResetPasswordForm from "components/forms/ResetPasswordForm";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import AuthenticationNav from "components/AuthenticationNav";
+import ResetPasswordForm from "components/forms/ResetPasswordForm";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import usersAPI from "services/entities/users";
+import formatErrorResponse from "utilities/format_error_response";
 
 const baseClass = "reset-password-page";
 interface IResetPasswordPageProps {
-  location: any; // no type in react-router v3
+  location: {
+    query: { token?: string };
+  };
   router: InjectedRouter;
 }
 
 const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
   const { token } = location.query;
   const { currentUser, setConfig } = useContext(AppContext);
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     if (!currentUser && !token) {
@@ -29,12 +28,12 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
     }
   }, [currentUser, token]);
 
-  // No access prompt if API errors due to no role or currentUser data has no role
+  // No access prompt if currentUser data has no role
   useEffect(() => {
-    if (!currentUser?.global_role && currentUser?.teams.length === 0) {
+    if (!currentUser?.global_role && currentUser?.fleets.length === 0) {
       router.push(PATHS.NO_ACCESS);
     }
-  }, [errors, currentUser]);
+  }, [currentUser]);
 
   const continueWithLoggedInUser = async (formData: any) => {
     const { new_password } = formData;
@@ -51,10 +50,12 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
         )
       ) {
         router.push(PATHS.NO_ACCESS);
+        return false;
       }
-
-      const errorObject = formatErrorResponse(response);
-      setErrors(errorObject);
+      const { base } = formatErrorResponse(response);
+      notify.error(base || "Couldn't reset your password. Try again.", {
+        response,
+      });
       return false;
     }
   };
@@ -73,8 +74,10 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
       await usersAPI.resetPassword(resetPasswordData);
       router.push(PATHS.LOGIN);
     } catch (response) {
-      const errorObject = formatErrorResponse(response);
-      setErrors(errorObject);
+      const { base } = formatErrorResponse(response);
+      notify.error(base || "Couldn't reset your password. Try again.", {
+        response,
+      });
       return false;
     }
   };
@@ -88,7 +91,7 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
           (e.g. &*#)
         </p>
       </div>
-      <ResetPasswordForm handleSubmit={onSubmit} serverErrors={errors} />
+      <ResetPasswordForm handleSubmit={onSubmit} />
     </AuthenticationFormWrapper>
   );
 };

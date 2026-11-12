@@ -1,12 +1,11 @@
 import React from "react";
-import { formatDistanceToNow } from "date-fns";
-
-import { ILastExecution, IScriptExecutionStatus } from "interfaces/script";
 
 import StatusIndicatorWithIcon, {
   IndicatorStatus,
 } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import { ILastExecution, IScriptExecutionStatus } from "interfaces/script";
+import { timeAgo } from "utilities/date_format";
 
 interface IScriptStatusDisplayConfig {
   displayText: string;
@@ -50,10 +49,9 @@ const ScriptStatusCell = ({ lastExecution }: IScriptStatusCellProps) => {
     lastExecution.status
   ];
 
-  const humanizedExecutedAt = formatDistanceToNow(
-    new Date(lastExecution.executed_at),
-    { includeSeconds: true }
-  );
+  const humanizedExecutedAt = timeAgo(new Date(lastExecution.executed_at), {
+    includeSeconds: true,
+  });
 
   return (
     <StatusIndicatorWithIcon

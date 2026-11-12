@@ -154,8 +154,18 @@ func TestRotator(t *testing.T) {
 	stop1 := rw.StartRotation()
 	stop2 := rw.StartRotation()
 
-	time.Sleep(150 * time.Millisecond)
-	require.Equal(t, int32(1), atomic.LoadInt32(&numUpdates)) // Atomic read
+	// Wait for the first rotation to complete.
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&numUpdates) >= 1
+	}, 5*time.Second, 10*time.Millisecond)
+
+	// Wait for the rotation's Write() to fully complete — mtime will
+	// be set to "now" by readFile() at the end of Write(). Without
+	// this, setting mtime to -2h below can be clobbered by the
+	// still-in-flight Write().
+	require.Eventually(t, func() bool {
+		return time.Since(rw.GetMtime()) < 30*time.Second
+	}, 5*time.Second, 10*time.Millisecond)
 
 	// Close the first stop channel, this should not stop the rotation.
 	stop1()
@@ -167,10 +177,15 @@ func TestRotator(t *testing.T) {
 	rw.mtime = time.Now().Add(-2 * time.Hour)
 	rw.mu.Unlock()
 
-	// Now wait enough time for the remote check to trigger a rotation.
-	time.Sleep(209 * time.Millisecond)
-	require.Equal(t, int32(2), atomic.LoadInt32(&numUpdates))      // Atomic read
-	require.Equal(t, int32(1), atomic.LoadInt32(&numRemoteChecks)) // Atomic read
+	// Wait for the second rotation.
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&numUpdates) >= 2
+	}, 5*time.Second, 10*time.Millisecond)
+	// The remote check ticker fires at the same time as the second local check,
+	// so the remote check may run after the second rotation.
+	require.Eventually(t, func() bool {
+		return atomic.LoadInt32(&numRemoteChecks) >= 1
+	}, 5*time.Second, 10*time.Millisecond)
 
 	// Reset the mtime one more time.
 	rw.mu.Lock()

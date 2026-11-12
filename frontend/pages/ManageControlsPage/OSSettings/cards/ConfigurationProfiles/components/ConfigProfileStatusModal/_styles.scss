@@ -1,0 +1,12 @@
+.config-profile-status-modal {
+  &__content {
+    @include vertical-modal-layout;
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    overflow-wrap: anywhere;
+  }
+}

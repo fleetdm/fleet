@@ -3,16 +3,17 @@
 package execuser
 
 import (
-	"io"
 	"time"
 )
 
 type eopts struct {
 	env        [][2]string
 	args       [][2]string
-	stderrPath string //nolint:structcheck,unused
+	stderrPath string //nolint:unused
 	timeout    time.Duration
 	user       string
+	// xdgSessionEnv is only used on Linux.
+	xdgSessionEnv bool
 }
 
 // Option allows configuring the application.
@@ -46,6 +47,14 @@ func WithUser(user string) Option {
 	}
 }
 
+// WithXDGSessionEnv sets XDG_RUNTIME_DIR and XDG_SESSION_TYPE for the login user's
+// GUI session, which sudo otherwise resets. Currently only supported on Linux.
+func WithXDGSessionEnv() Option {
+	return func(a *eopts) {
+		a.xdgSessionEnv = true
+	}
+}
+
 // Run runs an application as the current login user.
 // It assumes the caller is running with high privileges (root on Unix, SYSTEM on Windows).
 //
@@ -69,12 +78,4 @@ func RunWithOutput(path string, opts ...Option) (output []byte, exitCode int, er
 		fn(&o)
 	}
 	return runWithOutput(path, o)
-}
-
-func RunWithStdin(path string, opts ...Option) (io.WriteCloser, error) {
-	var o eopts
-	for _, fn := range opts {
-		fn(&o)
-	}
-	return runWithStdin(path, o)
 }

@@ -1,0 +1,10 @@
+{
+  "name": "SQLPro for Postgres",
+  "unique_identifier": "com.hankinsoft.osx.SQLProPostgres",
+  "token": "sqlpro-for-postgres",
+  "installer_format": "zip",
+  "slug": "sqlpro-for-postgres/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

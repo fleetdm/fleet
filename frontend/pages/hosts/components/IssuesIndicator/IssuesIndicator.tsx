@@ -1,52 +1,51 @@
+import classnames from "classnames";
 import React from "react";
+import { PlacesType } from "react-tooltip-5";
 
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
 import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface IIssuesIndicatorProps {
   totalIssuesCount?: number;
   failingPoliciesCount?: number;
   /** Premium only */
   criticalVulnerabilitiesCount?: number;
-  rowId?: number;
-  tooltipPosition?: "top" | "bottom";
+  tooltipPosition?: PlacesType;
+  rowId?: string | number;
 }
+
+const baseClass = "issues-indicator";
 
 const IssuesIndicator = ({
   totalIssuesCount,
   failingPoliciesCount,
   criticalVulnerabilitiesCount,
-  rowId,
   tooltipPosition = "top",
+  rowId,
 }: IIssuesIndicatorProps): JSX.Element => {
-  return (
+  const classNames = classnames(baseClass, {
+    [`${baseClass}--${rowId}`]: !!rowId,
+  });
+  const tipContent = (
     <>
-      <span
-        className="host-issue tooltip tooltip__tooltip-icon"
-        data-tip
-        data-for={`host-issue-count-${rowId}`}
-        data-tip-disable={false}
-      >
-        <Icon name="error-outline" color="ui-fleet-black-50" />{" "}
-        {totalIssuesCount}
-      </span>
-      <ReactTooltip
-        place={tooltipPosition}
-        effect="solid"
-        backgroundColor={COLORS["tooltip-bg"]}
-        id={`host-issue-count-${rowId}`}
-        data-html
-      >
-        <span className={`tooltip__tooltip-text`}>
-          {!!criticalVulnerabilitiesCount &&
-            `Critical vulnerabilities (${criticalVulnerabilitiesCount})`}
-          {!!criticalVulnerabilitiesCount && !!failingPoliciesCount && <br />}
-          {!!failingPoliciesCount &&
-            `Failing policies (${failingPoliciesCount})`}
-        </span>
-      </ReactTooltip>
+      {!!criticalVulnerabilitiesCount &&
+        `Critical vulnerabilities (${criticalVulnerabilitiesCount})`}
+      {!!criticalVulnerabilitiesCount && !!failingPoliciesCount && <br />}
+      {!!failingPoliciesCount && `Failing policies (${failingPoliciesCount})`}
     </>
+  );
+
+  return (
+    <TooltipWrapper
+      tipContent={tipContent}
+      position={tooltipPosition}
+      underline={false}
+      showArrow
+      className={classNames}
+      tipOffset={8}
+    >
+      <Icon name="error" color="ui-fleet-black-50" /> {totalIssuesCount}
+    </TooltipWrapper>
   );
 };
 

@@ -1,41 +1,45 @@
-import React, { useContext, useEffect, useState } from "react";
 import { AxiosError, AxiosResponse } from "axios";
-import { useQuery } from "react-query";
-import { ErrorBoundary } from "react-error-boundary";
 import { isBefore } from "date-fns";
+import React, { useContext, useEffect, useState, useCallback } from "react";
+import { ErrorBoundary } from "react-error-boundary";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import page_titles from "router/page_titles";
-import TableProvider from "context/table";
-import QueryProvider from "context/query";
-import PolicyProvider from "context/policy";
-import NotificationProvider from "context/notification";
+import Spinner from "components/Spinner";
+import ToastNotification from "components/ToastNotification";
 import { AppContext } from "context/app";
-import { authToken, clearToken } from "utilities/local";
+import PolicyProvider from "context/policy";
+import QueryProvider from "context/query";
+import TableProvider from "context/table";
 import useDeepEffect from "hooks/useDeepEffect";
-import { QueryParams } from "utilities/url";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import usersAPI from "services/entities/users";
-import configAPI from "services/entities/config";
-import hostCountAPI from "services/entities/host_count";
-import mdmAppleBMAPI, {
-  IGetAbmTokensResponse,
-} from "services/entities/mdm_apple_bm";
-import mdmAppleAPI, {
-  IGetVppTokensResponse,
-} from "services/entities/mdm_apple";
-import mdmAndroidAPI from "services/entities/mdm_android";
-
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
+import ErrorPageLayout from "layouts/ErrorPageLayout";
 // @ts-ignore
 import Fleet403 from "pages/errors/Fleet403";
 // @ts-ignore
 import Fleet404 from "pages/errors/Fleet404";
 // @ts-ignore
 import Fleet500 from "pages/errors/Fleet500";
-
-import Spinner from "components/Spinner";
+import page_titles from "router/page_titles";
+import PATHS from "router/paths";
+import certificatesAPI from "services/entities/certificates";
+import configAPI from "services/entities/config";
+import hostCountAPI from "services/entities/host_count";
+import mdmAndroidAPI from "services/entities/mdm_android";
+import mdmAppleAPI, {
+  IGetVppTokensResponse,
+} from "services/entities/mdm_apple";
+import mdmAppleBMAPI, {
+  IGetAbTokensResponse,
+} from "services/entities/mdm_apple_bm";
+import usersAPI from "services/entities/users";
+import authToken from "utilities/auth_token";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { QueryParams } from "utilities/url";
 
 interface IAppProps {
   children: JSX.Element;
+  router: InjectedRouter;
   location?: {
     pathname: string;
     search: string;
@@ -51,7 +55,7 @@ interface RecordWithRenewDate {
 const GUARANTEED_PAST_DATE = "2000-01-01T01:00:00Z";
 
 // TODO: add tests for this function
-const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
+export const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
   const earliest = records.reduce((acc, record) => {
     const renewDate = new Date(record.renew_date);
     return isBefore(acc, renewDate) ? acc : renewDate;
@@ -67,14 +71,26 @@ const getEarliestExpiry = (records: RecordWithRenewDate[]): string => {
   return earliest.toISOString();
 };
 
+/** The earliest client certificate expiry of the EJBCA certificate authorities, or "" when there is none. */
+export const getEarliestEJBCACertExpiry = (
+  certAuthorities: ICertificateAuthorityPartial[]
+): string => {
+  const records = certAuthorities
+    .filter((ca) => ca.type === "ejbca" && ca.mtls_cert_expires_at)
+    .map((ca) => ({ renew_date: ca.mtls_cert_expires_at as string }));
+  return records.length ? getEarliestExpiry(records) : "";
+};
+
 const baseClass = "app";
 
-const App = ({ children, location }: IAppProps): JSX.Element => {
+const App = ({ children, location, router }: IAppProps): JSX.Element => {
   const {
     config,
     currentUser,
     isGlobalAdmin,
+    isGlobalMaintainer,
     isGlobalObserver,
+    isGlobalTechnician,
     isOnlyObserver,
     isAnyTeamMaintainerOrTeamAdmin,
     setAvailableTeams,
@@ -86,8 +102,11 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     setABMExpiry,
     setAPNsExpiry,
     setVppExpiry,
+    setEJBCAExpiry,
     setSandboxExpiry,
     setNoSandboxHosts,
+    setHostCount,
+    isPremiumTier,
   } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -115,21 +134,38 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     },
   });
 
-  // Get the ABM tokens
-  useQuery<IGetAbmTokensResponse, AxiosError>(
-    ["abm_tokens"],
+  // Get the Apple Business (AB) tokens
+  useQuery<IGetAbTokensResponse, AxiosError>(
+    ["ab_tokens"],
     () => mdmAppleBMAPI.getTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
-      onSuccess: ({ abm_tokens }) => {
-        abm_tokens.length &&
+      enabled:
+        !!isGlobalAdmin &&
+        !!config?.mdm.enabled_and_configured &&
+        !!isPremiumTier,
+      onSuccess: ({ ab_tokens }) => {
+        // Always update the context, even when the list is empty (e.g., the
+        // last token was deleted) -- otherwise stale expiry/banner state from
+        // a previous non-empty response would linger indefinitely.
+        if (ab_tokens.length === 0) {
           setABMExpiry({
-            earliestExpiry: getEarliestExpiry(abm_tokens),
-            needsAbmTermsRenewal: abm_tokens.some(
-              (token) => token.terms_expired
-            ),
+            earliestExpiry: "",
+            needsAbmTermsRenewal: false,
+            hasInvalidABMToken: false,
+            invalidAbmTokenOrgNames: [],
           });
+          return;
+        }
+
+        setABMExpiry({
+          earliestExpiry: getEarliestExpiry(ab_tokens),
+          needsAbmTermsRenewal: ab_tokens.some((token) => token.terms_expired),
+          hasInvalidABMToken: ab_tokens.some((token) => token.token_invalid),
+          invalidAbmTokenOrgNames: ab_tokens
+            .filter((token) => token.token_invalid)
+            .map((token) => token.org_name),
+        });
       },
       // TODO: Do we need to catch and check for a 400 status code? The old
       // API behaved this way when the token is already expired or invalid.
@@ -138,6 +174,8 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
           setABMExpiry({
             earliestExpiry: GUARANTEED_PAST_DATE,
             needsAbmTermsRenewal: true, // TODO: if order of precedence for banners changes, we may need to upate this
+            hasInvalidABMToken: false,
+            invalidAbmTokenOrgNames: [],
           });
         }
       },
@@ -159,14 +197,57 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!isGlobalAdmin && !!config?.mdm.enabled_and_configured,
+      enabled:
+        !!isGlobalAdmin &&
+        !!config?.mdm.enabled_and_configured &&
+        !!isPremiumTier,
       onSuccess: ({ vpp_tokens }) => {
         vpp_tokens.length && setVppExpiry(getEarliestExpiry(vpp_tokens));
       },
     }
   );
 
-  const fetchConfig = async () => {
+  // Get the client certificate expiry of the EJBCA certificate authorities. This shares its cache with the
+  // certificate authorities page, so adding, editing, or deleting one updates the banner.
+  useQuery(
+    ["certAuthorities"],
+    () => certificatesAPI.getCertificateAuthoritiesList(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!isGlobalAdmin && !!isPremiumTier,
+      onSuccess: ({ certificate_authorities }) => {
+        // react-query runs onSuccess on disabled queries too when another observer shares the key
+        if (!isGlobalAdmin || !isPremiumTier) {
+          return;
+        }
+        setEJBCAExpiry(getEarliestEJBCACertExpiry(certificate_authorities));
+      },
+    }
+  );
+
+  // Fleet-level users only see their own fleets' hosts, so only global users
+  // get a total that can be compared against the license.
+  const canCompareHostCountToLicense =
+    !!isPremiumTier &&
+    !!config?.license.device_count &&
+    (!!isGlobalAdmin ||
+      !!isGlobalMaintainer ||
+      !!isGlobalObserver ||
+      !!isGlobalTechnician);
+
+  useQuery(["hosts_count_for_license"], () => hostCountAPI.load({}), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: canCompareHostCountToLicense,
+    onSuccess: ({ count }) => setHostCount(count),
+  });
+
+  useEffect(() => {
+    if (!canCompareHostCountToLicense) {
+      setHostCount(undefined);
+    }
+  }, [canCompareHostCountToLicense, setHostCount]);
+
+  const fetchConfig = useCallback(async () => {
     try {
       const configResponse = await configAPI.loadAll();
       if (configResponse.sandbox_enabled) {
@@ -184,19 +265,22 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       setIsLoading(false);
     }
     return true;
-  };
+  }, [setConfig, setSandboxExpiry, setNoSandboxHosts]);
 
-  const fetchCurrentUser = async () => {
+  const fetchCurrentUser = useCallback(async () => {
     try {
-      const { user, available_teams, settings } = await usersAPI.me();
+      const { user, available_fleets, settings } = await usersAPI.me();
       setCurrentUser(user);
-      setAvailableTeams(user, available_teams);
+      setAvailableTeams(user, available_fleets);
       setUserSettings(settings);
       fetchConfig();
     } catch (error) {
       if (
         // reseting a user's password requires the current token
         location?.pathname.includes("/login/reset") ||
+        // a no-access user who also needs a password reset gets a 401 from
+        // /me; don't redirect them away from the access denied page
+        location?.pathname.includes("/login/denied") ||
         // these errors can occur when user refreshes their page at certain intervals,
         // in which case we don't want to log them out
         (typeof error === "string" &&
@@ -206,34 +290,50 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
       ) {
         return true;
       }
-      clearToken();
+      authToken.remove();
+      // AuthenticatedRoutes handles 401s with an SPA redirect; a reload here
+      // would lose the session-expired notice and the page to return to.
+      if ((error as { status?: number })?.status === 401) {
+        return true;
+      }
       // if this is not the device user page,
       // redirect to login
       if (!location?.pathname.includes("/device/")) {
-        window.location.href = "/login";
+        window.location.href = PATHS.LOGIN;
       }
     }
     return true;
-  };
+  }, [
+    location?.pathname,
+    setCurrentUser,
+    setAvailableTeams,
+    setUserSettings,
+    fetchConfig,
+  ]);
 
   useEffect(() => {
-    if (authToken() && !location?.pathname.includes("/device/")) {
+    // Skip on `/logout`: this request races the session-destroy call.
+    if (
+      authToken.get() &&
+      !location?.pathname.includes("/device/") &&
+      !location?.pathname.includes("/logout")
+    ) {
       fetchCurrentUser();
     }
-  }, [location?.pathname]);
+  }, [location?.pathname, fetchCurrentUser]);
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // Also applies title to subpaths such as settings/organization/webaddress
     // TODO - handle different kinds of paths from PATHS - string, function w/params
     const curTitle = page_titles.find((item) =>
-      location?.pathname.includes(item.path)
+      location?.pathname.startsWith(item.path)
     );
 
     if (curTitle && curTitle.title) {
       document.title = curTitle.title;
     }
-  }, [location, config]);
+  }, [location?.pathname, config]);
 
   useDeepEffect(() => {
     const canGetEnrollSecret =
@@ -252,7 +352,6 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
         setEnrollSecret(spec.secrets);
       } catch (error) {
         console.error(error);
-        return false;
       }
     };
 
@@ -263,20 +362,25 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
 
   // "any" is used on purpose. We are using Axios but this
   // function expects a native React Error type, which is incompatible.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const renderErrorOverlay = ({ error }: any) => {
     // @ts-ignore
     console.error(error);
 
     const overlayError = error as AxiosResponse;
+
+    let errorPage = <Fleet500 />;
     if (overlayError.status === 403 || overlayError.status === 402) {
-      return <Fleet403 />;
+      errorPage = <Fleet403 />;
+    } else if (overlayError.status === 404) {
+      errorPage = <Fleet404 />;
     }
 
-    if (overlayError.status === 404) {
-      return <Fleet404 />;
-    }
-
-    return <Fleet500 />;
+    return (
+      <ErrorPageLayout router={router} location={location}>
+        {errorPage}
+      </ErrorPageLayout>
+    );
   };
 
   return isLoading ? (
@@ -285,14 +389,16 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     <TableProvider>
       <QueryProvider>
         <PolicyProvider>
-          <NotificationProvider>
-            <ErrorBoundary
-              fallbackRender={renderErrorOverlay}
-              resetKeys={[location?.pathname]}
-            >
-              <div className={baseClass}>{children}</div>
-            </ErrorBoundary>
-          </NotificationProvider>
+          {/* Sonner toaster — single global mount; renders toasts
+          dispatched from `notify.*` anywhere in the app. Outside the
+          ErrorBoundary so toasts survive page-level error overlays. */}
+          <ToastNotification />
+          <ErrorBoundary
+            fallbackRender={renderErrorOverlay}
+            resetKeys={[location?.pathname]}
+          >
+            <div className={baseClass}>{children}</div>
+          </ErrorBoundary>
         </PolicyProvider>
       </QueryProvider>
     </TableProvider>

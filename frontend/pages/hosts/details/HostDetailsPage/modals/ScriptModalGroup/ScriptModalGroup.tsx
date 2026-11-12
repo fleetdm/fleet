@@ -1,23 +1,21 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useQuery } from "react-query";
 
+import { notify } from "components/ToastNotification";
 import { getErrorReason, IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
 import { IHostScript } from "interfaces/script";
 import { IUser } from "interfaces/user";
-
+import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
+import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
+import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
 import scriptsAPI, {
   IHostScriptsQueryKey,
   IHostScriptsResponse,
 } from "services/entities/scripts";
 
-import { NotificationContext } from "context/notification";
-
-import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
-import DeleteScriptModal from "pages/ManageControlsPage/Scripts/components/DeleteScriptModal";
-import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
-import RunScriptModal from "../RunScriptModal";
 import ConfirmRunScriptModal from "../ConfirmRunScriptModal";
+import RunScriptModal from "../RunScriptModal";
 
 interface IScriptsProps {
   currentUser: IUser | null;
@@ -40,7 +38,6 @@ const ScriptModalGroup = ({
   onCloseScriptModalGroup,
   teamIdForApi,
 }: IScriptsProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [previousModal, setPreviousModal] = useState<ModalGroupOption | null>(
     null
   );
@@ -124,20 +121,19 @@ const ScriptModalGroup = ({
           // will be defined when this is being called
           script_id: selectedScript.script_id,
         });
-        renderFlash(
-          "success",
+        notify.success(
           "Script is running or will run when the host comes online."
         );
         refetchHostScripts();
       } catch (e) {
-        renderFlash("error", getErrorReason(e));
+        notify.error(getErrorReason(e), { response: e });
       } finally {
         setIsRunningScript(false);
         setSelectedScript(null);
         setCurrentModal(ModalGroupOption.Run);
       }
     }
-  }, [host.id, refetchHostScripts, renderFlash, selectedScript]);
+  }, [host.id, refetchHostScripts, selectedScript]);
 
   const onClikRunBeforeConfirmation = useCallback(
     (script: IHostScript) => {
@@ -148,23 +144,33 @@ const ScriptModalGroup = ({
     [currentModal]
   );
 
+  const onClickViewScript = useCallback(
+    (script: IHostScript) => {
+      setPreviousModal(currentModal);
+      setCurrentModal(ModalGroupOption.ViewScriptDetails);
+      setSelectedScript(script);
+    },
+    [currentModal]
+  );
+
+  const onClickRunDetails = useCallback(
+    (scriptExecutionId: string) => {
+      setPreviousModal(currentModal);
+      setCurrentModal(ModalGroupOption.ViewRunDetails);
+      setSelectedExecutionId(scriptExecutionId);
+    },
+    [currentModal]
+  );
+
   return (
     <>
       <RunScriptModal
         currentUser={currentUser}
-        hostTeamId={host.team_id}
+        hostTeamId={host.fleet_id}
         onClickRun={onClikRunBeforeConfirmation}
         onClose={onCloseScriptModalGroup}
-        onClickViewScript={(script: IHostScript) => {
-          setPreviousModal(currentModal);
-          setCurrentModal(ModalGroupOption.ViewScriptDetails);
-          setSelectedScript(script);
-        }}
-        onClickRunDetails={(scriptExecutionId: string) => {
-          setPreviousModal(currentModal);
-          setCurrentModal(ModalGroupOption.ViewRunDetails);
-          setSelectedExecutionId(scriptExecutionId);
-        }}
+        onClickViewScript={onClickViewScript}
+        onClickRunDetails={onClickRunDetails}
         page={runScriptTablePage}
         setPage={setRunScriptTablePage}
         hostScriptResponse={runScriptTableResponse}
@@ -189,7 +195,7 @@ const ScriptModalGroup = ({
         isHidden={currentModal !== ModalGroupOption.ConfirmRun}
       />
       <ScriptDetailsModal
-        hostTeamId={host.team_id}
+        hostTeamId={host.fleet_id}
         selectedScriptDetails={selectedScript}
         // script id and details both passed to accomodate various instances of this component, some
         // in a slightly different context
@@ -232,19 +238,23 @@ const ScriptModalGroup = ({
         }}
         isHidden={currentModal !== ModalGroupOption.Delete}
       />
-      <RunScriptDetailsModal
-        scriptExecutionId={selectedExecutionId || ""}
-        onCancel={() => {
-          if (previousModal === ModalGroupOption.ViewScriptDetails) {
-            setCurrentModal(previousModal);
-            setPreviousModal(ModalGroupOption.Run);
-          } else if (previousModal === ModalGroupOption.Run) {
-            setCurrentModal(previousModal);
-            setPreviousModal(null);
-          }
-        }}
-        isHidden={currentModal !== ModalGroupOption.ViewRunDetails}
-      />
+      {/* Mounted only while shown: it holds no state worth preserving (the
+          scripts table pagination lives in this component), and unmounting
+          discards any in-flight close-animation state. */}
+      {currentModal === ModalGroupOption.ViewRunDetails && (
+        <RunScriptDetailsModal
+          scriptExecutionId={selectedExecutionId || ""}
+          onCancel={() => {
+            if (previousModal === ModalGroupOption.ViewScriptDetails) {
+              setCurrentModal(previousModal);
+              setPreviousModal(ModalGroupOption.Run);
+            } else if (previousModal === ModalGroupOption.Run) {
+              setCurrentModal(previousModal);
+              setPreviousModal(null);
+            }
+          }}
+        />
+      )}
     </>
   );
 };

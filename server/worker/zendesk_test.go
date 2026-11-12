@@ -5,19 +5,118 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
-	kitlog "github.com/go-kit/log"
 	zendesk "github.com/nukosuke/go-zendesk/zendesk"
 	"github.com/stretchr/testify/require"
 )
+
+func TestZendeskOnFinalFailure(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("failing policy records activity", func(t *testing.T) {
+		var recorded []fleet.ActivityDetails
+		z := &Zendesk{
+			Log: slog.New(slog.DiscardHandler),
+			NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, user *activity_api.User, activity fleet.ActivityDetails) error {
+				require.Nil(t, user)
+				recorded = append(recorded, activity)
+				return nil
+			}},
+		}
+
+		args, err := json.Marshal(zendeskArgs{FailingPolicy: &failingPolicyArgs{
+			PolicyID: 6,
+			Hosts:    []fleet.PolicySetHost{{ID: 3, Hostname: "h3"}},
+		}})
+		require.NoError(t, err)
+
+		require.NoError(t, z.OnFinalFailure(ctx, args, `422: {"error":"RecordInvalid"}`))
+
+		require.Len(t, recorded, 1)
+		act, ok := recorded[0].(fleet.ActivityTypeFailedAutomationTicket)
+		require.True(t, ok)
+		require.Equal(t, uint(6), act.PolicyID)
+		require.Equal(t, []uint{3}, act.HostIDList)
+		require.Equal(t, "zendesk", act.Type)
+		require.Equal(t, `422: {"error":"RecordInvalid"}`, act.ErrorResponse)
+	})
+
+	t.Run("vuln job records nothing", func(t *testing.T) {
+		var recorded []fleet.ActivityDetails
+		z := &Zendesk{
+			Log: slog.New(slog.DiscardHandler),
+			NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity fleet.ActivityDetails) error {
+				recorded = append(recorded, activity)
+				return nil
+			}},
+		}
+
+		args, err := json.Marshal(zendeskArgs{Vulnerability: &vulnArgs{CVE: "CVE-2024-2"}})
+		require.NoError(t, err)
+
+		require.NoError(t, z.OnFinalFailure(ctx, args, "boom"))
+		require.Empty(t, recorded)
+	})
+}
+
+func TestZendeskRunRecordsCreatedActivity(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{Integrations: fleet.Integrations{
+			Zendesk: []*fleet.ZendeskIntegration{
+				{EnableFailingPolicies: true},
+			},
+		}}, nil
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"ticket":{"id":4567}}`))
+	}))
+	defer srv.Close()
+
+	client, err := externalsvc.NewZendeskTestClient(&externalsvc.ZendeskOptions{URL: srv.URL, GroupID: int64(123)})
+	require.NoError(t, err)
+
+	t.Run("failing policy records created activity", func(t *testing.T) {
+		var recorded []fleet.ActivityDetails
+		z := &Zendesk{
+			FleetURL:  "https://fleetdm.com",
+			Datastore: ds,
+			Log:       slog.New(slog.DiscardHandler),
+			NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
+				return client, nil
+			},
+			NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, user *activity_api.User, activity fleet.ActivityDetails) error {
+				require.Nil(t, user)
+				recorded = append(recorded, activity)
+				return nil
+			}},
+		}
+
+		args := json.RawMessage(`{"failing_policy":{"policy_id":6,"policy_name":"p6","hosts":[{"id":3,"hostname":"h3"}]}}`)
+		require.NoError(t, z.Run(license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}), args))
+
+		require.Len(t, recorded, 1)
+		act, ok := recorded[0].(fleet.ActivityTypeRanAutomationTicket)
+		require.True(t, ok)
+		require.Equal(t, uint(6), act.PolicyID)
+		require.Equal(t, []uint{3}, act.HostIDList)
+		require.Equal(t, "zendesk", act.Type)
+		require.Equal(t, int64(4567), act.TicketID)
+	})
+
+}
 
 func TestZendeskRun(t *testing.T) {
 	ds := new(mock.Store)
@@ -129,14 +228,14 @@ func TestZendeskRun(t *testing.T) {
 			`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": [{"id": 123, "hostname": "host-123"}]}}`,
 			`"subject":"test-policy policy failed on 1 host(s)"`,
 			[]string{"\\u0026policy_id=1\\u0026policy_response=failing"},
-			"\\u0026team_id=",
+			"\\u0026fleet_id=",
 		},
 		{
 			"failing team policy",
 			fleet.TierPremium,
 			`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": [{"id": 1, "hostname": "host-1"}, {"id": 2, "hostname": "host-2"}]}}`,
 			`"subject":"test-policy-2 policy failed on 2 host(s)"`,
-			[]string{"\\u0026team_id=123\\u0026policy_id=2\\u0026policy_response=failing"},
+			[]string{"\\u0026fleet_id=123\\u0026policy_id=2\\u0026policy_response=failing"},
 			"",
 		},
 		{
@@ -182,10 +281,13 @@ func TestZendeskRun(t *testing.T) {
 			zendesk := &Zendesk{
 				FleetURL:  "https://fleetdm.com",
 				Datastore: ds,
-				Log:       kitlog.NewNopLogger(),
+				Log:       slog.New(slog.DiscardHandler),
 				NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 					return client, nil
 				},
+				NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, _ fleet.ActivityDetails) error {
+					return nil
+				}},
 			}
 
 			expectedSubject = c.expectedSubject
@@ -200,7 +302,7 @@ func TestZendeskRun(t *testing.T) {
 func TestZendeskQueueVulnJobs(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("same vulnerability on multiple software only queue one job", func(t *testing.T) {
 		var count int
@@ -263,7 +365,7 @@ func TestZendeskQueueVulnJobs(t *testing.T) {
 func TestZendeskQueueFailingPolicyJob(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("success global", func(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
@@ -386,7 +488,7 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 	zendeskJob := &Zendesk{
 		FleetURL:  "http://example.com",
 		Datastore: ds,
-		Log:       kitlog.NewNopLogger(),
+		Log:       slog.New(slog.DiscardHandler),
 		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			// keep track of group IDs received in calls to NewClientFunc
 			groupIDs = append(groupIDs, opts.GroupID)
@@ -394,6 +496,9 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 			clients = append(clients, c)
 			return c, nil
 		},
+		NewActivitySvc: &mock.MockActivityService{NewActivityFunc: func(_ context.Context, _ *activity_api.User, _ fleet.ActivityDetails) error {
+			return nil
+		}},
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})

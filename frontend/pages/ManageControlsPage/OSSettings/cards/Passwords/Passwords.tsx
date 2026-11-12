@@ -1,0 +1,196 @@
+import React, { useContext, useEffect, useState } from "react";
+import { useQuery } from "react-query";
+
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { getErrorReason } from "interfaces/errors";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
+
+import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
+
+const baseClass = "passwords";
+
+const RECOVERY_LOCK_TOOLTIP_CONTENT = (
+  <>
+    Configure and escrow macOS Recovery Lock passwords. These restrict access to
+    recoveryOS and are securely stored for authorized admin retrieval.{" "}
+    <CustomLink
+      text="Learn more"
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/recovery-lock-passwords`}
+      newTab
+      variant="tooltip-link"
+    />
+  </>
+);
+
+const Passwords = ({
+  currentTeamId,
+  router,
+  onMutation,
+}: IOSSettingsCommonProps) => {
+  const {
+    isPremiumTier,
+    config,
+    isTeamTechnician,
+    isGlobalTechnician,
+  } = useContext(AppContext);
+
+  const isTechnician = isTeamTechnician || isGlobalTechnician;
+
+  // Recovery Lock is macOS only, so we only check for macOS MDM
+  const mdmEnabled = config?.mdm.enabled_and_configured;
+
+  const [enableRecoveryLockPassword, setEnableRecoveryLockPassword] = useState<
+    boolean | undefined
+  >(undefined);
+  const [updating, setUpdating] = useState(false);
+
+  const {
+    isLoading: isLoadingTeam,
+    isSuccess: isTeamSuccess,
+    isError: isTeamError,
+  } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
+    ["team", currentTeamId],
+    () => teamsAPI.load(currentTeamId),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: currentTeamId !== API_NO_TEAM_ID,
+      select: (res) => res.fleet,
+      onSuccess: (res) => {
+        setEnableRecoveryLockPassword(
+          res.mdm?.macos_recovery_lock_password_enabled ?? false
+        );
+      },
+      onError: (err) => {
+        notify.error("Couldn't load fleet settings. Please try again.", {
+          response: err,
+        });
+      },
+    }
+  );
+
+  // Sync state from global config when "no team" is selected
+  useEffect(() => {
+    if (currentTeamId === API_NO_TEAM_ID) {
+      setEnableRecoveryLockPassword(
+        config?.mdm.macos_recovery_lock_password_enabled ?? false
+      );
+    }
+  }, [currentTeamId, config?.mdm.macos_recovery_lock_password_enabled]);
+
+  const isTeamQuery = currentTeamId !== API_NO_TEAM_ID;
+  const showLoading = isTeamQuery && isLoadingTeam;
+  const isFormReady = !isTeamQuery || (isTeamSuccess && !isLoadingTeam);
+  const isFormDisabled =
+    !isFormReady || isTeamError || enableRecoveryLockPassword === undefined;
+
+  const onUpdateRecoveryLockPassword = async () => {
+    setUpdating(true);
+    try {
+      if (currentTeamId === API_NO_TEAM_ID) {
+        await configAPI.update({
+          mdm: {
+            macos_recovery_lock_password_enabled: enableRecoveryLockPassword,
+          },
+        });
+      } else {
+        await teamsAPI.updateConfig(
+          {
+            mdm: {
+              macos_recovery_lock_password_enabled: enableRecoveryLockPassword,
+            },
+          },
+          currentTeamId
+        );
+      }
+      notify.success(
+        "Successfully updated Recovery Lock password enforcement."
+      );
+      onMutation();
+    } catch (e) {
+      const errorMsg =
+        getErrorReason(e) ??
+        "Couldn't update Recovery Lock password enforcement. Please try again.";
+      notify.error(errorMsg, { response: e });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  return (
+    <div className={baseClass}>
+      <SectionHeader title="Passwords" alignLeftHeaderVertically />
+      <PageDescription
+        variant="right-panel"
+        content="Manage passwords used for recovery, security, or administrative access across supported platforms."
+      />
+      {!isPremiumTier && <PremiumFeatureMessage />}
+      {isPremiumTier && mdmEnabled === undefined && <Spinner />}
+      {isPremiumTier && mdmEnabled === false && (
+        <EmptyState
+          variant="form"
+          header="Manage your hosts"
+          info="MDM must be turned on to apply password settings."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
+        />
+      )}
+      {isPremiumTier && mdmEnabled === true && showLoading && <Spinner />}
+      {isPremiumTier && mdmEnabled === true && !showLoading && !isTechnician && (
+        <div className="form passwords-content">
+          <div className={`${baseClass}__recovery-lock-header`}>
+            <TooltipWrapper tipContent={RECOVERY_LOCK_TOOLTIP_CONTENT}>
+              Recovery Lock password
+            </TooltipWrapper>
+          </div>
+          <Checkbox
+            disabled={isFormDisabled || config?.gitops.gitops_mode_enabled}
+            onChange={(value: boolean) => setEnableRecoveryLockPassword(value)}
+            value={enableRecoveryLockPassword ?? false}
+            className={`${baseClass}__checkbox`}
+            helpText="This setting is only available on macOS hosts with Apple silicon."
+          >
+            Turn on Recovery Lock password
+          </Checkbox>
+          <div className="button-wrap">
+            <GitOpsModeTooltipWrapper
+              tipOffset={8}
+              renderChildren={(gitopsDisabled) => (
+                <Button
+                  disabled={isFormDisabled || gitopsDisabled}
+                  isLoading={updating}
+                  className={`${baseClass}__save-button`}
+                  onClick={onUpdateRecoveryLockPassword}
+                >
+                  Save
+                </Button>
+              )}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Passwords;

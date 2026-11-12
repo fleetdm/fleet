@@ -1,50 +1,49 @@
+import { AxiosError } from "axios";
 import React, {
   useCallback,
   useState,
-  useContext,
   useMemo,
   useRef,
   useEffect,
 } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
 
-import { NotificationContext } from "context/notification";
-import { INotification } from "interfaces/notification";
+import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import { notify } from "components/ToastNotification";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import {
   IDeviceSoftware,
   IHostSoftware,
   IDeviceSoftwareWithUiStatus,
   IVPPHostSoftware,
 } from "interfaces/software";
-
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import deviceApi, {
   IDeviceSoftwareQueryKey,
   IGetDeviceSoftwareResponse,
 } from "services/entities/device_user";
-
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 
-import SoftwareUninstallDetailsModal, {
-  ISWUninstallDetailsParentState,
-} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
-import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
-import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
-import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import {
+  getInstallErrorMessage,
+  getLastInstall,
+} from "../../HostSoftwareLibrary/helpers";
+import { getUiStatus } from "../helpers";
 
-import UpdatesCard from "./components/UpdatesCard/UpdatesCard";
-import SelfServiceCard from "./SelfServiceCard/SelfServiceCard";
+import SoftwareInstructionsModal from "./components/OpenSoftwareModal";
+import { generateSoftwareTableHeaders } from "./components/SelfServiceTable/SelfServiceTableConfig";
 import SoftwareUpdateModal from "./components/SoftwareUpdateModal";
 import UninstallSoftwareModal from "./components/UninstallSoftwareModal";
-import SoftwareInstructionsModal from "./components/OpenSoftwareModal";
-
-import { generateSoftwareTableHeaders } from "./components/SelfServiceTable/SelfServiceTableConfig";
-import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
-
-import { getUiStatus } from "../helpers";
+import UpdatesCard from "./components/UpdatesCard/UpdatesCard";
+import SelfServiceCard from "./SelfServiceCard/SelfServiceCard";
 
 const baseClass = "software-self-service";
 
@@ -84,6 +83,7 @@ export interface ISoftwareSelfServiceProps {
   hostSoftwareUpdatedAt?: string | null;
   hostDisplayName: string;
   isMobileView?: boolean;
+  mdmEnrollmentStatus: MdmEnrollmentStatus;
 }
 
 export const parseSelfServiceQueryParams = (queryParams: {
@@ -92,6 +92,7 @@ export const parseSelfServiceQueryParams = (queryParams: {
   order_key?: string;
   order_direction?: "asc" | "desc";
   category_id?: string;
+  mobile?: string;
 }) => {
   const searchQuery =
     queryParams?.query ?? DEFAULT_SELF_SERVICE_CONFIG.ui.search_query;
@@ -115,6 +116,9 @@ export const parseSelfServiceQueryParams = (queryParams: {
     order_direction: sortDirection,
     per_page: pageSize,
     category_id: categoryId,
+    // DeviceUserPage dev override. Threaded through so SelfService
+    // navigations preserve it in the URL across refreshes and sharing.
+    mobile: queryParams?.mobile,
   };
 };
 
@@ -141,8 +145,6 @@ const SoftwareSelfService = ({
   hostDisplayName,
   isMobileView = false,
 }: ISoftwareSelfServiceProps) => {
-  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
-
   /** Guards against setState/side-effects after unmount */
   const isMountedRef = useRef(false);
   /** Stores software IDs for which the user has initiated an action (install/uninstall) */
@@ -151,6 +153,14 @@ const SoftwareSelfService = ({
   const recentlyUpdatedTimeouts = useRef<{ [key: number]: NodeJS.Timeout }>({});
   /** Stores the set of pending install/uninstall software IDs for polling */
   const pendingSoftwareIdsRef = useRef<Set<string>>(new Set());
+  /**
+   * Tracks the set of pending IDs observed on the previous `selfServiceData`
+   * snapshot, independent of the polling query. Lets us promote a user-initiated
+   * action to "recently updated" the moment ANY data path (main query,
+   * host-details refetch) surfaces its completion, not only the dedicated poll —
+   * otherwise the "Update" button briefly reappears during the refetch.
+   */
+  const lastObservedPendingIdsRef = useRef<Set<string>>(new Set());
   /** Stores polling timeout for regularly checking API */
   const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
   /** Detects parent/host polling completion status to trigger self-update sync */
@@ -210,9 +220,8 @@ const SoftwareSelfService = ({
     };
   }, []);
 
-  /** Registers a software ID as user-initiated action */
-  const registerUserSoftwareAction = useCallback((id: number) => {
-    userActionIdsRef.current.add(id);
+  /** (Re)arms the timeout that clears a software ID's "recently updated" badge. */
+  const scheduleRecentlyUpdatedExpiry = useCallback((id: number) => {
     // Prevent double timeouts
     if (recentlyUpdatedTimeouts.current[id]) {
       clearTimeout(recentlyUpdatedTimeouts.current[id]);
@@ -231,6 +240,15 @@ const SoftwareSelfService = ({
     }, 120000); // 2 minutes
   }, []);
 
+  /** Registers a software ID as a user-initiated action and arms its expiry. */
+  const registerUserSoftwareAction = useCallback(
+    (id: number) => {
+      userActionIdsRef.current.add(id);
+      scheduleRecentlyUpdatedExpiry(id);
+    },
+    [scheduleRecentlyUpdatedExpiry]
+  );
+
   const enhancedSoftware: IDeviceSoftwareWithUiStatus[] = useMemo(() => {
     if (!selfServiceData) return [];
     return selfServiceData.software.map((software) => ({
@@ -239,10 +257,55 @@ const SoftwareSelfService = ({
         software,
         true,
         hostSoftwareUpdatedAt,
-        recentlyUpdatedSoftwareIds
+        recentlyUpdatedSoftwareIds,
+        true // suppress "Patch skipped" — end-user view keeps the failed_install fallback
       ),
     }));
   }, [selfServiceData, recentlyUpdatedSoftwareIds, hostSoftwareUpdatedAt]);
+
+  // Promote completed user-initiated actions to "recently updated" on every
+  // `selfServiceData` change, regardless of which path produced it (main query,
+  // host-details refetch, or the pending poll). This guarantees the flag is set
+  // in the same render that first surfaces a completed-but-inventory-stale app,
+  // so its card never falls back to the "Update" button mid-refetch.
+  useEffect(() => {
+    if (!selfServiceData) return;
+
+    const currentlyPendingIds = new Set(
+      selfServiceData.software
+        .filter(
+          (software) =>
+            software.status === "pending_install" ||
+            software.status === "pending_uninstall"
+        )
+        .map((software) => String(software.id))
+    );
+
+    // IDs we previously saw as pending that are no longer pending → completed.
+    const completedAppIds = [...lastObservedPendingIdsRef.current].filter(
+      (id) => !currentlyPendingIds.has(id)
+    );
+
+    if (completedAppIds.length > 0) {
+      setRecentlyUpdatedSoftwareIds((prev) => {
+        const next = new Set(prev);
+        completedAppIds.forEach((idStr) => {
+          const id = Number(idStr);
+          if (userActionIdsRef.current.has(id)) {
+            next.add(id);
+            // Consume the user-action flag so a later non-user-initiated
+            // completion for the same app isn't misclassified as recently updated.
+            userActionIdsRef.current.delete(id);
+            // (Re)arm the 2-minute expiry timeout for the "recently updated" badge.
+            scheduleRecentlyUpdatedExpiry(id);
+          }
+        });
+        return next;
+      });
+    }
+
+    lastObservedPendingIdsRef.current = currentlyPendingIds;
+  }, [selfServiceData, scheduleRecentlyUpdatedExpiry]);
 
   const selectedSoftwareForUninstall = useRef<{
     softwareId: number;
@@ -336,17 +399,23 @@ const SoftwareSelfService = ({
               const id = Number(idStr);
               if (userActionIdsRef.current.has(id)) {
                 next.add(id);
+                // Consume the user-action flag so a later non-user-initiated
+                // completion for the same app isn't misclassified as recently updated.
                 userActionIdsRef.current.delete(id);
-                // Register a timeout for this id (for cleanup and removal)
-                registerUserSoftwareAction(id);
+                // Re-arm the expiry timeout for the "recently updated" badge.
+                scheduleRecentlyUpdatedExpiry(id);
               }
             });
             return next;
           });
 
-          // Some pending installs finished during the last refresh
+          // Some pending installs/uninstalls finished during the last refresh
           // Trigger an additional refetch to ensure UI status is up-to-date
           // If already refetching, queue another refetch
+
+          // Refetch host details to:
+          // - Update the software library version information of newly installed/uninstalled software of inventory‑detectable sources only
+          // - Update the software inventory of any changes to software detected by software inventory
           refetchHostDetails();
         }
 
@@ -381,11 +450,11 @@ const SoftwareSelfService = ({
           setSelfServiceData(response);
         }
       },
-      onError: () => {
+      onError: (error) => {
         pendingSoftwareIdsRef.current = new Set();
-        renderFlash(
-          "error",
-          "We're having trouble checking pending installs. Please refresh the page."
+        notify.error(
+          "We're having trouble checking pending installs. Please refresh the page.",
+          { response: error }
         );
       },
     }
@@ -428,22 +497,26 @@ const SoftwareSelfService = ({
   }, [refetchForPendingInstallsOrUninstalls]);
 
   const onClickInstallAction = useCallback(
-    async (softwareId: number, isScriptPackage = false) => {
+    async (softwareId: number, isScriptPackage = false): Promise<boolean> => {
       try {
         await deviceApi.installSelfServiceSoftware(deviceToken, softwareId);
         if (isMountedRef.current) {
           onInstallOrUninstall();
           registerUserSoftwareAction(softwareId);
         }
+        return true;
       } catch (error) {
         // We only show toast message if API returns an error
-        renderFlash(
-          "error",
-          `Couldn't ${isScriptPackage ? "run" : "install"}. Please try again.`
+        notify.error(
+          isScriptPackage
+            ? "Couldn't run. Please try again."
+            : getInstallErrorMessage(error),
+          { response: error }
         );
+        return false;
       }
     },
-    [deviceToken, onInstallOrUninstall, registerUserSoftwareAction, renderFlash]
+    [deviceToken, onInstallOrUninstall, registerUserSoftwareAction]
   );
 
   const onClickUninstallAction = useCallback(
@@ -480,10 +553,12 @@ const SoftwareSelfService = ({
         onInstallOrUninstall();
       } catch (error) {
         // Only show toast message if API returns an error
-        renderFlash("error", "Couldn't update software. Please try again.");
+        notify.error("Couldn't update software. Please try again.", {
+          response: error,
+        });
       }
     },
-    [deviceToken, registerUserSoftwareAction, onInstallOrUninstall, renderFlash]
+    [deviceToken, registerUserSoftwareAction, onInstallOrUninstall]
   );
 
   const onClickUpdateAll = useCallback(async () => {
@@ -496,7 +571,7 @@ const SoftwareSelfService = ({
 
     // This should not happen
     if (!updateAvailableSoftware.length) {
-      renderFlash("success", "No updates available.");
+      notify.success("No updates available.");
       return;
     }
 
@@ -508,26 +583,26 @@ const SoftwareSelfService = ({
     const results = await Promise.allSettled(promises);
 
     // Only show toast message for updates that API returns an error
-    const failedUpdates = results
-      .map((result, idx) =>
-        result.status === "rejected" ? updateAvailableSoftware[idx] : null
-      )
-      .filter(Boolean) as typeof updateAvailableSoftware;
+    const failedUpdates = results.reduce<
+      { software: IDeviceSoftwareWithUiStatus; reason: unknown }[]
+    >((acc, result, idx) => {
+      if (result.status === "rejected") {
+        acc.push({
+          software: updateAvailableSoftware[idx],
+          reason: result.reason,
+        });
+      }
+      return acc;
+    }, []);
 
     if (failedUpdates.length > 0) {
-      const errorNotifications: INotification[] = failedUpdates.map(
-        (software) => ({
-          id: `update-error-${software.id}`,
-          alertType: "error",
-          isVisible: true,
+      notify.batch(
+        failedUpdates.map(({ software, reason }) => ({
+          variant: "error" as const,
           message: `Couldn't update ${software.name}. Please try again.`,
-          persistOnPageChange: false,
-        })
+          options: { response: reason },
+        }))
       );
-
-      renderMultiFlash({
-        notifications: errorNotifications,
-      });
     }
 
     // Only register success IDs for follow‑up “recently updated” handling
@@ -540,8 +615,6 @@ const SoftwareSelfService = ({
     onInstallOrUninstall();
   }, [
     deviceToken,
-    renderFlash,
-    renderMultiFlash,
     enhancedSoftware,
     registerUserSoftwareAction,
     onInstallOrUninstall,
@@ -631,10 +704,6 @@ const SoftwareSelfService = ({
     !selfServiceData?.software.length &&
     !selfServiceData?.meta.has_previous_results &&
     queryParams.query === "";
-  const isEmptySearch =
-    !selfServiceData?.software.length &&
-    !selfServiceData?.meta.has_previous_results &&
-    queryParams.query !== "";
 
   const tableConfig = useMemo(() => {
     return generateSoftwareTableHeaders({
@@ -664,6 +733,7 @@ const SoftwareSelfService = ({
     return (
       <SelfServiceCard
         contactUrl={contactUrl}
+        deviceToken={deviceToken}
         queryParams={queryParams}
         enhancedSoftware={enhancedSoftware}
         selfServiceData={selfServiceData}
@@ -672,11 +742,11 @@ const SoftwareSelfService = ({
         isError={isError}
         isFetching={isFetching}
         isEmpty={isEmpty}
-        isEmptySearch={isEmptySearch}
         router={router}
         pathname={pathname}
         isMobileView={isMobileView}
         onClickInstallAction={onClickInstallAction}
+        onInstallAllSuccess={onInstallOrUninstall}
       />
     );
 
@@ -692,6 +762,7 @@ const SoftwareSelfService = ({
       />
       <SelfServiceCard
         contactUrl={contactUrl}
+        deviceToken={deviceToken}
         queryParams={queryParams}
         enhancedSoftware={enhancedSoftware}
         selfServiceData={selfServiceData}
@@ -700,9 +771,10 @@ const SoftwareSelfService = ({
         isError={isError}
         isFetching={isFetching}
         isEmpty={isEmpty}
-        isEmptySearch={isEmptySearch}
         router={router}
         pathname={pathname}
+        onClickInstallAction={onClickInstallAction}
+        onInstallAllSuccess={onInstallOrUninstall}
       />
       {showUninstallSoftwareModal && selectedSoftwareForUninstall.current && (
         <UninstallSoftwareModal
@@ -743,9 +815,10 @@ const SoftwareSelfService = ({
           details={{
             hostDisplayName,
             fleetInstallStatus: selectedHostSWIpaInstallDetails.status,
-            appName:
-              selectedHostSWIpaInstallDetails.display_name ||
+            appName: getDisplayedSoftwareName(
               selectedHostSWIpaInstallDetails.name,
+              selectedHostSWIpaInstallDetails.display_name
+            ),
             commandUuid:
               selectedHostSWIpaInstallDetails.software_package?.last_install
                 ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
@@ -776,9 +849,10 @@ const SoftwareSelfService = ({
           details={{
             fleetInstallStatus: selectedVPPInstallDetails.status,
             hostDisplayName,
-            appName:
-              selectedVPPInstallDetails.display_name ||
+            appName: getDisplayedSoftwareName(
               selectedVPPInstallDetails.name,
+              selectedVPPInstallDetails.display_name
+            ),
             commandUuid: selectedVPPInstallDetails.commandUuid,
           }}
           hostSoftware={selectedVPPInstallDetails}

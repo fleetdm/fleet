@@ -1,0 +1,10 @@
+{
+  "name": "Twine",
+  "unique_identifier": "org.twinery.twine",
+  "token": "twine-app",
+  "installer_format": "dmg",
+  "slug": "twine-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

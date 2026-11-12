@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
@@ -25,6 +26,11 @@ type Auth interface {
 	UserDisplayName() string
 	// AssertionAttributes returns the attributes of the SAML response.
 	AssertionAttributes() []SAMLAttribute
+	// AssertionID returns the ID of the verified SAML assertion.
+	AssertionID() string
+	// AssertionNotOnOrAfter returns the latest instant the verified assertion
+	// is valid, considering both its conditions and subject confirmations.
+	AssertionNotOnOrAfter() time.Time
 }
 
 // SAMLAttribute holds the name and values of a custom attribute.
@@ -91,14 +97,14 @@ type TeamRole struct {
 
 func (s SSORolesInfo) verify() error {
 	if s.Global != nil && len(s.Teams) > 0 {
-		return errors.New("cannot set both global and team roles")
+		return errors.New("cannot set both global and fleet roles")
 	}
 	// Check for duplicate entries for the same team.
 	// This is just in case some IdP allows duplicating attributes.
 	teamSet := make(map[uint]struct{})
 	for _, teamRole := range s.Teams {
 		if _, ok := teamSet[teamRole.ID]; ok {
-			return fmt.Errorf("duplicate team entry: %d", teamRole.ID)
+			return fmt.Errorf("duplicate fleet entry: %d", teamRole.ID)
 		}
 		teamSet[teamRole.ID] = struct{}{}
 	}
@@ -111,41 +117,50 @@ func (s SSORolesInfo) IsSet() bool {
 }
 
 const (
-	globalUserRoleSSOAttrName     = "FLEET_JIT_USER_ROLE_GLOBAL"
-	teamUserRoleSSOAttrNamePrefix = "FLEET_JIT_USER_ROLE_TEAM_"
-	ssoAttrNullRoleValue          = "null"
+	globalUserRoleSSOAttrName      = "FLEET_JIT_USER_ROLE_GLOBAL"
+	fleetUserRoleSSOAttrNamePrefix = "FLEET_JIT_USER_ROLE_FLEET_"
+	ssoAttrNullRoleValue           = "null"
 )
 
 // RolesFromSSOAttributes loads Global and Team roles from SAML custom attributes.
 //   - Custom attribute `FLEET_JIT_USER_ROLE_GLOBAL` is used for setting global role.
-//   - Custom attributes of the form `FLEET_JIT_USER_ROLE_TEAM_<TEAM_ID>` are used
-//     for setting role for a team with ID <TEAM_ID>.
+//   - Custom attributes of the form `FLEET_JIT_USER_ROLE_FLEET_<FLEET_ID>` are used for setting role for a fleet with ID <FLEET_ID>.
+//     The former `FLEET_JIT_USER_ROLE_TEAM_<FLEET_ID>` form is ignored.
 //
 // For both attributes currently supported values are `admin`, `maintainer`, `observer`,
-// `observer_plus` and `null`. A `null` value is used to ignore the attribute.
-func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
-	ssoRolesInfo := SSORolesInfo{}
+// `observer_plus`, `technician` and `null`. A `null` value is used to ignore the attribute.
+// An empty or whitespace-only value (or an attribute with no value elements at all) is
+// also treated as `null` and ignored. The names of any such coerced attributes are
+// returned in `coercedAttrs`. The names of any attributes that Fleet 5 removed are returned in `ignoredAttrs`.
+func RolesFromSSOAttributes(attributes []SAMLAttribute) (
+	ssoRolesInfo SSORolesInfo, coercedAttrs []string, ignoredAttrs []string, err error,
+) {
 	for _, attribute := range attributes {
 		switch {
 		case attribute.Name == globalUserRoleSSOAttrName:
-			role, err := parseRole(attribute.Values)
+			role, coerced, err := parseRole(attribute.Values)
 			if err != nil {
-				return SSORolesInfo{}, fmt.Errorf("parse global role: %w", err)
+				return SSORolesInfo{}, nil, nil, fmt.Errorf("parse global role: %w", err)
+			}
+			if coerced {
+				coercedAttrs = append(coercedAttrs, attribute.Name)
 			}
 			if role == ssoAttrNullRoleValue {
 				// If the role is set to the null value then the attribute is ignored.
 				continue
 			}
 			ssoRolesInfo.Global = ptr.String(role)
-		case strings.HasPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix):
-			teamIDSuffix := strings.TrimPrefix(attribute.Name, teamUserRoleSSOAttrNamePrefix)
-			teamID, err := strconv.ParseUint(teamIDSuffix, 10, 32)
+		case strings.HasPrefix(attribute.Name, fleetUserRoleSSOAttrNamePrefix):
+			teamID, err := strconv.ParseUint(strings.TrimPrefix(attribute.Name, fleetUserRoleSSOAttrNamePrefix), 10, 32)
 			if err != nil {
-				return SSORolesInfo{}, fmt.Errorf("parse team ID: %w", err)
+				return SSORolesInfo{}, nil, nil, fmt.Errorf("parse team ID: %w", err)
 			}
-			teamRole, err := parseRole(attribute.Values)
+			teamRole, coerced, err := parseRole(attribute.Values)
 			if err != nil {
-				return SSORolesInfo{}, fmt.Errorf("parse team role: %w", err)
+				return SSORolesInfo{}, nil, nil, fmt.Errorf("parse team role: %w", err)
+			}
+			if coerced {
+				coercedAttrs = append(coercedAttrs, attribute.Name)
 			}
 			if teamRole == ssoAttrNullRoleValue {
 				// If the role is set to the null value then the attribute is ignored.
@@ -156,27 +171,37 @@ func RolesFromSSOAttributes(attributes []SAMLAttribute) (SSORolesInfo, error) {
 				Role: teamRole,
 			})
 		default:
-			continue
+			if _, removed := removednames.FindSAMLAttribute(attribute.Name); removed {
+				ignoredAttrs = append(ignoredAttrs, attribute.Name)
+			}
 		}
 	}
 	if err := ssoRolesInfo.verify(); err != nil {
-		return SSORolesInfo{}, err
+		return SSORolesInfo{}, nil, nil, err
 	}
-	return ssoRolesInfo, nil
+	return ssoRolesInfo, coercedAttrs, ignoredAttrs, nil
 }
 
-func parseRole(values []SAMLAttributeValue) (string, error) {
+// parseRole returns the role to apply for a SAML role attribute. The second
+// return value is true when the input was empty / missing / whitespace-only and
+// was therefore coerced to the `null` sentinel. Valid role values must match
+// exactly (no trimming) — e.g. " admin " is rejected as an invalid role.
+func parseRole(values []SAMLAttributeValue) (string, bool, error) {
 	if len(values) == 0 {
-		return "", errors.New("empty role")
+		return ssoAttrNullRoleValue, true, nil
 	}
 	// Using last value by default.
 	value := values[len(values)-1].Value
+	if strings.TrimSpace(value) == "" {
+		return ssoAttrNullRoleValue, true, nil
+	}
 	if value != RoleAdmin &&
 		value != RoleMaintainer &&
 		value != RoleObserver &&
 		value != RoleObserverPlus &&
+		value != RoleTechnician &&
 		value != ssoAttrNullRoleValue {
-		return "", fmt.Errorf("invalid role: %s", value)
+		return "", false, fmt.Errorf("invalid role: %s", value)
 	}
-	return value, nil
+	return value, false, nil
 }

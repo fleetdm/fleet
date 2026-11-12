@@ -4,11 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
+
+// displayVersionPattern matches Windows display version strings like "22H2", "23H2", "24H2".
+var displayVersionPattern = regexp.MustCompile(`\b\d{2}H[12]\b`)
 
 // Product abstracts a MS full product name.
 // A full product name includes the name of the product plus its arch
@@ -19,50 +23,124 @@ type Products map[string]Product
 
 var ErrNoMatch = errors.New("no product matches")
 
+// candidate is a product that matched the host's OS, along with the signals used
+// to choose between several matching products.
+type candidate struct {
+	pID              string
+	byDisplayVersion bool
+	explicitArch     bool
+	isCore           bool
+}
+
+// betterThan reports whether c is a more specific match than o. The ordering is
+// total so that the chosen product cannot depend on map iteration order.
+func (c candidate) betterThan(o candidate) bool {
+	// A display version identifies a release exactly, a build number only narrows
+	// it to the products that carry no version at all.
+	if c.byDisplayVersion != o.byDisplayVersion {
+		return c.byDisplayVersion
+	}
+	// Prefer the full desktop product, whose CVEs are a superset of Server Core's.
+	if c.isCore != o.isCore {
+		return !c.isCore
+	}
+	// Prefer a product that names an architecture over one that matches any.
+	if c.explicitArch != o.explicitArch {
+		return c.explicitArch
+	}
+	return c.pID < o.pID
+}
+
+// serverReleaseByBuild maps the kernel build of a Windows Server release that has
+// no DisplayVersion registry value to the release's product name. Such a host can
+// only be tied to its release through the build, and every product of that release
+// carries the same version suffix from NewProductFromFullName, so the name is all
+// that has to match. The name is checked because Windows 10 1607 and 1809 share
+// build numbers with Windows Server 2016 and 2019, and must keep matching on their
+// display version.
+var serverReleaseByBuild = map[string]string{
+	"9200":  "Windows Server 2012",
+	"9600":  "Windows Server 2012 R2",
+	"14393": "Windows Server 2016",
+	"17763": "Windows Server 2019",
+}
+
+// buildNumber returns the build component of a Windows kernel version such as
+// "10.0.17763.5122", or "" if the version is not in that form.
+func buildNumber(kernelVersion string) string {
+	parts := strings.Split(kernelVersion, ".")
+	if len(parts) > 3 {
+		return parts[2]
+	}
+	return ""
+}
+
 func (p Products) GetMatchForOS(ctx context.Context, os fleet.OperatingSystem) (string, error) {
-	var dvMatch, noDvMatch string
+	isServerCoreHost := strings.EqualFold(os.InstallationType, "Server Core")
+	installationTypeKnown := os.InstallationType != ""
+	normalizedOS := NewProductFromOS(os)
+	osName := normalizedOS.Name()
+	hostBuild := buildNumber(os.KernelVersion)
+
+	// The OS name may contain the display version (e.g. "Microsoft Windows 10 Pro
+	// 22H2") even when the registry query for DisplayVersion returned empty.
+	displayVersion := os.DisplayVersion
+	if displayVersion == "" {
+		displayVersion = extractDisplayVersionFromName(os.Name)
+	}
+	releaseKnownFromBuild := displayVersion == "" && serverReleaseByBuild[hostBuild] == osName
+
+	var best *candidate
 
 	for pID, product := range p {
-		normalizedOS := NewProductFromOS(os)
-		if product.Name() != normalizedOS.Name() {
+		if product.Name() != osName || !product.IsOperatingSystem() {
 			continue
 		}
 
-		archMatch := product.Arch() == "all" || normalizedOS.Arch() == "all" || product.Arch() == normalizedOS.Arch()
+		archMatch := product.Arch() == "all" || normalizedOS.Arch() == "all" ||
+			product.Arch() == normalizedOS.Arch()
 		if !archMatch {
 			continue
 		}
 
-		if product.HasDisplayVersion() && os.DisplayVersion != "" && strings.Contains(string(product), os.DisplayVersion) {
-			dvMatch = pID
-			break
+		// When the host's installation type is known, only match products
+		// that correspond to the correct installation type (Server Core vs full desktop).
+		if installationTypeKnown && product.IsServerCore() != isServerCoreHost {
+			continue
 		}
 
-		// If os.DisplayVersion is empty, we need to confirm that the product
-		// matches the correct build number. This is necessary to avoid false
-		// positives when vulnerability scans have run before the host has been
-		// updated after an upgrade to fleet v4.44.0 or later
-		if !product.HasDisplayVersion() {
-			var build string
-			parts := strings.Split(os.KernelVersion, ".")
-			if len(parts) > 3 {
-				build = parts[2]
+		c := candidate{
+			pID:          pID,
+			isCore:       product.IsServerCore(),
+			explicitArch: product.Arch() != "all",
+		}
+
+		switch {
+		case product.HasDisplayVersion():
+			matchesRelease := releaseKnownFromBuild ||
+				(displayVersion != "" && strings.Contains(string(product), displayVersion))
+			if !matchesRelease {
+				continue
 			}
-			if build == "22000" || build == "10240" {
-				noDvMatch = pID
-			}
+			c.byDisplayVersion = true
+		case hostBuild != "22000" && hostBuild != "10240":
+			// The product name carries no version, so the build number is the only
+			// discriminator. This is restricted to the builds whose products have no
+			// version at all, to avoid matching a host whose OS record was collected
+			// before Fleet started reporting the display version.
+			continue
+		}
+
+		if best == nil || c.betterThan(*best) {
+			best = &c
 		}
 	}
 
-	if dvMatch == "" && noDvMatch == "" {
+	if best == nil {
 		return "", ctxerr.Wrap(ctx, ErrNoMatch)
 	}
 
-	if dvMatch == "" {
-		return noDvMatch, nil
-	}
-
-	return dvMatch, nil
+	return best.pID, nil
 }
 
 func NewProductFromFullName(fullName string) Product {
@@ -76,6 +154,9 @@ func NewProductFromFullName(fullName string) Product {
 	// We need this to match the product with a host's OS, so we'll add them here.
 	versionString := ""
 	switch {
+	case strings.Contains(fullName, "Windows Server 2025"):
+		versionString = "24H2"
+
 	case strings.Contains(fullName, "Windows Server 2022"):
 		versionString = "21H2"
 
@@ -196,6 +277,8 @@ func (p Product) Name() string {
 		return "Windows Server 2019"
 	case strings.Contains(val, "Windows Server 2022"):
 		return "Windows Server 2022"
+	case strings.Contains(val, "Windows Server 2025"):
+		return "Windows Server 2025"
 	case strings.Contains(val, "Windows Server,"):
 		return "Windows Server"
 
@@ -204,7 +287,31 @@ func (p Product) Name() string {
 	}
 }
 
-// Matches checks whehter product A matches product B by checking to see if both are for the same
+// IsOperatingSystem returns true if the product is the operating system itself
+// rather than a separate Microsoft product that MSRC lists in the same bulletin.
+// The Hardware Lab Kit is a test toolkit, carries no OS CVEs, and matching it
+// makes the analyzer treat the host's real CVEs as remediated.
+func (p Product) IsOperatingSystem() bool {
+	if strings.Contains(string(p), "HLK") {
+		return false
+	}
+	return strings.HasPrefix(string(p), p.Name())
+}
+
+// IsServerCore returns true if the product name indicates a Server Core installation.
+func (p Product) IsServerCore() bool {
+	return strings.Contains(strings.ToLower(string(p)), "server core")
+}
+
+// extractDisplayVersionFromName attempts to extract a Windows display version
+// (e.g., "22H2", "23H2", "24H2") from an OS name string like "Microsoft Windows 10 Pro 22H2".
+// Returns an empty string if no display version is found.
+func extractDisplayVersionFromName(name string) string {
+	match := displayVersionPattern.FindString(name)
+	return match
+}
+
+// Matches checks whether product A matches product B by checking to see if both are for the same
 // product and if the architecture they target are compatible. This function is commutative.
 func (p Product) Matches(o Product) bool {
 	if p.Name() != o.Name() {

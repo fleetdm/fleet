@@ -1,0 +1,10 @@
+{
+  "name": "RightFont",
+  "unique_identifier": "com.rightfontapp.RightFont5",
+  "token": "rightfont",
+  "installer_format": "zip",
+  "slug": "rightfont/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

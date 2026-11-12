@@ -1,0 +1,11 @@
+.local-account-section {
+  &__field-group {
+    display: flex;
+    flex-direction: column;
+    gap: $gap-page-component;
+  }
+
+  &__sub-header {
+    font-size: $x-small;
+  }
+}

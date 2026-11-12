@@ -1,0 +1,10 @@
+{
+  "name": "Easydict",
+  "unique_identifier": "com.izual.Easydict",
+  "token": "easydict",
+  "installer_format": "dmg",
+  "slug": "easydict/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

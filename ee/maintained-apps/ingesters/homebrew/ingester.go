@@ -1,14 +1,18 @@
 package homebrew
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"time"
 
@@ -16,13 +20,13 @@ import (
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/homebrew/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
-func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
-	level.Info(logger).Log("msg", "starting homebrew app data ingestion")
+func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
+	logger.InfoContext(ctx, "starting homebrew app data ingestion")
 	// Read from our list of apps we should be ingesting
 	files, err := os.ReadDir(inputsPath)
 	if err != nil {
@@ -30,9 +34,12 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath, slugFilte
 	}
 
 	i := &brewIngester{
-		baseURL: baseBrewAPIURL,
-		logger:  logger,
-		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		baseURL:          baseBrewAPIURL,
+		buildhubURL:      buildhubAPIURL,
+		logger:           logger,
+		client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		retryInterval:    2 * time.Second,
+		retryMaxAttempts: 5,
 	}
 
 	var manifestApps []*maintained_apps.FMAManifestApp
@@ -73,7 +80,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath, slugFilte
 			continue
 		}
 
-		level.Info(i.logger).Log("msg", "ingesting homebrew app", "name", input.Name)
+		i.logger.InfoContext(ctx, "ingesting homebrew app", "name", input.Name)
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
@@ -87,48 +94,39 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath, slugFilte
 	return manifestApps, nil
 }
 
-const baseBrewAPIURL = "https://formulae.brew.sh/api/"
+const (
+	baseBrewAPIURL = "https://formulae.brew.sh/api/"
+	// buildhubAPIURL is Mozilla's build metadata search API.
+	buildhubAPIURL = "https://buildhub.moz.tools/api/search"
+)
 
 type brewIngester struct {
-	baseURL string
-	logger  kitlog.Logger
-	client  *http.Client
+	baseURL     string
+	buildhubURL string
+	logger      *slog.Logger
+	client      *http.Client
+
+	// retryInterval and retryMaxAttempts control retries of transient brew API
+	// failures (network errors and 5xx/429 responses). formulae.brew.sh is
+	// served by GitHub Pages, which intermittently returns 503s; without
+	// retries a single blip aborts the whole ingestion run. Defaults are set in
+	// IngestApps; tests override them to keep runs fast.
+	retryInterval    time.Duration
+	retryMaxAttempts int
 }
 
+// transientErr wraps a brew API failure that is worth retrying (a network error
+// or a 5xx/429 server response). Non-transient failures (404, other 4xx) are
+// returned unwrapped so the retry loop gives up immediately.
+type transientErr struct{ err error }
+
+func (e *transientErr) Error() string { return e.err.Error() }
+func (e *transientErr) Unwrap() error { return e.err }
+
 func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
-	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, input.Token)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	cask, err := i.fetchCask(ctx, input)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create http request")
-	}
-
-	res, err := i.client.Do(req)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute http request")
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "read http response body")
-	}
-
-	switch res.StatusCode {
-	case http.StatusOK:
-		// success, go on
-	case http.StatusNotFound:
-		return nil, ctxerr.New(ctx, "app not found in brew API")
-	default:
-		if len(body) > 512 {
-			body = body[:512]
-		}
-		return nil, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
-	}
-
-	var cask brewCask
-	if err := json.Unmarshal(body, &cask); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
+		return nil, err
 	}
 
 	out := &maintained_apps.FMAManifestApp{}
@@ -153,10 +151,38 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	out.Name = input.Name
 	out.Version = strings.Split(cask.Version, ",")[0]
+	if input.Token == "lm-studio" {
+		// App reports "0.4.26+4"; the cask says "0.4.26,4".
+		out.Version = strings.ReplaceAll(cask.Version, ",", "+")
+	}
 	out.InstallerURL = cask.URL
 	out.UniqueIdentifier = input.UniqueIdentifier
 	out.SHA256 = cask.SHA256
 	out.Queries = maintained_apps.FMAQueries{Exists: fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", out.UniqueIdentifier)}
+	if input.Token == "swiftdialog" {
+		// Orbit installs swiftDialog v2.5.6 for setup experience, MDM migration, or enrollment
+		// profile renewal; don't treat orbit's copy as the installed app for install or patch status.
+		// The patch policy generated below inherits this exclusion.
+		out.Queries.Exists = fmt.Sprintf(
+			"SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app';",
+			out.UniqueIdentifier,
+		)
+	}
+	if pathFilter, ok := qgisPathFilters[input.Token]; ok {
+		// The patch policy generated below inherits this filter.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND %s;", out.UniqueIdentifier, pathFilter)
+	}
+	if input.Token == "chatgpt" {
+		// The patch policy generated below inherits this match.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE %s;", chatGPTBundleMatch(""))
+	}
+	if input.Token == "syncovery" {
+		// Syncovery.app/Contents/MacOS/BackgroundScheduler.app shares the app's
+		// bundle identifier but has its own version ("9"), which always sorts below
+		// the cask version. Count only top-level bundles, as software inventory
+		// does. The patch policy generated below inherits this filter.
+		out.Queries.Exists = fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.app/Contents/%%';", out.UniqueIdentifier)
+	}
 	out.Slug = input.Slug
 	out.DefaultCategories = input.DefaultCategories
 
@@ -179,6 +205,10 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 
 	switch input.UninstallScriptPath {
 	case "":
+		if err := validateQuitIDs(&cask); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "invalid uninstall quit for cask %s", input.Token)
+		}
+
 		if len(input.PreUninstallScripts) != 0 {
 			cask.PreUninstallScripts = input.PreUninstallScripts
 		}
@@ -187,7 +217,7 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 			cask.PostUninstallScripts = input.PostUninstallScripts
 		}
 
-		uninstallScript = uninstallScriptForApp(&cask)
+		uninstallScript = uninstallScriptForApp(input, &cask)
 	default:
 		if len(input.PreUninstallScripts) != 0 {
 			return nil, ctxerr.New(ctx, "cannot provide pre-uninstall scripts if uninstall script is provided")
@@ -212,9 +242,614 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.Frozen = input.Frozen
 
+	caskVersion := out.Version
 	external_refs.EnrichManifest(out)
 
+	// create patch policy
+	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
+		Platform:    "darwin",
+		Version:     out.Version,
+		ExistsQuery: out.Queries.Exists,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+	}
+	if input.Token == "docker-desktop" {
+		// Docker's updater can leave Docker.app.back, which reports the same bundle
+		// identifier as the real app at its old version; do not treat it as the installed
+		// app for patch status. Match ".back" anywhere in the path (not just as a suffix)
+		// because the stale bundle also surfaces as a nested app, e.g.
+		// "/Applications/Docker.app.back/Contents/MacOS/Docker Desktop.app".
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%.back%%' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "microsoft-edge" {
+		// Edge's auto-updater stages downloaded builds under
+		// "<root>/Library/Application Support/Microsoft/EdgeUpdater/" (system-wide
+		// or per-user) and leaves older Microsoft Edge.app bundles there after
+		// applying them; they carry the same bundle identifier at the old version.
+		// The install script removes them, but hosts updated by Edge itself never
+		// run it, so exclude that tree from patch status too.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%/Library/Application Support/Microsoft/EdgeUpdater/%%' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "webex" {
+		// Webex's auto-updater stages fully formed Webex.app bundles under
+		// "~/Library/Application Support/Cisco Spark/Webexteams_upgrades_*" and can
+		// leave older ones behind (or re-download them between FMA installs). They
+		// share the real app's bundle identifier at a stale version, so exclude
+		// them from patch status rather than relying on the install script's cleanup.
+		// Match from /Library so any home directory location works; ESCAPE keeps the
+		// underscores literal (they are single-character wildcards in LIKE).
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%/Library/Application Support/Cisco Spark/Webexteams\\_upgrades\\_%%' ESCAPE '\\' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "teleport-suite" {
+		// Teleport's client-tools auto-updater caches older tsh.app bundles under
+		// ~/.tsh/bin/<uuid>-update-pkg-v2/*.pkg/Payload/; they report the same bundle
+		// identifier as /Applications/tsh.app at their old version. Only the default
+		// tools dir is excluded; TELEPORT_HOME/TELEPORT_TOOLS_DIR overrides are not.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND path NOT LIKE '%%/.tsh/bin/%%' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "sonos" {
+		// Sonos versions its cask by build number (matching CFBundleVersion, e.g.
+		// "90.0.77070" after SonosVersionTransformer), while bundle_short_version is
+		// the unrelated marketing version (e.g. "17.2.3"). Compare bundle_version so
+		// patch status reflects the actual installed build.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "i1profiler" {
+		// X-Rite versions the cask by CFBundleVersion (e.g. "3.8.7.19247"), while
+		// i1Profiler.app's CFBundleShortVersionString is only the marketing version
+		// ("3.8.7"), so version_compare(bundle_short_version, <cask version>) < 0 is
+		// always true and the default patch policy can never pass. Compare
+		// bundle_version so patch status tracks the installed build; software
+		// inventory still reports the short version.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "steam" {
+		// Steam.app ships without a CFBundleShortVersionString, so osquery's
+		// bundle_short_version is empty and version_compare('', '<version>') < 0 is
+		// always true — the default patch policy can never pass on a host that has
+		// Steam installed. Compare bundle_version (CFBundleVersion, "6.0", which the
+		// cask version tracks); that's also the value software inventory falls back
+		// to, so patch status and inventory agree.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "wezterm" {
+		// WezTerm.app ships a placeholder CFBundleShortVersionString ("0.1.0") and
+		// CFBundleVersion ("1") in every release, so no version comparison can work.
+		// The input is frozen, so identify the release by its code-directory hashes
+		// (arm64, x86_64) for 20240203-110809-5046fc22 instead; any other build
+		// counts as outdated.
+		out.Queries.Patched = "SELECT 1 FROM signature WHERE path = '/Applications/WezTerm.app' AND cdhash IN ('7e667fe9270e8f3dad1f069eb2516e0c1909ed29', '08b4bb671055310999a7ad18df389cdcffda5c3a');"
+	}
+	if input.Token == "logitech-g-hub" {
+		// lghub.app ships without a CFBundleShortVersionString, so bundle_short_version
+		// is empty and the default patch policy can never pass. The cask version
+		// matches CFBundleVersion.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "enpass" || input.Token == "gog-galaxy" {
+		// The cask version ("6.12.8.2837", GOG Galaxy's "2.1.10.56") is
+		// CFBundleShortVersionString ("6.12.8") plus CFBundleVersion ("2837"), so
+		// neither column alone compares correctly.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version || '.' || bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "wechat" {
+		// WeChat's CFBundleShortVersionString is three parts ("4.2.0" for cask
+		// "4.2.0.16,270352"), so it always sorts below the cask version. Compare
+		// CFBundleVersion against the build after the comma instead.
+		if m := weChatCaskBuildPattern.FindStringSubmatch(cask.Version); m != nil {
+			out.Queries.Patched = fmt.Sprintf(
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+				out.UniqueIdentifier, m[1],
+			)
+		}
+	}
+	switch input.Token {
+	case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp",
+		"bitrix24", "chrome-remote-desktop-host", "crossover", "kdenlive", "malwarebytes", "plex-media-server", "sigmaos",
+		"axure-rp", "gotomeeting", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "redcine-x-pro":
+		// CFBundleVersion carries the full cask version, but CFBundleShortVersionString
+		// drops part of it ("26.3" for cask "26.3.5", "0.99" for JASP's "0.99.0.0",
+		// "5.28.4" for Malwarebytes' "5.28.4.4244", "6.3" for Disk Drill's "6.3.2326",
+		// "65.2" for REDCINE-X PRO's "65.2.1"),
+		// which version_compare sorts below the cask version even for x.y.0 releases.
+		// Axure RP has no short version, and GoToMeeting's and MacVim's is a marketing
+		// version the cask doesn't track. Compare against caskVersion: a shortener in
+		// external_refs may have cut out.Version down to the short version inventory
+		// reports, which would let builds within the same short version pass.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+			out.UniqueIdentifier, caskVersion,
+		)
+	case "tableau", "tableau-prep":
+		// Each Tableau release installs as its own versioned .app (e.g. "Tableau
+		// Desktop (Apple silicon) 2026.3.app") and the pkg never removes earlier
+		// ones, which users keep to match their Tableau Server version. Treat the
+		// host as patched when any installed copy is current, so an upgrade passes
+		// without deleting those older releases.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%[1]s') OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%[1]s' AND version_compare(bundle_short_version, '%[2]s') >= 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "r-app" {
+		// R.app's bundle_short_version is a descriptive string rather than a bare
+		// version ("R" is duplicated in some builds and not others, e.g.
+		// "R 4.5.1 GUI 1.82 High Sierra build" or "R R 4.6.1 GUI 1.83 High Sierra
+		// build"), so version_compare can't order it against the cask version
+		// directly. Extract the version with REGEX_MATCH before comparing
+		// (mirrors the software-inventory fix in MutateSoftwareOnIngestion, which
+		// only applies to ingested software rows, not this policy SQL run
+		// directly on the host).
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(REGEX_MATCH(bundle_short_version, 'R (?:R )?([0-9]+(?:\\.[0-9]+)+) GUI', 1), '%s') < 0);",
+			out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "zen" {
+		// Zen ends every version with a channel letter ("1.24b", "1.24.1b"), and
+		// version_compare sorts "1.24b" after "1.24.1b", so hosts on the previous
+		// release would pass. Strip the letters from both sides before comparing.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(rtrim(bundle_short_version, '%s'), '%s') < 0);",
+			out.UniqueIdentifier, zenChannelLetters, strings.TrimRight(out.Version, zenChannelLetters),
+		)
+	}
+	if input.Token == "mindmanager" {
+		// MindManager's bundle ID carries the major version (com.mindjet.mindmanager.25,
+		// .26, ...), so hosts still on an older major never match the current ID. Flag
+		// any major's bundle that's older than the cask version.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND version_compare(bundle_short_version, '%s') < 0);",
+			out.Version,
+		)
+	}
+	if input.Token == "elgato-wave-link" {
+		// Wave Link 2 (com.elgato.WaveLink) installs to the same path, so the install
+		// replaces it. Flag it as outdated only there, and only on macOS 15+, which
+		// Wave Link 3 requires; a copy anywhere else would keep failing the policy.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0) OR (bundle_identifier = '%s' AND path = '%s' AND (SELECT major FROM os_version) >= 15));",
+			out.UniqueIdentifier, out.Version, waveLink2BundleID, waveLinkAppPath,
+		)
+	}
+	if input.Token == "xquartz" {
+		// XQuartz 2.7.x reports org.macosforge.xquartz.X11 from the same path, and the
+		// current pkg overwrites it in place, so a legacy install there is outdated.
+		// Copies elsewhere aren't flagged because installing can't replace them.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = '%s' AND path = '/Applications/Utilities/XQuartz.app') OR (bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0));",
+			xquartzLegacyBundleID, out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "roboform" {
+		// RoboForm 9 reports com.SiberSystems.RoboForm from the same path, as does the
+		// installer that RoboForm 10's disk image ships as RoboForm.app. Installing
+		// replaces either in place, so both are outdated.
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = '%s' AND path = '/Applications/RoboForm.app') OR (bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0));",
+			roboformLegacyBundleID, out.UniqueIdentifier, out.Version,
+		)
+	}
+	if input.Token == "firefox@developer-edition" {
+		// The bundle reports only the base version ("153.0") for cask version
+		// "153.0b13", so compare CFBundleVersion (encodes the build date, resolved
+		// via buildhub) to distinguish betas; fall back to a cycle-granular
+		// base-version comparison if buildhub is unavailable.
+		column := "bundle_version"
+		patchVersion, err := i.firefoxDevEditionMacBundleVersion(ctx, out.Version)
+		if err != nil {
+			i.logger.WarnContext(ctx, "resolving Firefox Developer Edition bundle version failed; patch policy falls back to base-version comparison", "err", err.Error())
+			column, patchVersion = "bundle_short_version", firefoxBetaBaseVersion(out.Version)
+		}
+		out.Queries.Patched = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(%s, '%s') < 0);",
+			out.UniqueIdentifier, column, patchVersion,
+		)
+	}
+	if input.Token == "firefox@nightly" {
+		// Nightly's CFBundleShortVersionString ("154.0a1") is constant all cycle;
+		// derive CFBundleVersion from the cask version's build timestamp for
+		// day-level patch status.
+		bundleVersion, err := firefoxNightlyMacBundleVersion(cask.Version)
+		if err != nil {
+			i.logger.WarnContext(ctx, "deriving Firefox Nightly bundle version failed; patch policy falls back to short-version comparison", "err", err.Error())
+		} else {
+			out.Queries.Patched = fmt.Sprintf(
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+				out.UniqueIdentifier, bundleVersion,
+			)
+		}
+	}
+
+	out.Queries.Open = patch_policy.GenerateOpenQuery("darwin", out.UniqueIdentifier, "")
+	switch input.Token {
+	case "google-chrome", "microsoft-edge", "brave-browser", "vivaldi", "opera", "arc", "comet":
+		// Also match the executable in the browser's code sign clone, macOS reports a running Chromium browser there after the browser updates itself while open.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
+			out.UniqueIdentifier,
+		)
+	case "kicad":
+		// KiCad's editors (PCB Editor, Schematic Editor, ...) can also run as their own apps nested in KiCad.app/Contents/Applications.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%%.app/Contents/MacOS/%%')) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
+			out.UniqueIdentifier,
+		)
+	case "mindmanager":
+		// Match every major's bundle ID, like the patched query, so a running older major
+		// defers patching too.
+		out.Queries.Open = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');"
+	case "elgato-wave-link":
+		// A running Wave Link 2 defers patching too, since the patched query flags it.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
+			out.UniqueIdentifier, waveLink2BundleID,
+		)
+	case "xquartz":
+		// The X11 launcher execs X11.sh, which execs the X server, X11.bin.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path IN (concat(a.path, '/Contents/MacOS/', a.bundle_executable), concat(a.path, '/Contents/MacOS/X11.bin')) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
+			out.UniqueIdentifier, xquartzLegacyBundleID,
+		)
+	case "roboform":
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('%s', '%s') AND a.bundle_executable != '');",
+			out.UniqueIdentifier, roboformLegacyBundleID,
+		)
+	case "chatgpt":
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (%s) AND a.bundle_executable != '');",
+			chatGPTBundleMatch("a."),
+		)
+	}
+	if pathFilter, ok := qgisPathFilters[input.Token]; ok {
+		// Only this channel's copy counts as open; the other channel doesn't block its install.
+		out.Queries.Open = fmt.Sprintf(
+			"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = '%s' AND a.%s AND a.bundle_executable != '');",
+			out.UniqueIdentifier, pathFilter,
+		)
+	}
+
 	return out, nil
+}
+
+// xquartzLegacyBundleID is the bundle identifier XQuartz used before 2.8.0.
+const xquartzLegacyBundleID = "org.macosforge.xquartz.X11"
+
+// roboformLegacyBundleID is the bundle identifier RoboForm used before 10.0.
+const roboformLegacyBundleID = "com.SiberSystems.RoboForm"
+
+// zenChannelLetters are trimmed from the end of Zen versions ("1.24.1b" → "1.24.1").
+const zenChannelLetters = "abcdefghijklmnopqrstuvwxyz"
+
+// qgisPathFilters tells QGIS and QGIS LTR apart by where their casks install them:
+// both report the org.qgis.qgis3 bundle identifier.
+var qgisPathFilters = map[string]string{
+	"qgis":     "path LIKE '/Applications/QGIS-final-%.app'",
+	"qgis@ltr": "path = '/Applications/QGIS-LTR.app'",
+}
+
+// Wave Link 2's bundle identifier, and the path both Wave Link 2 and 3 install to.
+const (
+	waveLink2BundleID = "com.elgato.WaveLink"
+	waveLinkAppPath   = "/Applications/Elgato Wave Link.app"
+)
+
+// chatGPTBundleMatch matches the ChatGPT app under both of its bundle identifiers.
+// OpenAI rebuilt ChatGPT on the Codex app, so current builds report com.openai.codex
+// while hosts that haven't updated still report com.openai.chat. The discontinued
+// Codex.app also reports com.openai.codex, so that identifier only counts when the
+// bundle is named ChatGPT. Callers must parenthesize it before adding conditions.
+func chatGPTBundleMatch(alias string) string {
+	return fmt.Sprintf(
+		"%[1]sbundle_identifier = 'com.openai.chat' OR (%[1]sbundle_identifier = 'com.openai.codex' AND %[1]sbundle_name = 'ChatGPT')",
+		alias,
+	)
+}
+
+var firefoxBetaVersionPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)b\d+$`)
+
+// firefoxBetaBaseVersion strips the beta suffix from a Firefox pre-release
+// version ("153.0b13" -> "153.0"); non-matching versions pass through unchanged.
+func firefoxBetaBaseVersion(version string) string {
+	if m := firefoxBetaVersionPattern.FindStringSubmatch(version); m != nil {
+		return m[1]
+	}
+	return version
+}
+
+// firefoxMacBundleVersion computes a Firefox mac build's CFBundleVersion:
+// "<major><yy>.<month>.<day>", unpadded ("153.0b13" + "20260715" -> "15326.7.15").
+func firefoxMacBundleVersion(version, buildDate string) (string, error) {
+	major, _, _ := strings.Cut(version, ".")
+	if major == "" || strings.Trim(major, "0123456789") != "" {
+		return "", fmt.Errorf("cannot parse major version from %q", version)
+	}
+	if len(buildDate) < 8 {
+		return "", fmt.Errorf("invalid build date %q", buildDate)
+	}
+	date, err := time.Parse("20060102", buildDate[:8])
+	if err != nil {
+		return "", fmt.Errorf("invalid build date %q", buildDate)
+	}
+	yy := buildDate[2:4]
+	return fmt.Sprintf("%s%s.%d.%d", major, yy, int(date.Month()), date.Day()), nil
+}
+
+// weChatCaskBuildPattern extracts the numeric build from a WeChat cask version
+// ("4.2.0.16,270352").
+var weChatCaskBuildPattern = regexp.MustCompile(`^[^,]+,(\d+)$`)
+
+// firefoxNightlyCaskVersionPattern extracts the build timestamp from a Firefox
+// Nightly cask version ("154.0a1,2026-07-17-09-27-13").
+var firefoxNightlyCaskVersionPattern = regexp.MustCompile(`^[^,]+,(\d{4})-(\d{2})-(\d{2})(?:-|$)`)
+
+// firefoxNightlyMacBundleVersion derives CFBundleVersion from a Nightly cask
+// version ("154.0a1,2026-07-17-09-27-13" -> "15426.7.17").
+func firefoxNightlyMacBundleVersion(caskVersion string) (string, error) {
+	m := firefoxNightlyCaskVersionPattern.FindStringSubmatch(caskVersion)
+	if m == nil {
+		return "", fmt.Errorf("cask version %q has no build timestamp", caskVersion)
+	}
+	return firefoxMacBundleVersion(caskVersion, m[1]+m[2]+m[3])
+}
+
+// firefoxDevEditionMacBundleVersion resolves a Developer Edition mac build's
+// CFBundleVersion ("153.0b13" -> "15326.7.15") by looking up its build id in
+// buildhub, where DevEd is indexed as product "firefox", channel "aurora".
+func (i *brewIngester) firefoxDevEditionMacBundleVersion(ctx context.Context, version string) (string, error) {
+	type term map[string]map[string]string
+	reqBody, err := json.Marshal(map[string]any{
+		"size": 1,
+		"query": map[string]any{
+			"bool": map[string]any{
+				"must": []term{
+					{"term": {"source.product": "firefox"}},
+					{"term": {"target.channel": "aurora"}},
+					{"term": {"target.platform": "mac"}},
+					{"term": {"target.version": version}},
+				},
+			},
+		},
+		"sort": []term{{"build.id": {"order": "desc"}}},
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "marshal buildhub query")
+	}
+
+	interval := i.retryInterval
+	if interval <= 0 {
+		interval = 2 * time.Second
+	}
+	maxAttempts := i.retryMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 5
+	}
+
+	var body []byte
+	attempt := 0
+	err = retry.Do(func() error {
+		attempt++
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, i.buildhubURL, bytes.NewReader(reqBody))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "create buildhub http request")
+		}
+		req.Header.Set("Content-Type", "application/json")
+
+		res, err := i.client.Do(req)
+		if err != nil {
+			// Caller cancellation/deadline is not transient; stop retrying.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			i.logger.WarnContext(ctx, "buildhub request failed, retrying", "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "execute buildhub http request")}
+		}
+		defer res.Body.Close()
+
+		body, err = io.ReadAll(res.Body)
+		if err != nil {
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			i.logger.WarnContext(ctx, "reading buildhub response failed, retrying", "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "read buildhub response body")}
+		}
+
+		switch res.StatusCode {
+		case http.StatusOK:
+			return nil
+		case http.StatusTooManyRequests,
+			http.StatusInternalServerError,
+			http.StatusBadGateway,
+			http.StatusServiceUnavailable,
+			http.StatusGatewayTimeout:
+			i.logger.WarnContext(ctx, "buildhub returned transient error, retrying", "attempt", attempt, "status", res.StatusCode)
+			return &transientErr{ctxerr.Errorf(ctx, "buildhub returned status %d: %s", res.StatusCode, truncateBody(body))}
+		default:
+			return ctxerr.Errorf(ctx, "buildhub returned status %d: %s", res.StatusCode, truncateBody(body))
+		}
+	},
+		retry.WithInterval(interval),
+		retry.WithBackoffMultiplier(2),
+		retry.WithMaxAttempts(maxAttempts),
+		retry.WithErrorFilter(func(err error) retry.ErrorOutcome {
+			if _, ok := errors.AsType[*transientErr](err); ok {
+				return retry.ErrorOutcomeNormalRetry
+			}
+			return retry.ErrorOutcomeDoNotRetry
+		}),
+	)
+	if err != nil {
+		return "", err
+	}
+
+	var resp struct {
+		Hits struct {
+			Hits []struct {
+				Source struct {
+					Build struct {
+						ID string `json:"id"`
+					} `json:"build"`
+				} `json:"_source"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "unmarshal buildhub response")
+	}
+	if len(resp.Hits.Hits) == 0 {
+		return "", ctxerr.Errorf(ctx, "no buildhub build found for version %s", version)
+	}
+
+	return firefoxMacBundleVersion(version, resp.Hits.Hits[0].Source.Build.ID)
+}
+
+// fetchCask resolves the brew cask JSON for the given input app from
+// either a local file (cask_path) or the default brew API.
+func (i *brewIngester) fetchCask(ctx context.Context, input inputApp) (brewCask, error) {
+	var cask brewCask
+
+	if input.CaskPath != "" {
+		body, err := os.ReadFile(input.CaskPath)
+		if err != nil {
+			return cask, ctxerr.WrapWithData(ctx, err, "reading local cask JSON file", map[string]any{"cask_path": input.CaskPath})
+		}
+		if err := json.Unmarshal(body, &cask); err != nil {
+			return cask, ctxerr.Wrapf(ctx, err, "unmarshal local cask JSON for %s", input.Token)
+		}
+		// Cross-check the cask file matches the configured input. This catches
+		// subtle misconfiguration like pointing cask_path at the wrong JSON file.
+		if cask.Token != input.Token {
+			return cask, ctxerr.Errorf(ctx, "local cask JSON token %q does not match input token %q (cask_path: %s)", cask.Token, input.Token, input.CaskPath)
+		}
+		if len(cask.Name) == 0 {
+			return cask, ctxerr.Errorf(ctx, "local cask JSON for %s has empty name (cask_path: %s)", input.Token, input.CaskPath)
+		}
+		return cask, nil
+	}
+
+	apiURL := fmt.Sprintf("%scask/%s.json", i.baseURL, input.Token)
+
+	interval := i.retryInterval
+	if interval <= 0 {
+		interval = 2 * time.Second
+	}
+	maxAttempts := i.retryMaxAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 5
+	}
+
+	var body []byte
+	attempt := 0
+	err := retry.Do(func() error {
+		attempt++
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "create http request")
+		}
+
+		res, err := i.client.Do(req)
+		if err != nil {
+			// Caller cancellation/deadline is not transient; stop retrying so
+			// we don't sleep through the backoff after the run was canceled.
+			// Checking ctx.Err() (rather than the returned error) avoids
+			// misclassifying the client's own request timeout, which we do
+			// want to retry.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			// Network-level failures are transient; retry.
+			i.logger.WarnContext(ctx, "brew API request failed, retrying", "token", input.Token, "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "execute http request")}
+		}
+		defer res.Body.Close()
+
+		body, err = io.ReadAll(res.Body)
+		if err != nil {
+			// Caller cancellation/deadline is not transient; stop retrying.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return ctxErr
+			}
+			// A truncated/interrupted read is transient; retry.
+			i.logger.WarnContext(ctx, "reading brew API response failed, retrying", "token", input.Token, "attempt", attempt, "err", err.Error())
+			return &transientErr{ctxerr.Wrap(ctx, err, "read http response body")}
+		}
+
+		switch res.StatusCode {
+		case http.StatusOK:
+			return nil
+		case http.StatusNotFound:
+			return ctxerr.New(ctx, "app not found in brew API")
+		case http.StatusTooManyRequests,
+			http.StatusInternalServerError,
+			http.StatusBadGateway,
+			http.StatusServiceUnavailable,
+			http.StatusGatewayTimeout:
+			// formulae.brew.sh (GitHub Pages) intermittently returns these;
+			// retry before giving up.
+			i.logger.WarnContext(ctx, "brew API returned transient error, retrying", "token", input.Token, "attempt", attempt, "status", res.StatusCode)
+			return &transientErr{ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, truncateBody(body))}
+		default:
+			return ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, truncateBody(body))
+		}
+	},
+		retry.WithInterval(interval),
+		retry.WithBackoffMultiplier(2),
+		retry.WithMaxAttempts(maxAttempts),
+		retry.WithErrorFilter(func(err error) retry.ErrorOutcome {
+			if _, ok := errors.AsType[*transientErr](err); ok {
+				return retry.ErrorOutcomeNormalRetry
+			}
+			return retry.ErrorOutcomeDoNotRetry
+		}),
+	)
+	if err != nil {
+		return cask, err
+	}
+
+	if err := json.Unmarshal(body, &cask); err != nil {
+		return cask, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
+	}
+	return cask, nil
+}
+
+// truncateBody limits an error-response body to a sane length for log/error output.
+func truncateBody(body []byte) string {
+	if len(body) > 512 {
+		body = body[:512]
+	}
+	return string(body)
 }
 
 type inputApp struct {
@@ -234,6 +869,14 @@ type inputApp struct {
 	Frozen               bool     `json:"frozen"`
 	InstallScriptPath    string   `json:"install_script_path"`
 	UninstallScriptPath  string   `json:"uninstall_script_path"`
+	PatchPolicyPath      string   `json:"patch_policy_path"`
+	// CaskPath optionally points at a local file (relative to the repo
+	// root) containing the cask JSON in the same schema as
+	// https://formulae.brew.sh/api/cask/<token>.json. Used to commit cask
+	// metadata for third-party taps directly into this repo (see
+	// inputs/homebrew/custom-tap/). When empty, the ingester fetches from
+	// formulae.brew.sh.
+	CaskPath string `json:"cask_path"`
 }
 
 type brewCask struct {
@@ -310,6 +953,10 @@ type brewUninstall struct {
 	PkgUtil   optjson.StringOr[[]string] `json:"pkgutil"`
 	// brew docs says string or hash, but our only case has a single string.
 	Script optjson.StringOr[map[string]any] `json:"script"`
+	// same shape as Script, but brew runs it before every other directive, so
+	// it's what casks use to make the rest of the removal possible (unloading a
+	// system extension, clearing an immutable flag).
+	EarlyScript optjson.StringOr[map[string]any] `json:"early_script"`
 	// format: [0]=signal, [1]=process name (although the brew documentation says
 	// it's an array of arrays, it's not like that in our single case that uses
 	// it).

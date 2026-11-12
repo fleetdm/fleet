@@ -1,0 +1,12 @@
+{
+  "name": "Azure Functions Core Tools",
+  "slug": "azure-functions-core-tools/windows",
+  "package_identifier": "Microsoft.Azure.FunctionsCoreTools",
+  "unique_identifier": "Azure Functions Core Tools",
+  "fuzzy_match_name": true,
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/azure-functions-core-tools_install.ps1",
+  "default_categories": ["Developer tools"]
+}

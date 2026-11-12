@@ -3,15 +3,14 @@ package httpsig
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 type key int
@@ -49,7 +48,7 @@ func FromContext(ctx context.Context) (types.HostIdentityCertificate, bool) {
 // to it, and then calls the handler passed as parameter to the MiddlewareFunc.
 type MiddlewareFunc func(http.Handler) http.Handler
 
-func Middleware(ds fleet.Datastore, requireSignature bool, logger kitlog.Logger) (MiddlewareFunc, error) {
+func Middleware(ds fleet.Datastore, requireSignature bool, logger *slog.Logger) (MiddlewareFunc, error) {
 	// Initialize HTTP signature verifier
 	httpSig := NewHTTPSig(ds, logger)
 	verifier, err := httpSig.Verifier()
@@ -76,8 +75,7 @@ func Middleware(ds fleet.Datastore, requireSignature bool, logger kitlog.Logger)
 			if req.Header.Get("signature") == "" || req.Header.Get("signature-input") == "" {
 				if requireSignature {
 					handleError(req.Context(), w,
-						ctxerr.Errorf(req.Context(), "missing required HTTP message signature: path=%s", req.URL.Path),
-						http.StatusUnauthorized)
+						ctxerr.Errorf(req.Context(), "missing required HTTP message signature: path=%s", req.URL.Path))
 					return
 				}
 				next.ServeHTTP(w, req)
@@ -88,26 +86,26 @@ func Middleware(ds fleet.Datastore, requireSignature bool, logger kitlog.Logger)
 			result, err := verifier.Verify(req)
 			if err != nil {
 				handleError(req.Context(), w,
-					ctxerr.Wrap(req.Context(), err, "failed to verify request signature", fmt.Sprintf("path=%s", req.URL.Path)),
-					http.StatusUnauthorized)
+					ctxerr.Wrap(req.Context(), err, "failed to verify request signature", fmt.Sprintf("path=%s", req.URL.Path)))
 				return
 			}
 			keySpecer, ok := result.KeySpecer.(*KeySpecer)
 			if !ok {
-				handleError(req.Context(), w,
-					ctxerr.New(req.Context(), fmt.Sprintf("could not extract host identity certificate key: path=%s", req.URL.Path)),
-					http.StatusInternalServerError)
+				// Internal invariant failure, not an authentication rejection:
+				// keep the 500 so agents don't treat a server fault as a
+				// revoked identity and discard their certificate.
+				handleInternalError(req.Context(), w,
+					ctxerr.New(req.Context(), fmt.Sprintf("could not extract host identity certificate key: path=%s", req.URL.Path)))
 				return
 			}
 			if !result.Verified {
 				handleError(req.Context(), w,
 					ctxerr.New(req.Context(), fmt.Sprintf("request not verified: path=%s host_uuid=%s", req.URL.Path,
-						keySpecer.hostIdentityCert.CommonName)),
-					http.StatusUnauthorized)
+						keySpecer.hostIdentityCert.CommonName)))
 				return
 			}
 
-			level.Debug(logger).Log("msg", "httpsig verified", "host_id", keySpecer.hostIdentityCert.HostID)
+			logger.DebugContext(req.Context(), "httpsig verified", "host_id", keySpecer.hostIdentityCert.HostID)
 
 			// Signature is valid, we set the identity data in the context and proceed with processing the request.
 			req = req.WithContext(NewContext(req.Context(), keySpecer.hostIdentityCert))
@@ -116,7 +114,15 @@ func Middleware(ds fleet.Datastore, requireSignature bool, logger kitlog.Logger)
 	}, nil
 }
 
-func handleError(ctx context.Context, w http.ResponseWriter, err error, code int) {
+// handleError logs the detailed error server-side and returns a uniform
+// response so callers can't distinguish failure modes (unknown key ID,
+// invalid signature, etc.) or read internal detail.
+func handleError(ctx context.Context, w http.ResponseWriter, err error) {
 	ctxerr.Handle(ctx, err)
-	http.Error(w, err.Error(), code)
+	http.Error(w, "authentication failed", http.StatusUnauthorized)
+}
+
+func handleInternalError(ctx context.Context, w http.ResponseWriter, err error) {
+	ctxerr.Handle(ctx, err)
+	http.Error(w, "internal error", http.StatusInternalServerError)
 }

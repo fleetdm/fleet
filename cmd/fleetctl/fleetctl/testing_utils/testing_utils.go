@@ -16,10 +16,15 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/text/unicode/norm"
+
+	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
@@ -28,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mock2 "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -44,6 +50,20 @@ const (
 // NOTE: Assumes the current session is always from the admin user (see ds.SessionByKeyFunc below).
 func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*httptest.Server, *mock.Store) {
 	ds := new(mock.Store)
+	// Custom host vitals are declarative and global-only, so every `fleetctl gitops`
+	// run against a global config calls these, even when custom_host_vitals: is absent.
+	ds.ListCustomHostVitalsFunc = func(ctx context.Context, opt fleet.ListOptions) ([]fleet.CustomHostVital, *fleet.PaginationMetadata, int, error) {
+		return nil, &fleet.PaginationMetadata{}, 0, nil
+	}
+	ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+		return nil, nil, nil
+	}
+	ds.BatchSetAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint, assets []*fleet.MDMAppleDDMAssetToSet) (*fleet.MDMAppleDDMAssetsBatchChanges, error) {
+		return &fleet.MDMAppleDDMAssetsBatchChanges{}, nil
+	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
+		return nil, nil
+	}
 	var users []*fleet.User
 	var admin *fleet.User
 	ds.NewUserFunc = func(ctx context.Context, user *fleet.User) (*fleet.User, error) {
@@ -74,6 +94,18 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
+	// On Premium, AppConfig assembly reads the Microsoft conditional access
+	// integration. Default to an empty (not set up) integration so tests that
+	// don't care about it don't panic on a nil mock.
+	ds.ConditionalAccessMicrosoftGetFunc = func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error) {
+		return &fleet.ConditionalAccessMicrosoftIntegration{}, nil
+	}
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		return nil, "", nil
+	}
+	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
+		return nil, nil
+	}
 	ds.NewGlobalPolicyFunc = func(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 		return &fleet.Policy{
 			PolicyData: fleet.PolicyData{
@@ -84,6 +116,7 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 				Description: args.Description,
 				Resolution:  &args.Resolution,
 				AuthorID:    authorID,
+				Type:        "dynamic",
 			},
 		}, nil
 	}
@@ -95,12 +128,10 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 			ID: 1,
 		}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
-	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) { return nil, nil }
+	apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
-	certPEM, keyPEM, tokenBytes, err := mysql.GenerateTestABMAssets(t)
+	certPEM, keyPEM, tokenBytes, err := mysqltest.GenerateTestABMAssets(t)
 	require.NoError(t, err)
 	ds.GetAllMDMConfigAssetsHashesFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName) (map[fleet.MDMAssetName]string, error) {
 		return map[fleet.MDMAssetName]string{
@@ -133,10 +164,22 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
 		return nil
 	}
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.GetPatchDeadlineSettingsFunc = func(ctx context.Context, teamID uint) (*fleet.PatchDeadlineSettings, error) {
+		return fleet.DefaultPatchDeadlineSettings(teamID), nil
+	}
+	ds.SetPatchDeadlineSettingsFunc = func(ctx context.Context, settings fleet.PatchDeadlineSettings) error {
+		return nil
+	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return nil, nil
 	}
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 		return nil, nil
 	}
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
@@ -145,13 +188,66 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
 		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
 	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
+		return nil, nil
+	}
+	ds.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return nil, nil
+	}
+	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+		return nil, nil
+	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
+	ds.GetHostDeviceNameEnforcementFunc = func(ctx context.Context, hostUUID string) (*fleet.HostDeviceNameEnforcement, error) {
+		return nil, nil
+	}
+	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+		return &fleet.TeamMDM{}, nil
+	}
+	// The FileVault reconciler reads the settings above and then writes or
+	// removes the profile accordingly; both outcomes need a mock.
+	ds.UpsertMDMAppleFleetConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+	ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFunc = func(ctx context.Context, teamID *uint, profileIdentifier string) error {
+		return nil
+	}
+	// Default mocks used by ApplyLabelSpecs to detect created vs edited labels
+	// for activity emission. Tests can override these.
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{}, nil
+	}
+	ds.LabelFunc = func(ctx context.Context, lid uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{Label: fleet.Label{ID: lid}}, nil, nil
+	}
+	ds.LabelMembershipHostIDsFunc = func(ctx context.Context, labelID uint) ([]uint, error) {
+		return nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid}, nil
+	}
+	// GitOps clears the setup experience script on every non-dry-run team apply, which now reads
+	// the existing script first. Default to "none set" so the delete is a clean no-op; tests that
+	// care about setup experience scripts override this.
+	ds.GetSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+		return nil, &notFoundError{}
+	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
+
 	var cachedDS fleet.Datastore
 	if len(opts) > 0 && opts[0].NoCacheDatastore {
 		cachedDS = ds
 	} else {
 		cachedDS = cached_mysql.New(ds)
 	}
-	_, server := service.RunServerForTestsWithDS(t, cachedDS, opts...)
+	_, server := svctest.RunServerForTestsWithDS(t, cachedDS, opts...)
 	os.Setenv("FLEET_SERVER_ADDRESS", server.URL)
 
 	return server, ds
@@ -206,7 +302,7 @@ func StartSoftwareInstallerServer(t *testing.T) {
 				case strings.Contains(r.URL.Path, "toolarge"):
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					var sz int
-					for sz < 3000*1024*1024 {
+					for sz < 513*units.MiB {
 						n, _ := w.Write(b)
 						sz += n
 					}
@@ -214,6 +310,16 @@ func StartSoftwareInstallerServer(t *testing.T) {
 					// serve same content as ruby.deb
 					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
 					_, _ = w.Write(b)
+				case strings.Contains(r.URL.Path, "ruby_variant.deb"):
+					// ruby.deb with extra trailing bytes: same package (the deb archive
+					// ignores trailing bytes) but a different hash, so it is a distinct
+					// package of the same title.
+					w.Header().Set("Content-Type", "application/vnd.debian.binary-package")
+					_, _ = w.Write(b)
+					_, _ = w.Write([]byte("\n# variant\n"))
+				case strings.HasSuffix(r.URL.Path, ".pkg"):
+					pkgDir := getPathRelative("../testdata/gitops/lib/")
+					http.ServeFile(w, r, filepath.Join(pkgDir, filepath.Base(r.URL.Path)))
 				default:
 					http.ServeFile(w, r, filepath.Join(baseDir, filepath.Base(r.URL.Path)))
 				}
@@ -276,6 +382,18 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
 	}
+	// Default to "no existing vpp_apps row" so resolveAddAnchor takes the
+	// first-add path. Tests that assert subsequent-add or re-anchor behavior
+	// override these.
+	ds.GetVPPAppByAdamIDPlatformFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetVPPTokenOwningAppInCountryFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error) {
+		return nil, &notFoundError{}
+	}
+	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
+		return []fleet.SoftwareAutoUpdateSchedule{}, nil
+	}
 
 	savedTeams := map[string]**fleet.Team{}
 
@@ -290,11 +408,19 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	) error {
 		return nil
 	}
+	ds.GetMDMProfileChecksumsFunc = func(ctx context.Context, teamID uint) (*fleet.MDMProfileChecksums, error) {
+		return &fleet.MDMProfileChecksums{}, nil
+	}
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
 		macDecls []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.ListMDMConfigProfilesFunc = func(
+		ctx context.Context, teamID *uint, opt fleet.ListOptions,
+	) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+		return nil, &fleet.PaginationMetadata{}, nil
 	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
 		return []fleet.ScriptResponse{}, nil
@@ -319,6 +445,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.DeleteMDMAppleBootstrapPackageFunc = func(ctx context.Context, teamID uint) error {
 		return nil
 	}
+	ds.InsertMDMAppleBootstrapPackageFunc = func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
+		return nil
+	}
 	ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
 		return nil, nil
 	}
@@ -332,9 +461,11 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) { return nil, nil }
+	ds.ListGlobalPoliciesFunc = func(ctx context.Context, opts fleet.ListOptions, platform string) ([]*fleet.Policy, error) {
+		return nil, nil
+	}
 	ds.ListTeamPoliciesFunc = func(
-		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions,
+		ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationType fleet.PolicyAutomationType, platform string,
 	) (teamPolicies []*fleet.Policy, inheritedPolicies []*fleet.Policy, err error) {
 		return nil, nil, nil
 	}
@@ -359,13 +490,8 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		}
 		return summary, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
-		return nil, 0, nil, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
+	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
 	}
 	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, p fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		return nil, nil
@@ -373,6 +499,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		job.ID = 1
 		return job, nil
+	}
+	ds.HasQueuedJobWithArgsFunc = func(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+		return false, nil
 	}
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		team.ID = uint(len(savedTeams) + 1) //nolint:gosec // dismiss G115
@@ -391,6 +520,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		return nil, &notFoundError{}
 	}
 	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if tid == 0 {
+			return &fleet.TeamLite{}, nil
+		}
 		for _, tm := range savedTeams {
 			if (*tm).ID == tid {
 				teamToCopy := *tm
@@ -414,6 +546,23 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		}
 		return nil, &notFoundError{}
 	}
+	// Stateful default for the Windows enrollment default fleet config row. Tests can override.
+	var windowsEnrollmentDefaultTeamID *uint
+	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
+		if windowsEnrollmentDefaultTeamID == nil {
+			return nil, "", nil
+		}
+		for _, tm := range savedTeams {
+			if (*tm).ID == *windowsEnrollmentDefaultTeamID {
+				return windowsEnrollmentDefaultTeamID, (*tm).Name, nil
+			}
+		}
+		return nil, "", nil
+	}
+	ds.SetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context, teamID *uint) error {
+		windowsEnrollmentDefaultTeamID = teamID
+		return nil
+	}
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
 		for _, tm := range savedTeams {
 			if (*tm).Filename != nil && *(*tm).Filename == filename {
@@ -422,24 +571,55 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		}
 		return nil, &notFoundError{}
 	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		// Match production semantics: both sides get NFC-normalized before
+		// the case-insensitive compare, so two names that only differ by
+		// Unicode composition (e.g., precomposed "é" vs. "e" + combining
+		// acute accent) are treated as equal.
+		needle := norm.NFC.String(name)
+		for _, tm := range savedTeams {
+			if (*tm).ID == excludeID {
+				continue
+			}
+			if strings.EqualFold(norm.NFC.String((*tm).Name), needle) {
+				return *tm, nil
+			}
+		}
+		return nil, nil
+	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeams[team.Name] = &team
 		return team, nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) {
+		return true, nil
+	}
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (
 		*fleet.MDMAppleDeclaration, error,
 	) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
-	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
-		return nil
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) ([]uint, error) {
+		return nil, nil
 	}
 	ds.BatchSetInHouseAppsInstallersFunc = func(ctx context.Context, teamID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
 		return nil
 	}
 	ds.GetSoftwareInstallersFunc = func(ctx context.Context, tmID uint) ([]fleet.SoftwarePackageResponse, error) {
 		return nil, nil
+	}
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+		return nil, nil
+	}
+	ds.BatchNewSoftwareCategoriesFunc = func(ctx context.Context, teamID uint, names []string) error {
+		return nil
+	}
+	ds.DeleteSoftwareCategoryFunc = func(ctx context.Context, id uint) error {
+		return nil
 	}
 
 	ds.InsertVPPTokenFunc = func(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
@@ -453,6 +633,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return nil, nil
+	}
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, teamID *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return map[fleet.VPPAppID]fleet.VPPAppTeam{}, nil
 	}
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
 		return &fleet.VPPTokenDB{}, nil
@@ -468,23 +651,51 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 		return nil
 	}
+	ds.SetABMTokenDefaultFunc = func(ctx context.Context, tokenID uint) error {
+		return nil
+	}
+	ds.ClearABMTokenDefaultFunc = func(ctx context.Context) error {
+		return nil
+	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{}, nil
 	}
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 		return []*fleet.ABMToken{}, nil
 	}
+	ds.ListMicrosoftGraphCredentialsFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredential, error) {
+		return nil, nil
+	}
+	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
+		return nil, nil
+	}
+	ds.UpdateMicrosoftGraphCredentialInvalidAggregateFunc = func(ctx context.Context) error { return nil }
+	ds.ReplaceMicrosoftGraphCredentialsFunc = func(ctx context.Context, upsert []*fleet.MicrosoftGraphCredential, deleteTenantIDs []string) error {
+		return nil
+	}
+	ds.GetSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) (*fleet.Script, error) {
+		return nil, &notFoundError{}
+	}
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
-	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
-		return nil
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) (bool, error) {
+		return true, nil
 	}
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
 		return document, nil, nil
 	}
-	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context, platform fleet.MDMEULAPlatform) (*fleet.MDMEULA, error) {
 		return nil, &notFoundError{} // No existing EULA
+	}
+	// A token's platform is whichever EULA the test's metadata mock gives that token, so tests only mock the metadata.
+	ds.MDMGetEULAPlatformFunc = func(ctx context.Context, token string) (fleet.MDMEULAPlatform, error) {
+		for _, platform := range []fleet.MDMEULAPlatform{fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformWindows} {
+			if eula, err := ds.MDMGetEULAMetadataFunc(ctx, platform); err == nil && eula != nil && eula.Token == token {
+				return platform, nil
+			}
+		}
+		return "", &notFoundError{}
 	}
 	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
 		return nil
@@ -510,8 +721,12 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 }
 
 type AppleVPPConfigSrvConf struct {
-	Assets        []vpp.Asset
-	SerialNumbers []string
+	Assets []vpp.Asset
+	// AssetsByBearer overrides Assets for requests whose Authorization header
+	// is "Bearer <key>". The bearer Fleet sends is the uploaded token's base64
+	// content.
+	AssetsByBearer map[string][]vpp.Asset
+	SerialNumbers  []string
 }
 
 func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
@@ -613,14 +828,18 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 			// Then we're responding to GetAssets
 			w.Header().Set("Content-Type", "application/json")
 			encoder := json.NewEncoder(w)
-			err := encoder.Encode(map[string][]vpp.Asset{"assets": config.Assets})
+			assets, ok := config.AssetsByBearer[strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")]
+			if !ok {
+				assets = config.Assets
+			}
+			err := encoder.Encode(map[string][]vpp.Asset{"assets": assets})
 			if err != nil {
 				panic(err)
 			}
 			return
 		}
 
-		resp := []byte(`{"locationName": "Fleet Location One"}`)
+		resp := []byte(`{"locationName": "Fleet Location One", "countryISO2ACode": "US"}`)
 		if strings.Contains(r.URL.RawQuery, "invalidToken") {
 			// This replicates the response sent back from Apple's VPP endpoints when an invalid
 			// token is passed. For more details see:
@@ -639,12 +858,19 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 		_, _ = w.Write(resp)
 	}))
 
-	t.Setenv("FLEET_DEV_VPP_URL", srv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", srv.URL, t)
 	t.Cleanup(srv.Close)
 }
 
 func StartAndServeVPPServer(t *testing.T) {
+	StartAndServeVPPServerWithAssets(t, nil)
+}
+
+// StartAndServeVPPServerWithAssets is StartAndServeVPPServer with per-token
+// assets, keyed by the bearer Fleet sends for each token.
+func StartAndServeVPPServerWithAssets(t *testing.T, assetsByBearer map[string][]vpp.Asset) {
 	config := &AppleVPPConfigSrvConf{
+		AssetsByBearer: assetsByBearer,
 		Assets: []vpp.Asset{
 			{
 				AdamID:         "1",
@@ -662,30 +888,90 @@ func StartAndServeVPPServer(t *testing.T) {
 
 	StartVPPApplyServer(t, config)
 
-	appleITunesSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// a map of apps we can respond with
-		db := map[string]string{
-			// macos app
-			"1": `{"bundleId": "a-1", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "App 1", "TrackID": 1}`,
-			// macos, ios, ipados app
-			"2": `{"bundleId": "b-2", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "App 2", "TrackID": 2,
-				"supportedDevices": ["MacDesktop-MacDesktop", "iPhone5s-iPhone5s", "iPadAir-iPadAir"] }`,
-			// ipados app
-			"3": `{"bundleId": "c-3", "artworkUrl512": "https://example.com/images/3", "version": "3.0.0", "trackName": "App 3", "TrackID": 3,
-				"supportedDevices": ["iPadAir-iPadAir"] }`,
+	// Set up the VPP proxy metadata server using the new format
+	// This replaces the old iTunes API format
+	vppProxySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer test-bearer-token" || r.Header.Get("vpp-token") == "" {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"error": "unauthorized"}`))
+			return
 		}
 
-		adamIDString := r.URL.Query().Get("id")
+		// deviceFamilies: "mac" -> osx platform, "iphone" -> ios platform, "ipad" -> ios platform
+		db := map[string]string{
+			// macos app
+			"1": `{
+				"id": "1",
+				"attributes": {
+					"name": "App 1",
+					"platformAttributes": {
+						"osx": {
+							"bundleId": "a-1",
+							"artwork": {"url": "https://example.com/images/1/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "1.0.0"}
+						}
+					},
+					"deviceFamilies": ["mac"]
+				}
+			}`,
+			// macos, ios, ipados app
+			"2": `{
+				"id": "2",
+				"attributes": {
+					"name": "App 2",
+					"platformAttributes": {
+						"osx": {
+							"bundleId": "b-2",
+							"artwork": {"url": "https://example.com/images/2-mac/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "1.2.3"}
+						},
+						"ios": {
+							"bundleId": "b-2",
+							"artwork": {"url": "https://example.com/images/2/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "2.0.0"}
+						}
+					},
+					"deviceFamilies": ["mac", "iphone", "ipad"]
+				}
+			}`,
+			// ipados app
+			"3": `{
+				"id": "3",
+				"attributes": {
+					"name": "App 3",
+					"platformAttributes": {
+						"ios": {
+							"bundleId": "c-3",
+							"artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"},
+							"latestVersionInfo": {"versionDisplay": "3.0.0"}
+						}
+					},
+					"deviceFamilies": ["ipad"]
+				}
+			}`,
+		}
+
+		adamIDString := r.URL.Query().Get("ids")
 		adamIDs := strings.Split(adamIDString, ",")
 
 		var objs []string
 		for _, a := range adamIDs {
-			objs = append(objs, db[a])
+			if obj, ok := db[a]; ok {
+				objs = append(objs, obj)
+			}
 		}
 
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
+		_, _ = w.Write(fmt.Appendf(nil, `{"data": [%s]}`, strings.Join(objs, ",")))
 	}))
-	t.Setenv("FLEET_DEV_ITUNES_URL", appleITunesSrv.URL)
+
+	vppProxyAuthSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"fleetServerSecret": "test-bearer-token"}`))
+	}))
+
+	t.Cleanup(vppProxySrv.Close)
+	t.Cleanup(vppProxyAuthSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", vppProxySrv.URL, t)
+	dev_mode.SetOverride("FLEET_DEV_VPP_PROXY_AUTH_URL", vppProxyAuthSrv.URL, t)
 }
 
 type MockPusher struct{}
@@ -741,7 +1027,13 @@ func AddLabelMocks(ds *mock.Store) {
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		return nil
 	}
+	ds.SetAsideLabelsFunc = func(ctx context.Context, teamID *uint, names []string, user fleet.User) error {
+		return nil
+	}
 
+	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
+		return &fleet.Label{ID: 1, Name: name}, nil
+	}
 	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
 		deletedLabels = append(deletedLabels, name)
 		return nil

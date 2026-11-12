@@ -5,17 +5,18 @@ import (
 	"context"
 	"crypto"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"errors"
 	"fmt"
+	"log/slog"
+	"slices"
 	"time"
 
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/enrollment"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/rs/zerolog"
-	"github.com/smallstep/scep"
 	"github.com/smallstep/scep/x509util"
 )
 
@@ -147,38 +148,19 @@ func NewClient(opts ...Option) (*Client, error) {
 func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 	// We assume the required fields have already been validated by the NewClient factory.
 
-	kitLogger := &zerologAdapter{logger: c.logger}
-	opts := []scepclient.Option{
-		scepclient.WithTimeout(c.timeout),
-		scepclient.WithRootCA(c.rootCA),
-	}
-	if c.insecure {
-		opts = append(opts, scepclient.Insecure())
-	}
-
-	scepClient, err := scepclient.New(c.scepURL, kitLogger, opts...)
+	slogLogger := slog.New(&zerologSlogHandler{logger: c.logger})
+	scepClient, err := c.newSCEPClient(slogLogger)
 	if err != nil {
-		return nil, fmt.Errorf("create SCEP client: %w", err)
+		return nil, err
 	}
-	resp, _, err := scepClient.GetCACert(ctx, "")
+	caCerts, err := enrollment.FetchCACerts(ctx, scepClient)
 	if err != nil {
-		return nil, fmt.Errorf("get CA cert: %w", err)
-	}
-	caCert, err := x509.ParseCertificates(resp)
-	if err != nil {
-		return nil, fmt.Errorf("parse CA cert: %w", err)
+		return nil, err
 	}
 
 	signer, err := c.signingKey.Signer()
 	if err != nil {
 		return nil, fmt.Errorf("get signer: %w", err)
-	}
-
-	// Create a temporary RSA key pair in memory for SCEP envelope decryption
-	// ECC keys cannot be used for decryption, so we need RSA for this purpose
-	tempRSAKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, fmt.Errorf("generate temporary RSA key: %w", err)
 	}
 
 	// Generate CSR using signing key
@@ -203,117 +185,89 @@ func (c *Client) FetchCert(ctx context.Context) (*x509.Certificate, error) {
 		return nil, fmt.Errorf("parse CSR: %w", err)
 	}
 
-	// Create a self-signed certificate for SCEP protocol using the temporary RSA key
-	// The SCEP protocol requires RSA for both signing and decryption
-	// The actual CSR will be signed with the ECC key.
-	deviceCertificateTemplate := x509.Certificate{
-		Subject: pkix.Name{
-			CommonName:   c.commonName,
-			Organization: csr.Subject.Organization,
-		},
-
-		// The server will set these on the final certificate,
-		// but we need to set them otherwise the CSR is rejected.
-		NotBefore: time.Now(),
-		NotAfter:  time.Now().Add(365 * 24 * time.Hour),
-
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-	}
-
-	deviceCertificateDerBytes, err := x509.CreateCertificate(
-		rand.Reader,
-		&deviceCertificateTemplate,
-		&deviceCertificateTemplate,
-		&tempRSAKey.PublicKey,
-		tempRSAKey,
-	)
+	// The SCEP envelope needs an RSA key for signing and decryption, which the secure hardware key
+	// is not, so a temporary one signs it; the CSR itself is signed with the secure hardware key.
+	signerKey, signerCert, err := enrollment.NewEphemeralSigner(csr.Subject)
 	if err != nil {
-		return nil, fmt.Errorf("create device certificate: %w", err)
+		return nil, err
 	}
-
-	deviceCertificateForRequest, err := x509.ParseCertificate(deviceCertificateDerBytes)
+	cert, err := enrollment.Enroll(ctx, scepClient, caCerts, enrollment.Request{
+		CSR:        csr,
+		SignerKey:  signerKey,
+		SignerCert: signerCert,
+		Logger:     slogLogger,
+	})
 	if err != nil {
-		return nil, fmt.Errorf("parse device certificate: %w", err)
-	}
-
-	// Send PKCSReq message to SCEP server
-	// Use RSA key for SCEP protocol (signing and decryption)
-	// The CSR itself was already signed with the signing key.
-	pkiMsgReq := &scep.PKIMessage{
-		MessageType: scep.PKCSReq,
-		Recipients:  caCert,
-		SignerKey:   tempRSAKey, // Use RSA key for SCEP protocol
-		SignerCert:  deviceCertificateForRequest,
-		CSRReqMessage: &scep.CSRReqMessage{
-			ChallengePassword: c.scepChallenge,
-		},
-	}
-
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitLogger))
-	if err != nil {
-		return nil, fmt.Errorf("create CSR request: %w", err)
-	}
-
-	respBytes, err := scepClient.PKIOperation(ctx, msg.Raw)
-	if err != nil {
-		return nil, fmt.Errorf("do CSR request: %w", err)
-	}
-
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitLogger), scep.WithCACerts(msg.Recipients))
-	if err != nil {
-		return nil, fmt.Errorf("parse PKIMessage response: %w", err)
-	}
-
-	if pkiMsgResp.PKIStatus != scep.SUCCESS {
-		return nil, fmt.Errorf("PKIMessage CSR request failed with code: %s, fail info: %s", pkiMsgResp.PKIStatus, pkiMsgResp.FailInfo)
-	}
-
-	// Use the temporary RSA key for decryption (ECC keys don't support decryption)
-	if err := pkiMsgResp.DecryptPKIEnvelope(deviceCertificateForRequest, tempRSAKey); err != nil {
-		return nil, fmt.Errorf("decrypt PKI envelope: %w", err)
+		return nil, err
 	}
 
 	c.logger.Info().Msg("SCEP enrollment successful")
-	return pkiMsgResp.CertRepMessage.Certificate, nil
+	return cert, nil
 }
 
-// zerologAdapter adapts zerolog.Logger to kit/log.Logger
-type zerologAdapter struct {
+// Capabilities returns the SCEP server's GetCACaps response.
+func (c *Client) Capabilities(ctx context.Context) ([]byte, error) {
+	scepClient, err := c.newSCEPClient(slog.New(&zerologSlogHandler{logger: c.logger}))
+	if err != nil {
+		return nil, err
+	}
+	return scepClient.GetCACaps(ctx)
+}
+
+func (c *Client) newSCEPClient(logger *slog.Logger) (scepclient.Client, error) {
+	opts := []scepclient.Option{
+		scepclient.WithTimeout(c.timeout),
+		scepclient.WithRootCA(c.rootCA),
+	}
+	if c.insecure {
+		opts = append(opts, scepclient.Insecure())
+	}
+	scepClient, err := scepclient.New(c.scepURL, logger, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("create SCEP client: %w", err)
+	}
+	return scepClient, nil
+}
+
+// zerologSlogHandler adapts zerolog.Logger to slog.Handler so it can be used with *slog.Logger.
+type zerologSlogHandler struct {
 	logger zerolog.Logger
+	attrs  []slog.Attr
 }
 
-// Log implements the kit/log.Logger interface
-func (a *zerologAdapter) Log(keyvals ...interface{}) error {
-	// Convert key-value pairs to a map
-	fields := make(map[string]interface{})
-	for i := 0; i < len(keyvals); i += 2 {
-		if i+1 < len(keyvals) {
-			key, ok := keyvals[i].(string)
-			if ok {
-				fields[key] = keyvals[i+1]
-			}
-		}
-	}
+func (h *zerologSlogHandler) Enabled(_ context.Context, _ slog.Level) bool {
+	return true
+}
 
-	// Extract message if present
-	msg := ""
-	if msgVal, ok := fields["msg"]; ok {
-		if msgStr, ok := msgVal.(string); ok {
-			msg = msgStr
-			delete(fields, "msg")
-		}
+func (h *zerologSlogHandler) Handle(_ context.Context, r slog.Record) error {
+	var event *zerolog.Event
+	switch r.Level {
+	case slog.LevelDebug:
+		event = h.logger.Debug()
+	case slog.LevelWarn:
+		event = h.logger.Warn()
+	case slog.LevelError:
+		event = h.logger.Error()
+	default:
+		event = h.logger.Info()
 	}
-
-	// Log with zerolog
-	event := a.logger.Info()
-	for k, v := range fields {
-		event = event.Interface(k, v)
+	for _, a := range h.attrs {
+		event = event.Interface(a.Key, a.Value.Any())
 	}
-	event.Msg(msg)
-
+	r.Attrs(func(a slog.Attr) bool {
+		event = event.Interface(a.Key, a.Value.Any())
+		return true
+	})
+	event.Msg(r.Message)
 	return nil
+}
+
+func (h *zerologSlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &zerologSlogHandler{logger: h.logger, attrs: slices.Concat(h.attrs, attrs)}
+}
+
+func (h *zerologSlogHandler) WithGroup(_ string) slog.Handler {
+	return h
 }
 
 func PublicKeysEqual(a, b crypto.PublicKey) (bool, error) {

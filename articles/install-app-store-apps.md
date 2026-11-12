@@ -2,39 +2,229 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS hosts. To do this, you must first [turn on Apple MDM](https://fleetdm.com/guides/apple-mdm-setup#turn-on-apple-mdm) and Apple's [Volume Purchasing Program (VPP)](https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp).
+In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS hosts, including custom apps.
 
-You can also manage which Google Play Store apps are available for self-serivce in your end user's Android work profiles. Google only allows free Google Play Store apps. [Paid apps aren't supported](https://www.androidenterprise.community/discussions/conversations/distributing-paid-apps/653).
+You can also manage which Google Play Store apps are available for self-service in your end user's Android work profiles. Google only allows free Google Play Store apps. [Paid apps aren't supported](https://www.androidenterprise.community/discussions/conversations/distributing-paid-apps/653).
 
-Currently, Fleet only supports Apple App Store apps from the United States (US) region. If the app is listed on the [Apple App Store](https://apps.apple.com/) and it has `/us` in the URL (e.g. https://apps.apple.com/us/app/slack/id618783545) then it's supported.
+## Add an app
 
-## Add app
+### Apple (VPP)
 
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+> Before using Fleet to manage VPP apps, you must first [turn on Apple MDM](https://fleetdm.com/guides/apple-mdm-setup#turn-on-apple-mdm) and Apple's [Volume Purchasing Program (VPP)](https://fleetdm.com/guides/apple-mdm-setup#volume-purchasing-program-vpp). Once you've completed that setup, you can follow the directions below for each app.
 
-2. Select **Add software > App store** and choose a platform.
+1. Sign in to [Apple Business](https://business.apple.com), select **Apps & Services > App Store**, and find the app. For a custom app you own, select **Custom Apps** instead.
 
-3. To add Apple App Store (VPP) apps to Fleet, you must first purchase them through Apple Business Manager (ABM), even if they are free. Learn how in [Apple's documentation](https://support.apple.com/guide/apple-business-manager/select-and-buy-content-axmc21817890/web).
+2. Add the app to your library:
+   - **Free apps**: Select **Add**. Under **Organizational Units**, choose the units whose content token you uploaded to Fleet, select **Review**, and then select **Add to Library**. Free apps don't have a license limit.
+   - **Paid apps**: Select the app's price. Under **Licence Type**, choose **Managed Licences**. Under **Organizational Units**, choose the unit whose content token you uploaded to Fleet, and enter the number of licenses to buy. Then select **Review** and complete the purchase. Learn more in [Apple's documentation](https://support.apple.com/en-gb/guide/business/welcome/web).
 
-4. To add Google Play Store (Android) apps, head to the [Google Play Store](https://play.google.com/store/apps), find the app, and copy the ID at the end of the URL (e.g. "com.android.chrome")
+3. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
-## Edit or remove app
+4. Select **Add software > App store**, then select the app you just added.
 
-1. In Fleet, head to the **Software** page and select a team in the teams dropdown.
+> To see which organizational units can use an app and how many licenses are in use, in Apple Business, select **Apps & Services > Library** and select the app.
 
-2. Search for the app you want to remove and select the app to head to it's **Software detail**s** page.
+> If the developer drops support for a platform (e.g., removes the iPad version), Fleet still shows that platform on fleets where the app was already added, but other fleets can only add the currently supported platforms. To match what Apple currently supports, delete the app from the fleet and add it again.
+>
+> If you install the app on an iPad from a fleet where iPadOS is still listed, Apple installs the iPhone-only version, which runs in compatibility mode (the iPhone layout scaled up for iPad).
 
-3. To edit the app, on the **Software details** page, select the pencil (edit) icon.
+### Google Play (Android)
 
-4. To remove the app, on the **Software details** page, select the trash can (delete) icon.
+> Before using Fleet to manage Google Play Store apps, you must first [turn on Android MDM](https://fleetdm.com/guides/android-mdm-setup). Once you've completed that setup, you can follow the directions below for each app.
 
-## Install app
+1. Head to the [Google Play Store](https://play.google.com/store/apps), find the app, and copy the ID at the end of the URL (e.g. "com.android.chrome")
 
-Apple App Store (VPP) apps can be installed manually on each host's Host details page. For macOS apps, apps can also be installed via self-service on the end user's **Fleet Desktop > My device** page or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+2. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
 
-Currently, Android apps can only be installed via self-service in the end user's managed Google Play Store (work profile).
+3. Select **Add software > App store**, choose the Android platform, then enter the application ID.
 
-Currently, Apple App Stpre (VPP) apps can't be uninstalled via Fleet.
+4. Optionally, use the **Target** option to limit which hosts can install the app. Choose **Custom**, then include or exclude hosts with specific labels.
+
+> Dynamic (query) labels don't apply to Android hosts: including one targets no Android hosts, and excluding one has no effect. Use manual or host vitals labels to target Android apps.
+
+#### Install Android web app (web clip)
+
+> Before deploying web apps, make sure to [add Google Chrome](#google-play-android) first. This applies to both work profile (BYO) and fully-managed Android devices. If Chrome isn’t installed, the end user will be prompted to install it and redirected to the managed Play Store.
+
+To add an Android web app, first create the web app using the Fleet API. Send a request to the [`Create Android web app`](https://fleetdm.com/docs/rest-api/rest-api#create-android-web-app).
+
+The response includes an `app_store_id` (e.g. `com.google.enterprise.webapp.x1c41e22ab611cb98`). Use this ID as the application ID in **Add software > App store** (step 3 above).
+
+**Example request**
+
+```sh
+curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
+  -H "Authorization: Bearer <your_fleet_api_token>" \
+  -F 'title=Acme web app' \
+  -F 'url=https://app.acme.com' \
+  -F 'icon=@/path/to/app-icon.png'
+```
+
+## Edit or delete the app
+
+1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
+
+2. Search for the app you want to remove and select the app to head to its **Software details** page.
+
+3. To edit the app icon and display name, click **Edit**.
+
+4. To configure the app's self-service categories or change which hosts can install the app, expand the app's version and click the pencil (edit) icon.
+
+5. To remove the app, expand the app's version and click the trash can (delete) icon. If the app has more than one version, delete each version.
+
+## Configure automatic updates for an app (iOS / iPadOS only)
+
+> Currently, Fleet doesn't patch Android apps. Google Play updates them automatically, or the end user can update them from the Play Store in their work profile.
+
+1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
+
+2. Search for the app you want to configure and select the app to head to its **Software details** page, then find the version you want to configure.
+
+3. Expand the version and click the pencil (edit) icon.
+
+4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour.
+
+## Managed configuration
+
+### Apple (VPP)
+
+Currently, configuration for Apple hosts is supported on iOS and iPadOS. Managed configuration is often referred to as App Config.
+
+Fleet supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
+
+New or updated configuration isn't applied until the end user fully quits and reopens the app.
+
+This example Zoom configuration ensures that the end user has only the SSO login option, and it pre-populates the login URL to `example.zoom.us`. For more information, visit [Zoom docs](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064102).
+
+```xml
+<dict>
+  <key>ForceLoginWithSSO</key>
+  <true />
+  <key>SetSSOURL</key>
+  <string>example</string>
+</dict>
+```
+
+### Google Play (Android)
+
+All options from [ApplicationPolicy - Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy) are supported except `packageName` and `installType`, which Fleet sets for you.
+
+`managedConfiguration` supports any option provided by the app's developer. Each app supports different options. To find the supported options, check the app documentation.
+
+#### Example (GlobalProtect)
+
+This configuration makes it so the end user won't have to type the portal hostname the first time they open GlobalProtect. It also disables "always on VPN," meaning GlobalProtect won’t automatically connect when the host is online. The end user has to tap **Connect**.
+
+```json
+{
+  "managedConfiguration": {
+    "portal": "example.portal.com",
+    "connect_method": "on-demand"
+  }  
+}
+
+```
+
+Options for GlobalProtect can be found in their [documentation](https://docs.paloaltonetworks.com/globalprotect/administration/globalprotect-apps/deploy-the-globalprotect-app-on-mobiles/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
+
+#### Example (Google Calendar)
+
+This configuration allows end users to add widgets from the Google Calendar in their work profile to their home screen.
+
+```json
+{
+  "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"
+}
+```
+
+#### Example (1Password)
+
+On Android 14 and above, third-party credential providers are blocked in the work profile unless the app is explicitly allowed. This configuration allows end users to select 1Password as their autofill and passkey (credential) provider in the work profile.
+
+```json
+{
+  "credentialProviderPolicy": "CREDENTIAL_PROVIDER_ALLOWED"
+}
+```
+
+### Variables
+
+You can use [built-in variables](https://fleetdm.com/guides/fleet-variables) (`$FLEET_VAR_HOST_*`) in managed configurations. On Android, you can also use [custom host vitals](https://fleetdm.com/guides/custom-host-vitals) (`$FLEET_HOST_VITAL_*`). Fleet fills them in for each host when it sends the app.
+
+If Fleet can't fill in a variable for a host, what happens depends on the platform. For example, `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` can't be filled in when the host's IdP user has no department.
+
+- **iOS and iPadOS:** Fleet doesn't send the install and marks it as failed. The reason appears in **Host details > Activity** and in the install details.
+- **Android:** Fleet doesn't send the app or its updated configuration to that host. If the app was already available on the host, it stays available with its previous configuration. Showing an error for this in Fleet is [coming soon](https://github.com/fleetdm/fleet/issues/52825).
+
+## Multiple app instances
+
+Fleet supports adding multiple instances of each app, so that each can have its own configuration, automatic update schedule, label scoping, categories and self-service flag. 
+
+Hosts that install the app or already have it installed will get the configuration of the version they're scoped to by labels. If a host is scoped to multiple versions, Fleet installs the version that was added first.
+
+### Add a version
+
+1. In Fleet, head to the **Software** page, select a fleet in the fleets dropdown, then search for the app and select it to head to its **Software title** page. The first version of the app is named "Default version".
+
+2. Click **Add version** and enter a **Name**. The name must be unique for the app in the fleet.
+
+3. Add a **Configuration**, set the version's other options, select which hosts the version targets, and click **Add**.
+
+### Edit or delete a version
+
+1. Find the version that you want to edit or delete, and click on it to expand it.
+
+2. To edit the version, click on the pencil (edit) icon to the right. Alternatively, click on the self-service or the label icon.
+
+3. To delete the version, click on the trash (delete) icon to the right.
+
+## Install an app
+
+### Apple (VPP)
+
+Apps can be installed manually on each host's **Host details** page. For macOS apps, apps can also be installed via self-service on the end user's **Fleet Desktop > My device** page or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+
+> If the install fails with `ErrorCode` 301 and a `LocalizedDescription` of "Invalid Status Code The response has an invalid status code" it may be because the app has a minimum OS version higher than what the targeted host is running.
+> 
+> To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
+
+> VPP app installs are automatically attempted up to 4 times (1 initial attempt + 3 retries) to handle intermittent issues.
+
+Currently, Apple App Store (VPP) apps can't be uninstalled via Fleet. If the app is uninstalled by the end user, or when the host is unenrolled, the license won't be revoked. You can revoke the license by running [this script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/revoke-vpp-licenses.sh).
+
+> VPP apps on iOS/iPadOS hosts will be uninstalled when the host has MDM features turned off.
+
+#### Convert unmanaged iOS and iPadOS apps to managed
+
+If an end user already installed an app from the App Store, you can take over management by installing the same app through Fleet. Managing the app lets you apply [managed configuration](#managed-configuration) and makes sure the app is removed when the host is unenrolled.
+
+On company-owned hosts (enrolled automatically via Apple Business Manager), the app becomes managed silently. On BYOD hosts and hosts that are manually enrolled, the end user is prompted to allow management. If the end user declines, the app stays unmanaged.
+
+> **Warning:** Fleet can't currently tell that the end user declined. Apple returns the app in the `InstalledApplicationList` MDM command as if it were managed, so Fleet reports the install as successful and lists the app in the host's software inventory. The app may drop out of inventory within minutes, or stay for up to 24 hours. In the meantime, managed configuration isn't applied and the app won't be removed when the host is unenrolled. Fleet plans to use the app's real management status to report these installs as failed. Follow [this issue](https://github.com/fleetdm/fleet/issues/52923) for progress.
+
+To confirm whether an app is actually managed, send [ManagedApplicationList](https://developer.apple.com/documentation/devicemanagement/managed-application-list-command) as a [custom MDM command](https://fleetdm.com/guides/mdm-commands). The response includes a `Status` for each app Fleet tried to manage:
+
+- `Managed`: the app is managed by Fleet.
+- `PromptingForManagement`: the end user hasn't answered the prompt yet.
+- `ManagementRejected`: the end user declined the prompt, and the app is not managed.
+
+If the end user declined, installing the app again from **Host details** usually prompts them again. Sometimes the prompt doesn't show up, and Apple acknowledges the command without doing anything. If that happens, ask the end user to delete the app, then install it through Fleet again.
+
+> **Note:** If the app wasn't already installed and the end user declines the prompt, the app never appears in the host's software inventory, and the install fails verification after 10 minutes.
+
+#### Updating iOS and iPadOS apps in Single App Mode (kiosk)
+
+[AppLock](https://developer.apple.com/documentation/devicemanagement/applock) forces the selected app to open on the supervised device and prevents the use of other apps.
+
+Apps can't be updated while in Single App Mode. To update iOS and iPadOS apps, temporarily disable Single App Mode. You can use an automation tool like [Tines](https://www.tines.com/) and leverage our [API](https://fleetdm.com/docs/rest-api/rest-api#os-settings) to delete the AppLock configuration profile during the scheduled update window.
+
+#### iOS and iPadOS managed configuration
+
+If the app is in the foreground when the configuration is sent and a newer version of the app is available, the end user sees a prompt to update the app. The configuration is applied whether or not the end user accepts the prompt. The configuration takes effect the next time the app is quit and reopened.
+
+### Google Play (Android)
+
+Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
 
 ## API and GitOps
 
@@ -46,5 +236,5 @@ To manage App Store apps using Fleet's best practice GitOps, check out the `app_
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2025-02-28">
+<meta name="publishedOn" value="2026-01-08">
 <meta name="description" value="This guide will walk you through installing Apple App Store and Google Play Store apps on macOS, iOS, iPadOS, and Android hosts.">

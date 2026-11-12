@@ -1,18 +1,18 @@
 import React from "react";
 
+import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
+import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 import {
   BootstrapPackageStatus,
   IBootstrapPackageAggregate,
 } from "interfaces/mdm";
 
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-
 interface IStatusCellValue {
   displayName: string;
-  statusName: "success" | "pending" | "error";
+  statusName: IndicatorStatus;
   value: BootstrapPackageStatus;
   tooltip?: string | JSX.Element;
 }
@@ -100,8 +100,8 @@ export const COLUMN_CONFIGS: IColumnConfig[] = [
             <ViewAllHostsLink
               className="view-hosts-link"
               queryParams={{
-                bootstrap_package: cellProps.row.original.status.value,
-                team_id: cellProps.row.original.teamId,
+                macos_bootstrap_package: cellProps.row.original.status.value,
+                fleet_id: cellProps.row.original.teamId,
               }}
               rowHover
             />
@@ -125,7 +125,7 @@ const STATUS_CELL_VALUES: Record<StatusNames, IStatusCellValue> = {
   },
   pending: {
     displayName: "Pending",
-    statusName: "pending",
+    statusName: "pendingPartial",
     value: BootstrapPackageStatus.PENDING,
     tooltip: "The host will install the package when it enrolls.",
   },

@@ -1,11 +1,11 @@
-import React from "react";
-
 import { screen } from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import { createMockLabel } from "__mocks__/labelsMock";
+import createMockUser from "__mocks__/userMock";
 import { createCustomRenderer } from "test/test-utils";
+
 import LabelsTable from "./LabelsTable";
 
 describe("LabelsTable", () => {
@@ -103,5 +103,30 @@ describe("LabelsTable", () => {
     expect(screen.getByText("Name")).toBeInTheDocument();
     expect(screen.getByText("Description")).toBeInTheDocument();
     expect(screen.getByText("Type")).toBeInTheDocument();
+  });
+
+  it("Renders a 'View all hosts' button instead of an actions dropdown for users without edit permission", () => {
+    const labels = [
+      createMockLabel({
+        id: 1,
+        name: "Custom label 1",
+        label_type: "regular",
+        label_membership_type: "dynamic",
+      }),
+    ];
+
+    const observerUser = createMockUser({ global_role: "observer" });
+
+    const render = createCustomRenderer();
+    render(
+      <LabelsTable
+        labels={labels}
+        onClickAction={noop}
+        currentUser={observerUser}
+      />
+    );
+
+    expect(screen.getByText("View all hosts")).toBeInTheDocument();
+    expect(screen.queryByText("Actions")).not.toBeInTheDocument();
   });
 });

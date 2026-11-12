@@ -33,6 +33,7 @@ module.exports = {
     let allBugsCreatedInPastWeek = [];
     let allBugsClosedInPastWeek = [];
     let allBugsReportedByCustomersInPastWeek = [];
+    let daysSinceUnprioritizedBugsWereOpened = [];
     let daysSincePullRequestsWereOpened = [];
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
@@ -75,10 +76,14 @@ module.exports = {
           allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
           // If we received less results than we requested, we've reached the last page of the results.
           return issuesWithBugLabel.length !== NUMBER_OF_RESULTS_REQUESTED;
-        }, 10000);
+        }, 30000);
 
         // iterate through the allIssuesWithBugLabel array, adding the number
         for (let issue of allIssuesWithBugLabel) {
+          // Exclude bugs that are also labeled "~3rd-party" (i.e. bugs waiting on an external vendor) from bug KPI calculations.
+          if (issue.labels.some(label => label.name === '~3rd-party')) {
+            continue;
+          }
           // Create a date object from the issue's created_at timestamp.
           let issueOpenedOn = new Date(issue.created_at);
           // Get the amount of time this issue has been open in milliseconds.
@@ -97,6 +102,9 @@ module.exports = {
             }
           }
           daysSinceBugsWereOpened.push(timeOpenInDays);
+          if (!issue.labels.some(label => label.name === ':release')) {
+            daysSinceUnprioritizedBugsWereOpened.push(timeOpenInDays);
+          }
         }
 
       },
@@ -133,10 +141,14 @@ module.exports = {
           allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
           // Stop when we've received results from the third page.
           return pageNumberForPaginatedResults === 3;
-        }, 10000);
+        }, 30000);
 
         // iterate through the allIssuesWithBugLabel array, adding the number
         for (let issue of allIssuesWithBugLabel) {
+          // Exclude bugs that are also labeled "~3rd-party" (i.e. bugs waiting on an external vendor) from bug KPI calculations.
+          if (issue.labels.some(label => label.name === '~3rd-party')) {
+            continue;
+          }
           // Create a date object from the issue's closed_at timestamp.
           let issueClosedOn = new Date(issue.closed_at);
           // Get the amount of time this issue has been closed in milliseconds.
@@ -240,7 +252,7 @@ module.exports = {
           allPublicOpenPrs = allPublicOpenPrs.concat(pullRequests);
           // If we received less results than we requested, we've reached the last page of the results.
           return pullRequests.length !== NUMBER_OF_RESULTS_REQUESTED;
-        }, 10000);
+        }, 30000);
 
         for (let pullRequest of allPublicOpenPrs) {
           // Create a date object from the PR's created_at timestamp.
@@ -303,6 +315,7 @@ module.exports = {
 
     // Get the averages from the arrays of results.
     let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened) / daysSinceBugsWereOpened.length);
+    let averageDaysUnprioritizedBugsAreOpenFor = Math.round(_.sum(daysSinceUnprioritizedBugsWereOpened) / daysSinceUnprioritizedBugsWereOpened.length);
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
 
 
@@ -322,7 +335,7 @@ module.exports = {
       let closedAt = new Date(pr.closed_at).getTime();
       let daysOpen = Math.abs(closedAt - openedAt) / ONE_DAY_IN_MILLISECONDS;
       avgDaysOpen = avgDaysOpen + (daysOpen / handbookPrsMergedRecently.length);
-      sails.log.verbose('Processing',pr.head.repo.name,':: #'+pr.number,'open '+daysOpen+' days', 'rolling avg now '+avgDaysOpen);
+      sails.log.verbose('Processing',pr.base.repo.name,':: #'+pr.number,'open '+daysOpen+' days', 'rolling avg now '+avgDaysOpen);
       return avgDaysOpen;
     }, 0);
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -357,6 +370,8 @@ module.exports = {
     ---------------------------
     Average open time (all bugs): ${averageNumberOfDaysBugsAreOpenFor} days.
 
+    Average open time (unprioritized bugs): ${averageDaysUnprioritizedBugsAreOpenFor} days.
+
     Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
 
     Bugs older than 32 days: ${allBugs32DaysOrOlder.length}
@@ -377,4 +392,5 @@ module.exports = {
   }
 
 };
+
 

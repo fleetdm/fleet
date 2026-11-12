@@ -1,44 +1,52 @@
-/** This modal is only used for VPP apps and their related installations.
- * For iOS/iPadOS packages (e.g. .ipa packages software source is ios_apps or ipados_apps)
- *  we use SoftwareIpaInstallDetailsModal with the command_uuid. */
+/** Modal for VPP app installs only.
+ * For iOS/iPadOS .ipa packages (software source: ios_apps or ipados_apps),
+ * use SoftwareIpaInstallDetailsModal with the command_uuid instead. */
 
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
-import { formatDistanceToNow } from "date-fns";
 
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import DataError from "components/DataError/DataError";
+import DeviceUserError from "components/DeviceUserError";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
+import TooltipWrapper from "components/TooltipWrapper";
+import { ICommandResult } from "interfaces/command";
+import {
+  isAndroid,
+  isAppleDevice,
+  isIPadOrIPhone,
+  isMacOS,
+} from "interfaces/platform";
+import {
+  IHostSoftware,
+  SoftwareInstallUninstallStatus,
+} from "interfaces/software";
+import {
+  compareVersions,
+  getInstallerVersion,
+} from "pages/hosts/details/cards/Software/helpers";
+import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 import commandAPI, {
   IGetCommandResultsResponse,
 } from "services/entities/command";
 import deviceUserAPI, {
   IGetVppInstallCommandResultsResponse,
 } from "services/entities/device_user";
-
-import {
-  IHostSoftware,
-  SoftwareInstallUninstallStatus,
-} from "interfaces/software";
-import { ICommandResult } from "interfaces/command";
-import { isAppleDevice, isMacOS } from "interfaces/platform";
-
-import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
-import DataError from "components/DataError/DataError";
-import DeviceUserError from "components/DeviceUserError";
-import Spinner from "components/Spinner/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-import RevealButton from "components/buttons/RevealButton";
+import decodeBase64Utf8 from "utilities/base64";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
+import { secondsToDhms } from "utilities/helpers";
 
 import {
   getInstallDetailsStatusPredicate,
   INSTALL_DETAILS_STATUS_ICONS,
 } from "../constants";
-import decodeBase64Utf8 from "../helpers";
 
 interface IGetStatusMessageProps {
   isMyDevicePage?: boolean;
@@ -50,8 +58,30 @@ interface IGetStatusMessageProps {
   appName: string;
   hostDisplayName: string;
   commandUpdatedAt: string;
+  activityCreatedAt?: string;
   platform?: string;
-  hasInstalledVersions?: boolean;
+  vppVerifyTimeoutSeconds?: number;
+  /**  Used only for overriding failed_install/failed_uninstall -> "is installed."
+   - From Host -> Software: override based on inventory.
+   - From Activity feed: never override (always show the failure).
+   Parity with SoftwareInstallDetailsModal/SoftwareIpaInstallDetailsModal */
+  canOverrideFailureWithInstalled?: boolean;
+  /** Used to show warning to close an app if failed to install with
+   * detected installed version on host */
+  hasInstalledVersionsOnHost?: boolean;
+  /** Set when Fleet failed the install before reaching the device. */
+  failureReason?: string;
+  /** Display name of the user who triggered the install; empty for
+   *  Fleet-initiated paths. */
+  actorFullName?: string;
+  /** True when no user triggered the install (policy / auto-update / setup
+   *  experience). Renders the actor as "Fleet". */
+  fleetInitiated?: boolean;
+  /** True when the install was a self-service request. Renders the actor as
+   *  "End user". */
+  selfService?: boolean;
+  /** True when an iOS/iPadOS install failed with MDM Error 1407 */
+  isUserAlreadyPromptedError?: boolean;
 }
 
 export const getStatusMessage = ({
@@ -62,14 +92,23 @@ export const getStatusMessage = ({
   appName,
   hostDisplayName,
   commandUpdatedAt,
+  activityCreatedAt,
   platform,
-  hasInstalledVersions = false,
+  vppVerifyTimeoutSeconds,
+  canOverrideFailureWithInstalled = false,
+  hasInstalledVersionsOnHost = false,
+  failureReason,
+  actorFullName,
+  fleetInitiated,
+  selfService,
+  isUserAlreadyPromptedError = false,
 }: IGetStatusMessageProps) => {
   const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
-  const displayTimeStamp =
+  const formattedVerifyTimeout = secondsToDhms(vppVerifyTimeoutSeconds || 600);
+  const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
-    commandUpdatedAt
-      ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
+    (activityCreatedAt || commandUpdatedAt)
+      ? ` (${timeAgo(new Date(activityCreatedAt || commandUpdatedAt), {
           includeSeconds: true,
           addSuffix: true,
         })})`
@@ -79,6 +118,20 @@ export const getStatusMessage = ({
   const isPendingInstall = ["pending_install", "pending"].includes(
     displayStatus
   );
+
+  // Treat failed_install / failed_uninstall with installed versions as installed
+  // as the host still reports installed versions (4.82 #31663)
+  const overrideFailureWithInstalled =
+    canOverrideFailureWithInstalled &&
+    ["failed_install", "failed_uninstall"].includes(displayStatus || "");
+
+  if (overrideFailureWithInstalled) {
+    return (
+      <>
+        <b>{appName}</b> is installed.
+      </>
+    );
+  }
 
   // Handles the case where software is installed manually by the user and not through Fleet
   // This app_store_app modal matches software_packages installed manually shown with SoftwareInstallDetailsModal
@@ -102,7 +155,7 @@ export const getStatusMessage = ({
             was running on battery power while in Power Nap
           </>
         )}
-        {displayTimeStamp && <> {displayTimeStamp}</>}. Fleet will try again.
+        {displayTimestamp && <> {displayTimestamp}</>}. Fleet will try again.
       </>
     );
   }
@@ -119,74 +172,116 @@ export const getStatusMessage = ({
     );
   }
 
-  // Verification failed (timeout)
-  if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
+  let actor = "Fleet";
+  if (selfService) {
+    actor = "End user";
+  } else if (!fleetInitiated && actorFullName) {
+    actor = actorFullName;
+  }
+
+  // Fleet failed the install BEFORE sending it to the device (e.g. the
+  // managed app configuration references a Fleet variable that can't be
+  // resolved for this host). The backend records this with a failure reason
+  // on the activity — no MDM command was ever enqueued, so there is no
+  // command result to show. Render the actor-driven status sentence per Figma
+  // ("<Actor> failed to install <App> on <Host>.") and leave the reason text
+  // to the Details section the modal renders below.
+  if (displayStatus === "failed_install" && failureReason) {
     return (
       <>
-        {isAppleDevice(platform) ? (
-          <>
-            <div>
-              The host acknowledged the MDM command to install <b>{appName}</b>
-              {!isMyDevicePage && <> on {formattedHost}</>}, but the app failed
-              to install.
+        <b>{actor}</b> failed to install <b>{appName}</b>
+        {!isMyDevicePage && <> on {formattedHost}</>}
+        {displayTimestamp && <> {displayTimestamp}</>}.
+      </>
+    );
+  }
+
+  // Verification failed (timeout)
+  if (displayStatus === "failed_install" && isMDMStatusAcknowledged) {
+    if (isAppleDevice(platform)) {
+      return (
+        <>
+          <div>
+            The host acknowledged the MDM command to install <b>{appName}</b>
+            {!isMyDevicePage && <> on {formattedHost}</>}, but the install took
+            longer than {formattedVerifyTimeout}, so Fleet marked it as failed.
+          </div>
+          {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
+            <div className="vpp-install-details-modal__update-tip">
+              If you&apos;re updating the app and the app is open,{" "}
+              <TooltipWrapper
+                tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
+                position="top"
+              >
+                close it
+              </TooltipWrapper>{" "}
+              and try again.
             </div>
-            {platform && isMacOS(platform) && hasInstalledVersions && (
-              <div className="vpp-install-details-modal__update-tip">
-                If you&apos;re updating the app and the app is open,{" "}
-                <TooltipWrapper
-                  tipContent="For updates, App Store (VPP) apps on macOS need to be closed."
-                  position="top"
-                >
-                  close it
-                </TooltipWrapper>{" "}
-                and try again.
-              </div>
-            )}
-          </>
-        ) : (
-          <>
-            The MDM command (request) to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but
-            the installation has not been verified. Please re-attempt this
-            installation.
-          </>
-        )}
+          )}
+        </>
+      );
+    }
+
+    // Reached for Android app store installs. This copy makes no
+    // Android-specific claim, so it also covers any other unexpected
+    // platform value safely.
+    return (
+      <>
+        The MDM command (request) to install <b>{appName}</b>
+        {!isMyDevicePage && <> on {formattedHost}</>} was acknowledged but the
+        installation has not been verified. Please re-attempt this installation.
+      </>
+    );
+  }
+
+  if (displayStatus === "failed_install" && isUserAlreadyPromptedError) {
+    return (
+      <>
+        <b>{actor}</b> failed to install <b>{appName}</b>
+        {!isMyDevicePage && <> on {formattedHost}</>}.
       </>
     );
   }
 
   // Install command failed
-  if (displayStatus === "failed_install") {
+  if (displayStatus === "failed_install" && isAppleDevice(platform)) {
     return (
       <>
-        {isAppleDevice(platform) ? (
-          <>
-            The MDM command to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try
-            again.
-          </>
-        ) : (
-          <>
-            The MDM command (request) to install <b>{appName}</b>
-            {!isMyDevicePage && <> on {formattedHost}</>} failed
-            {displayTimeStamp && <> {displayTimeStamp}</>}. Please re-attempt
-            this installation.
-          </>
-        )}
+        The MDM command to install <b>{appName}</b>
+        {!isMyDevicePage && <> on {formattedHost}</>} failed. Please try again.
+      </>
+    );
+  }
+
+  if (displayStatus === "failed_install" && isAndroid(platform || "")) {
+    if (isMyDevicePage) {
+      return (
+        <>
+          Fleet failed to install <b>{appName}</b>
+          {displayTimestamp && <> {displayTimestamp}</>}. Retry via the Google
+          Play Store in your work profile, or select <b>Retry</b> below.
+        </>
+      );
+    }
+    return (
+      <>
+        Fleet failed to install <b>{appName}</b> on {formattedHost}
+        {displayTimestamp && <> {displayTimestamp}</>}. The end user can retry
+        via the Google Play Store in their work profile.
       </>
     );
   }
 
   const renderSuffix = () => {
     if (isMyDevicePage) {
-      return <> {displayTimeStamp && <> {displayTimeStamp}</>}</>;
+      return <> {displayTimestamp && <> {displayTimestamp}</>}</>;
     }
     return (
       <>
         {" "}
         on {formattedHost}
         {isPendingInstall && " when it comes online"}
-        {displayTimeStamp && <> {displayTimeStamp}</>}
+        {displayTimestamp && <> {displayTimestamp}</>}
       </>
     );
   };
@@ -227,7 +322,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRetry}>
@@ -239,7 +334,7 @@ export const ModalButtons = ({
     );
   }
   return (
-    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Close</Button>} />
   );
 };
 
@@ -251,7 +346,32 @@ export type IVppInstallDetails = {
   hostDisplayName: string;
   appName: string;
   commandUuid?: string;
+  activityCreatedAt?: string;
   platform?: string;
+  /**
+   * Set when Fleet failed the install before reaching the device (e.g. an
+   * unresolvable Fleet variable in the managed app configuration). Available
+   * only on activity-feed entry points (the activity details carry it); the
+   * Host > Software entry points open from inventory and don't have it.
+   */
+  failureReason?: string;
+  /**
+   * Display name of the user who triggered the install. Empty / undefined for
+   * Fleet-initiated installs (policy, auto-update, setup experience). Used to
+   * render the actor-driven failure copy in the modal status line per Figma:
+   * "<Actor> failed to install <App> on <Host>".
+   */
+  actorFullName?: string;
+  /** True when no user triggered the install (policy, auto-update, setup
+   *  experience). Renders the actor as "Fleet". */
+  fleetInitiated?: boolean;
+  /** Whether the install was triggered as a self-service action by the end
+   *  user. Renders the actor as "End user". */
+  selfService?: boolean;
+  /** Location (organization unit) of the VPP token the license was assigned
+   * from. Set by activity-feed entry points; inventory entry points have no
+   * token source. */
+  vppTokenLocation?: string;
 };
 
 interface IVPPInstallDetailsModalProps {
@@ -277,6 +397,12 @@ export const VppInstallDetailsModal = ({
     hostDisplayName = "",
     appName = "",
     platform: detailsPlatform,
+    failureReason,
+    actorFullName,
+    fleetInitiated,
+    selfService,
+    vppTokenLocation,
+    activityCreatedAt,
   } = details;
 
   const [showInstallDetails, setShowInstallDetails] = useState(false);
@@ -316,15 +442,86 @@ export const VppInstallDetailsModal = ({
         : commandAPI.getCommandResults(commandUuid).then(responseHandler);
     },
     {
-      refetchOnWindowFocus: false,
+      // Brings in the shared retry rule, which skips 4xx. A 404 here means the
+      // result doesn't exist yet — a definitive answer, so don't retry it.
+      ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 3000,
-      enabled: !!commandUuid,
+      // Pre-flight Fleet failures (e.g. unresolvable managed-config var) never
+      // enqueue an MDM command, so there's no command result to fetch — the
+      // reason is carried by the activity itself via failureReason. Skipping
+      // the query avoids the 404 short-circuit to "no longer available" and
+      // lets the render fall through to the status message.
+      enabled: !!commandUuid && !failureReason,
     }
   );
 
+  // Reconcile "installed" state from inventory vs command results.
+
+  // True when host inventory reports at least one installed version for this app.
+  const inventoryReportsInstalled = !!hostSoftware?.installed_versions?.length;
+
+  // True when the VPP command result metadata says the app is installed on the host.
+  const commandReportsInstalled =
+    (vppCommandResult?.results_metadata?.software_installed as boolean) ??
+    false;
+
+  // This modal is opened in two contexts:
+  // - From Host -> Software: hostSoftware is defined (we trust inventory to override failures).
+  // - From the Activity feed: hostSoftware is undefined (we trust command result status).
+  const openedFromHostSoftwarePage = !!hostSoftware;
+
+  // True when inventory has a version strictly older than the installer version
+  // (i.e. ui_status is `failed_install_update_available`). In that case the row
+  // reads "Failed" and must open to the failure, not an "is installed" override.
+  const installerVersion = hostSoftware
+    ? getInstallerVersion(hostSoftware)
+    : null;
+  const hasAvailableUpdate =
+    !!installerVersion &&
+    !!hostSoftware?.installed_versions?.some(
+      (iv) => compareVersions(iv.version, installerVersion) === -1
+    );
+
+  // Used only for overriding failed_install/failed_uninstall -> "is installed."
+  // - From Host -> Software: override only when inventory is on the installer
+  //   version. If an update is still available the row says "Failed" and the
+  //   modal must mirror that; otherwise keep the installed override.
+  // - From Activity feed: never override (always show the failure).
+  const canOverrideFailureWithInstalled = openedFromHostSoftwarePage
+    ? inventoryReportsInstalled && !hasAvailableUpdate
+    : false;
+
+  // Used to
+  const hasInstalledVersionsOnHost =
+    commandReportsInstalled || inventoryReportsInstalled;
+
   // Fallback to "installed" if no status is provided
   const displayStatus = fleetInstallStatus ?? "installed";
-  const iconName = INSTALL_DETAILS_STATUS_ICONS[displayStatus];
+
+  // Treat failed_install / failed_uninstall with installed versions as installed
+  const overrideFailedMessageWithInstalledMessage =
+    canOverrideFailureWithInstalled &&
+    ["failed_install", "failed_uninstall"].includes(displayStatus || "");
+
+  const commandUpdatedAt = vppCommandResult?.updated_at;
+
+  // Handles the case where software is installed manually by the user and not through Fleet
+  const isManuallyInstalled =
+    displayStatus === "installed" && !commandUpdatedAt; // using same condition as in getStatusMessage
+
+  const platform = hostSoftware?.app_store_app?.platform || detailsPlatform;
+  const isUserAlreadyPromptedError =
+    displayStatus === "failed_install" &&
+    isIPadOrIPhone(platform || "") &&
+    /<key>ErrorCode<\/key>\s*<integer>1407<\/integer>/.test(
+      vppCommandResult?.result || ""
+    );
+
+  // Use success icon when we show “is installed”
+  const iconName =
+    overrideFailedMessageWithInstalledMessage || isManuallyInstalled
+      ? "success"
+      : INSTALL_DETAILS_STATUS_ICONS[displayStatus];
 
   // Handles "pending" value prior to 4.57 AND never shows error state on pending_install
   // as some cases have command results not available for pending_installs
@@ -340,10 +537,25 @@ export const VppInstallDetailsModal = ({
   // messaging for the "NotNow" status, which otherwise would be treated as "pending".
   const isMDMStatusNotNow = vppCommandResult?.status === "NotNow";
   const isMDMStatusAcknowledged = vppCommandResult?.status === "Acknowledged";
+  const vppVerifyTimeoutSeconds = Number(
+    vppCommandResult?.results_metadata?.vpp_verify_timeout_seconds
+  );
+  const isVerificationTimedOut =
+    displayStatus === "failed_install" &&
+    isMDMStatusAcknowledged &&
+    isAppleDevice(platform);
 
-  const excludeVersions =
-    !deviceAuthToken &&
-    ["pending_install", "failed_install", "pending"].includes(displayStatus);
+  // Hide version section from pending installs or failures that aren't overridden to installed (4.82 #31663)
+  const shouldShowInventoryVersions =
+    (!!hostSoftware &&
+      deviceAuthToken &&
+      ![
+        "pending_install",
+        "failed_install",
+        "failed_uninstall",
+        "pending",
+      ].includes(displayStatus)) ||
+    overrideFailedMessageWithInstalledMessage;
 
   const isInstalledByFleet = hostSoftware
     ? !!hostSoftware.app_store_app?.last_install
@@ -357,18 +569,19 @@ export const VppInstallDetailsModal = ({
     appName,
     hostDisplayName,
     commandUpdatedAt: vppCommandResult?.updated_at || "",
-    platform: hostSoftware?.app_store_app?.platform || detailsPlatform,
-    hasInstalledVersions:
-      (vppCommandResult?.results_metadata?.software_installed as boolean) ??
-      !!hostSoftware?.installed_versions?.length,
+    activityCreatedAt,
+    platform,
+    vppVerifyTimeoutSeconds: Number.isFinite(vppVerifyTimeoutSeconds)
+      ? vppVerifyTimeoutSeconds
+      : undefined,
+    canOverrideFailureWithInstalled,
+    hasInstalledVersionsOnHost,
+    failureReason,
+    actorFullName,
+    fleetInitiated,
+    selfService,
+    isUserAlreadyPromptedError,
   });
-
-  const renderInventoryVersionsSection = () => {
-    if (hostSoftware?.installed_versions?.length) {
-      return <InventoryVersions hostSoftware={hostSoftware} />;
-    }
-    return "If you uninstalled it outside of Fleet it will still show as installed.";
-  };
 
   const renderInstallDetailsSection = () => {
     // Hide section if there's no details to display
@@ -403,6 +616,41 @@ export const VppInstallDetailsModal = ({
     );
   };
 
+  // For Fleet-side pre-flight failures (e.g. unresolvable managed-config
+  // variable) there's no MDM command result to show. Render a parallel
+  // collapsible "Details" section that surfaces the activity's failureReason
+  // in a monospace block, matching the Figma spec for failed-install copy.
+  const renderFleetSideFailureDetails = () => {
+    if (!failureReason) return null;
+    return (
+      <>
+        <RevealButton
+          isShowing={showInstallDetails}
+          showText="Details"
+          hideText="Details"
+          caretPosition="after"
+          onClick={toggleInstallDetails}
+        />
+        {showInstallDetails && (
+          <Textarea label="Error details:" variant="code">
+            {failureReason}
+          </Textarea>
+        )}
+      </>
+    );
+  };
+
+  // Hide failed details if host shows installed versions (4.82 #31663)
+  // NOTE: Currently no uninstall VPP but added for symmetry with SoftwareInstallDetailsModal
+  const excludeInstallDetails =
+    canOverrideFailureWithInstalled &&
+    [
+      "failed_install_installed",
+      "failed_uninstall_installed",
+      "failed_install",
+      "failed_uninstall",
+    ].includes(displayStatus || "");
+
   const renderContent = () => {
     if (isLoadingVPPCommandResult) {
       return <Spinner />;
@@ -432,17 +680,65 @@ export const VppInstallDetailsModal = ({
       // commands. As a temporary workaround to handle this case, we'll ignore the empty response and
       // display some minimal pending UI. This should be updated once the API response is fixed.
     }
+    // iOS and iPadOS App Store apps re-install whenever the admin edits the
+    // managed app configuration, so a successful install details view notes
+    // this so admins don't read a later re-install as a fresh install.
+    const showConfigUpdateNote =
+      isIPadOrIPhone(platform || "") &&
+      (displayStatus === "installed" || isPendingInstall);
+
+    const showLicenseSentence =
+      showConfigUpdateNote &&
+      !!vppTokenLocation &&
+      !isManuallyInstalled &&
+      !overrideFailedMessageWithInstalledMessage;
+
     return (
       <div className={`${baseClass}__modal-content`}>
         <IconStatusMessage
           className={`${baseClass}__status-message`}
           iconName={iconName}
-          message={<span>{statusMessage}</span>}
+          message={
+            <span>
+              {statusMessage}
+              {showLicenseSentence && (
+                <>
+                  {" "}
+                  Fleet assigned license from <b>{vppTokenLocation}</b> VPP
+                  token.
+                </>
+              )}
+            </span>
+          }
         />
-        {hostSoftware && !excludeVersions && renderInventoryVersionsSection()}
-        {!isPendingInstall &&
-          isInstalledByFleet &&
-          renderInstallDetailsSection()}
+        {showConfigUpdateNote && (
+          <p>
+            When the app&apos;s configuration is updated Fleet also updates the
+            app.
+          </p>
+        )}
+        {isUserAlreadyPromptedError && (
+          <div>
+            For hosts in Single App Mode, temporarily disable that mode to
+            install the update.
+          </div>
+        )}
+        {isVerificationTimedOut && (
+          <p>
+            If the install finishes later, Fleet will update the status when the
+            host is refetched.
+          </p>
+        )}
+        {shouldShowInventoryVersions &&
+        hostSoftware?.installed_versions?.length ? (
+          <InventoryVersions hostSoftware={hostSoftware} />
+        ) : null}
+        {failureReason
+          ? renderFleetSideFailureDetails()
+          : !isPendingInstall &&
+            isInstalledByFleet &&
+            !excludeInstallDetails &&
+            renderInstallDetailsSection()}
       </div>
     );
   };
@@ -454,16 +750,14 @@ export const VppInstallDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        {renderContent()}
-        <ModalButtons
-          deviceAuthToken={deviceAuthToken}
-          hostSoftwareId={hostSoftware?.id}
-          onRetry={onRetry}
-          onCancel={onCancel}
-          displayStatus={displayStatus}
-        />
-      </>
+      {renderContent()}
+      <ModalButtons
+        deviceAuthToken={deviceAuthToken}
+        hostSoftwareId={hostSoftware?.id}
+        onRetry={onRetry}
+        onCancel={onCancel}
+        displayStatus={displayStatus}
+      />
     </Modal>
   );
 };

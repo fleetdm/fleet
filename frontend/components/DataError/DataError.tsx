@@ -1,14 +1,16 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
 import CustomLink from "components/CustomLink";
-import Icon from "components/Icon";
 import Graphic from "components/Graphic";
+import Icon from "components/Icon";
 import { Padding } from "styles/var/padding";
 
 const baseClass = "data-error";
 
 interface IDataErrorProps {
+  /** The title text displayed instead of the generic "Something's gone wrong" if set */
+  title?: string;
   /** the description text displayed under the header */
   description?: string;
   /** Excludes the link that asks user to create an issue. Defaults to `false` */
@@ -25,19 +27,51 @@ interface IDataErrorProps {
   className?: string;
   /** Flag to use the updated DataError design */
   useNew?: boolean;
+  /** Overrides something gone wrong line with description text to condense error onto one line */
+  singleCustomLine?: boolean;
+  /** Centers the component within its parent */
+  selfCenter?: boolean;
 }
 
+const DEFAULT_TITLE = "Something's gone wrong.";
 const DEFAULT_DESCRIPTION = "Refresh the page or log in again.";
 
 const DataError = ({
+  title = DEFAULT_TITLE,
   description = DEFAULT_DESCRIPTION,
   excludeIssueLink = false,
   children,
   verticalPaddingSize,
   className,
   useNew = false,
+  singleCustomLine = false,
+  selfCenter = false,
 }: IDataErrorProps): JSX.Element => {
-  const classes = classnames(baseClass, className);
+  const classes = classnames(baseClass, className, {
+    [`${baseClass}--self-center`]: selfCenter,
+  });
+
+  if (singleCustomLine) {
+    return (
+      <div className={classes}>
+        <div
+          className={`${baseClass}__inner ${
+            verticalPaddingSize &&
+            `${baseClass}__vertical-${verticalPaddingSize}`
+          }`}
+        >
+          <div className={`${baseClass}__content`}>
+            <span
+              className={`${baseClass}__header ${baseClass}__header--single-line`}
+            >
+              <Icon name="error" />
+              {description}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (useNew) {
     return (
@@ -49,14 +83,14 @@ const DataError = ({
           }`}
         >
           <Graphic name="data-error" />
-          <div className={`${baseClass}__header`}>
-            Something&apos;s gone wrong.
-          </div>
+          <div className={`${baseClass}__header`}>{title}</div>
           {children || (
             <>
-              <div className={`${baseClass}__data`}>Refresh to try again.</div>
+              <div className={`${baseClass}__description`}>
+                Refresh to try again.
+              </div>
               {!excludeIssueLink && (
-                <div className={`${baseClass}__data`}>
+                <div className={`${baseClass}__file-issue`}>
                   If this keeps happening please&nbsp;
                   <CustomLink
                     url="https://github.com/fleetdm/fleet/issues/new/choose"
@@ -79,20 +113,22 @@ const DataError = ({
           verticalPaddingSize && `${baseClass}__vertical-${verticalPaddingSize}`
         }`}
       >
-        <div className="info">
-          <span className="info__header">
+        <div className={`${baseClass}__content`}>
+          <span className={`${baseClass}__header`}>
             <Icon name="error" />
-            Something&apos;s gone wrong.
+            {title}
           </span>
 
           <>
             {children || (
               <>
                 {description && (
-                  <span className="info__data">{description}</span>
+                  <span className={`${baseClass}__description`}>
+                    {description}
+                  </span>
                 )}
                 {!excludeIssueLink && (
-                  <span className="info__data">
+                  <span className={`${baseClass}__file-issue`}>
                     If this keeps happening, please&nbsp;
                     <CustomLink
                       url="https://github.com/fleetdm/fleet/issues/new/choose"

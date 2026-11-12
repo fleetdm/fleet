@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fleet Hangar</title>
+  </head>
+
+  <body>
+    <!-- Apply prefers-color-scheme before React mounts so first paint
+         matches the OS appearance. Once settings load, useApplyTheme
+         overrides this with the user's saved preference. Keeping this
+         inline + sync is what avoids the white flash on dark systems. -->
+    <script>
+      if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+        document.body.classList.add("dark-mode");
+      }
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

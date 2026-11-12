@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+    Id="*"
+    Name="fleetctl"
+    Language="1033"
+    Version="__VERSION__"
+    Manufacturer="Fleet Device Management (fleetdm.com)"
+    UpgradeCode="DA27C96F-3832-4E04-A6A9-1FDE1A8B37BE">
+
+    <Package
+      Keywords="fleetctl"
+      Description="Fleet device management CLI tool"
+      InstallerVersion="500"
+      Compressed="yes"
+      InstallScope="perMachine"
+      InstallPrivileges="elevated"
+      Languages="1033" />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <MajorUpgrade
+      DowngradeErrorMessage="A newer version of fleetctl is already installed."
+      AllowSameVersionUpgrades="yes" />
+
+    <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />
+    <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="FLEETDMDIR" Name="FleetDM">
+          <Directory Id="INSTALLDIR" Name="fleetctl">
+            <Component Id="C_FleetctlExe" Guid="E8A1B2C3-D4E5-6F78-9A0B-1C2D3E4F5A6B">
+              <File Id="FleetctlExe" Source="root\fleetctl.exe" KeyPath="yes" />
+              <Environment Id="PATH"
+                           Name="PATH"
+                           Value="[INSTALLDIR]"
+                           Permanent="no"
+                           Part="last"
+                           Action="set"
+                           System="yes" />
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Feature Id="FleetctlFeature" Title="fleetctl" Level="1">
+      <ComponentRef Id="C_FleetctlExe" />
+    </Feature>
+  </Product>
+</Wix>

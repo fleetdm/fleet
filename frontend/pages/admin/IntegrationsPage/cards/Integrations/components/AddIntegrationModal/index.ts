@@ -1,1 +1,1 @@
-export { default } from "./AddIntegrationModal";
+export { default } from "./AddTicketDestinationModal";

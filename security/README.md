@@ -13,7 +13,6 @@ The following Github CI actions perform daily vulnerability scanning on Fleet so
 - [trivy-scan.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/trivy-scan.yml): Scan source code for vulnerabilities.
 - [build-fleetdm-fleetctl-check-vulnerabilities.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/build-fleetdm-fleetctl-check-vulnerabilities.yml): Scans for `HIGH` and `CRITICAL` vulnerabilities in [fleetdm/fleetctl](https://hub.docker.com/r/fleetdm/fleetctl) docker image.
 - [check-wix-vulnerabilities.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/check-wix-vulnerabilities.yml): Scans for `HIGH` and `CRITICAL` vulnerabilities in [fleetdm/wix](https://hub.docker.com/r/fleetdm/wix) docker image. This docker image is used by the `fleetctl` executable to generate MSI fleetd installers.
-- [check-bomutils-vulnerabilities.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/check-bomutils-vulnerabilities.yml): Scans for `HIGH` and `CRITICAL` vulnerabilities in [fleetdm/bomutils](https://hub.docker.com/r/fleetdm/bomutils) docker image. This docker image is used by the `fleetctl` executable to generate PKG fleetd installers.
 - [goreleaser-snapshot-fleet.yaml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/goreleaser-snapshot-fleet.yaml): Scans for `HIGH` and `CRITICAL` vulnerabilities in `fleetdm/fleet` docker image before pushing a new release to the Docker registry.
 - [check-vulnerabilities-in-released-docker-images.yml](https://github.com/fleetdm/fleet/blob/main/.github/workflows/check-vulnerabilities-in-released-docker-images.yml): Scans for `CRITICAL` vulnerabilities in the last 5 minor released versions of the `fleetdm/fleet` and on the latest release of `fleetdm/fleetctl`.
 
@@ -120,3 +119,7 @@ Following is the process to run when a `CRITICAL` CVE affects the released `flee
 1. After `security/status.md` is updated, notify users/customers about the CVE in the `fleetdm/fleetctl` image and possible remediations.
 2. Create a Github issue with a `P0`/`security` label to track the fix.
 3. The fix will be released on the next release of the `fleetdm/fleetctl` docker image.
+
+## Troubleshooting
+
+- The `trivy` command/executable can have some differences in CVEs reported when executing `trivy image` on a macOS host vs a Linux host. Mostly the difference seems to be in vulnerabilities found by the `gobinary` tool on `fleet` or `fleetctl` executables within the docker images. Thus, when in doubt, run trivy on a Ubuntu host to match CI which runs on `ubuntu-*` Github runners.

@@ -6,7 +6,6 @@ package packaging
 
 import (
 	"crypto/sha512"
-	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/cabundle"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
@@ -67,6 +67,10 @@ type Options struct {
 	DisableUpdates bool
 	// DisableSetupExperience disables setup experience for Linux hosts
 	DisableSetupExperience bool
+	// BypassEndUserAuth configures fleetd to skip end-user authentication during enrollment by not
+	// advertising the end-user auth capability to the Fleet server. On Windows it sets the default of the
+	// BYPASS_END_USER_AUTH MSI property, which can be overridden at install time.
+	BypassEndUserAuth bool
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
 	// OsquerydChannel is the update channel to use for Osquery (osqueryd).
@@ -128,17 +132,29 @@ type Options struct {
 	// EndUserEmail is the email address of the end user that uses the host on
 	// which the agent is going to be installed.
 	EndUserEmail string
+	// EnableEUATokenProperty is a boolean indicating whether to enable EUA_TOKEN property in Windows MSI package.
+	EnableEUATokenProperty bool
 	// DisableKeystore disables the use of the keychain on macOS and Credentials Manager on Windows
 	DisableKeystore bool
 	// OsqueryDB is the directory to use for the osquery database.
 	// If not set, then the default is `$ORBIT_ROOT_DIR/osquery.db`.
 	OsqueryDB string
+	// CPUQuota is the systemd CPUQuota percentage applied to the orbit service
+	// (Linux only). Zero means the default of 20%.
+	CPUQuota uint
 	// Architecture that the package is being built for. (amd64, arm64)
 	Architecture string
 	// TUF platform name. windows, windows-arm64, linux, linux-arm64, darwin
 	NativePlatform string
 	// CustomOutfile is the custom output file name for the package.
 	CustomOutfile string
+	// FleetName is the name of the fleet the enroll secret belongs to, if known. It is added to the default output
+	// file name, cleaned up so it is safe in a file name.
+	FleetName string
+	// FleetID is that fleet's ID. It is added to the file name only when another fleet's name could give the same one.
+	FleetID uint
+	// OtherFleets are the other fleets the user can see.
+	OtherFleets []Fleet
 	// FleetManagedHostIdentityCertificate configures fleetd to use TPM-backed key to sign HTTP requests.
 	FleetManagedHostIdentityCertificate bool
 }
@@ -189,6 +205,7 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to create local metadata store: %w", err)
 	}
 	updateOpt.LocalStore = localStore
+	updateOpt.SkipCrossArchExecCheck = true
 
 	updater, err := update.NewUpdater(updateOpt)
 	if err != nil {
@@ -344,17 +361,24 @@ func writeSecret(opt Options, orbitRoot string) error {
 	return nil
 }
 
-func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
-	path := filepath.Join(orbitRoot, "osquery.flags")
-
-	if opt.OsqueryFlagfile == "" {
-		// Write empty flagfile
-		if err := os.WriteFile(path, []byte(""), constant.DefaultFileMode); err != nil {
-			return fmt.Errorf("write empty flagfile: %w", err)
-		}
-
+// writeMacOSSecret writes the enroll secret file unless the secret is empty.
+// An empty secret happens with --use-system-configuration, where the secret is
+// resolved at runtime from a configuration profile or the keystore. Writing an
+// empty secret.txt causes it to be read on the device as an empty enroll secret,
+// producing confusing keystore errors during ABM enrollment.
+func writeMacOSSecret(opt Options, orbitRoot string) error {
+	if opt.EnrollSecret == "" {
 		return nil
 	}
+	return writeSecret(opt, orbitRoot)
+}
+
+func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
+	if opt.OsqueryFlagfile == "" {
+		return nil
+	}
+
+	path := filepath.Join(orbitRoot, "osquery.flags")
 
 	if err := file.Copy(opt.OsqueryFlagfile, path, constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("copy flagfile: %w", err)
@@ -363,14 +387,11 @@ func writeOsqueryFlagfile(opt Options, orbitRoot string) error {
 	return nil
 }
 
-// Embed the certs file that osquery uses so that we can drop it into our installation packages.
-// This file is generated and updated by .github/workflows/update-certs.yml.
-//
-//go:embed certs.pem
-var OsqueryCerts []byte
+// OsqueryCerts is the CA bundle that osquery uses, dropped into our installation packages.
+var OsqueryCerts = cabundle.Bundle
 
 func writeOsqueryCertPEM(opt Options, orbitRoot string) error {
-	path := filepath.Join(orbitRoot, "certs.pem")
+	path := filepath.Join(orbitRoot, cabundle.FileName)
 	if err := secure.MkdirAll(filepath.Dir(path), constant.DefaultDirMode); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}

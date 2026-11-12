@@ -1,3 +1,11 @@
+> [!NOTE]
+> **Prefer [`dibble`](../../dibble/README.md) for seeding vulnerable software.** The equivalent is:
+> ```bash
+> ./tools/dibble/dibble vulns --macos 100 --ubuntu 100 --windows 100
+> ```
+> dibble embeds the same CSVs and writes to MySQL directly, just like this tool.
+> This script is kept for backwards compatibility.
+
 # Vulnerability Data Seeder
 
 The purpose of `seed_vuln_data.go` is to provide developers an easy way to insert hosts and software
@@ -18,7 +26,7 @@ into your local development Fleet server without needing a real host or osquery-
 3. Run the data seeder
 
 ```bash
-go run ./tools/software/vulnerabilities/seed_vuln_data.go --ubuntu 1 --macos 1 --windows 1 --linux-kernels 1
+go run ./tools/software/vulnerabilities/seed_data/seed_vuln_data.go --ubuntu 1 --macos 1 --windows 1 --linux-kernels 1
 ```
 
 You should now see new hosts with the configured software attached in the UI and database.  This

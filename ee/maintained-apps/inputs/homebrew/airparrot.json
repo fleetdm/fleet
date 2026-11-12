@@ -1,0 +1,10 @@
+{
+  "name": "AirParrot",
+  "unique_identifier": "com.squirrels.AirParrot-3",
+  "token": "airparrot",
+  "installer_format": "dmg",
+  "slug": "airparrot/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

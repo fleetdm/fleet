@@ -1,4 +1,4 @@
-// nolint:gosec,G103,govet,unsafeptr // Reason: unsafe required for Windows API calls.
+//nolint:gosec,govet // G103, unsafeptr: unsafe required for Windows API calls.
 package execuser
 
 // NOTE: The following was copied from
@@ -9,7 +9,6 @@ package execuser
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 	"unsafe"
@@ -134,10 +133,6 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
 	return nil, 0, errors.New("not implemented")
-}
-
-func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
-	return nil, errors.New("not implemented")
 }
 
 // getCurrentUserSessionId will attempt to resolve

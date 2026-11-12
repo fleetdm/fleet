@@ -1,41 +1,45 @@
 import React, { useContext, useEffect, useState, useCallback } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import FileUploader from "components/FileUploader";
+import InputField from "components/forms/fields/InputField";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner";
+import TableCount from "components/TableContainer/TableCount";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { notify, INotifyBatchItem } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { getErrorReason } from "interfaces/errors";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import { ISelfServiceCategory } from "interfaces/self_service_category";
 import {
   IAppStoreApp,
+  isAndroidSoftwareSource,
   isIpadOrIphoneSoftwareSource,
   ISoftwarePackage,
   InstallerType,
 } from "interfaces/software";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-
-import { NotificationContext } from "context/notification";
-import { INotification } from "interfaces/notification";
-import { getErrorReason } from "interfaces/errors";
+import SelfServicePreview from "pages/SoftwarePage/components/cards/SelfServicePreview";
+import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import { BasicSoftwareTable } from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal/CategoriesEndUserExperienceModal";
+import {
+  getDisplayedSoftwareName,
+  isSafeImagePreviewUrl,
+} from "pages/SoftwarePage/helpers";
+import selfServiceCategoriesAPI, {
+  ISelfServiceCategoriesResponse,
+} from "services/entities/self_service_categories";
 import softwareAPI from "services/entities/software";
 
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-import FileUploader from "components/FileUploader";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import Card from "components/Card";
-import Button from "components/buttons/Button";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import TableCount from "components/TableContainer/TableCount";
-import CardHeader from "components/CardHeader";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Spinner from "components/Spinner";
-
-import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
-import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
-import { SELF_SERVICE_SUBHEADER } from "pages/hosts/details/cards/Software/SelfService/SelfService";
-
-import { TitleVersionsLastUpdatedInfo } from "../SoftwareSummaryCard/TitleVersionsTable/TitleVersionsTable";
-import PreviewSelfServiceIcon from "../../../../../assets/images/preview-self-service-icon.png";
-import PreviewSelfServiceMobileIcon from "../../../../../assets/images/preview-self-service-mobile-icon.png";
+import { TitleVersionsLastUpdatedInfo } from "../TitleVersionsTable/TitleVersionsTable";
 
 const baseClass = "edit-icon-modal";
 
@@ -151,12 +155,15 @@ const EditIconModal = ({
   installerType,
   previewInfo,
 }: IEditIconModalProps) => {
-  const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
+  const queryClient = useQueryClient();
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const isSoftwarePackage = installerType === "package";
   const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(
     previewInfo?.source || ""
   );
+  const isAndroidApp = isAndroidSoftwareSource(previewInfo?.source || "");
 
   // Fetch current custom icon from API if applicable
   const shouldFetchCustomIcon =
@@ -223,7 +230,7 @@ const EditIconModal = ({
     });
 
   // Reset state to fallback/default icon when a current or new custom icon is removed
-  const resetIconState = () => {
+  const resetIconState = useCallback(() => {
     // Default to VPP icon if available, otherwise fall back to default icon
     const defaultPreviewUrl =
       previewInfo.currentIconUrl &&
@@ -238,9 +245,9 @@ const EditIconModal = ({
       fileDetails: null,
       status: "fallback",
     });
-  };
+  }, [previewInfo.currentIconUrl]);
 
-  const { data: customIconData } = useQuery(
+  const { data: customIconData, isError: isCustomIconError } = useQuery(
     ["softwareIcon", softwareId, teamIdForApi, iconUploadedAt],
     () => softwareAPI.getSoftwareIcon(softwareId, teamIdForApi),
     {
@@ -258,6 +265,20 @@ const EditIconModal = ({
           : "",
     }
   );
+
+  const { data: categories } = useQuery<
+    ISelfServiceCategoriesResponse,
+    Error,
+    ISelfServiceCategory[]
+  >(
+    ["selfServiceCategories", teamIdForApi],
+    () => selfServiceCategoriesAPI.getCategories(teamIdForApi),
+    {
+      select: (response) => response.self_service_categories,
+      staleTime: 60_000,
+    }
+  );
+  const hasCategories = (categories?.length ?? 0) > 0;
 
   const onExitEditIconModal = () => {
     resetIconState(); // Ensure cached state is cleared
@@ -283,13 +304,13 @@ const EditIconModal = ({
 
       // Enforce filesize limit
       if (file.size > MAX_FILE_SIZE) {
-        renderFlash("error", "Couldn't edit. Icon must be 100KB or less.");
+        notify.error("Couldn't edit. Icon must be 100KB or less.");
         return;
       }
 
       // Enforce PNG MIME type, even though FileUploader also enforces by extension
       if (file.type !== "image/png") {
-        renderFlash("error", "Couldn't edit. Must be a PNG file.");
+        notify.error("Couldn't edit. Must be a PNG file.");
         return;
       }
 
@@ -303,8 +324,7 @@ const EditIconModal = ({
             width < MIN_DIMENSION ||
             width > MAX_DIMENSION
           ) {
-            renderFlash(
-              "error",
+            notify.error(
               `Couldn't edit. Icon must be square, between ${MIN_DIMENSION}x${MIN_DIMENSION}px and ${MAX_DIMENSION}x${MAX_DIMENSION}px.`
             );
             return;
@@ -315,7 +335,7 @@ const EditIconModal = ({
         if (e.target && typeof e.target.result === "string") {
           img.src = e.target.result;
         } else {
-          renderFlash("error", "FileReader result was not a string.");
+          notify.error("FileReader result was not a string.");
         }
       };
       reader.readAsDataURL(file);
@@ -331,6 +351,13 @@ const EditIconModal = ({
   // useQuery does not handle dimension extraction, so this is required for updating
   // state with image details after loading the icon blob in the browser
   useEffect(() => {
+    // If the icon fetch failed, stop showing the spinner and fall back
+    if (isCustomIconError && isFirstLoadWithCustomIcon) {
+      setIsFirstLoadWithCustomIcon(false);
+      resetIconState();
+      return;
+    }
+
     // Handle API custom icon blob conversion and initialization
     if (
       shouldFetchCustomIcon &&
@@ -370,12 +397,15 @@ const EditIconModal = ({
     }
   }, [
     customIconData,
+    isCustomIconError,
+    isFirstLoadWithCustomIcon,
     iconState.status,
     shouldFetchCustomIcon,
     iconState.previewUrl,
     previewInfo.currentIconUrl,
     originalIsVpp,
     setCurrentApiCustomIcon,
+    resetIconState,
   ]);
 
   const fileDetails =
@@ -390,7 +420,6 @@ const EditIconModal = ({
 
   const renderPreviewFleetCard = () => {
     const {
-      name,
       type,
       versions,
       source,
@@ -399,15 +428,11 @@ const EditIconModal = ({
     } = previewInfo;
     return (
       <Card
-        borderRadiusSize="medium"
         color="grey"
         className={`${baseClass}__preview-card`}
         paddingSize="xlarge"
       >
-        <Card
-          borderRadiusSize="xxlarge"
-          className={`${baseClass}__preview-card__fleet`}
-        >
+        <Card className={`${baseClass}__preview-card__fleet`}>
           <SoftwareDetailsSummary
             displayName={displayName || previewInfo.titleName}
             name={previewInfo.titleName}
@@ -474,112 +499,86 @@ const EditIconModal = ({
     );
   };
 
-  const renderPreviewSelfServiceCard = () => (
-    <Card
-      borderRadiusSize="medium"
-      color="grey"
-      className={`${baseClass}__preview-card`}
-      paddingSize="xlarge"
-    >
-      <Card
-        className={`${baseClass}__preview-card__self-service`}
-        borderRadiusSize="xxlarge"
-      >
-        <CardHeader header="Self-service" subheader={SELF_SERVICE_SUBHEADER} />
-        <div className={`${baseClass}__preview-img-container`}>
-          <img
-            className={`${baseClass}__preview-img`}
-            src={PreviewSelfServiceIcon}
-            alt="Preview icon on Fleet Desktop > Self-service"
-          />
-        </div>
-        <div className={`${baseClass}__self-service-preview`}>
-          {iconState.previewUrl &&
-          isSafeImagePreviewUrl(iconState.previewUrl) ? (
-            <img
-              src={iconState.previewUrl}
-              alt="Uploaded self-service icon"
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: "4px",
-                overflow: "hidden",
-              }}
-            />
-          ) : (
-            // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
-            // is set as VPP icon is not returned by the API if a custom icon is returned
-            <SoftwareIcon
-              name={previewInfo.titleName}
-              source={previewInfo.source}
-              url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
-              uploadedAt={iconUploadedAt}
-            />
-          )}
-          <div className={`${baseClass}__self-service-preview-name`}>
-            <TooltipTruncatedText
-              value={displayName || previewInfo.titleName}
-            />
-          </div>
-        </div>
-      </Card>
-      <div
-        className={`${baseClass}__mask-overlay ${baseClass}__mask-overlay--self-service`}
-      />
-    </Card>
-  );
+  /**
+   * Preview matches preview in Edit Software modal > Categories End User Experience modal
+   * Non-mobile preview:
+   * - uses HTML/CSS instead for maintainability as the self-service UI changes
+   * - dynamic name/icon
+   *
+   * Mobile preview modal:
+   * - uses a screenshot
+   * - dynamic name/icon/version
+   */
 
-  const renderPreviewSelfServiceMobileCard = () => (
-    <Card
-      borderRadiusSize="medium"
-      color="white"
-      className={`${baseClass}__preview-card`}
-      paddingSize="xlarge"
-    >
-      <div className={`${baseClass}__preview-img-container--mobile`}>
-        <img
-          className={`${baseClass}__preview-img--mobile`}
-          src={PreviewSelfServiceMobileIcon}
-          alt="Preview icon on Fleet Desktop > Self-service"
-        />
-      </div>
-      <div className={`${baseClass}__self-service-preview--mobile`}>
-        {iconState.previewUrl && isSafeImagePreviewUrl(iconState.previewUrl) ? (
+  const renderPreviewSelfServiceCard = () => (
+    <SelfServicePreview
+      isIosOrIpadosApp={isIosOrIpadosApp}
+      contactUrl={config?.org_info.contact_url || ""}
+      name={previewInfo.name}
+      displayName={displayName || previewInfo.titleName}
+      versionLabel={
+        "latest_version" in software
+          ? software.latest_version
+          : software.version ||
+            previewInfo.selfServiceVersion ||
+            "Version (unknown)"
+      }
+      hasCategories={hasCategories}
+      renderIcon={() =>
+        iconState.previewUrl && isSafeImagePreviewUrl(iconState.previewUrl) ? (
           <img
             src={iconState.previewUrl}
             alt="Uploaded self-service icon"
             style={{
-              width: 20,
-              height: 20,
+              width: 24,
+              height: 24,
               borderRadius: "4px",
               overflow: "hidden",
             }}
           />
         ) : (
-          // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
-          // is set as VPP icon is not returned by the API if a custom icon is returned
           <SoftwareIcon
             name={previewInfo.name}
             source={previewInfo.source}
             url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
             uploadedAt={iconUploadedAt}
           />
-        )}
-        <div
-          className={`${baseClass}__self-service-preview-name-version--mobile`}
-        >
-          <div className={`${baseClass}__self-service-preview-name--mobile`}>
-            <TooltipTruncatedText value={displayName || previewInfo.name} />
-          </div>
-          <div className={`${baseClass}__self-service-preview-version--mobile`}>
-            {"latest_version" in software
-              ? software.latest_version
-              : software.version || "Version (unknown)"}
-          </div>
-        </div>
-      </div>
-    </Card>
+        )
+      }
+      renderTable={() => (
+        <BasicSoftwareTable
+          name={displayName || previewInfo.titleName}
+          displayName={displayName || previewInfo.titleName}
+          source={previewInfo.source}
+          iconUrl={isSoftwarePackage ? undefined : software.icon_url}
+          previewIcon={
+            iconState.previewUrl &&
+            isSafeImagePreviewUrl(iconState.previewUrl) ? (
+              <img
+                src={iconState.previewUrl}
+                alt="Uploaded self-service icon"
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: "4px",
+                  overflow: "hidden",
+                }}
+              />
+            ) : (
+              <SoftwareIcon
+                name={previewInfo.titleName}
+                source={previewInfo.source}
+                url={isSoftwarePackage ? undefined : software.icon_url}
+                uploadedAt={iconUploadedAt}
+              />
+            )
+          }
+        />
+      )}
+    />
   );
+
+  const defaultDisplayName = getDisplayedSoftwareName(previewInfo.titleName);
 
   const renderForm = () => (
     <>
@@ -592,10 +591,11 @@ const EditIconModal = ({
         helpText={
           <>
             Optional. If left blank, Fleet will use{" "}
-            <strong>{previewInfo.titleName}</strong>.
+            <strong>{defaultDisplayName}</strong>.
           </>
         }
         autofocus
+        disabled={gitOpsModeEnabled}
       />
       <FileUploader
         label="Icon"
@@ -606,36 +606,36 @@ const EditIconModal = ({
         message={UPLOAD_MESSAGE}
         onFileUpload={onFileSelect}
         buttonMessage="Choose file"
-        buttonType="brand-inverse-icon"
+        buttonType="secondary"
         className={`${baseClass}__file-uploader`}
         fileDetails={fileDetails}
-        gitopsCompatible={false}
+        disabled={gitOpsModeEnabled}
       />
       <h2>Preview</h2>
-      <TabNav>
-        <Tabs selectedIndex={previewTabIndex} onSelect={onTabChange}>
-          <TabList>
-            <Tab>
-              <TabText>Fleet</TabText>
-            </Tab>
-            <Tab>
-              <TabText>Self-service</TabText>
-            </Tab>
-          </TabList>
-          <TabPanel>{renderPreviewFleetCard()}</TabPanel>
-          <TabPanel>
-            {isIosOrIpadosApp
-              ? renderPreviewSelfServiceMobileCard()
-              : renderPreviewSelfServiceCard()}
-          </TabPanel>
-        </Tabs>
-      </TabNav>
+      {isAndroidApp ? (
+        renderPreviewFleetCard()
+      ) : (
+        <TabNav>
+          <Tabs selectedIndex={previewTabIndex} onSelect={onTabChange}>
+            <TabList>
+              <Tab>
+                <TabText>Fleet</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Self service</TabText>
+              </Tab>
+            </TabList>
+            <TabPanel>{renderPreviewFleetCard()}</TabPanel>
+            <TabPanel>{renderPreviewSelfServiceCard()}</TabPanel>
+          </Tabs>
+        </TabNav>
+      )}
     </>
   );
 
   const onClickSave = async () => {
     setIsUpdatingSoftwareInfo(true);
-    const notifications: INotification[] = [];
+    const errorToasts: INotifyBatchItem[] = [];
     let iconSucceeded = false;
     let nameSucceeded = false;
     let iconSuccessMessage: React.ReactElement | null = null;
@@ -670,12 +670,10 @@ const EditIconModal = ({
         }
       } catch (e) {
         const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
-        notifications.push({
-          id: "icon-error",
-          alertType: "error",
-          isVisible: true,
+        errorToasts.push({
+          variant: "error",
           message: errorMessage,
-          persistOnPageChange: false,
+          options: { response: e },
         });
       }
 
@@ -686,6 +684,10 @@ const EditIconModal = ({
             ? softwareAPI.editSoftwarePackage({
                 data: { displayName: trimmedDisplayName },
                 softwareId,
+                // Multi-package titles require `installer_id` on any edit; display_name
+                // is title-level, so target the first-added package (`software` is
+                // `software_package`, which mirrors `packages[0]`).
+                installerId: (software as ISoftwarePackage).installer_id,
                 teamId: teamIdForApi,
               })
             : softwareAPI.editAppStoreApp(softwareId, teamIdForApi, {
@@ -705,44 +707,61 @@ const EditIconModal = ({
             );
         } catch (e) {
           const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
-          notifications.push({
-            id: "name-error",
-            alertType: "error",
-            isVisible: true,
+          errorToasts.push({
+            variant: "error",
             message: errorMessage,
-            persistOnPageChange: false,
+            options: { response: e },
           });
         }
       }
 
-      if (notifications.length > 0) {
-        renderMultiFlash({ notifications });
+      if (errorToasts.length > 0) {
+        notify.batch(errorToasts);
       } else if (iconSucceeded && nameSucceeded) {
         // Both changed - show generic message to avoid double toast
-        renderFlash(
-          "success",
+        notify.success(
           <>
             Successfully edited{" "}
             <b>{displayName === "" ? previewInfo.name : displayName}</b>.
           </>
         );
+        // Invalidate software list caches so the edit is reflected
+        // if the user navigates back before the stale time has passed.
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
       } else if (iconSucceeded && iconSuccessMessage) {
-        renderFlash("success", iconSuccessMessage);
+        notify.success(iconSuccessMessage);
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
       } else if (nameSucceeded && nameSuccessMessage) {
-        renderFlash("success", nameSuccessMessage);
+        notify.success(nameSuccessMessage);
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-titles" }],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "software-library" }],
+        });
         refetchSoftwareTitle();
         setIconUploadedAt(new Date().toISOString());
         onExitEditIconModal();
       }
     } catch (e) {
       const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
-      renderFlash("error", errorMessage);
+      notify.error(errorMessage, { response: e });
     } finally {
       setIsUpdatingSoftwareInfo(false);
     }
@@ -751,28 +770,31 @@ const EditIconModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Edit software"
+      title="Edit appearance"
       onExit={onExitEditIconModal}
     >
-      <>
-        {isFirstLoadWithCustomIcon ? (
-          <Spinner includeContainer={false} />
-        ) : (
-          renderForm()
-        )}
-        <ModalFooter
-          primaryButtons={
-            <Button
-              type="submit"
-              onClick={onClickSave}
-              isLoading={isUpdatingSoftwareInfo}
-              disabled={!canSaveForm || isUpdatingSoftwareInfo}
-            >
-              Save
-            </Button>
-          }
-        />
-      </>
+      {isFirstLoadWithCustomIcon ? <Spinner /> : renderForm()}
+      <ModalFooter
+        primaryButtons={
+          <GitOpsModeTooltipWrapper
+            position="top"
+            tipOffset={8}
+            entityType="software"
+            renderChildren={(gitOpsDisabled) => (
+              <Button
+                type="submit"
+                onClick={onClickSave}
+                isLoading={isUpdatingSoftwareInfo}
+                disabled={
+                  !canSaveForm || isUpdatingSoftwareInfo || !!gitOpsDisabled
+                }
+              >
+                Save
+              </Button>
+            )}
+          />
+        }
+      />
     </Modal>
   );
 };

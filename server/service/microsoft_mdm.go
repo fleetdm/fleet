@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/md5" //nolint:gosec // Windows MDM Auth uses MD5
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
@@ -11,27 +12,33 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"html/template"
 	"io"
+	"log/slog"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
-	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdmlifecycle "github.com/fleetdm/fleet/v4/server/mdm/lifecycle"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	mysql_driver "github.com/go-sql-driver/mysql"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
@@ -39,6 +46,9 @@ import (
 )
 
 const maxRequestLogSize = 10240
+
+// devDetailSMBIOSSerialNumberURI is the OMA-DM LocURI for the device's SMBIOS serial number.
+const devDetailSMBIOSSerialNumberURI = "./DevDetail/Ext/Microsoft/SMBIOSSerialNumber"
 
 type SoapRequestContainer struct {
 	Data   *fleet.SoapRequest
@@ -104,12 +114,11 @@ func (r SoapResponseContainer) HijackRender(ctx context.Context, w http.Response
 type SyncMLReqMsgContainer struct {
 	Data   *fleet.SyncML
 	Params url.Values
-	Certs  []*x509.Certificate
 	Err    error
 }
 
 // MDM SOAP request decoder
-func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
+func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, _ []*x509.Certificate) error {
 	// Reading the request bytes
 	reqBytes, err := io.ReadAll(r)
 	if err != nil {
@@ -118,9 +127,6 @@ func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u
 
 	// Set the request parameters
 	req.Params = u
-
-	// Set the request certs
-	req.Certs = c
 
 	// Handle empty body scenario
 	req.Data = &fleet.SyncML{Raw: reqBytes}
@@ -195,23 +201,6 @@ func (req MDMWebContainer) HijackRender(ctx context.Context, w http.ResponseWrit
 	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
 	w.WriteHeader(http.StatusOK)
 	if n, err := w.Write(resData); err != nil {
-		logging.WithExtras(ctx, "err", err, "written", n)
-	}
-}
-
-type MDMAuthContainer struct {
-	Data *string
-	Err  error
-}
-
-func (r MDMAuthContainer) Error() error { return r.Err }
-
-// HijackRender writes the response header and the RAW XML output
-func (r MDMAuthContainer) HijackRender(ctx context.Context, w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-	w.Header().Set("Content-Length", strconv.Itoa(len(*r.Data)))
-	w.WriteHeader(http.StatusOK)
-	if n, err := w.Write([]byte(*r.Data)); err != nil {
 		logging.WithExtras(ctx, "err", err, "written", n)
 	}
 }
@@ -406,14 +395,6 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 				Lang:    syncml.SoapFaultLocale,
 			},
 		},
-	}
-}
-
-// getSTSAuthContent Retuns STS auth content
-func getSTSAuthContent(data string) mdm_types.Errorer {
-	return MDMAuthContainer{
-		Data: &data,
-		Err:  nil,
 	}
 }
 
@@ -644,7 +625,7 @@ func isEligibleForWindowsMDMMigration(host *fleet.Host, mdmInfo *fleet.HostMDM) 
 // The Application Provisioning configuration is used for bootstrapping a device with an OMA DM account
 // The paramenters here maps to the W7 application CSP
 // https://learn.microsoft.com/en-us/windows/client-management/mdm/w7-application-csp
-func NewApplicationProvisioningData(mdmEndpoint string) mdm_types.Characteristic {
+func NewApplicationProvisioningData(mdmEndpoint string, username string, secret string) mdm_types.Characteristic {
 	provDoc := newCharacteristic("APPLICATION", []mdm_types.Param{
 		// The PROVIDER-ID parameter specifies the server identifier for a management server used in the current management session
 		newParm("PROVIDER-ID", syncml.DocProvisioningAppProviderID, ""),
@@ -688,9 +669,9 @@ func NewApplicationProvisioningData(mdmEndpoint string) mdm_types.Characteristic
 			newParm("AAUTHLEVEL", "APPSRV", ""),
 			// DIGEST - Specifies that the SyncML DM 'syncml:auth-md5' authentication type.
 			newParm("AAUTHTYPE", "DIGEST", ""),
-			newParm("AAUTHNAME", "dummy", ""),
-			newParm("AAUTHSECRET", "dummy", ""),
-			newParm("AAUTHDATA", "nonce", ""),
+			newParm("AAUTHNAME", username, ""),
+			newParm("AAUTHSECRET", secret, ""),
+			newParm("AAUTHDATA", "nonce", ""), // We don't care about setting the first round nonce, as when the device checks in we will prompt the credentials and pass a new nonce.
 		}, nil),
 	})
 
@@ -777,29 +758,19 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 	}, nil
 }
 
-// mdmMicrosoftAuthEndpoint handles the Security Token Service (STS) implementation
-func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
-	params := request.(*SoapRequestContainer).Params
-
-	// Sanity check on the expected query params
-	if !params.Has(syncml.STSAuthAppRu) || !params.Has(syncml.STSLoginHint) {
-		return getSTSAuthContent(""), errors.New("expected STS params are not present")
+// rejectUnsupportedAuth converts the error from GetHeaderBinarySecurityToken into an actionable fault when the request
+// is a device following the advertised OnPremise auth policy with a <wsse:UsernameToken> (username + plaintext
+// password) and NO <wsse:BinarySecurityToken>.
+func rejectUnsupportedAuth(req *fleet.SoapRequest, err error) error {
+	if req != nil && req.Header.Security != nil &&
+		len(req.Header.Security.Security.Content) == 0 &&
+		len(req.Header.Security.Security.Value) == 0 &&
+		len(req.Header.Security.Security.Encoding) == 0 &&
+		bytes.Contains(req.Raw, []byte("UsernameToken")) {
+		return errors.New("Username and password (OnPremise) enrollment is not supported. " +
+			"Join the device to Microsoft Entra ID, or enroll it with fleetd.")
 	}
-
-	appru := params.Get(syncml.STSAuthAppRu)
-	loginHint := params.Get(syncml.STSLoginHint)
-
-	if (len(appru) == 0) || (len(loginHint) == 0) {
-		return getSTSAuthContent(""), errors.New("expected STS params are empty")
-	}
-
-	// Getting the STS endpoint HTML content
-	stsAuthContent, err := svc.GetMDMMicrosoftSTSAuthResponse(ctx, appru, loginHint)
-	if err != nil {
-		return getSTSAuthContent(""), errors.New("error generating STS content")
-	}
-
-	return getSTSAuthContent(stsAuthContent), nil
+	return err
 }
 
 // mdmMicrosoftPolicyEndpoint handles the GetPolicies message and returns a valid GetPoliciesResponse message
@@ -816,7 +787,7 @@ func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 	// Binary security token should be extracted to ensure this is a valid call
 	hdrSecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, rejectUnsupportedAuth(req, err))
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -861,7 +832,7 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 	// Binary security token should be extracted to ensure this is a valid call
 	hdrBinarySecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, rejectUnsupportedAuth(req, err))
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -889,7 +860,7 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 // It receives a SyncML message with protocol commands, it process the commands and responds with a
 // SyncML message with protocol commands results and more protocol commands for the calling host
 // Note: This logic needs to be improved with better SyncML message parsing, better message tracking
-// and better security authentication (done through TLS and in-message hash)
+// and better security authentication (done through the in-message credentials hash)
 func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
 	reqSyncML := request.(*SyncMLReqMsgContainer).Data
 
@@ -900,7 +871,7 @@ func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, sv
 	}
 
 	// Getting the MS-MDM response message
-	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML, request.(*SyncMLReqMsgContainer).Certs)
+	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML)
 	if err != nil {
 		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MSMDM, err)
 		return getSoapResponseFault(reqSyncML.SyncHdr.MsgID, soapFault), nil
@@ -938,17 +909,74 @@ func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet
 	}, nil
 }
 
+// hasAuthorizedAzureAudience reports whether any audience value in an Entra-issued JWT is authorized for Windows
+// automatic enrollment. An audience is authorized if either:
+//   - it equals a configured Entra application client ID (v2 access tokens, whose `aud` is the app's client ID, a
+//     GUID), compared case-insensitively after trimming
+//   - it parses as a URL whose host (host:port) matches serverHost (v1 access tokens, whose `aud` is the Fleet server URL).
+//
+// The client-ID (v2) path is additive: it does not change the v1 server-URL behavior. An audience that is neither a
+// known client ID nor a URL is ignored, so a token with multiple audiences is authorized if any one of them matches.
+// serverHost is the expected host including any port; callers pass url.URL.Host.
+func hasAuthorizedAzureAudience(audiences []string, serverHost string, clientIDs []string) bool {
+	clientIDSet := make(map[string]struct{}, len(clientIDs))
+	for _, id := range clientIDs {
+		clientIDSet[strings.ToLower(strings.TrimSpace(id))] = struct{}{}
+	}
+	for _, aud := range audiences {
+		// v2 token: `aud` is the application client ID (a GUID).
+		if _, ok := clientIDSet[strings.ToLower(strings.TrimSpace(aud))]; ok {
+			return true
+		}
+		// v1 token: `aud` is a URL whose host must match the Fleet server URL's. The audience may have multiple values
+		// and not everything in it will be a URL, and that's OK. Compare the full host (host:port) case-insensitively:
+		// per RFC 3986 the host is case-insensitive, but the port must match so a token for a different port on the same
+		// hostname is not authorized.
+		audURL, err := url.Parse(aud)
+		if err != nil {
+			continue
+		}
+		if audURL.Host != "" && strings.EqualFold(audURL.Host, serverHost) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasAuthorizedAzureTenant reports whether the token's tenant (the `tid` claim) matches one of the configured Entra
+// tenant IDs. The comparison is case-insensitive after trimming: Entra emits `tid` in lower-case, but validation
+// accepts configured tenant IDs in either case (it does not normalize them), so a tenant ID pasted with upper-case
+// hex digits must still authorize enrollment instead of silently failing to match the lower-cased claim.
+func hasAuthorizedAzureTenant(tenantIDs []string, tokenTenant string) bool {
+	tokenTenant = strings.TrimSpace(tokenTenant)
+	if tokenTenant == "" {
+		return false
+	}
+	for _, id := range tenantIDs {
+		if strings.EqualFold(strings.TrimSpace(id), tokenTenant) {
+			return true
+		}
+	}
+	return false
+}
+
 // authBinarySecurityToken checks if the provided token is valid. For programmatic enrollment, it
-// returns the orbit node key and host uuid. For automatic enrollment, it returns only the UPN (the
-// host uuid will be an empty string).
-func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (claim string, hostUUID string, err error) {
+// returns the orbit node key and host uuid. For automatic enrollment with an Entra token, it returns
+// the UPN and the Entra device ID signed into it (the host uuid will be an empty string).
+func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (claim string, hostUUID string,
+	entraDeviceID string, enrollType fleet.WindowsMDMEnrollType, err error,
+) {
+	if svc.wstepCertManager == nil {
+		return "", "", "", 0, ctxerr.New(ctx, "windows mdm identity keypair was not configured")
+	}
+
 	if authToken == nil {
-		return "", "", errors.New("authToken is empty")
+		return "", "", "", 0, errors.New("authToken is empty")
 	}
 
 	err = authToken.IsValidToken()
 	if err != nil {
-		return "", "", errors.New("authToken is not valid")
+		return "", "", "", 0, errors.New("authToken is not valid")
 	}
 
 	// Tokens that were generated by enrollment client
@@ -957,63 +985,81 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 		// Getting the Binary Security Token Payload
 		binSecToken, err := NewBinarySecurityTokenPayload(authToken.Content)
 		if err != nil {
-			return "", "", fmt.Errorf("token creation error %v", err)
+			return "", "", "", 0, fmt.Errorf("token creation error %v", err)
 		}
 
-		// Validating the Binary Security Token Payload
+		// IsValidToken only accepts the programmatic enrollment type
 		err = binSecToken.IsValidToken()
 		if err != nil {
-			return "", "", fmt.Errorf("invalid token data %v", err)
+			return "", "", "", 0, fmt.Errorf("invalid token data %v", err)
 		}
 
-		// Validating the Binary Security Token Type used on Programmatic Enrollments
-		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
-			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
-			if err != nil {
-				return "", "", fmt.Errorf("host data cannot be found %v", err)
-			}
-
-			mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return "", "", errors.New("unable to retrieve host mdm info")
-			}
-
-			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
-			if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
-				return "", "", errors.New("host is not elegible for Windows MDM enrollment")
-			}
-
-			// No errors, token is authorized
-			return binSecToken.Payload.OrbitNodeKey, host.UUID, nil
+		host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
+		if err != nil {
+			return "", "", "", 0, fmt.Errorf("host data cannot be found %v", err)
+		}
+		if host == nil {
+			return "", "", "", 0, errors.New("host not found for orbit node key")
 		}
 
-		// Validating the Binary Security Token Type used on Automatic Enrollments (returned by STS Auth Endpoint)
-		if binSecToken.Type == mdm_types.WindowsMDMAutomaticEnrollmentType {
-
-			upnToken, err := svc.wstepCertManager.GetSTSAuthTokenUPNClaim(binSecToken.Payload.AuthToken)
-			if err != nil {
-				return "", "", ctxerr.Wrap(ctx, err, "issue retrieving UPN from Auth token")
-			}
-
-			// No errors, token is authorized
-			return upnToken, "", nil
+		mdmInfo, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return "", "", "", 0, errors.New("unable to retrieve host mdm info")
 		}
+
+		// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
+		if !isEligibleForWindowsMDMEnrollment(host, mdmInfo) {
+			return "", "", "", 0, errors.New("host is not elegible for Windows MDM enrollment")
+		}
+
+		// No errors, token is authorized
+		return binSecToken.Payload.OrbitNodeKey, host.UUID, "", fleet.WindowsMDMEnrollTypeProgrammatic, nil
 	}
 
 	// Validating the Binary Security Token Type used on Automatic Enrollments
 	if authToken.IsAzureJWTToken() {
+		appConfig, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return "", "", "", 0, ctxerr.Wrap(ctx, err, "retrieving app config for auth token validation")
+		}
+
+		entraTenantIDs := appConfig.MDM.WindowsEntraTenantIDs.Value
+		if len(entraTenantIDs) == 0 {
+			return "", "", "", 0, ctxerr.New(ctx, "no entra tenant IDs configured for automatic enrollment")
+		}
+		expectedURL := appConfig.ServerSettings.ServerURL
+		expectedURLParsed, err := url.Parse(expectedURL)
+		if err != nil {
+			return "", "", "", 0, ctxerr.Wrap(ctx, err, "parsing server URL for auth token validation")
+		}
 
 		// Validate the JWT Auth token by retreving its claims
-		tokenData, err := microsoft_mdm.GetAzureAuthTokenClaims(authToken.Content)
+		tokenData, err := svc.wstepCertManager.GetAzureAuthTokenClaims(ctx, authToken.Content)
 		if err != nil {
-			return "", "", fmt.Errorf("binary security token claim failed: %v", err)
+			return "", "", "", 0, fmt.Errorf("binary security token claim failed: %v", err)
+		}
+
+		if !hasAuthorizedAzureAudience(tokenData.Audience, expectedURLParsed.Host, appConfig.MDM.WindowsEntraClientIDs.Value) {
+			// Log bad audiences here for debugging.
+			svc.logger.ErrorContext(ctx, "unexpected token audience in AzureAD Binary Security Token",
+				"expected_host", expectedURLParsed.Host,
+				"configured_client_ids", strings.Join(appConfig.MDM.WindowsEntraClientIDs.Value, ","),
+				"token_audiences", strings.Join(tokenData.Audience, ","),
+			)
+			return "", "", "", 0, ctxerr.Errorf(ctx, "token audience is not authorized")
+		}
+		if !hasAuthorizedAzureTenant(entraTenantIDs, tokenData.TenantID) {
+			svc.logger.ErrorContext(ctx, "unexpected token tenant in AzureAD Binary Security Token",
+				"token_tenant", tokenData.TenantID,
+			)
+			return "", "", "", 0, ctxerr.New(ctx, "token tenant is not authorized")
 		}
 
 		// No errors, token is authorized
-		return tokenData.UPN, "", nil
+		return tokenData.UPN, "", tokenData.DeviceID, fleet.WindowsMDMEnrollTypeAutomatic, nil
 	}
 
-	return "", "", errors.New("token is not authorized")
+	return "", "", "", 0, ctxerr.New(ctx, "token is not authorized")
 }
 
 // ProcessMDMMicrosoftDiscovery handles the Discovery message validation and response
@@ -1021,8 +1067,7 @@ func (svc *Service) ProcessMDMMicrosoftDiscovery(ctx context.Context, req *fleet
 	// Checking first if Discovery message is valid and returning error if this is not the case
 	if err := req.IsValidDiscoveryMsg(); err != nil {
 		// Log the raw XML request for debugging invalid messages
-		level.Debug(svc.logger).Log(
-			"msg", "invalid discover message",
+		svc.logger.DebugContext(ctx, "invalid discover message",
 			"err", err.Error(),
 			"request_xml", string(req.Raw),
 		)
@@ -1066,66 +1111,14 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
+	// Fleet always advertises the OnPremise auth policy. But its WSTEP handlers only accept a <wsse:BinarySecurityToken>
+	// (an orbit node key for programmatic fleetd enrollment, or an Entra AAD JWT for Entra-joined / Autopilot devices).
 	discoveryMsg, err := NewDiscoverResponse(syncml.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
 	}
 
 	return &discoveryMsg, nil
-}
-
-// GetMDMMicrosoftSTSAuthResponse returns a valid Security Token Service (STS) page content
-func (svc *Service) GetMDMMicrosoftSTSAuthResponse(ctx context.Context, appru string, loginHint string) (string, error) {
-	// skipauth: This endpoint does not use authentication
-	svc.authz.SkipAuthorization(ctx)
-
-	// Dummy data will be returned as part of the token as user-driven enrollment is not supported yet
-	// In the future, the following calls would have to be made to support user-driven enrollment
-	// encodedBST will carry the token to return
-	// authToken, err := svc.wstepCertManager.NewSTSAuthToken(loginHint)
-	// encodedBST, err := GetEncodedBinarySecurityToken(fleet.WindowsMDMAutomaticEnrollmentType, authToken)
-	encodedBST := "user_driven_enrollment_not_implemented"
-
-	// STS Auth Endpoint returns HTML content that gets render in a webview container
-	// The webview container expect a POST request to the appru URL with the wresult parameter set to the auth token
-	// The security token in wresult is later passed back in <wsse:BinarySecurityToken>
-	// This string is opaque to the enrollment client; the client does not interpret the string.
-	// The returned HTML content contains a JS script that will perform a POST request to the appru URL automatically
-	// This will set the wresult parameter to the value of auth token
-	tmpl, err := template.New("").Parse(`
-				<script>
-				function performPost() {
-				  // Dinamically create a form element to submit the request
-				  var form = document.createElement('form');
-				  form.method = 'POST';
-				  form.action = "{{.ActionURL}}"
-
-				  var inputToken = document.createElement('input');
-				  inputToken.type = 'hidden';
-				  inputToken.name = 'wresult';
-				  inputToken.value = '{{.Token}}';
-				  form.appendChild(inputToken);
-
-				  // Submit the form
-				  document.body.appendChild(form);
-				  form.submit();
-				}
-
-				// Call performPost() when the script is executed
-				performPost();
-				</script>
-				`)
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "STS content template")
-	}
-
-	var htmlBuf bytes.Buffer
-	err = tmpl.Execute(&htmlBuf, map[string]string{"ActionURL": appru, "Token": encodedBST})
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "creation of STS content")
-	}
-
-	return htmlBuf.String(), nil
 }
 
 // GetMDMWindowsPolicyResponse returns a valid GetPoliciesResponse message
@@ -1135,7 +1128,7 @@ func (svc *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken *
 	}
 
 	// Validate the binary security token
-	_, _, err := svc.authBinarySecurityToken(ctx, authToken)
+	_, _, _, _, err := svc.authBinarySecurityToken(ctx, authToken)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
@@ -1161,21 +1154,50 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	}
 
 	// Auth the binary security token
-	userID, hostUUID, err := svc.authBinarySecurityToken(ctx, authToken)
+	userID, hostUUID, entraDeviceID, enrollType, err := svc.authBinarySecurityToken(ctx, authToken)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
 
-	// Removing the device if already MDM enrolled
-	err = svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, secTokenMsg)
+	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
+	// The Entra device ID signed into the token is the only proof of which device is enrolling, since the request names
+	// its device only by a device-reported hardware ID. Without it the enrollment still proceeds, but cannot replace an
+	// enrollment that is bound to this id. Logged here rather than in authBinarySecurityToken so that each enrollment
+	// logs it once.
+	if authToken.IsAzureJWTToken() && entraDeviceID == "" {
+		svc.logger.ErrorContext(ctx, "Entra access token has no deviceid claim, so Fleet cannot protect this Windows MDM enrollment "+
+			"from being replaced by another device. Add deviceid as an optional access token claim in the manifest of the "+
+			"Microsoft Entra MDM app registration",
+			"user_id", userID,
+		)
+	}
+
+	reqDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
+	}
+
+	keptEntraDeviceID, err := svc.checkWindowsMDMEnrollmentCanReplaceExisting(ctx, reqHWDeviceID, reqDeviceID, hostUUID, entraDeviceID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
+	}
+	if entraDeviceID == "" {
+		entraDeviceID = keptEntraDeviceID
+	}
+
 	// Getting the device provisioning information in the form of a WapProvisioningDoc
-	deviceProvisioning, err := svc.getDeviceProvisioningInformation(ctx, secTokenMsg)
+	deviceProvisioning, credentialsHash, err := svc.getDeviceProvisioningInformation(ctx, secTokenMsg)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "device provisioning information")
+	}
+
+	// Only after provisioning succeeded, so a request with a bad CSR cannot destroy the existing enrollment's state.
+	if err := svc.removeWindowsDeviceIfAlreadyMDMEnrolled(ctx, reqHWDeviceID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "device enroll check")
 	}
 
 	// Token is authorized
@@ -1196,7 +1218,7 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	//
 	// This method also creates the relevant enrollment activity as it has
 	// access to the device information.
-	err = svc.storeWindowsMDMEnrolledDevice(ctx, userID, hostUUID, secTokenMsg)
+	err = svc.storeWindowsMDMEnrolledDevice(ctx, userID, hostUUID, entraDeviceID, enrollType, secTokenMsg, credentialsHash)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "enrolled device information cannot be stored")
 	}
@@ -1205,119 +1227,308 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 }
 
 // GetMDMWindowsManagementResponse returns a valid SyncML response message
-func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.SyncML, error) {
+func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.SyncML, error) {
 	if reqSyncML == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
 	// Checking if the incoming request is trusted
-	err := svc.isTrustedRequest(ctx, reqSyncML, reqCerts)
+	enrolledDevice, requestAuthState, err := svc.isTrustedRequest(ctx, reqSyncML)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "management request is not trusted")
-	}
-
-	// Getting the management response message
-	resSyncMLmsg, err := svc.getManagementResponse(ctx, reqSyncML)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "management response message")
 	}
 
 	// Token is authorized
 	svc.authz.SkipAuthorization(ctx)
 
+	if requestAuthState == RequestAuthStateRekey {
+		// If we signalled to rekey the device, we short-circuit into a rekey flow.
+		return svc.rekeyWindowsDevice(ctx, reqSyncML)
+	}
+
+	// Getting the management response message
+	resSyncMLmsg, err := svc.getManagementResponse(ctx, reqSyncML, enrolledDevice, requestAuthState)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "management response message")
+	}
+
 	return resSyncMLmsg, nil
+}
+
+// allowedWindowsTOSRedirectSchemes is the set of URL schemes permitted for the Windows MDM enrollment Terms of Use
+// redirect_uri. Per Microsoft's "Terms of Use protocol semantics", the Windows enrollment client (not Fleet) chooses
+// this redirect_uri and Fleet only reflects it into the TOS page's accept link. We restrict it to the schemes Windows
+// enrollment clients use:
+//   - ms-appx-web: the scheme in Microsoft's documented example, redirect_uri=ms-appx-web://<app>/ToUResponse, used by
+//     the native broker-hosted flows (Entra join from Settings > "Access work or school", and BYOD work-account add).
+//     https://learn.microsoft.com/en-us/windows/client-management/azure-active-directory-integration-with-mdm
+//   - ms-aadj-redir: the out-of-box experience (OOBE) Entra join flow, redirect_uri=ms-aadj-redir://auth/mdm.
+//   - https: the browser-based federated flow.
+var allowedWindowsTOSRedirectSchemes = map[string]struct{}{
+	"https":         {},
+	"ms-aadj-redir": {},
+	"ms-appx-web":   {},
+}
+
+// windowsTOSRedirectURIAllowed reports whether redirectURI is safe to reflect into the Windows MDM TOS page.
+func windowsTOSRedirectURIAllowed(redirectURI string) bool {
+	parsed, err := url.Parse(redirectURI)
+	if err != nil {
+		return false
+	}
+	_, ok := allowedWindowsTOSRedirectSchemes[strings.ToLower(parsed.Scheme)]
+	return ok
 }
 
 // GetMDMWindowsTOSContent returns valid TOC content
 func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri string, reqID string) (string, error) {
+	// skipauth: This endpoint does not use authentication
+	svc.authz.SkipAuthorization(ctx)
+
+	// redirectUri is reflected into the TOS page's accept link, so validate its scheme to prevent reflected XSS via
+	// javascript:/data:/vbscript: URLs.
+	if !windowsTOSRedirectURIAllowed(redirectUri) {
+		return "", &fleet.BadRequestError{Message: "invalid redirect_uri"}
+	}
+
 	tmpl, err := server.GetTemplate("frontend/templates/windowsTOS.html", "windows-tos")
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "issue generating TOS content")
 	}
 
+	cspNonce, err := endpointer.CSPNonce(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "generating CSP nonce for TOS content")
+	}
+
+	data := windowsTOSTemplateData{
+		RedirectURL: template.URL(redirectUri), //nolint:gosec // G203: scheme allowlisted by windowsTOSRedirectURIAllowed
+		ClientData:  reqID,
+		CSPNonce:    cspNonce,
+	}
+	data.Content = svc.customWindowsTOSContent(ctx)
+
 	var htmlBuf bytes.Buffer
-	err = tmpl.Execute(&htmlBuf, map[string]string{"RedirectURL": redirectUri, "ClientData": reqID})
+	err = tmpl.Execute(&htmlBuf, data)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "executing TOS template content")
 	}
 
-	// skipauth: This endpoint does not use authentication
-	svc.authz.SkipAuthorization(ctx)
-
 	return htmlBuf.String(), nil
 }
 
-// isTrustedRequest checks if the incoming request was sent from MDM enrolled device
-func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) error {
+type requestAuthState int
+
+const (
+	RequestAuthStateUntrusted requestAuthState = iota
+	RequestAuthStateUnauthorized
+	RequestAuthStateChallenge
+	RequestAuthStateRekey
+	RequestAuthStateTrusted
+)
+
+const windowsMDMAuthNonceTTL = 5 * time.Minute
+
+// windowsMDMRekeyMaxOffline is how long a host can go without an osquery check-in before its pre-credentials enrollment can no longer
+// be rekeyed.
+const windowsMDMRekeyMaxOffline = 180 * 24 * time.Hour
+
+// isWindowsRekeyAllowed reports whether a pre-credentials enrollment may still be rekeyed. The rekey is unauthenticated, so it is
+// refused when the host cannot be found or has not been seen recently.
+func (svc *Service) isWindowsRekeyAllowed(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) (bool, error) {
+	if enrolledDevice.HostUUID == "" {
+		return false, nil
+	}
+
+	host, err := svc.ds.WindowsHostLiteByUUID(ctx, enrolledDevice.HostUUID)
+	switch {
+	case fleet.IsNotFound(err):
+		return false, nil
+	case err != nil:
+		return false, ctxerr.Wrap(ctx, err, "get host for windows rekey")
+	}
+
+	if svc.clock.Now().Sub(host.SeenTime) > windowsMDMRekeyMaxOffline {
+		svc.logger.WarnContext(ctx, "refusing Windows MDM rekey for host not seen recently",
+			"device_id", enrolledDevice.MDMDeviceID, "host_id", host.ID, "last_seen", host.SeenTime)
+		return false, nil
+	}
+	return true, nil
+}
+
+// isTrustedRequest checks if the incoming request was sent from an MDM-enrolled
+// device. It returns the matched enrollment (when the device was found), the
+// auth state, and an error only when the request is malformed or otherwise
+// cannot be processed. Expected non-trusted outcomes (for example
+// RequestAuthStateChallenge or RequestAuthStateUnauthorized) are reported via
+// the returned auth state and may return a nil error. The returned enrolled
+// device may be nil when the state is RequestAuthStateUntrusted.
+func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.MDMWindowsEnrolledDevice, requestAuthState, error) {
 	if reqSyncML == nil {
-		return fleet.NewInvalidArgumentError("syncml req message", "message is not present")
+		return nil, RequestAuthStateUntrusted, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
 	// Checking if calling request is coming from an already MDM enrolled device
 	deviceID, err := reqSyncML.GetSource()
 	if err != nil || deviceID == "" {
-		return fmt.Errorf("invalid SyncML message %w", err)
+		return nil, RequestAuthStateUntrusted, fmt.Errorf("invalid SyncML message %w", err)
 	}
 
 	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil || enrolledDevice == nil {
-		return errors.New("device was not MDM enrolled")
+		return nil, RequestAuthStateUntrusted, errors.New("device was not MDM enrolled")
 	}
 
-	// Check if TLS certs contains device ID on its common name
-	if len(reqCerts) > 0 {
-		for _, reqCert := range reqCerts {
-			if strings.Contains(reqCert.Subject.CommonName, deviceID) {
-				return nil
-			}
+	if !enrolledDevice.CredentialsAcknowledged && enrolledDevice.CredentialsHash == nil {
+		// Device has not gotten new credentials, rekey the device only once
+		allowed, err := svc.isWindowsRekeyAllowed(ctx, enrolledDevice)
+		if err != nil {
+			return nil, RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "check windows rekey eligibility")
+		}
+		if !allowed {
+			// Same message as an unknown device so a refused rekey is not distinguishable from a missing enrollment.
+			return nil, RequestAuthStateUntrusted, errors.New("device was not MDM enrolled")
+		}
+		return enrolledDevice, RequestAuthStateRekey, nil
+	}
+
+	if reqSyncML.SyncHdr.Cred == nil {
+		// No credentials present - challenge the device
+		return enrolledDevice, RequestAuthStateChallenge, nil
+	}
+
+	// Extract the last nonce used to generate the credentials hash
+	nonce, err := svc.keyValueStore.Get(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID)
+	if err != nil {
+		return nil, RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "get device nonce from kv store")
+	}
+
+	if nonce == nil || *nonce == "" {
+		// Challenge the device if nonce is missing, which will send a new nonce and store it
+		return enrolledDevice, RequestAuthStateChallenge, nil
+	}
+
+	// Credentials are present, validate it
+	credFormat := reqSyncML.SyncHdr.Cred.Meta.Format
+	credType := reqSyncML.SyncHdr.Cred.Meta.Type
+	credData := reqSyncML.SyncHdr.Cred.Data
+
+	if credFormat == nil || credType == nil || credFormat.Content == nil || credType.Content == nil {
+		return nil, RequestAuthStateUntrusted, errors.New("SyncML credentials format or type is missing")
+	}
+
+	if *credFormat.Content != syncml.AuthB64Format || *credType.Content != syncml.AuthMD5 {
+		return nil, RequestAuthStateUntrusted, errors.New("SyncML credentials format or type is invalid")
+	}
+
+	// MD5 auth digest, which includes (username:password):nonce
+	// Where username:password is hashed and b64 encoded, and then further hased with the nonce and finally b64 encoded for transport
+	// https://www.openmobilealliance.org/release/DM/V1_2_1-20080617-A/OMA-TS-DM_Security-V1_2_1-20080617-A.pdf Chaper (5.3)
+	receivedDigestHash, err := base64.StdEncoding.DecodeString(credData)
+	if err != nil {
+		return nil, RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "decode SyncML credentials data")
+	}
+
+	encodedCredentialsHash := base64.StdEncoding.EncodeToString(*enrolledDevice.CredentialsHash)
+	expectedDigest := fmt.Sprintf("%s:%s", encodedCredentialsHash, *nonce)
+	expectedDigestHash := md5.Sum([]byte(expectedDigest)) //nolint:gosec // Windows MDM Auth uses MD5
+
+	if !bytes.Equal(receivedDigestHash, expectedDigestHash[:]) {
+		// Credentials do not match what we expect
+		return enrolledDevice, RequestAuthStateUnauthorized, nil
+	}
+
+	// OMA-DM scopes the MD5 nonce to the session, so keep it alive while the session continues; otherwise a session outliving the TTL
+	// is challenged mid-session. MsgID 1 starts a new session and is left alone so the nonce still rotates between sessions.
+	if reqSyncML.SyncHdr.MsgID != "1" {
+		if err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, *nonce, windowsMDMAuthNonceTTL); err != nil {
+			svc.logger.WarnContext(ctx, "failed to refresh Windows MDM auth nonce", "device_id", deviceID, "err", err)
 		}
 	}
 
-	// TODO: Latest version of the MDM client stack don't populate TLS.PeerCertificates array
-	// This is a temporary workaround to allow the management request to proceed
-	// Transport-level security should be replaced for Application-level security
-	// Transport-level security is defined in the MS-MDM spec in section 1.3.1
-	// On the other hand, Application-level security is defined here
-	// https://www.openmobilealliance.org/release/DM/V1_2_1-20080617-A/OMA-TS-DM_Security-V1_2_1-20080617-A.pdf
-	// The initial values for Application-level security configuration are defined in the
-	// WAP Profile blob that is sent to the device during the enrollment process. Example below
-	//	<characteristic type="APPAUTH">
-	//		<parm name="AAUTHLEVEL" value="CLIENT"/>
-	//		<parm name="AAUTHTYPE" value="DIGEST"/>
-	//		<parm name="AAUTHSECRET" value="2jsidqgffx"/>
-	//		<parm name="AAUTHDATA" value="aGVsbG8gd29ybGQ="/>
-	//	</characteristic>
-	//	<characteristic type="APPAUTH">
-	//		<parm name="AAUTHLEVEL" value="APPSRV"/>
-	//		<parm name="AAUTHTYPE" value="DIGEST"/>
-	//		<parm name="AAUTHNAME" value="43f8bf591b8557346021"/>
-	//		<parm name="AAUTHSECRET" value="crbr3w2cab"/>
-	//		<parm name="AAUTHDATA" value="aGVsbG8gd29ybGQ="/>
-	//	</characteristic>
-
-	if len(reqCerts) == 0 {
-		return nil
+	// We verified the username, password and nonce match what we expect, so we can ack the rekeyed credentials
+	if !enrolledDevice.CredentialsAcknowledged {
+		err = svc.ds.MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx, enrolledDevice.MDMDeviceID)
+		if err != nil {
+			return nil, RequestAuthStateUntrusted, ctxerr.Wrap(ctx, err, "mark device credentials as acknowledged")
+		}
 	}
 
-	return errors.New("calling device is not trusted")
+	return enrolledDevice, RequestAuthStateTrusted, nil
 }
 
-// isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed
-func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string) (bool, error) {
-	// checking first if the device was enrolled through programmatic flow
-	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "get windows enrolled device")
+func (svc *Service) rekeyWindowsDevice(ctx context.Context, reqSyncML *fleet.SyncML) (*fleet.SyncML, error) {
+	if reqSyncML == nil {
+		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
+	// Getting the device ID from the SyncML message
+	deviceID, err := reqSyncML.GetSource()
+	if err != nil || deviceID == "" {
+		return nil, fmt.Errorf("invalid SyncML message %w", err)
+	}
+
+	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	if err != nil || enrolledDevice == nil {
+		return nil, errors.New("device was not MDM enrolled")
+	}
+
+	username := deviceID
+	password := uuid.NewString()
+	credentialsHash := md5.Sum(fmt.Appendf([]byte{}, "%s:%s", username, password)) //nolint:gosec // Windows MDM Auth uses MD5
+
+	// Store the new credentials hash and mark that the device has not acknowledged them yet
+	err = svc.ds.MDMWindowsUpdateEnrolledDeviceCredentials(ctx, enrolledDevice.MDMDeviceID, credentialsHash[:])
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "update enrolled device credentials")
+	}
+
+	// Queue two replace commands to update the credentials on the device
+	accountUid := "0x0000800cABF8CA7D87C0FA21BB21B896AE2C8468CA07710326415228ACF2392EA1327077"
+	usernameReplace := newSyncMLCmdText("Replace", fmt.Sprintf("./SyncML/DMAcc/%s/AppAuth/CLCRED/AAuthName", accountUid), username)
+	usernameReplace.CmdID = mdm_types.CmdID{
+		IncludeFleetComment: true,
+		Value:               "rekey-credentials-username",
+	}
+	passwordReplace := newSyncMLCmdText("Replace", fmt.Sprintf("./SyncML/DMAcc/%s/AppAuth/CLCRED/AAuthSecret", accountUid), password)
+	passwordReplace.CmdID = mdm_types.CmdID{
+		IncludeFleetComment: true,
+		Value:               "rekey-credentials-password",
+	}
+
+	// Get the incoming MessageID
+	reqMessageID, err := reqSyncML.GetMessageID()
+	if err != nil {
+		return nil, fmt.Errorf("get incoming msg: %w", err)
+	}
+
+	// We only create a response here, and does not persist it to the DB to avoid saving the secrets in plain text
+	return svc.createResponseSyncML(ctx, reqSyncML, []*mdm_types.SyncMLCmd{
+		NewSyncMLCmdStatus(reqMessageID, "0", syncml.SyncMLHdrName, syncml.CmdStatusOK), // We need to ack the incoming message to send rekey commands
+		usernameReplace,
+		passwordReplace,
+	})
+}
+
+// fleetdPresenceGracePeriod is how far before the current MDM enrollment's created_at an orbit/osquery check-in still
+// counts as "fleetd present". It absorbs a relaxed agent check-in interval.
+const fleetdPresenceGracePeriod = 90 * time.Second
+
+// isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed.
+// The enrolled device is resolved upstream (by isTrustedRequest) and threaded
+// in to avoid a duplicate lookup on every session-start alert.
+func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) (bool, error) {
 	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
 	// This means that fleetd might not be installed
 	if microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID) {
+		if enrolledDevice.FleetdPresentAt != nil {
+			return true, nil
+		}
 		var isPresent bool
 		if enrolledDevice.HostUUID != "" {
-			host, err := svc.ds.HostLiteByIdentifier(ctx, enrolledDevice.HostUUID)
+			host, err := svc.ds.WindowsHostLiteByUUID(ctx, enrolledDevice.HostUUID)
 			if err != nil && !fleet.IsNotFound(err) {
-				return false, ctxerr.Wrap(ctx, err, "get host lite by identifier")
+				return false, ctxerr.Wrap(ctx, err, "get windows host lite by uuid")
 			}
 			if host != nil {
 				orbitInfo, err := svc.ds.GetHostOrbitInfo(ctx, host.ID)
@@ -1325,29 +1536,94 @@ func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string
 					return false, ctxerr.Wrap(ctx, err, "get host orbit info")
 				}
 				if orbitInfo != nil {
-					isPresent = orbitInfo.Version != ""
+					// Require a recent orbit/osquery check-in (seen_time at/after the enrollment, minus a grace window)
+					// so a host that has not checked in since re-enrollment gets the fleetd install (re)enqueued.
+					// seen_time only moves forward, so once fleetd checks in after install this stays true.
+					isPresent = orbitInfo.Version != "" &&
+						!host.SeenTime.Before(enrolledDevice.CreatedAt.Add(-fleetdPresenceGracePeriod))
 				}
+			}
+		}
+		if !isPresent {
+			// The orbit version arrives with osquery's first detail ingestion, which can lag orbit's enrollment by minutes. orbit
+			// using this enrollment's one-time secret already proves fleetd is installed, and a reinstall would mint another.
+			usedByOrbit, err := svc.ds.WindowsMDMEnrollSecretUsedByOrbit(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ID)
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "check one-time enroll secret used by orbit")
+			}
+			isPresent = usedByOrbit
+		}
+		if isPresent {
+			// Best effort: if this fails, the next session checks again.
+			if err := svc.ds.MDMWindowsSetEnrollmentFleetdPresent(ctx, enrolledDevice.ID, enrolledDevice.HostUUID); err != nil {
+				svc.logger.ErrorContext(ctx, "windows mdm: failed to record fleetd present", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+				ctxerr.Handle(ctx, err)
 			}
 		}
 		return isPresent, nil
 	}
 
-	// TODO: Add check here to determine if MDM DeviceID is connected with Smbios UUID present on
-	// host table. This new check should look into command results table and extract the value of
-	// ./DevDetail/Ext/Microsoft/SMBIOSSerialNumber for the given DeviceID and use that for hosts
-	// table lookup
 	return true, nil
 }
 
-func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID string) error {
-	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+// generateWindowsEUAToken returns a Fleet-signed EUA token for the given Windows
+// MDM device ID if the device enrolled with a valid Azure UPN
+func (svc *Service) generateWindowsEUAToken(ctx context.Context, deviceID string) string {
+	if svc.wstepCertManager == nil {
+		return ""
+	}
+	device, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting enroll secrets")
+		svc.logger.ErrorContext(ctx, "unable to fetch windows mdm enrollment for EUA token generation", "err", err, "device_id", deviceID)
+		return ""
+	}
+	if device == nil || !microsoft_mdm.IsValidUPN(device.MDMEnrollUserID) {
+		return ""
+	}
+	token, err := svc.wstepCertManager.NewEUAToken(device.MDMEnrollUserID, deviceID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "unable to generate EUA token for fleetd install", "err", err, "device_id", deviceID)
+		return ""
+	}
+	return token
+}
+
+func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) error {
+	fleetdInstallCmd, err := svc.buildFleetdInstallCommand(ctx, enrolledDevice)
+	if err != nil || fleetdInstallCmd == nil {
+		return err
+	}
+	// Create the Windows one-time enroll secret, because the caller only gets here when fleetd is absent.
+	if svc.config.MDM.WindowsOneTimeEnrollSecrets {
+		if err := svc.ds.MintWindowsMDMOneTimeEnrollSecret(ctx, enrolledDevice.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "minting one-time enroll secret for fleetd install")
+		}
 	}
 
-	if len(secrets) == 0 {
-		level.Warn(svc.logger).Log("msg", "unable to find a global enroll secret to install fleetd")
-		return nil
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{enrolledDevice.MDMDeviceID}, fleetdInstallCmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert command to install fleetd")
+	}
+
+	return nil
+}
+
+// buildFleetdInstallCommand returns the command that installs fleetd on the device, or nil when it cannot be built yet, which
+// the next session retries. With one-time enroll secrets the command carries a placeholder, resolved at delivery.
+func (svc *Service) buildFleetdInstallCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) (*fleet.MDMWindowsCommand, error) {
+	deviceID := enrolledDevice.MDMDeviceID
+
+	enrollSecret := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
+	if !svc.config.MDM.WindowsOneTimeEnrollSecrets {
+		secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting enroll secrets")
+		}
+
+		if len(secrets) == 0 {
+			svc.logger.WarnContext(ctx, "unable to find a global enroll secret to install fleetd")
+			return nil, nil
+		}
+		enrollSecret = secrets[0].Secret
 	}
 
 	// it's okay to skip the installation if we're not able to retrieve the
@@ -1355,18 +1631,24 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 	// and we'll try again the next time the host checks in
 	fleetdMetadata, err := fleetdbase.GetMetadata()
 	if err != nil {
-		level.Warn(svc.logger).Log("msg", "unable to get fleetd-base metadata")
-		return nil
+		svc.logger.WarnContext(ctx, "unable to get fleetd-base metadata")
+		return nil, nil
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting app config")
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}
 	fleetURL := appCfg.ServerSettings.ServerURL
-	globalEnrollSecret := secrets[0].Secret
-	addCommandUUID := uuid.NewString()
+	// Fleet-internal CmdID: the Add is injected inline and is never its own tracked queue command. The Exec command is
+	// the important one, and we only track that.
+	addCommandUUID := fleet.FleetInternalCmdIDPrefix + "fleetd-install-add"
 	execCommandUUID := uuid.NewString()
+
+	euaTokenArg := ""
+	if token := svc.generateWindowsEUAToken(ctx, deviceID); token != "" {
+		euaTokenArg = ` EUA_TOKEN="` + token + `"`
+	}
 
 	rawAddCmd := []byte(`
 <Add>
@@ -1400,7 +1682,7 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 					<FileHash>` + fleetdMetadata.MSISha256 + `</FileHash>
 				</Validation>
 				<Enforcement>
-					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `" ENABLE_SCRIPTS="True"</CommandLine>
+					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + enrollSecret + `" ENABLE_SCRIPTS="True"` + euaTokenArg + `</CommandLine>
 					<TimeOut>10</TimeOut>
 					<RetryCount>1</RetryCount>
 					<RetryInterval>5</RetryInterval>
@@ -1416,43 +1698,40 @@ func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID st
 </Exec>
 `)
 
-	// TODO: add ability to batch-enqueue multiple commands at the same time
-	addFleetdCmd := &fleet.MDMWindowsCommand{
-		CommandUUID:  addCommandUUID,
-		RawCommand:   rawAddCmd,
-		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
-	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, addFleetdCmd); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert add command to install fleetd")
-	}
-
-	execFleetCmd := &fleet.MDMWindowsCommand{
+	// Deliver the Add and Exec as a SINGLE command so they ride in one SyncML body with Add textually before Exec. As
+	// two separate queued commands they can be reordered when they are applied in the same second, we must manually
+	// guarantee the ordering.
+	rawCombinedCmd := slices.Concat(rawAddCmd, rawExecCmd)
+	fleetdInstallCmd := &fleet.MDMWindowsCommand{
 		CommandUUID:  execCommandUUID,
-		RawCommand:   rawExecCmd,
+		RawCommand:   rawCombinedCmd,
 		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
 	}
-	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, execFleetCmd); err != nil {
-		return ctxerr.Wrap(ctx, err, "insert exec command to install fleetd")
-	}
-
-	return nil
+	return fleetdInstallCmd, nil
 }
 
 // Alerts Handlers
 
 // New session Alert Handler
 // This handler will return an protocol command to install an MSI on a new session from unenrolled device
-func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) error {
+func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string, enrolledDevice *fleet.MDMWindowsEnrolledDevice, cmd mdm_types.ProtoCmdOperation) error {
+	// A host_uuid with no host means the host was deleted, so these go to the push instead.
+	if svc.config.MDM.WindowsOneTimeEnrollSecrets && enrolledDevice.HostUUID != "" && enrolledDevice.LinkedHostID == nil {
+		svc.pushEnrollSecretToOrphanedEnrollment(ctx, enrolledDevice)
+		return nil
+	}
+
 	// Checking if fleetd is present on the device
-	fleetdPresent, err := svc.isFleetdPresentOnDevice(ctx, deviceID)
+	fleetdPresent, err := svc.isFleetdPresentOnDevice(ctx, enrolledDevice)
 	if err != nil {
 		return err
 	}
 
 	if !fleetdPresent {
-		return svc.enqueueInstallFleetdCommand(ctx, deviceID)
+		if err := svc.enqueueInstallFleetdCommand(ctx, enrolledDevice); err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 
@@ -1484,7 +1763,7 @@ func (svc *Service) processGenericAlert(ctx context.Context, messageID string, d
 
 // processIncomingAlertsCommands will process the incoming Alerts commands.
 // These commands don't require an status response.
-func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) error {
+func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID string, enrolledDevice *fleet.MDMWindowsEnrolledDevice, cmd mdm_types.ProtoCmdOperation) error {
 	if cmd.Cmd.Data == nil {
 		return errors.New("invalid alert command")
 	}
@@ -1494,20 +1773,287 @@ func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID
 
 	switch alertID {
 	case syncml.CmdAlertClientInitiatedManagement:
-		return svc.processNewSessionAlert(ctx, messageID, deviceID, cmd)
+		return svc.processNewSessionAlert(ctx, messageID, enrolledDevice, cmd)
 	case syncml.CmdAlertServerInitiatedManagement:
-		return svc.processNewSessionAlert(ctx, messageID, deviceID, cmd)
+		return svc.processNewSessionAlert(ctx, messageID, enrolledDevice, cmd)
 	case syncml.CmdAlertGeneric:
-		return svc.processGenericAlert(ctx, messageID, deviceID, cmd)
+		return svc.processGenericAlert(ctx, messageID, enrolledDevice.MDMDeviceID, cmd)
+	case syncml.CmdAlertClientEvent:
+		svc.processClientEventAlert(ctx, enrolledDevice, cmd)
+		return nil
 	}
 
 	return nil
 }
 
+// processClientEventAlert handles device event alerts ("1224"). Fleet consumes one of them:
+// com.microsoft/MDM/LoginStatus, which reports whether a user with an MDM account is signed in. That value is what gates
+// delivery of user-scoped ("./User/...") profiles, which Windows rejects until the enrollment has a user context.
+//
+// Recording is best-effort: it is independent of everything else the session is doing, and a write failure must not fail the
+// device's response. A missed observation costs at most one more session before the value is recorded again.
+func (svc *Service) processClientEventAlert(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, cmd mdm_types.ProtoCmdOperation) {
+	for _, item := range cmd.Cmd.Items {
+		if item.Meta == nil || item.Meta.Type == nil || item.Meta.Type.Content == nil ||
+			*item.Meta.Type.Content != syncml.AlertTypeLoginStatus || item.Data == nil {
+			continue
+		}
+
+		// An unrecognized value clears the observation rather than being ignored.
+		var status *fleet.WindowsMDMLoginStatus
+		if reported := fleet.WindowsMDMLoginStatus(strings.ToLower(strings.TrimSpace(item.Data.Content))); reported.IsValid() {
+			status = &reported
+		} else {
+			svc.logger.WarnContext(ctx, "windows mdm: unrecognized LoginStatus alert value, clearing user context",
+				"value", item.Data.Content, "device_id", enrolledDevice.MDMDeviceID)
+		}
+
+		// Write only when the value changed.
+		if ptr.Equal(enrolledDevice.LastLoginStatus, status) {
+			return
+		}
+
+		if err := svc.ds.SetMDMWindowsEnrollmentLoginStatus(ctx, enrolledDevice.ID, status); err != nil {
+			svc.logger.ErrorContext(ctx, "windows mdm: recording LoginStatus alert", "err", err,
+				"device_id", enrolledDevice.MDMDeviceID)
+			ctxerr.Handle(ctx, err)
+			return
+		}
+		// Reflect the new value on the in-memory enrollment
+		enrolledDevice.LastLoginStatus = status
+		return
+	}
+}
+
+// tryLinkUnlinkedEnrollmentFromDevDetail scans an incoming SyncML message for a Results command answering an earlier
+// Get for ./DevDetail/Ext/Microsoft/SMBIOSSerialNumber, and if found, looks up the host by hardware_serial and links
+// the enrollment to it. Returns true if a linkage was established.
+//
+// Any error is non-fatal: this is the primary linkage path but osquery direct-ingest still runs as a backstop, and the
+// Get is reinjected on every subsequent session until linkage succeeds.
+func (svc *Service) tryLinkUnlinkedEnrollmentFromDevDetail(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML) bool {
+	if reqMsg == nil {
+		return false
+	}
+	// A SyncML Results command can carry multiple Items; the device may include the SMBIOSSerialNumber alongside other
+	// DevDetail values in a single response. Scan every item in every Results command, not just Items[0], or a serial
+	// returned in a later position is missed and the Get gets reinjected forever.
+	var serial string
+scan:
+	for _, op := range reqMsg.GetOrderedCmds() {
+		if op.Verb != mdm_types.CmdResults {
+			continue
+		}
+		for _, item := range op.Cmd.Items {
+			if item.Source == nil || *item.Source != devDetailSMBIOSSerialNumberURI {
+				continue
+			}
+			if item.Data == nil {
+				continue
+			}
+			candidate := strings.TrimSpace(item.Data.Content)
+			// Skip empty or well-known placeholder serials (whitebox/consumer BIOS defaults, un-sysprepped VM
+			// templates). Such devices fall back to the osquery directIngestMDMDeviceIDWindows backstop, which links by
+			// the unique MDMDeviceID instead.
+			if fleet.IsPlaceholderHardwareSerial(candidate) {
+				continue
+			}
+			serial = candidate
+			break scan
+		}
+	}
+	// An Autopilot-registered device supplies its ZTDID at enrollment. Try it first, and fall back to the serial for
+	// devices that are not Autopilot-registered or that enrolled before the ZTDID was captured.
+	if enrolledDevice.ZTDRegistrationID != "" {
+		hostID, err := svc.ds.HostIDByAutopilotDeviceID(ctx, enrolledDevice.ZTDRegistrationID)
+		switch {
+		case err == nil:
+			svc.logger.DebugContext(ctx, "windows mdm: linking pending autopilot host by ZTDID",
+				"device_id", enrolledDevice.MDMDeviceID, "ztd_registration_id", enrolledDevice.ZTDRegistrationID,
+				"had_serial", serial != "")
+			return svc.linkWindowsHostMDMEnrollmentByHostID(ctx, enrolledDevice, hostID)
+		case !fleet.IsNotFound(err):
+			svc.logger.ErrorContext(ctx, "windows mdm: host lookup by ZTDID failed",
+				"err", err, "device_id", enrolledDevice.MDMDeviceID)
+			ctxerr.Handle(ctx, err)
+		}
+		// Not found means the Autopilot sync has not created the pending host yet, so fall through to the serial.
+	}
+
+	if serial == "" {
+		return false
+	}
+	// Require the primary DB: the hosts row may have been inserted seconds ago by osquery enroll, just before this
+	// first SyncML management session arrived. A replica-lag read would return a false NotFound and delay linkage to a
+	// later session, defeating the point of this path.
+	host, err := svc.ds.WindowsHostLiteByHardwareSerial(ctxdb.RequirePrimary(ctx, true), serial)
+	if err != nil {
+		if !fleet.IsNotFound(err) {
+			svc.logger.ErrorContext(ctx, "windows mdm: host lookup by serial failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+			ctxerr.Handle(ctx, err)
+			return false
+		}
+		// NotFound means the host hasn't enrolled in osquery yet (hosts row not created yet); we'll retry next session.
+		// Persist the serial on the unlinked enrollment row so the orbit enrollment path can reverse-link it (and
+		// apply the Windows enrollment default fleet) the moment the host record is created, before orbit's one-shot
+		// setup-experience init reads the host's fleet. Best-effort: on failure the Get is reinjected next session.
+		if saveErr := svc.ds.MDMWindowsSaveUnlinkedEnrollmentHardwareSerial(ctx, enrolledDevice.MDMDeviceID, serial); saveErr != nil {
+			svc.logger.WarnContext(ctx, "windows mdm: failed to persist serial on unlinked enrollment",
+				"err", saveErr, "device_id", enrolledDevice.MDMDeviceID)
+		}
+		return false
+	}
+	if svc.windowsHostClaimedByOtherHardware(ctx, enrolledDevice, host.UUID, "hardware_serial", serial) {
+		return false
+	}
+
+	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID, false)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: link by DevDetail failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	// Always refresh in-memory HostUUID after a successful link attempt.
+	enrolledDevice.HostUUID = host.UUID
+	if updated {
+		enrolledDevice.FleetdPresentAt = nil // the relink cleared it
+		svc.releaseUnusedFleetdInstallSecret(ctx, enrolledDevice)
+	}
+	return updated
+}
+
+// windowsHostClaimedByOtherHardware reports whether linking the enrollment to hostUUID must be refused because the host
+// already holds an enrollment from different hardware, failing closed when that cannot be determined. The identifiers an
+// unlinked enrollment is matched by (the DevDetail serial, the Autopilot ZTDID) are asserted by the device and nothing
+// corroborates them, so they must not be able to take over a host that already belongs to other hardware. Refusing costs the device
+// nothing: the fleetd installer is enqueued by MDM device ID, so an unlinked enrollment still receives it, and osquery's
+// directIngestMDMDeviceIDWindows backstop then links this enrollment to whichever host actually reports this MDM device ID.
+func (svc *Service) windowsHostClaimedByOtherHardware(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostUUID string,
+	logAttrs ...any,
+) bool {
+	conflicted, conflictingHardwareID, err := svc.ds.MDMWindowsConflictingEnrollmentHardwareID(ctx, hostUUID, enrolledDevice.MDMHardwareID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: conflicting enrollment lookup failed",
+			"err", err, "device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+		return true
+	}
+	if conflicted {
+		svc.logger.WarnContext(ctx, "windows mdm: refusing to link enrollment to a host already claimed by other hardware",
+			append([]any{"device_id", enrolledDevice.MDMDeviceID, "host_uuid", hostUUID, "claimed_by_hardware_id", conflictingHardwareID},
+				logAttrs...)...)
+		return true
+	}
+	return false
+}
+
+// linkWindowsHostMDMEnrollmentByHostID links an enrollment to a host resolved by an identifier other than the serial.
+func (svc *Service) linkWindowsHostMDMEnrollmentByHostID(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, hostID uint) bool {
+	// RequirePrimary because orbit just enrolled, and we want to make sure we get latest data.
+	host, err := svc.ds.HostLite(ctxdb.RequirePrimary(ctx, true), hostID)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: loading host for autopilot link failed",
+			"err", err, "device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	// Linking is keyed on the host UUID, and a pending Autopilot host has none until fleetd enrolls and supplies
+	// one. The enrollment stays unlinked, so this path runs again on every message. Wait for the UUID instead of
+	// proceeding.
+	if host.UUID == "" {
+		svc.logger.DebugContext(ctx, "windows mdm: autopilot host has no uuid yet, deferring link until fleetd enrolls",
+			"device_id", enrolledDevice.MDMDeviceID, "host_id", hostID)
+		return false
+	}
+	if svc.windowsHostClaimedByOtherHardware(ctx, enrolledDevice, host.UUID, "host_id", hostID) {
+		return false
+	}
+
+	updated, err := osquery_utils.LinkWindowsHostMDMEnrollment(ctx, svc.logger, svc.ds, host.ID, host.UUID, enrolledDevice.MDMDeviceID, false)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: autopilot link failed", "err", err, "device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	enrolledDevice.HostUUID = host.UUID
+	if updated {
+		enrolledDevice.FleetdPresentAt = nil // the relink cleared it
+		svc.releaseUnusedFleetdInstallSecret(ctx, enrolledDevice)
+	}
+	return updated
+}
+
+// releaseUnusedFleetdInstallSecret deletes the unused secret minted for Fleet's fleetd install when an MDM session links
+// a user-driven enrollment to a host whose fleetd is already running: fleetd enrolled without that secret. A host whose
+// last check-in predates the enrollment, such as a re-imaged device's old record, keeps it for the install still to come.
+func (svc *Service) releaseUnusedFleetdInstallSecret(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) {
+	if !svc.config.MDM.WindowsOneTimeEnrollSecrets || !microsoft_mdm.IsValidUPN(enrolledDevice.MDMEnrollUserID) {
+		return
+	}
+	present, err := svc.isFleetdPresentOnDevice(ctx, enrolledDevice)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: fleetd presence check after link failed", "err", err,
+			"device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+		return
+	}
+	if !present {
+		return
+	}
+	if err := svc.ds.DeleteUnusedWindowsMDMOneTimeEnrollSecrets(ctx, enrolledDevice.ID); err != nil {
+		svc.logger.ErrorContext(ctx, "windows mdm: failed to delete unused one-time enroll secrets", "err", err,
+			"device_id", enrolledDevice.MDMDeviceID)
+		ctxerr.Handle(ctx, err)
+	}
+}
+
 // processIncomingMDMCmds process the incoming message from the device
-// It will return the list of operations that need to be sent to the device
-func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string, reqMsg *fleet.SyncML) ([]*fleet.SyncMLCmd, error) {
+// It will return the list of operations that need to be sent to the device.
+// enrolledDevice is the enrollment resolved upstream by isTrustedRequest and
+// is threaded in so downstream paths (saveResponse, alert handlers) do not
+// re-query mdm_windows_enrollments for the same row.
+func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML, requestAuthState requestAuthState) ([]*fleet.SyncMLCmd, error) {
 	var responseCmds []*fleet.SyncMLCmd
+	deviceID := enrolledDevice.MDMDeviceID
+
+	saveResponse := func(topLevelExists []string) error {
+		enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
+		if enrichedSyncML.HasCommands() {
+			result, err := svc.ds.MDMWindowsSaveResponse(ctx, enrolledDevice, enrichedSyncML, topLevelExists)
+			if err != nil {
+				return fmt.Errorf("store incoming msgs: %w", err)
+			}
+
+			if result != nil && result.WipeFailed != nil {
+				host, err := svc.ds.HostByIdentifier(ctx, result.WipeFailed.HostUUID)
+				if err != nil {
+					svc.logger.WarnContext(ctx, "failed to look up host for wipe_failed_host activity",
+						"host_uuid", result.WipeFailed.HostUUID, "err", err)
+				} else {
+					if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeWipeFailedHost{
+						HostID:          host.ID,
+						HostDisplayName: host.DisplayName(),
+						HostPlatform:    host.Platform,
+					}); err != nil {
+						svc.logger.WarnContext(ctx, "failed to create wipe_failed_host activity",
+							"host_id", host.ID, "err", err)
+					}
+				}
+			}
+
+			if result != nil && result.WipeSucceeded != nil {
+				host, err := svc.ds.HostByIdentifier(ctx, result.WipeSucceeded.HostUUID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "wipe succeeded: get host by identifier")
+				}
+				err = cancelActivitiesAndNotificationsForHost(ctx, svc.ds, svc.notificationsSvc, svc.logger, host.ID)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
 
 	// Get the incoming MessageID
 	reqMessageID, err := reqMsg.GetMessageID()
@@ -1515,12 +2061,68 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		return nil, fmt.Errorf("get incoming msg: %w", err)
 	}
 
+	if requestAuthState == RequestAuthStateChallenge || requestAuthState == RequestAuthStateUnauthorized {
+		nonce := uuid.NewString() // using UUID as nonce since it has 122 bits of entropy
+		base64Nonce := base64.StdEncoding.EncodeToString([]byte(nonce))
+		err := svc.keyValueStore.Set(ctx, fleet.WindowsMDMAuthNoncePrefix+deviceID, nonce, windowsMDMAuthNonceTTL) //nolint:nilaway // svc is a non-nil receiver
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "store device nonce in kv store")
+		}
+
+		status := syncml.CmdStatusAuthenticationRequired
+		if requestAuthState == RequestAuthStateUnauthorized {
+			status = syncml.CmdStatusInvalidCredentials
+		}
+
+		ackMsg := NewSyncMLCmdStatus(reqMessageID, "0", syncml.SyncMLHdrName, status)
+		ackMsg.Chal = &fleet.SyncMLChallenge{
+			Meta: fleet.ChallengeMeta{
+				NextNonce: fleet.MetaAttr{
+					XMLNS:   syncml.SyncMLMetaNamespace,
+					Content: &base64Nonce,
+				},
+				Meta: fleet.Meta{
+					Type: &fleet.MetaAttr{
+						XMLNS:   syncml.SyncMLMetaNamespace,
+						Content: ptr.String(syncml.AuthMD5),
+					},
+					Format: &fleet.MetaAttr{
+						XMLNS:   syncml.SyncMLMetaNamespace,
+						Content: ptr.String(syncml.AuthB64Format),
+					},
+				},
+			},
+		}
+
+		// Not persisted until the device authenticates; the client resends the whole package with credentials.
+		responseCmds = append(responseCmds, ackMsg)
+		return responseCmds, nil
+	}
+
+	if requestAuthState != RequestAuthStateTrusted {
+		return nil, errors.New("untrusted request cannot be processed")
+	}
+
 	// Acknowledge the message header
 	// msgref is always 0 for the header
 	if err = reqMsg.IsValidHeader(); err == nil {
+		// We always return 200 here, we could also return 212 to indicate we don't need the credentials every time,
+		// but our logic is built around it being present on each request
 		ackMsg := NewSyncMLCmdStatus(reqMessageID, "0", syncml.SyncMLHdrName, syncml.CmdStatusOK)
 		responseCmds = append(responseCmds, ackMsg)
 	}
+
+	// If this enrollment isn't linked yet, try to link it by its Autopilot ZTDID, or by a DevDetail
+	// SMBIOSSerialNumber Result in this message (the reply to the Get sent at the start of this session). On
+	// success, enrolledDevice.HostUUID is updated in memory so ESP coordination and saveResponse in this request
+	// see the linked state.
+	if enrolledDevice.HostUUID == "" {
+		svc.tryLinkUnlinkedEnrollmentFromDevDetail(ctx, enrolledDevice, reqMsg)
+	}
+
+	// Entra (automatic) enrollments have no host and no serial at enrollment time, so their mdm_enrolled activity is
+	// recorded here instead.
+	svc.maybeCreateWindowsMDMEnrolledActivity(ctx, enrolledDevice)
 
 	// List of CmdRef that need to be re-issued as <Replace> commands
 	// However it's a list of nested Command IDs, and not something we can use directly for command_uuid in windows_mdm_commands
@@ -1528,7 +2130,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 
 	// Iterate over the operations and process them
 	for _, protoCMD := range reqMsg.GetOrderedCmds() {
-		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" {
+		if protoCMD.Cmd.Data != nil && *protoCMD.Cmd.Data == "418" && protoCMD.Cmd.CmdRef != nil {
 			// 418 = Already exists, and indicate that an <Add> failed due to the item already existing on the device
 			// We need to re-issue a <Replace> command for this item
 			alreadyExistsCmdIDs = append(alreadyExistsCmdIDs, *protoCMD.Cmd.CmdRef)
@@ -1537,7 +2139,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		// Alerts, Results and Status don't require a status response
 		switch protoCMD.Verb {
 		case mdm_types.CmdAlert:
-			err := svc.processIncomingAlertsCommands(ctx, reqMessageID, deviceID, protoCMD)
+			err := svc.processIncomingAlertsCommands(ctx, reqMessageID, enrolledDevice, protoCMD)
 			if err != nil {
 				return nil, fmt.Errorf("process incoming command: %w", err)
 			}
@@ -1558,18 +2160,31 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		return nil, err
 	}
 
-	enrichedSyncML := fleet.NewEnrichedSyncML(reqMsg)
-	if enrichedSyncML.HasCommands() {
-		if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, enrichedSyncML, topLevelExists); err != nil {
-			return nil, fmt.Errorf("store incoming msgs: %w", err)
-		}
+	err = saveResponse(topLevelExists)
+	if err != nil {
+		return nil, err
+	}
+
+	// If this enrollment is still unlinked after processing the incoming message, ask the device for its SMBIOS serial
+	// on the next round-trip. This is the primary linkage mechanism: it lets the server populate
+	// mdm_windows_enrollments.host_uuid in one SyncML round-trip instead of waiting for osquery's distributed-read
+	// cycle (~10s) to backfill via directIngestMDMDeviceIDWindows. The Get is idempotent and reinjected each session
+	// until linkage succeeds; osquery direct-ingest remains as a backstop for hosts that never reply to DevDetail.
+	// Sent only at session start: a mid-session Get keeps the session open.
+	//
+	// The Get uses a stable fleet-internal CmdID instead of a fresh UUID so that MDMWindowsSaveResponse can recognize
+	// and skip it when checking for "unmatched Windows MDM commands".
+	if enrolledDevice.HostUUID == "" && isOMADMSessionStart(reqMsg) {
+		get := newSyncMLCmdGet(devDetailSMBIOSSerialNumberURI)
+		get.CmdID = mdm_types.CmdID{Value: fleet.FleetInternalCmdIDPrefix + "devdetail-smbios-serial"}
+		responseCmds = append(responseCmds, get)
 	}
 
 	return responseCmds, nil
 }
 
 func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alreadyExistsCmdIDs []string, deviceID string) ([]string, error) {
-	commands, err := svc.ds.GetWindowsMDMCommandsForResending(ctx, alreadyExistsCmdIDs)
+	commands, err := svc.ds.GetWindowsMDMCommandsForResending(ctx, deviceID, alreadyExistsCmdIDs)
 	if err != nil {
 		return nil, fmt.Errorf("get commands for resending: %w", err)
 	}
@@ -1609,31 +2224,118 @@ func handleResendingAlreadyExistsCommands(ctx context.Context, svc *Service, alr
 	return topLevelExists, nil
 }
 
-// getPendingMDMCmds returns the list of pending MDM commands for the device
-func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*mdm_types.SyncMLCmd, error) {
-	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, deviceID)
+// getPendingMDMCmds returns the list of pending MDM commands for the given enrollment, plus onlyPollCmdsPending: true
+// when everything still pending (if anything) is an internal poll-schedule Replace.
+//
+// A SCEP status probe is held back until it has been queued for fleet.WindowsSCEPStatusProbeDelay, so it goes out on the
+// next MDM session after ACK. Held back, a probe still counts as pending, which keeps has_pending_commands set and has
+// fleetd wake the device again.
+func (svc *Service) getPendingMDMCmds(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, bool, error) {
+	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, enrolledDevice.ID)
 	if err != nil {
-		return nil, fmt.Errorf("getting incoming cmds %w", err)
+		return nil, false, fmt.Errorf("getting incoming cmds %w", err)
 	}
 
 	// Converting the pending commands to its target SyncML types
 	var cmds []*mdm_types.SyncMLCmd
+	onlyPollCmdsPending := true
 	for _, pendingCmd := range pendingCmds {
-		// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
-		rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
-		if err != nil {
-			// This error should never happen since we validate the presence of needed secrets on profile upload.
-			return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets for Windows pending commands")
-		}
-		cmd := new(mdm_types.SyncMLCmd)
-		if err := xml.Unmarshal([]byte(rawCommandWithSecret), cmd); err != nil {
-			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "getPendingMDMCmds syncML cmd creation"))
+		isPollCmd := pendingCmd.TargetLocURI == syncml.DMClientPollIntervalLocURI
+		if fleet.IsWindowsSCEPStatusProbeCmdUUID(pendingCmd.CommandUUID) &&
+			svc.clock.Now().Sub(pendingCmd.CreatedAt) < fleet.WindowsSCEPStatusProbeDelay {
+			onlyPollCmdsPending = false
 			continue
 		}
-		cmds = append(cmds, cmd)
+		parsedCmds, err := svc.prepareWindowsPendingCommand(ctx, enrolledDevice.ID, pendingCmd)
+		if _, ok := errors.AsType[undeliverableWindowsCommandError](err); ok {
+			// Failing the command is permanent, so confirm on the primary: a custom variable created or changed moments ago
+			// may not be on the replica yet.
+			parsedCmds, err = svc.prepareWindowsPendingCommand(ctxdb.RequirePrimary(ctx, true), enrolledDevice.ID, pendingCmd)
+		}
+		if err != nil {
+			// Skipped rather than failing the session: one bad command must not hold back every other command pending for
+			// the device. A failed one is no longer pending.
+			if failed := svc.skipWindowsPendingCommand(ctx, enrolledDevice, pendingCmd.CommandUUID, err); !failed && !isPollCmd {
+				onlyPollCmdsPending = false
+			}
+			continue
+		}
+		if !isPollCmd {
+			onlyPollCmdsPending = false
+		}
+		for _, pcmd := range parsedCmds {
+			cmds = append(cmds, &pcmd)
+		}
 	}
 
-	return cmds, nil
+	return cmds, onlyPollCmdsPending, nil
+}
+
+// undeliverableWindowsCommandError is why a pending command can never be delivered as written, so it is failed instead of
+// tried again next session.
+type undeliverableWindowsCommandError struct{ err error }
+
+func (e undeliverableWindowsCommandError) Error() string { return e.err.Error() }
+func (e undeliverableWindowsCommandError) Unwrap() error { return e.err }
+
+// prepareWindowsPendingCommand expands the variables in a pending command and parses it for delivery.
+func (svc *Service) prepareWindowsPendingCommand(ctx context.Context, enrollmentID uint, pendingCmd *fleet.MDMWindowsCommand) ([]mdm_types.SyncMLCmd, error) {
+	// The raw MDM command may contain a $FLEET_SECRET_XXX, the value of which should never be exposed or stored unencrypted.
+	rawCommandWithSecret, err := svc.ds.ExpandEmbeddedSecrets(ctx, string(pendingCmd.RawCommand))
+	if err != nil {
+		// Profiles are checked for missing secrets on upload, but custom commands aren't, and deleting a secret doesn't check
+		// queued commands.
+		if missing, ok := fleet.MissingSecretNames(err); ok {
+			names := make([]string, 0, len(missing))
+			for _, name := range missing {
+				names = append(names, "$"+fleet.ServerSecretPrefix+name)
+			}
+			return nil, undeliverableWindowsCommandError{fmt.Errorf("custom variable not found: %s", strings.Join(names, ", "))}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "expanding embedded secrets")
+	}
+	if err := fleet.ValidateNoHostSecretVariablesAdded(string(pendingCmd.RawCommand), rawCommandWithSecret); err != nil {
+		// Its error quotes the placeholder as expanded, which can hold part of a variable's value.
+		return nil, undeliverableWindowsCommandError{errors.New("a $FLEET_HOST_SECRET_ variable comes from a custom variable and can't be used")}
+	}
+	// Host-scoped secrets ($FLEET_HOST_SECRET_*) are resolved here rather than at enqueue, for security.
+	rawCommandWithSecret, err = svc.expandWindowsHostSecrets(ctx, rawCommandWithSecret, enrollmentID)
+	if err != nil {
+		return nil, err
+	}
+	parsedCmds, err := fleet.UnmarshallMultiTopLevelXMLProfile([]byte(rawCommandWithSecret))
+	if err != nil {
+		// The parser quotes the document in its errors, and this one holds variable values, so only an error from the command
+		// as written is passed on.
+		if _, rawErr := fleet.UnmarshallMultiTopLevelXMLProfile(pendingCmd.RawCommand); rawErr != nil {
+			return nil, undeliverableWindowsCommandError{rawErr}
+		}
+		return nil, undeliverableWindowsCommandError{errors.New("the command isn't valid XML once its variables are expanded")}
+	}
+	return parsedCmds, nil
+}
+
+// skipWindowsPendingCommand logs why a pending command can't be delivered this session and, if it never can be, records
+// it as failed. It reports whether it did.
+func (svc *Service) skipWindowsPendingCommand(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, commandUUID string, cause error) bool {
+	err := ctxerr.Wrapf(ctx, cause, "skipping Windows pending command %s", commandUUID)
+	logging.WithErr(ctx, err)
+
+	// An undeliverable command is reported to the admin as its result, so only the other cases go to the error store.
+	undeliverable, ok := errors.AsType[undeliverableWindowsCommandError](cause)
+	if !ok {
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	reason := "Fleet couldn't deliver the command: " + undeliverable.Error()
+	if err := svc.ds.MDMWindowsFailUndeliverableCommand(ctx, enrolledDevice, commandUUID, reason); err != nil {
+		// It stays pending, so this is tried again next session.
+		err = ctxerr.Wrapf(ctx, err, "failing undeliverable Windows command %s", commandUUID)
+		logging.WithErr(ctx, err)
+		ctxerr.Handle(ctx, err)
+		return false
+	}
+	return true
 }
 
 // createResponseSyncML returns a valid SyncML message
@@ -1676,8 +2378,10 @@ func (svc *Service) createResponseSyncML(ctx context.Context, req *fleet.SyncML,
 	return msg, nil
 }
 
-// getManagementResponse returns a valid SyncML response message
-func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.SyncML) (*mdm_types.SyncML, error) {
+// getManagementResponse returns a valid SyncML response message. The
+// enrolledDevice is the enrollment resolved upstream by isTrustedRequest; it is
+// non-nil whenever requestAuthState is RequestAuthStateTrusted.
+func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.SyncML, enrolledDevice *fleet.MDMWindowsEnrolledDevice, requestAuthState requestAuthState) (*mdm_types.SyncML, error) {
 	if reqMsg == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
@@ -1689,19 +2393,66 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	}
 
 	// Process the incoming MDM protocol commands and get the response MDM protocol commands
-	resIncomingCmds, err := svc.processIncomingMDMCmds(ctx, deviceID, reqMsg)
+	resIncomingCmds, err := svc.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, requestAuthState)
 	if err != nil {
 		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
-	// Process the pending operations and get the MDM response protocol commands
-	resPendingCmds, err := svc.getPendingMDMCmds(ctx, deviceID)
-	if err != nil {
-		return nil, fmt.Errorf("message processing error %w", err)
+	var resPendingCmds, espCmds []*mdm_types.SyncMLCmd
+
+	if requestAuthState == RequestAuthStateTrusted {
+		// Outside the Autopilot ESP, reconcile the DMClient poll schedule: relax it for hosts whose fleetd can be woken on demand, so we can stop
+		// the aggressive default 1-minute poll. This enqueues the Replace (if needed) BEFORE draining the command queue below, so it ships in this same
+		// session.
+		if enrolledDevice.AwaitingConfiguration == fleet.WindowsMDMAwaitingConfigurationNone {
+			if err := svc.reconcileWindowsMDMPollSchedule(ctx, enrolledDevice); err != nil {
+				return nil, fmt.Errorf("poll schedule reconcile error: %w", err)
+			}
+		}
+
+		// Process the pending operations and get the MDM response protocol commands
+		pendingCmds, onlyPollCmdsPending, err := svc.getPendingMDMCmds(ctx, enrolledDevice)
+		if err != nil {
+			return nil, fmt.Errorf("message processing error %w", err)
+		}
+		resPendingCmds = pendingCmds
+
+		// Per-session has_pending_commands maintenance: refresh the denormalized flag only when everything still
+		// pending (if anything) is an internal poll-schedule Replace, which the flag's definition excludes. While
+		// non-poll commands remain queued the flag provably stays 1 (set by the enqueue paths), so mid-session
+		// messages skip the recompute entirely.
+		//
+		// The HasPendingCommands gate (as loaded at session start) keeps idle check-ins at zero writer-side statements:
+		// when the flag was already 0 and nothing is pending, there is no 1 -> 0 transition to record. A flag stranded
+		// at 1 by an aborted session still self-heals - it loads as 1 on the next session and the refresh runs. A
+		// mid-session enqueue that flips 0 -> 1 after this row was loaded needs no refresh either: its commands are
+		// genuinely pending, so 1 is already correct. Best-effort: a failed refresh only delays the flag flip until
+		// the next session, so log and continue rather than failing the device's response.
+		if onlyPollCmdsPending && enrolledDevice.HasPendingCommands {
+			if err := svc.ds.MDMWindowsRefreshHasPendingCommands(ctx, enrolledDevice.ID); err != nil {
+				svc.logger.ErrorContext(ctx, "refresh windows mdm has_pending_commands", "err", err,
+					"enrollment_id", enrolledDevice.ID)
+				ctxerr.Handle(ctx, err)
+			}
+		}
+
+		// Build ESP (Enrollment Status Page) commands for Windows Autopilot devices. Only run for trusted requests
+		// so we don't leak ESP state to unauthenticated devices.
+		if enrolledDevice.AwaitingConfiguration != fleet.WindowsMDMAwaitingConfigurationNone {
+			espCmds, err = svc.getESPCommands(ctx, enrolledDevice, reqMsg)
+			if err != nil {
+				return nil, fmt.Errorf("ESP commands error: %w", err)
+			}
+		}
 	}
+
+	allCmds := make([]*mdm_types.SyncMLCmd, 0, len(resIncomingCmds)+len(resPendingCmds)+len(espCmds))
+	allCmds = append(allCmds, resIncomingCmds...)
+	allCmds = append(allCmds, resPendingCmds...)
+	allCmds = append(allCmds, espCmds...)
 
 	// Create the response SyncML message
-	msg, err := svc.createResponseSyncML(ctx, reqMsg, append(resIncomingCmds, resPendingCmds...))
+	msg, err := svc.createResponseSyncML(ctx, reqMsg, allCmds)
 	if err != nil {
 		return nil, fmt.Errorf("message syncML creation error %w", err)
 	}
@@ -1709,24 +2460,1018 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 	return msg, nil
 }
 
-// removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
-// HW DeviceID is used to check the list of enrolled devices
-func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) error {
-	// Getting the HW DeviceID from the RequestSecurityToken msg
-	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
+const (
+	// windowsMDMFastPollIntervalMinutes mirrors NewDMClientProvisioningData's provisioned IntervalForFirstSetOfRetries: the aggressive poll
+	// used until a host is known to support on-demand sync.
+	windowsMDMFastPollIntervalMinutes = "1"
+	// windowsMDMRelaxedPollIntervalMinutes is the steady poll for hosts woken on demand by fleetd. 480 minutes (8 hours) matches Intune's
+	// default check-in cadence. Steady-state command latency comes from the on-demand wake; this interval only bounds the fallback latency
+	// if a wake ever fails, so a longer value trades a larger worst-case fallback for less polling load.
+	windowsMDMRelaxedPollIntervalMinutes = "480"
+)
+
+// buildPollScheduleCommand builds an MDMWindowsCommand that Replaces the DMClient Poll interval with the value for the given schedule
+// (relaxed vs the aggressive default). It is enqueued like any other Windows MDM command, so the command queue handles delivery, automatic
+// re-delivery until acknowledged, and ack recording.
+func buildPollScheduleCommand(relaxed bool) (*fleet.MDMWindowsCommand, error) {
+	interval := windowsMDMFastPollIntervalMinutes
+	if relaxed {
+		interval = windowsMDMRelaxedPollIntervalMinutes
+	}
+	cmdUUID := uuid.NewString()
+	cmd := newSyncMLCmdInt(fleet.CmdReplace, syncml.DMClientPollIntervalLocURI, interval)
+	cmd.CmdID = mdm_types.CmdID{Value: cmdUUID}
+	rawCommand, err := xml.Marshal(cmd)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("marshal poll schedule command: %w", err)
+	}
+	return &fleet.MDMWindowsCommand{
+		CommandUUID:  cmdUUID,
+		RawCommand:   rawCommand,
+		TargetLocURI: syncml.DMClientPollIntervalLocURI,
+	}, nil
+}
+
+// reconcileWindowsMDMPollSchedule relaxes (or restores) the device's DMClient poll schedule based on whether its fleetd can be woken on
+// demand. Capable hosts get a relaxed poll, so steady-state command delivery is driven by the on-demand wake instead of frequent polling
+// (the server-load reduction); non-capable hosts stay on the fast poll.
+//
+// It enqueues the poll Replace through the standard Windows MDM command queue. poll_schedule_relaxed records only the
+// INTENDED schedule, so a command is enqueued exactly once per intended change (and excluded from the
+// pending-command/wake signal, so tuning the poll does not itself request a wake).
+func (svc *Service) reconcileWindowsMDMPollSchedule(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error {
+	// A capable fleetd (one advertising CapabilityWindowsMDMSync, persisted to fleetd_sync_capable by the orbit-config endpoint) can be woken
+	// on demand, so relax its poll; otherwise keep the fast default. The flag is read straight off the already-loaded enrolled-device row, so
+	// this hot management path does no extra DB lookups.
+	desiredRelaxed := device.FleetdSyncCapable
+	if desiredRelaxed == device.PollScheduleRelaxed {
+		// Intended schedule already matches; any still-undelivered Replace is re-sent by the command queue.
+		return nil
 	}
 
-	// Device is already enrolled, let's remove it
-	err = svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, reqHWDeviceID)
+	cmd, err := buildPollScheduleCommand(desiredRelaxed)
 	if err != nil {
-		if fleet.IsNotFound(err) {
-			return nil
+		return ctxerr.Wrap(ctx, err, "build windows MDM poll schedule command")
+	}
+	// Enqueue the Replace and record the intended schedule atomically.
+	if err := svc.ds.MDMWindowsEnqueuePollScheduleCommand(ctx, device.MDMDeviceID, device.ID, cmd, desiredRelaxed); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueue windows MDM poll schedule command")
+	}
+	svc.logger.DebugContext(ctx, "reconciled Windows MDM poll schedule", "device_id", device.MDMDeviceID, "relaxed", desiredRelaxed)
+	return nil
+}
+
+// getESPCommands dispatches ESP coordination for a Windows Autopilot device.
+//
+// For awaiting_configuration=Pending: send hold commands to block the device at the ESP during OOBE, then transition
+// to Active once orbit links the host UUID.
+//
+// For awaiting_configuration=Active: run the wait gates (profiles + setup-experience software) and release or block
+// the device when ready, including the 3-hour timeout. After the release is sent, the enrollment stays Active until
+// the device acks the user-scope ServerHasFinishedProvisioning Replace with a 200.
+func (svc *Service) getESPCommands(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML) ([]*mdm_types.SyncMLCmd, error) {
+	switch device.AwaitingConfiguration {
+	case fleet.WindowsMDMAwaitingConfigurationPending:
+		return svc.handleESPHoldOrTransition(ctx, device, reqMsg)
+	case fleet.WindowsMDMAwaitingConfigurationActive:
+		return svc.handleESPRelease(ctx, device, reqMsg)
+	default:
+		return nil, nil
+	}
+}
+
+// handleESPHoldOrTransition handles awaiting_configuration=Pending.
+// Before orbit links the host UUID: sends hold commands to block the device at
+// the ESP. These are idempotent and sent once per management session.
+// After orbit links: transitions to Active so the release check can begin.
+func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML) ([]*mdm_types.SyncMLCmd, error) {
+	providerID := syncml.DocProvisioningAppProviderID
+
+	if device.HostUUID == "" {
+		// Resending on every message keeps the session open: the device acks each batch, and the session only
+		// ends on a response with no commands.
+		if !isOMADMSessionStart(reqMsg) {
+			return nil, nil
 		}
-		return err
+		// Orbit hasn't enrolled yet. Send DMClient FirstSyncStatus hold commands to
+		// activate the ESP and block the device during OOBE. These must be sent
+		// immediately -- if we wait for orbit, OOBE progresses past the ESP window.
+		svc.logger.DebugContext(ctx, "ESP: sending hold commands", "device_id", device.MDMDeviceID)
+		policyProviderURI := fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s", providerID)
+		holdCmds := []*mdm_types.SyncMLCmd{
+			// Create the user-scope DMClient Provider tree before any user-scope writes. Verified on Win11 26200
+			// in the Entra-join-during-OOBE flow without an Autopilot deployment profile: the user-scope
+			// Provider/Fleet node does not exist by default. The Add commands here create the user-scope Provider
+			// node and its FirstSyncStatus child so the release-phase ServerHasFinishedProvisioning=true write can
+			// land.
+			//
+			// Hold commands are sent on every management session during the Pending phase, so these Adds will
+			// repeat. The device returns SyncML status 418 ("Already Exists") on the second and later calls. That
+			// per-command status does not fail the SyncML session and does not affect the hold-cycle Replace
+			// commands that follow it; the Pending phase only lasts a few minutes (until orbit links and we
+			// transition to Active, after which hold commands stop). Net effect: a small amount of expected 418
+			// noise during OOBE in exchange for not having to track per-enrollment "have I sent the Add" state.
+			newSyncMLCmdNode(fleet.CmdAdd, fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s", providerID)),
+			newSyncMLCmdNode(fleet.CmdAdd, fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus", providerID)),
+			// SkipDeviceStatusPage and SkipUserStatusPage are both set to false so the ESP page is visible during
+			// OOBE.
+			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipDeviceStatusPage", providerID), "false"),
+			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", providerID), "false"),
+			// BlockInStatusPage=1: block user, show "Reset PC" button on failure.
+			// Per DMClient CSP docs: 1=Reset PC, 2=Try Again, 4=Continue Anyway.
+			// We pre-configure Reset here so it's already set when/if the failure UI renders.
+			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", providerID), "1"),
+			// AllowCollectLogsButton: pre-configure Collect Logs button so it's visible on both progress and failure pages.
+			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", providerID), "true"),
+			// CustomErrorText: pre-configure with the timeout-flavored error so that if the OS-side ESP failure UI
+			// renders before Fleet's Active-phase finalize runs (e.g. when TimeOutUntilSyncFailure expires, or when the
+			// device is stuck in Pending and Windows itself fails the ESP), the user sees Fleet's text instead of
+			// Windows's default "We ran into a problem with one of the following setup steps" message. Active-phase
+			// finalize will Replace this with ESPSoftwareFailureErrorText if a software install actually failed; in the
+			// pure-timeout case the value here is already correct.
+			newSyncMLCmdText(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/CustomErrorText", providerID), microsoft_mdm.ESPTimeoutErrorText),
+			// TimeOutUntilSyncFailure is in minutes per DMClient CSP (range 60-1440).
+			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds/60)),
+			// PolicyProviders/{providerID} is a dynamic node -- must be created with Add before its children can be set with Replace.
+			newSyncMLCmdNode(fleet.CmdAdd, policyProviderURI),
+			// DevicePreparation InstallationState=1 signals "installing" to hold ESP.
+			newSyncMLCmdInt(fleet.CmdReplace, policyProviderURI+"/InstallationState", "1"),
+		}
+		for _, cmd := range holdCmds {
+			cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+		}
+		return holdCmds, nil
 	}
 
+	// Orbit has linked the host UUID. Transition to Active so handleESPRelease
+	// can finalize and release the device.
+	svc.logger.DebugContext(ctx, "ESP: orbit linked, transitioning to active", "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID)
+	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to active")
+	}
+	if !transitioned {
+		return nil, nil
+	}
+
+	// Mark DevicePreparation as completed to advance the ESP phase.
+	dpCmd := newSyncMLCmdInt(fleet.CmdReplace,
+		fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", providerID), "3")
+	dpCmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+	return []*mdm_types.SyncMLCmd{dpCmd}, nil
+}
+
+// handleESPRelease handles awaiting_configuration=Active. It waits for all profiles and setup experience items to reach
+// a terminal state, then finalizes the device down one of three paths:
+//
+//   - hard block (windows_require_all_software=true and any item failed, or the 3-hour timeout was hit): the ESP
+//     failure screen is shown with only the "Reset device" recovery option, and remaining items are canceled.
+//   - soft block (windows_require_all_software=false and an item failed, or the 3-hour timeout was hit): the ESP
+//     failure screen is shown with a "Continue anyway" option so the user can proceed to the desktop and install the
+//     missing software via self-service. It lists the failed software by name when any failed, otherwise (a timeout
+//     with nothing failed) shows the timeout message. Still-pending items are cancelled only on the timeout path.
+//   - release (no failure and no timeout): the device proceeds to login.
+func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice, reqMsg *fleet.SyncML) ([]*mdm_types.SyncMLCmd, error) {
+	if device.HostUUID == "" {
+		return nil, nil
+	}
+
+	// Check timeout first: if we've exceeded the 3-hour window, finalize regardless of profile/software status.
+	timedOut := device.AwaitingConfigurationAt != nil && time.Since(*device.AwaitingConfigurationAt) > time.Duration(microsoft_mdm.ESPTimeoutSeconds)*time.Second
+	if timedOut {
+		svc.logger.WarnContext(ctx, "ESP: timeout reached", "device_id", device.MDMDeviceID)
+	}
+
+	// If the release has already been sent (a queued command targeting the user-scope release URI exists), the
+	// enrollment is in the resend phase: stay Active and re-send the user-scope Replace until the device acks it with a
+	// 200, then transition to None. During OOBE the device rejects user-scope writes with SyncML 405 until the user MDM
+	// context initializes.
+	//
+	// Require the primary: the ack this read must observe was recorded by MDMWindowsSaveResponse earlier in this same request.
+	ack, err := svc.ds.MDMWindowsGetESPReleaseAckStatus(ctxdb.RequirePrimary(ctx, true), device.ID,
+		espUserReleaseLocURI(syncml.DocProvisioningAppProviderID), espReleaseAttemptCmdIDPrefix)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ESP release ack status")
+	}
+	if ack.Attempted {
+		// re-send release or finish enrollment
+		return svc.handleESPUserReleaseRetry(ctx, device, ack, timedOut, reqMsg)
+	}
+
+	// hasSoftwareFailure tracks setup-experience software failures only.
+	var hasSoftwareFailure bool
+
+	// failedSoftwareNames collects the names of the failed setup-experience items
+	var failedSoftwareNames []string
+
+	// recordSoftwareFailure marks a failed setup-experience item
+	recordSoftwareFailure := func(r *fleet.SetupExperienceStatusResult) {
+		hasSoftwareFailure = true
+		name := r.Name
+		if r.DisplayName != "" {
+			name = r.DisplayName
+		}
+		if name != "" {
+			failedSoftwareNames = append(failedSoftwareNames, name)
+		}
+	}
+
+	// loadHost lazily fetches the host (writer-routed) and memoizes for the rest of this checkin. Writer routing guards
+	// two replica-lag races: (1) spurious notFound during the brief gap between orbit's host registration and the next
+	// management session, and (2) stale team_id if a host transferred teams mid-enrollment, which could let
+	// windows_require_all_software be read from the wrong team and bypass the gate.
+	//
+	// We cache the full HostLite (not just team_id) because Stage 3 also needs OsqueryHostID: setup_experience_status_results
+	// is keyed by fleet.HostUUIDForSetupExperience, which on Windows resolves to OsqueryHostID -- not the Fleet host UUID
+	// stored on the MDM enrollment record.
+	var (
+		cachedHost *fleet.HostLite
+		hostLoaded bool
+	)
+	loadHost := func() (*fleet.HostLite, error) {
+		if hostLoaded {
+			return cachedHost, nil
+		}
+		host, err := svc.ds.HostLiteByIdentifier(ctxdb.RequirePrimary(ctx, true), device.HostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "lookup host for ESP")
+		}
+		cachedHost = host
+		hostLoaded = true
+		return host, nil
+	}
+
+	// hostTeamID resolves the host's team_id (0 for "no team / global"), used to scope setup-experience queries.
+	hostTeamID := func() (uint, error) {
+		host, err := loadHost()
+		if err != nil {
+			return 0, err
+		}
+		if host.TeamID != nil {
+			return *host.TeamID, nil
+		}
+		return 0, nil
+	}
+
+	// setupExperienceHostUUID returns the identifier used as setup_experience_status_results.host_uuid for this host.
+	// On Windows that's OsqueryHostID per fleet.HostUUIDForSetupExperience; if it's missing for some reason we fall back
+	// to the Fleet host UUID.
+	setupExperienceHostUUID := func() (string, error) {
+		host, err := loadHost()
+		if err != nil {
+			return "", err
+		}
+		if host.OsqueryHostID != nil && *host.OsqueryHostID != "" {
+			return *host.OsqueryHostID, nil
+		}
+		return device.HostUUID, nil
+	}
+
+	// listSetupExperienceResults fetches the host's setup-experience status rows. They are keyed by the Windows
+	// setup-experience host UUID (OsqueryHostID per fleet.HostUUIDForSetupExperience) and team-scoped so the rows carry
+	// the team's custom software display names (used in the soft-block message).
+	listSetupExperienceResults := func() ([]*fleet.SetupExperienceStatusResult, error) {
+		seHostUUID, err := setupExperienceHostUUID()
+		if err != nil {
+			return nil, err
+		}
+		teamID, err := hostTeamID()
+		if err != nil {
+			return nil, err
+		}
+		results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, seHostUUID, teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list setup experience results for ESP")
+		}
+		return results, nil
+	}
+
+	// loadRequireAll memoizes the host -> team's windows_require_all_software lookup. It is consulted at most twice
+	// per checkin: once inside Stage 3 (to decide whether to short-circuit on a software failure) and once below
+	// (to drive the block/release decision).
+	var (
+		cachedRequireAll bool
+		requireAllLoaded bool
+	)
+	loadRequireAll := func() (bool, error) {
+		if requireAllLoaded {
+			return cachedRequireAll, nil
+		}
+		host, err := loadHost()
+		if err != nil {
+			return false, err
+		}
+		if host.TeamID == nil {
+			ac, err := svc.ds.AppConfig(ctx)
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "get app config for ESP finalization")
+			}
+			cachedRequireAll = ac.MDM.MacOSSetup.RequireAllSoftwareWindows
+		} else {
+			team, err := svc.ds.TeamLite(ctx, *host.TeamID)
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "get team for ESP finalization")
+			}
+			cachedRequireAll = team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows
+		}
+		requireAllLoaded = true
+		return cachedRequireAll, nil
+	}
+
+	if !timedOut {
+		// Profile delivery has two stages:
+		//
+		// 1. Profiles configured for the host's team but not yet queued by the profile reconciler. Rather than just
+		//    listing them and blocking the release, run the per-host reconciler now: it queues any missing desired
+		//    profiles so stage 2 sees them as in-flight rows in the same checkin. This closes the race where a
+		//    freshly-enrolled host would otherwise wait for the cron's next pass.
+		// 2. Profiles queued (rows in host_mdm_windows_profiles) but not yet delivered to a terminal state
+		//    (GetHostMDMWindowsProfiles).
+		//
+		// We never release while profiles are pending at either stage. Each management checkin re-evaluates both.
+
+		// Stage 1: queue any desired profiles the reconciler hasn't picked up yet. An error blocks the release (we
+		// can't know whether desired work is still unqueued); the next checkin retries.
+		if err := ReconcileWindowsProfilesForEnrollingHost(ctx, svc.ds, svc.logger, device.HostUUID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reconcile profiles for ESP release check")
+		}
+
+		// Stage 2: profiles queued but still in-flight (pending/verifying). Read from the primary: it must see the
+		// rows stage 1 just wrote, and even when stage 1 queued nothing, "nothing to queue" means every desired
+		// profile already has a row on the PRIMARY (possibly written by the previous checkin under a second ago). A
+		// lagging replica could be missing those rows entirely, and a row this read can't see is indistinguishable
+		// from no work, which would release the device early.
+		profiles, err := svc.ds.GetHostMDMWindowsProfiles(ctxdb.RequirePrimary(ctx, true), device.HostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host profiles for ESP release check")
+		}
+		// A user-scoped profile held for a missing user context is deliberately pending and cannot reach a terminal
+		// state until a user signs in, which cannot happen until the ESP releases the device.
+		heldForUserContext := microsoft_mdm.WindowsUserContextStateFromDevice(device) == fleet.WindowsUserContextCanArrive
+		for _, p := range profiles {
+			if p.OperationType != fleet.MDMOperationTypeInstall {
+				continue
+			}
+			if heldForUserContext && fleet.IsWindowsUserScopeHoldDetail(p.Detail) {
+				continue
+			}
+			// Wait for terminal state (verified or failed) before proceeding. Profile failures are NOT propagated to
+			// the block decision -- see hasSoftwareFailure comment above.
+			if p.Status == nil || (*p.Status != fleet.MDMDeliveryVerified && *p.Status != fleet.MDMDeliveryFailed) {
+				return nil, nil
+			}
+		}
+
+		// Stage 3: setup experience software/scripts still running. Orbit initiates setup experience during startup when it
+		// is enabled for the current OS/flags, which enqueues items into setup_experience_status_results.
+		results, err := listSetupExperienceResults()
+		if err != nil {
+			return nil, err
+		}
+		svc.logger.DebugContext(ctx, "ESP: setup experience check",
+			"host_uuid", device.HostUUID, "results_count", len(results))
+
+		// Empty results is ambiguous: it can mean "no setup experience is configured for this team" (safe to release) or
+		// "setup is configured but orbit hasn't called SetupExperienceInit yet" (must wait). Orbit links the host UUID to
+		// the MDM enrollment independently of when it calls init, so on the first Active checkin after link we can hit
+		// this race. Disambiguate by checking whether items are configured for the host's team.
+		if len(results) == 0 {
+			teamID, err := hostTeamID()
+			if err != nil {
+				return nil, err
+			}
+			hasItems, err := svc.ds.HasWindowsSetupExperienceItemsForTeam(ctx, teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "check setup experience items configured for team")
+			}
+			if hasItems {
+				svc.logger.DebugContext(ctx, "ESP: setup experience configured but not yet initialized; waiting",
+					"host_uuid", device.HostUUID)
+				return nil, nil
+			}
+		}
+
+		// Single pass: collect hasSoftwareFailure and "are any rows still in flight". We deliberately do NOT bail
+		// early on the first non-terminal row -- we need to know whether any failure exists in the result set
+		// before deciding whether to wait, so we can short-circuit when require_all=true and we've already
+		// observed a failure. IsTerminalStatus() returns true for success/failure; Cancelled is also a completed
+		// outcome (must not block release).
+		anyInFlight := false
+		for _, r := range results {
+			switch r.Status {
+			case fleet.SetupExperienceStatusFailure:
+				recordSoftwareFailure(r)
+			case fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusCancelled:
+				// terminal, nothing to record
+			default:
+				// pending / running
+				anyInFlight = true
+			}
+		}
+		if anyInFlight {
+			if !hasSoftwareFailure {
+				svc.logger.DebugContext(ctx, "ESP: waiting for in-flight setup experience items",
+					"host_uuid", device.HostUUID, "results_count", len(results))
+				return nil, nil
+			}
+			// A software install has already failed. If require_all=true, the device is going to block.
+			requireAll, err := loadRequireAll()
+			if err != nil {
+				return nil, err
+			}
+			if !requireAll {
+				svc.logger.DebugContext(ctx, "ESP: software failure observed but require_all=false; waiting for rest",
+					"host_uuid", device.HostUUID, "results_count", len(results))
+				return nil, nil
+			}
+			svc.logger.InfoContext(ctx, "ESP: software failure with require_all=true; blocking install",
+				"host_uuid", device.HostUUID)
+		}
+	}
+
+	// We're past the wait gate or timed out. Look up windows_require_all_software (memoized via loadRequireAll if
+	// Stage 3 already consulted it) to decide between block and release. Return the error on lookup failure so the
+	// device stays Active and retries on the next management session: failing open here would permanently bypass
+	// the policy after the Active->None transition below.
+	requireAll, err := loadRequireAll()
+	if err != nil {
+		return nil, err
+	}
+
+	// On a timeout with require_all=false, scan for software failures so the finalize surfaces them instead of
+	// releasing silently: the timeout path skipped Stage 3, so failures observed before the timeout are otherwise
+	// invisible. require_all=true keeps its existing behavior (hard block with timeout text) and is deliberately not
+	// re-scanned here -- a real failure under require_all=true would already have blocked on an earlier checkin via the
+	// Stage 3 in-flight short-circuit, before the 3-hour window elapsed.
+	if timedOut && !requireAll {
+		results, err := listSetupExperienceResults()
+		if err != nil {
+			return nil, err
+		}
+		for _, r := range results {
+			if r.Status == fleet.SetupExperienceStatusFailure {
+				recordSoftwareFailure(r)
+			}
+		}
+	}
+
+	shouldBlock := requireAll && (timedOut || hasSoftwareFailure)
+	shouldWarn := !requireAll && (timedOut || hasSoftwareFailure)
+
+	// Build commands for the response.
+	provID := syncml.DocProvisioningAppProviderID
+	var cmds []*mdm_types.SyncMLCmd
+	switch {
+	case shouldBlock:
+		// Pick the user-facing error text to surface on the failure UI. Software failure takes precedence over timeout
+		// because it's more actionable; pure timeout (no software failed) uses the timeout text so the user sees an
+		// accurate reason.
+		errorText := microsoft_mdm.ESPTimeoutErrorText
+		if hasSoftwareFailure {
+			errorText = microsoft_mdm.ESPSoftwareFailureErrorText
+		}
+		cmds = buildESPBlockCommands(provID, errorText, espBlockButtonsReset)
+	case shouldWarn:
+		// List the failed software when we have any; otherwise (require_all=false timeout with nothing failed) show the
+		// timeout text. Both keep the "Continue anyway" option so the user is never stuck.
+		errorText := microsoft_mdm.ESPTimeoutErrorText
+		if hasSoftwareFailure {
+			errorText = microsoft_mdm.ESPSoftwareFailureContinuableErrorText(failedSoftwareNames)
+		}
+		cmds = buildESPBlockCommands(provID, errorText, espBlockButtonsResetAndContinue)
+	default:
+		// Release path: device proceeds to login. We do not send CustomErrorText here because the failure UI never renders
+		// on a release (no BlockInStatusPage, no forced timeout), so any error text would be dead state on the DMClient
+		// node.
+		cmds = buildESPReleaseCommands(provID)
+	}
+
+	// On timeout (regardless of require_all) and on software-failure+require_all=true, cancel any pending items. Run
+	// this BEFORE the compare-and-swap (CAS) that commits awaiting_configuration=None at the bottom of this function,
+	// so a transient cancel failure aborts the finalize cleanly -- otherwise we'd commit awaiting=None while leaving
+	// non-terminal setup-experience rows behind, exactly the state cancellation is supposed to prevent.
+	//
+	// We must cancel both halves: the upcoming_activities queue AND the setup_experience_status_results status
+	// table (so the UI and downstream queries see the cancelled state).
+	//
+	// Cancel ordering: upcoming_activities first, then status table. If we crash mid-loop, the next retry sees the same
+	// status rows still pending, re-iterates, and will tolerate the now-deleted upcoming_activities row via IsNotFound.
+	//
+	// The canceled_setup_experience activity is emitted at two points:
+	// - For software-failure with require_all=true: emitted by maybeCancelPendingSetupExperienceSteps in the
+	//   software-install-result reporting path, referencing the failed software item.
+	// - For pure-timeout (regardless of require_all): emitted below, referencing the first pending/running software
+	//   item if one exists (the item that was in flight when the timeout fired). This deviates from macOS, which
+	//   only emits on the require_all=true software-failure case, but matches the activity-feed expectation in
+	//   issue #38785's test plan: "Timeout cancellation: canceled_setup_experience activity emitted on the timeout
+	//   branch as well as the failure branch."
+	if timedOut || (hasSoftwareFailure && requireAll) {
+		seHostUUID, err := setupExperienceHostUUID()
+		if err != nil {
+			return nil, err
+		}
+		// We re-list statuses here rather than reusing Stage 3's `results`: that variable is scoped inside the
+		// `if !timedOut` block and isn't visible here, AND the timeout path skipped Stage 3 entirely so there's
+		// nothing to reuse on that branch. Hoisting the variable out to share it would tangle the two paths; one
+		// extra DB read per finalize keeps this block self-contained.
+		statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, seHostUUID, 0)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list setup experience results for cancel")
+		}
+		host, err := loadHost()
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range statuses {
+			if s.Status != fleet.SetupExperienceStatusPending && s.Status != fleet.SetupExperienceStatusRunning {
+				continue
+			}
+			var executionID string
+			switch {
+			case s.HostSoftwareInstallsExecutionID != nil:
+				executionID = *s.HostSoftwareInstallsExecutionID
+			case s.NanoCommandUUID != nil:
+				executionID = *s.NanoCommandUUID
+			case s.ScriptExecutionID != nil:
+				executionID = *s.ScriptExecutionID
+			default:
+				continue
+			}
+			// Tolerate notFound: a previous attempt may have cancelled the upcoming_activities row before crashing
+			// before the status table update, or another path (manual cancel, re-enrollment cleanup) may have removed
+			// it concurrently. In either case the queue is already in the desired state.
+			if _, err := svc.ds.CancelHostUpcomingActivity(ctx, host.ID, executionID); err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "cancel upcoming setup experience activity")
+			}
+		}
+		// CancelPendingSetupExperienceSteps is idempotent (status filter excludes terminal rows) so a retry on the
+		// next session is safe.
+		if err := svc.ds.CancelPendingSetupExperienceSteps(ctx, seHostUUID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "cancel pending setup experience steps")
+		}
+
+		// Emit canceled_setup_experience for every timeout, which cancels whatever was still pending. It references the
+		// first pending/running software item (in flight when the timeout fired), or empty fields if none was queued.
+		// Gated on timedOut alone (not !hasSoftwareFailure): no duplication, since the require_all=true failure case
+		// emits upstream in maybeCancelPendingSetupExperienceSteps and blocks before any timeout, while the
+		// require_all=false failure case emits nowhere else.
+		if timedOut {
+			host, err := loadHost()
+			if err != nil {
+				return nil, err
+			}
+			var softwareTitle string
+			var softwareTitleID uint
+			for _, s := range statuses {
+				if (s.Status == fleet.SetupExperienceStatusPending || s.Status == fleet.SetupExperienceStatusRunning) && s.IsForSoftware() {
+					softwareTitle = s.Name
+					if s.SoftwareTitleID != nil {
+						softwareTitleID = *s.SoftwareTitleID
+					}
+					break
+				}
+			}
+			var softwareDisplayName *string
+			if softwareTitleID != 0 {
+				dn, dnErr := svc.ds.GetSoftwareTitleDisplayName(ctx, host.TeamID, softwareTitleID)
+				if dnErr != nil {
+					svc.logger.WarnContext(ctx, "failed to look up software display name for canceled setup experience timeout activity", "err", dnErr)
+				}
+				softwareDisplayName = dn
+			}
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       softwareTitle,
+				SoftwareDisplayName: ptr.ValOrZero(softwareDisplayName),
+				SoftwareTitleID:     softwareTitleID,
+			}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "creating canceled setup experience activity on timeout")
+			}
+		}
+	}
+
+	// Persist BEFORE the CAS. The persist is the dropped-response retry safety net; if it fails, we want to leave
+	// awaiting_configuration=Active so the next management session retries the whole finalize from scratch.
+	//
+	// The persist is a single transactional batch (MDMWindowsInsertCommandsForHost) so a partial-fail-then-retry can't
+	// leave orphan rows in the queue.
+	//
+	// On concurrent races (two checkins both reach this point) both callers persist with fresh UUIDs. The loser's
+	// rows are delivered later by the regular command queue, the device acks them as idempotent Replaces of
+	// post-ESP-irrelevant DMClient nodes, and the queue clears -- no permanent leak, just brief extra traffic.
+	if err := svc.persistESPFinalCommands(ctx, device.HostUUID, cmds); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "persist ESP finalization commands")
+	}
+
+	svc.logger.InfoContext(ctx, "ESP: finalizing",
+		"device_id", device.MDMDeviceID,
+		"host_uuid", device.HostUUID,
+		"timed_out", timedOut,
+		"has_software_failure", hasSoftwareFailure,
+		"require_all", requireAll,
+		"blocking", shouldBlock,
+		"soft_blocking", shouldWarn)
+
+	// Release path. The enrollment stays Active until the device acks the user-scope ServerHasFinishedProvisioning
+	// Replace with a 200 (handleESPUserReleaseRetry, entered on later checkins via the attempt rows persisted above).
+	if !shouldBlock && !shouldWarn {
+		return cmds, nil
+	}
+
+	// Enrollment is blocked (due to software failure or timeout).
+	transitioned, err := svc.casESPActiveToNone(ctx, device, "block finalize")
+	if err != nil {
+		return nil, err
+	}
+	if !transitioned {
+		// Another concurrent checkin already finalized.
+		return nil, nil
+	}
+
+	return cmds, nil
+}
+
+// casESPActiveToNone commits the terminal ESP transition (awaiting_configuration Active -> None) via
+// compare-and-swap and reports whether this checkin won it.
+func (svc *Service) casESPActiveToNone(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice, reason string) (bool, error) {
+	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "set awaiting configuration to none: "+reason)
+	}
+	return transitioned, nil
+}
+
+// espUserReleaseLocURI returns the LocURI of the user-scope ServerHasFinishedProvisioning node for the given provider ID.
+func espUserReleaseLocURI(provID string) string {
+	return fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
+}
+
+const espReleaseAttemptCmdIDPrefix = fleet.WindowsESPReleaseCmdIDPrefix
+
+// isOMADMSessionStart reports whether reqMsg opens an OMA-DM session: device MsgID 1 (auth) or 2 (trusted request). The
+// device acks message N's commands in message N+1, so a command re-sent on every message keeps the session open.
+// Commands that are re-sent until device state changes (ESP holds, DevDetail Get, release retry) use this, since that
+// state changes between sessions, not between messages.
+//
+// Defaults to true for a nil message or an unparseable MsgID: sending too often beats never sending.
+func isOMADMSessionStart(reqMsg *fleet.SyncML) bool {
+	if reqMsg == nil {
+		return true
+	}
+	msgID, err := reqMsg.GetMessageID()
+	if err != nil {
+		return true
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(msgID))
+	if err != nil {
+		return true
+	}
+	return n <= 2
+}
+
+// handleESPUserReleaseRetry handles an Active enrollment whose release commands have already been sent: the ESP is
+// finished only when the device acks the user-scope ServerHasFinishedProvisioning Replace with a 200. Until then the
+// enrollment stays Active and the Replace is re-sent once per session. Convergence is quick in practice: the device
+// polls every ~60s during the ESP, and the write starts succeeding as soon as the user MDM context initializes.
+func (svc *Service) handleESPUserReleaseRetry(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice,
+	ack *fleet.MDMWindowsESPReleaseAckStatus, timedOut bool, reqMsg *fleet.SyncML,
+) ([]*mdm_types.SyncMLCmd, error) {
+	switch {
+	case ack.Acked200:
+		// Commit ESP completion, now confirmed by the device's ack. Enrollment complete.
+		transitioned, err := svc.casESPActiveToNone(ctx, device, "user-scope release ack")
+		if err != nil {
+			return nil, err
+		}
+		if transitioned {
+			svc.logger.InfoContext(ctx, "ESP: user-scope release acked, ESP complete",
+				"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID)
+		}
+		return nil, nil
+
+	case timedOut:
+		// Same 3-hour bound as the pre-release path: CAS Active -> None to stop retrying and let the device's own
+		// ESP timeout handling take over.
+		svc.logger.WarnContext(ctx, "ESP: timeout waiting for user-scope release ack, finalizing without it",
+			"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "last_status", ack.LatestStatus)
+		if _, err := svc.casESPActiveToNone(ctx, device, "user-scope release timeout"); err != nil {
+			return nil, err
+		}
+		return nil, nil
+
+	case ack.HasUnacked:
+		// An attempt is in flight: either the device hasn't responded yet, or the response was dropped and the
+		// command queue's redelivery will resend the persisted attempt.
+		svc.logger.DebugContext(ctx, "ESP: user-scope release attempt in flight, waiting for ack",
+			"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "last_status", ack.LatestStatus)
+		return nil, nil
+
+	case !isOMADMSessionStart(reqMsg):
+		// The last attempt failed, but retry only at the start of the next session (see isOMADMSessionStart).
+		return nil, nil
+
+	default:
+		// The last attempt was acked with a non-200 (405 until the user MDM context initializes): re-send a fresh Replace.
+		svc.logger.InfoContext(ctx, "ESP: user-scope release not acked yet, retrying",
+			"device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "last_status", ack.LatestStatus)
+		cmds := []*mdm_types.SyncMLCmd{newESPUserReleaseCmd(syncml.DocProvisioningAppProviderID)}
+		if err := svc.persistESPFinalCommands(ctx, device.HostUUID, cmds); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "persist ESP user-scope release retry")
+		}
+		return cmds, nil
+	}
+}
+
+// BlockInStatusPage values per Microsoft DMClient CSP docs (bit flags): 1=Reset PC, 2=Try Again, 4=Continue Anyway.
+const (
+	// espBlockButtonsReset shows only the "Reset PC" button: used for the hard block
+	espBlockButtonsReset = "1"
+	// espBlockButtonsResetAndContinue shows "Reset PC" and "Continue anyway" (1|4)
+	espBlockButtonsResetAndContinue = "5"
+)
+
+// buildESPBlockCommands builds SyncML commands that put the device's ESP into a failed state showing errorText, a
+// "Collect logs" button, and the recovery buttons selected by blockButtons (one of the espBlockButtons* constants).
+func buildESPBlockCommands(provID, errorText, blockButtons string) []*mdm_types.SyncMLCmd {
+	cmds := []*mdm_types.SyncMLCmd{
+		// CustomErrorText: shown in the ESP failure UI as the failure reason.
+		newSyncMLCmdText(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/CustomErrorText", provID),
+			errorText),
+		// BlockInStatusPage: which recovery buttons the failure UI offers. Reset triggers an Autopilot wipe and
+		// re-enrollment; Continue anyway (soft block only) lets the user proceed to the desktop.
+		newSyncMLCmdInt(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", provID),
+			blockButtons),
+		// AllowCollectLogsButton: show the "Collect logs" button so IT can gather diagnostics from the failure screen.
+		newSyncMLCmdBool(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", provID),
+			"true"),
+		// TimeOutUntilSyncFailure=1 (minute): force the ESP to time out and enter its failure state quickly. We
+		// deliberately do NOT send ServerHasFinishedProvisioning=true here -- that would tell the ESP it succeeded
+		// (Windows treats "server done + no expected items missing" as success and proceeds past the ESP). Instead we
+		// rely on the timeout to trigger the failure UI, which then renders our BlockInStatusPage + CustomErrorText +
+		// AllowCollectLogsButton.
+		//
+		// NOTE: the documented range for this node is 60-1440 minutes. Below the documented minimum, behavior is
+		// technically undefined, but Windows builds we have tested honor the smaller value and time out in roughly the
+		// configured number of minutes (verified empirically on Windows 11 23H2 / Autopilot). If a future Windows build
+		// clamps to 60, the failure UI would take ~1 hour to appear instead of ~1 minute -- bad UX but the contract
+		// (eventual failure UI) still holds.
+		//
+		// We tried the alternative documented in the DMClient CSP -- setting WasDeviceSuccessfullyProvisioned=0
+		// followed by IsSyncDone=true, which the docs say should render the failure UI without any timeout. On
+		// Win11 26200 the device acks both Replaces with status 200, but the Account-setup page stays at "Working
+		// on it..." indefinitely (verified past 25 minutes). The OS-side ESP UI on this build appears to require
+		// per-software-item progress state that Fleet cannot populate today; until that gap is closed (documented in
+		// https://github.com/fleetdm/fleet/issues/43776), the timeout trigger above is the only mechanism that
+		// reliably surfaces the failure UI for these enrollments.
+		newSyncMLCmdInt(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", provID),
+			"1"),
+	}
+	for _, cmd := range cmds {
+		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+	}
+	return cmds
+}
+
+// buildESPReleaseCommands builds SyncML commands that release the device from the ESP. The release path advances
+// DevicePreparation to "complete", signals ServerHasFinishedProvisioning at both Device and User scopes to
+// complete both the Device setup and Account setup phases, and sets SkipUserStatusPage=true so that subsequent
+// user logins skip the Account setup ESP phase (#51380).
+func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
+	cmds := []*mdm_types.SyncMLCmd{
+		newSyncMLCmdInt(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
+		newSyncMLCmdBool(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
+		newSyncMLCmdBool(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", provID), "true"),
+	}
+	for _, cmd := range cmds {
+		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+	}
+	// The user-scope release goes last: it is the command whose 200 ack gates the Active -> None transition to finish enrollment.
+	return append(cmds, newESPUserReleaseCmd(provID))
+}
+
+// newESPUserReleaseCmd builds the user-scope ServerHasFinishedProvisioning Replace that completes the ESP "Account setup" phase
+func newESPUserReleaseCmd(provID string) *mdm_types.SyncMLCmd {
+	cmd := newSyncMLCmdBool(fleet.CmdReplace, espUserReleaseLocURI(provID), "true")
+	cmd.CmdID = mdm_types.CmdID{Value: espReleaseAttemptCmdIDPrefix + uuid.New().String()}
+	return cmd
+}
+
+// persistESPFinalCommands stores backup copies of every finalization command
+// so the existing command-retry infrastructure can resend them if this
+// response is dropped. The persisted commands intentionally reuse the same
+// CmdIDs as the inline commands: when the device acks the inline send,
+// MDMWindowsSaveResponse will match those CmdRefs against the persisted
+// rows and clear them, so the backup is only resent if delivery actually
+// failed. All commands are idempotent Replaces, so even a duplicate delivery
+// is safe.
+func (svc *Service) persistESPFinalCommands(ctx context.Context, hostUUID string, cmds []*mdm_types.SyncMLCmd) error {
+	persistCmds := make([]*fleet.MDMWindowsCommand, 0, len(cmds))
+	for _, cmd := range cmds {
+		// Skip commands without a target URI -- shouldn't happen for the commands we build, but guard against nil-deref.
+		targetURI := cmd.GetTargetURI()
+		if targetURI == "" || len(cmd.Items) == 0 {
+			continue
+		}
+		rawXML, err := xml.Marshal(cmd)
+		if err != nil {
+			// Marshal of a SyncMLCmd we just built is a deterministic code bug, not a transient failure. Returning an
+			// error here would just loop forever (every retry hits the same bug); log + Handle
+			wrapped := ctxerr.Wrap(ctx, err, "marshal ESP final command for persistence")
+			svc.logger.ErrorContext(ctx, "ESP: failed to marshal final command for persistence",
+				"err", wrapped, "target_uri", targetURI)
+			ctxerr.Handle(ctx, wrapped)
+			continue
+		}
+		persistCmds = append(persistCmds, &fleet.MDMWindowsCommand{
+			CommandUUID:  cmd.CmdID.Value,
+			RawCommand:   rawXML,
+			TargetLocURI: targetURI,
+		})
+	}
+	if len(persistCmds) == 0 {
+		return nil
+	}
+	// Single transactional insert: either every backup row is committed or none.
+	if err := svc.ds.MDMWindowsInsertCommandsForHost(ctx, hostUUID, persistCmds); err != nil {
+		return ctxerr.Wrap(ctx, err, "persist ESP finalization commands")
+	}
+	return nil
+}
+
+// checkWindowsMDMEnrollmentCanReplaceExisting refuses an enrollment that would replace another device's enrollment. The
+// enrollment names its device only by identifiers the device reports, so it is checked against the identity its credential
+// proves: the host of a fleetd (programmatic) enrollment, authenticated by its orbit node key, or the Entra device signed into
+// the access token of an Entra enrollment. entraDeviceID is empty for an enrollment that proves neither. Both reported
+// identifiers are checked: re-enrollment deletes the enrollment holding the hardware ID, and management sessions load the
+// newest enrollment holding the device ID.
+//
+// It returns the Entra device ID a fleetd re-enrollment of the same host carries over, so that re-enrolling through fleetd does
+// not unbind an enrollment from its Entra device.
+func (svc *Service) checkWindowsMDMEnrollmentCanReplaceExisting(ctx context.Context, hardwareID, deviceID, hostUUID,
+	entraDeviceID string,
+) (keptEntraDeviceID string, err error) {
+	byHardwareID, err := svc.ds.MDMWindowsGetEnrolledDeviceWithHardwareID(ctx, hardwareID)
+	switch {
+	case fleet.IsNotFound(err):
+		byHardwareID = nil
+	case err != nil:
+		return "", ctxerr.Wrap(ctx, err, "get existing enrollment for hardware ID")
+	}
+	if byHardwareID != nil {
+		keptEntraDeviceID, err = svc.checkWindowsMDMEnrollmentOwner(ctx, byHardwareID, "hardware ID", "mdm_hardware_id", hardwareID,
+			hostUUID, entraDeviceID)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	byDeviceID, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	switch {
+	case fleet.IsNotFound(err):
+		return keptEntraDeviceID, nil
+	case err != nil:
+		return "", ctxerr.Wrap(ctx, err, "get existing enrollment for device ID")
+	}
+	if byHardwareID != nil && byDeviceID.ID == byHardwareID.ID {
+		return keptEntraDeviceID, nil
+	}
+	keptByDeviceID, err := svc.checkWindowsMDMEnrollmentOwner(ctx, byDeviceID, "device ID", "mdm_device_id", deviceID, hostUUID,
+		entraDeviceID)
+	if err != nil {
+		return "", err
+	}
+	if keptEntraDeviceID == "" {
+		keptEntraDeviceID = keptByDeviceID
+	}
+	return keptEntraDeviceID, nil
+}
+
+// checkWindowsMDMEnrollmentOwner refuses an enrollment that would take over existing, the enrollment holding the identifier id
+// (idName in messages, idKey in log attributes). See checkWindowsMDMEnrollmentCanReplaceExisting.
+func (svc *Service) checkWindowsMDMEnrollmentOwner(ctx context.Context, existing *fleet.MDMWindowsEnrolledDevice, idName, idKey,
+	id, hostUUID, entraDeviceID string,
+) (keptEntraDeviceID string, err error) {
+	if hostUUID != "" {
+		if existing.HostUUID == hostUUID {
+			return existing.EntraDeviceID, nil
+		}
+		// An unlinked enrollment bound to an Entra device is still protected, since no host can prove it is that device.
+		if existing.HostUUID == "" && existing.EntraDeviceID == "" {
+			return "", nil
+		}
+	}
+
+	var existingHost *fleet.Host
+	if existing.HostUUID != "" {
+		existingHost, err = svc.ds.HostByUUID(ctx, existing.HostUUID)
+		switch {
+		case fleet.IsNotFound(err):
+			// The host was deleted, so there is nothing left to protect. This is also how an admin releases a hardware ID
+			// held by a stale host.
+			return "", nil
+		case err != nil:
+			return "", ctxerr.Wrap(ctx, err, "get host of existing enrollment")
+		}
+	}
+
+	boundEntraDeviceID := existing.EntraDeviceID
+	if hostUUID == "" {
+		// Enrollments made through fleetd, or before Fleet stored the Entra device ID, fall back to the Entra device ID that
+		// Autopilot registered for their host. Enrollments with neither cannot be checked.
+		if boundEntraDeviceID == "" && entraDeviceID != "" && existingHost != nil {
+			autopilotDevice, err := svc.ds.GetHostAutopilotDevice(ctx, existingHost.ID)
+			switch {
+			case err == nil:
+				boundEntraDeviceID = autopilotDevice.EntraDeviceID
+			case !fleet.IsNotFound(err):
+				return "", ctxerr.Wrap(ctx, err, "get Autopilot record of existing enrollment's host")
+			}
+		}
+		if boundEntraDeviceID == "" || strings.EqualFold(boundEntraDeviceID, entraDeviceID) {
+			return "", nil
+		}
+	}
+
+	if existingHost != nil {
+		// The hardware ID survives a wipe, and some devices come back from one as a new host or a new Entra device.
+		lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, existingHost)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "get lock/wipe status of existing enrollment's host")
+		}
+		if lockWipe.IsWiped() {
+			return "", nil
+		}
+	}
+
+	if hostUUID != "" && existing.HostUUID != "" {
+		// Otherwise two hosts sharing a hardware ID come from cloning an already-enrolled image, which neither Fleet nor
+		// Microsoft supports, or from a host presenting another's hardware ID or device ID.
+		svc.logger.WarnContext(ctx,
+			"refusing windows MDM enrollment with a "+idName+" enrolled to another host; delete the other host if it is stale",
+			idKey, id,
+			"enrolling_host_uuid", hostUUID,
+			"existing_host_uuid", existing.HostUUID,
+		)
+		return "", ctxerr.New(ctx, idName+" is enrolled to another host")
+	}
+
+	if hostUUID == "" && entraDeviceID == "" {
+		// Likely the same host enrolling after the deviceid claim was removed from the app registration, so deleting the host
+		// is not the fix.
+		svc.logger.WarnContext(ctx,
+			"refusing windows MDM enrollment: the "+idName+" is enrolled to an Entra device, and the Entra access token has no "+
+				"deviceid claim to verify the enrolling host is that device. Add deviceid as an optional access token claim in the "+
+				"manifest of the Microsoft Entra MDM app registration",
+			idKey, id,
+			"existing_entra_device_id", boundEntraDeviceID,
+			"existing_host_uuid", existing.HostUUID,
+		)
+		return "", ctxerr.New(ctx, idName+" is enrolled to another host")
+	}
+
+	if existing.HostUUID == "" {
+		// No host links this enrollment, for example because the device was reset before its first management session, so
+		// there is no host to delete. The hourly stale enrollment cleanup removes it.
+		svc.logger.WarnContext(ctx,
+			"refusing windows MDM enrollment with a "+idName+" enrolled to another Entra device that is not linked to a host; Fleet "+
+				"removes that enrollment after mdm.windows_enrollment_retention without activity",
+			idKey, id,
+			"enrolling_host_uuid", hostUUID,
+			"enrolling_entra_device_id", entraDeviceID,
+			"existing_entra_device_id", boundEntraDeviceID,
+		)
+		return "", ctxerr.New(ctx, idName+" is enrolled to another host")
+	}
+
+	// A plain Entra join after a reset creates a new Entra device, so this is also how a reset device that Fleet did not wipe
+	// comes back; deleting its host releases the hardware ID.
+	svc.logger.WarnContext(ctx,
+		"refusing windows MDM enrollment with a "+idName+" enrolled to another Entra device; delete the host if it is stale",
+		idKey, id,
+		"enrolling_host_uuid", hostUUID,
+		"enrolling_entra_device_id", entraDeviceID,
+		"existing_entra_device_id", boundEntraDeviceID,
+		"existing_host_uuid", existing.HostUUID,
+	)
+	return "", ctxerr.New(ctx, idName+" is enrolled to another host")
+}
+
+// removeWindowsDeviceIfAlreadyMDMEnrolled removes the enrollment held by the hardware ID, if any.
+func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, hardwareID string) error {
+	_, err := svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, hardwareID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return err
+	}
 	return nil
 }
 
@@ -1735,41 +3480,48 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 // This information is used to configure the device management client
 // See section 2.2.9.1 for more details on the XML provision schema used here
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/35e1aca6-1b8a-48ba-bbc0-23af5d46907a
-func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) (string, error) {
+func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) (string, []byte, error) {
+	reqDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemDeviceID)
+	if err != nil {
+		return "", nil, err
+	}
+
 	// Getting the HW DeviceID from the RequestSecurityToken msg
 	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Getting the EnrollmentType information from the RequestSecurityToken msg
 	reqEnrollType, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemEnrollmentType)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
+
+	logAutopilotEnrollmentContext(ctx, svc.logger, secTokenMsg, reqDeviceID, reqHWDeviceID)
 
 	// Getting the BinarySecurityToken from the RequestSecurityToken msg
 	binSecurityTokenData, err := secTokenMsg.GetBinarySecurityTokenData()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Getting the BinarySecurityToken type from the RequestSecurityToken msg
 	binSecurityTokenType, err := secTokenMsg.GetBinarySecurityTokenType()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Getting the client CSR request from the device
 	clientCSR, err := microsoft_mdm.GetClientCSR(binSecurityTokenData, binSecurityTokenType)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Getting the signed, DER-encoded certificate bytes and its uppercased, hex-endcoded SHA1 fingerprint
 	rawSignedCertDER, rawSignedCertFingerprint, err := svc.SignMDMMicrosoftClientCSR(ctx, reqHWDeviceID, clientCSR)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Preparing client certificate and identity certificate information to be sent to the Windows MDM Enrollment Client
@@ -1783,17 +3535,22 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	// Preparing the provisioning information that includes the location of the Device Management Service (DMS)
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	// Getting the MS-MDM management URL to provision the device
 	urlManagementEndpoint, err := microsoft_mdm.ResolveWindowsMDMManagement(appCfg.ServerSettings.ServerURL)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
+	// generate username and password for device management service
+	username := reqDeviceID
+	password := uuid.NewString()
+	credentialsHash := md5.Sum(fmt.Appendf(nil, "%s:%s", username, password)) //nolint:gosec // Windows MDM Auth uses MD5
+
 	// Preparing the Application Provisioning information
-	appConfigProvisioningData := NewApplicationProvisioningData(urlManagementEndpoint)
+	appConfigProvisioningData := NewApplicationProvisioningData(urlManagementEndpoint, username, password)
 
 	// Preparing the DM Client Provisioning information
 	appDMClientProvisioningData := NewDMClientProvisioningData()
@@ -1802,14 +3559,16 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	provDoc := NewProvisioningDoc(certStoreProvisioningData, appConfigProvisioningData, appDMClientProvisioningData)
 	encodedProvDoc, err := provDoc.GetEncodedB64Representation()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
-	return encodedProvDoc, nil
+	return encodedProvDoc, credentialsHash[:], nil
 }
 
 // storeWindowsMDMEnrolledDevice stores the device information to the list of MDM enrolled devices
-func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID string, hostUUID string, secTokenMsg *fleet.RequestSecurityToken) error {
+func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID string, hostUUID string, entraDeviceID string,
+	enrollType fleet.WindowsMDMEnrollType, secTokenMsg *fleet.RequestSecurityToken, credentialsHash []byte,
+) error {
 	const (
 		error_tag = "windows MDM enrolled storage: "
 	)
@@ -1865,33 +3624,61 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		reqNotInOOBE = true
 	}
 
+	// Determine if the device is awaiting configuration. Set to Pending when the enrollment is
+	// automatic (Autopilot via JWT/WSTEP, not orbit node key) AND the device is in OOBE
+	// (NotInOobe is false, since the field name is inverted). Later phases transition to Active
+	// (ESP commands enqueued) and back to None (setup complete/failed).
+	awaitingConfiguration := fleet.WindowsMDMAwaitingConfigurationNone
+	var awaitingConfigurationAt *time.Time
+	isInOOBE := !reqNotInOOBE
+	// Entra ID + OOBE is Windows' equivalent of an automatic (DEP) enrollment. awaitingConfigurationAt below is set on
+	// this same condition, and windowsMDMEnrollmentInstalledFromDEP reads it back to recover this flag for enrollments
+	// whose activity is deferred, so the two must keep being written together.
+	installedFromDEP := enrollType == fleet.WindowsMDMEnrollTypeAutomatic && isInOOBE
+	if enrollType == fleet.WindowsMDMEnrollTypeAutomatic && isInOOBE {
+		awaitingConfiguration = fleet.WindowsMDMAwaitingConfigurationPending
+		now := time.Now().UTC()
+		awaitingConfigurationAt = &now
+		svc.logger.InfoContext(ctx, "ESP: device enrolled in OOBE, activating setup experience", "device_id", reqDeviceID)
+	}
+
+	// Present only when the device is Autopilot-registered. Absence is normal and never fails an enrollment.
+	ztdRegistrationID, _ := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemZeroTouchProvisioning)
+
 	// Getting the Windows Enrolled Device Information
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
-		MDMDeviceID:            reqDeviceID,
-		MDMHardwareID:          reqHWDevID,
-		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
-		MDMDeviceType:          reqDeviceType,
-		MDMDeviceName:          reqDeviceName,
-		MDMEnrollType:          reqEnrollType,
-		MDMEnrollUserID:        userID, // This could be Host UUID or UPN email
-		MDMEnrollProtoVersion:  reqEnrollVersion,
-		MDMEnrollClientVersion: reqAppVersion,
-		MDMNotInOOBE:           reqNotInOOBE,
-		HostUUID:               hostUUID,
+		ZTDRegistrationID:       ztdRegistrationID,
+		EntraDeviceID:           entraDeviceID,
+		MDMDeviceID:             reqDeviceID,
+		MDMHardwareID:           reqHWDevID,
+		MDMDeviceState:          microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:           reqDeviceType,
+		MDMDeviceName:           reqDeviceName,
+		MDMEnrollType:           reqEnrollType,
+		MDMEnrollUserID:         userID, // This could be Host UUID or UPN email
+		MDMEnrollProtoVersion:   reqEnrollVersion,
+		MDMEnrollClientVersion:  reqAppVersion,
+		MDMNotInOOBE:            reqNotInOOBE,
+		AwaitingConfiguration:   awaitingConfiguration,
+		AwaitingConfigurationAt: awaitingConfigurationAt,
+		HostUUID:                hostUUID,
+		CredentialsHash:         &credentialsHash,
+		CredentialsAcknowledged: true,
 	}
 
 	if err := svc.ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice); err != nil {
 		return err
 	}
 
-	// TODO: azure enrollments come with an empty uuid, I haven't figured
-	// out a good way to identify the device here.
-	// Note that we currently do the Enrollment->Host mapping during the next
-	// refetch of the host
-	displayName := reqDeviceName
-	var serial string
+	// For Azure (automatic) enrollments, hostUUID is empty here because the WSTEP RequestSecurityToken does not carry
+	// any identifier that maps to hosts.uuid. The enrollment row is inserted unlinked; processIncomingMDMCmds asks the
+	// device for its SMBIOS serial number on the first management session and links the row when the device replies.
+	// osquery's directIngestMDMDeviceIDWindows remains as a backstop.
+	//
+	// The mdm_enrolled activity is therefore only recorded here for programmatic (fleetd-driven) enrollments, where the
+	// host (its id and serial) is already known.
 	if hostUUID != "" {
-		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, newActivity)
+		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger, svc.NewActivity)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{
 			Action:   mdmlifecycle.HostActionTurnOn,
 			Platform: "windows",
@@ -1901,45 +3688,178 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 			return err
 		}
 
-		// Get the host in order to get the correct display name and serial number for the activity
+		// Get the host in order to get the correct display name and serial number for the activity, and to sync the
+		// post-enrollment host state below.
 		adminTeamFilter := fleet.TeamFilter{
 			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 		}
 
 		hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, adminTeamFilter, []string{hostUUID})
 		if err != nil {
-			// Do not abort; this call was only made to get better data for the activity, so shouldn't
-			// fail the request. We fall back to `reqDeviceName` for the display name in this case.
-			logging.WithExtras(logging.WithNoUser(ctx),
-				"msg", "failed to get host data for windows MDM enrollment activity",
-			)
+			// Do not abort: the device is enrolled either way, and the enrollment is already linked, so the next
+			// management session records the activity and osquery reconciles the host state.
+			svc.logger.WarnContext(ctx, "failed to get host data for windows MDM enrollment activity",
+				"err", err, "host_uuid", hostUUID)
+			ctxerr.Handle(ctx, err)
 		}
 
 		if len(hosts) == 1 {
-			// then we found the host, so use the data from there for the activity
-			displayName = hosts[0].DisplayName()
-			serial = hosts[0].HardwareSerial
+			// Flip host_mdm.enrolled = 1 immediately so the Windows profile reconciler selects this host. This covers
+			// fresh enrollment, ESP/OOBE, and the post-disable re-enable cycle. The values written here are the same
+			// shape directIngestMDMWindows writes: discovery URL as server_url, fleet.WellKnownMDMFleet as the name.
+			// isServer is best-effort false (osquery corrects it later from installation_type); installed_from_dep
+			// mirrors osquery's "automatic" semantics (Azure AD + OOBE = automatic). On failure, we log and continue:
+			// osquery will reconcile the row on the next check-in.
+			appCfg, acErr := svc.ds.AppConfig(ctx)
+			if acErr != nil {
+				svc.logger.WarnContext(ctx, "loading app config for host_mdm sync after Windows MDM enrollment", "err", acErr)
+				ctxerr.Handle(ctx, acErr)
+			} else {
+				discoveryURL, dErr := microsoft_mdm.ResolveWindowsMDMDiscovery(appCfg.ServerSettings.ServerURL)
+				if dErr != nil {
+					svc.logger.WarnContext(ctx, "resolving Windows MDM discovery URL after enrollment", "err", dErr)
+					ctxerr.Handle(ctx, dErr)
+				} else {
+					if err := svc.ds.SetOrUpdateMDMData(ctx, hosts[0].ID,
+						false, // is_server: osquery corrects later from installation_type
+						true,  // enrolled
+						discoveryURL,
+						installedFromDEP,
+						fleet.WellKnownMDMFleet,
+						"", // fleet_enrollment_ref: empty for Windows
+						fleet.PersonalEnrollmentTypeNone,
+					); err != nil {
+						svc.logger.WarnContext(ctx, "updating host_mdm.enrolled after Windows MDM enrollment", "err", err)
+						ctxerr.Handle(ctx, err)
+					}
+				}
+			}
+
+			// Queue this host's profiles right away instead of waiting for the cron's next pass (mirrors Apple's
+			// post-enrollment ReconcileProfilesForEnrollingHost). Best-effort: on failure the enrollment still
+			// succeeds and the cron's walk-all pass delivers the profiles.
+			if err := ReconcileWindowsProfilesForEnrollingHost(ctx, svc.ds, svc.logger, hostUUID); err != nil {
+				svc.logger.WarnContext(ctx, "reconciling profiles after Windows MDM enrollment", "err", err)
+				ctxerr.Handle(ctx, err)
+			}
+
+			// The host is known, so the activity carries its id and serial from the outset. Enrollments that miss this
+			// (the lookup above failed) still get one, from maybeCreateWindowsMDMEnrolledActivity on the next session.
+			svc.createWindowsMDMEnrolledActivity(ctx, reqHWDevID, hosts[0], installedFromDEP)
 		}
 
 	}
 
-	err = svc.NewActivity(
-		ctx, nil, &fleet.ActivityTypeMDMEnrolled{
-			HostDisplayName: displayName,
-			MDMPlatform:     fleet.MDMPlatformMicrosoft,
-			HostSerial:      &serial,
-			Platform:        "windows",
-		})
+	return nil
+}
+
+// windowsMDMEnrollmentInstalledFromDEP reads back, from a stored enrollment row, the "automatic enrollment" flag that
+// storeWindowsMDMEnrolledDevice computed from the live request. awaiting_configuration_at is written on exactly the
+// same condition and never cleared afterwards.
+func windowsMDMEnrollmentInstalledFromDEP(device *fleet.MDMWindowsEnrolledDevice) bool {
+	return device.AwaitingConfigurationAt != nil
+}
+
+// maybeCreateWindowsMDMEnrolledActivityForDevice is maybeCreateWindowsMDMEnrolledActivity for callers that hold only
+// the MDM device id and so have to load the enrollment row first.
+func (svc *Service) maybeCreateWindowsMDMEnrolledActivityForDevice(ctx context.Context, mdmDeviceID string) {
+	// The link that precedes this call writes host_uuid, so read it back from the primary rather than a replica.
+	device, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctxdb.RequirePrimary(ctx, true), mdmDeviceID)
 	if err != nil {
-		// only logging, the device is enrolled at this point, and we
-		// wouldn't want to fail the request because there was a problem
-		// creating an activity feed item.
-		logging.WithExtras(logging.WithNoUser(ctx),
-			"msg", "failed to generate windows MDM enrolled activity",
-		)
+		svc.logger.WarnContext(ctx, "loading enrollment for deferred windows MDM enrolled activity",
+			"err", err, "device_id", mdmDeviceID)
+		return
+	}
+	svc.maybeCreateWindowsMDMEnrolledActivity(ctx, device)
+}
+
+// maybeCreateWindowsMDMEnrolledActivity records the mdm_enrolled activity for an enrollment whose activity was deferred
+// because the host was unknown at enrollment time, and does nothing once one has been recorded. Calling it on every
+// management session is free in the steady state (the guard below reads the enrollment row the request already loaded)
+// and reaches the database only while an enrollment is linked and unannounced.
+func (svc *Service) maybeCreateWindowsMDMEnrolledActivity(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) {
+	if device == nil || device.EnrolledActivityAt != nil || device.HostUUID == "" {
+		return
 	}
 
-	return nil
+	adminTeamFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+	lookupHost := func(ctx context.Context) ([]*fleet.Host, error) {
+		return svc.ds.ListHostsLiteByUUIDs(ctx, adminTeamFilter, []string{device.HostUUID})
+	}
+	logLookupFailure := func(err error) {
+		// Transient, so leave the claim unspent and let the next session retry.
+		svc.logger.ErrorContext(ctx, "looking up host for deferred windows MDM enrolled activity",
+			"err", err, "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID)
+		ctxerr.Handle(ctx, err)
+	}
+
+	hosts, err := lookupHost(ctx)
+	if err != nil {
+		logLookupFailure(err)
+		return
+	}
+	if len(hosts) != 1 {
+		// Confirm against the primary before acting on "no host" as final: suppressing on a lagging replica would drop
+		// a legitimate activity for good.
+		if hosts, err = lookupHost(ctxdb.RequirePrimary(ctx, true)); err != nil {
+			logLookupFailure(err)
+			return
+		}
+	}
+	if len(hosts) != 1 {
+		// The host was deleted while its enrollment lingered, so there is nothing to attribute the activity to and
+		// never will be. Spend the claim with the zero-time marker ("resolved, nothing recorded") so this stops being retried
+		if _, err := svc.ds.MDMWindowsClaimEnrolledActivity(ctx, device.MDMHardwareID, common_mysql.GetDefaultNonZeroTime()); err != nil {
+			svc.logger.ErrorContext(ctx, "suppressing deferred windows MDM enrolled activity for a deleted host",
+				"err", err, "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID)
+			ctxerr.Handle(ctx, err)
+		}
+		return
+	}
+
+	svc.createWindowsMDMEnrolledActivity(ctx, device.MDMHardwareID, hosts[0], windowsMDMEnrollmentInstalledFromDEP(device))
+}
+
+// createWindowsMDMEnrolledActivity records the mdm_enrolled activity for a Windows enrollment that is known to belong
+// to host, claiming it first so the enrollment gets exactly one such activity no matter how many paths reach here.
+func (svc *Service) createWindowsMDMEnrolledActivity(ctx context.Context, mdmHardwareID string, host *fleet.Host, installedFromDEP bool) {
+	claimedAt := time.Now().UTC()
+	claimed, err := svc.ds.MDMWindowsClaimEnrolledActivity(ctx, mdmHardwareID, claimedAt)
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "claiming windows MDM enrolled activity", "err", err, "hardware_id", mdmHardwareID)
+		ctxerr.Handle(ctx, err)
+		return
+	}
+	if !claimed {
+		return
+	}
+
+	var serial *string
+	if host.HardwareSerial != "" {
+		serial = &host.HardwareSerial
+	}
+
+	if err := svc.NewActivity(ctx, nil, &fleet.ActivityTypeMDMEnrolled{
+		HostID:           host.ID,
+		HostDisplayName:  host.DisplayName(),
+		HostSerial:       serial,
+		InstalledFromDEP: installedFromDEP,
+		MDMPlatform:      fleet.MDMPlatformMicrosoft,
+		Platform:         "windows",
+	}); err != nil {
+		// Give the claim back so a later session retries, otherwise a transient failure here would leave the
+		// enrollment marked as announced and lose the event for good.
+		if relErr := svc.ds.MDMWindowsReleaseEnrolledActivityClaim(ctx, mdmHardwareID, claimedAt); relErr != nil {
+			svc.logger.ErrorContext(ctx, "releasing windows MDM enrolled activity claim after a failed write",
+				"err", relErr, "hardware_id", mdmHardwareID)
+			ctxerr.Handle(ctx, relErr)
+		}
+		// Only logging: the device is enrolled at this point and we wouldn't want to fail the request because there
+		// was a problem creating an activity feed item.
+		svc.logger.ErrorContext(ctx, "failed to generate windows MDM enrolled activity",
+			"err", err, "hardware_id", mdmHardwareID, "host_id", host.ID)
+		ctxerr.Handle(ctx, err)
+	}
 }
 
 // GetContextItem returns the context item from the RequestSecurityToken message
@@ -1966,7 +3886,7 @@ func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, or
 	if errors.As(errorMsg, &ne) || errors.As(errorMsg, &me) {
 		logging.WithErr(ctx, ctxerr.Wrap(ctx, errorMsg, "soap fault"))
 	} else {
-		logging.WithLevel(ctx, level.Info)
+		logging.WithLevel(ctx, slog.LevelInfo)
 		logging.WithExtras(ctx, "soap_fault", errorMsg.Error())
 	}
 	soapFault := NewSoapFault(eType, origMsg, errorMsg)
@@ -2217,11 +4137,15 @@ func newSyncMLNoFormat(cmdVerb string, cmdTarget string) *mdm_types.SyncMLCmd {
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
-// newSyncMLCmdText creates a new SyncML command with text data
+// newSyncMLCmdText creates a new SyncML command with text data. The value is XML-escaped (matching
+// newSyncMLCmdXml/newSyncMLCmdBase64) because SyncML <Data> is serialized as innerxml (written raw); without
+// escaping, a value containing &, <, or > -- e.g. a software title like "AT&T" surfaced in CustomErrorText --
+// would produce malformed SyncML that the device rejects.
 func newSyncMLCmdText(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
 	cmdType := "text/plain"
 	cmdFormat := "chr"
-	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
+	escapedData := html.EscapeString(cmdDataValue)
+	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &escapedData)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
@@ -2240,6 +4164,23 @@ func newSyncMLCmdBase64(cmdVerb string, cmdTarget string, cmdDataValue string) *
 	escapedXML := html.EscapeString(cmdDataValue)
 	item := newSyncMLItem(nil, &cmdTarget, nil, &cmdFormat, &escapedXML)
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// newSyncMLCmdNode creates a new SyncML command that targets a node with no data.
+// Used for Add commands on dynamic OMA-DM nodes that must be created before their
+// children can be set.
+func newSyncMLCmdNode(cmdVerb string, cmdTarget string) *mdm_types.SyncMLCmd {
+	cmdFormat := "node"
+	item := newSyncMLItem(nil, &cmdTarget, nil, &cmdFormat, nil)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// newSyncMLCmdGet creates a SyncML Get command targeting the given OMA-DM LocURI. Get commands have no data, format, or
+// type on the request; the device fills those in on the corresponding Results response.
+func newSyncMLCmdGet(cmdTarget string) *mdm_types.SyncMLCmd {
+	verb := fleet.CmdGet
+	item := newSyncMLItem(nil, &cmdTarget, nil, nil, nil)
+	return newSyncMLCmdWithItem(&verb, nil, item)
 }
 
 // newSyncMLCmdInt creates a new SyncML command with text data
@@ -2290,7 +4231,130 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
-func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+// reconcileWindowsProfilesBatchSize is the scan window: how many enrolled Windows hosts the reconciler reads per snapshot.
+// Snapshot reads are cheap (indexed, no set-difference), so within a single tick the drain loop pages through many windows until
+// a budget is hit.
+//
+// var rather than const so property-based tests can shrink the batch size.
+var reconcileWindowsProfilesBatchSize = 2000
+
+// reconcileWindowsProfilesDeliveryCap bounds how many distinct hosts the cron schedules for install/remove per tick. It governs
+// the bulk case: once this many hosts have been delivered work, the tick stops even if scan budget remains, advancing the cursor
+// only to the last delivered host so the remainder resumes next tick. This preserves the writer-pressure smoothing: a bulk change
+// is spread across ~ceil(hosts/cap) ticks. Set <= 0 to disable the cap (drain the whole fleet, bounded only by the scan budget).
+//
+// var rather than const so tests can override it.
+var reconcileWindowsProfilesDeliveryCap = 2000
+
+// reconcileWindowsProfilesScanBudget is the wall-clock budget for a single tick's drain loop. It governs the sparse/idle case: a
+// no-work pass over the whole fleet completes within one tick, collapsing single-change latency from ceil(hosts/batch) x interval
+// to roughly the actual work time. ~24s of the 30s cron interval leaves headroom for the final batch's writes.
+//
+// var rather than const so tests can override it.
+var reconcileWindowsProfilesScanBudget = 24 * time.Second
+
+// ReconcileWindowsProfilesForEnrollingHost is the per-host reconciler, the Windows mirror of Apple's
+// ReconcileProfilesForEnrollingHost. It is invoked right after a host turns on Windows MDM (so profiles are queued without
+// waiting for the cron's next pass) and from the ESP release check (so a host awaiting setup-experience release has its
+// desired profiles queued before the release decision evaluates in-flight rows). It reuses the shared snapshot loaders,
+// ComputeWindowsReconcileDeltas, and the execute step, so it can't drift from the batched cron reconciler on "what should be
+// installed."
+//
+// Returns nil (no-op) when Windows MDM is disabled or the host isn't an eligible MDM-enrolled Windows host. Errors
+// are returned to the caller; the cron's walk-all pass remains the eventual-consistency backstop.
+func ReconcileWindowsProfilesForEnrollingHost(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, hostUUID string) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading app config")
+	}
+	if !appConfig.MDM.WindowsEnabledAndConfigured {
+		return nil
+	}
+
+	// Two reads below need the primary (read-your-writes): eligibility, because host_mdm.enrolled was written moments
+	// ago in the enrollment request and a lagging replica would turn the reconcile into a silent no-op; and current
+	// rows, because deltas computed against replica-stale rows would re-enqueue duplicate commands for work queued by
+	// a previous checkin.
+	primaryCtx := ctxdb.RequirePrimary(ctx, true)
+
+	host, err := ds.GetWindowsMDMHostForReconcile(primaryCtx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get windows mdm host for reconcile")
+	}
+	if host == nil {
+		return nil
+	}
+
+	// Load only profiles for this host's team so the per-host call doesn't scan every profile in the system.
+	teamProfiles, err := ds.ListWindowsProfilesForReconcileByTeam(ctx, host.EffectiveTeamID())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing windows profiles for reconcile by team")
+	}
+
+	profilesByTeam := make(map[uint][]*fleet.WindowsProfileForReconcile, 1)
+	profilesWithBrokenLabel := make(map[string]struct{})
+	labelIDSet := make(map[uint]struct{})
+	for _, p := range teamProfiles {
+		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+		if p.HasBrokenLabel() {
+			profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
+		}
+		for _, lr := range p.IncludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+		for _, lr := range p.ExcludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+	}
+	labelIDs := make([]uint, 0, len(labelIDSet))
+	for id := range labelIDSet {
+		labelIDs = append(labelIDs, id)
+	}
+
+	hostLabels, err := ds.BulkGetHostLabelMemberships(ctx, []uint{host.HostID}, labelIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk get host label memberships")
+	}
+
+	currentByHost, err := ds.BulkGetHostMDMWindowsProfilesByUUIDs(primaryCtx, []string{host.UUID})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk get host mdm windows profiles")
+	}
+
+	hosts := []*fleet.WindowsHostReconcileInfo{host}
+	toInstall, toRemove := microsoft_mdm.ComputeWindowsReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
+	if len(toInstall) == 0 && len(toRemove) == 0 {
+		return nil
+	}
+
+	desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, currentByHost, profilesByTeam)
+	// Stay on the primary for the batch. This host enrolled moments ago, and the user-scope gate reads its enrollment row to
+	// decide whether a user context is still pending.
+	return executeWindowsProfileReconcileBatch(primaryCtx, ds, logger, appConfig, toInstall, toRemove, desiredByHost, currentByHost)
+}
+
+// windowsProfileNeedsPerHostProcessing reports whether a Windows profile must be
+// processed per-host at delivery time — i.e. it references any FLEET_VAR_ variable
+// or any $FLEET_HOST_VITAL_<id> custom host vital.
+func windowsProfileNeedsPerHostProcessing(syncML []byte) bool {
+	return variables.ContainsBytes(syncML) || len(fleet.FindCustomHostVitalIDs(string(syncML))) > 0
+}
+
+// ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.
+//
+// It walks every enrolled Windows host via a host_uuid cursor (persisted in Redis through the mysqlredis wrapper), loading a
+// bounded snapshot per window, computing install/remove deltas in memory (no set-difference SQL), and executing them. Within one
+// tick it drains successive windows until either the delivery cap or the scan budget is hit, or the host space is exhausted
+// (which resets the cursor for the next pass).
+//
+// Named return so the deferred SetCursor block sees the actual function-exit error: the cursor is persisted only on a clean (err
+// == nil) tick, so any failure leaves the cursor untouched and the next tick re-scans from the same point. Re-scanning is cheap
+// and idempotent since delivered work is now pending, so it no longer computes as work.
+func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, useOneTimeEnrollSecrets bool) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
@@ -2299,15 +4363,481 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		return nil
 	}
 
-	// retrieve the profiles to install/remove.
-	toInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting profiles to install")
+	if err := ensureFleetWindowsProfiles(ctx, ds, logger, useOneTimeEnrollSecrets); err != nil {
+		// Log and continue, matching the Apple equivalent: don't stop the reconcile pass that delivers everything else.
+		logger.ErrorContext(ctx, "unable to ensure Fleet-managed Windows profiles are in place", "details", err)
+		ctxerr.Handle(ctx, err)
 	}
-	toRemove, err := ds.ListMDMWindowsProfilesToRemove(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
+
+	// Read the cursor; on error, treat as start-of-pass and continue. A stale or missing cursor is harmless because the in-memory
+	// diff installs only what actually differs from the current state.
+	entryCursor, cerr := ds.GetMDMWindowsReconcileCursor(ctx)
+	if cerr != nil {
+		logger.WarnContext(ctx, "failed to read windows MDM reconcile cursor; starting from beginning", "err", cerr)
+		entryCursor = ""
 	}
+
+	cursor := entryCursor
+	// commitCursor is the cursor value to persist at tick end. It advances only past windows that were fully delivered; the deferred
+	// write fires only when err == nil, so an error leaves the cursor untouched.
+	commitCursor := entryCursor
+
+	defer func() {
+		if err == nil && commitCursor != entryCursor {
+			if serr := ds.SetMDMWindowsReconcileCursor(ctx, commitCursor); serr != nil {
+				logger.WarnContext(ctx, "failed to advance windows MDM reconcile cursor", "err", serr)
+			}
+		}
+	}()
+
+	deadline := time.Now().Add(reconcileWindowsProfilesScanBudget)
+	deliveredHosts := 0
+
+	for {
+		hosts, allProfiles, hostLabels, currentByHost, serr := ds.GetWindowsProfileReconcileSnapshot(ctx, cursor, reconcileWindowsProfilesBatchSize)
+		if serr != nil {
+			err = ctxerr.Wrap(ctx, serr, "loading windows profile reconcile snapshot")
+			return err
+		}
+
+		if len(hosts) == 0 {
+			// Reached the end of the host space (or empty fleet): reset the cursor so the next pass restarts from the beginning.
+			commitCursor = ""
+			return nil
+		}
+
+		profilesByTeam := make(map[uint][]*fleet.WindowsProfileForReconcile, 4)
+		profilesWithBrokenLabel := make(map[string]struct{})
+		for _, p := range allProfiles {
+			profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
+			if p.HasBrokenLabel() {
+				profilesWithBrokenLabel[p.ProfileUUID] = struct{}{}
+			}
+		}
+
+		toInstall, toRemove := microsoft_mdm.ComputeWindowsReconcileDeltas(hosts, hostLabels, currentByHost, profilesByTeam, profilesWithBrokenLabel)
+		// Per-host desired (applicable) live profiles, used by the execute step to protect LocURIs a remove target shares with a
+		// profile still desired on the same host (label-aware, so a label-scoped profile only protects the hosts it applies to).
+		desiredByHost := microsoft_mdm.DesiredWindowsProfileUUIDsByHost(hosts, hostLabels, currentByHost, profilesByTeam)
+
+		// Apply the per-tick delivery cap at host granularity. Hosts come back ascending by uuid, so capping keeps a contiguous prefix of
+		// the work-hosts and the cursor can resume at the last delivered host.
+		workHosts := windowsHostsWithWork(hosts, toInstall, toRemove)
+		advanceTo := hosts[len(hosts)-1].UUID
+		fullBatch := len(hosts) >= reconcileWindowsProfilesBatchSize
+
+		partial := false
+		if reconcileWindowsProfilesDeliveryCap > 0 {
+			// Invariant: deliveredHosts < cap here. We return below as soon as it reaches the cap. So remaining >= 1.
+			remaining := reconcileWindowsProfilesDeliveryCap - deliveredHosts
+			if len(workHosts) > remaining {
+				allowed := make(map[string]struct{}, remaining)
+				for _, h := range workHosts[:remaining] {
+					allowed[h] = struct{}{}
+				}
+				toInstall = filterWindowsPayloadsByHost(toInstall, allowed)
+				toRemove = filterWindowsPayloadsByHost(toRemove, allowed)
+				advanceTo = workHosts[remaining-1] // resume after the last delivered host
+				workHosts = workHosts[:remaining]
+				partial = true
+			}
+		}
+
+		if len(toInstall) > 0 || len(toRemove) > 0 {
+			if eerr := executeWindowsProfileReconcileBatch(ctx, ds, logger, appConfig, toInstall, toRemove, desiredByHost, currentByHost); eerr != nil {
+				err = eerr
+				return err
+			}
+		}
+		deliveredHosts += len(workHosts)
+
+		// Advance only after a successful execute.
+		commitCursor = advanceTo
+		cursor = advanceTo
+
+		switch {
+		case partial:
+			// Delivery cap hit mid-window; the un-delivered remainder resumes next tick from cursor = advanceTo.
+			return nil
+		case !fullBatch:
+			// Short window => end of the host space; reset for the next pass.
+			commitCursor = ""
+			return nil
+		case reconcileWindowsProfilesDeliveryCap > 0 && deliveredHosts >= reconcileWindowsProfilesDeliveryCap:
+			// Delivery cap reached exactly at a window boundary.
+			return nil
+		case time.Now().After(deadline):
+			// Scan budget exhausted; resume next tick from cursor = advanceTo.
+			return nil
+		}
+		// Otherwise keep draining the next window within this tick.
+	}
+}
+
+// windowsHostsWithWork returns the host UUIDs that have at least one install or remove in this window, in the order hosts are
+// given (ascending by uuid). The drain loop uses this both to count delivered hosts against the cap and to pick the contiguous
+// prefix to deliver when the cap is reached mid-window.
+func windowsHostsWithWork(hosts []*fleet.WindowsHostReconcileInfo, toInstall, toRemove []*fleet.MDMWindowsProfilePayload) []string {
+	work := make(map[string]struct{})
+	for _, p := range toInstall {
+		work[p.HostUUID] = struct{}{}
+	}
+	for _, p := range toRemove {
+		work[p.HostUUID] = struct{}{}
+	}
+	ordered := make([]string, 0, len(work))
+	for _, h := range hosts {
+		if _, ok := work[h.UUID]; ok {
+			ordered = append(ordered, h.UUID)
+		}
+	}
+	return ordered
+}
+
+// filterWindowsPayloadsByHost returns only the payloads whose HostUUID is in the allowed set, preserving order. Used to trim a
+// window's deltas to the hosts that fit under the per-tick delivery cap.
+func filterWindowsPayloadsByHost(payloads []*fleet.MDMWindowsProfilePayload, allowed map[string]struct{}) []*fleet.MDMWindowsProfilePayload {
+	out := make([]*fleet.MDMWindowsProfilePayload, 0, len(payloads))
+	for _, p := range payloads {
+		if _, ok := allowed[p.HostUUID]; ok {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// modifyDeleteKey identifies one retained prior profile version during reconcile: the edited profile and the version a host still has
+// installed (raw checksum bytes as a string so it can be a map key). All hosts on the same version share one prior-content lookup.
+type modifyDeleteKey struct {
+	profileUUID  string
+	fromChecksum string
+}
+
+// hostProfileKey identifies one (host, profile) pair during reconcile.
+type hostProfileKey struct {
+	hostUUID    string
+	profileUUID string
+}
+
+// cmdTarget is one MDM command and the hosts it is addressed to. The underlying MDM services send a single command to many
+// hosts, so install and remove targets are keyed by profile with the host list attached.
+type cmdTarget struct {
+	cmdUUID   string
+	profID    string
+	hostUUIDs []string
+}
+
+// windowsUserScopeGateResult is the row bookkeeping the gate leaves for its caller to persist. The gate itself only rewrites
+// the in-memory command targets; rows are written and deleted by the passes that already own those calls.
+type windowsUserScopeGateResult struct {
+	// heldRemoveRows are the rows recording the wait for held removals. Nothing is sent for these hosts: they were dropped from
+	// their remove target, exactly as held installs are dropped from their install target.
+	heldRemoveRows []*fleet.MDMWindowsBulkUpsertHostProfilePayload
+	// droppedRemoveRows are removals of profiles that were never applied to the device, resolved by deleting the row rather
+	// than by sending a <Delete> that cannot succeed.
+	droppedRemoveRows []*fleet.MDMWindowsProfilePayload
+}
+
+// applyWindowsUserScopeGate holds user-scoped profiles, both installs and removals, for hosts that are still waiting on an MDM
+// user context, and records the wait on the host's profile row. A <Delete> against a "./User/..." node needs the same user
+// context the install did, so both directions wait on the same signal.
+//
+// The hold applies only where a user context is known to be pending: an enrollment that binds a user identity (a UPN) and has not
+// yet reported a signed-in user, which is the Autopilot and Entra-join-during-OOBE window. Enrollments that bind no user identity
+// are NOT gated. Whether their user channel is writable depends on the device's own identity (an Entra-joined host managed by
+// fleetd can have a perfectly resolvable user channel even though its enrollment stores an orbit node key), and that is not
+// something the enrollment row can tell us.
+func applyWindowsUserScopeGate(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	installTargets map[string]*cmdTarget,
+	removeTargets map[string]*cmdTarget,
+	removePayloadData map[string][]*fleet.MDMWindowsProfilePayload,
+	profileContents map[string]fleet.MDMWindowsProfileContents,
+	priorContentByKey map[modifyDeleteKey]fleet.MDMWindowsProfilePriorContent,
+	hostProfilesMap map[string]*fleet.MDMWindowsBulkUpsertHostProfilePayload,
+	batchProfileCmdsMap map[string][]*fleet.MDMWindowsBulkUpsertHostProfilePayload,
+	currentByHost map[string][]*fleet.MDMWindowsProfilePayload,
+) (windowsUserScopeGateResult, error) {
+	var result windowsUserScopeGateResult
+
+	userScopedTargets := make(map[string]*cmdTarget)
+	hostUUIDSet := make(map[string]struct{})
+	for profUUID, target := range installTargets {
+		contents, ok := profileContents[profUUID]
+		if !ok {
+			// Content not loaded (deleted, or replica lag). The install loop skips these on its own terms.
+			continue
+		}
+		if fleet.WindowsProfileScopeFromBytes(contents.SyncML) != fleet.WindowsProfileScopeUser {
+			continue
+		}
+		userScopedTargets[profUUID] = target
+		for _, hostUUID := range target.hostUUIDs {
+			hostUUIDSet[hostUUID] = struct{}{}
+		}
+	}
+
+	removeRowByHostProfile := make(map[hostProfileKey]*fleet.MDMWindowsProfilePayload)
+	for profUUID, payloads := range removePayloadData {
+		for _, p := range payloads {
+			removeRowByHostProfile[hostProfileKey{hostUUID: p.HostUUID, profileUUID: profUUID}] = p
+		}
+	}
+	userScopedRemoveHosts := windowsUserScopedRemoveHosts(removeTargets, removeRowByHostProfile, profileContents, priorContentByKey)
+	for _, hosts := range userScopedRemoveHosts {
+		for hostUUID := range hosts {
+			hostUUIDSet[hostUUID] = struct{}{}
+		}
+	}
+
+	if len(userScopedTargets) == 0 && len(userScopedRemoveHosts) == 0 {
+		return result, nil
+	}
+
+	userContexts, err := ds.GetMDMWindowsUserContextByHostUUID(ctx, slices.Collect(maps.Keys(hostUUIDSet)))
+	if err != nil {
+		return result, ctxerr.Wrap(ctx, err, "get windows user context for hosts")
+	}
+	awaitingUserContext := func(hostUUID string) bool {
+		uc, ok := userContexts[hostUUID]
+		// A host with no enrollment row is not gated: it has no MDM at all, so whether the profile ships is decided by the
+		// rest of the pipeline, not here.
+		if !ok {
+			return false
+		}
+		return microsoft_mdm.WindowsUserContextStateFor(uc.EnrollUserID, uc.LastLoginStatus) == fleet.WindowsUserContextCanArrive
+	}
+
+	var held, unchanged int
+	for profUUID, target := range userScopedTargets {
+		deliverable := target.hostUUIDs[:0:0] // fresh backing array; target.hostUUIDs is still being read below
+		for _, hostUUID := range target.hostUUIDs {
+			if !awaitingUserContext(hostUUID) {
+				deliverable = append(deliverable, hostUUID)
+				continue
+			}
+
+			payload := hostProfilesMap[hostUUID+"|"+profUUID]
+			if payload == nil {
+				continue
+			}
+			// No command is enqueued for this host, so the row must not point at one.
+			payload.CommandUUID = ""
+			payload.Status = nil
+			payload.Detail = fleet.WindowsUserScopeHoldDetailFor(fleet.MDMOperationTypeInstall,
+				microsoft_mdm.IsValidUPN(userContexts[hostUUID].EnrollUserID))
+
+			// A held row must keep recording the version the device actually has, not the version that was never sent.
+			current := currentProfileRow(currentByHost, hostUUID, profUUID)
+			if current != nil && len(current.Checksum) > 0 {
+				payload.Checksum = current.Checksum
+			}
+
+			// A hold lasts until the user signs in, which can be days, and the row keeps a NULL status the whole time.
+			if heldRowUpToDate(current, payload) {
+				unchanged++
+				continue
+			}
+			payload.HeldForUserContext = true
+			held++
+		}
+
+		target.hostUUIDs = deliverable
+		if len(deliverable) == 0 {
+			// Nothing left to address: drop the command entirely so no empty command is built or inserted.
+			delete(installTargets, profUUID)
+			delete(batchProfileCmdsMap, target.cmdUUID)
+			continue
+		}
+		// Keep the command's payload list in step with the hosts it is actually addressed to.
+		if payloads, ok := batchProfileCmdsMap[target.cmdUUID]; ok {
+			deliverableSet := make(map[string]struct{}, len(deliverable))
+			for _, hostUUID := range deliverable {
+				deliverableSet[hostUUID] = struct{}{}
+			}
+			kept := payloads[:0:0]
+			for _, payload := range payloads {
+				if _, ok := deliverableSet[payload.HostUUID]; ok {
+					kept = append(kept, payload)
+				}
+			}
+			batchProfileCmdsMap[target.cmdUUID] = kept
+		}
+	}
+
+	var removesHeld, removesUnchanged int
+	for profUUID, userScopedHosts := range userScopedRemoveHosts {
+		target, ok := removeTargets[profUUID]
+		if !ok || target == nil {
+			// userScopedRemoveHosts is keyed off removeTargets, so this cannot happen; this is a nil guard
+			continue
+		}
+		deliverable := target.hostUUIDs[:0:0] // fresh backing array; target.hostUUIDs is still being read below
+		for _, hostUUID := range target.hostUUIDs {
+			row := removeRowByHostProfile[hostProfileKey{hostUUID: hostUUID, profileUUID: profUUID}]
+			if _, userScoped := userScopedHosts[hostUUID]; !userScoped || row == nil || !awaitingUserContext(hostUUID) {
+				deliverable = append(deliverable, hostUUID)
+				continue
+			}
+
+			if windowsRemoveTargetsHeldInstall(row) {
+				// Nothing was ever written to the user's hive, so this removal is already true and needs no <Delete>.
+				result.droppedRemoveRows = append(result.droppedRemoveRows, &fleet.MDMWindowsProfilePayload{
+					ProfileUUID: profUUID,
+					HostUUID:    hostUUID,
+				})
+				continue
+			}
+
+			// The profile may be applied in a signed-out user's hive, so the removal has to wait for that user. The row
+			// stays at a NULL status, which is how the reconciler re-derives a pending removal, so the hold retries itself
+			// every tick with no further bookkeeping.
+			heldRow := &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+				ProfileUUID:   profUUID,
+				HostUUID:      hostUUID,
+				ProfileName:   row.ProfileName,
+				OperationType: fleet.MDMOperationTypeRemove,
+				Status:        nil,
+				Detail: fleet.WindowsUserScopeHoldDetailFor(fleet.MDMOperationTypeRemove,
+					microsoft_mdm.IsValidUPN(userContexts[hostUUID].EnrollUserID)),
+				Checksum:           row.Checksum,
+				CommandUUID:        "", // no command is enqueued for this host, so the row must not point at one
+				HeldForUserContext: true,
+			}
+			// Same no-churn discipline as a held install. Profile name and checksum are carried over from the row, so
+			// they compare equal by construction and the comparison turns on the status, operation type, and detail.
+			if heldRowUpToDate(row, heldRow) {
+				removesUnchanged++
+				continue
+			}
+			result.heldRemoveRows = append(result.heldRemoveRows, heldRow)
+			removesHeld++
+		}
+
+		target.hostUUIDs = deliverable
+		if len(deliverable) == 0 {
+			// Nothing left to address: drop the target entirely so the remove pass builds no <Delete> for this profile.
+			delete(removeTargets, profUUID)
+		}
+	}
+
+	if held > 0 || unchanged > 0 || removesHeld > 0 || removesUnchanged > 0 || len(result.droppedRemoveRows) > 0 {
+		logger.DebugContext(ctx, "windows user-scoped profiles held for user context",
+			"installs_written", held, "installs_already_held", unchanged, "install_profiles", len(userScopedTargets),
+			"removes_written", removesHeld, "removes_already_held", removesUnchanged,
+			"removes_resolved_without_device", len(result.droppedRemoveRows), "remove_profiles", len(userScopedRemoveHosts))
+	}
+	return result, nil
+}
+
+// windowsUserScopedRemoveHosts returns, per removed profile, the hosts whose <Delete> would target the user channel.
+func windowsUserScopedRemoveHosts(
+	removeTargets map[string]*cmdTarget,
+	removeRowByHostProfile map[hostProfileKey]*fleet.MDMWindowsProfilePayload,
+	profileContents map[string]fleet.MDMWindowsProfileContents,
+	priorContentByKey map[modifyDeleteKey]fleet.MDMWindowsProfilePriorContent,
+) map[string]map[string]struct{} {
+	userScopedHosts := make(map[string]map[string]struct{})
+	// Hosts on the same version share one classification; the common case is a single version across the whole batch.
+	scopeByVersion := make(map[modifyDeleteKey]fleet.WindowsProfileScope)
+
+	for profUUID, target := range removeTargets {
+		for _, hostUUID := range target.hostUUIDs {
+			row := removeRowByHostProfile[hostProfileKey{hostUUID: hostUUID, profileUUID: profUUID}]
+			versionKey := modifyDeleteKey{profileUUID: profUUID}
+			var syncML []byte
+			if row != nil && len(row.Checksum) > 0 {
+				retainedKey := modifyDeleteKey{profileUUID: profUUID, fromChecksum: string(row.Checksum)}
+				if pc, ok := priorContentByKey[retainedKey]; ok {
+					versionKey, syncML = retainedKey, pc.SyncML
+				}
+			}
+			if syncML == nil {
+				contents, ok := profileContents[profUUID]
+				if !ok {
+					continue
+				}
+				syncML = contents.SyncML
+			}
+
+			scope, cached := scopeByVersion[versionKey]
+			if !cached {
+				scope = fleet.WindowsProfileScopeFromBytes(syncML)
+				scopeByVersion[versionKey] = scope
+			}
+			if scope != fleet.WindowsProfileScopeUser {
+				continue
+			}
+			if userScopedHosts[profUUID] == nil {
+				userScopedHosts[profUUID] = make(map[string]struct{})
+			}
+			userScopedHosts[profUUID][hostUUID] = struct{}{}
+		}
+	}
+	return userScopedHosts
+}
+
+// windowsRemoveTargetsHeldInstall reports whether a pending removal is for an install this gate held, which is the one case
+// where a removal can be resolved without contacting the device: the profile never reached it.
+// and leave the setting enforced on the device with nothing left to remove it.
+func windowsRemoveTargetsHeldInstall(row *fleet.MDMWindowsProfilePayload) bool {
+	return row.OperationType == fleet.MDMOperationTypeInstall &&
+		row.Status == nil &&
+		row.CommandUUID == "" &&
+		fleet.IsWindowsUserScopeInstallHoldDetail(row.Detail)
+}
+
+// currentProfileRow returns the host's existing row for the profile as of the reconcile snapshot, or nil when the host has no
+// row for it yet.
+func currentProfileRow(currentByHost map[string][]*fleet.MDMWindowsProfilePayload, hostUUID, profileUUID string,
+) *fleet.MDMWindowsProfilePayload {
+	for _, row := range currentByHost[hostUUID] {
+		if row.ProfileUUID == profileUUID {
+			return row
+		}
+	}
+	return nil
+}
+
+// heldRowUpToDate reports whether current already holds exactly what the gate is about to write for a held profile, making the
+// upsert a no-op.
+func heldRowUpToDate(current *fleet.MDMWindowsProfilePayload, held *fleet.MDMWindowsBulkUpsertHostProfilePayload) bool {
+	return current != nil &&
+		current.Status == nil &&
+		current.OperationType == held.OperationType &&
+		current.Detail == held.Detail &&
+		current.ProfileName == held.ProfileName &&
+		current.CommandUUID == held.CommandUUID &&
+		bytes.Equal(current.Checksum, held.Checksum)
+}
+
+// executeWindowsProfileReconcileBatch runs the post-compute reconcile pipeline against the in-memory toInstall / toRemove sets
+// produced by ComputeWindowsReconcileDeltas: content fetch, deleted-profile race guard, bulk command pre-build for non-variable
+// profiles, per-host variable expansion, LocURI-protected <Delete> generation, host-profile upserts, and managed-certificate
+// bookkeeping. This is the legacy reconciler body verbatim, now invoked once per (capped) window by the drain loop above.
+func executeWindowsProfileReconcileBatch(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	appConfig *fleet.AppConfig,
+	toInstall, toRemove []*fleet.MDMWindowsProfilePayload,
+	desiredByHost map[string][]string,
+	// currentByHost is the host_mdm_windows_profiles rows as of the reconcile snapshot.
+	currentByHost map[string][]*fleet.MDMWindowsProfilePayload,
+) error {
+	// The enqueues below leave the status rollup to us. Refresh it once for the batch's hosts, also after a partial failure since the
+	// earlier commands are already committed. A miss is healed by the hourly windows_profiles_status_reconcile cron.
+	defer func() {
+		hostUUIDs := make([]string, 0, len(toInstall)+len(toRemove))
+		for _, p := range slices.Concat(toInstall, toRemove) {
+			hostUUIDs = append(hostUUIDs, p.HostUUID)
+		}
+		if err := ds.RefreshMDMWindowsProfilesStatusRollup(ctx, hostUUIDs); err != nil {
+			logger.ErrorContext(ctx, "refreshing windows profiles status rollup after reconcile", "hosts", len(hostUUIDs), "err", err)
+		}
+	}()
 
 	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
@@ -2323,16 +4853,17 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 	// Key format: "hostUUID|profileUUID"
 	hostProfilesMap := make(map[string]*fleet.MDMWindowsBulkUpsertHostProfilePayload, len(toInstall))
 
+	// batchProfileCmdsMap maps command UUID -> host profiles, used to fetch all host profiles associated
+	// with a given command UUID so all host_mdm_windows_profiles entries can be updated as the command
+	// is enqueued for hosts
+	batchProfileCmdsMap := make(map[string][]*fleet.MDMWindowsBulkUpsertHostProfilePayload)
+
 	// install are maps from profileUUID -> command uuid and host
 	// UUIDs as the underlying MDM services are optimized to send one command to
 	// multiple hosts at the same time. Note that the same command uuid is used
 	// for all hosts in a given install/remove target operation.
-	type cmdTarget struct {
-		cmdUUID   string
-		profID    string
-		hostUUIDs []string
-	}
 	installTargets := make(map[string]*cmdTarget)
+	removeTargets := make(map[string]*cmdTarget)
 
 	for _, p := range toInstall {
 		toGetContents[p.ProfileUUID] = true
@@ -2358,7 +4889,118 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		hostProfilesToUpdate = append(hostProfilesToUpdate, hp)
 		// Add to map for fast lookup
 		hostProfilesMap[p.HostUUID+"|"+p.ProfileUUID] = hp
-		level.Debug(logger).Log("msg", "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+		batchProfileCmdsMap[target.cmdUUID] = append(batchProfileCmdsMap[target.cmdUUID], hp)
+		logger.DebugContext(ctx, "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+	}
+
+	// Build remove targets: profiles that need to be removed from hosts (e.g. host moved teams, label membership changed).
+	// We only collect targets here; host_mdm_windows_profiles entries are
+	// created after the delete command is successfully built and enqueued.
+	removePayloadData := make(map[string][]*fleet.MDMWindowsProfilePayload) // profUUID -> payloads
+	for _, p := range toRemove {
+		toGetContents[p.ProfileUUID] = true
+		target := removeTargets[p.ProfileUUID]
+		if target == nil {
+			target = &cmdTarget{
+				cmdUUID: uuid.New().String(),
+				profID:  p.ProfileUUID,
+			}
+			removeTargets[p.ProfileUUID] = target
+		}
+		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+		removePayloadData[p.ProfileUUID] = append(removePayloadData[p.ProfileUUID], p)
+	}
+
+	// Also fetch the contents of profiles still desired on the hosts we are removing from: their LocURIs protect shared settings, so a
+	// <Delete> for a removed profile does not revert a setting another profile still applicable to that host enforces. Walk each
+	// removed-from host's desired list once, not once per removed profile on that host.
+	seenRemoveHost := make(map[string]struct{}, len(toRemove))
+	for _, p := range toRemove {
+		if _, ok := seenRemoveHost[p.HostUUID]; ok {
+			continue
+		}
+		seenRemoveHost[p.HostUUID] = struct{}{}
+		for _, q := range desiredByHost[p.HostUUID] {
+			toGetContents[q] = true
+		}
+	}
+
+	// Modify-installs (content changed) may also need supplemental <Delete> commands for LocURIs the edit removed: a re-install only
+	// Replaces/Adds the new content, it never reverts a LocURI that was dropped. Collect them keyed by (profileUUID, the version the
+	// host currently has installed) so we can look up the retained removed-LocURI set per version, and pull in the other profiles
+	// desired on those hosts so their LocURIs can protect shared settings from being deleted (same protection as the remove path).
+	modifyHostsByKey := make(map[modifyDeleteKey][]string)
+	seenModifyHost := make(map[string]struct{}, len(toInstall))
+	for _, p := range toInstall {
+		if len(p.PreviousInstalledChecksum) == 0 {
+			continue // fresh install, nothing was removed
+		}
+		k := modifyDeleteKey{profileUUID: p.ProfileUUID, fromChecksum: string(p.PreviousInstalledChecksum)}
+		modifyHostsByKey[k] = append(modifyHostsByKey[k], p.HostUUID)
+		if _, ok := seenModifyHost[p.HostUUID]; !ok {
+			seenModifyHost[p.HostUUID] = struct{}{}
+			for _, q := range desiredByHost[p.HostUUID] {
+				toGetContents[q] = true
+			}
+		}
+	}
+
+	// Version keys for the remove path: each removed-from host's <Delete> is built from the exact version that host has installed
+	// (its row checksum) when that version is retained, so LocURIs dropped by edits the host never applied still get cleaned up. A
+	// key with no retained row is normal here (e.g. the host is on the live version of a still-live profile being unassigned);
+	// those hosts fall back to the profile's current content in the remove pass below.
+	removeVersionKeys := make(map[modifyDeleteKey]struct{})
+	for _, p := range toRemove {
+		if len(p.Checksum) == 0 {
+			continue
+		}
+		removeVersionKeys[modifyDeleteKey{profileUUID: p.ProfileUUID, fromChecksum: string(p.Checksum)}] = struct{}{}
+	}
+
+	// Fetch the retained prior contents for the modify and remove version keys now, BEFORE the install loop advances the host rows
+	// to the new checksum. While those rows still reference the prior version, the reference-counted GC cannot collect it, so this
+	// read cannot race with a concurrent cleanup tick.
+	priorContentByKey := make(map[modifyDeleteKey]fleet.MDMWindowsProfilePriorContent, len(modifyHostsByKey)+len(removeVersionKeys))
+	if len(modifyHostsByKey)+len(removeVersionKeys) > 0 {
+		keySet := make(map[modifyDeleteKey]struct{}, len(modifyHostsByKey)+len(removeVersionKeys))
+		for k := range modifyHostsByKey {
+			keySet[k] = struct{}{}
+		}
+		for k := range removeVersionKeys {
+			keySet[k] = struct{}{}
+		}
+		keys := make([]fleet.MDMWindowsProfileVersionKey, 0, len(keySet))
+		for k := range keySet {
+			keys = append(keys, fleet.MDMWindowsProfileVersionKey{ProfileUUID: k.profileUUID, Checksum: []byte(k.fromChecksum)})
+		}
+		// Read from the primary: this pass consumes each modify-install once (the re-install advances the host's checksum, so the host
+		// won't be revisited as a modify), so a replica-lag miss would permanently drop the supplemental <Delete>. The retained row is
+		// written in the same transaction as the profile edit, so the primary always has it. Eliminating this primary-read requirement
+		// would take retry/tracking logic (persisting a pending-delete marker per host-version).
+		priorContents, err := ds.GetWindowsMDMProfilePriorContents(ctxdb.RequirePrimary(ctx, true), keys)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get prior content for edited profiles")
+		}
+		for _, pc := range priorContents {
+			priorContentByKey[modifyDeleteKey{profileUUID: pc.ProfileUUID, fromChecksum: string(pc.Checksum)}] = pc
+		}
+
+		// Only modify keys are guaranteed retained (every edit path retains the outgoing version in the same transaction as the
+		// overwrite); a miss there means a version overwritten before prior-content retention shipped (bounded post-upgrade
+		// transition) or an invariant violation (an edit path that skipped retention).
+		missingModify := 0
+		for k := range modifyHostsByKey {
+			if _, ok := priorContentByKey[k]; !ok {
+				missingModify++
+			}
+		}
+		if missingModify > 0 {
+			missErr := ctxerr.NewWithData(ctx, "windows reconcile: prior profile content not retained for edited profiles",
+				map[string]any{"requested": len(modifyHostsByKey), "missing": missingModify})
+			logger.ErrorContext(ctx, "windows reconcile: prior profile content not retained for edited profiles",
+				"requested", len(modifyHostsByKey), "missing", missingModify)
+			ctxerr.Handle(ctx, missErr)
+		}
 	}
 
 	// Grab the contents of all the profiles we need to install
@@ -2371,40 +5013,148 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
+	// Gate user-scoped ("./User/...") profiles on the host's MDM user context. Windows rejects those writes, install and
+	// <Delete> alike, until the enrollment has a user context.
+	gateResult, err := applyWindowsUserScopeGate(ctx, ds, logger, installTargets, removeTargets, removePayloadData, profileContents,
+		priorContentByKey, hostProfilesMap, batchProfileCmdsMap, currentByHost)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "applying windows user scope gate")
+	}
+	hostProfilesToUpdate = append(hostProfilesToUpdate, gateResult.heldRemoveRows...)
+
 	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
+	scepConfigSvc := scep.NewSCEPConfigService(logger, nil)
 	managedCertificatePayloads := &[]*fleet.MDMManagedCertificate{}
-	deps := microsoft_mdm.ProfilePreprocessDependenciesForDeploy{
-		ProfilePreprocessDependenciesForVerify: microsoft_mdm.ProfilePreprocessDependenciesForVerify{
-			Context:            ctx,
-			Logger:             logger,
-			DataStore:          ds,
-			HostIDForUUIDCache: make(map[string]uint),
-		},
-		AppConfig:                  appConfig,
-		CustomSCEPCAs:              groupedCAs.ToCustomSCEPProxyCAMap(),
-		ManagedCertificatePayloads: managedCertificatePayloads,
+	deps := microsoft_mdm.ProfilePreprocessDependencies{
+		Context:                      ctx,
+		Logger:                       logger,
+		DataStore:                    ds,
+		HostIDForUUIDCache:           make(map[string]uint),
+		AppConfig:                    appConfig,
+		CustomSCEPCAs:                groupedCAs.ToCustomSCEPProxyCAMap(),
+		ManagedCertificatePayloads:   managedCertificatePayloads,
+		NDESConfig:                   groupedCAs.NDESSCEP,
+		GetNDESSCEPChallenge:         scepConfigSvc.GetNDESSCEPChallenge,
+		NDESChallengeErrorToDetail:   scep.NDESChallengeErrorToDetail,
+		NDESChallengeErrorIsTerminal: scep.IsTerminalNDESChallengeError,
 	}
 
+	// Guard against a race where an admin deletes a profile between the
+	// initial snapshot/GetMDMWindowsProfilesContents
+	// calls above and the per-profile upsert below. If we missed the
+	// deletion, we'd create a host_mdm_windows_profiles row (and enqueue a
+	// command) for a profile that no longer exists in
+	// mdm_windows_configuration_profiles. The remove path couldn't clean
+	// that row up later — <Delete> command generation needs the original
+	// SyncML, which is gone — and the host would be stuck with an
+	// un-removable install. Re-query existence right before the upsert
+	// loops to shrink the race window to just the loop body.
+	installProfileUUIDSet := make(map[string]struct{}, len(installTargets))
+	for profUUID := range installTargets {
+		installProfileUUIDSet[profUUID] = struct{}{}
+	}
+	// The user-scope gate drops fully held profiles from installTargets, but their held rows are still written in the
+	// final pass below, so they need the same deleted-profile check.
+	for _, p := range hostProfilesToUpdate {
+		if p.HeldForUserContext && p.OperationType == fleet.MDMOperationTypeInstall {
+			installProfileUUIDSet[p.ProfileUUID] = struct{}{}
+		}
+	}
+	installProfileUUIDs := slices.Collect(maps.Keys(installProfileUUIDSet))
+	stillExistingInstallProfiles, err := ds.GetExistingMDMWindowsProfileUUIDs(ctx, installProfileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking Windows profile existence before install upsert")
+	}
+
+	// Pre-build and bulk-insert commands for non-variable install profiles.
+	// Variable profiles and remove commands are not pre-inserted because
+	// they require per-host or per-profile processing.
+	var bulkCommands []*fleet.MDMWindowsCommand
 	for profUUID, target := range installTargets {
+		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
+			continue
+		}
+		p, ok := profileContents[profUUID]
+		if !ok || windowsProfileNeedsPerHostProcessing(p.SyncML) {
+			continue // variable profiles get per-host commands, can't pre-build
+		}
+		command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
+		if err != nil {
+			continue // will be handled in the per-profile loop below
+		}
+		bulkCommands = append(bulkCommands, command)
+	}
+	if len(bulkCommands) > 0 {
+		if err := ds.MDMWindowsBulkInsertCommands(ctx, bulkCommands); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk inserting commands")
+		}
+	}
+
+	// enqueuedInstalls tracks the (host, profile) pairs whose install command was actually enqueued (and host row advanced to the
+	// new checksum). The modify-install <Delete> pass below only reverts removed LocURIs for these.
+	enqueuedInstalls := make(map[hostProfileKey]struct{}, len(toInstall))
+
+	for profUUID, target := range installTargets {
+		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
+			logger.InfoContext(ctx, "skipping Windows profile install; profile was deleted after list",
+				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
+			continue
+		}
 		p, ok := profileContents[profUUID]
 		if !ok {
-			// this should never happen
-			return ctxerr.Wrapf(ctx, err, "missing profile content for profile %s", profUUID)
+			// Insert-lag race: GetMDMWindowsProfilesContents earlier in
+			// this function reads from the replica, while
+			// GetExistingMDMWindowsProfileUUIDs above reads from the
+			// primary (it has to, to defeat the delete-race). For a
+			// profile that was inserted on primary just before this tick
+			// fired, the existence check sees it but profileContents
+			// (replica) misses it until replication catches up.
+			//
+			// Skip the install for now and let a later tick pick it up
+			// after replication catches up. With the host cursor
+			// advancing past this batch, the affected hosts won't be
+			// revisited until the cursor cycles back to the start of
+			// the host space; for large host populations that can be
+			// many ticks rather than the next one. The hosts stay in
+			// the listing's pending universe because no
+			// host_mdm_windows_profiles row was written for them, so
+			// no state is lost.
+			logger.InfoContext(ctx, "skipping Windows profile install; profile content not visible on replica yet (insert-lag), will retry on a later tick",
+				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
+			continue
 		}
 
-		if !variables.ContainsBytes(p.SyncML) {
+		if !windowsProfileNeedsPerHostProcessing(p.SyncML) {
 			// No Fleet variables, send the same command to all hosts
-			command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
-			if err != nil {
-				level.Info(logger).Log("err", err, "profile_uuid", profUUID)
+			payloads, ok := batchProfileCmdsMap[target.cmdUUID]
+			if !ok {
+				logger.ErrorContext(ctx, "no host profiles found for command UUID", "command_uuid", target.cmdUUID)
 				continue
 			}
-			if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
+			command, err := buildCommandFromProfileBytes(p.SyncML, target.cmdUUID)
+			if err != nil {
+				logger.InfoContext(ctx, "error building command from profile", "err", err, "profile_uuid", profUUID)
+				for _, payload := range payloads {
+					payload.Status = &fleet.MDMDeliveryFailed
+					payload.Detail = fmt.Sprintf("Failed to build command from profile: %s", err.Error())
+				}
+				continue
+			}
+
+			// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
+			// the checksum we retrieved earlier. Update the checksums if needed.
+			for _, payload := range payloads {
+				payload.Checksum = p.Checksum
+			}
+			if err := ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, target.hostUUIDs, command, payloads); err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
+			}
+			for _, hostUUID := range target.hostUUIDs {
+				enqueuedInstalls[hostProfileKey{hostUUID: hostUUID, profileUUID: profUUID}] = struct{}{}
 			}
 		} else {
 			// Profile contains Fleet variables, process each host individually
@@ -2413,7 +5163,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				hp := hostProfilesMap[mapKey]
 				if hp == nil {
 					// This should never happen, but handle gracefully
-					level.Error(logger).Log("msg", "host profile not found in map", "profile_uuid", profUUID, "host_uuid", hostUUID)
+					logger.ErrorContext(ctx, "host profile not found in map", "profile_uuid", profUUID, "host_uuid", hostUUID)
 					continue
 				}
 
@@ -2423,13 +5173,23 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 					microsoft_mdm.ProfilePreprocessParams{HostUUID: hostUUID, ProfileUUID: profUUID},
 					string(p.SyncML),
 				)
-				var profileProcessingError *microsoft_mdm.MicrosoftProfileProcessingError
-				if err != nil && !errors.As(err, &profileProcessingError) {
-					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)
-				} else if err != nil && errors.As(err, &profileProcessingError) {
-					hp.Status = &fleet.MDMDeliveryFailed
-					hp.Detail = profileProcessingError.Error()
+				// AsType reports false for a nil error, so these double as the "no error" check.
+				transientErr, isTransient := errors.AsType[*microsoft_mdm.MicrosoftProfileTransientError](err)
+				processingErr, isProcessing := errors.AsType[*microsoft_mdm.MicrosoftProfileProcessingError](err)
+				switch {
+				case isTransient:
+					// Preprocessing hit something that clears on its own, so no profile was ever built for this host and
+					// nothing was delivered, so there is no host-side outcome to report. Leave the row untouched: it
+					// still has a NULL status, so the next tick picks it up again.
+					logger.WarnContext(ctx, "skipping Windows profile install; profile variables could not be substituted yet, will retry on a later tick",
+						"err", transientErr.Error(), "profile_uuid", profUUID, "host_uuid", hostUUID)
 					continue
+				case isProcessing:
+					hp.Status = &fleet.MDMDeliveryFailed
+					hp.Detail = processingErr.Error()
+					continue
+				case err != nil:
+					return ctxerr.Wrapf(ctx, err, "preprocessing profile contents for host %s and profile %s", hostUUID, profUUID)
 				}
 
 				// Create a unique command UUID for this host since the content is unique
@@ -2438,58 +5198,331 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 				// Build the command with the processed content
 				command, err := buildCommandFromProfileBytes([]byte(processedContent), hostCmdUUID)
 				if err != nil {
-					level.Info(logger).Log("err", err, "profile_uuid", profUUID, "host_uuid", hostUUID)
+					logger.InfoContext(ctx, "error building command from profile", "err", err, "profile_uuid", profUUID, "host_uuid", hostUUID)
 					// Mark this host's profile as failed
 					hp.Status = &fleet.MDMDeliveryFailed
 					hp.Detail = fmt.Sprintf("Failed to build command from profile: %s", err.Error())
 					continue
 				}
 
+				// Update the command UUID for this specific host
+				hp.CommandUUID = hostCmdUUID
+				// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
+				// the checksum we retrieved earlier. Update the checksum if needed.
+				hp.Checksum = p.Checksum
 				// Insert the command for this specific host
-				if err := ds.MDMWindowsInsertCommandForHosts(ctx, []string{hostUUID}, command); err != nil {
-					level.Error(logger).Log("err", err, "msg", "inserting command for host", "host_uuid", hostUUID)
+				if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{hostUUID}, command, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{hp}); err != nil {
+					logger.ErrorContext(ctx, "inserting command for host", "err", err, "host_uuid", hostUUID)
 					// Mark this host's profile as failed
 					hp.Status = &fleet.MDMDeliveryFailed
 					hp.Detail = fmt.Sprintf("Failed to insert command for host: %s", err.Error())
 					continue
 				}
-
-				// Update the command UUID for this specific host
-				hp.CommandUUID = hostCmdUUID
+				enqueuedInstalls[hostProfileKey{hostUUID: hostUUID, profileUUID: profUUID}] = struct{}{}
 			}
 		}
 	}
 
-	// Store list of failed profiles (profile UUID + host UUID to create uniqueness) to avoid updating other stuff for that, such as managed certs.
-	failedProfileHostUUIDs := make(map[string]bool)
+	// Generate and enqueue <Delete> commands for profiles being removed from hosts. Protection is per host: a removed profile's
+	// LocURI is deleted on a host only when no still-desired profile on that host enforces it. Hosts sharing the same protected
+	// subset of the removed profile's LocURIs are grouped into one command; a label-scoped protector that applies to only some hosts
+	// naturally splits them into separate groups. desiredByHost contains only kept (applicable) profiles, never removed ones, so it
+	// needs no further exclusion.
+	resolvedLocURIs := make(map[string][]string) // profileUUID -> SCEP-resolved LocURIs (cached across hosts/targets)
+	locURIsFor := func(profUUID string) []string {
+		if v, ok := resolvedLocURIs[profUUID]; ok {
+			return v
+		}
+		var uris []string
+		if c, ok := profileContents[profUUID]; ok {
+			// Resolve the SCEP cert-ID variable to the profile's own UUID so LocURIs compare on resolved paths (a SCEP path is
+			// per-profile and therefore never shared), consistent with how the delete command itself is built.
+			resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(c.SyncML, []byte(profUUID))
+			uris = fleet.ExtractLocURIsFromProfileBytes(resolved)
+		}
+		resolvedLocURIs[profUUID] = uris
+		return uris
+	}
 
-	// Since we are not using DB transactions here, there is a small chance that the profile contents don't match
-	// the checksum we retrieved earlier. Update the checksums if needed.
-	for _, p := range hostProfilesToUpdate {
-		if _, ok := profileContents[p.ProfileUUID]; ok {
-			p.Checksum = profileContents[p.ProfileUUID].Checksum
+	// priorLocURIsFor caches SCEP-resolved LocURIs of retained prior versions, keyed by (profile, version); the fallback (live or
+	// newest-retained) content is cached by locURIsFor above.
+	resolvedPriorLocURIs := make(map[modifyDeleteKey][]string)
+	priorLocURIsFor := func(k modifyDeleteKey, syncML []byte) []string {
+		if v, ok := resolvedPriorLocURIs[k]; ok {
+			return v
+		}
+		resolved := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(syncML, []byte(k.profileUUID))
+		uris := fleet.ExtractLocURIsFromProfileBytes(resolved)
+		resolvedPriorLocURIs[k] = uris
+		return uris
+	}
+
+	// Host rows for removes that resolve without a <Delete> ever being sent, accumulated across every removed profile in this
+	// batch and deleted in one call below. Two reasons put a row here: LocURI protection suppressed the whole command (below),
+	// or the user-scope gate found the profile was never applied to the device (above).
+	suppressedRemoveRows := gateResult.droppedRemoveRows
+
+	for profUUID, target := range removeTargets {
+		if _, ok := profileContents[profUUID]; !ok {
+			// No retained content for this removed profile, so we can't build its <Delete> this tick. This is normally a transient
+			// replica-lag miss (the pending-delete row written on the writer hasn't replicated to the reader yet) that resolves on a
+			// later tick; warn and skip for now. The host's remove rows remain, so it is retried, and no state is lost.
+			logger.WarnContext(ctx, "windows profile reconcile: missing content for removed profile, skipping this tick",
+				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
+			continue
+		}
+		removedURIs := locURIsFor(profUUID)
+
+		// Index this profile's remove payloads by host
+		payloadByHost := make(map[string]*fleet.MDMWindowsProfilePayload, len(removePayloadData[profUUID]))
+		for _, rp := range removePayloadData[profUUID] {
+			payloadByHost[rp.HostUUID] = rp
 		}
 
-		if p.Status != nil && *p.Status == fleet.MDMDeliveryFailed {
-			failedProfileHostUUIDs[p.ProfileUUID+p.HostUUID] = true
+		// version distinguishes which content a group's <Delete> is built from: the raw checksum of the host's own retained
+		// version, or "" for the fallback (live or newest-retained) content.
+		type removeGroupKey struct {
+			version   string
+			protected string // sorted "\n"-joined protected subset of the group's candidate LocURIs
+		}
+		type removeGroup struct {
+			syncML        []byte
+			activeLocURIs map[string]struct{}
+			hostUUIDs     []string
+		}
+		groups := make(map[removeGroupKey]*removeGroup)
+		for _, hostUUID := range target.hostUUIDs {
+			// Build this host's <Delete> from the exact version it has installed when that version is retained, so LocURIs dropped
+			// by edits the host never applied are still cleaned up. Hosts on the current version (or with no retained match, e.g.
+			// pre-retention rows) use the fallback content.
+			hostSyncML := profileContents[profUUID].SyncML
+			hostVersion := ""
+			candidateURIs := removedURIs
+			if rp := payloadByHost[hostUUID]; rp != nil && len(rp.Checksum) > 0 {
+				k := modifyDeleteKey{profileUUID: profUUID, fromChecksum: string(rp.Checksum)}
+				if pc, ok := priorContentByKey[k]; ok {
+					hostSyncML = pc.SyncML
+					hostVersion = k.fromChecksum
+					candidateURIs = priorLocURIsFor(k, pc.SyncML)
+				}
+			}
+
+			// Protection compares CanonicalLocURI forms so spelling variants of the same node ("./Device/Vendor/X" vs "./Vendor/X")
+			// protect each other.
+			active := make(map[string]struct{})
+			for _, desiredUUID := range desiredByHost[hostUUID] {
+				if desiredUUID == profUUID {
+					continue
+				}
+				for _, uri := range locURIsFor(desiredUUID) {
+					active[fleet.CanonicalLocURI(uri)] = struct{}{}
+				}
+			}
+			// Key on the protected subset of the removed profile's own LocURIs so hosts with identical effective protection share a
+			// single command; the common (no label, single version) case collapses to one group.
+			var keyURIs []string
+			for _, uri := range candidateURIs {
+				if _, ok := active[fleet.CanonicalLocURI(uri)]; ok {
+					keyURIs = append(keyURIs, uri)
+				}
+			}
+			slices.Sort(keyURIs)
+			key := removeGroupKey{version: hostVersion, protected: strings.Join(keyURIs, "\n")}
+			g := groups[key]
+			if g == nil {
+				g = &removeGroup{syncML: hostSyncML, activeLocURIs: active}
+				groups[key] = g
+			}
+			g.hostUUIDs = append(g.hostUUIDs, hostUUID)
+		}
+
+		for _, g := range groups {
+			cmdUUID := uuid.New().String()
+			command, err := fleet.BuildDeleteCommandFromProfileBytes(g.syncML, cmdUUID, profUUID, g.activeLocURIs)
+			if err != nil {
+				logger.InfoContext(ctx, "error building delete command from profile", "err", err, "profile_uuid", profUUID)
+				continue
+			}
+			if command == nil {
+				// Every LocURI of the removed profile is still enforced by another profile on these hosts, so there is no
+				// <Delete> to send and no command ack will ever arrive to clean these rows up. Collect the rows and delete
+				// them after the loop.
+				for _, hostUUID := range g.hostUUIDs {
+					suppressedRemoveRows = append(suppressedRemoveRows, &fleet.MDMWindowsProfilePayload{
+						ProfileUUID: profUUID,
+						HostUUID:    hostUUID,
+					})
+				}
+				logger.DebugContext(ctx, "removed profile fully protected by other profiles, deleting host rows",
+					"profile_uuid", profUUID, "host_count", len(g.hostUUIDs))
+				continue
+			}
+
+			removePayloadsForCommand := make([]*fleet.MDMWindowsBulkUpsertHostProfilePayload, 0, len(g.hostUUIDs))
+			for _, hostUUID := range g.hostUUIDs {
+				rp := payloadByHost[hostUUID]
+				if rp == nil {
+					continue
+				}
+				// Remove operations don't need a checksum; use a zero value if none exists (defensive coding).
+				checksum := rp.Checksum
+				if len(checksum) == 0 {
+					checksum = make([]byte, 16)
+				}
+				removePayloadsForCommand = append(removePayloadsForCommand, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+					ProfileUUID:   rp.ProfileUUID,
+					HostUUID:      rp.HostUUID,
+					ProfileName:   rp.ProfileName,
+					CommandUUID:   cmdUUID,
+					OperationType: fleet.MDMOperationTypeRemove,
+					Status:        &fleet.MDMDeliveryPending,
+					Checksum:      checksum,
+				})
+				logger.DebugContext(ctx, "removing profile", "profile.uuid", rp.ProfileUUID, "host.uuid", rp.HostUUID, "profile.name", rp.ProfileName)
+			}
+			if err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, g.hostUUIDs, command, removePayloadsForCommand); err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting remove commands for hosts")
+			}
 		}
 	}
 
-	// Windows profiles are just deleted from the DB, the notion of sending
-	// a command to remove a profile doesn't exist.
-	if err := ds.BulkDeleteMDMWindowsHostsConfigProfiles(ctx, toRemove); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
+	if len(suppressedRemoveRows) > 0 {
+		if err := ds.BulkDeleteMDMWindowsHostsConfigProfiles(ctx, suppressedRemoveRows); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting host profiles whose remove command was fully suppressed")
+		}
+	}
+
+	// Enqueue supplemental <Delete> commands for LocURIs removed by profile edits, for the modify-installs collected above. A
+	// re-install only Replaces/Adds the new content, so a LocURI dropped from the profile would otherwise stay enforced on the
+	// device. For each (profile, host-version) we diff the retained prior content (fetched before the install loop) against the live
+	// version and delete the LocURIs that no still-applicable profile on the host enforces (per-host protection, mirroring the remove
+	// path). The host's re-install upserts its row to the new checksum separately; once it does, the (profile, old-version) retained
+	// set is GC'd.
+	if len(modifyHostsByKey) > 0 {
+		// removedByKey holds, per (profile, prior version), the LocURIs that version had but the new (live) version no longer does --
+		// the candidates to <Delete>. Diffing against the live content (rather than a stored delta) is correct even when a host skips
+		// versions or the edit re-added a LocURI a prior edit removed.
+		removedByKey := make(map[modifyDeleteKey][]string, len(modifyHostsByKey))
+		for k := range modifyHostsByKey {
+			pc, ok := priorContentByKey[k]
+			if !ok {
+				continue // never retained (pre-retention edit); already surfaced above
+			}
+			// SCEP-resolve to the profile's own UUID so LocURIs compare on resolved paths, consistent with locURIsFor and the install side.
+			resolvedPrior := fleet.FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(pc.SyncML, []byte(pc.ProfileUUID))
+			desired := make(map[string]struct{})
+			for _, uri := range locURIsFor(pc.ProfileUUID) { // the new (live) version's LocURIs
+				desired[fleet.CanonicalLocURI(uri)] = struct{}{}
+			}
+			var removed []string
+			for _, uri := range fleet.ExtractLocURIsFromProfileBytes(resolvedPrior) {
+				if _, stillDesired := desired[fleet.CanonicalLocURI(uri)]; !stillDesired {
+					removed = append(removed, uri)
+				}
+			}
+			if len(removed) > 0 {
+				removedByKey[k] = removed
+			}
+		}
+
+		for k, hostUUIDs := range modifyHostsByKey {
+			removedURIs := removedByKey[k]
+			if len(removedURIs) == 0 {
+				// The edit removed no LocURIs from this version (only values changed), or its prior content was never retained (the
+				// version was overwritten before prior-content retention shipped). Nothing to do.
+				continue
+			}
+
+			// Group hosts by the protected subset of the removed URIs, like the remove path: a removed URI is deleted on a host only
+			// when no OTHER profile still applicable to that host enforces it. A label-scoped protector that applies to only some hosts
+			// splits them into separate groups; the common (no shared LocURIs) case collapses to a single group.
+			type modGroup struct {
+				toDelete  []string
+				hostUUIDs []string
+			}
+			groups := make(map[string]*modGroup)
+			for _, hostUUID := range hostUUIDs {
+				if _, ok := enqueuedInstalls[hostProfileKey{hostUUID: hostUUID, profileUUID: k.profileUUID}]; !ok {
+					// The reinstall for this host was skipped or failed this tick, so don't revert its old settings. A skipped host keeps
+					// its old checksum and is retried on a later tick.
+					continue
+				}
+				// Protection compares CanonicalLocURI forms, like the remove path.
+				active := make(map[string]struct{})
+				for _, desiredUUID := range desiredByHost[hostUUID] {
+					if desiredUUID == k.profileUUID {
+						continue // the edited profile's new content can't protect a LocURI it no longer contains
+					}
+					for _, uri := range locURIsFor(desiredUUID) {
+						active[fleet.CanonicalLocURI(uri)] = struct{}{}
+					}
+				}
+				var toDelete []string
+				for _, uri := range removedURIs {
+					if _, protected := active[fleet.CanonicalLocURI(uri)]; !protected {
+						toDelete = append(toDelete, uri)
+					}
+				}
+				if len(toDelete) == 0 {
+					continue
+				}
+				slices.Sort(toDelete)
+				groupKey := strings.Join(toDelete, "\n")
+				g := groups[groupKey]
+				if g == nil {
+					g = &modGroup{toDelete: toDelete}
+					groups[groupKey] = g
+				}
+				g.hostUUIDs = append(g.hostUUIDs, hostUUID)
+			}
+
+			for _, g := range groups {
+				cmd, err := fleet.BuildDeleteCommandFromLocURIs(g.toDelete, uuid.New().String())
+				if err != nil {
+					logger.InfoContext(ctx, "error building delete command for removed LocURIs", "err", err, "profile_uuid", k.profileUUID)
+					continue
+				}
+				if cmd == nil {
+					continue
+				}
+				if err := ds.MDMWindowsInsertCommandForHostUUIDs(ctx, g.hostUUIDs, cmd); err != nil {
+					return ctxerr.Wrap(ctx, err, "enqueuing delete commands for removed LocURIs")
+				}
+			}
+		}
 	}
 
 	// Upsert the host profiles we need to track.
-	if err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, hostProfilesToUpdate); err != nil {
+	// Store list of failed profiles (profile UUID + host UUID to create uniqueness) to avoid updating other stuff for that, such as managed certs.
+	failedProfileHostUUIDs := make(map[string]bool)
+	// Create a final pass list of the failed profiles to update at the end. We already updated the pending ones during command processing
+	hostProfilesForFinalUpdate := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{}
+
+	for _, p := range hostProfilesToUpdate {
+		switch {
+		case p.Status != nil && *p.Status == fleet.MDMDeliveryFailed:
+			failedProfileHostUUIDs[p.HostUUID+"|"+p.ProfileUUID] = true
+			hostProfilesForFinalUpdate = append(hostProfilesForFinalUpdate, p)
+		case p.HeldForUserContext:
+			// Held by the user-scope gate: no command was enqueued for this host, so the pending-path upsert never
+			// ran for it. Write the row here instead, otherwise the hold is invisible. Skip a held install whose
+			// profile was deleted after the snapshot.
+			if p.OperationType == fleet.MDMOperationTypeInstall {
+				if _, stillExists := stillExistingInstallProfiles[p.ProfileUUID]; !stillExists {
+					continue
+				}
+			}
+			hostProfilesForFinalUpdate = append(hostProfilesForFinalUpdate, p)
+		}
+	}
+	if err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, hostProfilesForFinalUpdate); err != nil {
 		return ctxerr.Wrap(ctx, err, "updating host profiles")
 	}
 
 	// Run through managed certs and remove all those that belong to failed profiles
 	filteredManagedCerts := []*fleet.MDMManagedCertificate{}
 	for _, mc := range *managedCertificatePayloads {
-		if _, failed := failedProfileHostUUIDs[mc.ProfileUUID+mc.HostUUID]; !failed {
+		if _, failed := failedProfileHostUUIDs[mc.HostUUID+"|"+mc.ProfileUUID]; !failed {
 			filteredManagedCerts = append(filteredManagedCerts, mc)
 		}
 	}
@@ -2506,43 +5539,81 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 // Windows equivalent of Apple's Commander struct, but I'd like
 // to keep it simpler for now until we understand more.
 func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fleet.MDMWindowsCommand, error) {
-	rawCommand := []byte(fmt.Sprintf(`<Atomic>%s</Atomic>`, profileBytes))
-	cmd := new(mdm_types.SyncMLCmd)
-	if err := xml.Unmarshal(rawCommand, cmd); err != nil {
-		return nil, fmt.Errorf("unmarshalling profile: %w", err)
-	}
-	// set the CmdID for the <Atomic> command
-	cmd.CmdID = mdm_types.CmdID{
-		Value:               commandUUID,
-		IncludeFleetComment: true,
-	}
-	// generate a CmdID for any nested <Replace>
-	for i := range cmd.ReplaceCommands {
-		cmd.ReplaceCommands[i].CmdID = mdm_types.CmdID{
-			Value:               uuid.NewString(),
-			IncludeFleetComment: true,
-		}
-	}
-
-	// generate a CmdID for any nested <Add>
-	for i := range cmd.AddCommands {
-		cmd.AddCommands[i].CmdID = mdm_types.CmdID{
-			Value:               uuid.NewString(),
-			IncludeFleetComment: true,
-		}
-	}
-
-	// generate a CmdID for any nested <Exec>
-	for i := range cmd.ExecCommands {
-		cmd.ExecCommands[i].CmdID = mdm_types.CmdID{
-			Value:               uuid.NewString(),
-			IncludeFleetComment: true,
-		}
-	}
-
-	rawCommand, err := xml.Marshal(cmd)
+	rawCommand := fleet.WrapSCEPProfileInAtomic(profileBytes)
+	cmds, err := fleet.UnmarshallMultiTopLevelXMLProfile(rawCommand)
 	if err != nil {
-		return nil, fmt.Errorf("marshalling command: %w", err)
+		return nil, fmt.Errorf("unmarshalling profile bytes: %w", err)
+	}
+
+	if len(cmds) == 0 {
+		return nil, errors.New("no commands found in profile")
+	}
+
+	if len(cmds) == 1 {
+		// We know it's either atomic or just a single command, so just set the commandUUID to the first top level element.
+		cmd := cmds[0]
+		cmd.CmdID = mdm_types.CmdID{
+			Value:               commandUUID,
+			IncludeFleetComment: true,
+		}
+
+		if cmd.XMLName.Local == mdm_types.CmdAtomic {
+			// Iterate through all nested commands and set their CmdID as well
+			// generate a CmdID for any nested <Replace>
+			for i := range cmd.ReplaceCommands {
+				cmd.ReplaceCommands[i].CmdID = mdm_types.CmdID{
+					Value:               uuid.NewString(),
+					IncludeFleetComment: true,
+				}
+			}
+
+			// generate a CmdID for any nested <Add>
+			for i := range cmd.AddCommands {
+				cmd.AddCommands[i].CmdID = mdm_types.CmdID{
+					Value:               uuid.NewString(),
+					IncludeFleetComment: true,
+				}
+			}
+
+			// generate a CmdID for any nested <Exec>
+			for i := range cmd.ExecCommands {
+				cmd.ExecCommands[i].CmdID = mdm_types.CmdID{
+					Value:               uuid.NewString(),
+					IncludeFleetComment: true,
+				}
+			}
+		}
+
+		marshalledRawCommand, err := xml.Marshal(cmd)
+		if err != nil {
+			return nil, fmt.Errorf("marshalling command: %w", err)
+		}
+		rawCommand = marshalledRawCommand
+	} else {
+		// We know this is non-atomic, since we have a list of commands, which only happens with multiple top-level elements.
+		for i, cmd := range cmds {
+
+			cmd.CmdID = mdm_types.CmdID{
+				Value:               uuid.NewString(),
+				IncludeFleetComment: true,
+			}
+
+			if i == 0 {
+				// First element in a non-atomic profile
+				cmd.CmdID = mdm_types.CmdID{
+					Value:               commandUUID,
+					IncludeFleetComment: true,
+				}
+			}
+
+			cmds[i] = cmd
+		}
+
+		marshalledRawCommand, err := xml.Marshal(cmds)
+		if err != nil {
+			return nil, fmt.Errorf("marshalling commands: %w", err)
+		}
+		rawCommand = marshalledRawCommand
 	}
 
 	command := &fleet.MDMWindowsCommand{
@@ -2561,4 +5632,30 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+// logAutopilotEnrollmentContext records the Autopilot identifiers an enrolling device supplies. The ZTDID is consumed
+// for real by the enrollment link path; this line stays at debug level as a diagnostic for enrollments that do not link
+// as expected, and covers the absent case so a device that sends nothing is distinguishable from one that was never
+// asked. Both context items are optional, so their absence is normal and never fails an enrollment.
+func logAutopilotEnrollmentContext(
+	ctx context.Context,
+	logger *slog.Logger,
+	secTokenMsg *fleet.RequestSecurityToken,
+	deviceID, hardwareID string,
+) {
+	// Logged on every Windows MDM enrollment, including when both items are absent. A line that only appeared when the
+	// items were present could not distinguish "Windows did not send them" from "this code did not run", and the
+	// enrollment needed to find out is expensive to repeat.
+	ztdID, ztdErr := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemZeroTouchProvisioning)
+	offlineCorrelator, offlineErr := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemOfflineAutopilotCorrelator)
+
+	logger.DebugContext(ctx, "windows mdm enrollment autopilot context",
+		"zero_touch_provisioning_present", ztdErr == nil,
+		"zero_touch_provisioning_guid", ztdID,
+		"offline_autopilot_correlator_present", offlineErr == nil,
+		"offline_autopilot_correlator", offlineCorrelator,
+		"mdm_device_id", deviceID,
+		"mdm_hardware_id", hardwareID,
+	)
 }

@@ -2,25 +2,22 @@ import React, { useCallback } from "react";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
 
-import { IGetHostSoftwareResponse } from "services/entities/hosts";
-import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
-
-import { getNextLocationPath } from "utilities/helpers";
-import { convertParamsToSnakeCase, QueryParams } from "utilities/url";
-import { SUPPORT_LINK } from "utilities/constants";
-
-import { HostPlatform, isAndroid } from "interfaces/platform";
-import { IHostSoftwareWithUiStatus } from "interfaces/software";
-
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
+import { HostPlatform, isAndroid } from "interfaces/platform";
+import { IHostSoftwareWithUiStatus } from "interfaces/software";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
+import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
+import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { SUPPORT_LINK } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { convertParamsToSnakeCase, QueryParams } from "utilities/url";
 
 import { DROPDOWN_OPTIONS, IHostSWLibraryDropdownFilterVal } from "../helpers";
 
@@ -41,6 +38,9 @@ interface IHostSoftwareLibraryTableProps {
   page: number;
   pagePath: string;
   selfService: boolean;
+  teamId?: number;
+  canAddSoftware?: boolean;
+  onAddSoftware?: () => void;
 }
 
 const HostSoftwareLibraryTable = ({
@@ -56,6 +56,9 @@ const HostSoftwareLibraryTable = ({
   selfService,
   page,
   pagePath,
+  teamId,
+  canAddSoftware,
+  onAddSoftware,
 }: IHostSoftwareLibraryTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -85,6 +88,7 @@ const HostSoftwareLibraryTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        fleet_id: teamId,
         ...(selfService && { self_service: "true" }),
       };
 
@@ -125,6 +129,7 @@ const HostSoftwareLibraryTable = ({
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
+      teamId,
       ...(value === "selfService" && { selfService: true }),
     };
 
@@ -139,28 +144,38 @@ const HostSoftwareLibraryTable = ({
 
   const count = data?.count || data?.software?.length || 0;
   const isSoftwareNotDetected = count === 0 && searchQuery === "";
+  const isTrulyEmpty = isSoftwareNotDetected && !selfService;
 
   const memoizedSoftwareCount = useCallback(() => {
-    if (isSoftwareNotDetected) {
-      return null;
-    }
-
     return <TableCount name="items" count={count} />;
-  }, [count, isSoftwareNotDetected]);
+  }, [count]);
 
   const memoizedEmptyComponent = useCallback(() => {
+    if (isTrulyEmpty) {
+      return (
+        <EmptyState
+          header="No software found"
+          info={
+            canAddSoftware
+              ? "Add software to install on this host."
+              : "No software has been added for this host."
+          }
+          primaryButton={
+            canAddSoftware ? (
+              <Button onClick={onAddSoftware} type="button">
+                Add software
+              </Button>
+            ) : undefined
+          }
+        />
+      );
+    }
     return <EmptySoftwareTable noSearchQuery={searchQuery === ""} />;
-  }, [searchQuery]);
-
-  // Determines if a user should be able to filter or search in the table
-  const hasData = data && data.software.length > 0;
-  const hasQuery = searchQuery !== "";
-
-  const showFilterHeaders = hasData || hasQuery;
+  }, [searchQuery, isTrulyEmpty, canAddSoftware, onAddSoftware]);
 
   if (isAndroid(platform)) {
     return (
-      <EmptyTable
+      <EmptyState
         header="Installers are not supported for this host"
         info={
           <>
@@ -174,21 +189,35 @@ const HostSoftwareLibraryTable = ({
 
   const renderCustomControls = () => {
     return (
-      <div className={`${baseClass}__filter-controls`}>
-        <DropdownWrapper
-          name="host-library-filter"
-          value={selfService ? "selfService" : "available"}
-          className={`${baseClass}__host-library-filter`}
-          options={DROPDOWN_OPTIONS}
-          onChange={(newValue: SingleValue<CustomOptionType>) =>
-            newValue &&
-            handleCustomFilterDropdownChange(
-              newValue.value as IHostSWLibraryDropdownFilterVal
-            )
-          }
-          variant="table-filter"
-        />
-      </div>
+      <>
+        <div className={`${baseClass}__filter-controls`}>
+          <DropdownWrapper
+            ariaLabel="Filter host library"
+            name="host-library-filter"
+            value={selfService ? "selfService" : "available"}
+            className={`${baseClass}__host-library-filter`}
+            options={DROPDOWN_OPTIONS}
+            onChange={(newValue: SingleValue<CustomOptionType>) =>
+              newValue &&
+              handleCustomFilterDropdownChange(
+                newValue.value as IHostSWLibraryDropdownFilterVal
+              )
+            }
+            variant="table-filter"
+            isDisabled={isTrulyEmpty}
+          />
+        </div>
+        {canAddSoftware && !isTrulyEmpty && (
+          <Button
+            className={`${baseClass}__add-software-button`}
+            variant="secondary"
+            onClick={onAddSoftware}
+            icon="plus"
+          >
+            <span>Add software</span>
+          </Button>
+        )}
+      </>
     );
   };
 
@@ -208,11 +237,12 @@ const HostSoftwareLibraryTable = ({
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
-        customControl={showFilterHeaders ? renderCustomControls : undefined}
+        customControl={renderCustomControls}
         emptyComponent={memoizedEmptyComponent}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable={showFilterHeaders}
+        searchable
+        disableSearch={isTrulyEmpty}
         manualSortBy
       />
     </div>

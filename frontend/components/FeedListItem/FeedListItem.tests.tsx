@@ -1,5 +1,5 @@
-import React from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
+import React from "react";
 
 import { renderWithSetup } from "test/test-utils";
 
@@ -18,7 +18,7 @@ describe("FeedListItem", () => {
       </FeedListItem>
     );
 
-    expect(screen.getByTestId("info-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("info-icon")).toBeInTheDocument();
   });
 
   it("does not render the info icon when allowShowDetails is false", () => {
@@ -28,7 +28,7 @@ describe("FeedListItem", () => {
       </FeedListItem>
     );
 
-    expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("info-icon")).not.toBeInTheDocument();
   });
 
   it("calls onClickFeedItem when allowShowDetails is true and the feed content is clicked", async () => {

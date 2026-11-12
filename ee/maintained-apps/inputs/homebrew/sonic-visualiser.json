@@ -1,0 +1,10 @@
+{
+  "name": "Sonic Visualiser",
+  "unique_identifier": "org.sonicvisualiser.SonicVisualiser",
+  "token": "sonic-visualiser",
+  "installer_format": "dmg",
+  "slug": "sonic-visualiser/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

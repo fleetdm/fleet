@@ -1,0 +1,153 @@
+#!/bin/bash
+
+# variables
+APPDIR="/Applications/"
+TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
+# functions
+
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
+quit_and_track_application() {
+  local bundle_id="$1"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
+  local timeout_duration=10
+
+  local app_running
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
+  if [[ "$app_running" != "true" ]]; then
+    eval "export $var_name=0"
+    return
+  fi
+
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console)
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
+    echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
+    eval "export $var_name=0"
+    return
+  fi
+
+  eval "export $var_name=1"
+  echo "Application '$bundle_id' was running; will relaunch after installation."
+
+  echo "Quitting application '$bundle_id'..."
+
+  local quit_success=false quit_sent=false still_running quit_error
+  SECONDS=0
+  while (( SECONDS < timeout_duration )); do
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      if [[ "$quit_sent" == false ]]; then
+        eval "export $var_name=0"
+        echo "Application '$bundle_id' isn't running; it won't be relaunched."
+      else
+        echo "Application '$bundle_id' quit successfully."
+      fi
+      quit_success=true
+      break
+    fi
+    quit_sent=true
+    sleep 1
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
+  done
+
+  if [[ "$quit_success" = false ]]; then
+    echo "Application '$bundle_id' did not quit."
+    return 1
+  fi
+}
+
+
+relaunch_application() {
+  local bundle_id="$1"
+  local var_name="APP_WAS_RUNNING_${bundle_id//[^[:alnum:]_]/_}"
+  local was_running
+
+  # Check if the app was running before installation
+  eval "was_running=\$$var_name"
+  if [[ "$was_running" != "1" ]]; then
+    return
+  fi
+
+  local console_user
+  console_user=$(stat -f "%Su" /dev/console)
+  if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
+    echo "Not logged into a non-root GUI; skipping relaunching application ID '$bundle_id'."
+    return
+  fi
+
+  echo "Relaunching application '$bundle_id'..."
+
+  # Launch the app in the logged-in user's GUI session. Apps launched by root
+  # won't register with the user's Dock/GUI, so run 'open' as the console user.
+  # Use 'launchctl asuser' to bootstrap into the console user's Mach namespace
+  # and GUI session — 'sudo -u' alone doesn't do this, which can cause
+  # LSOpenURLsWithRole() failures even when 'open' exits 0.
+  local open_status=0
+  if [[ $EUID -eq 0 ]]; then
+    local console_uid
+    console_uid=$(id -u "$console_user")
+    /bin/launchctl asuser "$console_uid" sudo -u "$console_user" open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  else
+    open -b "$bundle_id" >/dev/null 2>&1 || open_status=$?
+  fi
+
+  if [[ $open_status -eq 0 ]]; then
+    echo "Application '$bundle_id' relaunched successfully."
+  else
+    echo "Failed to relaunch application '$bundle_id'."
+  fi
+}
+
+
+# extract contents
+# Pd's download is a .zip that contains a .dmg, which in turn contains the .app.
+# The app folder name carries the version (e.g. "Pd-0.56-3.app"), so unzip
+# first, then mount the embedded DMG and copy whichever .app it contains. This
+# keeps the script version-agnostic across Homebrew bumps.
+EXTRACT_DIR=$(mktemp -d /tmp/pd_extract_XXXXXX)
+unzip -q "$INSTALLER_PATH" -d "$EXTRACT_DIR" || exit $?
+DMG_PATH=$(find "$EXTRACT_DIR" -maxdepth 2 -name "*.dmg" | head -1)
+if [ -z "$DMG_PATH" ]; then
+  echo "No DMG found inside the Pd archive" >&2
+  exit 1
+fi
+MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
+yes | hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$DMG_PATH" || exit 1
+APP_BUNDLE=$(find "$MOUNT_POINT" -maxdepth 1 -name "*.app" | head -1)
+if [ -z "$APP_BUNDLE" ]; then
+  echo "No .app found inside the Pd DMG" >&2
+  hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
+  exit 1
+fi
+APP_NAME=$(basename "$APP_BUNDLE")
+# copy to the applications folder
+if ! quit_and_track_application 'info.puredata.pd.pd-gui'; then
+  hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
+  exit 1
+fi
+if [ -d "$APPDIR/$APP_NAME" ]; then
+	sudo mv "$APPDIR/$APP_NAME" "$TMPDIR/$APP_NAME.bkp" || exit $?
+fi
+if ! sudo cp -R "$APP_BUNDLE" "$APPDIR"; then
+  # remove the partial copy so a failed install isn't inventoried as the new
+  # version, then restore the previous version if there was one
+  sudo rm -rf "$APPDIR/$APP_NAME"
+  if [ -d "$TMPDIR/$APP_NAME.bkp" ]; then
+    sudo mv "$TMPDIR/$APP_NAME.bkp" "$APPDIR/$APP_NAME"
+  fi
+  hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
+  exit 1
+fi
+hdiutil detach "$MOUNT_POINT" || { sleep 2; hdiutil detach "$MOUNT_POINT"; } || hdiutil detach -force "$MOUNT_POINT" || true
+relaunch_application 'info.puredata.pd.pd-gui'

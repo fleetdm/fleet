@@ -289,6 +289,11 @@ without necessarily having a billing card.`
         'render trial',
         'local trial',
       ],
+    },
+
+    fleetPremiumTrialEmailSentAt: {
+      type: 'number',
+      description: 'A JS timestamp representing when this user was sent an email about their Fleet Premium trial',
     }
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗

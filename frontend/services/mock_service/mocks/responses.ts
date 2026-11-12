@@ -25,7 +25,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "ubuntu",
       osquery_version: "4.9.0",
-      os_version: "Ubuntu 18.4.0",
+      os_name: "Ubuntu",
+      os_version: "18.4.0",
       build: "",
       platform_like: "debian",
       code_name: "",
@@ -47,9 +48,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -75,7 +76,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "rhel",
       osquery_version: "4.9.0",
-      os_version: "CentOS 6.10.0",
+      os_name: "CentOS",
+      os_version: "6.10.0",
       build: "",
       platform_like: "rhel",
       code_name: "",
@@ -97,9 +99,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -125,7 +127,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "ubuntu",
       osquery_version: "4.9.0",
-      os_version: "Ubuntu 16.4.0",
+      os_name: "Ubuntu",
+      os_version: "16.4.0",
       build: "",
       platform_like: "debian",
       code_name: "",
@@ -147,9 +150,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -175,7 +178,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "rhel",
       osquery_version: "4.9.0",
-      os_version: "CentOS Linux 7.9.2009",
+      os_name: "CentOS Linux",
+      os_version: "7.9.2009",
       build: "",
       platform_like: "rhel",
       code_name: "",
@@ -197,9 +201,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -225,7 +229,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "ubuntu",
       osquery_version: "4.9.0",
-      os_version: "Ubuntu 20.4.0",
+      os_name: "Ubuntu",
+      os_version: "20.4.0",
       build: "",
       platform_like: "debian",
       code_name: "",
@@ -247,9 +252,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -275,7 +280,8 @@ const hosts = {
       uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
       platform: "rhel",
       osquery_version: "4.9.0",
-      os_version: "CentOS Linux 8.3.2011",
+      os_name: "CentOS Linux",
+      os_version: "8.3.2011",
       build: "",
       platform_like: "rhel",
       code_name: "",
@@ -297,9 +303,9 @@ const hosts = {
       distributed_interval: 10,
       config_tls_refresh: 10,
       logger_tls_period: 10,
-      team_id: null,
+      fleet_id: null,
       pack_stats: null,
-      team_name: null,
+      fleet_name: null,
       gigs_disk_space_available: 42.11,
       percent_disk_space_available: 67,
       issues: {
@@ -378,7 +384,7 @@ const globalQueries = {
         "Test Query (every hour, 3 platforms, snapshot, no observer run, no min osversion)",
       description: "A test query",
       query: "SELECT * FROM users;",
-      team_id: null,
+      fleet_id: null,
       interval: 3600, // Every hour
       platform: "darwin,windows,linux",
       min_osquery_version: "",
@@ -406,7 +412,7 @@ const globalQueries = {
         "Test Query 2 (every 12 hours, no platforms, observers can run, min version 5.8.1, differential)",
       description: "A second test query",
       query: "SELECT * FROM osquery_info",
-      team_id: null,
+      fleet_id: null,
       interval: 43200, // Every 12 hours
       platform: "",
       min_osquery_version: "5.8.1",
@@ -433,7 +439,7 @@ const globalQueries = {
       name: "Test Query 3",
       description: "A third test query (Select all from windows_crashes",
       query: "SELECT * FROM windows_crashes",
-      team_id: null,
+      fleet_id: null,
       interval: 604800, // Weekly
       platform: "",
       min_osquery_version: "",
@@ -460,7 +466,7 @@ const globalQueries = {
       name: "Test Query 4 (Never runs)",
       description: "A third test query",
       query: "SELECT * FROM osquery_info",
-      team_id: 2,
+      fleet_id: 2,
       interval: 0, // Never
       platform: "",
       min_osquery_version: "",
@@ -487,7 +493,7 @@ const globalQueries = {
       name: "Test Query 5 runs every 5 minutes!",
       description: "A fifth test query",
       query: "SELECT * FROM osquery_info",
-      team_id: 2,
+      fleet_id: 2,
       interval: 604800, // Every week
       platform: "windows",
       min_osquery_version: "",
@@ -514,7 +520,7 @@ const globalQueries = {
       name: "Test Query 6 runs every 6 hours",
       description: "A 6th test query",
       query: "SELECT * FROM osquery_info",
-      team_id: null,
+      fleet_id: null,
       interval: 21600, // 6 hours
       platform: "",
       min_osquery_version: "",
@@ -546,7 +552,7 @@ const teamQueries = {
       name: "test specific team query 2",
       description: "",
       query: "SELECT * FROM video_info;",
-      team_id: 13,
+      fleet_id: 13,
       platform: "windows",
       min_osquery_version: "",
       automations_enabled: true,
@@ -575,7 +581,7 @@ const teamQueries = {
       name: "test specific team query",
       description: "",
       query: "SELECT * FROM osquery_info;",
-      team_id: 43,
+      fleet_id: 43,
       platform: "darwin",
       min_osquery_version: "",
       automations_enabled: true,
@@ -10602,51 +10608,52 @@ const aiAutofillPolicy = {
     "The maintenance will probably involve investigation of the firewall status, troubleshooting any issues found, and enabling the firewall to ensure the laptop's security.",
 };
 
-let mockSecrets = new Array(39).fill(null).map((_, index) => ({
+let mockVariables = new Array(39).fill(null).map((_, index) => ({
   id: index + 1,
   name: `SECRET_${index + 1}`,
   created_at: new Date(Date.now() - index * 1000 * 60 * 60 * 24).toISOString(), // Created 1 day apart
   updated_at: new Date(Date.now() - index * 1000 * 60 * 60 * 24).toISOString(), // Updated 1 day apart
 }));
-let nextSecretId = mockSecrets.length + 1;
+let nextVariableId = mockVariables.length + 1;
 
-const SECRETS_PAGE_SIZE = 20;
-const secrets = (url: string) => {
+const VARIABLES_PAGE_SIZE = 20;
+const variables = (url: string) => {
   const parsedUrl = new URL(`http://example.com/${url}`);
   const params = new URLSearchParams(parsedUrl.search);
   const page = parseInt(params.get("page") || "0", 10);
   const perPage = parseInt(
-    params.get("per_page") || `${SECRETS_PAGE_SIZE}`,
+    params.get("per_page") || `${VARIABLES_PAGE_SIZE}`,
     10
   );
-  const startIndex = (page || 0) * (perPage || SECRETS_PAGE_SIZE);
-  const endIndex = startIndex + (perPage || SECRETS_PAGE_SIZE);
-  const hasNextResults = endIndex < mockSecrets.length;
+  const startIndex = (page || 0) * (perPage || VARIABLES_PAGE_SIZE);
+  const endIndex = startIndex + (perPage || VARIABLES_PAGE_SIZE);
+  const hasNextResults = endIndex < mockVariables.length;
   const hasPreviousResults = startIndex > 0;
   return {
-    custom_variables: [...mockSecrets].slice(startIndex, endIndex),
+    custom_variables: [...mockVariables].slice(startIndex, endIndex),
     meta: {
       has_next_results: hasNextResults,
       has_previous_results: hasPreviousResults,
     },
-    count: mockSecrets.length,
+    count: mockVariables.length,
   };
 };
 
-const addSecret = (url: string, secret: any) => {
-  // Stubbed out for now, as the secrets endpoint is not yet implemented.
-  if (secret.name === "DUPE") {
+const addVariable = (url: string, variable?: unknown) => {
+  const { name } = (variable ?? {}) as { name?: string };
+  if (name === "DUPE") {
     return Promise.reject({ status: 409, message: "Conflict" });
   }
-  if (secret.name === "ERR") {
+  if (name === "ERR") {
     return Promise.reject({ status: 500, message: "Internal Server Error" });
   }
 
-  mockSecrets = [
-    ...mockSecrets,
+  nextVariableId += 1;
+  mockVariables = [
+    ...mockVariables,
     {
-      name: secret.name,
-      id: (nextSecretId += 1),
+      name: name ?? "",
+      id: nextVariableId,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     },
@@ -10654,9 +10661,9 @@ const addSecret = (url: string, secret: any) => {
   return Promise.resolve({});
 };
 
-const deleteSecret = (url: string) => {
-  const secretId = parseInt(url.split("/").pop() || "0", 10);
-  mockSecrets = mockSecrets.filter((s) => s.id !== secretId);
+const deleteVariable = (url: string) => {
+  const variableId = parseInt(url.split("/").pop() || "0", 10);
+  mockVariables = mockVariables.filter((v) => v.id !== variableId);
   return Promise.resolve({});
 };
 
@@ -10678,7 +10685,7 @@ export default {
   aiAutofillPolicy,
   teamPolicy1,
   hostDetailsiOS,
-  secrets,
-  addSecret,
-  deleteSecret,
+  variables,
+  addVariable,
+  deleteVariable,
 };

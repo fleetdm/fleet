@@ -1,11 +1,93 @@
 package fleet
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 )
 
 const ServerSecretPrefix = "FLEET_SECRET_"
+
+// HostSecretPrefix is used for host-scoped secrets that are looked up by
+// enrollment ID rather than by name. These are expanded at command delivery time.
+//
+// NOTE: This prefix is for Fleet-internal use only (e.g., injecting per-host
+// recovery lock passwords into MDM commands). It is not user-configurable and
+// should not be documented as a user-facing feature.
+const HostSecretPrefix = "FLEET_HOST_SECRET_" //nolint:gosec // G101: this is a prefix constant, not a credential
+
+// Host secret types
+const (
+	// HostSecretRecoveryLockPassword is the host secret type for macOS recovery lock passwords.
+	// The password is stored encrypted in host_recovery_key_passwords and injected at delivery time.
+	HostSecretRecoveryLockPassword = "RECOVERY_LOCK_PASSWORD"
+
+	// HostSecretRecoveryLockPendingPassword is the host secret type for pending recovery lock passwords
+	// during password rotation. The pending password is stored encrypted in host_recovery_key_passwords
+	// (pending_encrypted_password column) and injected as the NewPassword during rotation.
+	HostSecretRecoveryLockPendingPassword = "RECOVERY_LOCK_PENDING_PASSWORD"
+
+	// HostSecretMDMUnlockToken is the host secret type for MDM unlock tokens.
+	// The token is stored in the nano_devices table and injected at delivery time for ClearPasscode commands sent to Apple MDM-enrolled hosts.
+	HostSecretMDMUnlockToken = "MDM_UNLOCK_TOKEN" // nolint:gosec // G101: this is a constant identifier, not a credential
+
+	// HostSecretPSSODeviceRegistrationToken is the host secret type for the Apple
+	// Platform SSO device registration token. The token is not stored: it is a
+	// Fleet-signed JWT minted on the fly for the requesting host at command
+	// delivery time, so it never appears in the database or on /commands.
+	HostSecretPSSODeviceRegistrationToken = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: this is a constant identifier, not a credential
+
+	// HostSecretEnrollSecret is the host secret type for the per-device,
+	// single-use enroll secret embedded in the fleetd configuration profile when
+	// mdm.apple_one_time_enroll_secrets is enabled. The secret is minted for the
+	// requesting host the first time the profile is delivered and re-delivered
+	// unchanged until it is consumed by enrollment.
+	HostSecretEnrollSecret = "ENROLL_SECRET" // nolint:gosec // G101: this is a constant identifier, not a credential
+
+	// HostSecretFileVaultKey is the host secret type for the current FileVault personal recovery key, stored
+	// CMS-encrypted in host_disk_encryption_keys and injected as the unlock credential of RotateFileVaultKey.
+	HostSecretFileVaultKey = "FILEVAULT_KEY" // nolint:gosec // G101: this is a constant identifier, not a credential
+
+	// HostSecretSCEPChallenge is the host secret type for the Apple MDM SCEP challenge in renewal profiles. It's
+	// created for the enrollment the first time the profile is delivered and re-delivered unchanged until it's
+	// consumed or expires.
+	HostSecretSCEPChallenge = "SCEP_CHALLENGE" // nolint:gosec // G101: this is a constant identifier, not a credential
+)
+
+// HostSecretPlaceholder returns the placeholder string for a host secret type,
+// e.g. "$FLEET_HOST_SECRET_ENROLL_SECRET".
+func HostSecretPlaceholder(secretType string) string {
+	return "$" + HostSecretPrefix + secretType
+}
+
+// ValidateNoHostSecretVariables rejects user-provided content that references
+// a $FLEET_HOST_SECRET_* placeholder. Those are expanded to per-host secrets
+// (recovery lock passwords, unlock tokens, enroll secrets) at delivery time and
+// are only ever written by Fleet into the profiles and commands it manages
+func ValidateNoHostSecretVariables(document string) error {
+	vars := ContainsPrefixVars(document, HostSecretPrefix)
+	if len(vars) == 0 {
+		return nil
+	}
+	return &BadRequestError{Message: fmt.Sprintf("Variable %s is reserved for profiles managed by Fleet and can't be used.", HostSecretPlaceholder(vars[0]))}
+}
+
+// ValidateNoHostSecretVariablesAdded rejects $FLEET_HOST_SECRET_* placeholders in expanded beyond those in original,
+// counting each occurrence. Custom variables are expanded before host secrets at delivery, so one whose value is a
+// host-secret placeholder would otherwise be expanded like the placeholders Fleet writes.
+func ValidateNoHostSecretVariablesAdded(original, expanded string) error {
+	written := make(map[string]int)
+	for _, v := range ContainsPrefixVars(original, HostSecretPrefix) {
+		written[v]++
+	}
+	for _, v := range ContainsPrefixVars(expanded, HostSecretPrefix) {
+		if written[v] == 0 {
+			return fmt.Errorf("variable %s comes from a custom variable and can't be used", HostSecretPlaceholder(v))
+		}
+		written[v]--
+	}
+	return nil
+}
 
 type MissingSecretsError struct {
 	MissingSecrets []string
@@ -21,4 +103,22 @@ func (e MissingSecretsError) Error() string {
 		plural = "s"
 	}
 	return fmt.Sprintf("Couldn't add. Secret variable%s %s missing from database", plural, strings.Join(secretVars, ", "))
+}
+
+// IsMissingSecretsError reports whether err is (or wraps) a MissingSecretsError,
+// i.e. a reference to a secret variable that doesn't exist.
+func IsMissingSecretsError(err error) bool {
+	_, ok := MissingSecretNames(err)
+	return ok
+}
+
+// MissingSecretNames returns the names a MissingSecretsError in err reports, as a value or a pointer.
+func MissingSecretNames(err error) ([]string, bool) {
+	if valErr, ok := errors.AsType[MissingSecretsError](err); ok {
+		return valErr.MissingSecrets, true
+	}
+	if ptrErr, ok := errors.AsType[*MissingSecretsError](err); ok {
+		return ptrErr.MissingSecrets, true
+	}
+	return nil, false
 }

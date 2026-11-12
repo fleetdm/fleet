@@ -14,6 +14,10 @@
     gap: $pad-medium;
   }
 
+  &__software-inventory-tab-panel {
+    @include vertical-page-tab-panel-layout;
+  }
+
   @media screen and (min-width: $break-md) {
     // This details tab must be selected to use these grid stylings. They are
     // irrelevant for the other tabs.
@@ -33,6 +37,10 @@
 
       &--full-width {
         grid-column: span 2; // card will fill the whole row
+      }
+
+      &--double-height {
+        grid-row: span 2; // card will be 1 column x 2 rows
       }
 
       &--triple-height {

@@ -1,7 +1,8 @@
 import React from "react";
-import Modal from "components/Modal";
+
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import Modal from "components/Modal";
 
 interface IDeleteSecretModal {
   onDeleteSecret: () => void;
@@ -44,7 +45,7 @@ const DeleteSecretModal = ({
           >
             Delete
           </Button>
-          <Button onClick={toggleDeleteSecretModal} variant="inverse-alert">
+          <Button onClick={toggleDeleteSecretModal} variant="secondary">
             Cancel
           </Button>
         </div>

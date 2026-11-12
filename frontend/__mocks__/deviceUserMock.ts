@@ -1,10 +1,11 @@
 import { IDeviceUser } from "interfaces/host";
-import { IDeviceSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
+import { IDeviceSoftware } from "interfaces/software";
 import {
   IGetDeviceSoftwareResponse,
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
+
 import { createMockHostSoftwarePackage } from "./hostMock";
 
 const DEFAULT_DEVICE_USER_MOCK: IDeviceUser = {

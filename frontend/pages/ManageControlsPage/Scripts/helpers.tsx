@@ -1,11 +1,22 @@
+import React from "react";
+
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon";
-import React from "react";
 import { IScriptBatchSummaryV2 } from "services/entities/scripts";
-
 import { isDateTimePast } from "utilities/helpers";
 
-const getWhen = (summary: IScriptBatchSummaryV2) => {
+export const SCRIPT_UPLOADER_EMPTY_STATE_TEXT = (
+  <>
+    Upload shell (.sh) or Python (.py) for macOS and Linux,
+    <br />
+    or PowerShell (.ps1) for Windows.
+  </>
+);
+
+export const SCRIPT_UPLOADER_TEXT =
+  "Shell (.sh) or Python (.py) for macOS and Linux, or PowerShell (.ps1) for Windows";
+
+export const getWhen = (summary: IScriptBatchSummaryV2) => {
   const {
     batch_execution_id: id,
     not_before,
@@ -23,7 +34,7 @@ const getWhen = (summary: IScriptBatchSummaryV2) => {
       }
       return (
         <>
-          <Icon name="pending-outline" color="ui-fleet-black-50" size="small" />
+          <Icon name="pending" color="ui-fleet-black-50" />
           Started{" "}
           <HumanTimeDiffWithFleetLaunchCutoff
             timeString={started_at}
@@ -40,7 +51,7 @@ const getWhen = (summary: IScriptBatchSummaryV2) => {
       }
       return (
         <>
-          <Icon name="clock" color="ui-fleet-black-50" size="small" />
+          <Icon name="clock" color="ui-fleet-black-50" />
           Will start{" "}
           <HumanTimeDiffWithFleetLaunchCutoff
             timeString={not_before}
@@ -58,9 +69,8 @@ const getWhen = (summary: IScriptBatchSummaryV2) => {
       return (
         <>
           <Icon
-            name={canceled ? "close-filled" : "success"}
+            name={canceled ? "close" : "success"}
             color="ui-fleet-black-50"
-            size="small"
           />
           {canceled ? "Canceled" : "Completed"}
           <HumanTimeDiffWithFleetLaunchCutoff
@@ -73,5 +83,3 @@ const getWhen = (summary: IScriptBatchSummaryV2) => {
       return null;
   }
 };
-
-export default getWhen;

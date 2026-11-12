@@ -1,0 +1,10 @@
+{
+  "name": "Home Assistant",
+  "unique_identifier": "io.robbie.HomeAssistant",
+  "token": "home-assistant",
+  "installer_format": "zip",
+  "slug": "home-assistant/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

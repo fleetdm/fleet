@@ -1,0 +1,13 @@
+{
+  "name": "MindManager",
+  "slug": "mindmanager/windows",
+  "package_identifier": "Corel.MindManager.25",
+  "unique_identifier": "MindManager",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "fuzzy_match_name": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/mindmanager_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/mindmanager_uninstall.ps1",
+  "default_categories": ["Productivity"]
+}

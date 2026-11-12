@@ -1,20 +1,17 @@
 import React from "react";
-
 import { InjectedRouter } from "react-router";
 
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { IVulnerability } from "interfaces/vulnerability";
 import PATHS from "router/paths";
 import { formatSeverity } from "utilities/helpers";
 import { getPathWithQueryParams } from "utilities/url";
-import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
-import { IVulnerability } from "interfaces/vulnerability";
-
-import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import TooltipWrapper from "components/TooltipWrapper";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 interface ICellProps {
   cell: {
@@ -25,9 +22,15 @@ interface ICellProps {
   };
 }
 
-interface ITextCellProps extends ICellProps {
+interface ITextCellProps {
   cell: {
     value: string | number;
+  };
+}
+
+interface ITextCellPropsWithRow extends ITextCellProps {
+  row: {
+    original: IVulnerability;
   };
 }
 
@@ -42,7 +45,10 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
-  Cell: (props: ITextCellProps) => JSX.Element;
+  Cell:
+    | ((props: ITextCellProps) => JSX.Element)
+    | ((props: ITextCellPropsWithRow) => JSX.Element)
+    | ((props: ICellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
@@ -66,21 +72,16 @@ const generateTableHeaders = (
       Header: "Vulnerability",
       disableSortBy: true,
       accessor: "cve",
-      Cell: (cellProps: ITextCellProps) => {
+      Cell: (cellProps: ITextCellPropsWithRow) => {
         if (!configOptions?.includeIcon) {
-          return (
-            <TextCell
-              value={cellProps.cell.value}
-              formatter={(name) => formatOperatingSystemDisplayName(name)}
-            />
-          );
+          return <TextCell value={cellProps.cell.value} />;
         }
 
         const { cve } = cellProps.row.original;
 
         const softwareVulnerabilitiesDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_VULNERABILITY_DETAILS(cve),
-          { team_id: teamId }
+          { fleet_id: teamId }
         );
 
         const onClickVulnerability = (e: React.MouseEvent) => {
@@ -246,7 +247,7 @@ const generateTableHeaders = (
       ),
       disableSortBy: false,
       accessor: "hosts_count",
-      Cell: (cellProps: ITextCellProps): JSX.Element => {
+      Cell: (cellProps: ITextCellPropsWithRow): JSX.Element => {
         const { hosts_count } = cellProps.row.original;
         return <TextCell value={hosts_count} />;
       },
@@ -263,7 +264,7 @@ const generateTableHeaders = (
               <ViewAllHostsLink
                 queryParams={{
                   vulnerability: cellProps.row.original.cve,
-                  team_id: teamId,
+                  fleet_id: teamId,
                 }}
                 className="vulnerabilities-link"
                 rowHover

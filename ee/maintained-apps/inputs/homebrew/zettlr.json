@@ -1,0 +1,10 @@
+{
+  "name": "Zettlr",
+  "unique_identifier": "com.zettlr.app",
+  "token": "zettlr",
+  "installer_format": "dmg",
+  "slug": "zettlr/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

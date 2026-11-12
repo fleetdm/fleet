@@ -1,0 +1,10 @@
+{
+  "name": "Asset Catalog Tinkerer",
+  "unique_identifier": "br.com.guilhermerambo.Asset-Catalog-Tinkerer",
+  "token": "asset-catalog-tinkerer",
+  "installer_format": "zip",
+  "slug": "asset-catalog-tinkerer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

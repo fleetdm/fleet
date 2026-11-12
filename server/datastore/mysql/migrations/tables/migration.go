@@ -4,7 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
@@ -12,16 +16,128 @@ import (
 	"github.com/pkg/errors"
 )
 
-var MigrationClient = goose.New("migration_status_tables", goose.MySqlDialect{})
+var MigrationClient = newMigrationClient()
+
+// Helpers for migrations added after the Fleet 5 baseline. Referenced here so
+// the unused linter doesn't flag them while no migration uses them.
+var _ = []any{
+	logger, basicMigrationStep, basicMigrationStepWithArgs, incrementalMigrationStep, withSteps,
+	fkExists, constraintExists, columnExists, columnsExists, tableExists, indexExists,
+	indexExistsTx, addIndexesTx, indexDef{}, updateAppConfigJSON,
+}
+
+func newMigrationClient() *goose.Client {
+	c := goose.New("migration_status_tables", goose.MySqlDialect{})
+	// NOTE FOR MIGRATION AUTHORS: because of out-of-order application (below),
+	// a migration cannot assume that later-numbered migrations haven't run yet
+	// — e.g. one shipped in a patch release runs after newer migrations on
+	// databases already upgraded past it. Migrations must be order-independent
+	// of concurrently in-flight migrations, and the guard helpers in this file
+	// (columnExists, indexExistsTx, ...) protect against reordering as well as
+	// retries.
+	// Every migration after the Fleet 5 baseline may be applied out of order,
+	// so a migration shipped in a patch release with a timestamp older than
+	// already-applied migrations is picked up on the next `fleet prepare db`
+	// instead of requiring renumbering.
+	c.MinOutOfOrderVersion = Fleet5BaselineVersion
+	return c
+}
+
+// can override in tests
+var (
+	outputTo         io.Writer = os.Stderr
+	progressInterval           = time.Second * 5
+)
+
+type migrationStep func(tx *sql.Tx) error
+
+func basicMigrationStep(statement string, errorMessage string) migrationStep {
+	return func(tx *sql.Tx) error {
+		_, err := tx.Exec(statement)
+		return errors.Wrap(err, errorMessage)
+	}
+}
+
+func basicMigrationStepWithArgs(statement string, args []any, errorMessage string) migrationStep {
+	return func(tx *sql.Tx) error {
+		_, err := tx.Exec(statement, args...)
+		return errors.Wrap(err, errorMessage)
+	}
+}
+
+type (
+	getTotalCountFn       func(tx *sql.Tx) (uint64, error)
+	incrementCountFn      func()
+	executeWithProgressFn func(tx *sql.Tx, increment incrementCountFn) error
+)
+
+func incrementalMigrationStep(count getTotalCountFn, execute executeWithProgressFn) migrationStep {
+	return func(tx *sql.Tx) error {
+		total, err := count(tx)
+		if err != nil {
+			return err
+		}
+		if total == 0 { // skip no-ops to avoid divide by zero
+			return nil
+		}
+
+		atomicCurrent := atomic.Uint64{}
+
+		// Every five seconds, echo the % progress of the executor
+		// Since we output once the migration step is complete, we need an extra channel to indicate when both the step
+		// and the "step complete" output are com0plete
+		stepComplete := make(chan struct{})
+		outputComplete := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(progressInterval)
+			defer ticker.Stop()
+			defer close(outputComplete)
+			for {
+				select {
+				case <-stepComplete:
+					_, _ = fmt.Fprint(outputTo, "    100% complete\n")
+					return
+				case <-ticker.C:
+					current := atomicCurrent.Load()
+					if current == total {
+						_, _ = fmt.Fprint(outputTo, "    Almost done...\n")
+					} else {
+						_, _ = fmt.Fprintf(outputTo, "    %d%% complete\n", (100*current)/total)
+					}
+				}
+			}
+		}()
+
+		err = execute(tx, func() {
+			atomicCurrent.Add(1)
+		})
+		close(stepComplete)
+		<-outputComplete // Wait for the goroutine to complete
+		return err
+	}
+}
+
+func withSteps(steps []migrationStep, tx *sql.Tx) error {
+	stepCount := len(steps)
+	for i, step := range steps {
+		if stepCount > 1 {
+			_, _ = fmt.Fprintf(outputTo, "  Step %d of %d\n", i+1, stepCount)
+		}
+		if err := step(tx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func fkExists(tx *sql.Tx, table, name string) bool {
 	var count int
 	err := tx.QueryRow(`
 SELECT COUNT(1)
 FROM information_schema.REFERENTIAL_CONSTRAINTS
-WHERE CONSTRAINT_SCHEMA = DATABASE() 
+WHERE CONSTRAINT_SCHEMA = DATABASE()
 AND TABLE_NAME = ?
-AND CONSTRAINT_NAME = ? 
+AND CONSTRAINT_NAME = ?
 	`, table, name).Scan(&count)
 	if err != nil {
 		return false
@@ -35,9 +151,9 @@ func constraintExists(tx *sql.Tx, table, name string) bool {
 	err := tx.QueryRow(`
 SELECT COUNT(1)
 FROM information_schema.TABLE_CONSTRAINTS
-WHERE CONSTRAINT_SCHEMA = DATABASE() 
+WHERE CONSTRAINT_SCHEMA = DATABASE()
 AND TABLE_NAME = ?
-AND CONSTRAINT_NAME = ? 
+AND CONSTRAINT_NAME = ?
 	`, table, name).Scan(&count)
 	if err != nil {
 		return false
@@ -132,6 +248,31 @@ AND index_name = ?
 	}
 
 	return count > 0
+}
+
+type indexDef struct {
+	name    string
+	columns string
+}
+
+// addIndexesTx adds the given indexes to table in one online ALTER, skipping any
+// that already exist so a failed migration can be rerun.
+func addIndexesTx(tx *sql.Tx, table string, indexes ...indexDef) error {
+	var clauses []string
+	for _, idx := range indexes {
+		if indexExistsTx(tx, table, idx.name) {
+			continue
+		}
+		clauses = append(clauses, fmt.Sprintf("ADD INDEX %s (%s)", idx.name, idx.columns))
+	}
+	if len(clauses) == 0 {
+		return nil
+	}
+	stmt := fmt.Sprintf("ALTER TABLE %s %s, ALGORITHM=INPLACE, LOCK=NONE", table, strings.Join(clauses, ", "))
+	if _, err := tx.Exec(stmt); err != nil {
+		return fmt.Errorf("failed to add indexes to %s: %w", table, err)
+	}
+	return nil
 }
 
 // updateAppConfigJSON updates the `json_value` stored in the `app_config_json` after applying the

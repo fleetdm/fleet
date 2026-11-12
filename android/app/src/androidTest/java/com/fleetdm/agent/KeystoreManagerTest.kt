@@ -10,7 +10,7 @@ import org.junit.runner.RunWith
 class KeystoreManagerTest {
 
     @Test
-    fun testEncryptDecrypt() {
+    fun `encrypt and decrypt round-trips correctly`() {
         val originalText = "test_api_key_12345"
 
         val encrypted = KeystoreManager.encrypt(originalText)
@@ -21,7 +21,7 @@ class KeystoreManagerTest {
     }
 
     @Test
-    fun testEncryptProducesDifferentCiphertext() {
+    fun `encrypt produces different ciphertext for same plaintext`() {
         val originalText = "test_api_key_12345"
 
         val encrypted1 = KeystoreManager.encrypt(originalText)
@@ -34,12 +34,12 @@ class KeystoreManagerTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun testDecryptInvalidFormat() {
+    fun `decrypt with invalid format throws exception`() {
         KeystoreManager.decrypt("invalid_format")
     }
 
     @Test
-    fun testEncryptEmptyString() {
+    fun `encrypt handles empty string`() {
         val originalText = ""
 
         val encrypted = KeystoreManager.encrypt(originalText)
@@ -49,7 +49,7 @@ class KeystoreManagerTest {
     }
 
     @Test
-    fun testEncryptLongString() {
+    fun `encrypt handles long string`() {
         val originalText = "a".repeat(10000)
 
         val encrypted = KeystoreManager.encrypt(originalText)
@@ -59,7 +59,7 @@ class KeystoreManagerTest {
     }
 
     @Test
-    fun testEncryptSpecialCharacters() {
+    fun `encrypt handles special characters`() {
         val originalText = "!@#\$%^&*()_+-=[]{}|;':\",./<>?~`"
 
         val encrypted = KeystoreManager.encrypt(originalText)

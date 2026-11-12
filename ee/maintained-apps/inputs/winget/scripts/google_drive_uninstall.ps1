@@ -2,7 +2,8 @@ $softwareName = "Google Drive"
 
 $uninstallArgs = "--silent --force_stop"
 
-$expectedExitCodes = @()
+# 1641/3010 are reboot-initiated/reboot-required success codes.
+$expectedExitCodes = @(0, 1641, 3010)
 
 $machineKey = `
  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
@@ -70,6 +71,10 @@ try {
 } catch {
     Write-Host "Error: $_"
     Exit 1
+}
+
+if ($exitCode -eq 1641 -or $exitCode -eq 3010) {
+    Write-Host "Uninstall succeeded. Restart the host before installing Google Drive again."
 }
 
 if ($expectedExitCodes -contains $exitCode) {

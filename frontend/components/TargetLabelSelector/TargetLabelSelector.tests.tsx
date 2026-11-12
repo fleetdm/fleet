@@ -1,186 +1,285 @@
-import React from "react";
-import { render, screen } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { noop } from "lodash";
+import React from "react";
 
-import TargetLabelSelector from "./TargetLabelSelector";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import { ILabelSummary } from "interfaces/label";
+import { createCustomRenderer } from "test/test-utils";
 
-describe("TargetLabelSelector component", () => {
-  describe("renders the custom target selector when the target type is 'Custom'", () => {
-    it("with a dropdown when there are custom options to choose from", () => {
-      render(
-        <TargetLabelSelector
-          selectedTargetType="Custom"
-          selectedCustomTarget="labelIncludeAny"
-          customTargetOptions={[
-            { value: "labelIncludeAny", label: "Include any" },
-          ]}
-          selectedLabels={{}}
-          labels={[
-            { id: 1, name: "label 1", label_type: "regular" },
-            { id: 2, name: "label 2", label_type: "regular" },
-          ]}
-          onSelectCustomTarget={noop}
-          onSelectLabel={noop}
-          onSelectTargetType={noop}
-        />
-      );
+import TargetLabelSelector, { ILabelConfig } from "./TargetLabelSelector";
 
-      // custom target selector is rendering
-      expect(screen.getByRole("option", { name: "Include any" })).toBeVisible();
+// jsdom has no layout, so whether a label name is truncated is controlled here.
+jest.mock("hooks/useCheckTruncatedElement", () => ({
+  useCheckTruncatedElement: jest.fn(),
+}));
+const mockedUseCheckTruncatedElement = useCheckTruncatedElement as jest.Mock;
 
-      // lables are rendering
-      expect(screen.getByRole("checkbox", { name: "label 1" })).toBeVisible();
-      expect(screen.getByRole("checkbox", { name: "label 2" })).toBeVisible();
-    });
+const LABELS: ILabelSummary[] = [
+  { id: 1, name: "label 1", label_type: "regular" },
+  { id: 2, name: "label 2", label_type: "regular" },
+];
 
-    it("with an optional message and no dropdown when there are no custom options to choose from", () => {
-      const HELP_TEXT = "go boldly where no target has gone before";
-      render(
-        <TargetLabelSelector
-          selectedTargetType="Custom"
-          selectedCustomTarget="labelIncludeAny"
-          customHelpText={<span>{HELP_TEXT}</span>}
-          selectedLabels={{}}
-          labels={[
-            { id: 1, name: "label 1", label_type: "regular" },
-            { id: 2, name: "label 2", label_type: "regular" },
-          ]}
-          onSelectCustomTarget={noop}
-          onSelectLabel={noop}
-          onSelectTargetType={noop}
-        />
-      );
+const LONG_NAME = "label with a name too long to fit in the label picker";
+const LABELS_WITH_LONG_NAME: ILabelSummary[] = [
+  ...LABELS,
+  { id: 3, name: LONG_NAME, label_type: "regular" },
+];
 
-      // custom target help text is visible
-      expect(screen.getByText(HELP_TEXT)).toBeVisible();
+const makeTab = (overrides: Partial<ILabelConfig> = {}): ILabelConfig => ({
+  selectedLabels: {},
+  onSelectLabel: noop,
+  ...overrides,
+});
 
-      expect(screen.queryByRole("option")).not.toBeInTheDocument();
+const renderSelector = (
+  props: Partial<React.ComponentProps<typeof TargetLabelSelector>> = {}
+) =>
+  render(
+    <TargetLabelSelector
+      selectedTargetType="Custom"
+      onSelectTargetType={noop}
+      labels={LABELS}
+      includeConfig={makeTab({ showModeToggle: true, mode: "any" })}
+      excludeConfig={makeTab()}
+      emptyStateDescription="Add a label to target a group of hosts."
+      onAddLabel={noop}
+      {...props}
+    />
+  );
 
-      // lables are rendering
-      expect(screen.getByRole("checkbox", { name: "label 1" })).toBeVisible();
-      expect(screen.getByRole("checkbox", { name: "label 2" })).toBeVisible();
-    });
+describe("TargetLabelSelector (tabbed) component", () => {
+  beforeEach(() => {
+    mockedUseCheckTruncatedElement.mockReturnValue(false);
   });
 
-  it("does not render the custom target selector when the target type is 'All hosts'", () => {
-    render(
-      <TargetLabelSelector
-        selectedTargetType="All hosts"
-        selectedCustomTarget="labelIncludeAny"
-        customTargetOptions={[
-          { value: "labelIncludeAny", label: "Include any" },
-        ]}
-        selectedLabels={{}}
-        labels={[
-          { id: 1, name: "label 1", label_type: "regular" },
-          { id: 2, name: "label 2", label_type: "regular" },
-        ]}
-        onSelectCustomTarget={noop}
-        onSelectLabel={noop}
-        onSelectTargetType={noop}
-      />
-    );
+  it("renders Include and Exclude tabs with labels in Custom mode", () => {
+    renderSelector();
 
-    // custom target selector is not rendering
-    expect(screen.queryByRole("option", { name: "Include any" })).toBeNull();
+    expect(screen.getByText("Include")).toBeVisible();
+    expect(screen.getByText("Exclude")).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: "label 1" })).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: "label 2" })).toBeVisible();
+  });
 
-    // lables are not rendering
-    expect(screen.queryByRole("checkbox", { name: "label 1" })).toBeNull();
-    expect(screen.queryByRole("checkbox", { name: "label 2" })).toBeNull();
+  it("does not render the custom tabs when the target type is 'All hosts'", () => {
+    renderSelector({ selectedTargetType: "All hosts" });
+
+    expect(screen.queryByText("Include")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "label 1" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the Any/All mode toggle on the include tab", () => {
+    renderSelector();
+
+    expect(screen.getByRole("radio", { name: "Any" })).toBeVisible();
+    expect(screen.getByRole("radio", { name: "All" })).toBeVisible();
+  });
+
+  it("does not render the mode toggle on the exclude tab when showModeToggle is false", () => {
+    renderSelector({ excludeConfig: makeTab({ showModeToggle: false }) });
+
+    fireEvent.click(screen.getByText("Exclude"));
+
+    expect(
+      screen.queryByRole("radio", { name: "Any" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: "All" })
+    ).not.toBeInTheDocument();
   });
 
   it("renders selected labels as checked", () => {
-    render(
-      <TargetLabelSelector
-        selectedTargetType="Custom"
-        selectedCustomTarget="labelIncludeAny"
-        customTargetOptions={[
-          { value: "labelIncludeAny", label: "Include any" },
-        ]}
-        selectedLabels={{ "label 1": true, "label 2": false }}
-        labels={[
-          { id: 1, name: "label 1", label_type: "regular" },
-          { id: 2, name: "label 2", label_type: "regular" },
-        ]}
-        onSelectCustomTarget={noop}
-        onSelectLabel={noop}
-        onSelectTargetType={noop}
-      />
-    );
+    renderSelector({
+      includeConfig: makeTab({
+        showModeToggle: true,
+        mode: "any",
+        selectedLabels: { "label 1": true, "label 2": false },
+      }),
+    });
 
-    // lables are rendering
     expect(screen.getByRole("checkbox", { name: "label 1" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "label 2" })).not.toBeChecked();
   });
 
-  it("sets the title to Target by default", () => {
-    const TITLE = "Target";
-    render(
-      <TargetLabelSelector
-        selectedTargetType="Custom"
-        selectedCustomTarget="labelIncludeAny"
-        customTargetOptions={[
-          { value: "labelIncludeAny", label: "Include any" },
-        ]}
-        selectedLabels={{}}
-        labels={[
-          { id: 1, name: "label 1", label_type: "regular" },
-          { id: 2, name: "label 2", label_type: "regular" },
-        ]}
-        onSelectCustomTarget={noop}
-        onSelectLabel={noop}
-        onSelectTargetType={noop}
-        title={TITLE}
-      />
-    );
+  it("disables a label in the include tab when it is selected in the exclude tab", () => {
+    renderSelector({
+      excludeConfig: makeTab({ selectedLabels: { "label 1": true } }),
+    });
 
-    expect(screen.getByText(TITLE)).toBeVisible();
+    expect(screen.getByRole("checkbox", { name: "label 1" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+    expect(screen.getByRole("checkbox", { name: "label 2" })).toHaveAttribute(
+      "aria-disabled",
+      "false"
+    );
   });
 
-  it("allows a custom title to be passed in", () => {
-    const TITLE = "Choose a target";
-    render(
-      <TargetLabelSelector
-        selectedTargetType="Custom"
-        selectedCustomTarget="labelIncludeAny"
-        customTargetOptions={[
-          { value: "labelIncludeAny", label: "Include any" },
-        ]}
-        selectedLabels={{}}
-        labels={[
-          { id: 1, name: "label 1", label_type: "regular" },
-          { id: 2, name: "label 2", label_type: "regular" },
-        ]}
-        onSelectCustomTarget={noop}
-        onSelectLabel={noop}
-        onSelectTargetType={noop}
-        title={TITLE}
-      />
-    );
+  it("renders the empty state and triggers onAddLabel when there are no labels", () => {
+    const onAddLabel = jest.fn();
+    renderSelector({ labels: [], onAddLabel });
 
-    expect(screen.getByText(TITLE)).toBeVisible();
+    expect(screen.getByText("No labels")).toBeVisible();
+    expect(
+      screen.getByText("Add a label to target a group of hosts.")
+    ).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add label" }));
+    expect(onAddLabel).toHaveBeenCalledTimes(1);
   });
 
-  it("suppresses the title when suppressTitle is true", () => {
-    render(
+  it("surfaces the labels error while labels are loading", () => {
+    renderSelector({
+      labels: [],
+      isLoadingLabels: true,
+      labelsError: "Select at least one label",
+    });
+
+    expect(screen.getByText("Select at least one label")).toBeVisible();
+  });
+
+  it("surfaces the labels error when the labels request fails", () => {
+    renderSelector({
+      labels: [],
+      isErrorLabels: true,
+      labelsError: "Select at least one label",
+    });
+
+    expect(screen.getByText("Select at least one label")).toBeVisible();
+  });
+
+  it("surfaces the labels error in the empty state on both tabs", () => {
+    renderSelector({ labels: [], labelsError: "Select at least one label" });
+
+    expect(screen.getByText("Select at least one label")).toBeVisible();
+
+    fireEvent.click(screen.getByText("Exclude"));
+    expect(screen.getByText("Select at least one label")).toBeVisible();
+  });
+
+  it("shows the GitOps tooltip on a selected label tag when disabled by GitOps mode", async () => {
+    const renderWithContext = createCustomRenderer({
+      context: {
+        app: {
+          config: {
+            gitops: {
+              gitops_mode_enabled: true,
+              repository_url: "a.b.cc",
+            },
+          },
+        },
+      },
+    });
+
+    const { user } = renderWithContext(
       <TargetLabelSelector
         selectedTargetType="Custom"
-        selectedCustomTarget="labelIncludeAny"
-        customTargetOptions={[
-          { value: "labelIncludeAny", label: "Include any" },
-        ]}
-        selectedLabels={{}}
-        labels={[
-          { id: 1, name: "label 1", label_type: "regular" },
-          { id: 2, name: "label 2", label_type: "regular" },
-        ]}
-        onSelectCustomTarget={noop}
-        onSelectLabel={noop}
         onSelectTargetType={noop}
-        suppressTitle
+        labels={LABELS}
+        includeConfig={makeTab({ selectedLabels: { "label 1": true } })}
+        excludeConfig={makeTab()}
+        emptyStateDescription="Add a label to target a group of hosts."
+        onAddLabel={noop}
+        disableOptions
       />
     );
 
-    expect(screen.queryByText("Target")).not.toBeInTheDocument();
+    const dismissButton = screen.getByRole("button", {
+      name: "Remove label 1",
+    });
+    expect(dismissButton).toBeDisabled();
+
+    // Hover the tag itself, not the checkbox that has the same text
+    await user.hover(dismissButton.parentElement as HTMLElement);
+    await waitFor(() => {
+      expect(screen.getByText(/Manage in/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows a truncated selected label's full name in a tooltip on hover", async () => {
+    mockedUseCheckTruncatedElement.mockReturnValue(true);
+    const { user } = createCustomRenderer()(
+      <TargetLabelSelector
+        selectedTargetType="Custom"
+        onSelectTargetType={noop}
+        labels={LABELS_WITH_LONG_NAME}
+        includeConfig={makeTab({ selectedLabels: { [LONG_NAME]: true } })}
+        excludeConfig={makeTab()}
+        emptyStateDescription="Add a label to target a group of hosts."
+        onAddLabel={noop}
+      />
+    );
+
+    const tag = screen.getByRole("button", { name: `Remove ${LONG_NAME}` })
+      .parentElement as HTMLElement;
+    await user.hover(within(tag).getByText(LONG_NAME));
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(LONG_NAME);
+  });
+
+  it("shows no tooltip for a selected label name that fits", async () => {
+    const { user } = createCustomRenderer()(
+      <TargetLabelSelector
+        selectedTargetType="Custom"
+        onSelectTargetType={noop}
+        labels={LABELS}
+        includeConfig={makeTab({ selectedLabels: { "label 1": true } })}
+        excludeConfig={makeTab()}
+        emptyStateDescription="Add a label to target a group of hosts."
+        onAddLabel={noop}
+      />
+    );
+
+    const tag = screen.getByRole("button", { name: "Remove label 1" })
+      .parentElement as HTMLElement;
+    await user.hover(within(tag).getByText("label 1"));
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("shows only the GitOps tooltip on a truncated label tag disabled by GitOps mode", async () => {
+    mockedUseCheckTruncatedElement.mockReturnValue(true);
+    const { user } = createCustomRenderer({
+      context: {
+        app: {
+          config: {
+            gitops: {
+              gitops_mode_enabled: true,
+              repository_url: "a.b.cc",
+            },
+          },
+        },
+      },
+    })(
+      <TargetLabelSelector
+        selectedTargetType="Custom"
+        onSelectTargetType={noop}
+        labels={LABELS_WITH_LONG_NAME}
+        includeConfig={makeTab({ selectedLabels: { [LONG_NAME]: true } })}
+        excludeConfig={makeTab()}
+        emptyStateDescription="Add a label to target a group of hosts."
+        onAddLabel={noop}
+        disableOptions
+      />
+    );
+
+    const tag = screen.getByRole("button", { name: `Remove ${LONG_NAME}` })
+      .parentElement as HTMLElement;
+    await user.hover(within(tag).getByText(LONG_NAME));
+
+    const tooltip = await screen.findByRole("tooltip");
+    expect(tooltip).toHaveTextContent(/Manage in/);
+    expect(tooltip).not.toHaveTextContent(LONG_NAME);
+    expect(screen.getAllByRole("tooltip")).toHaveLength(1);
   });
 });

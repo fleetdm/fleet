@@ -1,0 +1,10 @@
+{
+  "name": "LocalSend",
+  "unique_identifier": "org.localsend.localsendApp",
+  "token": "localsend",
+  "installer_format": "dmg",
+  "slug": "localsend/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

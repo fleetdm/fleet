@@ -173,6 +173,121 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 	}
 }
 
+func TestExtractWindowsCertificateNameDetails(t *testing.T) {
+	cases := []struct {
+		name        string
+		input       string
+		expected    *HostCertificateNameDetails
+		errContains string // if set, parsing must return an error containing this substring
+	}{
+		{
+			name:  "basic",
+			input: "CN=Example, O=Example Inc, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName:   "Example",
+				Organization: "Example Inc",
+				Country:      "US",
+			},
+		},
+		{
+			name:  "with organizational unit",
+			input: "CN=device.example.com, OU=Engineering, O=Example Inc, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName:         "device.example.com",
+				OrganizationalUnit: "Engineering",
+				Organization:       "Example Inc",
+				Country:            "US",
+			},
+		},
+		{
+			name:  "quoted value containing a comma",
+			input: `CN=Issuing CA, O="Example, Inc.", C=US`,
+			expected: &HostCertificateNameDetails{
+				CommonName:   "Issuing CA",
+				Organization: "Example, Inc.",
+				Country:      "US",
+			},
+		},
+		{
+			name:  "multiple organizational units",
+			input: "OU=Engineering, OU=fleet-a3ffb5cfa-3c69-433f-88af-d982ef9c3f67, CN=Multi OU, C=US",
+			expected: &HostCertificateNameDetails{
+				OrganizationalUnit: "Engineering+OU=fleet-a3ffb5cfa-3c69-433f-88af-d982ef9c3f67",
+				CommonName:         "Multi OU",
+				Country:            "US",
+			},
+		},
+		{
+			name:  "multi-valued RDN joined by plus",
+			input: "CN=Name + OU=A + OU=B, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName:         "Name",
+				OrganizationalUnit: "A+OU=B",
+				Country:            "US",
+			},
+		},
+		{
+			name:  "plus inside a quoted value is not a multi-valued RDN separator",
+			input: `CN=Name, O="A + B", C=US`,
+			expected: &HostCertificateNameDetails{
+				CommonName:   "Name",
+				Organization: "A + B",
+				Country:      "US",
+			},
+		},
+		{
+			name:  "doubled quotes inside a quoted value",
+			input: `CN="A ""quoted"" name", C=US`,
+			expected: &HostCertificateNameDetails{
+				CommonName: `A "quoted" name`,
+				Country:    "US",
+			},
+		},
+		{
+			name:  "unmapped attributes are ignored",
+			input: "CN=Name, S=California, L=San Francisco, 2.5.4.5=ABC123, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName: "Name",
+				Country:    "US",
+			},
+		},
+		{
+			name:     "empty input returns empty details without error",
+			input:    "",
+			expected: &HostCertificateNameDetails{},
+		},
+		{
+			name:  "empty fragment between separators is skipped silently",
+			input: "CN=X,,C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName: "X",
+				Country:    "US",
+			},
+		},
+		{
+			name:  "malformed fragment is skipped but reported, details still parsed",
+			input: "CN=Good Cert, garbage-no-equals, C=US",
+			expected: &HostCertificateNameDetails{
+				CommonName: "Good Cert",
+				Country:    "US",
+			},
+			errContains: "garbage-no-equals",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := ExtractDetailsFromOsqueryDistinguishedName("windows", tc.input)
+			if tc.errContains != "" {
+				require.ErrorContains(t, err, tc.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+			// details are always best-effort, even when a malformed fragment is reported
+			require.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
 func TestExtractHostCertificateFromMDMAppleCertificateList(t *testing.T) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
@@ -226,6 +341,143 @@ func TestExtractHostCertificateFromMDMAppleCertificateList(t *testing.T) {
 				assert.Equal(t, tc.expected.SubjectOrganization, parsed.SubjectOrganization)
 				assert.Equal(t, tc.expected.SubjectOrganizationalUnit, parsed.SubjectOrganizationalUnit)
 			}
+		})
+	}
+}
+
+func TestDecodeHexEscapes(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "plain ASCII unchanged",
+			input:    "hello world",
+			expected: "hello world",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "cyrillic hex escapes",
+			input:    `\xD0\x90\xD0\x91`,
+			expected: "АБ",
+		},
+		{
+			name:     "mixed ASCII and hex escapes",
+			input:    `abc\xD0\x90def`,
+			expected: "abcАdef",
+		},
+		{
+			name:     "full DN string with hex escapes",
+			input:    `/O=\xD0\x90\xD0\x91/CN=\xD0\x92\xD0\x93`,
+			expected: "/O=АБ/CN=ВГ",
+		},
+		{
+			name:     "incomplete escape at end of string",
+			input:    `hello\x`,
+			expected: `hello\x`,
+		},
+		{
+			name:     "incomplete escape with one hex char at end",
+			input:    `hello\xD`,
+			expected: `hello\xD`,
+		},
+		{
+			name:     "invalid hex after backslash-x",
+			input:    `hello\xZZworld`,
+			expected: `hello\xZZworld`,
+		},
+		{
+			name:     "no escape sequences present",
+			input:    `/C=US/O=Fleet Device Management Inc./CN=FleetDM`,
+			expected: `/C=US/O=Fleet Device Management Inc./CN=FleetDM`,
+		},
+		{
+			name:     "backslash not followed by x",
+			input:    `hello\nworld`,
+			expected: `hello\nworld`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := DecodeHexEscapes(tc.input)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestDecodeUnicodeEscapes(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "plain ASCII unchanged",
+			input:    "Hello World",
+			expected: "Hello World",
+		},
+		{
+			name:     "empty string",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "BMP character",
+			input:    `\u00e9`,
+			expected: "é",
+		},
+		{
+			name:     "surrogate pair for printer emoji",
+			input:    `\ud83d\udda8\ufe0f Printer`,
+			expected: "🖨️ Printer",
+		},
+		{
+			name:     "mixed ASCII and escaped",
+			input:    `App \ud83d\ude00 Name`,
+			expected: "App 😀 Name",
+		},
+		{
+			name:     "literal backslash-n preserved",
+			input:    `app\nfile`,
+			expected: `app\nfile`,
+		},
+		{
+			name:     "literal backslash-t preserved",
+			input:    `app\tfile`,
+			expected: `app\tfile`,
+		},
+		{
+			name:     "incomplete escape at end of string",
+			input:    `hello\u00`,
+			expected: `hello\u00`,
+		},
+		{
+			name:     "unpaired high surrogate left as-is",
+			input:    `\ud83d hello`,
+			expected: `\ud83d hello`,
+		},
+		{
+			name:     "standalone low surrogate left as-is",
+			input:    `\udda8 hello`,
+			expected: `\udda8 hello`,
+		},
+		{
+			name:     "no escape sequences present",
+			input:    `/Users/test/Applications/Test.app`,
+			expected: `/Users/test/Applications/Test.app`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := DecodeUnicodeEscapes(tc.input)
+			assert.Equal(t, tc.expected, result)
 		})
 	}
 }

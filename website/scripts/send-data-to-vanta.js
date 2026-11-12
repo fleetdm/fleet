@@ -81,6 +81,12 @@ module.exports = {
         return;
       }
 
+      // If the response from the Fleet instance's /users endpoint did not return an array of users, add an error to the errorReportById object, with this connections ID set as the key, and bail early for this Vanta connection.
+      if(!responseFromUserEndpoint || !_.isArray(responseFromUserEndpoint.users)) {
+        errorReportById[connectionIdAsString] = new Error(`When sending a request to the /users endpoint of a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance returned an unexpected response that did not contain an array of users.`);
+        return;
+      }
+
       let usersToSyncWithVanta = [];
       // Iterate through the users list, creating user objects to send to Vanta.
       for(let user of responseFromUserEndpoint.users) {
@@ -149,7 +155,7 @@ module.exports = {
         pageNumberForPossiblePaginatedResults++;
         // If we recieved less results than we requested, we've reached the last page of the results.
         return getHostsResponse.hosts.length !== numberOfHostsPerRequest;
-      }, 30000)
+      }, 90000)// 90s Timeout
       .tolerate(()=>{// If an error occurs while sending a request to the Fleet instance, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`When requesting all hosts from a Fleet instance for a VantaConnection (id: ${connectionIdAsString}), the Fleet instance did not respond with all of it's hosts in the set amount of time.`);
       });
@@ -158,11 +164,15 @@ module.exports = {
         return;
       }
 
-      // If this is Fleet's Vanta connection, exclude hosts on the "Compliance exclusions" team.
+      // If this is Fleet's Vanta connection, exclude hosts on the "🧪 Testing & QA" team.
       // See https://github.com/fleetdm/fleet/issues/19312 for more information.
       if(vantaConnection.id === 64){
         allHostsOnThisFleetInstance = allHostsOnThisFleetInstance.filter((host)=>{
-          return [275, 274].includes(host.team_id);
+          return [275].includes(host.team_id);
+        });
+      } else if(vantaConnection.id === 77) {// [?]: https://github.com/fleetdm/confidential/issues/14218
+        allHostsOnThisFleetInstance = allHostsOnThisFleetInstance.filter((host)=>{
+          return [3].includes(host.team_id);
         });
       }
 
@@ -257,6 +267,16 @@ module.exports = {
                 }
                 macOsHostToSyncWithVanta.browserExtensions.push(softwareToAdd);
               } else if(software.source === 'apps'){
+                // Note: We're exclude most built-in macOS applications from the device inventory to reduce the size of the request sent to Vanta (which has a 10MB limit).
+                // With built-in software included, the request body size is ~2.5mb for 81 hosts and 32848 software items, when these items are excluded, it is reduced to 0.76 MB.
+                // See https://github.com/fleetdm/fleet/issues/39380 for more information about this.
+                if(_.startsWith(software.bundle_identifier, 'com.apple')) {
+                  // Note: Xprotect is included in the applications list becasue it is in the list of Antivirus solutions that Vanta detects (https://help.vanta.com/en/articles/11346109-antivirus-solutions-detected-by-vanta)
+                  // Note: Keychain is not included because Vanta does not consider it a password manager (https://help.vanta.com/en/articles/11346116-frequently-asked-questions-what-password-managers-does-vanta-detect)
+                  if(software.bundle_identifier !== 'com.apple.XProtectFramework.XProtect'){
+                    continue;
+                  }
+                }
                 softwareToAdd.name += ' '+software.version;// Add the version to the software name
                 softwareToAdd.bundleId = software.bundle_identifier ? software.bundle_identifier : ' '; // If the software is missing a bundle identifier, we'll set it to a blank string.
                 macOsHostToSyncWithVanta.applications.push(softwareToAdd);

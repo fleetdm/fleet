@@ -11,6 +11,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -200,7 +201,7 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fl
 
 	selectRows := func(t *testing.T) ([]policyMembership, map[int]time.Time) {
 		var rows []policyMembership
-		mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, policy_id, passes, updated_at
         FROM policy_membership
         ORDER BY host_id, policy_id`)
@@ -210,7 +211,7 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fl
 			ID              int       `db:"id"`
 			PolicyUpdatedAt time.Time `db:"policy_updated_at"`
 		}
-		mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &hosts, `SELECT id, policy_updated_at FROM hosts`)
 		})
 
@@ -321,7 +322,7 @@ func testRecordPolicyQueryExecutionsSync(t *testing.T, ds *mock.Store, pool flee
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
 
-	err := task.RecordPolicyQueryExecutions(ctx, host, results, now, false)
+	_, err := task.RecordPolicyQueryExecutions(ctx, host, results, now, false, nil)
 	require.NoError(t, err)
 	require.True(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
 	ds.RecordPolicyQueryExecutionsFuncInvoked = false
@@ -373,9 +374,24 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
 
-	err := task.RecordPolicyQueryExecutions(ctx, host, results, now, false)
+	// Older results still buffered from a previous report: policy 7 is now stale and its buffered result is dropped, policy 1
+	// is still reported and its buffered result is kept.
+	bufferConn := redis.ConfigureDoer(pool, pool.Get())
+	_, err := bufferConn.Do("LPUSH", keyList, "7=-1", "1=-1")
+	require.NoError(t, err)
+	bufferConn.Close()
+
+	ds.StalePolicyIDsForHostFunc = func(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error) {
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, results, reported)
+		return []uint{7}, nil
+	}
+	stalePolicyIDs, err := task.RecordPolicyQueryExecutions(ctx, host, results, now, false, nil)
 	require.NoError(t, err)
 	require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+	require.True(t, ds.StalePolicyIDsForHostFuncInvoked)
+	ds.StalePolicyIDsForHostFuncInvoked = false
+	require.Equal(t, []uint{7}, stalePolicyIDs)
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
@@ -383,8 +399,7 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 
 	res, err := redigo.Strings(conn.Do("LRANGE", keyList, 0, -1))
 	require.NoError(t, err)
-	require.Equal(t, 4, len(res))
-	require.ElementsMatch(t, []string{"1=1", "2=1", "3=-1", "4=0"}, res)
+	require.ElementsMatch(t, []string{"1=1", "2=1", "3=-1", "4=0", "1=-1"}, res)
 
 	ts, err := redigo.Int64(conn.Do("GET", keyTs))
 	require.NoError(t, err)
@@ -409,7 +424,7 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 	err = task.collectPolicyQueryExecutions(ctx, ds, pool, &stats)
 	require.NoError(t, err)
 	require.Equal(t, 1, stats.Keys)
-	require.Equal(t, 4, stats.Items)
+	require.Equal(t, 5, stats.Items)
 	require.False(t, stats.Failed)
 
 	count, err = redigo.Int(conn.Do("ZCARD", policyPassHostIDsKey))
@@ -435,7 +450,7 @@ func testRecordPolicyQueryExecutionsNoPoliciesSync(t *testing.T, ds *mock.Store,
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
 
-	err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false)
+	_, err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false, nil)
 	require.NoError(t, err)
 	require.True(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
 	ds.RecordPolicyQueryExecutionsFuncInvoked = false
@@ -485,9 +500,17 @@ func testRecordPolicyQueryExecutionsNoPoliciesAsync(t *testing.T, ds *mock.Store
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
 
-	err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false)
+	ds.StalePolicyIDsForHostFunc = func(ctx context.Context, hostID uint, reported map[uint]*bool) ([]uint, error) {
+		require.Equal(t, host.ID, hostID)
+		require.Empty(t, reported)
+		return []uint{7, 9}, nil
+	}
+	stalePolicyIDs, err := task.RecordPolicyQueryExecutions(ctx, host, emptyResults, now, false, nil)
 	require.NoError(t, err)
 	require.False(t, ds.RecordPolicyQueryExecutionsFuncInvoked)
+	require.True(t, ds.StalePolicyIDsForHostFuncInvoked)
+	ds.StalePolicyIDsForHostFuncInvoked = false
+	require.Equal(t, []uint{7, 9}, stalePolicyIDs)
 
 	conn := redis.ConfigureDoer(pool, pool.Get())
 	defer conn.Close()
@@ -532,7 +555,7 @@ func createPolicies(t *testing.T, ds *mysql.Datastore, count int) []uint {
 	ctx := context.Background()
 
 	ids := make([]uint, count)
-	mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		for i := 0; i < count; i++ {
 			res, err := tx.ExecContext(
 				ctx, `INSERT INTO policies (name, description, query, checksum) VALUES (?, ?, ?, ?)`,

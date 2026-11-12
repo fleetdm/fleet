@@ -1,0 +1,8 @@
+{
+  "name": "Smallstep Agent",
+  "unique_identifier": "com.smallstep.Agent",
+  "token": "smallstepagent",
+  "installer_format": "pkg",
+  "slug": "smallstepagent/darwin",
+  "default_categories": ["Security"]
+}

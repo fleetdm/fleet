@@ -7,20 +7,91 @@ import (
 )
 
 var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error){
-	"microsoft-word/darwin":         {MicrosoftVersionFromReleaseNotes},
-	"microsoft-excel/darwin":        {MicrosoftVersionFromReleaseNotes},
-	"brave-browser/darwin":          {BraveVersionTransformer},
-	"whatsapp/darwin":               {WhatsAppVersionShortener},
-	"google-chrome/darwin":          {ChromePKGInstaller},
-	"1password/darwin":              {OnePasswordPKGInstaller},
-	"zoom/darwin":                   {ZoomPKGInstaller},
-	"slack/darwin":                  {SlackPKGInstaller},
-	"omnissa-horizon-client/darwin": {OmnissaHorizonVersionShortener},
-	"8x8-work/darwin":               {EightXEightWorkVersionShortener},
-	"cisco-jabber/darwin":           {CiscoJabberVersionTransformer},
-	"parallels/darwin":              {ParallelsVersionShortener},
-	"github/darwin":                 {GitHubDesktopVersionShortener},
-	"camtasia/darwin":               {CamtasiaVersionTransformer},
+	"microsoft-word/darwin":             {MicrosoftVersionFromReleaseNotes},
+	"microsoft-excel/darwin":            {MicrosoftVersionFromReleaseNotes},
+	"microsoft-outlook/darwin":          {MicrosoftVersionFromReleaseNotes},
+	"microsoft-powerpoint/darwin":       {MicrosoftVersionFromReleaseNotes},
+	"microsoft-onenote/darwin":          {MicrosoftVersionFromReleaseNotes},
+	"brave-browser/darwin":              {BraveVersionTransformer},
+	"whatsapp/darwin":                   {WhatsAppInstallerURL},
+	"google-chrome/darwin":              {ChromePKGInstaller},
+	"google-drive/darwin":               {GoogleDriveVersionShortener},
+	"1password/darwin":                  {OnePasswordPKGInstaller},
+	"zoom/darwin":                       {ZoomPKGInstaller},
+	"slack/darwin":                      {SlackPKGInstaller},
+	"omnissa-horizon-client/darwin":     {OmnissaHorizonVersionShortener},
+	"8x8-work/darwin":                   {EightXEightWorkVersionShortener},
+	"cisco-jabber/darwin":               {CiscoJabberVersionTransformer},
+	"parallels/darwin":                  {ParallelsVersionShortener},
+	"github/darwin":                     {GitHubDesktopVersionShortener},
+	"camtasia/darwin":                   {CamtasiaVersionTransformer},
+	"vivaldi/darwin":                    {VivaldiDMGInstaller},
+	"warp/darwin":                       {WarpDirectInstaller},
+	"android-studio/darwin":             {AndroidStudioVersionShortener},
+	"microsoft-auto-update/darwin":      {MicrosoftAutoUpdateVersionShortener},
+	"microsoft-365-copilot/darwin":      {Microsoft365CopilotVersionShortener},
+	"opera/darwin":                      {OperaVersionShortener},
+	"twingate/darwin":                   {TwingateVersionShortener},
+	"citrix-workspace/darwin":           {CitrixWorkspaceVersionShortener},
+	"elgato-stream-deck/darwin":         {ElgatoStreamDeckVersionShortener},
+	"filemaker-pro/darwin":              {FileMakerProVersionShortener},
+	"royal-tsx/darwin":                  {RoyalTSXVersionShortener},
+	"sublime-text/darwin":               {SublimeVersionTransformer},
+	"sublime-merge/darwin":              {SublimeVersionTransformer},
+	"mysqlworkbench/darwin":             {MySQLWorkbenchVersionTransformer},
+	"lens/darwin":                       {LensVersionTransformer},
+	"grammarly-desktop/darwin":          {GrammarlyDesktopVersionShortener},
+	"logitune/darwin":                   {LogiTunePKGInstaller},
+	"anka-virtualization/darwin":        {AnkaVersionShortener},
+	"onedrive/darwin":                   {OneDriveVersionShortener},
+	"pd/darwin":                         {PdVersionTransformer},
+	"smallstepagent/darwin":             {SmallstepAgentVersionTransformer},
+	"raspberry-pi-imager/darwin":        {RaspberryPiImagerVersionTransformer},
+	"sonos/darwin":                      {SonosVersionTransformer},
+	"harmony-sase/darwin":               {HarmonySASEVersionShortener},
+	"visual-studio-code/darwin":         {VSCodeUniversalInstaller},
+	"shottr/darwin":                     {ShottrVersionTransformer},
+	"outset/darwin":                     {OutsetVersionShortener},
+	"updf/darwin":                       {UPDFInstallerHost},
+	"expressvpn/darwin":                 {ExpressVPNVersionShortener},
+	"cmux/darwin":                       {CmuxVersionShortener},
+	"megasync/darwin":                   {MEGAsyncVersionShortener},
+	"capcut/darwin":                     {CapCutVersionShortener},
+	"devtoys/darwin":                    {DevToysVersionShortener},
+	"fontlab/darwin":                    {FontLabVersionShortener},
+	"memoryanalyzer/darwin":             {MemoryAnalyzerVersionShortener},
+	"ndi-tools/darwin":                  {NDIToolsVersionShortener},
+	"plex/darwin":                       {PlexVersionShortener},
+	"plex-htpc/darwin":                  {PlexHTPCVersionShortener},
+	"elgato-camera-hub/darwin":          {ElgatoCameraHubVersionShortener},
+	"musescore/darwin":                  {MuseScoreVersionShortener},
+	"shapr3d/darwin":                    {Shapr3DVersionShortener},
+	"yacreader/darwin":                  {YACReaderVersionShortener},
+	"adguard/darwin":                    {AdGuardVersionShortener, AdGuardVersionTrimmer},
+	"numi/darwin":                       {NumiVersionShortener},
+	"origami-studio/darwin":             {OrigamiStudioVersionShortener},
+	"sqlpro-for-sqlite/darwin":          {SQLProVersionShortener},
+	"sqlpro-studio/darwin":              {SQLProVersionShortener},
+	"moom/darwin":                       {MoomVersionTrimmer},
+	"opal-composer/darwin":              {OpalComposerVersionTrimmer},
+	"plistedit-pro/darwin":              {PlistEditProVersionTrimmer},
+	"rocketman-choices-packager/darwin": {RocketmanChoicesPackagerVersionTrimmer},
+	"krita/darwin":                      {KritaVersionShortener},
+	"4k-slideshow-maker/darwin":         {OpenMediaVersionShortener},
+	"4k-stogram/darwin":                 {OpenMediaVersionShortener},
+	"4k-video-downloader/darwin":        {OpenMediaVersionShortener},
+	"4k-video-to-mp3/darwin":            {OpenMediaVersionShortener},
+	"4k-youtube-to-mp3/darwin":          {OpenMediaVersionShortener},
+	"google-earth-pro/darwin":           {GoogleEarthProVersionShortener},
+	"disk-drill/darwin":                 {DiskDrillVersionShortener},
+	"kdenlive/darwin":                   {KdenliveVersionShortener},
+	"syncmate/darwin":                   {SyncMateVersionShortener},
+	"bitrix24/darwin":                   {Bitrix24VersionShortener},
+	"chrome-remote-desktop-host/darwin": {ChromeRemoteDesktopHostVersionShortener},
+	"malwarebytes/darwin":               {MalwarebytesVersionShortener},
+	"plex-media-server/darwin":          {PlexMediaServerVersionShortener},
+	"sigmaos/darwin":                    {SigmaOSVersionShortener},
+	"redcine-x-pro/darwin":              {REDCINEXProVersionShortener},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
@@ -57,6 +128,26 @@ func ZoomPKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMA
 	// Override installer URL to use Zoom's Universal PKG installer instead of Homebrew's DMG
 	// Version is kept from Homebrew (not set to "latest")
 	app.InstallerURL = "https://zoom.us/client/latest/ZoomInstallerIT.pkg"
+	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
+	app.SHA256 = "no_check"
+
+	return app, nil
+}
+
+func LogiTunePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	// Override installer URL to use Logitech's enterprise PKG installer instead of Homebrew's DMG,
+	// which only contains a GUI installer app with no silent mode.
+	// Version is kept from Homebrew (not set to "latest")
+	app.InstallerURL = "https://software.vc.logitech.com/downloads/tune/LogiTuneInstaller.pkg"
+	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
+	app.SHA256 = "no_check"
+
+	return app, nil
+}
+
+func WhatsAppInstallerURL(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	// Override installer URL to always use the specified URL
+	app.InstallerURL = "https://web.whatsapp.com/desktop/mac_native/release/?configuration=Release&src=whatsapp_downloads_page"
 	// Set SHA256 to "no_check" since we're using a different installer URL than Homebrew
 	app.SHA256 = "no_check"
 

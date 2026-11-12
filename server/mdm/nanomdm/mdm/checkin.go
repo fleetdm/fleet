@@ -1,6 +1,7 @@
 package mdm
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -51,7 +52,7 @@ func (b b64Data) String() string {
 // TokenUpdate is a representation of a "TokenUpdate" check-in message type.
 // See https://developer.apple.com/documentation/devicemanagement/token_update
 type TokenUpdate struct {
-	Enrollment
+	TokenUpdateEnrollment
 	MessageType
 	Push
 	UnlockToken []byte `plist:",omitempty"`
@@ -201,7 +202,7 @@ func (w *checkinUnmarshaller) UnmarshalPlist(f func(interface{}) error) error {
 // DecodeCheckin unmarshals rawMessage into a specific check-in struct in message.
 func DecodeCheckin(rawMessage []byte) (message interface{}, err error) {
 	w := &checkinUnmarshaller{raw: rawMessage}
-	err = plist.Unmarshal(rawMessage, w)
+	err = plist.NewXMLDecoder(bytes.NewReader(rawMessage)).Decode(w)
 	message = w.message
 	return
 }

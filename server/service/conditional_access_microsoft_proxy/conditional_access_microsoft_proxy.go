@@ -12,29 +12,28 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 )
 
 // Proxy holds functionality to send requests to Entra via Fleet's MS proxy.
 type Proxy struct {
 	uri          string
-	apiKey       string
 	originGetter func() (string, error)
 
 	c *http.Client
 }
 
-// New creates a Proxy that will use the given URI and API key.
-func New(uri string, apiKey string, originGetter func() (string, error)) (*Proxy, error) {
+// New creates a Proxy that will use the given URI.
+func New(uri string, originGetter func() (string, error)) (*Proxy, error) {
 	if _, err := url.Parse(uri); err != nil {
 		return nil, fmt.Errorf("parse uri: %w", err)
 	}
 	return &Proxy{
-		uri:    uri,
-		apiKey: apiKey,
+		uri: uri,
 
 		originGetter: originGetter,
 
-		c: fleethttp.NewClient(),
+		c: fleethttp.NewClient(fleethttp.WithNoTimeout()),
 	}, nil
 }
 
@@ -75,7 +74,7 @@ func (p *Proxy) Get(ctx context.Context, tenantID string, secret string) (*GetRe
 	var getResponse GetResponse
 	if err := p.get(
 		"/api/v1/microsoft-compliance-partner/settings",
-		fmt.Sprintf("entraTenantId=%s&fleetServerSecret=%s", tenantID, secret),
+		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}},
 		&getResponse,
 	); err != nil {
 		return nil, fmt.Errorf("get integration settings failed: %w", err)
@@ -94,7 +93,7 @@ func (p *Proxy) Delete(ctx context.Context, tenantID string, secret string) (*De
 	var deleteResponse DeleteResponse
 	if err := p.delete(
 		"/api/v1/microsoft-compliance-partner",
-		fmt.Sprintf("entraTenantId=%s&fleetServerSecret=%s", tenantID, secret),
+		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}},
 		&deleteResponse,
 	); err != nil {
 		return nil, fmt.Errorf("delete integration failed: %w", err)
@@ -181,7 +180,7 @@ func (p *Proxy) GetMessageStatus(
 	var getMessageStatusResponse GetMessageStatusResponse
 	if err := p.get(
 		"/api/v1/microsoft-compliance-partner/device/message",
-		fmt.Sprintf("entraTenantId=%s&fleetServerSecret=%s&messageId=%s", tenantID, secret, messageID),
+		url.Values{"entraTenantId": {tenantID}, "fleetServerSecret": {secret}, "messageId": {messageID}},
 		&getMessageStatusResponse,
 	); err != nil {
 		return nil, fmt.Errorf("get message status response failed: %w", err)
@@ -209,7 +208,7 @@ func (p *Proxy) post(path string, request interface{}, response interface{}) err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("post request failed: %s", resp.Status)
+		return newStatusError(resp)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -221,10 +220,10 @@ func (p *Proxy) post(path string, request interface{}, response interface{}) err
 	return nil
 }
 
-func (p *Proxy) get(path string, query string, response interface{}) error {
+func (p *Proxy) get(path string, query url.Values, response any) error {
 	getURL := p.uri + path
-	if query != "" {
-		getURL += "?" + url.PathEscape(query)
+	if len(query) > 0 {
+		getURL += "?" + query.Encode()
 	}
 	getRequest, err := http.NewRequest("GET", getURL, nil)
 	if err != nil {
@@ -239,7 +238,7 @@ func (p *Proxy) get(path string, query string, response interface{}) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("get request failed: %s", resp.Status)
+		return newStatusError(resp)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -251,10 +250,10 @@ func (p *Proxy) get(path string, query string, response interface{}) error {
 	return nil
 }
 
-func (p *Proxy) delete(path string, query string, response interface{}) error {
+func (p *Proxy) delete(path string, query url.Values, response any) error {
 	deleteURL := p.uri + path
-	if query != "" {
-		deleteURL += "?" + url.PathEscape(query)
+	if len(query) > 0 {
+		deleteURL += "?" + query.Encode()
 	}
 	deleteRequest, err := http.NewRequest("DELETE", deleteURL, nil)
 	if err != nil {
@@ -292,7 +291,41 @@ func (e *notFoundError) Error() string {
 	return "not found"
 }
 
+// StatusError is returned for a non-2xx response from the MS proxy. It carries
+// the HTTP status code and response body so callers can surface the remote
+// error response.
+type StatusError struct {
+	Code    int
+	RespErr string
+}
+
+func (e *StatusError) Error() string {
+	if e.RespErr == "" {
+		return fmt.Sprintf("%d", e.Code)
+	}
+	return fmt.Sprintf("%d: %s", e.Code, e.RespErr)
+}
+
+// StatusCode returns the remote HTTP status code.
+func (e *StatusError) StatusCode() int { return e.Code }
+
+// Body returns the remote response body.
+func (e *StatusError) Body() string { return e.RespErr }
+
+// newStatusError reads up to str.MaxErrorResponseBytes of the response body
+// and returns a StatusError. When the body is larger the stored string ends
+// with " [truncated]".
+func newStatusError(resp *http.Response) *StatusError {
+	lr := io.LimitReader(resp.Body, str.MaxErrorResponseBytes+1)
+	bodyBytes, _ := io.ReadAll(lr)
+	return &StatusError{Code: resp.StatusCode, RespErr: str.TruncateErrorResponse(string(bodyBytes))}
+}
+
 func (e *notFoundError) IsNotFound() bool {
+	return true
+}
+
+func (e *notFoundError) IsClientError() bool {
 	return true
 }
 
@@ -304,7 +337,6 @@ func (p *Proxy) setHeaders(r *http.Request) error {
 	if origin == "" {
 		return fmt.Errorf("missing origin: %w", err)
 	}
-	r.Header.Add("MS-API-Key", p.apiKey)
 	r.Header.Add("Origin", origin)
 	return nil
 }

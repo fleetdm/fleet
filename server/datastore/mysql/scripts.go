@@ -15,13 +15,39 @@ import (
 	constants "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/plist"
 )
 
+var scriptsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":         "s.id",
+	"name":       "s.name",
+	"created_at": "s.created_at",
+	"updated_at": "s.updated_at",
+}
+
+// hostScriptDetailsAllowedOrderKeys is intentionally minimal: the service layer
+// pins OrderKey to "name" before reaching this datastore method.
+var hostScriptDetailsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name": "s.name",
+}
+
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	return ds.newHostScriptExecutionRequestPublic(ctx, request, false)
+}
+
+// NewInternalHostScriptExecutionRequest enqueues a host script run flagged
+// as internal (fleet-initiated). Internal scripts do not appear in the
+// user-facing host activity feed. Use for server-driven follow-up actions
+// (e.g. cleanup scripts after MDM events) rather than user-requested runs.
+func (ds *Datastore) NewInternalHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	return ds.newHostScriptExecutionRequestPublic(ctx, request, true)
+}
+
+func (ds *Datastore) newHostScriptExecutionRequestPublic(ctx context.Context, request *fleet.HostScriptRequestPayload, isInternal bool) (*fleet.HostScriptResult, error) {
 	var res *fleet.HostScriptResult
 	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
@@ -35,7 +61,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 			id, _ := scRes.LastInsertId()
 			request.ScriptContentID = uint(id) //nolint:gosec // dismiss G115
 		}
-		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, false)
+		res, err = ds.newHostScriptExecutionRequest(ctx, tx, request, isInternal)
 		return err
 	})
 }
@@ -121,8 +147,12 @@ VALUES
 		return "", 0, ctxerr.Wrap(ctx, err, "new join script upcoming activity")
 	}
 
-	if _, err := ds.activateNextUpcomingActivity(ctx, tx, request.HostID, ""); err != nil {
-		return "", 0, ctxerr.Wrap(ctx, err, "activate next activity")
+	// deferred activations are picked up by the fleet-initiated release cron
+	// within its per-minute budget
+	if !request.DeferActivation {
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, request.HostID, ""); err != nil {
+			return "", 0, ctxerr.Wrap(ctx, err, "activate next activity")
+		}
 	}
 
 	return execID, activityID, nil
@@ -142,7 +172,7 @@ func truncateScriptResult(output string) string {
 	return output
 }
 
-func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult,
+func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload, attemptNumber *int) (*fleet.HostScriptResult,
 	string, error,
 ) {
 	const resultExistsStmt = `
@@ -161,7 +191,8 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     output = ?,
     runtime = ?,
     exit_code = ?,
-    timeout = ?
+    timeout = ?,
+    attempt_number = ?
   WHERE
     host_id = ? AND
     execution_id = ?`
@@ -197,7 +228,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			return ctxerr.Wrap(ctx, err, "check if host script result exists")
 		}
 		if resultExists {
-			level.Debug(ds.logger).Log("msg", "duplicate script execution result sent, will be ignored (original result is preserved)",
+			ds.logger.DebugContext(ctx, "duplicate script execution result sent, will be ignored (original result is preserved)",
 				"host_id", result.HostID,
 				"execution_id", result.ExecutionID,
 			)
@@ -222,6 +253,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			// See /orbit/pkg/scripts/exec_windows.go
 			int32(result.ExitCode), //nolint:gosec // dismiss G115
 			result.Timeout,
+			attemptNumber,
 			result.HostID,
 			result.ExecutionID,
 		)
@@ -279,22 +311,18 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	return hsr, action, nil
 }
 
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, false)
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, false)
 }
 
-func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, true)
+func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, true)
 }
 
-func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
+func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
 	extraWhere := ""
-	if onlyShowInternal {
-		// software_uninstalls are implicitly internal
-		extraWhere = " AND COALESCE(ua.payload->'$.is_internal', 1) = 1"
-	}
 	if onlyReadyToExecute {
-		extraWhere += " AND ua.activated_at IS NOT NULL"
+		extraWhere = " AND ua.activated_at IS NOT NULL"
 	}
 	// this selects software uninstalls too as they run as scripts
 	listStmt := fmt.Sprintf(`
@@ -387,6 +415,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		hsr.id,
 		hsr.host_id,
 		hsr.execution_id,
+		hsr.script_content_id,
 		sc.contents as script_contents,
 		hsr.script_id,
 		hsr.policy_id,
@@ -400,7 +429,9 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		hsr.host_deleted_at,
 		hsr.setup_experience_script_id,
 		hsr.canceled,
-		bahr.batch_execution_id
+		bahr.batch_execution_id,
+		hsr.attempt_number,
+		COALESCE(hsr.is_internal, 0) as is_internal
 	FROM
 		host_script_results hsr
 	LEFT JOIN
@@ -420,6 +451,7 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		0 as id,
 		ua.host_id,
 		ua.execution_id,
+		sua.script_content_id,
 		sc.contents as script_contents,
 		sua.script_id,
 		sua.policy_id,
@@ -432,7 +464,10 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		COALESCE(ua.payload->'$.sync_request', 0) as sync_request,
 		NULL as host_deleted_at,
 		sua.setup_experience_script_id,
-		0 as canceled
+		0 as canceled,
+		NULL as batch_execution_id,
+		NULL as attempt_number,
+		COALESCE(ua.payload->'$.is_internal', 0) as is_internal
   FROM
 		upcoming_activities ua
 		INNER JOIN script_upcoming_activities sua
@@ -459,6 +494,27 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 		}
 	}
 	return &result, nil
+}
+
+func (ds *Datastore) CountHostScriptAttempts(ctx context.Context, hostID, scriptID, policyID uint) (int, error) {
+	var count int
+	// Only count attempts from the current retry sequence.
+	// When a policy passes, all attempt_number values are reset to 0 to mark them as "old sequence".
+	// We count attempts where attempt_number > 0 (current sequence) OR attempt_number IS NULL (currently being processed).
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, `
+		SELECT COUNT(*)
+		FROM host_script_results
+		WHERE host_id = ?
+		  AND script_id = ?
+		  AND policy_id = ?
+		  AND canceled = 0
+		  AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, hostID, scriptID, policyID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count host script attempts")
+	}
+
+	return count, nil
 }
 
 func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
@@ -516,7 +572,7 @@ func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, sc
 			// Try to clean up the old content if no longer used
 			// Don't fail the transaction if cleanup fails; just log it
 			if err := ds.cleanupScriptContent(ctx, tx, uint(oldContentID)); err != nil { //nolint:gosec
-				level.Error(ds.logger).Log("msg", "failed to cleanup orphaned script content",
+				ds.logger.ErrorContext(ctx, "failed to cleanup orphaned script content",
 					"script_id", scriptID, "old_content_id", oldContentID, "err", err)
 				ctxerr.Handle(ctx, err)
 			}
@@ -531,6 +587,11 @@ func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, sc
 		// Cancel pending executions
 		if err := ds.cancelUpcomingScriptActivities(ctx, tx, scriptID); err != nil {
 			return ctxerr.Wrap(ctx, err, "canceling upcoming script executions")
+		}
+
+		// When a script is modified reset attempt numbers for policy automations
+		if err := ds.resetScriptPolicyAutomationAttempts(ctx, tx, scriptID); err != nil {
+			return ctxerr.Wrap(ctx, err, "resetting policy automation attempts for script")
 		}
 
 		return nil
@@ -564,9 +625,29 @@ WHERE
 	}
 
 	for _, upcomingExecution := range upcomingExecutions {
-		if _, err := ds.cancelHostUpcomingActivity(ctx, db, upcomingExecution.HostID, upcomingExecution.ExecutionID); err != nil {
+		if _, err := ds.cancelHostUpcomingActivity(ctx, db, upcomingExecution.HostID, upcomingExecution.ExecutionID, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
 		}
+	}
+
+	// Cancel scripts that were already activated and are in host_script_results but not yet executed
+	const activatedStmt = `UPDATE host_script_results SET canceled = 1 WHERE script_id = ? AND exit_code IS NULL AND canceled = 0`
+	if _, err := db.ExecContext(ctx, activatedStmt, scriptID); err != nil {
+		return ctxerr.Wrap(ctx, err, "canceling activated pending script executions")
+	}
+
+	return nil
+}
+
+// resetScriptPolicyAutomationAttempts resets all attempt numbers for script executions for policy automations
+func (ds *Datastore) resetScriptPolicyAutomationAttempts(ctx context.Context, db sqlx.ExecerContext, scriptID uint) error {
+	_, err := db.ExecContext(ctx, `
+		UPDATE host_script_results
+		SET attempt_number = 0
+		WHERE script_id = ? AND policy_id IS NOT NULL AND (attempt_number > 0 OR attempt_number IS NULL)
+	`, scriptID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reset policy automation script attempts")
 	}
 
 	return nil
@@ -807,10 +888,11 @@ func (ds *Datastore) DeleteScript(ctx context.Context, id uint) error {
 
 	// we call this outside of the transaction to avoid a
 	// long-running/deadlock-prone transaction, as many hosts could be affected.
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts)
+	_, err = ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts)
+	return err
 }
 
-// deletePendingHostScriptExecutionsForPolicy should be called when a policy is deleted to remove any pending script executions
+// deletePendingHostScriptExecutionsForPolicy should be called before a policy is deleted to remove any pending script executions
 func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Context, teamID *uint, policyID uint) error {
 	var globalOrTeamID uint
 	if teamID != nil {
@@ -875,7 +957,8 @@ func (ds *Datastore) deletePendingHostScriptExecutionsForPolicy(ctx context.Cont
 		return err
 	}
 
-	return ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHosts)
+	_, err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, affectedHosts)
+	return err
 }
 
 func (ds *Datastore) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
@@ -899,7 +982,10 @@ WHERE
 	}
 
 	args := []any{globalOrTeamID}
-	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
+	stmt, args, err := appendListOptionsWithCursorToSQLSecure(selectStmt, args, &opt, scriptsAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list scripts")
+	}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &scripts, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "select scripts")
@@ -947,14 +1033,14 @@ func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, team
 		globalOrTeamID = *teamID
 	}
 
-	var extension string
+	var extensionPatterns []string
 	switch {
 	case hostPlatform == "windows":
 		// filter by .ps1 extension
-		extension = `%.ps1`
+		extensionPatterns = []string{`%.ps1`}
 	case fleet.IsUnixLike(hostPlatform):
-		// filter by .sh extension
-		extension = `%.sh`
+		// filter by .sh and .py extensions
+		extensionPatterns = []string{`%.sh`, `%.py`}
 	default:
 		// no extension filter
 	}
@@ -1051,13 +1137,24 @@ WHERE
 `
 
 	args := []any{hostID, hostID, hostID, globalOrTeamID}
-	if len(extension) > 0 {
-		args = append(args, extension)
+	if len(extensionPatterns) > 0 {
+		likeClauses := make([]string, 0, len(extensionPatterns))
+		for _, ext := range extensionPatterns {
+			likeClauses = append(likeClauses, "s.name LIKE ?")
+			args = append(args, ext)
+		}
 		sql += `
-		AND s.name LIKE ?
+		AND (
+			` + strings.Join(likeClauses, `
+			OR
+			`) + `
+		)
 		`
 	}
-	stmt, args := appendListOptionsWithCursorToSQL(sql, args, &opt)
+	stmt, args, err := appendListOptionsWithCursorToSQLSecure(sql, args, &opt, hostScriptDetailsAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host script details")
+	}
 
 	var rows []*row
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
@@ -1082,89 +1179,76 @@ WHERE
 }
 
 func (ds *Datastore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+	// Shared lock so a concurrent edit can't change a script after it's skipped as unchanged, and a
+	// script added concurrently is still found and removed. It doesn't block the foreign key checks
+	// of script runs being queued. LEFT JOIN because script_contents is read from the snapshot, which
+	// can miss a concurrently added script's contents.
 	const loadExistingScripts = `
 SELECT
-  name
+  s.id, s.name, COALESCE(HEX(sc.md5_checksum), '') AS md5_checksum
 FROM
-  scripts
+  scripts s
+  LEFT JOIN script_contents sc ON sc.id = s.script_content_id
 WHERE
-  global_or_team_id = ? AND
-  name IN (?)
+  s.global_or_team_id = ?
+FOR SHARE OF s
 `
-	const deleteAllScriptsInTeam = `
-DELETE FROM
-  scripts
-WHERE
-  global_or_team_id = ?
-`
-	const unsetAllScriptsFromPolicies = `UPDATE policies SET script_id = NULL WHERE team_id = ?`
 
-	const clearAllPendingExecutionsHSR = `DELETE FROM host_script_results WHERE
+	// Without the hint MySQL can pick a full scan, which locks every policy row until commit and
+	// blocks all hosts' policy result writes.
+	const unsetScriptsFromPolicies = `UPDATE policies FORCE INDEX (fk_policies_script_id) SET script_id = NULL WHERE script_id IN (?)`
+
+	const deleteScripts = `DELETE FROM scripts WHERE id IN (?)`
+
+	// Literal script IDs keep these on the script_id indexes. A subquery on scripts can scan and lock
+	// every fleet's pending runs.
+	const clearPendingExecutionsHSR = `DELETE FROM host_script_results WHERE
 		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
-		AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
+		AND script_id IN (?)`
 
-	const loadAffectedHostsAllPendingExecutionsUA = `
+	const lockScripts = `SELECT id FROM scripts WHERE id IN (?) FOR UPDATE`
+
+	// Current reads, run after the removed scripts are locked, so runs queued for them after this
+	// transaction's snapshot are still cancelled. SKIP LOCKED passes over runs still being queued;
+	// those fail their foreign key check once the script is deleted.
+	const loadAffectedHostsPendingExecutionsUA = `
 		SELECT
-			DISTINCT host_id
+			DISTINCT ua.host_id
+		FROM
+			script_upcoming_activities sua FORCE INDEX (fk_script_upcoming_activities_script_id)
+			STRAIGHT_JOIN upcoming_activities ua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'script'
+			AND ua.activated_at IS NOT NULL
+			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id IN (?)
+		FOR SHARE SKIP LOCKED`
+
+	const loadPendingExecutionsUA = `SELECT ua.id
+		FROM
+			script_upcoming_activities sua FORCE INDEX (fk_script_upcoming_activities_script_id)
+			STRAIGHT_JOIN upcoming_activities ua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.activity_type = 'script'
+			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
+			AND sua.script_id IN (?)
+		FOR UPDATE SKIP LOCKED`
+
+	// Plain read, then delete by primary key. A locking DELETE joined on script_upcoming_activities
+	// can lock other scripts' runs and keeps meeting runs being queued, deadlocking with them.
+	const loadPendingExecutionsWithObsoleteScriptUA = `SELECT ua.id
 		FROM
 			upcoming_activities ua
 			INNER JOIN script_upcoming_activities sua
 				ON ua.id = sua.upcoming_activity_id
 		WHERE
 			ua.activity_type = 'script'
-			AND ua.activated_at IS NOT NULL
 			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
-			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
+			AND sua.script_id = ? AND sua.script_content_id != ?`
 
-	const clearAllPendingExecutionsUA = `DELETE FROM upcoming_activities
-		USING
-			upcoming_activities
-			INNER JOIN script_upcoming_activities sua
-				ON upcoming_activities.id = sua.upcoming_activity_id
-		WHERE
-			upcoming_activities.activity_type = 'script'
-			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
-			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ?)`
-
-	const unsetScriptsNotInListFromPolicies = `
-UPDATE policies SET script_id = NULL
-WHERE script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))
-`
-
-	const deleteScriptsNotInList = `
-DELETE FROM
-  scripts
-WHERE
-  global_or_team_id = ? AND
-  name NOT IN (?)
-`
-
-	const clearPendingExecutionsNotInListHSR = `DELETE FROM host_script_results WHERE
-		exit_code IS NULL AND (sync_request = 0 OR created_at >= NOW() - INTERVAL ? SECOND)
-		AND script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
-
-	const loadAffectedHostsPendingExecutionsNotInListUA = `
-		SELECT
-			DISTINCT host_id
-		FROM
-			upcoming_activities ua
-			INNER JOIN script_upcoming_activities sua
-				ON ua.id = sua.upcoming_activity_id
-		WHERE
-			ua.activity_type = 'script'
-			AND ua.activated_at IS NOT NULL
-			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
-			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
-
-	const clearPendingExecutionsNotInListUA = `DELETE FROM upcoming_activities
-		USING
-			upcoming_activities
-			INNER JOIN script_upcoming_activities sua
-				ON upcoming_activities.id = sua.upcoming_activity_id
-		WHERE
-			upcoming_activities.activity_type = 'script'
-			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
-			AND sua.script_id IN (SELECT id FROM scripts WHERE global_or_team_id = ? AND name NOT IN (?))`
+	const deleteUpcomingActivities = `DELETE FROM upcoming_activities WHERE id IN (?)`
 
 	const insertNewOrEditedScript = `
 INSERT INTO
@@ -1194,16 +1278,6 @@ ON DUPLICATE KEY UPDATE
 			AND (ua.payload->'$.sync_request' = 0 OR ua.created_at >= NOW() - INTERVAL ? SECOND)
 			AND sua.script_id = ? AND sua.script_content_id != ?`
 
-	const clearPendingExecutionsWithObsoleteScriptUA = `DELETE FROM upcoming_activities
-		USING
-			upcoming_activities
-			INNER JOIN script_upcoming_activities sua
-				ON upcoming_activities.id = sua.upcoming_activity_id
-		WHERE
-			upcoming_activities.activity_type = 'script'
-			AND (upcoming_activities.payload->'$.sync_request' = 0 OR upcoming_activities.created_at >= NOW() - INTERVAL ? SECOND)
-			AND sua.script_id = ? AND sua.script_content_id != ?`
-
 	const loadInsertedScripts = `SELECT id, team_id, name FROM scripts WHERE global_or_team_id = ?`
 
 	// use a team id of 0 if no-team
@@ -1212,14 +1286,9 @@ ON DUPLICATE KEY UPDATE
 		globalOrTeamID = *tmID
 	}
 
-	// build a list of names for the incoming scripts, will keep the
-	// existing ones if there's a match and no change
-	incomingNames := make([]string, len(scripts))
-	// at the same time, index the incoming scripts keyed by name for ease
-	// of processing
+	// index the incoming scripts keyed by name for ease of processing
 	incomingScripts := make(map[string]*fleet.Script, len(scripts))
-	for i, p := range scripts {
-		incomingNames[i] = p.Name
+	for _, p := range scripts {
 		incomingScripts[p.Name] = p
 	}
 
@@ -1227,103 +1296,51 @@ ON DUPLICATE KEY UPDATE
 	var activateAffectedHosts []uint
 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var existingScripts []*fleet.Script
+		var existingScripts []struct {
+			ID          uint   `db:"id"`
+			Name        string `db:"name"`
+			MD5Checksum string `db:"md5_checksum"`
+		}
+		if err := sqlx.SelectContext(ctx, tx, &existingScripts, loadExistingScripts, globalOrTeamID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load existing scripts")
+		}
+		existingChecksums := make(map[string]string, len(existingScripts))
+		var obsoleteIDs []uint
+		for _, s := range existingScripts {
+			existingChecksums[s.Name] = s.MD5Checksum
+			if incomingScripts[s.Name] == nil {
+				obsoleteIDs = append(obsoleteIDs, s.ID)
+			}
+		}
+		activateAffectedHosts, insertedScripts = nil, nil
 
-		if len(incomingNames) > 0 {
-			// load existing scripts that match the incoming scripts by names
-			stmt, args, err := sqlx.In(loadExistingScripts, globalOrTeamID, incomingNames)
+		cancelPendingUA := func(stmt string, args ...any) error {
+			stmt, args, err := sqlx.In(stmt, args...)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build query to load existing scripts")
+				return err
 			}
-			if err := sqlx.SelectContext(ctx, tx, &existingScripts, stmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "load existing scripts")
+			var ids []uint
+			if err := sqlx.SelectContext(ctx, tx, &ids, stmt, args...); err != nil {
+				return err
 			}
+			const batchSize = 5000
+			for i := 0; i < len(ids); i += batchSize {
+				stmt, args, err := sqlx.In(deleteUpcomingActivities, ids[i:min(i+batchSize, len(ids))])
+				if err != nil {
+					return err
+				}
+				if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+					return err
+				}
+			}
+			return nil
 		}
-
-		// figure out if we need to delete any scripts
-		keepNames := make([]string, 0, len(incomingNames))
-		for _, p := range existingScripts {
-			if newS := incomingScripts[p.Name]; newS != nil {
-				keepNames = append(keepNames, p.Name)
-			}
-		}
-
-		var (
-			scriptsStmt     string
-			scriptsArgs     []any
-			policiesStmt    string
-			policiesArgs    []any
-			executionsStmt  string
-			executionsArgs  []any
-			extraExecStmt   string
-			extraExecArgs   []any
-			err             error
-			affectedHostIDs []uint
-		)
-		if len(keepNames) > 0 {
-			// delete the obsolete scripts
-			scriptsStmt, scriptsArgs, err = sqlx.In(deleteScriptsNotInList, globalOrTeamID, keepNames)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete scripts")
-			}
-
-			policiesStmt, policiesArgs, err = sqlx.In(unsetScriptsNotInListFromPolicies, globalOrTeamID, keepNames)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete scripts from policies")
-			}
-
-			executionsStmt, executionsArgs, err = sqlx.In(clearPendingExecutionsNotInListHSR, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build statement to clear pending script executions from obsolete scripts")
-			}
-
-			loadAffectedStmt, args, err := sqlx.In(loadAffectedHostsPendingExecutionsNotInListUA,
-				int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build query to load affected hosts for upcoming script executions")
-			}
-			if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs, loadAffectedStmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming script executions")
-			}
-
-			extraExecStmt, extraExecArgs, err = sqlx.In(clearPendingExecutionsNotInListUA, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID, keepNames)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build statement to clear upcoming pending script executions from obsolete scripts")
-			}
-		} else {
-			scriptsStmt = deleteAllScriptsInTeam
-			scriptsArgs = []any{globalOrTeamID}
-
-			policiesStmt = unsetAllScriptsFromPolicies
-			policiesArgs = []any{globalOrTeamID}
-
-			executionsStmt = clearAllPendingExecutionsHSR
-			executionsArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
-
-			if err := sqlx.SelectContext(ctx, tx, &affectedHostIDs,
-				loadAffectedHostsAllPendingExecutionsUA, int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID); err != nil {
-				return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming script executions")
-			}
-
-			extraExecStmt = clearAllPendingExecutionsUA
-			extraExecArgs = []any{int(constants.MaxServerWaitTime.Seconds()), globalOrTeamID}
-		}
-		if _, err := tx.ExecContext(ctx, policiesStmt, policiesArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
-		}
-		if _, err := tx.ExecContext(ctx, executionsStmt, executionsArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear obsolete script pending executions")
-		}
-		if _, err := tx.ExecContext(ctx, extraExecStmt, extraExecArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "clear obsolete upcoming script pending executions")
-		}
-		if _, err := tx.ExecContext(ctx, scriptsStmt, scriptsArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
-		}
-		activateAffectedHosts = affectedHostIDs
 
 		// insert the new scripts and the ones that have changed
 		for _, s := range incomingScripts {
+			if sum, ok := existingChecksums[s.Name]; ok && sum == md5ChecksumScriptContent(s.ScriptContents) {
+				continue
+			}
 			scRes, err := insertScriptContents(ctx, tx, s.ScriptContents)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "inserting script contents for script with name %q", s.Name)
@@ -1346,8 +1363,55 @@ ON DUPLICATE KEY UPDATE
 			}
 			activateAffectedHosts = append(activateAffectedHosts, affectedHosts...)
 
-			if _, err = tx.ExecContext(ctx, clearPendingExecutionsWithObsoleteScriptUA, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
+			if err := cancelPendingUA(loadPendingExecutionsWithObsoleteScriptUA, int(constants.MaxServerWaitTime.Seconds()), scriptID, contentID); err != nil {
 				return ctxerr.Wrapf(ctx, err, "clear obsolete upcoming pending script executions with name %q", s.Name)
+			}
+		}
+
+		// Delete obsolete scripts last, so the policies that reference them are locked only until
+		// the commit right after.
+		if len(obsoleteIDs) > 0 {
+			waitSecs := int(constants.MaxServerWaitTime.Seconds())
+			stmt, args, err := sqlx.In(lockScripts, obsoleteIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to lock obsolete scripts")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "lock obsolete scripts")
+			}
+			stmt, args, err = sqlx.In(clearPendingExecutionsHSR, waitSecs, obsoleteIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to clear pending script executions from obsolete scripts")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "clear obsolete script pending executions")
+			}
+			stmt, args, err = sqlx.In(loadAffectedHostsPendingExecutionsUA, waitSecs, obsoleteIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to load affected hosts for upcoming script executions")
+			}
+			var affectedHosts []uint
+			if err := sqlx.SelectContext(ctx, tx, &affectedHosts, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "load affected hosts for upcoming script executions")
+			}
+			activateAffectedHosts = append(activateAffectedHosts, affectedHosts...)
+			if err := cancelPendingUA(loadPendingExecutionsUA, waitSecs, obsoleteIDs); err != nil {
+				return ctxerr.Wrap(ctx, err, "clear obsolete upcoming script pending executions")
+			}
+
+			stmt, args, err = sqlx.In(unsetScriptsFromPolicies, obsoleteIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to unset obsolete scripts from policies")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "unset obsolete scripts from policies")
+			}
+			stmt, args, err = sqlx.In(deleteScripts, obsoleteIDs)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build statement to delete obsolete scripts")
+			}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "delete obsolete scripts")
 			}
 		}
 
@@ -1360,11 +1424,20 @@ ON DUPLICATE KEY UPDATE
 		return nil, err
 	}
 
-	if err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts); err != nil {
+	if _, err := ds.activateNextUpcomingActivityForBatchOfHosts(ctx, activateAffectedHosts); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity for batch of hosts")
 	}
 
 	return insertedScripts, nil
+}
+
+type hostMDMActions struct {
+	LockRef          *string `db:"lock_ref"`
+	WipeRef          *string `db:"wipe_ref"`
+	UnlockRef        *string `db:"unlock_ref"`
+	UnlockPIN        *string `db:"unlock_pin"`
+	ClearPasscodeRef *string `db:"clear_passcode_ref"`
+	FleetPlatform    string  `db:"fleet_platform"`
 }
 
 func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
@@ -1374,23 +1447,17 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 			wipe_ref,
 			unlock_ref,
 			unlock_pin,
+			clear_passcode_ref,
 			fleet_platform
 		FROM
 			host_mdm_actions
 		WHERE
 			host_id = ?
 `
-
-	var mdmActions struct {
-		LockRef       *string `db:"lock_ref"`
-		WipeRef       *string `db:"wipe_ref"`
-		UnlockRef     *string `db:"unlock_ref"`
-		UnlockPIN     *string `db:"unlock_pin"`
-		FleetPlatform string  `db:"fleet_platform"`
-	}
-	fleetPlatform := host.FleetPlatform()
+	var mdmActions hostMDMActions
+	hostPlatform := host.FleetPlatform()
 	status := &fleet.HostLockWipeStatus{
-		HostFleetPlatform: fleetPlatform,
+		HostFleetPlatform: hostPlatform,
 	}
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &mdmActions, stmt, host.ID); err != nil {
@@ -1406,17 +1473,17 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 	// the host.FleetPlatform() because the platform can be overwritten with an
 	// unknown OS name when a Wipe gets executed.
 	if mdmActions.FleetPlatform != "" {
-		fleetPlatform = mdmActions.FleetPlatform
-		status.HostFleetPlatform = fleetPlatform
+		hostPlatform = mdmActions.FleetPlatform
+		status.HostFleetPlatform = hostPlatform
 	}
 
-	switch fleetPlatform {
+	switch hostPlatform {
 	case "darwin", "ios", "ipados":
-		if mdmActions.UnlockPIN != nil && fleetPlatform == "darwin" {
+		if mdmActions.UnlockPIN != nil && hostPlatform == "darwin" {
 			// Unlock PIN is only available for macOS hosts
 			status.UnlockPIN = *mdmActions.UnlockPIN
 		}
-		if mdmActions.UnlockRef != nil && fleetPlatform == "darwin" {
+		if mdmActions.UnlockRef != nil && hostPlatform == "darwin" {
 			// the unlock reference is a timestamp
 			// (we only store the timestamp for macOS unlocks)
 			var err error
@@ -1428,11 +1495,14 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 				// directly in the DB and messes up the format).
 				status.UnlockRequestedAt = time.Now().UTC()
 			}
-		} else if mdmActions.UnlockRef != nil && fleetPlatform != "darwin" {
+		} else if mdmActions.UnlockRef != nil && hostPlatform != "darwin" {
 			// the unlock reference is an MDM command uuid
 			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.UnlockRef, host.UUID)
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get unlock reference")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan unlock MDM command reference", "host_id", host.ID, "command_uuid", *mdmActions.UnlockRef)
 			}
 			status.UnlockMDMCommand = cmd
 			status.UnlockMDMCommandResult = cmdRes
@@ -1441,61 +1511,666 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		if mdmActions.LockRef != nil {
 			// the lock reference is an MDM command
 			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.LockRef, host.UUID)
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get lock reference")
 			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan lock MDM command reference", "host_id", host.ID, "command_uuid", *mdmActions.LockRef)
+			}
+
 			status.LockMDMCommand = cmd
 			status.LockMDMCommandResult = cmdRes
+
+			// for ADE enrolled iDevices, we don't advance to "locked" until we have location data
+			if status.LockMDMCommand != nil && (hostPlatform == "ios" || hostPlatform == "ipados") {
+				_, err = ds.GetHostLocationData(ctx, host.ID)
+				switch {
+				case fleet.IsNotFound(err):
+					status.LocationPending = true
+				case err != nil:
+					return nil, err
+				}
+			}
 		}
 
 		if mdmActions.WipeRef != nil {
 			// the wipe reference is an MDM command
 			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.WipeRef, host.UUID)
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get wipe reference")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan wipe MDM command reference", "host_id", host.ID, "command_uuid", *mdmActions.WipeRef)
 			}
 			status.WipeMDMCommand = cmd
 			status.WipeMDMCommandResult = cmdRes
+		}
+
+	case "android":
+		// Android lock/wipe/clear-passcode are AMAPI commands tracked in mdm_android_commands;
+		// lock_ref / wipe_ref / clear_passcode_ref store the Fleet-generated command_uuid (no
+		// unlock_ref on Android). All three fetch the same shape, so loop them.
+		for _, ref := range []struct {
+			label  string
+			refPtr *string
+			cmdOut **fleet.MDMCommand
+			resOut **fleet.MDMCommandResult
+		}{
+			{"lock", mdmActions.LockRef, &status.LockMDMCommand, &status.LockMDMCommandResult},
+			{"wipe", mdmActions.WipeRef, &status.WipeMDMCommand, &status.WipeMDMCommandResult},
+			{"clear-passcode", mdmActions.ClearPasscodeRef, &status.ClearPasscodeMDMCommand, &status.ClearPasscodeMDMCommandResult},
+		} {
+			if ref.refPtr == nil {
+				continue
+			}
+			cmd, cmdRes, err := ds.getHostMDMAndroidCommand(ctx, *ref.refPtr)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrapf(ctx, err, "get android %s reference", ref.label)
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan android command reference", "ref", ref.label, "host_id", host.ID, "command_uuid", *ref.refPtr)
+			}
+			*ref.cmdOut = cmd
+			*ref.resOut = cmdRes
 		}
 
 	case "windows", "linux":
 		// lock and unlock references are scripts
 		if mdmActions.LockRef != nil {
 			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.LockRef, scriptExecutionSearchOpts{IncludeCanceled: true})
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get lock reference script result")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan lock script execution reference", "host_id", host.ID, "execution_id", *mdmActions.LockRef)
 			}
 			status.LockScript = hsr
 		}
 
 		if mdmActions.UnlockRef != nil {
 			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.UnlockRef, scriptExecutionSearchOpts{IncludeCanceled: true})
-			if err != nil {
+			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get unlock reference script result")
+			}
+			if fleet.IsNotFound(err) {
+				ds.logger.ErrorContext(ctx, "orphan unlock script execution reference", "host_id", host.ID, "execution_id", *mdmActions.UnlockRef)
 			}
 			status.UnlockScript = hsr
 		}
 
 		// wipe is an MDM command on Windows, a script on Linux
 		if mdmActions.WipeRef != nil {
-			if fleetPlatform == "windows" {
+			if hostPlatform == "windows" {
 				cmd, cmdRes, err := ds.getHostMDMWindowsCommand(ctx, *mdmActions.WipeRef, host.UUID)
-				if err != nil {
+				if err != nil && !fleet.IsNotFound(err) {
 					return nil, ctxerr.Wrap(ctx, err, "get wipe reference")
+				}
+				if fleet.IsNotFound(err) {
+					ds.logger.ErrorContext(ctx, "orphan wipe MDM command reference", "host_id", host.ID, "command_uuid", *mdmActions.WipeRef)
 				}
 				status.WipeMDMCommand = cmd
 				status.WipeMDMCommandResult = cmdRes
 			} else {
 				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef, scriptExecutionSearchOpts{IncludeCanceled: true})
-				if err != nil {
+				if err != nil && !fleet.IsNotFound(err) {
 					return nil, ctxerr.Wrap(ctx, err, "get wipe reference script result")
+				}
+				if fleet.IsNotFound(err) {
+					ds.logger.ErrorContext(ctx, "orphan wipe script execution reference", "host_id", host.ID, "execution_id", *mdmActions.WipeRef)
 				}
 				status.WipeScript = hsr
 			}
 		}
 	}
-
 	return status, nil
+}
+
+// GetHostsLockWipeStatusBatch gets the lock/unlock and wipe status for multiple hosts efficiently.
+func (ds *Datastore) GetHostsLockWipeStatusBatch(ctx context.Context, hosts []*fleet.Host) (map[uint]*fleet.HostLockWipeStatus, error) {
+	if len(hosts) == 0 {
+		return make(map[uint]*fleet.HostLockWipeStatus), nil
+	}
+
+	// Build list of host IDs for queries
+	hostIDs := make([]uint, 0, len(hosts))
+	for _, host := range hosts {
+		hostIDs = append(hostIDs, host.ID)
+	}
+
+	// Query all host_mdm_actions for these hosts
+	stmt := `
+		SELECT
+			host_id,
+			lock_ref,
+			wipe_ref,
+			unlock_ref,
+			unlock_pin,
+			clear_passcode_ref,
+			fleet_platform
+		FROM
+			host_mdm_actions
+		WHERE
+			host_id IN (?)
+	`
+	query, args, err := sqlx.In(stmt, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build IN query for host_mdm_actions")
+	}
+
+	var mdmActionsRows []struct {
+		HostID uint `db:"host_id"`
+		hostMDMActions
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &mdmActionsRows, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host_mdm_actions batch")
+	}
+
+	// Collect all command/script UUIDs that need to be queried, organized by type and platform
+	type refKey struct {
+		uuid     string
+		hostUUID string
+		hostID   uint
+		refType  string // "lock", "unlock", "wipe"
+	}
+
+	appleCommandRefs := make([]refKey, 0)
+	windowsCommandRefs := make([]refKey, 0)
+	androidCommandRefs := make([]refKey, 0)
+	scriptRefs := make([]refKey, 0)
+
+	// Build initial status map with platform info
+	statusMap := make(map[uint]*fleet.HostLockWipeStatus, len(hosts))
+	mdmActionsMap := make(map[uint]*hostMDMActions)
+
+	for _, row := range mdmActionsRows {
+		mdmActionsMap[row.HostID] = &hostMDMActions{
+			LockRef:          row.LockRef,
+			WipeRef:          row.WipeRef,
+			UnlockRef:        row.UnlockRef,
+			UnlockPIN:        row.UnlockPIN,
+			ClearPasscodeRef: row.ClearPasscodeRef,
+			FleetPlatform:    row.FleetPlatform,
+		}
+	}
+
+	// Initialize status for all hosts and collect refs to query
+	for _, host := range hosts {
+		fleetPlatform := host.FleetPlatform()
+		status := &fleet.HostLockWipeStatus{
+			HostFleetPlatform: fleetPlatform,
+		}
+
+		mdmActions, hasMDMActions := mdmActionsMap[host.ID]
+		statusMap[host.ID] = status
+		if !hasMDMActions {
+			continue
+		}
+
+		// Use stored platform if available
+		if mdmActions.FleetPlatform != "" {
+			fleetPlatform = mdmActions.FleetPlatform
+			status.HostFleetPlatform = fleetPlatform
+		}
+
+		// Handle macOS unlock PIN (darwin only)
+		if mdmActions.UnlockPIN != nil && fleetPlatform == "darwin" {
+			status.UnlockPIN = *mdmActions.UnlockPIN
+		}
+
+		// Collect command/script references based on platform
+		switch fleetPlatform {
+		case "darwin", "ios", "ipados":
+			// Apple platforms use MDM commands for lock, unlock (ios/ipados only), and wipe
+			if mdmActions.LockRef != nil {
+				appleCommandRefs = append(appleCommandRefs, refKey{
+					uuid:     *mdmActions.LockRef,
+					hostUUID: host.UUID,
+					hostID:   host.ID,
+					refType:  "lock",
+				})
+			}
+			if mdmActions.UnlockRef != nil && fleetPlatform != "darwin" {
+				// iOS/iPadOS use MDM command for unlock, darwin uses timestamp
+				appleCommandRefs = append(appleCommandRefs, refKey{
+					uuid:     *mdmActions.UnlockRef,
+					hostUUID: host.UUID,
+					hostID:   host.ID,
+					refType:  "unlock",
+				})
+			} else if mdmActions.UnlockRef != nil && fleetPlatform == "darwin" {
+				// For macOS, unlock_ref is a timestamp, parse it here
+				unlockTime, err := time.Parse(time.DateTime, *mdmActions.UnlockRef)
+				if err != nil {
+					// Use current time if format is unexpected
+					unlockTime = time.Now().UTC()
+				}
+				status.UnlockRequestedAt = unlockTime
+			}
+			if mdmActions.WipeRef != nil {
+				appleCommandRefs = append(appleCommandRefs, refKey{
+					uuid:     *mdmActions.WipeRef,
+					hostUUID: host.UUID,
+					hostID:   host.ID,
+					refType:  "wipe",
+				})
+			}
+
+		case "windows":
+			// Windows uses scripts for lock/unlock, MDM command for wipe
+			if mdmActions.LockRef != nil {
+				scriptRefs = append(scriptRefs, refKey{
+					uuid:    *mdmActions.LockRef,
+					hostID:  host.ID,
+					refType: "lock",
+				})
+			}
+			if mdmActions.UnlockRef != nil {
+				scriptRefs = append(scriptRefs, refKey{
+					uuid:    *mdmActions.UnlockRef,
+					hostID:  host.ID,
+					refType: "unlock",
+				})
+			}
+			if mdmActions.WipeRef != nil {
+				windowsCommandRefs = append(windowsCommandRefs, refKey{
+					uuid:     *mdmActions.WipeRef,
+					hostUUID: host.UUID,
+					hostID:   host.ID,
+					refType:  "wipe",
+				})
+			}
+
+		case "android":
+			// Android lock/wipe/clear-passcode are AMAPI commands in mdm_android_commands (no unlock_ref).
+			if mdmActions.LockRef != nil {
+				androidCommandRefs = append(androidCommandRefs, refKey{
+					uuid:     *mdmActions.LockRef,
+					hostUUID: host.UUID,
+					hostID:   host.ID,
+					refType:  "lock",
+				})
+			}
+			if mdmActions.WipeRef != nil {
+				androidCommandRefs = append(androidCommandRefs, refKey{
+					uuid:     *mdmActions.WipeRef,
+					hostUUID: host.UUID,
+					hostID:   host.ID,
+					refType:  "wipe",
+				})
+			}
+			if mdmActions.ClearPasscodeRef != nil {
+				androidCommandRefs = append(androidCommandRefs, refKey{
+					uuid:     *mdmActions.ClearPasscodeRef,
+					hostUUID: host.UUID,
+					hostID:   host.ID,
+					refType:  "clear_passcode",
+				})
+			}
+
+		case "linux":
+			// Linux uses scripts for lock, unlock, and wipe
+			if mdmActions.LockRef != nil {
+				scriptRefs = append(scriptRefs, refKey{
+					uuid:    *mdmActions.LockRef,
+					hostID:  host.ID,
+					refType: "lock",
+				})
+			}
+			if mdmActions.UnlockRef != nil {
+				scriptRefs = append(scriptRefs, refKey{
+					uuid:    *mdmActions.UnlockRef,
+					hostID:  host.ID,
+					refType: "unlock",
+				})
+			}
+			if mdmActions.WipeRef != nil {
+				scriptRefs = append(scriptRefs, refKey{
+					uuid:    *mdmActions.WipeRef,
+					hostID:  host.ID,
+					refType: "wipe",
+				})
+			}
+		}
+
+	}
+
+	// Batch query Apple MDM commands
+	if len(appleCommandRefs) > 0 {
+		cmdUUIDs := make([]string, 0, len(appleCommandRefs))
+		cmdUUIDMap := make(map[string][]refKey)
+		for _, ref := range appleCommandRefs {
+			if _, exists := cmdUUIDMap[ref.uuid]; !exists {
+				cmdUUIDs = append(cmdUUIDs, ref.uuid)
+			}
+			cmdUUIDMap[ref.uuid] = append(cmdUUIDMap[ref.uuid], ref)
+		}
+
+		// Query commands
+		cmdStmt := `SELECT command_uuid, request_type FROM nano_commands WHERE command_uuid IN (?)`
+		cmdQuery, cmdArgs, err := sqlx.In(cmdStmt, cmdUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for apple commands")
+		}
+
+		var commands []struct {
+			CommandUUID string `db:"command_uuid"`
+			RequestType string `db:"request_type"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, cmdQuery, cmdArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple mdm commands batch")
+		}
+
+		commandMap := make(map[string]*fleet.MDMCommand)
+		for _, cmd := range commands {
+			commandMap[cmd.CommandUUID] = &fleet.MDMCommand{
+				CommandUUID: cmd.CommandUUID,
+				RequestType: cmd.RequestType,
+			}
+		}
+
+		// Query command results
+		resultStmt := `SELECT command_uuid, id, status FROM nano_command_results WHERE command_uuid IN (?)`
+		resultQuery, resultArgs, err := sqlx.In(resultStmt, cmdUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for apple command results")
+		}
+
+		var results []struct {
+			CommandUUID string `db:"command_uuid"`
+			ID          string `db:"id"`
+			Status      string `db:"status"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, resultQuery, resultArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select apple mdm command results batch")
+		}
+
+		// Build map of command_uuid -> host_uuid -> result
+		resultMap := make(map[string]map[string]*fleet.MDMCommandResult)
+		for _, res := range results {
+			if resultMap[res.CommandUUID] == nil {
+				resultMap[res.CommandUUID] = make(map[string]*fleet.MDMCommandResult)
+			}
+			// Only keep terminal statuses
+			if res.Status == fleet.MDMAppleStatusAcknowledged || res.Status == fleet.MDMAppleStatusError || res.Status == fleet.MDMAppleStatusCommandFormatError {
+				resultMap[res.CommandUUID][res.ID] = &fleet.MDMCommandResult{
+					CommandUUID: res.CommandUUID,
+					Status:      res.Status,
+					HostUUID:    res.ID,
+				}
+			}
+		}
+
+		// Assign commands and results to status objects
+		for cmdUUID, refs := range cmdUUIDMap {
+			cmd := commandMap[cmdUUID]
+			for _, ref := range refs {
+				status := statusMap[ref.hostID]
+				var cmdRes *fleet.MDMCommandResult
+				if resultMap[cmdUUID] != nil {
+					cmdRes = resultMap[cmdUUID][ref.hostUUID]
+				}
+
+				switch ref.refType {
+				case "lock":
+					status.LockMDMCommand = cmd
+					status.LockMDMCommandResult = cmdRes
+				case "unlock":
+					status.UnlockMDMCommand = cmd
+					status.UnlockMDMCommandResult = cmdRes
+				case "wipe":
+					status.WipeMDMCommand = cmd
+					status.WipeMDMCommandResult = cmdRes
+				}
+			}
+		}
+	}
+
+	// Batch query Windows MDM commands
+	if len(windowsCommandRefs) > 0 {
+		cmdUUIDs := make([]string, 0, len(windowsCommandRefs))
+		cmdUUIDMap := make(map[string][]refKey)
+		for _, ref := range windowsCommandRefs {
+			if _, exists := cmdUUIDMap[ref.uuid]; !exists {
+				cmdUUIDs = append(cmdUUIDs, ref.uuid)
+			}
+			cmdUUIDMap[ref.uuid] = append(cmdUUIDMap[ref.uuid], ref)
+		}
+
+		// Query commands
+		cmdStmt := `SELECT command_uuid, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
+		cmdQuery, cmdArgs, err := sqlx.In(cmdStmt, cmdUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for windows commands")
+		}
+
+		var commands []struct {
+			CommandUUID  string `db:"command_uuid"`
+			TargetLocURI string `db:"target_loc_uri"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &commands, cmdQuery, cmdArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select windows mdm commands batch")
+		}
+
+		commandMap := make(map[string]*fleet.MDMCommand)
+		for _, cmd := range commands {
+			commandMap[cmd.CommandUUID] = &fleet.MDMCommand{
+				CommandUUID: cmd.CommandUUID,
+				RequestType: cmd.TargetLocURI,
+			}
+		}
+
+		// Query command results - JOIN with enrollments to get host_uuid
+		resultStmt := `
+			SELECT
+				wcr.command_uuid,
+				we.host_uuid,
+				wcr.status_code
+			FROM
+				windows_mdm_command_results wcr
+				INNER JOIN mdm_windows_enrollments we ON wcr.enrollment_id = we.id
+			WHERE
+				wcr.command_uuid IN (?)`
+		resultQuery, resultArgs, err := sqlx.In(resultStmt, cmdUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for windows command results")
+		}
+
+		var results []struct {
+			CommandUUID string `db:"command_uuid"`
+			HostUUID    string `db:"host_uuid"`
+			StatusCode  string `db:"status_code"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, resultQuery, resultArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select windows mdm command results batch")
+		}
+
+		// Build map of command_uuid -> host_uuid -> result
+		resultMap := make(map[string]map[string]*fleet.MDMCommandResult)
+		for _, res := range results {
+			if resultMap[res.CommandUUID] == nil {
+				resultMap[res.CommandUUID] = make(map[string]*fleet.MDMCommandResult)
+			}
+			resultMap[res.CommandUUID][res.HostUUID] = &fleet.MDMCommandResult{
+				CommandUUID: res.CommandUUID,
+				Status:      res.StatusCode,
+				HostUUID:    res.HostUUID,
+			}
+		}
+
+		// Assign commands and results to status objects
+		for cmdUUID, refs := range cmdUUIDMap {
+			cmd := commandMap[cmdUUID]
+			for _, ref := range refs {
+				status := statusMap[ref.hostID]
+				var cmdRes *fleet.MDMCommandResult
+				if resultMap[cmdUUID] != nil {
+					cmdRes = resultMap[cmdUUID][ref.hostUUID]
+				}
+
+				status.WipeMDMCommand = cmd
+				status.WipeMDMCommandResult = cmdRes
+			}
+		}
+	}
+
+	// Batch query Android MDM commands (lock/wipe via AMAPI). Pending rows leave the result nil
+	// so HostLockWipeStatus.IsPendingLock/IsPendingWipe report "pending"; acknowledged/error
+	// rows populate the result with the Android status string ("acknowledged" or "error").
+	if len(androidCommandRefs) > 0 {
+		cmdUUIDs := make([]string, 0, len(androidCommandRefs))
+		cmdUUIDMap := make(map[string][]refKey)
+		for _, ref := range androidCommandRefs {
+			if _, exists := cmdUUIDMap[ref.uuid]; !exists {
+				cmdUUIDs = append(cmdUUIDs, ref.uuid)
+			}
+			cmdUUIDMap[ref.uuid] = append(cmdUUIDMap[ref.uuid], ref)
+		}
+
+		cmdStmt := `SELECT command_uuid, host_uuid, command_type, status FROM mdm_android_commands WHERE command_uuid IN (?)`
+		cmdQuery, cmdArgs, err := sqlx.In(cmdStmt, cmdUUIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for android commands")
+		}
+
+		var rows []struct {
+			CommandUUID string `db:"command_uuid"`
+			HostUUID    string `db:"host_uuid"`
+			CommandType string `db:"command_type"`
+			Status      string `db:"status"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, cmdQuery, cmdArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select android mdm commands batch")
+		}
+
+		commandMap := make(map[string]*fleet.MDMCommand, len(rows))
+		resultMap := make(map[string]*fleet.MDMCommandResult, len(rows))
+		for _, r := range rows {
+			commandMap[r.CommandUUID] = &fleet.MDMCommand{
+				CommandUUID: r.CommandUUID,
+				RequestType: r.CommandType,
+			}
+			if r.Status != string(android.MDMAndroidCommandStatusPending) {
+				resultMap[r.CommandUUID] = &fleet.MDMCommandResult{
+					CommandUUID: r.CommandUUID,
+					HostUUID:    r.HostUUID,
+					Status:      r.Status,
+				}
+			}
+		}
+
+		for cmdUUID, refs := range cmdUUIDMap {
+			cmd := commandMap[cmdUUID]
+			cmdRes := resultMap[cmdUUID]
+			for _, ref := range refs {
+				status := statusMap[ref.hostID]
+				switch ref.refType {
+				case "lock":
+					status.LockMDMCommand = cmd
+					status.LockMDMCommandResult = cmdRes
+				case "wipe":
+					status.WipeMDMCommand = cmd
+					status.WipeMDMCommandResult = cmdRes
+				case "clear_passcode":
+					status.ClearPasscodeMDMCommand = cmd
+					status.ClearPasscodeMDMCommandResult = cmdRes
+				}
+			}
+		}
+	}
+
+	// Batch query script results
+	if len(scriptRefs) > 0 {
+		execIDs := make([]string, 0, len(scriptRefs))
+		execIDMap := make(map[string]refKey)
+		for _, ref := range scriptRefs {
+			execIDs = append(execIDs, ref.uuid)
+			execIDMap[ref.uuid] = ref
+		}
+
+		scriptStmt := `
+			SELECT
+				execution_id,
+				exit_code,
+				canceled
+			FROM
+				host_script_results
+			WHERE
+				execution_id IN (?)
+		`
+		scriptQuery, scriptArgs, err := sqlx.In(scriptStmt, execIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build IN query for script results")
+		}
+
+		var scriptResults []struct {
+			ExecutionID string `db:"execution_id"`
+			ExitCode    *int64 `db:"exit_code"`
+			Canceled    bool   `db:"canceled"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &scriptResults, scriptQuery, scriptArgs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "select script results batch")
+		}
+
+		scriptResultMap := make(map[string]*fleet.HostScriptResult)
+		for _, sr := range scriptResults {
+			scriptResultMap[sr.ExecutionID] = &fleet.HostScriptResult{
+				ExecutionID: sr.ExecutionID,
+				ExitCode:    sr.ExitCode,
+				Canceled:    sr.Canceled,
+			}
+		}
+
+		// Assign script results to status objects
+		for execID, ref := range execIDMap {
+			status := statusMap[ref.hostID]
+			scriptResult := scriptResultMap[execID]
+
+			switch ref.refType {
+			case "lock":
+				status.LockScript = scriptResult
+			case "unlock":
+				status.UnlockScript = scriptResult
+			case "wipe":
+				status.WipeScript = scriptResult
+			}
+		}
+	}
+
+	return statusMap, nil
+}
+
+// getHostMDMAndroidCommand returns the Fleet-shaped MDMCommand + MDMCommandResult for a host_mdm_actions ref pointing
+// at mdm_android_commands.command_uuid. Mirrors getHostMDMAppleCommand / getHostMDMWindowsCommand so the
+// GetHostLockWipeStatus consumer can stay platform-agnostic. While the command is still pending (no Pub/Sub ack yet),
+// result is nil, matching how a pending Apple command leaves LockMDMCommandResult nil.
+func (ds *Datastore) getHostMDMAndroidCommand(ctx context.Context, cmdUUID string) (*fleet.MDMCommand, *fleet.MDMCommandResult, error) {
+	cmd, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get android mdm command")
+	}
+
+	mdmCmd := &fleet.MDMCommand{
+		CommandUUID: cmd.CommandUUID,
+		RequestType: cmd.CommandType,
+	}
+
+	// Pending status means no Pub/Sub COMMAND notification has arrived yet; leave result nil so
+	// IsPendingLock/IsPendingWipe report "pending" and IsLocked/IsWiped report false.
+	if cmd.Status == string(android.MDMAndroidCommandStatusPending) {
+		return mdmCmd, nil, nil
+	}
+
+	return mdmCmd, &fleet.MDMCommandResult{
+		CommandUUID: cmd.CommandUUID,
+		HostUUID:    cmd.HostUUID,
+		Status:      cmd.Status,
+	}, nil
 }
 
 func (ds *Datastore) getHostMDMWindowsCommand(ctx context.Context, cmdUUID, hostUUID string) (*fleet.MDMCommand, *fleet.MDMCommandResult, error) {
@@ -1506,14 +2181,12 @@ func (ds *Datastore) getHostMDMWindowsCommand(ctx context.Context, cmdUUID, host
 
 	// get the MDM command result, which may be not found (indicating the command doesn't exist).
 	// If it is pending, then it returns 101, and result will be empty.
-	cmdResults, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, "")
+	cmdResults, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID, hostUUID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get Windows MDM command result")
 	}
 
-	// each item in the slice returned by GetMDMWindowsCommandResults is
-	// potentially a result for a different host, we need to find the one for
-	// that specific host.
+	// defensive check: the results are already scoped to the host
 	var cmdRes *fleet.MDMCommandResult
 	for _, r := range cmdResults {
 		if r.HostUUID != hostUUID {
@@ -1712,6 +2385,8 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 	})
 }
 
+// UnlockHostManually records a manual unlock request for the given host.
+// ts must be in UTC to ensure consistency with the STR_TO_DATE comparison in CleanAppleMDMLock.
 func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error {
 	const stmt = `
 	INSERT INTO host_mdm_actions
@@ -1733,7 +2408,7 @@ func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, hostFl
 	// from then on, the host is marked as "pending unlock" until the device is
 	// actually unlocked with the PIN. The actual unlocking happens when the
 	// device sends an Idle MDM request.
-	unlockRef := ts.Format(time.DateTime)
+	unlockRef := ts.UTC().Format(time.DateTime)
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, unlockRef, hostFleetPlatform)
 	return ctxerr.Wrap(ctx, err, "record manual unlock host request")
 }
@@ -1760,7 +2435,8 @@ func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart s
 				// Currently only used for Apple MDM devices.
 				// We set the unlock_ref to current time since the device can be unlocked any time after the lock.
 				// Apple MDM does not have a concept of unlock pending.
-				stmt += fmt.Sprintf("%sunlock_ref = '%s', %[1]swipe_ref = NULL", alias, time.Now().Format(time.DateTime))
+				// UTC_TIMESTAMP() is used to ensure timezone consistency with the comparison in CleanAppleMDMLock.
+				stmt += fmt.Sprintf("%sunlock_ref = UTC_TIMESTAMP(), %[1]swipe_ref = NULL", alias)
 			}
 		case "unlock_ref":
 			// a successful unlock clears itself as well as the lock ref, because
@@ -1797,16 +2473,143 @@ func (ds *Datastore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Cont
 	default:
 		return nil
 	}
-	return updateHostLockWipeStatusFromResultAndHostUUID(ctx, ds.writer(ctx), hostUUID, refCol, cmdUUID, succeeded, setUnlockRef)
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// A device can acknowledge a lock/wipe that was canceled after it
+		// already fetched the command (Apple's protocol has no retract). The
+		// device really is locked/wiped then, so restore the canceled state
+		// first and let the normal update below run as if the cancel never
+		// happened. An Error result means the command didn't run — no restore.
+		if succeeded && refCol != "unlock_ref" {
+			if err := ds.restoreCanceledLockWipeRef(ctx, tx, hostUUID, cmdUUID, requestType); err != nil {
+				return err
+			}
+		}
+		_, err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, hostUUID, refCol, cmdUUID, succeeded, setUnlockRef)
+		return err
+	})
+}
+
+// restoreCanceledLockWipeRef makes an acknowledged-but-canceled lock/wipe
+// command whole again: canceling deactivated its queue row and cleared its
+// host_mdm_actions ref, so without a restore the ack would update nothing and
+// the host would report unlocked while it is really locked/wiped, with the
+// unlock PIN unretrievable. Re-activating the row and restoring the ref (PIN
+// recovered from the stored command plist) reproduces the exact state a
+// never-canceled acknowledgment leaves. The command cannot be re-delivered to
+// the device: commands are only served while they have no result row.
+//
+// Queue rows deactivated by other paths (re-enrollment queue clearing, SCEP
+// renewal sweeps) take this same path when the device acknowledged the
+// command anyway, which is deliberate — those today strand the host in a
+// state Fleet misreports.
+func (ds *Datastore) restoreCanceledLockWipeRef(ctx context.Context, tx sqlx.ExtContext, hostUUID, cmdUUID, requestType string) error {
+	var active bool
+	err := sqlx.GetContext(ctx, tx, &active,
+		`SELECT active FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`, hostUUID, cmdUUID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "check queue row for canceled lock/wipe restore")
+	case active:
+		// storing a result never deactivates the queue row, so an active row
+		// means the command was never canceled — nothing to restore
+		return nil
+	}
+
+	var host struct {
+		ID       uint   `db:"id"`
+		Platform string `db:"platform"`
+	}
+	// hosts.uuid is not unique (cloned VMs, re-enrollment); the highest id is
+	// the live enrollment
+	err = sqlx.GetContext(ctx, tx, &host,
+		`SELECT id, platform FROM hosts WHERE uuid = ? ORDER BY id DESC LIMIT 1`, hostUUID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "load host for canceled lock/wipe restore")
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE nano_enrollment_queue SET active = 1 WHERE id = ? AND command_uuid = ?`, hostUUID, cmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reactivate canceled lock/wipe command")
+	}
+
+	// The IF(... IS NULL ...) guards ensure a non-NULL ref is never clobbered:
+	// if a newer lock/wipe was issued after the cancel, that command's
+	// lifecycle resolves the host's true state and this late ack must not
+	// overwrite its pending ref (or PIN).
+	if requestType == "EraseDevice" {
+		_, err = tx.ExecContext(ctx, `
+INSERT INTO host_mdm_actions (host_id, wipe_ref, fleet_platform)
+VALUES (?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	wipe_ref = IF(wipe_ref IS NULL, VALUES(wipe_ref), wipe_ref)`,
+			host.ID, cmdUUID, fleet.PlatformFromHost(host.Platform))
+		return ctxerr.Wrap(ctx, err, "restore wipe_ref for canceled wipe")
+	}
+
+	// EnableLostMode commands carry no PIN and store "" at enqueue time
+	var pin string
+	if requestType == "DeviceLock" {
+		var raw []byte
+		if err := sqlx.GetContext(ctx, tx, &raw,
+			`SELECT command FROM nano_commands WHERE command_uuid = ?`, cmdUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load command plist for canceled lock restore")
+		}
+		var payload struct {
+			Command struct {
+				PIN string
+			}
+		}
+		if err := plist.Unmarshal(raw, &payload); err != nil {
+			// erroring would abort the ack processing and poison every
+			// re-delivery of the device's report, so skip the restore instead
+			ds.logger.WarnContext(ctx, "canceled lock restore: cannot parse stored command plist, skipping restore",
+				"command_uuid", cmdUUID, "err", err)
+			return nil
+		}
+		if payload.Command.PIN == "" {
+			// a raw DeviceLock sent via POST /commands/run may carry no PIN;
+			// restoring lock_ref without one would leave a lock the admin
+			// cannot unlock and CleanAppleMDMLock cannot clear, and erroring
+			// here would poison every re-delivery of the device's report —
+			// skip the restore, matching the no-bookkeeping behavior raw
+			// commands have always had (Fleet-issued locks always embed a PIN)
+			return nil
+		}
+		pin = payload.Command.PIN
+	}
+
+	// unlock_pin must be assigned before lock_ref: MySQL evaluates the
+	// assignments left to right using already-updated values, so once lock_ref
+	// is set its guard turns false.
+	_, err = tx.ExecContext(ctx, `
+INSERT INTO host_mdm_actions (host_id, lock_ref, unlock_pin, fleet_platform)
+VALUES (?, ?, ?, ?)
+ON DUPLICATE KEY UPDATE
+	unlock_pin = IF(lock_ref IS NULL AND wipe_ref IS NULL, VALUES(unlock_pin), unlock_pin),
+	lock_ref   = IF(lock_ref IS NULL AND wipe_ref IS NULL, VALUES(lock_ref), lock_ref)`,
+		host.ID, cmdUUID, pin, fleet.PlatformFromHost(host.Platform))
+	return ctxerr.Wrap(ctx, err, "restore lock_ref for canceled lock")
 }
 
 func updateHostLockWipeStatusFromResultAndHostUUID(
 	ctx context.Context, tx sqlx.ExtContext, hostUUID, refCol, cmdUUID string, succeeded bool, setUnlockRef bool,
-) error {
+) (int64, error) {
 	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, `JOIN hosts h ON hma.host_id = h.id`, setUnlockRef)
 	stmt += ` WHERE h.uuid = ? AND hma.` + refCol + ` = ?`
-	_, err := tx.ExecContext(ctx, stmt, hostUUID, cmdUUID)
-	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result via host uuid")
+	res, err := tx.ExecContext(ctx, stmt, hostUUID, cmdUUID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "update host lock/wipe status from result via host uuid")
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "get rows affected for host lock/wipe status update")
+	}
+	return n, nil
 }
 
 func updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, refCol string, succeeded bool) error {
@@ -1856,6 +2659,119 @@ WHERE
 	return nil
 }
 
+// Without these, MySQL may evaluate a guard by materializing the whole
+// referenced table once per statement. host_mdm_actions is left out: one row
+// per host, and its ref columns are not indexed everywhere this runs.
+const deletableHostScriptResultHints = `/*+ NO_SEMIJOIN(@sesr) NO_SEMIJOIN(@hsi) NO_SEMIJOIN(@bahr) */`
+
+// deletableHostScriptResultPredicate is shared whole by the select and the
+// delete, so the re-check on the primary cannot drift from the reader's. One
+// subquery per host_mdm_actions column. created_at is when the run was handed
+// out, so updated_at is what bounds the result. A deleted host's pending run can
+// never report, so it doesn't need to finish first.
+const deletableHostScriptResultPredicate = `(hsr.exit_code IS NOT NULL OR hsr.canceled = 1 OR hsr.host_deleted_at IS NOT NULL)
+	AND hsr.created_at < ? AND hsr.updated_at < ?
+	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.lock_ref = hsr.execution_id)
+	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.unlock_ref = hsr.execution_id)
+	AND NOT EXISTS (SELECT 1 FROM host_mdm_actions hma WHERE hma.wipe_ref = hsr.execution_id)
+	AND NOT EXISTS (SELECT /*+ QB_NAME(sesr) */ 1 FROM setup_experience_status_results sesr WHERE sesr.script_execution_id = hsr.execution_id)
+	AND NOT EXISTS (SELECT /*+ QB_NAME(hsi) */ 1 FROM host_software_installs hsi WHERE hsi.execution_id = hsr.execution_id)
+	AND NOT EXISTS (SELECT /*+ QB_NAME(bahr) */ 1 FROM batch_activity_host_results bahr WHERE bahr.host_execution_id = hsr.execution_id)`
+
+func (ds *Datastore) CleanupHostScriptResults(ctx context.Context, olderThan time.Time) (int64, error) {
+	const (
+		batchSize  = 500
+		maxBatches = 200 // 100k rows per tick
+	)
+	return cleanupHostScriptResultsDB(ctx, ds, olderThan, batchSize, maxBatches)
+}
+
+// Keyset cursor on the created_at index. Rows the sweep keeps are passed once
+// per run rather than once per batch, and there can be many: a run a host never
+// answered stays pinned forever, at the front of the index. created_at has ties,
+// so the cursor carries the primary key too.
+const expiredHostScriptResultsStmt = `
+SELECT ` + deletableHostScriptResultHints + ` hsr.id, hsr.created_at
+FROM host_script_results hsr
+WHERE hsr.created_at >= ? AND (hsr.created_at > ? OR hsr.id > ?)
+	AND ` + deletableHostScriptResultPredicate + `
+ORDER BY hsr.created_at, hsr.id
+LIMIT ?`
+
+func cleanupHostScriptResultsDB(ctx context.Context, ds *Datastore, olderThan time.Time, batchSize, maxBatches int) (int64, error) {
+	type resultKey struct {
+		ID        uint      `db:"id"`
+		CreatedAt time.Time `db:"created_at"`
+	}
+	var deleted int64
+	// TIMESTAMP epoch, not a zero time.Time: the driver serializes that as
+	// "0000-00-00", which MySQL rejects under NO_ZERO_DATE.
+	last := resultKey{CreatedAt: time.Unix(0, 0).UTC()}
+	hitCap := true
+	for range maxBatches {
+		var rows []resultKey
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, expiredHostScriptResultsStmt,
+			last.CreatedAt, last.CreatedAt, last.ID, olderThan, olderThan, batchSize); err != nil {
+			return deleted, ctxerr.Wrap(ctx, err, "select expired host script results")
+		}
+		if len(rows) == 0 {
+			hitCap = false
+			break
+		}
+		last = rows[len(rows)-1]
+		ids := make([]uint, len(rows))
+		for i, row := range rows {
+			ids[i] = row.ID
+		}
+
+		var n int64
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// Decrement from the automation runs so it lines up with the number of rows in the table
+			err := decrementHostPolicyAutomationRunCountsDB(ctx, tx, fleet.ActivityTypeRanScript{}, ids, olderThan)
+			if err != nil {
+				return err
+			}
+
+			n, err = deleteHostScriptResultsByIDs(ctx, tx, ids, olderThan)
+			return err
+		})
+		if err != nil {
+			return deleted, err
+		}
+		deleted += n
+		// The cursor moved past this batch whether or not the delete took it, so
+		// only a short page ends the run.
+		if len(rows) < batchSize {
+			hitCap = false
+			break
+		}
+	}
+	if hitCap {
+		ds.logger.WarnContext(ctx, "cleanup host script results hit its batch cap, any remaining rows are cleaned on the next run",
+			"deleted", deleted, "max_batches", maxBatches)
+	}
+	return deleted, nil
+}
+
+const deleteExpiredHostScriptResultsStmt = `
+DELETE ` + deletableHostScriptResultHints + ` hsr FROM host_script_results hsr
+WHERE hsr.id IN (?) AND ` + deletableHostScriptResultPredicate
+
+// deleteHostScriptResultsByIDs re-checks the predicate on the primary, since a
+// row the reader selected can have been answered or referenced since.
+func deleteHostScriptResultsByIDs(ctx context.Context, q sqlx.ExecerContext, ids []uint, olderThan time.Time) (int64, error) {
+	stmt, args, err := sqlx.In(deleteExpiredHostScriptResultsStmt, ids, olderThan, olderThan)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "build delete expired host script results")
+	}
+	res, err := q.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "delete expired host script results")
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
 func (ds *Datastore) getOrGenerateScriptContentsID(ctx context.Context, contents string) (uint, error) {
 	csum := md5ChecksumScriptContent(contents)
 	scriptContentsID, err := ds.optimisticGetOrInsert(ctx,
@@ -1879,6 +2795,8 @@ func teamIDEq(teamID1, teamID2 *uint) bool {
 	sameTeamNumber := teamID1 != nil && teamID2 != nil && *teamID1 == *teamID2
 	return sameTeamNoTeam || sameTeamNumber
 }
+
+var errBatchScriptCanceled = errors.New("batch script canceled")
 
 func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, batchExecID string) error {
 	script, err := ds.Script(ctx, scriptID)
@@ -1919,6 +2837,16 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 				continue
 			}
 
+			// The host may have moved to a different team since the batch was
+			// scheduled, so re-check it still matches the script's team before running.
+			if !teamIDEq(host.TeamID, script.TeamID) {
+				executions = append(executions, fleet.BatchExecutionHost{
+					HostID: host.ID,
+					Error:  &fleet.BatchExecuteIncompatibleTeam,
+				})
+				continue
+			}
+
 			// Non-orbit-enrolled host (iOS, android)
 			noNodeKey := host.OrbitNodeKey == nil || *host.OrbitNodeKey == ""
 			// Scripts disabled on host
@@ -1954,6 +2882,17 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 				HostID:      host.ID,
 				ExecutionID: &executionID,
 			})
+		}
+
+		// Lock the batch so a later cancel waits for this transaction to commit,
+		// and roll back if it was canceled during the run.
+		var canceled bool
+		err = sqlx.GetContext(ctx, tx, &canceled, `SELECT canceled FROM batch_activities WHERE execution_id = ? FOR UPDATE`, batchExecID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "locking batch activity")
+		}
+		if canceled {
+			return errBatchScriptCanceled
 		}
 
 		_, err := tx.ExecContext(
@@ -1999,36 +2938,13 @@ func (ds *Datastore) batchExecuteScript(ctx context.Context, userID *uint, scrip
 
 		return nil
 	}); err != nil {
+		if errors.Is(err, errBatchScriptCanceled) {
+			return nil
+		}
 		return fmt.Errorf("creating bulk execution order: %w", err)
 	}
 
 	return nil
-}
-
-func (ds *Datastore) BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
-	batchExecID := uuid.New().String()
-
-	script, err := ds.Script(ctx, scriptID)
-	if err != nil {
-		return "", fleet.NewInvalidArgumentError("script_id", err.Error())
-	}
-
-	for _, hostID := range hostIDs {
-		host, err := ds.HostLite(ctx, hostID)
-		if err != nil {
-			return "", fmt.Errorf("unable to load host information for %d: %w", hostID, err)
-		}
-
-		if !teamIDEq(host.TeamID, script.TeamID) {
-			return "", ctxerr.Errorf(ctx, "all hosts must be on the same team as the script")
-		}
-	}
-
-	if err := ds.batchExecuteScript(ctx, userID, scriptID, hostIDs, batchExecID); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "immediate batch execution")
-	}
-
-	return batchExecID, nil
 }
 
 func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error) {
@@ -2091,6 +3007,49 @@ func (ds *Datastore) BatchScheduleScript(ctx context.Context, userID *uint, scri
 	return batchExecID, nil
 }
 
+func (ds *Datastore) NewBatchScriptExecution(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+	batchExecID := uuid.New().String()
+
+	const batchActivitiesStmt = `INSERT INTO batch_activities (execution_id, script_id, user_id, status, activity_type, num_targeted) VALUES (?, ?, ?, ?, ?, ?)`
+	const batchHostsStmt = `INSERT INTO batch_activity_host_results (batch_execution_id, host_id) VALUES (:exec_id, :host_id)`
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(
+			ctx,
+			batchActivitiesStmt,
+			batchExecID,
+			scriptID,
+			userID,
+			fleet.ScheduledBatchExecutionScheduled,
+			fleet.BatchExecutionActivityScript,
+			len(hostIDs),
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting new batch activity")
+		}
+
+		args := make([]map[string]any, 0, len(hostIDs))
+		for _, hostID := range hostIDs {
+			args = append(args, map[string]any{
+				"exec_id": batchExecID,
+				"host_id": hostID,
+			})
+		}
+
+		_, err = sqlx.NamedExecContext(ctx, tx, batchHostsStmt, args)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting batch host results")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "creating batch script execution")
+	}
+
+	return batchExecID, nil
+}
+
 func (ds *Datastore) CancelBatchScript(ctx context.Context, executionID string) error {
 	stmt := `
 SELECT
@@ -2138,6 +3097,16 @@ WHERE
 	}
 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Wait for a running batch to commit, so the scripts it queued get canceled below.
+		var status fleet.ScheduledBatchExecutionStatus
+		err = sqlx.GetContext(ctx, tx, &status, `SELECT status FROM batch_activities WHERE execution_id = ? FOR UPDATE`, executionID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "locking batch activity")
+		}
+		if status == fleet.ScheduledBatchExecutionFinished {
+			return nil
+		}
+
 		// If job worker exists, mark it as complete to stop it from running
 		if jobID := activity.JobID; jobID != nil {
 			job, err := ds.GetJob(ctx, *jobID)
@@ -2152,7 +3121,7 @@ WHERE
 			}
 		}
 
-		if activity.Status == fleet.ScheduledBatchExecutionStarted {
+		if status == fleet.ScheduledBatchExecutionStarted {
 			// If the batch activity has started, we need to cancel anything in progress or queued
 			toCancel := []struct {
 				HostExecutionID string `db:"host_execution_id"`
@@ -2164,7 +3133,7 @@ WHERE
 			}
 
 			for _, host := range toCancel {
-				if _, err := ds.cancelHostUpcomingActivity(ctx, tx, host.HostID, host.HostExecutionID); err != nil {
+				if _, err := ds.cancelHostUpcomingActivity(ctx, tx, host.HostID, host.HostExecutionID, true); err != nil {
 					return ctxerr.Wrap(ctx, err, "canceling upcoming activity")
 				}
 			}
@@ -2222,6 +3191,9 @@ func (ds *Datastore) GetBatchActivity(ctx context.Context, executionID string) (
 
 	batchActivity := &fleet.BatchActivity{}
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), batchActivity, stmt, executionID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("batch execution").WithName(executionID))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "selecting batch activity")
 	}
 
@@ -2287,73 +3259,6 @@ func (ds *Datastore) RunScheduledBatchActivity(ctx context.Context, executionID 
 	}
 
 	return nil
-}
-
-// Deprecated; will be removed in favor of ListBatchScriptExecutions when the batch script details page is ready.
-func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
-	stmtExecutions := `
-SELECT
-	COUNT(*) as num_targeted,
-	COUNT(bsehr.error) as num_did_not_run,
-	COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) as num_succeeded,
-	COUNT(CASE WHEN hsr.exit_code <> 0 THEN 1 END) as num_failed,
-	COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END) as num_cancelled
-FROM
-	batch_activity_host_results bsehr
-LEFT JOIN
-	host_script_results hsr
-		ON bsehr.host_execution_id = hsr.execution_id
-WHERE
-	bsehr.batch_execution_id = ?`
-
-	stmtScriptDetails := `
-SELECT
-	script_id,
-	s.name as script_name,
-	s.team_id as team_id,
-	bse.created_at as created_at
-FROM
-	batch_activities bse
-JOIN
-	scripts s
-	ON bse.script_id = s.id
-WHERE
-	bse.execution_id = ?`
-
-	var summary fleet.BatchActivity
-	var temp_summary struct {
-		NumTargeted  uint `db:"num_targeted"`
-		NumDidNotRun uint `db:"num_did_not_run"`
-		NumSucceeded uint `db:"num_succeeded"`
-		NumFailed    uint `db:"num_failed"`
-		NumCancelled uint `db:"num_cancelled"`
-	}
-	// Fill out the execution details
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &temp_summary, stmtExecutions, executionID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
-	}
-
-	summary.NumTargeted = &temp_summary.NumTargeted
-	// NumRan is the number of hosts that actually ran the script successfully.
-	summary.NumRan = &temp_summary.NumSucceeded
-	// NumErrored is the number of hosts that errored out, which includes
-	// both failed and did not run.
-	summary.NumErrored = ptr.Uint(temp_summary.NumFailed + temp_summary.NumDidNotRun)
-	// NumFailed is the number of hosts that were canceled before execution.
-	summary.NumCanceled = &temp_summary.NumCancelled
-	// NumPending is the number of hosts that are pending execution.
-	summary.NumPending = ptr.Uint(temp_summary.NumTargeted - (temp_summary.NumSucceeded + temp_summary.NumFailed + temp_summary.NumDidNotRun + temp_summary.NumCancelled))
-
-	// Fill out the script details
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &summary, stmtScriptDetails, executionID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting script information for bulk execution summary")
-	}
-
-	if summary.TeamID == nil {
-		summary.TeamID = ptr.Uint(0)
-	}
-
-	return &summary, nil
 }
 
 func (ds *Datastore) ListBatchScriptExecutions(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, error) {
@@ -2473,6 +3378,14 @@ LIMIT %d OFFSET %d
 	var summary []fleet.BatchActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary, stmtExecutions, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
+	}
+
+	if filter.ExecutionID != nil && len(summary) == 0 {
+		nfErr := notFound("batch execution")
+		if filter.ExecutionID != nil {
+			nfErr = nfErr.WithName(*filter.ExecutionID)
+		}
+		return nil, nfErr
 	}
 
 	return summary, nil

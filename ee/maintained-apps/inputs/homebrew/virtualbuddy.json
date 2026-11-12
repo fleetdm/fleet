@@ -1,0 +1,8 @@
+{
+  "name": "VirtualBuddy",
+  "unique_identifier": "codes.rambo.VirtualBuddy",
+  "token": "virtualbuddy",
+  "installer_format": "dmg",
+  "slug": "virtualbuddy/darwin",
+  "default_categories": ["Productivity"]
+}

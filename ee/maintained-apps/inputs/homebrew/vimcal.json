@@ -1,0 +1,10 @@
+{
+  "name": "Vimcal",
+  "unique_identifier": "com.vimcal.app",
+  "token": "vimcal",
+  "installer_format": "dmg",
+  "slug": "vimcal/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

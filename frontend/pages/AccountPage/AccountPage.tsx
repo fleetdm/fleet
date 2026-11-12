@@ -1,31 +1,29 @@
 import React, { useState, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import { IUser } from "interfaces/user";
-import usersAPI from "services/entities/users";
-import { authToken } from "utilities/local";
-import deepDifference from "utilities/deep_difference";
-import formatErrorResponse from "utilities/format_error_response";
-
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 // @ts-ignore
 import ChangeEmailForm from "components/forms/ChangeEmailForm";
 // @ts-ignore
 import ChangePasswordForm from "components/forms/ChangePasswordForm";
-// @ts-ignore
-import Modal from "components/Modal";
-
-import SidePanelPage from "components/SidePanelPage";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 // @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
 import MainContent from "components/MainContent";
+// @ts-ignore
+import Modal from "components/Modal";
 import SidePanelContent from "components/SidePanelContent";
-import CustomLink from "components/CustomLink";
+import SidePanelPage from "components/SidePanelPage";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IUser } from "interfaces/user";
+import usersAPI from "services/entities/users";
+import authToken from "utilities/auth_token";
+import deepDifference from "utilities/deep_difference";
+import formatErrorResponse from "utilities/format_error_response";
 
-import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import AccountSidePanel from "./AccountSidePanel";
 import { getErrorMessage } from "./helpers";
 
@@ -37,7 +35,6 @@ interface IAccountPageProps {
 
 const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   const { config, currentUser } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [pendingEmail, setPendingEmail] = useState("");
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -77,7 +74,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     return false;
   };
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: Partial<IUser>) => {
     if (!currentUser) {
       return false;
     }
@@ -100,16 +97,16 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
         setPendingEmail(updated.email);
       }
 
-      renderFlash("success", accountUpdatedFlashMessage);
+      notify.success(accountUpdatedFlashMessage);
       return true;
     } catch (response) {
       const errorObject = formatErrorResponse(response);
       setErrors(errorObject);
-      renderFlash(
-        "error",
+      notify.error(
         errorObject.base.includes("already exists")
           ? "A user with this email address already exists."
-          : "Could not edit user. Please try again."
+          : "Could not edit user. Please try again.",
+        { response }
       );
 
       setShowEmailModal(false);
@@ -117,18 +114,21 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     }
   };
 
-  const handleSubmitPasswordForm = async (formData: any) => {
+  const handleSubmitPasswordForm = async (formData: {
+    old_password: string;
+    new_password: string;
+  }) => {
     try {
       await usersAPI.changePassword(formData);
-      renderFlash("success", "Password changed successfully");
+      notify.success("Password changed successfully");
       setShowPasswordModal(false);
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
   };
 
   const renderEmailModal = () => {
-    const emailSubmit = (formData: any) => {
+    const emailSubmit = (formData: Partial<IUser>) => {
       handleSubmit(formData).then((r?: boolean) => {
         return r ? onToggleEmailModal() : false;
       });
@@ -177,40 +177,38 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
         onExit={onToggleApiTokenModal}
         onEnter={onToggleApiTokenModal}
       >
-        <>
-          <InfoBanner>
-            <p>
-              <strong>This token expires.</strong> If you want an API key for a
-              permanent integration, create an&nbsp;
+        <InfoBanner>
+          <p>
+            <strong>This token expires.</strong> If you want an API key for a
+            permanent integration, create an&nbsp;
+            <CustomLink
+              url="https://fleetdm.com/docs/using-fleet/fleetctl-cli?utm_medium=fleetui&utm_campaign=get-api-token#using-fleetctl-with-an-api-only-user"
+              text="API-only user"
+              newTab
+              variant="banner-link"
+            />
+            &nbsp;instead.
+          </p>
+        </InfoBanner>
+        <InputFieldHiddenContent
+          value={authToken.get() || ""}
+          helpText={
+            <>
+              This token is intended for SSO users to authenticate in the
+              fleetctl CLI. It expires based on the{" "}
               <CustomLink
-                url="https://fleetdm.com/docs/using-fleet/fleetctl-cli?utm_medium=fleetui&utm_campaign=get-api-token#using-fleetctl-with-an-api-only-user"
-                text="API-only user"
+                url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_campaign=get-api-token#session-duration"
+                text="session duration configuration"
                 newTab
-                variant="banner-link"
               />
-              &nbsp;instead.
-            </p>
-          </InfoBanner>
-          <InputFieldHiddenContent
-            value={authToken() || ""}
-            helpText={
-              <>
-                This token is intended for SSO users to authenticate in the
-                fleetctl CLI. It expires based on the{" "}
-                <CustomLink
-                  url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_campaign=get-api-token#session-duration"
-                  text="session duration configuration"
-                  newTab
-                />
-              </>
-            }
-          />
-          <div className="modal-cta-wrap">
-            <Button onClick={onToggleApiTokenModal} type="button">
-              Done
-            </Button>
-          </div>
-        </>
+            </>
+          }
+        />
+        <div className="modal-cta-wrap">
+          <Button onClick={onToggleApiTokenModal} type="button">
+            Close
+          </Button>
+        </div>
       </Modal>
     );
   };

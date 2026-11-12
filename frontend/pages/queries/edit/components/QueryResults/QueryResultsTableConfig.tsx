@@ -2,17 +2,16 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-
 import { CellProps, Column, HeaderProps } from "react-table";
 
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import PATHS from "router/paths";
 import {
   getUniqueColsAreNumTypeFromRows,
   internallyTruncateText,
 } from "utilities/helpers";
-import PATHS from "router/paths";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
   const newHeaders = [...columns];
@@ -69,10 +68,17 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
             );
           }
 
+          // Wrap in an element so React never removes a bare text node that a
+          // DOM-mutating browser extension may have moved, which throws
+          // NotFoundError on removeChild as live results stream in.
           const val = cellProps?.cell?.value;
-          return !!val?.length && val.length > 300
-            ? internallyTruncateText(val)
-            : val ?? null;
+          return (
+            <span>
+              {!!val?.length && val.length > 300
+                ? internallyTruncateText(val)
+                : val ?? null}
+            </span>
+          );
         },
         Filter: DefaultColumnFilter,
         disableSortBy: false,

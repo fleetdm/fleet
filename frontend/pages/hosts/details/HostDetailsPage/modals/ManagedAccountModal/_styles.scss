@@ -1,0 +1,28 @@
+.managed-account-modal {
+  &__username {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  &__label {
+    @include form-label;
+  }
+
+  &__value {
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+  }
+
+  .info-banner {
+    margin-top: $pad-medium;
+    margin-bottom: $pad-small;
+  }
+
+  &__rotate-button .children-wrapper {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+}

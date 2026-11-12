@@ -3,14 +3,13 @@
 import React from "react";
 import { Column, Row } from "react-table";
 
+import Button from "components/buttons/Button";
+import StatusIndicator from "components/StatusIndicator";
+import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIssueCell/LiveQueryIssueCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { IHost } from "interfaces/host";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import LiveQueryIssueCell from "components/TableContainer/DataTable/LiveQueryIssueCell/LiveQueryIssueCell";
-import StatusIndicator from "components/StatusIndicator";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon/Icon";
+import { getHostOSDisplayName } from "utilities/helpers";
 
 export type ITargestInputHostTableConfig = Column<IHost>;
 type ITableStringCellProps = IStringCellProps<IHost>;
@@ -28,10 +27,10 @@ export const generateTableHeaders = (
           Cell: (cellProps: ITableStringCellProps) => (
             <Button
               onClick={() => handleRowRemove(cellProps.row)}
-              variant="icon"
-            >
-              <Icon name="close-filled" />
-            </Button>
+              variant="subdued"
+              icon="close"
+              ariaLabel="Remove"
+            />
           ),
           disableHidden: true,
         },
@@ -48,7 +47,6 @@ export const generateTableHeaders = (
             displayName={cellProps.cell.value}
             distributedInterval={cellProps.row.original.distributed_interval}
             status={cellProps.row.original.status}
-            rowId={cellProps.row.original.id}
           />
         );
       },
@@ -73,8 +71,12 @@ export const generateTableHeaders = (
     },
     {
       Header: "OS",
-      accessor: "os_version",
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      id: "os_version",
+      // These tables sort client-side, so sort on the name and version shown, not the bare version.
+      accessor: (host) => getHostOSDisplayName(host.os_name, host.os_version),
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.cell.value} />
+      ),
     },
     {
       Header: "Osquery",

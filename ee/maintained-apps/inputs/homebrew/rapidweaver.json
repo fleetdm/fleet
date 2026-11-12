@@ -1,0 +1,10 @@
+{
+  "name": "RapidWeaver",
+  "unique_identifier": "com.realmacsoftware.rapidweaver8",
+  "token": "rapidweaver",
+  "installer_format": "zip",
+  "slug": "rapidweaver/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

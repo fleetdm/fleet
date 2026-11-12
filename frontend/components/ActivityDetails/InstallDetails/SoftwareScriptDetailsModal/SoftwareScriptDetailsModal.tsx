@@ -1,5 +1,5 @@
 /** This component is intentionally separate from SoftwareInstallDetailsModal
- * because it handles payload-free/script-based package installs (e.g. sh_packages or ps1_packages)
+ * because it handles script-only package installs (e.g. sh_packages, ps1_packages, or py_packages)
  *
  * Key differences from SoftwareInstallDetailsModal:
  * - Uses Script/Run/Rerun language in UI instead of Install/Retry.
@@ -9,31 +9,31 @@
  * Keeping these components and its tests separate improves maintainability and clarity
  */
 
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
-import { AxiosError } from "axios";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError/DataError";
+import DeviceUserError from "components/DeviceUserError";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   IHostSoftware,
   ISoftwareScriptResult,
   ISoftwareInstallResults,
 } from "interfaces/software";
-import softwareAPI from "services/entities/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import deviceUserAPI from "services/entities/device_user";
-
-import Modal from "components/Modal";
-import ModalFooter from "components/ModalFooter";
-import Button from "components/buttons/Button";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
-import DataError from "components/DataError/DataError";
-import DeviceUserError from "components/DeviceUserError";
-import Spinner from "components/Spinner/Spinner";
-import RevealButton from "components/buttons/RevealButton";
-import CustomLink from "components/CustomLink";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
 
 import {
   SCRIPT_DETAILS_STATUS_ICONS,
@@ -45,6 +45,7 @@ const baseClass = "software-script-details-modal";
 export type IPackageInstallDetails = {
   host_display_name?: string;
   install_uuid?: string; // not actually optional
+  activity_created_at?: string;
 };
 
 export const renderContactOption = (url?: string) => (
@@ -63,21 +64,27 @@ interface IInstallStatusMessage {
   installResult: ISoftwareScriptResult;
   isMyDevicePage: boolean;
   contactUrl?: string;
+  activityCreatedAt?: string;
 }
 
 export const StatusMessage = ({
   installResult,
   isMyDevicePage,
   contactUrl,
+  activityCreatedAt,
 }: IInstallStatusMessage) => {
   const {
     host_display_name,
     software_package,
     software_title,
+    software_display_name,
     status,
-    updated_at,
     created_at,
   } = installResult;
+  const displayedTitle = getDisplayedSoftwareName(
+    software_title,
+    software_display_name
+  );
 
   const formattedHost = host_display_name ? (
     <b>{host_display_name}</b>
@@ -85,19 +92,36 @@ export const StatusMessage = ({
     "the host"
   );
 
+  const timeAgoText = timeAgo(new Date(activityCreatedAt || created_at), {
+    includeSeconds: true,
+    addSuffix: true,
+  });
   const displayTimeStamp = ["failed_install", "installed"].includes(
     status || ""
-  )
-    ? ` (${formatDistanceToNow(new Date(updated_at || created_at), {
-        includeSeconds: true,
-        addSuffix: true,
-      })})`
-    : "";
+  ) ? (
+    <>
+      {" ("}
+      {activityCreatedAt ? (
+        timeAgoText
+      ) : (
+        <TooltipWrapper
+          tipContent="Time when Fleet sent command to run script. If the host was offline, the run finished after it came online."
+          position="top"
+          showArrow
+        >
+          {timeAgoText}
+        </TooltipWrapper>
+      )}
+      {")"}
+    </>
+  ) : (
+    ""
+  );
 
   const renderStatusCopy = () => {
     const prefix = (
       <>
-        Fleet {getScriptDetailsStatusPredicate(status)} <b>{software_title}</b>
+        Fleet {getScriptDetailsStatusPredicate(status)} <b>{displayedTitle}</b>
       </>
     );
 
@@ -131,8 +155,7 @@ export const StatusMessage = ({
     <IconStatusMessage
       className={`${baseClass}__status-message`}
       iconName={
-        SCRIPT_DETAILS_STATUS_ICONS[status || "pending_install"] ??
-        "pending-outline"
+        SCRIPT_DETAILS_STATUS_ICONS[status || "pending_install"] ?? "pending"
       }
       message={renderStatusCopy()}
     />
@@ -167,7 +190,7 @@ export const ModalButtons = ({
       <ModalFooter
         primaryButtons={
           <>
-            <Button variant="inverse" onClick={onCancel}>
+            <Button variant="secondary" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" onClick={onClickRerun}>
@@ -180,7 +203,7 @@ export const ModalButtons = ({
   }
 
   return (
-    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Close</Button>} />
   );
 };
 
@@ -314,6 +337,7 @@ export const SoftwareScriptDetailsModal = ({
           installResult={installResultWithHostDisplayName}
           isMyDevicePage={!!deviceAuthToken}
           contactUrl={contactUrl}
+          activityCreatedAt={detailsFromProps.activity_created_at}
         />
         {renderScriptDetailsSection()}
       </div>
@@ -327,16 +351,14 @@ export const SoftwareScriptDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        {renderContent()}
-        <ModalButtons
-          deviceAuthToken={deviceAuthToken}
-          installResultStatus={swInstallResult?.status}
-          hostSoftwareId={hostSoftware?.id}
-          onRerun={onRerun}
-          onCancel={onCancel}
-        />
-      </>
+      {renderContent()}
+      <ModalButtons
+        deviceAuthToken={deviceAuthToken}
+        installResultStatus={swInstallResult?.status}
+        hostSoftwareId={hostSoftware?.id}
+        onRerun={onRerun}
+        onCancel={onCancel}
+      />
     </Modal>
   );
 };

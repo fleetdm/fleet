@@ -1,36 +1,97 @@
 /** software/titles/:id */
 
-import React, { useCallback, useContext, useState } from "react";
-import { useQuery } from "react-query";
-import { useErrorHandler } from "react-error-boundary";
-import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
+import React, { useCallback, useContext, useEffect, useState } from "react";
+import { useErrorHandler } from "react-error-boundary";
+import { useQuery, useQueryClient } from "react-query";
+import { RouteComponentProps } from "react-router";
 
-import paths from "router/paths";
-import useTeamIdParam from "hooks/useTeamIdParam";
+import Button from "components/buttons/Button";
+import MainContent from "components/MainContent";
+import AndroidLatestVersionWithTooltip from "components/MDM/AndroidLatestVersionWithTooltip";
+import PageDescription from "components/PageDescription";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import TeamsHeader from "components/TeamsHeader";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import { ignoreAxiosError } from "interfaces/errors";
-import { ISoftwareTitleDetails } from "interfaces/software";
+import { ILabelSoftwareTitle } from "interfaces/label";
 import {
-  APP_CONTEXT_ALL_TEAMS_ID,
+  aggregateInstallStatusCounts,
+  IAppStoreApp,
+  IAppStoreAppVersion,
+  isAndroidSoftwareSource,
+  isIpadOrIphoneSoftwareSource,
+  ISoftwareInstallPolicyUI,
+  ISoftwarePackage,
+  ISoftwareTitleDetails,
+  MAX_APP_STORE_APP_VERSIONS_PER_TITLE,
+  MAX_PACKAGES_PER_TITLE,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
+} from "interfaces/software";
+import {
   APP_CONTEXT_NO_TEAM_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
 } from "interfaces/team";
+import paths from "router/paths";
 import softwareAPI, {
   ISoftwareTitleResponse,
   IGetSoftwareTitleQueryKey,
 } from "services/entities/software";
-
-import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  canDownloadSoftwareInstaller,
+  canWriteSoftware,
+} from "utilities/permissions/permissions";
+import { getPathWithQueryParams } from "utilities/url";
 
-import Spinner from "components/Spinner";
-import MainContent from "components/MainContent";
-import TeamsHeader from "components/TeamsHeader";
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
+import AndroidPlayStore from "../components/icons/AndroidPlayStore";
+import AppleAppStore from "../components/icons/AppleAppStore";
+import {
+  getDefaultAutoUpdateFromVersions,
+  getDisplayedSoftwareName,
+  mergePolicies,
+} from "../helpers";
+
+import AddPackageModal from "./AddPackageModal";
+import AddVersionModal from "./AddVersionModal";
+import DeleteSoftwareModal from "./DeleteSoftwareModal";
+import EditSoftwareModal from "./EditSoftwareModal";
+import EditVersionModal from "./EditVersionModal";
+import {
+  buildInstallerDownloadUrl,
+  buildLibraryVersionRows,
+  canDownloadInstallerRow,
+  resolveDownloadTarget,
+} from "./helpers";
+import LibraryItemAccordion, {
+  LibraryItemLabelKind,
+} from "./LibraryItemAccordion/LibraryItemAccordion";
+import LibraryItemAccordionList from "./LibraryItemAccordion/LibraryItemAccordionList";
+import PoliciesModal from "./PoliciesModal";
 import SoftwareSummaryCard from "./SoftwareSummaryCard";
-import SoftwareInstallerCard from "./SoftwareInstallerCard";
+import TitleVersionsTable from "./TitleVersionsTable";
+import VersionsModal from "./VersionsModal";
 
 const baseClass = "software-title-details-page";
+
+const pickLabels = (
+  source: ISoftwarePackage | IAppStoreApp | IAppStoreAppVersion
+): { labels: ILabelSoftwareTitle[] | null; kind: LibraryItemLabelKind } => {
+  if (source.labels_include_all?.length) {
+    return { labels: source.labels_include_all, kind: "includeAll" };
+  }
+  if (source.labels_exclude_any?.length) {
+    return { labels: source.labels_exclude_any, kind: "excludeAny" };
+  }
+  return { labels: source.labels_include_any, kind: "includeAny" };
+};
 
 interface ISoftwareTitleDetailsRouteParams {
   id: string;
@@ -46,20 +107,14 @@ const SoftwareTitleDetailsPage = ({
   routeParams,
   location,
 }: ISoftwareTitleDetailsPageProps) => {
-  const {
-    isPremiumTier,
-    isOnGlobalTeam,
-    isTeamAdmin,
-    isTeamMaintainer,
-    isTeamObserver,
-    config,
-  } = useContext(AppContext);
+  const { isPremiumTier, isOnGlobalTeam, currentUser, config } = useContext(
+    AppContext
+  );
   const handlePageError = useErrorHandler();
+  const queryClient = useQueryClient();
 
-  // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
-  const autoOpenGitOpsYamlModal =
-    location.query.gitops_yaml === "true" && config?.gitops.gitops_mode_enabled;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const {
     currentTeamId,
@@ -73,11 +128,54 @@ const SoftwareTitleDetailsPage = ({
     includeNoTeam: true,
   });
 
-  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
-  // as it automatically opens from adding flow of custom software in gitOps mode
-  const [showViewYamlModal, setShowViewYamlModal] = useState(
-    autoOpenGitOpsYamlModal || false
+  const canEditSoftware = canWriteSoftware(currentUser, currentTeamId ?? null);
+  const canDownloadInstaller = canDownloadSoftwareInstaller(
+    currentUser,
+    currentTeamId ?? null
   );
+
+  const [showLibraryEditModal, setShowLibraryEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAddPackageModal, setShowAddPackageModal] = useState(false);
+  const [showAddVersionModal, setShowAddVersionModal] = useState(false);
+  // When set, opens a PoliciesModal scoped to a single package's policies
+  // (the auto-install icon on a custom-package row). Distinct from the
+  // SoftwareSummaryCard's title-aggregate PoliciesModal — that one stays
+  // owned by the card and shows policies across all packages.
+  const [selectedPackagePolicies, setSelectedPackagePolicies] = useState<
+    ISoftwareInstallPolicyUI[] | null
+  >(null);
+  // Per-installer target for the currently-open Edit or Delete modal on a
+  // multi-package title. `null` means "fall back to first-added", which keeps
+  // single-package back-compat callers (and the page-level header Edit)
+  // pointing at `software_package` without any extra wiring.
+  const [selectedInstallerId, setSelectedInstallerId] = useState<number | null>(
+    null
+  );
+  // Per-version target for the currently-open Edit or Delete modal on a
+  // multi-version App Store app title (iOS/iPadOS/Android). `null` keeps the
+  // back-compat behavior (single `app_store_app` target). Parallel to
+  // `selectedInstallerId` for custom packages.
+  const [selectedVersionId, setSelectedVersionId] = useState<number | null>(
+    null
+  );
+  // Page-owned so both the Actions menu and the Library accordion badge open
+  // the same Versions modal.
+  const [showVersionsModal, setShowVersionsModal] = useState(false);
+
+  // Command palette lets the user switch fleets while a modal is open. The
+  // Library section unmounts on nil teamIdForApi, but page-owned modal state
+  // would remount the modal when the user returned to a specific fleet.
+  useEffect(() => {
+    setShowLibraryEditModal(false);
+    setShowDeleteModal(false);
+    setShowAddPackageModal(false);
+    setShowAddVersionModal(false);
+    setShowVersionsModal(false);
+    setSelectedPackagePolicies(null);
+    setSelectedInstallerId(null);
+    setSelectedVersionId(null);
+  }, [teamIdForApi]);
 
   const {
     data: softwareTitle,
@@ -107,23 +205,96 @@ const SoftwareTitleDetailsPage = ({
   const isAvailableForInstall =
     !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
 
-  const onToggleViewYaml = () => {
-    setShowViewYamlModal(!showViewYamlModal);
-  };
+  const installerResult = useSoftwareInstaller(
+    softwareTitle ?? ({} as ISoftwareTitleDetails)
+  );
 
-  const onDeleteInstaller = useCallback(() => {
-    if (softwareTitle?.versions?.length) {
-      refetchSoftwareTitle();
-      return;
-    }
+  // Canonical "this title can hold multiple custom packages" flag.
+  // Single source of truth for three coordinated behaviors:
+  //   1. Library section shows the "+ Add version" action
+  //   2. Accordion rows render the self-service / auto-install icons
+  //   3. SoftwareSummaryCard hides the Self-service / Auto install chips
+  //      AND collapses the Actions dropdown into a pencil-icon Edit button
+  // True for custom non-FMA, non-iOS titles (Mac .pkg, Linux .deb/.rpm/
+  // .tar.gz, Windows .msi/.exe, script-only .sh/.ps1). FMA, VPP, Google
+  // Play, and iOS in-house .ipa stay single-package. Premium-only.
+  const canActivateMultiplePackages =
+    !!isPremiumTier &&
+    !!installerResult?.meta.isCustomPackage &&
+    !installerResult.meta.isIosOrIpadosApp;
 
-    // redirect to software titles page if no versions are available
-    router.push(
-      getPathWithQueryParams(paths.SOFTWARE_TITLES, {
-        team_id: teamIdForApi,
-      })
-    );
-  }, [refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
+  // Canonical "this title can hold multiple App Store app versions" flag.
+  // True for iOS/iPadOS App Store (VPP) and Android (Google Play) titles.
+  // macOS VPP and in-house `.ipa` stay single-version. Premium-only.
+  const canActivateMultipleVersions =
+    !!isPremiumTier &&
+    !!softwareTitle?.app_store_app &&
+    (isIpadOrIphoneSoftwareSource(softwareTitle.source) ||
+      isAndroidSoftwareSource(softwareTitle.source));
+
+  const onDeleteInstaller = useCallback(
+    (opts?: { siblingVersionsRemain?: boolean }) => {
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
+
+      // Keep the admin on the title when deleting one of multiple App Store
+      // app versions or custom packages, or when the title still has
+      // inventory versions to show.
+      // The `versions` count is Inventory (host-installed); a freshly-added
+      // multi-version title with no installs has `versions.length === 0`, so
+      // without the explicit sibling signal a version delete would redirect.
+      if (opts?.siblingVersionsRemain || softwareTitle?.versions?.length) {
+        refetchSoftwareTitle();
+        return;
+      }
+
+      // Otherwise the title has nothing left to render; send the admin back
+      // to the library.
+      router.push(
+        getPathWithQueryParams(paths.SOFTWARE_LIBRARY, {
+          fleet_id: teamIdForApi,
+        })
+      );
+    },
+    [queryClient, refetchSoftwareTitle, router, softwareTitle, teamIdForApi]
+  );
+
+  // Mints a one-shot download token pinned to the clicked package and triggers
+  // the browser download via a synthetic `<a download>` click. The token-based
+  // URL is unauthenticated; we must build it client-side rather than
+  // redirecting. Falls back to the title's first-added `software_package` when
+  // no per-row pkg is supplied (single-package titles / legacy callers).
+  const onDownloadInstaller = useCallback(
+    async (pkg?: ISoftwarePackage) => {
+      const target = resolveDownloadTarget(
+        pkg,
+        softwareTitle?.software_package
+      );
+      if (!target || typeof teamIdForApi !== "number") return;
+      try {
+        const resp = await softwareAPI.getSoftwarePackageToken(
+          softwareId,
+          teamIdForApi,
+          target.installer_id
+        );
+        if (!resp.token) {
+          throw new Error("No download token returned");
+        }
+        const a = document.createElement("a");
+        a.href = buildInstallerDownloadUrl(softwareId, resp.token);
+        a.download = target.name;
+        a.click();
+        a.remove();
+      } catch (e) {
+        notify.error("Couldn't download. Please try again.");
+      }
+    },
+    [softwareId, softwareTitle, teamIdForApi]
+  );
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -132,45 +303,668 @@ const SoftwareTitleDetailsPage = ({
     [handleTeamChange]
   );
 
-  const renderSoftwareInstallerCard = (title: ISoftwareTitleDetails) => {
-    const hasPermission = Boolean(
-      isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver
-    );
-
-    const showInstallerCard =
-      currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
-      hasPermission &&
-      isAvailableForInstall;
-
-    if (!showInstallerCard) {
-      return null;
-    }
-
-    return (
-      <SoftwareInstallerCard
-        softwareTitle={title}
-        softwareId={softwareId}
-        teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-        teamIdForApi={teamIdForApi}
-        onDelete={onDeleteInstaller}
-        isLoading={isSoftwareTitleLoading}
-        onToggleViewYaml={onToggleViewYaml}
-        showViewYamlModal={showViewYamlModal}
-      />
-    );
-  };
-
   const renderSoftwareSummaryCard = (title: ISoftwareTitleDetails) => {
     return (
       <SoftwareSummaryCard
         softwareTitle={title}
         softwareId={softwareId}
         teamId={teamIdForApi}
-        isAvailableForInstall={isAvailableForInstall}
-        isLoading={isSoftwareTitleLoading}
         router={router}
         refetchSoftwareTitle={refetchSoftwareTitle}
-        onToggleViewYaml={onToggleViewYaml}
+        onClickVersions={() => setShowVersionsModal(true)}
+        canActivateMultiplePackages={canActivateMultiplePackages}
+        canActivateMultipleVersions={canActivateMultipleVersions}
+      />
+    );
+  };
+
+  const renderLibrarySection = (title: ISoftwareTitleDetails) => {
+    // Library section is Premium-only
+    // Fleet Free should not see it even when an installer is present.
+    // "All fleets" (teamIdForApi undefined) has no team scope for
+    // edit/delete/add — the section is a management surface, so hide it
+    // entirely rather than surface actions that would target no fleet.
+    if (
+      !isPremiumTier ||
+      !isAvailableForInstall ||
+      typeof teamIdForApi !== "number"
+    ) {
+      return null;
+    }
+
+    // `packages` is the source of truth. The `software_package` alias is
+    // still returned by the API (points at `packages[0]`, first-added) — the
+    // fallback here is defense against a title with no custom packages (e.g.
+    // FMA / app-store branch) so downstream code can treat this as an array.
+    const packages =
+      title.packages ??
+      (title.software_package ? [title.software_package] : []);
+    const appStore = title.app_store_app;
+
+    // No installable to render at all.
+    if (packages.length === 0 && !appStore) {
+      return null;
+    }
+
+    // Per-row callbacks set `selectedInstallerId` so the modals target the
+    // right package on a multi-package title. Called without an id (e.g. from
+    // the app-store branch or a back-compat single-package title), they fall
+    // back to first-added — same as legacy behavior.
+    const openEditModal = (id?: number) => {
+      setSelectedInstallerId(id ?? null);
+      setShowLibraryEditModal(true);
+    };
+    const openDeleteModal = (id?: number) => {
+      setSelectedInstallerId(id ?? null);
+      setShowDeleteModal(true);
+    };
+
+    const openEditModalForVersion = (versionId: number) => {
+      setSelectedVersionId(versionId);
+      setShowLibraryEditModal(true);
+    };
+    const openDeleteModalForVersion = (versionId: number) => {
+      setSelectedVersionId(versionId);
+      setShowDeleteModal(true);
+    };
+
+    const statusPath = (
+      software_status: "installed" | "pending" | "failed",
+      appStoreAppVersionId?: number
+    ) =>
+      getPathWithQueryParams(paths.MANAGE_HOSTS, {
+        software_title_id: softwareId,
+        software_status,
+        app_store_app_version_id: appStoreAppVersionId,
+        fleet_id: currentTeamId ?? APP_CONTEXT_NO_TEAM_ID,
+      });
+
+    const renderAppStoreRow = () => {
+      if (!appStore) return null;
+      const { labels, kind } = pickLabels(appStore);
+      const isAndroidPlayStoreApp = appStore.platform === "android";
+      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      return (
+        <LibraryItemAccordion
+          filename={appStore.name}
+          version={appStore.latest_version}
+          // Apple App Store apps' version updates automatically, so the time the
+          // app was added to Fleet reads as the time this version was added.
+          addedAt={isAndroidPlayStoreApp ? appStore.created_at : undefined}
+          installerType="app-store"
+          androidPlayStoreId={
+            isAndroidPlayStoreApp ? appStore.app_store_id : undefined
+          }
+          isIosOrIpadosApp={isIosOrIpadosApp}
+          isActive
+          badgeState="latest"
+          labels={labels}
+          labelKind={kind}
+          canEditSoftware={canEditSoftware}
+          installed={appStore.status?.installed ?? 0}
+          pending={appStore.status?.pending ?? 0}
+          failed={appStore.status?.failed ?? 0}
+          installedPath={statusPath("installed")}
+          pendingPath={statusPath("pending")}
+          failedPath={statusPath("failed")}
+          onLabelCountClick={() => openEditModal()}
+          onLabelsClick={() => openEditModal()}
+          onEditClick={() => openEditModal()}
+          onTrashClick={() => openDeleteModal()}
+        />
+      );
+    };
+
+    // One row per App Store app version on multi-version iOS/iPadOS/Android
+    // titles. Store version is title-level and shared across versions, so the
+    // row shows the admin-provided version name (e.g. "Production") as its
+    // headline; the store version is surfaced on the app header row above.
+    const renderAppStoreVersionRow = (version: IAppStoreAppVersion) => {
+      const { labels, kind } = pickLabels(version);
+      const isAndroidPlayStoreApp = version.platform === "android";
+      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      return (
+        <LibraryItemAccordion
+          key={version.id}
+          filename={version.name}
+          version={version.version}
+          addedAt={version.created_at}
+          installerType="app-store"
+          androidPlayStoreId={
+            isAndroidPlayStoreApp ? version.app_store_id : undefined
+          }
+          isIosOrIpadosApp={isIosOrIpadosApp}
+          graphicOverride="file-configuration-profile"
+          hideVersion
+          isActive
+          labels={labels}
+          labelKind={kind}
+          canEditSoftware={canEditSoftware}
+          installed={version.status?.installed ?? 0}
+          pending={version.status?.pending ?? 0}
+          failed={version.status?.failed ?? 0}
+          installedPath={statusPath("installed", version.id)}
+          pendingPath={statusPath("pending", version.id)}
+          failedPath={statusPath("failed", version.id)}
+          canActivateMultipleVersions
+          isSelfService={!!version.self_service}
+          isAutoUpdateEnabled={!!version.auto_update_enabled}
+          autoUpdateWindowStart={version.auto_update_window_start}
+          autoUpdateWindowEnd={version.auto_update_window_end}
+          isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+          onLabelCountClick={() => openEditModalForVersion(version.id)}
+          onLabelsClick={() => openEditModalForVersion(version.id)}
+          onEditClick={() => openEditModalForVersion(version.id)}
+          onTrashClick={() => openDeleteModalForVersion(version.id)}
+          onSelfServiceClick={() => openEditModalForVersion(version.id)}
+          onAutoUpdateClick={() => openEditModalForVersion(version.id)}
+        />
+      );
+    };
+
+    // Non-interactive "app metadata" banner above the version accordion list
+    // on multi-version iOS/iPadOS/Android titles. Shows the app's store icon,
+    // store name, and store version so the version rows below can lead with
+    // the admin's version name without losing the app identity.
+    const renderAppStoreVersionsHeader = () => {
+      if (!appStore) return null;
+      const isAndroidPlayStoreApp = appStore.platform === "android";
+      const StoreIcon = isAndroidPlayStoreApp
+        ? AndroidPlayStore
+        : AppleAppStore;
+      return (
+        <div className={`${baseClass}__app-versions-header`}>
+          <div className={`${baseClass}__app-versions-header-icon`}>
+            <StoreIcon width={24} height={24} />
+          </div>
+          <div className={`${baseClass}__app-versions-header-text`}>
+            <span className={`${baseClass}__app-versions-header-name`}>
+              {appStore.name}
+            </span>
+            <span className={`${baseClass}__app-versions-header-version`}>
+              {isAndroidPlayStoreApp ? (
+                <AndroidLatestVersionWithTooltip
+                  androidPlayStoreId={appStore.app_store_id}
+                />
+              ) : (
+                <TooltipWrapper tipContent={<span>Updated every hour.</span>}>
+                  {appStore.latest_version}
+                </TooltipWrapper>
+              )}
+            </span>
+          </div>
+        </div>
+      );
+    };
+
+    // iOS/iPadOS/Android App Store titles always use the versions-oriented
+    // layout (app metadata header + per-version rows), even with a single
+    // version. macOS VPP and in-house `.ipa` keep the back-compat single-row
+    // rendering.
+    const useVersionsLayout = !!appStore && canActivateMultipleVersions;
+
+    const renderAppStoreRows = () => {
+      if (!useVersionsLayout) return renderAppStoreRow();
+      return (title.app_store_apps ?? []).map(renderAppStoreVersionRow);
+    };
+
+    // FMAs expand a single package into one badged "active" row plus dimmed
+    // rollback rows for every cached version. Custom packages render exactly
+    // one row each. With multi-package titles we run this per `pkg` so each
+    // top-level entry stays addressable by its own `installer_id`.
+    const renderPackageRows = (pkg: ISoftwarePackage) => {
+      if (!pkg) return null;
+      const { labels, kind } = pickLabels(pkg);
+      const isFma = installerResult?.meta.isFleetMaintainedApp ?? false;
+      const isLatestFmaVersion =
+        installerResult?.meta.isLatestFmaVersion ?? false;
+      const isScriptPackage =
+        installerResult?.cardInfo.isScriptPackage ?? false;
+      const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
+      const perPackagePolicies = mergePolicies({
+        automaticInstallPolicies: pkg.automatic_install_policies,
+        patchPolicy: pkg.patch_policy,
+      });
+      const hasAutoInstallPolicy = perPackagePolicies.length > 0;
+      const { installed, pending, failed } = aggregateInstallStatusCounts(
+        pkg.status
+      );
+      const rows = buildLibraryVersionRows({
+        fleetMaintainedVersions: pkg.fleet_maintained_versions,
+        activeVersion: pkg.version,
+        pinnedVersion: pkg.pinned_version,
+        addedTimestamp: pkg.uploaded_at,
+      });
+      return rows.map((row) => (
+        <LibraryItemAccordion
+          key={`${pkg.installer_id}-${row.id}`}
+          filename={row.filename ?? pkg.name}
+          version={row.version}
+          addedAt={row.uploaded_at}
+          installerType="package"
+          isFma={isFma}
+          isLatestFmaVersion={row.isActive && isLatestFmaVersion}
+          isScriptPackage={isScriptPackage}
+          source={title.source}
+          isTarballPackage={title.source === "tgz_packages"}
+          isIosOrIpadosApp={isIosOrIpadosApp}
+          isActive={row.isActive}
+          badgeState={row.badgeState}
+          canActivateMultiplePackages={canActivateMultiplePackages}
+          isSelfService={pkg.self_service}
+          hasAutoInstallPolicy={hasAutoInstallPolicy}
+          labels={row.isActive ? labels : null}
+          labelKind={kind}
+          canEditSoftware={canEditSoftware}
+          installed={row.isActive ? installed : 0}
+          pending={row.isActive ? pending : 0}
+          failed={row.isActive ? failed : 0}
+          installedPath={statusPath("installed")}
+          pendingPath={statusPath("pending")}
+          failedPath={statusPath("failed")}
+          hashSha256={row.isActive ? pkg.hash_sha256 ?? null : null}
+          canDownload={canDownloadInstallerRow(
+            row.isActive,
+            canDownloadInstaller
+          )}
+          onBadgeClick={
+            isFma && canEditSoftware
+              ? () => setShowVersionsModal(true)
+              : undefined
+          }
+          onLabelCountClick={() => openEditModal(pkg.installer_id)}
+          onLabelsClick={() => openEditModal(pkg.installer_id)}
+          onEditClick={() => openEditModal(pkg.installer_id)}
+          onDownloadClick={() => onDownloadInstaller(pkg)}
+          onTrashClick={() => openDeleteModal(pkg.installer_id)}
+          onSelfServiceClick={() => openEditModal(pkg.installer_id)}
+          onAutoInstallClick={() => {
+            // Single linked policy: jump straight to it (mirrors the chip's
+            // "Select to open policy" shortcut). Multiple: open the modal
+            // scoped to this specific package, not the aggregate.
+            if (perPackagePolicies.length === 1) {
+              router.push(
+                getPathWithQueryParams(
+                  paths.POLICY_DETAILS(perPackagePolicies[0].id),
+                  { fleet_id: teamIdForApi }
+                )
+              );
+              return;
+            }
+            setSelectedPackagePolicies(perPackagePolicies);
+          }}
+        />
+      ));
+    };
+
+    // "Add version" lives on titles that can hold multiple custom packages —
+    // gated by the page-level `canActivateMultiplePackages` flag. FMA, VPP,
+    // Google Play, and iOS in-house .ipa are all single-package by design
+    // and so don't surface the action at all. The Library section already
+    // early-returns when there are no packages and no app-store app, so we
+    // don't need to re-check `packages.length` here.
+    const showAddPackageAction = canActivateMultiplePackages && canEditSoftware;
+    const atPackageLimit = packages.length >= MAX_PACKAGES_PER_TITLE;
+    const addPackageButton = showAddPackageAction && (
+      <Button
+        variant="secondary"
+        onClick={() => setShowAddPackageModal(true)}
+        disabled={atPackageLimit}
+        icon="plus"
+      >
+        Add version
+      </Button>
+    );
+
+    // "Add version" lives on multi-version-eligible App Store app titles
+    // (iOS/iPadOS/Android). The 10-version limit mirrors the backend cap. In
+    // GitOps mode the button stays clickable so admins can open the modal in
+    // its disabled state; the lock is enforced inside the modal.
+    const showAddVersionAction = canActivateMultipleVersions && canEditSoftware;
+    const versionCount = title.app_store_apps?.length ?? (appStore ? 1 : 0);
+    const atVersionLimit = versionCount >= MAX_APP_STORE_APP_VERSIONS_PER_TITLE;
+    const addVersionButton = showAddVersionAction && (
+      <Button
+        variant="secondary"
+        size="small"
+        onClick={() => setShowAddVersionModal(true)}
+        disabled={atVersionLimit}
+        icon="plus"
+      >
+        Add version
+      </Button>
+    );
+
+    const getHeaderAction = (): React.ReactNode => {
+      if (showAddPackageAction) {
+        if (!atPackageLimit) return addPackageButton;
+        return (
+          <TooltipWrapper
+            tipContent={
+              <>
+                This title already has {MAX_PACKAGES_PER_TITLE} versions. Delete
+                one you no longer use before adding.
+              </>
+            }
+            showArrow
+            position="left"
+            underline={false}
+          >
+            {addPackageButton}
+          </TooltipWrapper>
+        );
+      }
+      if (showAddVersionAction) {
+        if (!atVersionLimit) return addVersionButton;
+        return (
+          <TooltipWrapper
+            tipContent={
+              <>
+                This title already has {MAX_APP_STORE_APP_VERSIONS_PER_TITLE}{" "}
+                versions. Delete one you no longer use before adding.
+              </>
+            }
+            showArrow
+            position="left"
+            underline={false}
+          >
+            {addVersionButton}
+          </TooltipWrapper>
+        );
+      }
+      return null;
+    };
+    const headerAction = getHeaderAction();
+
+    // Description copy varies by title shape. The multi-package and
+    // multi-version variants are action prompts — meaningful only to users
+    // who can edit AND are on a title that can hold multiples. Read-only
+    // users and single-slot types fall through to the legacy wording.
+    const getDescriptionContent = (): string => {
+      if (canActivateMultiplePackages && canEditSoftware) {
+        return "Add versions for a staged rollout or to support multiple architectures.";
+      }
+      if (canActivateMultipleVersions && canEditSoftware) {
+        return "Add versions to scope different configurations to hosts.";
+      }
+      return "Software available to be installed";
+    };
+    const descriptionContent = getDescriptionContent();
+
+    // App-store and custom-package paths are mutually exclusive at the data
+    // layer (the backend rejects custom uploads against an FMA/VPP title), so
+    // only one branch ever renders rows. The wrapper stays the same shape.
+    // The "Add version" action sits on the description row (not the section
+    // header) so it visually aligns with the secondary copy rather than the
+    // h2 title — matches the Library row layout in Figma page 2:130.
+    return (
+      <section className={`${baseClass}__section`}>
+        <SectionHeader title="Library" />
+        <div className={`${baseClass}__library-description-row`}>
+          <PageDescription content={descriptionContent} />
+          {headerAction}
+        </div>
+        <div className={`${baseClass}__library-list`}>
+          {useVersionsLayout && renderAppStoreVersionsHeader()}
+          <LibraryItemAccordionList>
+            {/* Row order = API response order. The API returns `packages[]`
+                sorted by `installer_id` ascending, so the top row is the
+                first-added package (smallest id = collision fallback).
+                `app_store_apps[]` is returned in `created_at` order, so the
+                top version is first-added (collision fallback). The UI does
+                not re-sort. */}
+            {appStore ? renderAppStoreRows() : packages.map(renderPackageRows)}
+          </LibraryItemAccordionList>
+        </div>
+      </section>
+    );
+  };
+
+  const renderInventorySection = (title: ISoftwareTitleDetails) => {
+    // Hide for sources that don't report versions/hosts (tgz/sh/ps1 packages)
+    // and when no hosts have the software installed yet.
+    const showInventorySection =
+      !!title.hosts_count &&
+      !NO_VERSION_OR_HOST_DATA_SOURCES.includes(title.source);
+
+    if (!showInventorySection) {
+      return null;
+    }
+
+    return (
+      <section className={`${baseClass}__section`}>
+        <SectionHeader title="Inventory" />
+        <PageDescription content="Versions installed across all hosts" />
+        <TitleVersionsTable
+          router={router}
+          data={title.versions ?? []}
+          source={title.source}
+          isLoading={isSoftwareTitleLoading}
+          teamIdForApi={teamIdForApi}
+          isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(title.source)}
+          isAvailableForInstall={isAvailableForInstall}
+          countsUpdatedAt={title.counts_updated_at}
+        />
+      </section>
+    );
+  };
+
+  // Resolves the targeted package on a multi-package title. Returns the
+  // package matching `selectedInstallerId`, or `null` if none matches — in
+  // which case the caller falls back to the legacy `software_package` flow.
+  const findSelectedPackage = (
+    title: ISoftwareTitleDetails
+  ): ISoftwarePackage | null => {
+    if (selectedInstallerId === null) return null;
+    return (
+      title.packages?.find((p) => p.installer_id === selectedInstallerId) ??
+      null
+    );
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setSelectedInstallerId(null);
+    setSelectedVersionId(null);
+  };
+
+  const closeLibraryEditModal = () => {
+    setShowLibraryEditModal(false);
+    setSelectedInstallerId(null);
+    setSelectedVersionId(null);
+  };
+
+  // Delete modal for the active library row's installer.
+  const renderDeleteModal = (title: ISoftwareTitleDetails) => {
+    if (!showDeleteModal || typeof teamIdForApi !== "number") return null;
+    const meta = installerResult?.meta;
+    const isAndroidApp = !!meta?.isAndroidPlayStoreApp;
+    const isAppStoreApp = meta?.installerType === "app-store" && !isAndroidApp;
+    const selected = findSelectedPackage(title);
+    // Multi-version delete: route the request by version id and compute
+    // last-version so the modal can surface the icon/display-name side-effect.
+    const versionCount = title.app_store_apps?.length ?? 0;
+    const isVersionDelete = selectedVersionId !== null;
+    const isLastVersion = isVersionDelete && versionCount <= 1;
+    const siblingPackagesRemain =
+      canActivateMultiplePackages && (title.packages?.length ?? 0) > 1;
+    return (
+      <DeleteSoftwareModal
+        softwareId={softwareId}
+        teamId={teamIdForApi}
+        installerId={selected?.installer_id}
+        versionId={isVersionDelete ? selectedVersionId ?? undefined : undefined}
+        isLastVersion={isLastVersion}
+        gitOpsModeEnabled={gitOpsModeEnabled}
+        isAppStoreApp={isAppStoreApp}
+        isAndroidApp={isAndroidApp}
+        canActivateMultiplePackages={canActivateMultiplePackages}
+        packageName={selected?.name}
+        onExit={closeDeleteModal}
+        onSuccess={() => {
+          closeDeleteModal();
+          onDeleteInstaller({
+            siblingVersionsRemain:
+              (isVersionDelete && !isLastVersion) || siblingPackagesRemain,
+          });
+        }}
+      />
+    );
+  };
+
+  const renderLibraryEditModal = (title: ISoftwareTitleDetails) => {
+    if (
+      !showLibraryEditModal ||
+      !installerResult ||
+      typeof teamIdForApi !== "number"
+    ) {
+      return null;
+    }
+
+    // Multi-version App Store titles route through a dedicated version-aware
+    // modal when a version row's edit affordance fired. `selectedVersionId`
+    // identifies the row; look it up in `app_store_apps`.
+    if (selectedVersionId !== null) {
+      const version = title.app_store_apps?.find(
+        (v) => v.id === selectedVersionId
+      );
+      if (!version) return null;
+      const siblingVersionNames =
+        title.app_store_apps
+          ?.filter((v) => v.id !== selectedVersionId)
+          .map((v) => v.name) ?? [];
+      return (
+        <EditVersionModal
+          softwareId={softwareId}
+          teamId={teamIdForApi}
+          version={version}
+          titleDisplayName={getDisplayedSoftwareName(
+            title.name,
+            title.display_name
+          )}
+          siblingVersionNames={siblingVersionNames}
+          onExit={closeLibraryEditModal}
+          onSuccess={() => {
+            closeLibraryEditModal();
+            refetchSoftwareTitle();
+          }}
+        />
+      );
+    }
+
+    const { meta } = installerResult;
+    // On a multi-package title, the row callback set `selectedInstallerId`;
+    // resolve it to the actual package so the modal edits the right one.
+    // Otherwise (single-package back-compat or app-store), `meta.softwareInstaller`
+    // already points at the only installer.
+    const selected = findSelectedPackage(title);
+    return (
+      <EditSoftwareModal
+        softwareId={softwareId}
+        teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
+        installerId={selected?.installer_id}
+        softwareInstaller={selected ?? meta.softwareInstaller}
+        refetchSoftwareTitle={refetchSoftwareTitle}
+        onExit={closeLibraryEditModal}
+        installerType={meta.installerType}
+        isFleetMaintainedApp={meta.isFleetMaintainedApp}
+        isIosOrIpadosApp={meta.isIosOrIpadosApp}
+        name={title.name}
+        displayName={getDisplayedSoftwareName(title.name, title.display_name)}
+        source={title.source}
+        iconUrl={title.icon_url}
+        canActivateMultiplePackages={canActivateMultiplePackages}
+      />
+    );
+  };
+
+  const renderPackagePoliciesModal = () => {
+    if (!selectedPackagePolicies) return null;
+    return (
+      <PoliciesModal
+        policies={selectedPackagePolicies}
+        teamId={teamIdForApi}
+        onExit={() => setSelectedPackagePolicies(null)}
+      />
+    );
+  };
+
+  const renderAddPackageModal = (title: ISoftwareTitleDetails) => {
+    if (!showAddPackageModal || typeof teamIdForApi !== "number") return null;
+    // First-added is the canonical source for the file-type restriction.
+    // Multi-package titles always have `packages[0]`; back-compat titles fall
+    // back to `software_package`. The "+ Add version" button is gated on the
+    // section being visible, so we always have a name here.
+    const existingPackageName =
+      title.packages?.[0]?.name ?? title.software_package?.name ?? "";
+    return (
+      <AddPackageModal
+        softwareTitleId={softwareId}
+        softwareTitleName={getDisplayedSoftwareName(
+          title.name,
+          title.display_name
+        )}
+        teamId={teamIdForApi}
+        existingPackageName={existingPackageName}
+        onExit={() => setShowAddPackageModal(false)}
+        onSuccess={() => {
+          setShowAddPackageModal(false);
+          refetchSoftwareTitle();
+        }}
+      />
+    );
+  };
+
+  const renderAddVersionModal = (title: ISoftwareTitleDetails) => {
+    if (
+      !showAddVersionModal ||
+      !title.app_store_app ||
+      typeof teamIdForApi !== "number"
+    ) {
+      return null;
+    }
+    const existingVersionNames = title.app_store_apps?.map((v) => v.name) ?? [];
+    // The Add version button only renders on titles that already have at
+    // least one version (an `app_store_app`), so every Add is a 2nd+ version.
+    // Default Target to Custom so the admin's label scope wins the
+    // first-added race.
+    const defaultTargetCustom = true;
+    const defaultAutoUpdate = getDefaultAutoUpdateFromVersions(
+      title.app_store_apps
+    );
+    return (
+      <AddVersionModal
+        teamId={teamIdForApi}
+        appStore={title.app_store_app}
+        existingVersionNames={existingVersionNames}
+        defaultTargetCustom={defaultTargetCustom}
+        defaultAutoUpdate={defaultAutoUpdate}
+        onExit={() => setShowAddVersionModal(false)}
+        onSuccess={() => {
+          setShowAddVersionModal(false);
+          refetchSoftwareTitle();
+        }}
+      />
+    );
+  };
+
+  const renderVersionsModal = (title: ISoftwareTitleDetails) => {
+    // `teamIdForApi` is undefined on "All teams" (where `currentTeamId` is the
+    // -1 sentinel); guard so we never PATCH `fleet_id=-1`. Mirrors the delete modal.
+    if (
+      !showVersionsModal ||
+      !title.software_package ||
+      typeof teamIdForApi !== "number"
+    ) {
+      return null;
+    }
+    return (
+      <VersionsModal
+        softwareTitle={title}
+        softwareId={softwareId}
+        teamId={teamIdForApi}
+        refetchSoftwareTitle={refetchSoftwareTitle}
+        onExit={() => setShowVersionsModal(false)}
       />
     );
   };
@@ -183,17 +977,31 @@ const SoftwareTitleDetailsPage = ({
     if (isSoftwareTitleError) {
       return (
         <DetailsNoHosts
-          header="Software not detected"
+          header={
+            currentTeamId === APP_CONTEXT_ALL_TEAMS_ID
+              ? "Software not found"
+              : "Software not found in this fleet"
+          }
           details="Expecting to see software? Check back later."
         />
       );
     }
 
     if (softwareTitle) {
+      // Intentional: a title with no installer and no installed hosts collapses
+      // to just the summary card with both Library and Inventory hidden. No
+      // empty state is shown — design wants the summary alone in that case.
       return (
         <>
           {renderSoftwareSummaryCard(softwareTitle)}
-          {renderSoftwareInstallerCard(softwareTitle)}
+          {renderLibrarySection(softwareTitle)}
+          {renderInventorySection(softwareTitle)}
+          {renderLibraryEditModal(softwareTitle)}
+          {renderDeleteModal(softwareTitle)}
+          {renderAddPackageModal(softwareTitle)}
+          {renderAddVersionModal(softwareTitle)}
+          {renderPackagePoliciesModal()}
+          {renderVersionsModal(softwareTitle)}
         </>
       );
     }

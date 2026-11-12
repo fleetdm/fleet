@@ -1,20 +1,17 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import SockJS from "sockjs-client";
 
+import { notify } from "components/ToastNotification";
 import { QueryContext } from "context/query";
-import { NotificationContext } from "context/notification";
-import { formatSelectedTargetsForApi } from "utilities/helpers";
-
-import queryAPI from "services/entities/queries";
-import campaignHelpers from "utilities/campaign_helpers";
-import debounce from "utilities/debounce";
-import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
-
-import { authToken } from "utilities/local";
-
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
 import { ITarget } from "interfaces/target";
+import queryAPI from "services/entities/queries";
+import authToken from "utilities/auth_token";
+import campaignHelpers from "utilities/campaign_helpers";
+import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
+import debounce from "utilities/debounce";
+import { formatSelectedTargetsForApi } from "utilities/helpers";
 
 import QueryResults from "../../edit/components/QueryResults";
 
@@ -39,7 +36,6 @@ const RunQuery = ({
   targetsTotalCount,
 }: IRunQueryProps): JSX.Element | null => {
   const { lastEditedQueryBody } = useContext(QueryContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [isQueryFinished, setIsQueryFinished] = useState(false);
   const [isQueryClipped, setIsQueryClipped] = useState(false);
@@ -113,7 +109,7 @@ const RunQuery = ({
       websocket?.send(
         JSON.stringify({
           type: "auth",
-          data: { token: authToken() },
+          data: { token: authToken.get() },
         })
       );
       websocket?.send(
@@ -127,7 +123,7 @@ const RunQuery = ({
     websocket.onmessage = ({ data }: { data: string }) => {
       // string is easy to compare before converting to object
       if (data === previousSocketData.current) {
-        return false;
+        return;
       }
 
       previousSocketData.current = data;
@@ -159,11 +155,10 @@ const RunQuery = ({
 
   const onRunQuery = debounce(async () => {
     if (!lastEditedQueryBody) {
-      renderFlash(
-        "error",
-        "Something went wrong running your query. Please try again."
+      notify.error(
+        "Something went wrong running your report. Please try again."
       );
-      return false;
+      return;
     }
 
     const selected = formatSelectedTargetsForApi(selectedTargets);
@@ -179,25 +174,27 @@ const RunQuery = ({
       });
 
       connectAndRunLiveQuery(returnedCampaign);
-    } catch (campaignError: any) {
-      const err = campaignError.toString();
+    } catch (campaignError) {
+      const err = String(campaignError);
       if (err.includes("no hosts targeted")) {
-        renderFlash(
-          "error",
-          "Your target selections did not include any hosts. Please try again."
+        notify.error(
+          "Your target selections did not include any hosts. Please try again.",
+          { response: campaignError }
         );
       } else if (err.includes("resource already created")) {
-        renderFlash(
-          "error",
-          "A campaign with the provided query text has already been created"
+        notify.error(
+          "A campaign with the provided query text has already been created",
+          { response: campaignError }
         );
       } else if (err.includes("forbidden") || err.includes("unauthorized")) {
-        renderFlash(
-          "error",
-          "It seems you do not have the rights to run this query. If you believe this is in error, please contact your administrator."
+        notify.error(
+          "It seems you do not have the rights to run this report. If you believe this is an error, please contact your administrator.",
+          { response: campaignError }
         );
       } else {
-        renderFlash("error", "Something has gone wrong. Please try again.");
+        notify.error("Something has gone wrong. Please try again.", {
+          response: campaignError,
+        });
       }
 
       return teardownDistributedQuery();

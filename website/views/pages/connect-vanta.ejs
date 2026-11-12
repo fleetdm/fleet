@@ -1,7 +1,7 @@
 <div id="connect-vanta" class="container d-flex flex-row justify-content-center" v-cloak>
   <div style="max-width: 620px;">
     <h1>Connect Fleet and Vanta</h1>
-    <p>This page allows you to set up an integration between Fleet and Vanta. Once set up, Fleet will submit host and user information to Vanta for compliance purposes.</p>
+    <p>This page allows you to set up an integration between Fleet and Vanta. Once set up, Fleet will submit host and user information to Vanta for compliance purposes. See the <a href="/guides/connect-fleet-to-vanta" target="_blank">Connect Fleet to Vanta guide</a> for how the integration works and how your API token is handled.</p>
     <div purpose="vanta-notes">
       <p class="font-weight-bold">Please note:</p>
       <ul>
@@ -9,6 +9,16 @@
         <li>The integration currently only supports macOS and Windows hosts.</li>
         <li>We are currently unable to provide screen lock status. In Vanta, all hosts will appear as false. <a href="/queries/screen-lock-enabled-mac-os" target="_blank">Use this query for macOS hosts</a>, and <a href="/queries/screen-lock-enabled-windows" target="_blank">this query for Windows hosts</a> to see the true list of hosts with screen lock turned on via MDM.</li>
         <li>This integration is only available to Fleet Premium customers.</li>
+        <li>To reduce risk, set the API-only user's <strong>API access</strong> to <strong>Specific API endpoints</strong> instead of <strong>All API endpoints</strong>. This integration only needs these five read-only endpoints:
+          <ul>
+            <li>Get current user &mdash; <code>GET /api/v1/fleet/me</code></li>
+            <li>Get Fleet configuration &mdash; <code>GET /api/v1/fleet/config</code></li>
+            <li>List users &mdash; <code>GET /api/v1/fleet/users</code></li>
+            <li>List hosts &mdash; <code>GET /api/v1/fleet/hosts</code></li>
+            <li>Get host &mdash; <code>GET /api/v1/fleet/hosts/:id</code></li>
+          </ul>
+          Scoping endpoints limits the blast radius if the token leaks. It does not grant permissions the user's role forbids, so the user still needs the Admin role.
+        </li>
       </ul>
     </div>
     <div class="card card-body" purpose="vanta-form">
@@ -49,8 +59,8 @@
       <cloud-error purpose="cloud-error" v-else-if="cloudError === 'invalidLicense'">
         This integration is only available for Fleet Premium customers.
       </cloud-error>
-      <cloud-error purpose="cloud-error" v-else-if="cloudError === 'invalidResponseFromFleetInstance'">
-        An error occured when verifying the configuration of the Fleet instance. Please check to make sure that the provided URL is correct and try resubmitting.
+      <cloud-error purpose="cloud-error" v-else-if="['requestToFleetInstanceForbidden', 'invalidResponseFromFleetInstance'].includes(cloudError)">
+        An error occured when verifying the configuration of the Fleet instance. Please check to make sure that the provided URL is correct and try resubmitting, or <a href="/contact">contact support</a> if the error persists.
       </cloud-error>
       <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
       <ajax-button style="height: 44px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!cloudError">Connect</ajax-button>

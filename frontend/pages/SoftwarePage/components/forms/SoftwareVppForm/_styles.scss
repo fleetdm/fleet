@@ -23,9 +23,6 @@
     display: flex;
     flex-direction: column;
     gap: $pad-xxlarge;
-    &--disabled {
-      @include disabled;
-    }
   }
 
   &__form-fields {
@@ -64,11 +61,15 @@
   // list styles
   &__list-container {
     border: 1px solid $ui-fleet-black-10;
-    border-radius: $border-radius-medium;
+    border-radius: $border-radius-large;
   }
 
   &__list {
-    max-height: 280px;
+    // Sized to fit roughly 20 rows without scrolling. Row height is
+    // ~24px content (SoftwareIcon at "small") plus 16px vertical padding
+    // plus a 1px border, so 20 rows land near 820px. The extra 20 leaves
+    // a buffer for wrapped names.
+    max-height: 840px;
     overflow-y: auto;
     list-style: none;
     margin: 0;
@@ -110,6 +111,6 @@
   &__action-buttons {
     display: flex;
     flex-direction: row-reverse;
-    gap: $pad-medium;
+    gap: $gap-action-elements;
   }
 }

@@ -56,13 +56,16 @@
     "backend": "ses",
     "config": {
       "region": "",
-      "source_arn": "some-ses-arn"
+      "source_arn": "some-ses-arn",
+      "sender_domain": "mailer.example.com"
     }
   },
   "org_info": {
     "org_name": "Fleet",
     "org_logo_url": "http://some-org-logo-url.com",
     "org_logo_url_light_background": "http://some-org-logo-url-light-background.com",
+    "org_logo_url_dark_mode": "http://some-org-logo-url.com",
+    "org_logo_url_light_mode": "http://some-org-logo-url-light-background.com",
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
@@ -75,8 +78,8 @@
     ],
     "deferred_save_host": false,
     "query_reports_disabled": false,
-    "scripts_disabled": false,
     "ai_features_disabled": false,
+    "mcp_disabled": false,
     "query_report_cap": 1
   },
   "smtp_settings": {
@@ -100,7 +103,8 @@
   },
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
-    "activity_expiry_window": 30
+    "activity_expiry_window": 30,
+    "preserve_host_activities_on_reenrollment": true
   },
   "features": {
     "enable_host_users": true,
@@ -109,9 +113,9 @@
       "time": "SELECT * FROM time",
       "macs": "SELECT mac FROM interface_details"
     },
-    "detail_query_overrides": {
-      "users": null,
-      "mdm": "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
+    "historical_data": {
+      "uptime": true,
+      "vulnerabilities": true
     }
   },
   "agent_options": {
@@ -147,7 +151,8 @@
     "sso_server_url": "https://sso.fleetdm.com"
   },
   "fleet_desktop": {
-    "transparency_url": "https://fleetdm.com/transparency"
+    "transparency_url": "https://fleetdm.com/transparency",
+    "alternative_browser_host": "musica.alternativa"
   },
   "vulnerability_settings": {
     "databases_path": ""
@@ -201,6 +206,15 @@
           "owl": "hoot"
         }
       }
+    ],
+    "google_workspace": [
+      {
+        "domain": "fleetdm.com",
+        "impersonated_user_email": "admin@fleetdm.com",
+        "api_key_json": {
+          "owl": "hoot"
+        }
+      }
     ]
   },
   "mdm": {
@@ -208,9 +222,15 @@
     "apple_business_manager": [
       {
         "organization_name": "Fleet Device Management Inc.",
+        "default": true,
         "macos_team": "💻 Workstations",
         "ios_team": "📱🏢 Company-owned mobile devices",
-        "ipados_team": "📱🏢 Company-owned mobile devices"
+        "ipados_team": "📱🏢 Company-owned mobile devices",
+        "byod_team": "📱🔐 Personal mobile devices"
+      },
+      {
+        "organization_name": "Second Org LLC",
+        "macos_team": "💻 Workstations"
       }
     ],
     "apple_bm_enabled_and_configured": true,
@@ -234,7 +254,12 @@
       "grace_period_days": 2
     },
     "macos_settings": {
-      "custom_settings": null
+      "custom_settings": null,
+      "enable_disk_encryption": false,
+      "enable_escrow_disk_encryption_key": true
+    },
+    "linux_settings": {
+      "enable_escrow_disk_encryption_key": true
     },
     "macos_setup": {
       "enable_end_user_authentication": true,
@@ -248,8 +273,17 @@
       "mode": "voluntary",
       "webhook_url": "https://some-macos-migration-webhook-url.com"
     },
-    "windows_migration_enabled": true,
+    "windows_mdm_migration_enabled": true,
     "enable_turn_on_windows_mdm_manually": false,
+    "windows_entra_tenant_ids": [
+      "5b84b6dd-d257-415e-b8b4-0240666ba4d4",
+      "9d30f55f-d117-4574-acf0-ff593e3e06e3"
+    ],
+    "windows_entra_client_ids": [
+      "7c1de9aa-9b2c-4d3e-8f10-2233445566aa"
+    ],
+    "apple_require_hardware_attestation": false,
+    "enable_profile_validation": true,
     "end_user_authentication": {
       "entity_id": "some-mdm-entity-id.com",
       "issuer_uri": "https://some-mdm-issuer-uri.com",
@@ -257,22 +291,17 @@
       "metadata_url": "http://some-mdm-metadata-url.com",
       "idp_name": "some-other-idp-name"
     },
-    "windows_enabled_and_configured": true,
-    "enable_disk_encryption": true,
+    "windows_mdm_enabled": true,
+    "name_template": "No team Mac $FLEET_VAR_HOST_UUID",
     "windows_settings": {
-      "custom_settings": []
+      "custom_settings": [],
+      "enable_disk_encryption": true,
+      "require_bitlocker_pin": false
     },
-    "volume_purchasing_program": [
-      {
-        "location": "Fleet Device Management Inc.",
-        "teams": [
-          "💻 Workstations",
-          "💻🐣 Workstations (canary)",
-          "📱🏢 Company-owned mobile devices",
-          "📱🔐 Personal mobile devices"
-        ]
-      }
-    ],
+    "volume_purchasing_program": null,
+    "windows_automatic_enrollment": {
+      "default_fleet": "💻 Workstations"
+    },
     "android_enabled_and_configured": true,
     "android_settings": {
       "custom_settings": []
@@ -280,7 +309,12 @@
   },
   "gitops": {
     "gitops_mode_enabled": false,
-    "repository_url": "https://github.com/fleetdm/fleet/tree/main/it-and-security"
+    "repository_url": "https://github.com/fleetdm/fleet/tree/main/it-and-security",
+    "exceptions": {
+      "labels": false,
+      "software": false,
+      "secrets": false
+    }
   },
   "scripts": []
 }

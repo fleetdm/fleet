@@ -2,29 +2,29 @@
 
 ![Fleet’s SAML integration for macOS Setup image](../website/assets/images/articles/fleet-saml-integration-for-macOS-Setup-1600x900@2x.png)
 
-Fleet MDM server simplifies the macOS setup experience. With Fleet, organizations can automate device enrollment, configure system settings, and provide compliance with minimal user intervention. With single sign-on (SSO) integration, the end user's username and name can be automatically populated in the local macOS account, allowing for a secure and efficient onboarding process. This article goes under the hood and dives into the technical details of how this end-user authentication integration works.
+Fleet simplifies the macOS setup experience. With Fleet, organizations can automate device enrollment, configure system settings, and provide compliance with minimal user intervention. With single sign-on (SSO) integration, the end user's username and name can be automatically populated in the local macOS account, allowing for a secure and efficient onboarding process. This article goes under the hood and dives into the technical details of how this end-user authentication integration works.
 
 ## Prerequisites
 
-To use this flow, we must have Apple MDM enabled in Fleet and a macOS host ready to set up in [Apple Business Manager (ABM)](https://business.apple.com/) linked to our Fleet MDM server.
+To use this flow, we must have Apple MDM enabled in Fleet and a macOS host ready to set up in [Apple Business (AB)](https://business.apple.com/) linked to Fleet.
 
-### What is Apple Business Manager?
+### What is Apple Business?
 
-Apple Business Manager (ABM) is a web-based portal that helps organizations deploy and manage Apple devices, including macOS computers, iPhones, and iPads. ABM provides a centralized platform for IT administrators to purchase hardware, assign devices to Mobile Device Management (MDM) servers, and distribute apps and content.
+Apple Business (AB) is a web-based portal that helps organizations deploy and manage Apple devices, including macOS computers, iPhones, and iPads. ABM provides a centralized platform for IT administrators to purchase hardware, assign devices to Mobile Device Management (MDM) servers, and distribute apps and content.
 
 ![Mac mini in ABM](../website/assets/images/articles/end-user-authentication-mac-in-abm-1354x920@2x.png "Mac mini in ABM")
 
 ### Apple's ADE vs DEP
 
-Apple's Device Enrollment Program (DEP) was the original, separate Apple service designed to register and configure devices automatically through an MDM solution. Subsequently, Apple rolled DEP into Automated Device Enrollment (ADE) as part of Apple Business Manager, combining DEP's automatic provisioning with other services in a streamlined portal. The terms ADE and DEP are often used interchangeably.
+Apple's Device Enrollment Program (DEP) was the original, separate Apple service designed to register and configure devices automatically through an MDM solution. Subsequently, Apple rolled DEP into Automated Device Enrollment (ADE) as part of Apple Business, combining DEP's automatic provisioning with other services in a streamlined portal. The terms ADE and DEP are often used interchangeably.
 
-## Setting up end-user authentication
+## Setting up IdP authentication
 
 The first step is to enable SAML (Security Assertion Markup Language) SSO for your IdP (Identity Provider). Follow the instructions from the [Single sign-on guide](https://fleetdm.com/docs/deploy/single-sign-on-sso). Use the URL ending with `/mdm/sso/callback.` Make sure to assign users to your SAML integration.
 
-You can [require users to authenticate with your IdP before using their Mac](https://fleetdm.com/guides/setup-experience#end-user-authentication). Note that setting up end-user authentication is done globally. However, enabling end-user authentication is done separately for each team. You may test end-user authentication in a separate team before rolling it out to the rest of your organization.
+You can [require users to authenticate with your IdP before using their Mac](https://fleetdm.com/guides/setup-experience#require-idp-authentication). Note that setting up IdP authentication is done globally. However, enabling IdP authentication is done separately for each fleet. You may test IdP authentication in a separate fleet before rolling it out to the rest of your organization.
 
-With end-user authentication enabled for your team, Fleet sends the updated enrollment profile to Apple. This sync happens once a minute and can be adjusted with the [mdm.apple_dep_sync_periodicity](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-dep-sync-periodicity) server configuration setting. The relevant attribute of the [Apple enrollment profile](https://developer.apple.com/documentation/devicemanagement/profile) is `configuration_web_url`. Fleet sets it to `{server_url}/mdm/sso`.
+With IdP authentication enabled for your fleet, Fleet sends the updated enrollment profile to Apple. This sync happens once a minute and can be adjusted with the [mdm.apple_dep_sync_periodicity](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-dep-sync-periodicity) server configuration setting. The relevant attribute of the [Apple enrollment profile](https://developer.apple.com/documentation/devicemanagement/profile) is `configuration_web_url`. Fleet sets it to `{server_url}/mdm/sso`.
 
 ## macOS setup experience
 
@@ -40,7 +40,7 @@ The web view shows the EULA (End User License Agreement) if needed. Afterward, t
 
 At this point, the user is authenticated and proceeds with other parts of the setup experience, such as installing software.
 
-After installing the enrollment profile, the macOS device sends a `TokenUpdate` message to the Fleet MDM server.
+After installing the enrollment profile, the macOS device sends a `TokenUpdate` message to Fleet.
 
 ![Waiting for management server](../website/assets/images/articles/end-user-authentication-mac-waiting-for-management-server-1782x1334@2x.png "Waiting for management server")
 
@@ -58,11 +58,11 @@ Fleet refreshes host details once per hour by default. As part of the refresh pr
 
 ## Sequence diagram
 
-For additional technical details, including a sequence diagram, see [Fleet's contributor documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/product-groups/mdm/mdm-end-user-authentication.md).
+For additional technical details, including a sequence diagram, see [Fleet's contributor documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/authentication/mdm-end-user-authentication.md).
 
 ## Summary
 
-Integrating your Fleet MDM server with your IdP is essential for IT professionals managing a fleet of devices. This deep dive into the details of end-user authentication provides you with the necessary insights to optimize your IT flows. We encourage you to apply these insights to your Fleet usage, and as always, we welcome your feedback and experiences in the [Fleet community Slack channels](https://fleetdm.com/support).
+Integrating Fleet with your IdP is essential for IT professionals managing a fleet of devices. This deep dive into the details of IdP authentication provides you with the necessary insights to optimize your IT flows. We encourage you to apply these insights to your Fleet usage, and as always, we welcome your feedback and experiences in the [Fleet community Slack channels](https://fleetdm.com/support).
 
 ## Watch us demo SAML integration for macOS Setup
 

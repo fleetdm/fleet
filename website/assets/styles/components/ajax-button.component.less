@@ -16,6 +16,17 @@
       box-sizing: border-box;
       animation: rotation 1s linear infinite;
    }
+   [purpose='message-with-spinner'] {
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      gap: 4px;
+      [purpose='syncing-message'] {
+        font-size: 14px;
+        line-height: 1;
+      }
+   }
    .button-loader, .button-loading {
      display: none;
      margin: auto;

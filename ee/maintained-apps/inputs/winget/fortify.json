@@ -1,0 +1,12 @@
+{
+  "name": "Fortify",
+  "slug": "fortify/windows",
+  "package_identifier": "PeculiarVentures.Fortify",
+  "unique_identifier": "Fortify",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "installer_locale": "en-US",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/fortify_uninstall.ps1",
+  "default_categories": ["Security"]
+}

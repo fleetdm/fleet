@@ -1,16 +1,27 @@
 .sql-editor {
   &__label {
-    font-size: $x-small;
-    font-weight: $bold;
-    color: $core-fleet-black;
+    @include form-label;
 
     &--error {
       color: $core-vibrant-red;
     }
+
     &--with-action {
       display: flex;
       justify-content: space-between;
       align-items: center;
+
+      .sql-editor__label-text {
+        flex: 1 1 auto;
+        margin-right: $pad-small;
+      }
+
+      .sql-editor__label-actions {
+        display: flex;
+        align-items: center;
+        gap: $pad-xsmall;
+        flex: 0 0 auto;
+      }
 
       button {
         height: initial; // aligning space between label and textarea
@@ -26,12 +37,40 @@
 
   &__wrapper {
     &--error {
-      .ace-fleet {
-        border: 1px solid $core-vibrant-red;
+      // Beat the ace theme's :hover / .ace_focus selectors
+      // (frontend/utilities/ace_theme.css) so the red border persists
+      // through hover and focus, matching InputField's error state.
+      .ace_editor.ace-fleet,
+      .ace_editor.ace-fleet:hover,
+      .ace_editor.ace-fleet.ace_focus {
+        border-color: $core-vibrant-red;
       }
     }
     &--disabled {
       @include disabled;
+    }
+
+    &--readonly-copy {
+      cursor: default;
+
+      .ace-fleet:hover {
+        border: 1px solid $ui-blue-gray;
+      }
+
+      // remove interaction on both code + gutter
+      .ace_scroller,
+      .ace_gutter {
+        pointer-events: auto;
+        cursor: not-allowed;
+        user-select: none;
+      }
+
+      // keep label actions (copy, etc.) usable
+      .sql-editor__label-actions,
+      .sql-editor__label-actions * {
+        pointer-events: auto;
+        cursor: pointer;
+      }
     }
   }
 
@@ -48,7 +87,7 @@
     @include help-text;
 
     code {
-      color: $core-vibrant-blue;
+      color: $ui-fleet-black-75;
       background-color: $ui-light-grey;
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;

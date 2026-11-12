@@ -1,29 +1,28 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
-import { AxiosError } from "axios";
 
-import paths from "router/paths";
+import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import LoginForm from "components/forms/LoginForm";
+import InfoBanner from "components/InfoBanner";
+import Spinner from "components/Spinner/Spinner";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 import { RoutingContext } from "context/routing";
 import { ISSOSettings } from "interfaces/ssoSettings";
 import { ILoginUserData } from "interfaces/user";
-import local from "utilities/local";
+import paths from "router/paths";
 import configAPI from "services/entities/config";
 import sessionsAPI, { ISSOSettingsResponse } from "services/entities/sessions";
+import authToken from "utilities/auth_token";
 import formatErrorResponse from "utilities/format_error_response";
-
-import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-// @ts-ignore
-import LoginForm from "components/forms/LoginForm";
-import Spinner from "components/Spinner/Spinner";
+import local from "utilities/local";
 
 interface ILoginPageProps {
   router: InjectedRouter; // v3
   location: {
     pathname: string;
-    query: { vulnerable?: boolean };
+    query: { vulnerable?: boolean; session_expired?: string };
     search: string;
   };
 }
@@ -56,10 +55,9 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     setCurrentUser,
     setCurrentTeam,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
   const { redirectLocation } = useContext(RoutingContext);
+  const queryClient = useQueryClient();
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pendingEmail, setPendingEmail] = useState(false);
 
@@ -68,7 +66,9 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     Error,
     ISSOSettings
   >(["ssoSettings"], () => sessionsAPI.ssoSettings(), {
-    enabled: !currentUser,
+    // currentUser outlives an SPA logout or expired session, so it alone
+    // would hide the SSO button.
+    enabled: !currentUser || !authToken.get(),
     onError: (err) => {
       console.error(err);
     },
@@ -93,7 +93,12 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
   }, []);
 
   useEffect(() => {
+    // Requiring `authToken.get()` matters after a SPA-navigated logout: the
+    // AppContext user/teams/config linger from the destroyed session, and
+    // without this check LoginPage would keep pushing to /dashboard while
+    // AuthenticatedRoutes keeps pushing back to /login on a missing token.
     if (
+      authToken.get() &&
       availableTeams &&
       config &&
       currentUser &&
@@ -103,12 +108,11 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     }
   }, [availableTeams, config, currentUser, redirectLocation, router]);
 
-  // TODO: Fix this. If renderFlash is added as a dependency it causes infinite re-renders.
   useEffect(() => {
     let status = new URLSearchParams(location.search).get("status");
     status = status && statusMessages[status as keyof IStatusMessages];
     if (status) {
-      renderFlash("error", status);
+      notify.error(status);
     }
   }, [location?.search]);
 
@@ -119,15 +123,21 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
       try {
         const response = await sessionsAPI.login(formData);
-        const { user, available_teams, token } = response;
+        const { user, available_fleets, token, token_expires_at } = response;
 
-        local.setItem("auth_token", token);
+        const expiresAt = token_expires_at
+          ? new Date(token_expires_at)
+          : undefined;
+        authToken.save(token, expiresAt);
+        // Logging in after a logout or expired session doesn't reload the
+        // page, so the previous user's cached responses would still be served.
+        queryClient.clear();
 
         setCurrentUser(user);
-        setAvailableTeams(user, available_teams);
+        setAvailableTeams(user, available_fleets);
         setCurrentTeam(undefined);
 
-        if (!user.global_role && user.teams.length === 0) {
+        if (!user.global_role && user.fleets.length === 0) {
           return router.push(NO_ACCESS);
         }
         // Redirect to password reset page if user is forced to reset password.
@@ -148,8 +158,22 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
           setPendingEmail(true);
         }
 
-        const errorObject = formatErrorResponse(response);
-        setErrors(errorObject);
+        // The API's rate limit message ("limit exceeded, retry after: 2s") is
+        // meant for API clients, so it's replaced here.
+        if ((response as { status: number }).status === 429) {
+          notify.error(
+            "Too many login attempts. Wait 10 seconds and try again.",
+            {
+              response,
+            }
+          );
+          return false;
+        }
+
+        const { base } = formatErrorResponse(response);
+        if (base) {
+          notify.error(base, { response });
+        }
         return false;
       } finally {
         setIsSubmitting(false);
@@ -157,6 +181,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
     },
     [
       config,
+      queryClient,
       redirectLocation,
       router,
       setAvailableTeams,
@@ -177,15 +202,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
       const { url } = await sessionsAPI.initializeSSO(returnToAfterAuth);
       window.location.href = url;
     } catch (error) {
-      const err = error as AxiosError;
-      // a one-off error for sso login failure to be more readable to users
-      const ssoError = {
-        status: err.status,
-        data: { errors: [{ name: "base", reason: "Authentication failed" }] },
-      };
-      const errorObject = formatErrorResponse(ssoError);
-      setErrors(errorObject);
-      return false;
+      notify.error("Authentication failed", { response: error });
     }
   }, [redirectLocation]);
 
@@ -195,9 +212,11 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
   return (
     <AuthenticationFormWrapper header="Welcome to Fleet">
+      {location.query.session_expired && (
+        <InfoBanner>Your session expired. Log in to continue.</InfoBanner>
+      )}
       <LoginForm
         handleSubmit={onSubmit}
-        baseError={errors.base}
         ssoSettings={ssoSettings}
         handleSSOSignOn={ssoSignOn}
         isSubmitting={isSubmitting}

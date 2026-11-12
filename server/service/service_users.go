@@ -20,25 +20,30 @@ func (svc *Service) CreateInitialUser(ctx context.Context, p fleet.UserPayload) 
 		return nil, err
 	}
 	if !setupRequired {
-		return nil, ctxerr.New(ctx, "a user already exists")
+		return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: "a user already exists"})
 	}
 
 	// Initial user should be global admin with no explicit teams
 	p.GlobalRole = ptr.String(fleet.RoleAdmin)
 	p.Teams = nil
 
-	return svc.NewUser(ctx, p)
+	return svc.newUser(ctx, p, svc.ds.NewInitialUser)
 }
 
 func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, error) {
-	license, _ := license.FromContext(ctx)
-	if license == nil {
+	return svc.newUser(ctx, p, svc.ds.NewUser)
+}
+
+func (svc *Service) newUser(ctx context.Context, p fleet.UserPayload, create func(context.Context, *fleet.User) (*fleet.User, error)) (*fleet.User, error) {
+	licChecker, _ := license.FromContext(ctx)
+	lic, _ := licChecker.(*fleet.LicenseInfo)
+	if lic == nil {
 		return nil, ctxerr.New(ctx, "license not found")
 	}
-	if err := fleet.ValidateUserRoles(true, p, *license); err != nil {
+	if err := fleet.ValidateUserRoles(true, p, *lic); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate role")
 	}
-	if !license.IsPremium() {
+	if !lic.IsPremium() {
 		p.MFAEnabled = ptr.Bool(false)
 	}
 
@@ -47,7 +52,7 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 		return nil, err
 	}
 
-	user, err = svc.ds.NewUser(ctx, user)
+	user, err = create(ctx, user)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +73,7 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	); err != nil {
 		return nil, err
 	}
-	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, nil, nil, user); err != nil {
+	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, nil, nil, user, p.JITProvisioned); err != nil {
 		return nil, err
 	}
 

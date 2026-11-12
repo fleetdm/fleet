@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"regexp"
@@ -18,7 +21,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
 	pkgErrors "github.com/pkg/errors" //nolint:depguard
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,6 +51,18 @@ func alwaysNewErrorTwo(eh *Handler) error {
 }
 
 func alwaysWrappedErr() error { return ctxerr.Wrap(ctx, io.EOF, "always EOF") }
+
+// statusErr is a test fixture that implements the statusCoder interface
+// hashError checks against, so we can exercise the request-timeout-only
+// normalization path without importing service.OsqueryError (which would
+// be a circular import).
+type statusErr struct {
+	msg    string
+	status int
+}
+
+func (e *statusErr) Error() string { return e.msg }
+func (e *statusErr) Status() int   { return e.status }
 
 func TestHashErr(t *testing.T) {
 	t.Run("without stack trace, same error is same hash", func(t *testing.T) {
@@ -131,6 +145,40 @@ func TestHashErrFleetError(t *testing.T) {
 		assert.NotEqual(t, h1, h3)
 		assert.NotEqual(t, h2, h3)
 	})
+
+	t.Run("request-timeout errors use the same hash if their content differs only by the socket address (IPv4)", func(t *testing.T) {
+		err1 := &statusErr{msg: "read tcp 10.10.3.44:8080->10.10.11.251:55732: i/o timeout", status: http.StatusRequestTimeout}
+		err2 := &statusErr{msg: "read tcp 10.10.3.44:8080->10.10.11.251:61204: i/o timeout", status: http.StatusRequestTimeout}
+		err3 := &statusErr{msg: "read tcp 10.10.3.44:8080->10.10.11.251:38891: i/o timeout", status: http.StatusRequestTimeout}
+
+		h1, h2, h3 := hashError(err1), hashError(err2), hashError(err3)
+		assert.Equal(t, h1, h2)
+		assert.Equal(t, h1, h3)
+	})
+
+	t.Run("request-timeout errors use the same hash if their content differs only by the socket address (IPv6)", func(t *testing.T) {
+		err1 := &statusErr{msg: "read tcp [::1]:8080->[fe80::1]:55732: i/o timeout", status: http.StatusRequestTimeout}
+		err2 := &statusErr{msg: "read tcp [::1]:8080->[fe80::1]:61204: i/o timeout", status: http.StatusRequestTimeout}
+		assert.Equal(t, hashError(err1), hashError(err2))
+	})
+
+	t.Run("request-timeout errors use different hashes if the non-socket-address content differs", func(t *testing.T) {
+		err1 := &statusErr{msg: "read tcp 10.0.0.1:80->10.0.0.2:55732: i/o timeout", status: http.StatusRequestTimeout}
+		err2 := &statusErr{msg: "read tcp 10.0.0.1:80->10.0.0.2:55732: context deadline exceeded", status: http.StatusRequestTimeout}
+		assert.NotEqual(t, hashError(err1), hashError(err2))
+	})
+
+	t.Run("non-timeout errors are NOT normalized by socket address", func(t *testing.T) {
+		err1 := &statusErr{msg: "read tcp 10.0.0.1:80->10.0.0.2:55732: connection refused", status: http.StatusInternalServerError}
+		err2 := &statusErr{msg: "read tcp 10.0.0.1:80->10.0.0.2:61204: connection refused", status: http.StatusInternalServerError}
+		assert.NotEqual(t, hashError(err1), hashError(err2))
+	})
+
+	t.Run("errors without a Status() method are NOT normalized by socket address", func(t *testing.T) {
+		err1 := errors.New("read tcp 10.0.0.1:80->10.0.0.2:55732: i/o timeout")
+		err2 := errors.New("read tcp 10.0.0.1:80->10.0.0.2:61204: i/o timeout")
+		assert.NotEqual(t, hashError(err1), hashError(err2))
+	})
 }
 
 func TestUnwrapAll(t *testing.T) {
@@ -150,7 +198,7 @@ func TestErrorHandler(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // cancel immediately
 
-		eh := newTestHandler(ctx, nil, kitlog.NewNopLogger(), time.Minute, nil, nil)
+		eh := newTestHandler(ctx, nil, slog.New(slog.DiscardHandler), time.Minute, nil, nil)
 
 		doneCh := make(chan struct{})
 		go func() {
@@ -168,7 +216,7 @@ func TestErrorHandler(t *testing.T) {
 	})
 
 	t.Run("works if the error storage is disabled", func(t *testing.T) {
-		eh := newTestHandler(context.Background(), nil, kitlog.NewNopLogger(), -1, nil, nil)
+		eh := newTestHandler(context.Background(), nil, slog.New(slog.DiscardHandler), -1, nil, nil)
 
 		doneCh := make(chan struct{})
 		go func() {
@@ -218,7 +266,7 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 			close(chDone)
 		}
 	}
-	eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
+	eh := newTestHandler(ctx, pool, slog.New(slog.DiscardHandler), time.Minute, testOnStart, testOnStore)
 
 	<-chGo
 
@@ -279,7 +327,7 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 		}
 	}
 
-	eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
+	eh := newTestHandler(ctx, pool, slog.New(slog.DiscardHandler), time.Minute, testOnStart, testOnStore)
 
 	<-chGo
 
@@ -363,7 +411,7 @@ func TestHttpHandler(t *testing.T) {
 			}
 		}
 
-		eh := newTestHandler(ctx, pool, kitlog.NewNopLogger(), time.Minute, testOnStart, testOnStore)
+		eh := newTestHandler(ctx, pool, slog.New(slog.DiscardHandler), time.Minute, testOnStart, testOnStore)
 
 		<-chGo
 		// simulate two errors, one happening twice

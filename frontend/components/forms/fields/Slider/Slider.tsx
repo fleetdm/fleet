@@ -1,15 +1,20 @@
-import React, { useEffect, useRef } from "react";
 import classnames from "classnames";
 import { pick } from "lodash";
+import React, { useEffect, useRef } from "react";
 
 import FormField from "components/forms/FormField";
 import { IFormFieldProps } from "components/forms/FormField/FormField";
+import TooltipWrapper from "components/TooltipWrapper";
 
 interface ISliderProps {
   onChange: () => void;
   value: boolean;
   inactiveText: JSX.Element | string;
   activeText: JSX.Element | string;
+  /** Accessible name for the switch; the visible text is a sibling, not a label. */
+  ariaLabel?: string;
+  /** Use to display slider label tooltip, compatible with disabled state */
+  labelTooltip?: JSX.Element | string;
   className?: string;
   helpText?: JSX.Element | string;
   autoFocus?: boolean;
@@ -24,6 +29,8 @@ const Slider = (props: ISliderProps): JSX.Element => {
     value,
     inactiveText,
     activeText,
+    ariaLabel,
+    labelTooltip,
     autoFocus,
     disabled,
   } = props;
@@ -44,8 +51,7 @@ const Slider = (props: ISliderProps): JSX.Element => {
     [`${baseClass}__dot--active`]: value,
   });
 
-  const handleClick = (evt: React.MouseEvent) => {
-    evt.preventDefault();
+  const handleClick = () => {
     if (disabled) return;
 
     onChange();
@@ -63,12 +69,16 @@ const Slider = (props: ISliderProps): JSX.Element => {
   const wrapperClassNames = classnames(`${baseClass}__wrapper`, {
     [`${baseClass}__wrapper--disabled`]: disabled,
   });
+
+  const text = value ? activeText : inactiveText;
   return (
     <FormField {...formFieldProps} type="slider">
       <div className={wrapperClassNames}>
         <button
+          type="button"
           role="switch"
           aria-checked={value}
+          aria-label={ariaLabel}
           className={`button button--unstyled ${sliderBtnClass}`}
           onClick={handleClick}
           disabled={disabled}
@@ -76,13 +86,26 @@ const Slider = (props: ISliderProps): JSX.Element => {
         >
           <div className={sliderDotClass} />
         </button>
-        <span
-          className={`${baseClass}__label ${baseClass}__label--${
-            value ? "active" : "inactive"
-          }`}
-        >
-          {value ? activeText : inactiveText}
-        </span>
+        {labelTooltip ? (
+          <TooltipWrapper tipContent={labelTooltip}>
+            {" "}
+            <span
+              className={`${baseClass}__label ${baseClass}__label--${
+                value ? "active" : "inactive"
+              }`}
+            >
+              {text}
+            </span>
+          </TooltipWrapper>
+        ) : (
+          <span
+            className={`${baseClass}__label ${baseClass}__label--${
+              value ? "active" : "inactive"
+            }`}
+          >
+            {text}
+          </span>
+        )}
       </div>
     </FormField>
   );

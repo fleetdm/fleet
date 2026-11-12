@@ -1,6 +1,13 @@
 import React, { ReactNode } from "react";
 
-import { dateAgo } from "utilities/date_format";
+import { SKIPPED_INSTALL_DETAILS } from "components/ActivityDetails/InstallDetails/constants";
+import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import Spinner from "components/Spinner";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import { isAndroid, isAppleDevice } from "interfaces/platform";
 import {
   IHostSoftware,
   IHostSoftwareWithUiStatus,
@@ -11,15 +18,10 @@ import {
   IAppLastInstall,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { isAndroid, isAppleDevice } from "interfaces/platform";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import { Colors } from "styles/var/colors";
+import { dateAgo } from "utilities/date_format";
 
-import Icon from "components/Icon";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import {
   getLastInstall,
   getLastUninstall,
@@ -47,17 +49,13 @@ interface TooltipArgs {
   isSelfService?: boolean;
   softwareName?: string | null;
   lastInstalledAt?: string;
+  lastUninstalledAt?: string;
   isAppleAppStoreApp?: boolean;
   isHostOnline?: boolean;
 }
 
 export type IStatusDisplayConfig = {
-  iconName?:
-    | "success"
-    | "pending-outline"
-    | "error"
-    | "install"
-    | "error-outline";
+  iconName?: "success" | "pending" | "error" | "install" | "error";
   iconColor?: Colors;
   displayText: string | ((args: DisplayTextArgs) => React.ReactNode);
   tooltip: (args: TooltipArgs) => ReactNode;
@@ -67,6 +65,39 @@ export const RECENT_SUCCESS_ACTION_MESSAGE = (
   action: "installed" | "uninstalled" | "updated"
 ) =>
   `Fleet successfully ${action} software and is fetching latest software inventory.`;
+
+const failedInstallTooltip: IStatusDisplayConfig["tooltip"] = ({
+  lastInstalledAt = null,
+  isSelfService,
+}) => (
+  <>
+    Software failed to install
+    {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
+    {isSelfService ? (
+      <>
+        Select <b>Retry</b> to install again, or contact your IT department.
+      </>
+    ) : (
+      !lastInstalledAt && (
+        <>
+          Select <b>Details &gt; Activity</b> to view errors.
+        </>
+      )
+    )}
+  </>
+);
+
+const failedUninstallTooltip: IStatusDisplayConfig["tooltip"] = ({
+  lastUninstalledAt = null,
+  isSelfService,
+}) => (
+  <>
+    Software failed to uninstall
+    {lastUninstalledAt ? ` (${dateAgo(lastUninstalledAt)})` : ""}. Select{" "}
+    <b>Retry</b> to uninstall again
+    {isSelfService && ", or contact your IT department"}.
+  </>
+);
 
 // Similar to SelfServiceTableConfig STATUS_CONFIG
 export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
@@ -78,8 +109,25 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
 > = {
   installed: {
     iconName: "success",
-    displayText: "Installed",
-    tooltip: () => undefined, // No tooltip for installed state
+    displayText: "Installed", // Opens "Install details" modal
+    tooltip: () => {
+      return undefined; // No tooltip for installed state
+    },
+  },
+  failed_install_installed: {
+    iconName: "success",
+    displayText: "Installed", // Opens "Install details" modal
+    tooltip: ({ lastInstalledAt, isSelfService }) => {
+      return failedInstallTooltip({ lastInstalledAt, isSelfService });
+    },
+  },
+  // Different from failed_uninstall as currently installed detailsUI overrides failed uninstall details UI
+  failed_uninstall_installed: {
+    iconName: "success",
+    displayText: "Installed", // Opens "Install details" modal
+    tooltip: ({ lastUninstalledAt, isSelfService }) => {
+      return failedUninstallTooltip({ lastUninstalledAt, isSelfService });
+    },
   },
   recently_updated: {
     iconName: "success",
@@ -96,7 +144,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     },
   },
   installing: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Installing..." : "Install (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -110,7 +158,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   pending_install: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Installing..." : "Install (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -124,7 +172,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   pending_uninstall: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Uninstalling..." : "Uninstall (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -139,7 +187,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   uninstalling: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Uninstalling..." : "Uninstall (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -156,38 +204,21 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   failed_install: {
     iconName: "error",
     displayText: "Failed",
-    tooltip: ({ lastInstalledAt = null, isSelfService }) => (
-      <>
-        Software failed to install
-        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
-        {isSelfService ? (
-          <>
-            Select <b>Retry</b> to install again, or contact your IT department.
-          </>
-        ) : (
-          !lastInstalledAt && (
-            <>
-              Select <b>Details &gt; Activity</b> to view errors.
-            </>
-          )
-        )}
-      </>
-    ),
+    tooltip: failedInstallTooltip,
+  },
+  skipped_install: {
+    iconName: "error",
+    iconColor: "ui-fleet-black-50",
+    displayText: "Patch skipped",
+    tooltip: () => SKIPPED_INSTALL_DETAILS,
   },
   failed_uninstall: {
     iconName: "error",
     displayText: "Failed (uninstall)",
-    tooltip: ({ lastInstalledAt = null, isSelfService }) => (
-      <>
-        Software failed to uninstall
-        {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-        <b>Retry</b> to uninstall again
-        {isSelfService && ", or contact your IT department"}.
-      </>
-    ),
+    tooltip: failedUninstallTooltip,
   },
   pending_update: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Updating..." : "Update (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -201,7 +232,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   updating: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? "Updating..." : "Update (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
@@ -215,8 +246,8 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
       ),
   },
   update_available: {
-    iconName: "error-outline",
-    iconColor: "ui-fleet-black-75",
+    iconName: "error",
+    iconColor: "ui-fleet-black-50",
     displayText: "Update available",
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (
@@ -230,58 +261,15 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   failed_install_update_available: {
     iconName: "error",
-    displayText: "Failed",
-    tooltip: ({ isSelfService, isHostOnline, lastInstalledAt }) =>
-      isSelfService || isHostOnline ? (
-        <>
-          Software failed to install
-          {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
-          {isSelfService ? (
-            <>
-              Select <b>Retry</b> to install again, or contact your IT
-              department.
-            </>
-          ) : (
-            <>
-              Select <b>Details &gt; Activity</b> to view errors.
-            </>
-          )}
-        </>
-      ) : (
-        <>
-          Software failed to install
-          {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}.{" "}
-          {isSelfService ? (
-            <>
-              Select <b>Retry</b> to install again, or contact your IT
-              department.
-            </>
-          ) : (
-            <>
-              Select <b>Details &gt; Activity</b> to view errors.
-            </>
-          )}
-        </>
-      ),
+    displayText: "Failed", // Opens Install details modal
+    tooltip: failedInstallTooltip,
   },
   failed_uninstall_update_available: {
-    iconName: "error",
-    displayText: "Failed (uninstall)",
-    tooltip: ({ isSelfService, isHostOnline, lastInstalledAt }) =>
-      isSelfService || isHostOnline ? (
-        <>
-          Software failed to uninstall
-          {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-          <b>Retry</b> to uninstall again
-          {isSelfService && ", or contact your IT department"}.
-        </>
-      ) : (
-        <>
-          {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
-          <b>Retry</b> to uninstall again
-          {isSelfService && ", or contact your IT department"}.
-        </>
-      ),
+    iconName: "error", // Match update available icon and not failed uninstall icon
+    iconColor: "ui-fleet-black-50",
+    displayText: "Update available", // Shows "Update available" modal instead of "Failed (uninstall)" modal as of 4.82 #31663
+    // Tooltip indicates failure info in host activity logs
+    tooltip: failedUninstallTooltip,
   },
   // Script package statuses
   ran_script: {
@@ -316,12 +304,12 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
     ),
   },
   running_script: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: "Running...",
     tooltip: () => "Fleet is running the script.",
   },
   pending_script: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: "Run (pending)",
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (
@@ -348,9 +336,6 @@ type IInstallStatusCellProps = {
   isHostOnline?: boolean;
 };
 
-const getSoftwarePackageName = (software: IHostSoftware) =>
-  software.display_name || software.software_package?.name;
-
 const resolveDisplayText = (
   displayText: IStatusDisplayConfig["displayText"],
   isSelfService: boolean,
@@ -369,7 +354,8 @@ const getEmptyCellTooltip = (
   if (isAppleAppStoreApp) {
     return (
       <>
-        App Store app can be installed on the host. <br />
+        {softwareName ? <b>{softwareName}</b> : "App Store app"} can be
+        installed on the host. <br />
         Select <b>Actions &gt; Install</b> to install.
       </>
     );
@@ -387,8 +373,10 @@ const getEmptyCellTooltip = (
   return (
     <>
       {softwareName ? <b>{softwareName}</b> : "Software"} can be{" "}
-      {isScriptPackage ? "ran" : "installed"} on the host.
-      <br /> Select <b>Actions &gt; Install</b> to install.
+      {isScriptPackage ? "run" : "installed"} on the host.
+      <br /> Select <b>
+        Actions &gt; {isScriptPackage ? "Run" : "Install"}
+      </b> to {isScriptPackage ? "run" : "install"}.
     </>
   );
 };
@@ -412,7 +400,10 @@ const InstallStatusCell = ({
     !!software.app_store_app && isAndroid(software.app_store_app.platform);
   const lastInstall = getLastInstall(software); // TODO (back end bug fix) - `software.app_store_app.last_install sometimes coming back `null` for VPP apps, currently falls back to displaying the `InventoryVersionsModal`
   const lastUninstall = getLastUninstall(software);
-  const softwarePackageName = getSoftwarePackageName(software); // @RachelElysia I renamed this function and the variable name its return value is set to here because it is looking at the software_package.name, which has a suffix like ".pkg". software.name has the more human-readable version. Not sure how else this data is being used so I am not going to refactor anything. Please update if needed.
+  const softwarePackageName = getDisplayedSoftwareName(
+    software.name,
+    software.display_name
+  );
   const displayStatus = software.ui_status;
 
   if (displayStatus === "uninstalled" || displayStatus === "never_ran_script") {
@@ -442,7 +433,7 @@ const InstallStatusCell = ({
 
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
-  // This is only called for script packages (payload-free installers: .sh, .ps1)
+  // This is only called for script packages (script-only installers: .sh, .ps1)
   const onClickScriptStatus = () => {
     onShowScriptDetails(software);
   };
@@ -473,7 +464,10 @@ const InstallStatusCell = ({
     if (lastUninstall) {
       if ("script_execution_id" in lastUninstall) {
         onShowUninstallDetails({
-          softwareName: software.display_name || software.name || "",
+          softwareName: getDisplayedSoftwareName(
+            software.name,
+            software.display_name
+          ),
           softwarePackageName,
           uninstallStatus: (software.status ||
             "pending_uninstall") as SoftwareUninstallStatus,
@@ -505,29 +499,32 @@ const InstallStatusCell = ({
     const isMissingLastInstallInfo =
       isAppleAppStoreApp && !software.app_store_app?.last_install;
 
-    // These temporary statuses are not clickable because it will show outdated info in modal
-    const recentlyTakenAction =
-      software.ui_status === "recently_installed" ||
-      software.ui_status === "recently_updated" ||
-      software.ui_status === "recently_uninstalled";
-
+    // keep clickable except for App Store apps missing last_install (modal would be empty)
     const shouldOnClickBeDisabled =
-      (isMissingLastInstallInfo &&
-        (software.status === "failed_install" || isInstalledInFleetAndUI)) ||
-      recentlyTakenAction;
+      isMissingLastInstallInfo &&
+      (software.status === "failed_install" || isInstalledInFleetAndUI);
 
     const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(software.source);
 
     // Status groups and their click handlers
+    // Script packages route ALL install-side statuses (including "Installed"
+    // and "Install (pending)" for script packages with an uninstall script)
+    // to the script execution details modal, since the install is a script run.
     const displayStatusConfig = [
       {
         condition: isScriptPackage, // Still allows click even if no last install to see details modal
-        statuses: ["Failed", "Run (pending)", "Ran"],
+        statuses: [
+          "Failed",
+          "Run (pending)",
+          "Ran",
+          "Install (pending)",
+          "Installed",
+        ],
         onClick: onClickScriptStatus,
       },
       {
         condition: !isScriptPackage, // Still allows click even if no last install to see details modal
-        statuses: ["Failed", "Install (pending)", "Installed"],
+        statuses: ["Failed", "Install (pending)", "Installed", "Patch skipped"],
         onClick: onClickInstallStatus,
       },
       {
@@ -553,7 +550,7 @@ const InstallStatusCell = ({
       return (
         <Button
           className={`${baseClass}__item-status-button`}
-          variant="text-link"
+          variant="link"
           onClick={match.onClick}
         >
           {resolvedDisplayText}
@@ -567,6 +564,7 @@ const InstallStatusCell = ({
 
   const tooltipContent = displayConfig.tooltip({
     lastInstalledAt: lastInstall?.installed_at,
+    lastUninstalledAt: lastUninstall?.uninstalled_at,
     softwareName: softwarePackageName,
     isAppleAppStoreApp,
     isSelfService,
@@ -583,10 +581,11 @@ const InstallStatusCell = ({
         className={`${baseClass}__tooltip-wrapper`}
         disableTooltip={!tooltipContent}
         tipOffset={8}
+        fixedPositionStrategy
       >
         {(isSelfService || isHostOnline) &&
-        displayConfig.iconName === "pending-outline" ? (
-          <Spinner size="x-small" includeContainer={false} centered={false} />
+        displayConfig.iconName === "pending" ? (
+          <Spinner size="x-small" centered={false} delay={0} />
         ) : (
           displayConfig?.iconName && (
             <Icon

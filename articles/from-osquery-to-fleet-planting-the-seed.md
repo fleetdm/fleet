@@ -12,7 +12,7 @@ We started off building Fleet to solve the most common problems companies face w
 
 - Creating and managing a central osquery server requires build and maintenance time. Fleet is that central management server.
 - Figuring out what queries you need to ask a question is time-consuming. Fleet makes this easy
-  through an accessible UI and standard query library.
+  through an accessible UI and standard library.
 - Installing osquery across your entire device fleet can be challenging. Fleet provides a simple command-line tool for installing the osquery agent without battling certs and config settings.
 
 Today 1.65 million devices are managed by Fleet from companies like Uber, Gusto, Schrodinger, and Dropbox, and we’re just getting started.

@@ -1,0 +1,10 @@
+{
+  "name": "NAPS2",
+  "slug": "naps2/windows",
+  "package_identifier": "Cyanfish.NAPS2",
+  "unique_identifier": "NAPS2",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

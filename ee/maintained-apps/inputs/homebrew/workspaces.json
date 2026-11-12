@@ -1,0 +1,10 @@
+{
+  "name": "Workspaces",
+  "unique_identifier": "com.apptorium.Workspaces2-paddle",
+  "token": "workspaces",
+  "installer_format": "zip",
+  "slug": "workspaces/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

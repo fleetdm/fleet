@@ -1,0 +1,9 @@
+{
+  "name": "Mozilla Firefox Nightly",
+  "slug": "firefox@nightly/darwin",
+  "unique_identifier": "org.mozilla.nightly",
+  "token": "firefox@nightly",
+  "installer_format": "dmg",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/firefox-nightly-install.sh",
+  "default_categories": ["Browsers"]
+}

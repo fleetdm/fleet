@@ -1,25 +1,49 @@
 import React, { useContext, useState } from "react";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import axios from "axios";
-import PATHS from "router/paths";
 
-import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
-import softwareAPI from "services/entities/software";
-
+import Button from "components/buttons/Button";
+import EmptyState from "components/EmptyState";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
-import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
-
-import { getPathWithQueryParams } from "utilities/url";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { ILabelSummary } from "interfaces/label";
 import SoftwareAndroidForm from "pages/SoftwarePage/components/forms/SoftwareAndroidForm";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import PATHS from "router/paths";
+import labelsAPI, { getCustomLabels } from "services/entities/labels";
+import softwareAPI from "services/entities/software";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
+
 import { getErrorMessage } from "./helpers";
-import { ADD_SOFTWARE_ERROR_PREFIX } from "../../helpers";
 
 const baseClass = "software-app-store-android";
 
-const AMAPI_BASE_URL = "https://androidmanagement.googleapis.com/v1/";
-const ENTERPRISE_ID = "<your_enterprise_id>"; // Set this appropriately
+interface IEnableAndroidMdmMessageProps {
+  onEnableMdm: () => void;
+  isGlobalAdmin?: boolean;
+}
+
+const EnableAndroidMdmMessage = ({
+  onEnableMdm,
+  isGlobalAdmin,
+}: IEnableAndroidMdmMessageProps) => (
+  <EmptyState
+    variant="form"
+    header="Android MDM isn't enabled"
+    info={
+      isGlobalAdmin
+        ? "To add Android apps, first enable Android MDM."
+        : "To add Android apps, ask your admin to enable Android MDM."
+    }
+    primaryButton={
+      isGlobalAdmin ? (
+        <Button onClick={onEnableMdm}>Enable Android MDM</Button>
+      ) : undefined
+    }
+  />
+);
 
 interface ISoftwareAppStoreProps {
   currentTeamId: number;
@@ -30,26 +54,41 @@ const SoftwareAppStoreAndroid = ({
   currentTeamId,
   router,
 }: ISoftwareAppStoreProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const {
+    isPremiumTier,
+    isAndroidMdmEnabledAndConfigured,
+    isGlobalAdmin,
+  } = useContext(AppContext);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [
-    showPreviewEndUserExperience,
-    setShowPreviewEndUserExperience,
-  ] = useState(false);
 
-  const goBackToSoftwareTitles = (showAvailableForInstallOnly = false) => {
-    const queryParams = {
-      team_id: currentTeamId,
-      ...(showAvailableForInstallOnly && { available_for_install: true }),
-    };
+  const {
+    data: labels,
+    isLoading: isLoadingLabels,
+    isError: isErrorLabels,
+  } = useQuery<ILabelSummary[], Error>(
+    ["custom_labels", currentTeamId],
+    () =>
+      labelsAPI
+        .summary(currentTeamId)
+        .then((res) => getCustomLabels(res.labels)),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: !!isPremiumTier && !!isAndroidMdmEnabledAndConfigured,
+      staleTime: 10000,
+    }
+  );
 
-    router.push(getPathWithQueryParams(PATHS.SOFTWARE_TITLES, queryParams));
+  const goBackToSoftwareLibrary = () => {
+    router.push(
+      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
+        fleet_id: currentTeamId,
+      })
+    );
   };
 
-  const onClickPreviewEndUserExperience = () => {
-    setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
+  const onEnableAndroidMdm = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM_ANDROID);
   };
 
   const onAddSoftware = async (formData: ISoftwareAndroidFormData) => {
@@ -62,28 +101,24 @@ const SoftwareAppStoreAndroid = ({
     try {
       const {
         software_title_id: softwareAppStoreTitleId,
-        // Maybe this will return name and can render success message with the name?
         name: softwareTitleName,
       } = await softwareAPI.addAppStoreApp(currentTeamId, formData);
 
-      renderFlash(
-        "success",
+      notify.success(
         <>
-          {/* <strong>{appApiRes.data.name}</strong> successfully added. */}
           <strong>{softwareTitleName || "Android app"}</strong> successfully
           added.
-        </>,
-        { persistOnPageChange: true }
+        </>
       );
 
       router.push(
         getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(softwareAppStoreTitleId.toString()),
-          { team_id: currentTeamId }
+          { fleet_id: currentTeamId }
         )
       );
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
     }
 
     setIsLoading(false);
@@ -96,20 +131,25 @@ const SoftwareAppStoreAndroid = ({
       );
     }
 
+    if (!isAndroidMdmEnabledAndConfigured) {
+      return (
+        <EnableAndroidMdmMessage
+          onEnableMdm={onEnableAndroidMdm}
+          isGlobalAdmin={isGlobalAdmin}
+        />
+      );
+    }
+
     return (
       <div className={`${baseClass}__content`}>
         <SoftwareAndroidForm
+          labels={labels || []}
+          isLoadingLabels={isLoadingLabels}
+          isErrorLabels={isErrorLabels}
           onSubmit={onAddSoftware}
-          onCancel={goBackToSoftwareTitles}
-          onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
+          onCancel={goBackToSoftwareLibrary}
           isLoading={isLoading}
         />
-        {showPreviewEndUserExperience && (
-          <CategoriesEndUserExperienceModal
-            source="android_apps"
-            onCancel={onClickPreviewEndUserExperience}
-          />
-        )}
       </div>
     );
   };

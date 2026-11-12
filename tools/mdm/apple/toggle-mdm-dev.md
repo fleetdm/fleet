@@ -1,6 +1,6 @@
-# Using `toggle-mdm-dev` to enable and disable MDM (Mobile Device Management) / ABM (Apple Business Manager) for development
+# Using `toggle-mdm-dev` to enable and disable MDM (Mobile Device Management) / AB (Apple Business) for development
 
-1. Set up all of the necessary credentials for using MDM and ABM as outlined in the [MDM setup and
+1. Set up all of the necessary credentials for using MDM and AB as outlined in the [MDM setup and
    testing
    docs](https://fleetdm.com/docs/contributing/testing-and-local-development#mdm-setup-and-testing).
    Take note of the path where you've stored these credentials.
@@ -23,7 +23,7 @@
     export FLEET_MDM_APPLE_APNS_CERT=$MDM_PATH"mdmcert.download.push.pem"
     export FLEET_MDM_APPLE_APNS_KEY=$MDM_PATH"mdmcert.download.push.key"
 
-    # Apple Business Manager (ABM) credentials
+    # Apple Business (AB) credentials
     export FLEET_MDM_APPLE_BM_SERVER_TOKEN=$MDM_PATH"downloadtoken.p7m"
     export FLEET_MDM_APPLE_BM_CERT=$MDM_PATH"fleet-apple-mdm-bm-public-key.crt"
     export FLEET_MDM_APPLE_BM_KEY=$MDM_PATH"fleet-apple-mdm-bm-private.key"
@@ -46,8 +46,8 @@
    file. Source it or open a new shell.
 4. Add the directory containing `toggle-mdm-dev`, likely this one, to your $PATH. If you did that by
    adding it to your shell config, source it or open a new shell.
-5. To toggle MDM and ABM, execute `source toggle-mdm-dev`
-6. To enable MDM without ABM set up, comment out the variables in your env file pointing to the
+5. To toggle MDM and AB, execute `source toggle-mdm-dev`
+6. To enable MDM without AB set up, comment out the variables in your env file pointing to the
    various credentials (like below), then `source toggle-mdm-dev` *twice*, to toggle off then back on again, the
    MDM feature flag.
   
@@ -65,7 +65,7 @@
   # export FLEET_MDM_APPLE_APNS_CERT=$MDM_PATH"mdmcert.download.push.pem"
   # export FLEET_MDM_APPLE_APNS_KEY=$MDM_PATH"mdmcert.download.push.key"
 
-  # # Apple Business Manager
+  # # Apple Business
   # export FLEET_MDM_APPLE_BM_SERVER_TOKEN=$MDM_PATH"downloadtoken.p7m"
   # export FLEET_MDM_APPLE_BM_CERT=$MDM_PATH"fleet-apple-mdm-bm-public-key.crt"
   # export FLEET_MDM_APPLE_BM_KEY=$MDM_PATH"fleet-apple-mdm-bm-private.key"

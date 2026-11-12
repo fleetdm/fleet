@@ -1,5 +1,4 @@
 import React from "react";
-
 import type { SVGProps } from "react";
 
 const Box = (props: SVGProps<SVGSVGElement>) => (

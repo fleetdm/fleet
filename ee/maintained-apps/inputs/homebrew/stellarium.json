@@ -1,0 +1,10 @@
+{
+  "name": "Stellarium",
+  "unique_identifier": "org.stellarium.Stellarium",
+  "token": "stellarium",
+  "installer_format": "zip",
+  "slug": "stellarium/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -21,7 +21,7 @@ type ExistsFunc func(ctx context.Context, packageID string) (bool, error)
 
 type CleanupFunc func(ctx context.Context, usedPackageIDs []string, removeCreatedBefore time.Time) (int, error)
 
-type SignFunc func(ctx context.Context, fileID string) (string, error)
+type SignFunc func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error)
 
 type MDMBootstrapPackageStore struct {
 	GetFunc        GetFunc
@@ -70,9 +70,9 @@ func (s *MDMBootstrapPackageStore) Cleanup(ctx context.Context, usedPackageIDs [
 	return s.CleanupFunc(ctx, usedPackageIDs, removeCreatedBefore)
 }
 
-func (s *MDMBootstrapPackageStore) Sign(ctx context.Context, fileID string) (string, error) {
+func (s *MDMBootstrapPackageStore) Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 	s.mu.Lock()
 	s.SignFuncInvoked = true
 	s.mu.Unlock()
-	return s.SignFunc(ctx, fileID)
+	return s.SignFunc(ctx, fileID, expiresIn)
 }

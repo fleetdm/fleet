@@ -4,23 +4,34 @@ package license
 
 import (
 	"context"
-
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
+
+// LicenseChecker is the interface for checking license properties.
+// This interface is implemented by fleet.LicenseInfo
+type LicenseChecker interface {
+	IsPremium() bool
+	IsAllowDisableTelemetry() bool
+	// GetTier returns the license tier (e.g., "free", "premium", "trial").
+	GetTier() string
+	// GetOrganization returns the name of the licensed organization.
+	GetOrganization() string
+	// GetDeviceCount returns the number of licensed devices.
+	GetDeviceCount() int
+}
 
 type key int
 
 const licenseKey key = 0
 
 // NewContext creates a new context.Context with the license.
-func NewContext(ctx context.Context, lic *fleet.LicenseInfo) context.Context {
+func NewContext(ctx context.Context, lic LicenseChecker) context.Context {
 	return context.WithValue(ctx, licenseKey, lic)
 }
 
-// FromContext returns the license from the context and true, or nil and false
-// if there is no license.
-func FromContext(ctx context.Context) (*fleet.LicenseInfo, bool) {
-	v, ok := ctx.Value(licenseKey).(*fleet.LicenseInfo)
+// FromContext returns the license from the context as a LicenseChecker interface.
+// Use this when you only need to check license properties via the interface methods.
+func FromContext(ctx context.Context) (LicenseChecker, bool) {
+	v, ok := ctx.Value(licenseKey).(LicenseChecker)
 	return v, ok
 }
 
@@ -34,6 +45,8 @@ func IsPremium(ctx context.Context) bool {
 	return false
 }
 
+// IsAllowDisableTelemetry returns true if telemetry can be disabled based on
+// the license in the context.
 func IsAllowDisableTelemetry(ctx context.Context) bool {
 	if lic, ok := FromContext(ctx); ok {
 		return lic.IsAllowDisableTelemetry()

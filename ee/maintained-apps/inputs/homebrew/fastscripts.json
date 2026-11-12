@@ -1,0 +1,10 @@
+{
+  "name": "FastScripts",
+  "unique_identifier": "com.red-sweater.fastscripts3",
+  "token": "fastscripts",
+  "installer_format": "zip",
+  "slug": "fastscripts/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

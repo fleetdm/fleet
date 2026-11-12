@@ -3,6 +3,7 @@ package config
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -15,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -48,8 +51,8 @@ func TestConfigRoundtrip(t *testing.T) {
 	// true.
 	original := &FleetConfig{}
 	v := reflect.ValueOf(original)
-	for conf_index := 0; conf_index < v.Elem().NumField(); conf_index++ {
-		conf_v := v.Elem().Field(conf_index)
+	var populate func(conf_v reflect.Value, name string, conf_index int)
+	populate = func(conf_v reflect.Value, name string, conf_index int) {
 		conf_t := conf_v.Type()
 		for key_index := 0; key_index < conf_v.NumField(); key_index++ {
 			// ignore unexported fields
@@ -60,7 +63,7 @@ func TestConfigRoundtrip(t *testing.T) {
 			key_v := conf_v.Field(key_index)
 			switch key_v.Interface().(type) {
 			case string:
-				switch conf_v.Type().Field(key_index).Name {
+				switch conf_t.Field(key_index).Name {
 				case "TLSProfile":
 					// we have to explicitly set value for this key as it will only
 					// accept intermediate or modern
@@ -78,12 +81,12 @@ func TestConfigRoundtrip(t *testing.T) {
 				case "GlobalEnrollSecret":
 					key_v.SetString("")
 				default:
-					key_v.SetString(v.Elem().Type().Field(conf_index).Name + "_" + conf_v.Type().Field(key_index).Name)
+					key_v.SetString(name + "_" + conf_t.Field(key_index).Name)
 				}
 			case int:
 				key_v.SetInt(int64(conf_index*100 + key_index))
 			case bool:
-				switch conf_v.Type().Field(key_index).Name {
+				switch conf_t.Field(key_index).Name {
 				// These are deprecated field names in the S3 config. Set them to zero value, which leads to the new fields being populated instead.
 				case "DisableSSL", "ForceS3PathStyle":
 					key_v.SetBool(false)
@@ -93,8 +96,14 @@ func TestConfigRoundtrip(t *testing.T) {
 			case time.Duration:
 				d := time.Duration(conf_index*100 + key_index)
 				key_v.Set(reflect.ValueOf(d))
+			case AzureConfig:
+				// nested under CloudStorage
+				populate(key_v, name+"_"+conf_t.Field(key_index).Name, conf_index)
 			}
 		}
+	}
+	for conf_index := 0; conf_index < v.Elem().NumField(); conf_index++ {
+		populate(v.Elem().Field(conf_index), v.Elem().Type().Field(conf_index).Name, conf_index)
 	}
 
 	// Marshal the generated config
@@ -108,7 +117,8 @@ func TestConfigRoundtrip(t *testing.T) {
 	require.Nil(t, err)
 
 	// Ensure the read config is the same as the original
-	actual := man.LoadConfig()
+	actual, err := man.LoadConfig()
+	require.NoError(t, err)
 	assert.Equal(t, *original, actual)
 }
 
@@ -318,15 +328,244 @@ osquery:
 			var loadedCfg FleetConfig
 			if c.panics {
 				require.Panics(t, func() {
-					loadedCfg = man.LoadConfig()
+					loadedCfg, _ = man.LoadConfig()
 				})
 			} else {
 				require.NotPanics(t, func() {
-					loadedCfg = man.LoadConfig()
+					loadedCfg = mustLoadConfig(t, man)
 				})
 				got := loadedCfg.Osquery.AsyncConfigForTask(AsyncTaskLabelMembership)
 				require.Equal(t, c.wantLabelCfg, got)
 			}
+		})
+	}
+}
+
+// TestOsqueryConfigETagDefaults pins both config ETag flags off. The feature
+// ships opt-in, so a silent flip back to on would turn the conditional-request
+// protocol — and its Redis traffic — on for every deployment that never asked
+// for it.
+func TestOsqueryConfigETagDefaults(t *testing.T) {
+	cases := []struct {
+		desc            string
+		envVars         []string
+		wantConfigETags bool
+		wantRedisETags  bool
+	}{
+		{
+			desc: "unset defaults to off",
+		},
+		{
+			desc:            "opted in",
+			envVars:         []string{"FLEET_OSQUERY_CONFIG_ETAGS=true", "FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true"},
+			wantConfigETags: true,
+			wantRedisETags:  true,
+		},
+		{
+			// The two flags are combined only later, in
+			// effectiveRedisConfigETags. Enabling the Redis one here must
+			// not implicitly enable the protocol.
+			desc:            "redis flag alone does not enable the protocol",
+			envVars:         []string{"FLEET_OSQUERY_REDIS_CONFIG_ETAGS=true"},
+			wantConfigETags: false,
+			wantRedisETags:  true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+			man.viper.SetConfigType("yaml")
+			require.NoError(t, man.viper.ReadConfig(strings.NewReader("")))
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.envVars {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			var loadedCfg FleetConfig
+			require.NotPanics(t, func() {
+				loadedCfg = mustLoadConfig(t, man)
+			})
+			require.Equal(t, c.wantConfigETags, loadedCfg.Osquery.ConfigETags)
+			require.Equal(t, c.wantRedisETags, loadedCfg.Osquery.RedisConfigETags)
+		})
+	}
+}
+
+func TestServerConfigEndpointRequestSizeOverrides(t *testing.T) {
+	cases := []struct {
+		desc              string
+		yaml              string
+		env               []string
+		panics            bool
+		expectedOverrides EndpointRequestSizeOverrides
+	}{
+		{
+			desc:              "unset",
+			expectedOverrides: nil,
+		},
+		{
+			desc: "YAML list",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token/{token}"
+      max_request_size: "50MiB"
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/_version_/fleet/software/titles/{title_id:[0-9]+}/package/token/{token}": 50 * units.MiB,
+				"/api/osquery/log": 20 * units.MiB,
+			},
+		},
+		{
+			desc: "Enviroment variable - JSON array",
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=[{"endpoint": "/api/osquery/log", "max_request_size": "20MiB"}]`,
+			},
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/osquery/log": 20 * units.MiB,
+			},
+		},
+		{
+			desc: "Environment variable replaces YAML list instead of merging with it",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=[{"endpoint": "/api/osquery/distributed/write", "max_request_size": "10MiB"}]`,
+			},
+			expectedOverrides: EndpointRequestSizeOverrides{
+				"/api/osquery/distributed/write": 10 * units.MiB,
+			},
+		},
+		{
+			desc: "Duplicate endpoint panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "10MiB"
+    - endpoint: "/api/osquery/log"
+      max_request_size: "20MiB"`,
+			// expectedOverrides: EndpointRequestSizeOverrides{
+			// 	"/api/osquery/log": 20 * units.MiB,
+			// },
+			panics: true,
+		},
+		{
+			desc: "Malformed JSON in environment variable panics",
+			env: []string{
+				`FLEET_SERVER_ENDPOINT_REQUEST_SIZE_OVERRIDES=not-json`,
+			},
+			panics: true,
+		},
+		{
+			desc: "Malformed size string panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: "/api/osquery/log"
+      max_request_size: "not-a-size"`,
+			panics: true,
+		},
+		{
+			desc: "Empty endpoint panics",
+			yaml: `
+server:
+  endpoint_request_size_overrides:
+    - endpoint: ""
+      max_request_size: "20MiB"`,
+			panics: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			man.viper.SetConfigType("yaml")
+			require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.env {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			var loadedCfg FleetConfig
+			if c.panics {
+				require.Panics(t, func() {
+					loadedCfg, _ = man.LoadConfig()
+				})
+			} else {
+				require.NotPanics(t, func() {
+					loadedCfg = mustLoadConfig(t, man)
+				})
+				require.Equal(t, c.expectedOverrides, loadedCfg.Server.EndpointRequestSizeOverrides)
+			}
+		})
+	}
+}
+
+func TestConfigSESSenderDomain(t *testing.T) {
+	cases := []struct {
+		desc    string
+		yaml    string
+		envVars []string
+		want    string
+	}{
+		{
+			desc: "default empty",
+			want: "",
+		},
+		{
+			desc: "yaml configured",
+			yaml: `
+ses:
+  sender_domain: notifications.example.com`,
+			want: "notifications.example.com",
+		},
+		{
+			desc: "env var overrides yaml",
+			yaml: `
+ses:
+  sender_domain: notifications.example.com`,
+			envVars: []string{"FLEET_SES_SENDER_DOMAIN=mailer.example.com"},
+			want:    "mailer.example.com",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var cmd cobra.Command
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			man := NewManager(&cmd)
+
+			if c.yaml != "" {
+				man.viper.SetConfigType("yaml")
+				require.NoError(t, man.viper.ReadConfig(strings.NewReader(c.yaml)))
+			}
+
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			for _, env := range c.envVars {
+				kv := strings.SplitN(env, "=", 2)
+				t.Setenv(kv[0], kv[1])
+			}
+
+			loadedCfg := mustLoadConfig(t, man)
+			require.Equal(t, c.want, loadedCfg.SES.SenderDomain)
 		})
 	}
 }
@@ -723,6 +962,315 @@ func TestValidateCloudfrontURL(t *testing.T) {
 	}
 }
 
+func TestValidateSoftwareInstallersSignedURL(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name       string
+		enabled    bool
+		endpoint   string
+		accessKey  string
+		secret     string
+		gcsIAMAuth bool
+		wantFatal  bool
+	}{
+		{"disabled skips validation", false, "https://s3.amazonaws.com", "", "", false, false},
+		{"gcs host with hmac creds", true, "https://storage.googleapis.com", "GOOG-key", "secret", false, false},
+		{"gcs bucket virtual host", true, "https://my-bucket.storage.googleapis.com", "GOOG-key", "secret", false, false},
+		{"scheme-less endpoint rejected", true, "storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"http scheme rejected", true, "http://storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"look-alike host rejected", true, "https://storage.googleapis.com.evil.com", "GOOG-key", "secret", false, true},
+		{"substring in path rejected", true, "https://evil.com/storage.googleapis.com", "GOOG-key", "secret", false, true},
+		{"non-gcs host rejected", true, "https://s3.amazonaws.com", "GOOG-key", "secret", false, true},
+		{"missing access key rejected", true, "https://storage.googleapis.com", "", "secret", false, true},
+		{"missing secret rejected", true, "https://storage.googleapis.com", "GOOG-key", "", false, true},
+		{"iam auth skips hmac cred check", true, "https://storage.googleapis.com", "", "", true, false},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s3 := S3Config{
+				SoftwareInstallersSignedURL:       c.enabled,
+				SoftwareInstallersEndpointURL:     c.endpoint,
+				SoftwareInstallersAccessKeyID:     c.accessKey,
+				SoftwareInstallersSecretAccessKey: c.secret,
+				SoftwareInstallersGCSIAMAuth:      c.gcsIAMAuth,
+			}
+			var gotFatal bool
+			initFatal := func(err error, msg string) {
+				gotFatal = true
+				require.Error(t, err)
+			}
+			s3.ValidateSoftwareInstallersSignedURL(initFatal)
+			require.Equal(t, c.wantFatal, gotFatal)
+		})
+	}
+}
+
+func TestAndroidAgentConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid when both set", func(t *testing.T) {
+		cfg := AndroidAgentConfig{Package: "com.fleetdm.agent", SigningSHA256: "abc123"}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("valid when both empty", func(t *testing.T) {
+		cfg := AndroidAgentConfig{}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("invalid when only package set", func(t *testing.T) {
+		cfg := AndroidAgentConfig{Package: "com.fleetdm.agent"}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("invalid when only signing_sha256 set", func(t *testing.T) {
+		cfg := AndroidAgentConfig{SigningSHA256: "abc123"}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestAndroidBatchSizeValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid when positive", func(t *testing.T) {
+		cfg := MDMConfig{AndroidBatchSize: 1000}
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("valid when zero", func(t *testing.T) {
+		cfg := MDMConfig{AndroidBatchSize: 0}
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("invalid when negative", func(t *testing.T) {
+		cfg := MDMConfig{AndroidBatchSize: -1}
+		called := false
+		cfg.ValidateAndroidBatchSize(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestAppleCommandCleanupValidate(t *testing.T) {
+	t.Parallel()
+
+	valid := MDMConfig{
+		AppleCommandCleanupShortRetention:        24 * time.Hour,
+		AppleCommandCleanupStandardRetention:     720 * time.Hour,
+		AppleCommandCleanupMaxRowDeletionsPerRun: 1000,
+		AppleCommandCleanupMaxCmdDeletionsPerRun: 1000,
+	}
+
+	cases := []struct {
+		desc    string
+		mutate  func(*MDMConfig)
+		wantErr string
+	}{
+		{"defaults", func(*MDMConfig) {}, ""},
+		{"zero short retention disables tier", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = 0 }, ""},
+		{"zero standard retention disables tier", func(c *MDMConfig) { c.AppleCommandCleanupStandardRetention = 0 }, ""},
+		{"exactly one hour is the floor", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = time.Hour }, ""},
+		{"zero caps stop deletions", func(c *MDMConfig) {
+			c.AppleCommandCleanupMaxRowDeletionsPerRun = 0
+			c.AppleCommandCleanupMaxCmdDeletionsPerRun = 0
+		}, ""},
+		{
+			"short retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = time.Minute },
+			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"standard retention below floor", func(c *MDMConfig) { c.AppleCommandCleanupStandardRetention = 59 * time.Minute },
+			"mdm.apple_command_cleanup_standard_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"negative retention", func(c *MDMConfig) { c.AppleCommandCleanupShortRetention = -time.Hour },
+			"mdm.apple_command_cleanup_short_retention must be 0 (disabled) or at least 1h0m0s",
+		},
+		{
+			"negative row cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxRowDeletionsPerRun = -1 },
+			"mdm.apple_command_cleanup_max_row_deletions_per_run must be non-negative (0 = no deletions)",
+		},
+		{
+			"negative command cap", func(c *MDMConfig) { c.AppleCommandCleanupMaxCmdDeletionsPerRun = -1 },
+			"mdm.apple_command_cleanup_max_command_deletions_per_run must be non-negative (0 = no deletions)",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			cfg := valid
+			c.mutate(&cfg)
+			var got []string
+			cfg.ValidateAppleCommandCleanup(func(err error, msg string) {
+				require.Equal(t, "Apple MDM configuration", msg)
+				got = append(got, err.Error())
+			})
+			if c.wantErr == "" {
+				require.Empty(t, got)
+				return
+			}
+			require.Equal(t, []string{c.wantErr}, got)
+		})
+	}
+}
+
+// loadConfigWithOverrides parses the config the way the server does at
+// startup: yaml first, then environment variables on top. The process
+// environment is cleared for the duration of the test so only envVars apply.
+func loadConfigWithOverrides(t *testing.T, yaml string, envVars []string) FleetConfig {
+	var cmd cobra.Command
+	cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+	man := NewManager(&cmd)
+
+	man.viper.SetConfigType("yaml")
+	require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
+
+	testutils.SaveEnv(t)
+	os.Clearenv()
+	for _, env := range envVars {
+		kv := strings.SplitN(env, "=", 2)
+		t.Setenv(kv[0], kv[1])
+	}
+
+	return mustLoadConfig(t, man)
+}
+
+func TestAppleCommandCleanupConfig(t *testing.T) {
+	type knobs struct {
+		short, standard time.Duration
+		rows, cmds      int
+	}
+	cases := []struct {
+		desc    string
+		yaml    string
+		envVars []string
+		want    knobs
+	}{
+		{
+			desc: "defaults",
+			want: knobs{short: 24 * time.Hour, standard: 720 * time.Hour, rows: 1000, cmds: 1000},
+		},
+		{
+			desc: "yaml overrides",
+			yaml: `
+mdm:
+  apple_command_cleanup_short_retention: 48h
+  apple_command_cleanup_standard_retention: 2160h
+  apple_command_cleanup_max_row_deletions_per_run: 5000
+  apple_command_cleanup_max_command_deletions_per_run: 50`,
+			want: knobs{short: 48 * time.Hour, standard: 2160 * time.Hour, rows: 5000, cmds: 50},
+		},
+		{
+			desc: "env overrides",
+			envVars: []string{
+				"FLEET_MDM_APPLE_COMMAND_CLEANUP_SHORT_RETENTION=1h",
+				"FLEET_MDM_APPLE_COMMAND_CLEANUP_STANDARD_RETENTION=0",
+				"FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_ROW_DELETIONS_PER_RUN=0",
+				"FLEET_MDM_APPLE_COMMAND_CLEANUP_MAX_COMMAND_DELETIONS_PER_RUN=10",
+			},
+			want: knobs{short: time.Hour, standard: 0, rows: 0, cmds: 10},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			mdm := loadConfigWithOverrides(t, c.yaml, c.envVars).MDM
+			got := knobs{
+				short:    mdm.AppleCommandCleanupShortRetention,
+				standard: mdm.AppleCommandCleanupStandardRetention,
+				rows:     mdm.AppleCommandCleanupMaxRowDeletionsPerRun,
+				cmds:     mdm.AppleCommandCleanupMaxCmdDeletionsPerRun,
+			}
+			require.Equal(t, c.want, got)
+		})
+	}
+}
+
+func TestGoogleWorkspaceConfig(t *testing.T) {
+	cases := []struct {
+		desc    string
+		yaml    string
+		envVars []string
+		want    GoogleWorkspaceConfig
+	}{
+		{
+			desc: "defaults",
+			want: GoogleWorkspaceConfig{
+				MaxUsers:            DefaultGoogleWorkspaceMaxUsers,
+				MaxGroups:           DefaultGoogleWorkspaceMaxGroups,
+				MaxGroupMembers:     DefaultGoogleWorkspaceMaxGroupMembers,
+				MaxGroupMemberships: DefaultGoogleWorkspaceMaxGroupMemberships,
+			},
+		},
+		{
+			desc: "yaml overrides",
+			yaml: `
+google_workspace:
+  max_users: 10
+  max_groups: 20
+  max_group_members: 30
+  max_group_memberships: 40`,
+			want: GoogleWorkspaceConfig{MaxUsers: 10, MaxGroups: 20, MaxGroupMembers: 30, MaxGroupMemberships: 40},
+		},
+		{
+			desc: "env overrides",
+			envVars: []string{
+				"FLEET_GOOGLE_WORKSPACE_MAX_USERS=1",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUPS=2",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUP_MEMBERS=3",
+				"FLEET_GOOGLE_WORKSPACE_MAX_GROUP_MEMBERSHIPS=4",
+			},
+			want: GoogleWorkspaceConfig{MaxUsers: 1, MaxGroups: 2, MaxGroupMembers: 3, MaxGroupMemberships: 4},
+		},
+		{
+			desc:    "zero disables a limit",
+			envVars: []string{"FLEET_GOOGLE_WORKSPACE_MAX_USERS=0"},
+			want: GoogleWorkspaceConfig{
+				MaxUsers:            0,
+				MaxGroups:           DefaultGoogleWorkspaceMaxGroups,
+				MaxGroupMembers:     DefaultGoogleWorkspaceMaxGroupMembers,
+				MaxGroupMemberships: DefaultGoogleWorkspaceMaxGroupMemberships,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			require.Equal(t, c.want, loadConfigWithOverrides(t, c.yaml, c.envVars).GoogleWorkspace)
+		})
+	}
+}
+
+func TestGoogleWorkspaceConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid when zero or positive", func(t *testing.T) {
+		cfg := GoogleWorkspaceConfig{MaxUsers: 0, MaxGroups: 1, MaxGroupMembers: 2, MaxGroupMemberships: 3}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	// A negative value would silently disable the limit, so it must be rejected at
+	// startup rather than removing a safety rail.
+	for _, tc := range []struct {
+		name string
+		cfg  GoogleWorkspaceConfig
+	}{
+		{"negative max users", GoogleWorkspaceConfig{MaxUsers: -1}},
+		{"negative max groups", GoogleWorkspaceConfig{MaxGroups: -1}},
+		{"negative max group members", GoogleWorkspaceConfig{MaxGroupMembers: -1}},
+		{"negative max group memberships", GoogleWorkspaceConfig{MaxGroupMemberships: -1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			tc.cfg.Validate(func(err error, msg string) { called = true })
+			require.True(t, called)
+		})
+	}
+}
+
 func TestServerConfigWithH2C(t *testing.T) {
 	ctx := context.Background()
 
@@ -799,4 +1347,505 @@ func TestServerConfigWithH2C(t *testing.T) {
 	}
 
 	t.Logf("Response from ServerConfig: %s", string(body))
+}
+
+func TestConditionalAccessConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		format    string
+		expectErr bool
+	}{
+		{
+			name:      "valid hex format",
+			format:    CertSerialFormatHex,
+			expectErr: false,
+		},
+		{
+			name:      "valid decimal format",
+			format:    CertSerialFormatDecimal,
+			expectErr: false,
+		},
+		{
+			name:      "invalid format",
+			format:    "invalid",
+			expectErr: true,
+		},
+		{
+			name:      "empty format",
+			format:    "",
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := ConditionalAccessConfig{CertSerialFormat: tt.format}
+			called := false
+			cfg.Validate(func(err error, msg string) { called = true })
+			require.Equal(t, tt.expectErr, called)
+		})
+	}
+}
+
+func TestLoggingConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("OTEL logs with tracing is valid", func(t *testing.T) {
+		cfg := LoggingConfig{OtelLogsEnabled: true, TracingEnabled: true}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("OTEL logs without tracing is rejected", func(t *testing.T) {
+		cfg := LoggingConfig{OtelLogsEnabled: true, TracingEnabled: false}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestOsqueryConfigInMemoryCacheDefault(t *testing.T) {
+	var cmd cobra.Command
+	cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+	man := NewManager(&cmd)
+	man.viper.SetConfigType("yaml")
+	require.NoError(t, man.viper.ReadConfig(strings.NewReader("")))
+
+	testutils.SaveEnv(t)
+	os.Clearenv()
+	require.False(t, mustLoadConfig(t, man).Osquery.ConfigInMemoryCache)
+
+	t.Setenv("FLEET_OSQUERY_CONFIG_IN_MEMORY_CACHE", "true")
+	require.True(t, mustLoadConfig(t, man).Osquery.ConfigInMemoryCache)
+}
+
+func TestOsqueryQueryReportConcurrencyLimits(t *testing.T) {
+	load := func(yaml string) OsqueryConfig {
+		var cmd cobra.Command
+		cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+		man := NewManager(&cmd)
+		man.viper.SetConfigType("yaml")
+		require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
+		return mustLoadConfig(t, man).Osquery
+	}
+
+	testutils.SaveEnv(t)
+	os.Clearenv()
+	cfg := load("")
+	require.Equal(t, 40, cfg.MaxConcurrentQueryReportReads)
+	require.Equal(t, 20, cfg.MaxConcurrentQueryReportWrites)
+
+	cfg = load("osquery:\n  max_concurrent_query_report_reads: 80\n  max_concurrent_query_report_writes: 0\n")
+	require.Equal(t, 80, cfg.MaxConcurrentQueryReportReads)
+	require.Zero(t, cfg.MaxConcurrentQueryReportWrites)
+
+	t.Setenv("FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_READS", "5")
+	t.Setenv("FLEET_OSQUERY_MAX_CONCURRENT_QUERY_REPORT_WRITES", "7")
+	cfg = load("")
+	require.Equal(t, 5, cfg.MaxConcurrentQueryReportReads)
+	require.Equal(t, 7, cfg.MaxConcurrentQueryReportWrites)
+}
+
+func TestOsqueryConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("uuid is allowed", func(t *testing.T) {
+		cfg := OsqueryConfig{HostIdentifier: "uuid"}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("unknown value is rejected", func(t *testing.T) {
+		cfg := OsqueryConfig{HostIdentifier: "serial"}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("empty value is rejected", func(t *testing.T) {
+		cfg := OsqueryConfig{}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("direct key only is valid", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 32)}
+		cfg.Validate(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("private_key and private_key_arn both set is rejected", func(t *testing.T) {
+		cfg := ServerConfig{
+			PrivateKey:          strings.Repeat("x", 32),
+			PrivateKeySecretArn: "test-secret-arn-placeholder",
+		}
+		called := false
+		cfg.Validate(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigValidatePrivateKeyLength(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty key passes (no key configured)", func(t *testing.T) {
+		cfg := ServerConfig{}
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("32-byte key passes", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 32)}
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("under-32-byte key is rejected", func(t *testing.T) {
+		cfg := ServerConfig{PrivateKey: strings.Repeat("x", 16)}
+		called := false
+		cfg.ValidatePrivateKeyLength(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestServerConfigURLPrefix(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty prefix is normalized to empty and passes validation", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: ""}
+		cfg.NormalizeURLPrefix()
+		require.Empty(t, cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("missing leading slash is normalized and passes", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "fleet"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/fleet", cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("trailing slash is normalized away", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/fleet/"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/fleet", cfg.URLPrefix)
+		cfg.ValidateURLPrefix(func(err error, msg string) { t.Fatalf("unexpected error: %v", err) })
+	})
+
+	t.Run("invalid character is rejected after normalization", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/fleet space"}
+		cfg.NormalizeURLPrefix()
+		called := false
+		cfg.ValidateURLPrefix(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("bare slash is rejected (preserved through normalization)", func(t *testing.T) {
+		cfg := ServerConfig{URLPrefix: "/"}
+		cfg.NormalizeURLPrefix()
+		require.Equal(t, "/", cfg.URLPrefix)
+		called := false
+		cfg.ValidateURLPrefix(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestMDMConfigValidateAppleAPNSAndSCEPPair(t *testing.T) {
+	t.Parallel()
+
+	t.Run("both APNs and SCEP set is valid", func(t *testing.T) {
+		cfg := MDMConfig{AppleAPNsCert: "apns.cert", AppleSCEPCert: "scep.cert"}
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) {
+			t.Fatalf("unexpected error: %v", err)
+		})
+	})
+
+	t.Run("SCEP set without APNs is rejected", func(t *testing.T) {
+		cfg := MDMConfig{AppleSCEPCert: "scep.cert"}
+		called := false
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+
+	t.Run("APNs set without SCEP is rejected", func(t *testing.T) {
+		cfg := MDMConfig{AppleAPNsCert: "apns.cert"}
+		called := false
+		cfg.ValidateAppleAPNSAndSCEPPair(func(err error, msg string) { called = true })
+		require.True(t, called)
+	})
+}
+
+func TestValidateWebSocketConfig(t *testing.T) {
+	t.Parallel()
+	valid := WebSocketConfig{
+		TransportEnabled: true,
+		PingInterval:     5 * time.Minute,
+		PongTimeout:      30 * time.Second,
+		CheckInterval:    30 * time.Second,
+		CheckBatchSize:   500,
+
+		OrbitConfigEnabled:      true,
+		OrbitConfigPollInterval: 5 * time.Minute,
+		OrbitConfigSpread:       30 * time.Second,
+
+		OsqueryConfigEnabled:      true,
+		OsqueryConfigPollInterval: 10 * time.Minute,
+	}
+
+	t.Run("valid", func(t *testing.T) {
+		valid.Validate(func(err error, msg string) { t.Errorf("unexpected error: %v (%s)", err, msg) })
+	})
+
+	t.Run("invalid values ignored when transport disabled", func(t *testing.T) {
+		cfg := WebSocketConfig{TransportEnabled: false, OrbitConfigPollInterval: -1}
+		cfg.Validate(func(err error, msg string) { t.Errorf("unexpected error: %v (%s)", err, msg) })
+	})
+
+	for _, c := range []struct {
+		name   string
+		mutate func(*WebSocketConfig)
+	}{
+		{"zero ping_interval", func(c *WebSocketConfig) { c.PingInterval = 0 }},
+		{"negative pong_timeout", func(c *WebSocketConfig) { c.PongTimeout = -time.Second }},
+		{"zero check_interval", func(c *WebSocketConfig) { c.CheckInterval = 0 }},
+		{"zero check_batch_size", func(c *WebSocketConfig) { c.CheckBatchSize = 0 }},
+		{"orbit_config_enabled without transport", func(c *WebSocketConfig) { c.TransportEnabled = false }},
+		{"orbit_config_poll_interval below 30s", func(c *WebSocketConfig) { c.OrbitConfigPollInterval = 10 * time.Second }},
+		{"negative orbit_config_spread", func(c *WebSocketConfig) { c.OrbitConfigSpread = -time.Second }},
+		{"osquery_config_enabled without transport", func(c *WebSocketConfig) {
+			c.TransportEnabled = false
+			c.OrbitConfigEnabled = false
+		}},
+		{"osquery_config_poll_interval below 1m", func(c *WebSocketConfig) { c.OsqueryConfigPollInterval = 30 * time.Second }},
+		{"negative orbit_config_spread with only osquery config", func(c *WebSocketConfig) {
+			c.OrbitConfigEnabled = false
+			c.OrbitConfigSpread = -time.Second
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := valid
+			c.mutate(&cfg)
+			called := false
+			cfg.Validate(func(err error, msg string) { called = true })
+			require.True(t, called)
+		})
+	}
+}
+
+func TestSoftwareInstallersSignedURLKeys(t *testing.T) {
+	for _, c := range []struct {
+		env  string
+		want bool
+	}{
+		{"", false},
+		{"FLEET_S3_SOFTWARE_INSTALLERS_GCS_SIGNED_URL", true},
+		{"FLEET_S3_SOFTWARE_INSTALLERS_SIGNED_URL", true},
+	} {
+		t.Run(c.env, func(t *testing.T) {
+			testutils.SaveEnv(t)
+			os.Clearenv()
+			if c.env != "" {
+				t.Setenv(c.env, "true")
+			}
+			cmd := &cobra.Command{}
+			cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+			require.Equal(t, c.want, mustLoadConfig(t, NewManager(cmd)).S3.SoftwareInstallersSignedURL)
+		})
+	}
+}
+
+func TestSoftwareInstallersBackend(t *testing.T) {
+	s3Cfg := S3Config{SoftwareInstallersBucket: "bucket"}
+	azureCfg := AzureConfig{SoftwareInstallersContainer: "container"}
+
+	cases := []struct {
+		name    string
+		cfg     FleetConfig
+		want    StorageBackend
+		wantErr string
+	}{
+		{name: "local", cfg: FleetConfig{}, want: StorageBackendLocal},
+		{name: "s3 only", cfg: FleetConfig{S3: s3Cfg}, want: StorageBackendS3},
+		{name: "azure only", cfg: FleetConfig{CloudStorage: CloudStorageConfig{Azure: azureCfg}}, want: StorageBackendAzure},
+		{
+			name:    "both",
+			cfg:     FleetConfig{S3: s3Cfg, CloudStorage: CloudStorageConfig{Azure: azureCfg}},
+			wantErr: "Couldn't configure. `s3_software_installers_bucket` and `cloud_storage.azure.files_container` cannot both be set; choose one storage backend for software installers.",
+		},
+		{
+			// the carves bucket does not select the software installers backend
+			name: "s3 carves only", cfg: FleetConfig{S3: S3Config{CarvesBucket: "carves"}}, want: StorageBackendLocal,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := c.cfg.SoftwareInstallersBackend()
+			if c.wantErr != "" {
+				require.EqualError(t, err, c.wantErr)
+				require.Equal(t, StorageBackendLocal, got)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, c.want, got)
+			}
+
+			var fatalErr error
+			c.cfg.ValidateSoftwareInstallersBackend(func(err error, _ string) { fatalErr = err })
+			if c.wantErr != "" {
+				require.EqualError(t, fatalErr, c.wantErr)
+			} else {
+				require.NoError(t, fatalErr)
+			}
+		})
+	}
+}
+
+func TestSoftwareInstallersSignedURLAndStagedUpload(t *testing.T) {
+	cases := []struct {
+		name             string
+		cfg              FleetConfig
+		wantSigned       bool
+		wantStagedUpload bool
+	}{
+		{name: "default", cfg: FleetConfig{}},
+		{
+			name:       "s3 cloudfront signer",
+			cfg:        FleetConfig{S3: S3Config{SoftwareInstallersBucket: "b", SoftwareInstallersCloudFrontSigner: &testSigner{}}},
+			wantSigned: true,
+		},
+		{
+			name:             "s3 signed url with bucket",
+			cfg:              FleetConfig{S3: S3Config{SoftwareInstallersBucket: "b", SoftwareInstallersSignedURL: true}},
+			wantSigned:       true,
+			wantStagedUpload: true,
+		},
+		{
+			// S3 is only selected when a bucket is set, so its signing settings are ignored otherwise
+			name: "s3 signed url without bucket",
+			cfg:  FleetConfig{S3: S3Config{SoftwareInstallersSignedURL: true}},
+		},
+		{
+			name: "s3 cloudfront signer without bucket",
+			cfg:  FleetConfig{S3: S3Config{SoftwareInstallersCloudFrontSigner: &testSigner{}}},
+		},
+		{
+			name: "s3 signed url ignored when azure is selected",
+			cfg: FleetConfig{
+				S3:           S3Config{SoftwareInstallersSignedURL: true},
+				CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersContainer: "c"}},
+			},
+		},
+		{
+			name: "azure signed url ignored when s3 is selected",
+			cfg: FleetConfig{
+				S3:           S3Config{SoftwareInstallersBucket: "b"},
+				CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersSignedURL: true}},
+			},
+			wantStagedUpload: false,
+		},
+		{
+			name: "both backends configured",
+			cfg: FleetConfig{
+				S3:           S3Config{SoftwareInstallersBucket: "b", SoftwareInstallersSignedURL: true},
+				CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersContainer: "c", SoftwareInstallersSignedURL: true}},
+			},
+			wantStagedUpload: true,
+		},
+		{
+			name: "azure signed url",
+			cfg: FleetConfig{CloudStorage: CloudStorageConfig{Azure: AzureConfig{
+				SoftwareInstallersContainer: "c", SoftwareInstallersSignedURL: true,
+			}}},
+			wantSigned: true,
+		},
+		{
+			name: "azure without signed url",
+			cfg:  FleetConfig{CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersContainer: "c"}}},
+		},
+		{
+			name: "azure signed url without container",
+			cfg:  FleetConfig{CloudStorage: CloudStorageConfig{Azure: AzureConfig{SoftwareInstallersSignedURL: true}}},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			require.Equal(t, c.wantSigned, c.cfg.SoftwareInstallersSignedURLEnabled())
+			require.Equal(t, c.wantStagedUpload, c.cfg.StagedUploadAvailable())
+		})
+	}
+}
+
+type testSigner struct{}
+
+func (*testSigner) Public() crypto.PublicKey { return nil }
+
+func (*testSigner) Sign(io.Reader, []byte, crypto.SignerOpts) ([]byte, error) { return nil, nil }
+
+func mustLoadConfig(t *testing.T, man Manager) FleetConfig {
+	t.Helper()
+	cfg, err := man.LoadConfig()
+	require.NoError(t, err)
+	return cfg
+}
+
+func TestRemovedConfigKeys(t *testing.T) {
+	newManager := func(t *testing.T, yaml string) (*cobra.Command, Manager) {
+		cmd := &cobra.Command{Use: "serve", Run: func(*cobra.Command, []string) {}}
+		cmd.PersistentFlags().StringP("config", "c", "", "Path to a configuration file")
+		man := NewManager(cmd)
+		man.viper.SetConfigType("yaml")
+		require.NoError(t, man.viper.ReadConfig(strings.NewReader(yaml)))
+		return cmd, man
+	}
+	// removedMessage builds the expected message with the old and new names in the form the user set them.
+	removedMessage := func(e removednames.Entry, convert func(string) string) string {
+		newName := e.New
+		if newName != "" {
+			newName = convert(newName)
+		}
+		return removednames.Message(convert(e.Old), newName)
+	}
+
+	for _, removedKey := range removednames.Filter(removednames.KindConfigKey, 0) {
+		t.Run(removedKey.Old, func(t *testing.T) {
+			t.Run("file", func(t *testing.T) {
+				// Nest the dotted key as YAML, the way it appears in a config file.
+				var yaml strings.Builder
+				parts := strings.Split(removedKey.Old, ".")
+				for i, part := range parts {
+					yaml.WriteString(strings.Repeat("  ", i))
+					yaml.WriteString(part)
+					yaml.WriteString(":")
+					if i < len(parts)-1 {
+						yaml.WriteString("\n")
+					}
+				}
+				yaml.WriteString(" value\n")
+
+				_, man := newManager(t, yaml.String())
+				want := removedMessage(removedKey, func(s string) string { return s })
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
+
+			t.Run("env", func(t *testing.T) {
+				t.Setenv(envNameFromConfigKey(removedKey.Old), "value")
+
+				_, man := newManager(t, "")
+				want := removedMessage(removedKey, envNameFromConfigKey)
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
+
+			t.Run("flag", func(t *testing.T) {
+				cmd, man := newManager(t, "")
+				require.NoError(t, cmd.ParseFlags([]string{"--" + flagNameFromConfigKey(removedKey.Old) + "=value"}))
+
+				want := removedMessage(removedKey, func(s string) string { return "--" + flagNameFromConfigKey(s) })
+				_, err := man.LoadConfig()
+				require.EqualError(t, err, want)
+			})
+		})
+	}
 }

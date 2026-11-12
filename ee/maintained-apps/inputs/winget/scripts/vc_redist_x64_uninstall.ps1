@@ -1,0 +1,78 @@
+# Uninstalls the Microsoft Visual C++ Redistributable WiX "burn" bundle.
+#
+# The redistributable installs as a burn bootstrapper that registers a *bundle*
+# ARP entry (keyed by the bundle ProductCode) alongside several MSI component
+# entries ("...X64 Minimum Runtime...", "...Additional Runtime..."). Only the
+# bundle entry removes the whole redistributable, and it uninstalls by running
+# its cached bootstrapper .exe with /uninstall -- never via msiexec. We target
+# the bundle's machine-wide (HKLM) entry by its ProductCode (injected by the
+# ingester).
+
+$productCode = ${PACKAGE_ID}
+
+function Invoke-Uninstaller {
+    param([string]$exe, [string]$exeArgs)
+    if ($exeArgs -notmatch '/uninstall') { $exeArgs = "/uninstall $exeArgs" }
+    if ($exeArgs -notmatch '/quiet')     { $exeArgs = "$exeArgs /quiet" }
+    if ($exeArgs -notmatch '/norestart') { $exeArgs = "$exeArgs /norestart" }
+    $exeArgs = $exeArgs.Trim()
+    Write-Host "Uninstall command: $exe"
+    Write-Host "Uninstall args: $exeArgs"
+    $process = Start-Process -FilePath $exe -ArgumentList $exeArgs -NoNewWindow -PassThru -Wait
+    return $process.ExitCode
+}
+
+$exitCode = $null
+$entryFound = $false
+
+# The bundle ARP entry, looked up by the bundle ProductCode. Its
+# UninstallString/QuietUninstallString points to the cached bootstrapper .exe.
+$keys = @(
+  "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$productCode",
+  "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\$productCode"
+)
+
+foreach ($key in $keys) {
+  if (-not (Test-Path $key)) { continue }
+  $entry = Get-ItemProperty $key -ErrorAction SilentlyContinue
+  if (-not $entry) { continue }
+  $entryFound = $true
+
+  $raw = $entry.QuietUninstallString
+  if (-not $raw) { $raw = $entry.UninstallString }
+  if (-not $raw) { continue }
+
+  # Parse into executable + args, handling quoted/unquoted/bare shapes.
+  if ($raw -match '^\s*"([^"]+)"\s*(.*)$') {
+      $exe = $matches[1]; $exeArgs = $matches[2].Trim()
+  } elseif ($raw -match '(?i)^\s*(.+?\.exe)\s*(.*)$') {
+      $exe = $matches[1]; $exeArgs = $matches[2].Trim()
+  } else {
+      $exe = $raw; $exeArgs = ""
+  }
+
+  $bundleKey = $key
+  $exitCode = Invoke-Uninstaller -exe $exe -exeArgs $exeArgs
+  break
+}
+
+if ($null -eq $exitCode) {
+  if ($entryFound) {
+    Write-Host "Uninstall entry found for product code $productCode, but no uninstaller ran"
+    Exit 1
+  }
+  Write-Host "Uninstall entry not found for product code: $productCode"
+  Exit 0
+}
+
+Write-Host "Uninstall exit code: $exitCode"
+# Burn also exits 3010 without changing anything while a restart from an
+# earlier install or upgrade of this bundle is pending. A completed uninstall
+# removes the bundle's entry even when it needs a restart.
+if ($exitCode -eq 3010 -and (Test-Path $bundleKey)) {
+  Write-Host "Nothing was uninstalled: a restart is pending from an earlier install or upgrade. Restart the host, then uninstall again."
+  Exit 1
+}
+# 0 = success, 3010 = success but reboot required, 1641 = reboot initiated
+if ($exitCode -eq 3010 -or $exitCode -eq 1641) { Exit 0 }
+Exit $exitCode

@@ -1,0 +1,10 @@
+{
+  "name": "Zwift",
+  "unique_identifier": "com.zwift.ZwiftLauncher",
+  "token": "zwift",
+  "installer_format": "dmg",
+  "slug": "zwift/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

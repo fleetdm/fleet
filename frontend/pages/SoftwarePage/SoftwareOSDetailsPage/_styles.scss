@@ -1,10 +1,6 @@
 .software-os-details-page {
   @include vertical-page-layout;
 
-  .team-dropdown-wrapper {
-    @include normalize-team-header;
-  }
-
   h2 {
     font-size: $small;
   }

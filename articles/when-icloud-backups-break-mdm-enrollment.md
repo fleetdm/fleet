@@ -17,7 +17,7 @@ Better yet, modernize your enrollment model:
 
 Understanding how these systems behave and where they overlap helps teams avoid hours of troubleshooting. MDM issues like this are often less about bugs and more about invisible boundaries between consumer and enterprise ecosystems.
 
-<meta name="articleTitle" value="When iCloud backups break MDM enrollment.">
+<meta name="articleTitle" value="When iCloud backups break MDM enrollment">
 <meta name="authorFullName" value="Irena Reedy">
 <meta name="authorGitHubUsername" value="irenareedy">
 <meta name="category" value="articles">

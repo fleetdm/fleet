@@ -1,15 +1,24 @@
-import React from "react";
-import { screen, within } from "@testing-library/react";
-
+import { screen, within, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { customDeviceSoftwareHandler } from "test/handlers/device-handler";
-import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
+import { http, HttpResponse } from "msw";
+import React from "react";
+
+import {
+  createMockDeviceSoftware,
+  createMockDeviceSoftwareResponse,
+} from "__mocks__/deviceUserMock";
 import {
   DEFAULT_INSTALLED_VERSION,
   DEFAULT_HOST_HOSTNAME,
+  createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
+import { customDeviceSoftwareHandler } from "test/handlers/device-handler";
+import mockServer from "test/mock-server";
+import {
+  createCustomRenderer,
+  createMockRouter,
+  baseUrl,
+} from "test/test-utils";
 
 import SelfService, { ISoftwareSelfServiceProps } from "./SelfService";
 
@@ -41,11 +50,13 @@ const TEST_PROPS: ISoftwareSelfServiceProps = {
     order_direction: "asc",
     per_page: 10,
     category_id: undefined,
+    mobile: undefined,
   },
   router: createMockRouter(),
   refetchHostDetails: noop,
   isHostDetailsPolling: false,
   hostDisplayName: DEFAULT_HOST_HOSTNAME,
+  mdmEnrollmentStatus: "Off",
 };
 
 describe("SelfService", () => {
@@ -53,9 +64,9 @@ describe("SelfService", () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
-          createMockDeviceSoftware({ name: "test1" }),
-          createMockDeviceSoftware({ name: "test2" }),
-          createMockDeviceSoftware({ name: "test3" }),
+          createMockDeviceSoftware({ id: 1, name: "test1" }),
+          createMockDeviceSoftware({ id: 2, name: "test2" }),
+          createMockDeviceSoftware({ id: 3, name: "test3" }),
         ],
         count: 3,
       })
@@ -159,7 +170,7 @@ describe("SelfService", () => {
     expect(moreText).not.toBeInTheDocument();
   });
 
-  it("renders failed status and 'Install' action button and 'Retry uninstall' dropdown with 'failed_uninstall' status and installed_versions detected", async () => {
+  it("renders installed status and 'Install' action button and 'Retry uninstall' dropdown with 'failed_uninstall' API status and installed_versions detected", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({
         software: [
@@ -180,12 +191,15 @@ describe("SelfService", () => {
 
     expect(
       screen.getByTestId("install-status-cell__status--test")
-    ).toHaveTextContent("Failed");
+    ).toHaveTextContent("Installed");
 
-    expect(screen.getByRole("button", { name: "Reinstall" })).toBeEnabled();
     const moreDropdown = getMoreDropdown();
     await user.click(moreDropdown);
-    const dropdown = document.getElementById("react-select-9-listbox");
+    // react-select generates instance-numbered listbox IDs; read aria-controls
+    // off the combobox so this stays stable as more react-select instances are
+    // added/removed elsewhere on the page.
+    const listboxId = moreDropdown.getAttribute("aria-controls");
+    const dropdown = listboxId ? document.getElementById(listboxId) : null;
     if (!dropdown) {
       throw new Error("Could not find the dropdown actions");
     }
@@ -274,5 +288,227 @@ describe("SelfService", () => {
     expect(screen.getByRole("button", { name: "Reinstall" })).toBeDisabled(); // TODO: Should this say "Reinstall"?
     const moreDropdown = getMoreDropdown();
     expect(moreDropdown).toBeDisabled();
+  });
+
+  it("shows empty cell for installed version and package version for available version when installed_versions is null", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            installed_versions: null,
+            software_package: createMockHostSoftwarePackage({
+              version: "1.1.0",
+            }),
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<SelfService {...TEST_PROPS} />);
+
+    await screen.findAllByText("mock software 1.app");
+
+    expect(screen.getAllByText("---")).toHaveLength(2);
+    // TooltipTruncatedTextCell renders the value twice (visible + tooltip div)
+    expect(screen.getAllByText("1.1.0")).toHaveLength(2);
+  });
+
+  it("shows installed version and available version when both are present", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({
+            installed_versions: [DEFAULT_INSTALLED_VERSION], // "1.0.0"
+            software_package: createMockHostSoftwarePackage({
+              version: "1.1.0",
+            }),
+          }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<SelfService {...TEST_PROPS} />);
+
+    await screen.findAllByText("mock software 1.app");
+
+    // The update card above the table fetches on its own timeline. Scope the
+    // "available version" check to the card (via its data-testid, not its
+    // class) rather than counting global "1.1.0" occurrences across tooltip-
+    // duplicated row cells.
+    const updatesCard = await screen.findByTestId("updates-card");
+    await within(updatesCard).findByText("1.1.0");
+
+    // Both versions also appear in the software row
+    // (TooltipTruncatedTextCell renders each value twice).
+    expect(screen.getAllByText("1.0.0")).toHaveLength(2);
+    expect(screen.getAllByText("1.1.0").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("renders the self-service list for BYOD Account-Driven User Enrollment on mobile view", async () => {
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({ id: 1, name: "user-enrolled-app" }),
+        ],
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+
+    render(
+      <SelfService
+        {...TEST_PROPS}
+        isMobileView
+        mdmEnrollmentStatus="On (manual - personal)"
+      />
+    );
+
+    // The "not supported" gate has been removed; the user-enrolled host gets
+    // the same self-service list as a manually-enrolled iOS/iPadOS host.
+    expect(await screen.findByText("user-enrolled-app")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Self-service isn't supported/i)
+    ).not.toBeInTheDocument();
+  });
+
+  // After a (bulk) update finishes, the host-details refetch surfaces the app as
+  // installed while its software inventory is still stale (installer version is
+  // still newer than installed_versions). The "Updated" state should hold
+  // throughout that refetch window — the "Update" button must not reappear.
+  it("keeps the 'Updated' state (not the 'Update' button) while inventory refetch is pending after an update", async () => {
+    const LAST_INSTALL_AT = "2022-01-01T12:00:00Z";
+    // Host software inventory timestamp is newer than the last install, so the
+    // stale-inventory app would otherwise resolve to "update_available".
+    const HOST_SOFTWARE_UPDATED_AT = "2022-06-01T12:00:00Z";
+
+    const makeUpdatableSoftware = (status: "installed" | "pending_install") =>
+      createMockDeviceSoftware({
+        id: 1,
+        name: "test-update",
+        status,
+        // Installed version (1.0.0) is older than the packaged installer (2.0.0).
+        installed_versions: [
+          { ...DEFAULT_INSTALLED_VERSION, version: "1.0.0" },
+        ],
+        software_package: createMockHostSoftwarePackage({
+          version: "2.0.0",
+          last_install: {
+            install_uuid: "abc-123",
+            installed_at: LAST_INSTALL_AT,
+          },
+        }),
+      });
+
+    const softwareByPhase = {
+      available: makeUpdatableSoftware("installed"),
+      pending: makeUpdatableSoftware("pending_install"),
+      // Update finished, but inventory still reports the old version.
+      completed: makeUpdatableSoftware("installed"),
+    };
+    let phase: keyof typeof softwareByPhase = "available";
+
+    mockServer.use(
+      http.get(baseUrl("/device/:token/software"), () =>
+        HttpResponse.json(
+          createMockDeviceSoftwareResponse({
+            software: [softwareByPhase[phase]],
+            count: 1,
+          })
+        )
+      ),
+      http.post(baseUrl("/device/:token/software/install/:id"), () =>
+        HttpResponse.json({})
+      )
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    const { user, rerender } = render(
+      <SelfService
+        {...TEST_PROPS}
+        hostSoftwareUpdatedAt={HOST_SOFTWARE_UPDATED_AT}
+      />
+    );
+
+    // Initial state: an update is available, so the Updates card shows "Update".
+    const getUpdatesCard = () =>
+      screen.getByText("Updates").closest(".updates-card") as HTMLElement;
+    await screen.findByText("Updates");
+    expect(
+      within(getUpdatesCard()).getByRole("button", { name: /^Update$/ })
+    ).toBeEnabled();
+
+    // User triggers the update; the dedicated poll observes it go pending.
+    phase = "pending";
+    await user.click(screen.getByRole("button", { name: "Update all" }));
+    await within(getUpdatesCard()).findByText(/Updating/);
+
+    // Host-details polling completes (the automatic refetch in the bug report),
+    // which refetches self-service data and surfaces the completed-but-stale app.
+    phase = "completed";
+    rerender(
+      <SelfService
+        {...TEST_PROPS}
+        hostSoftwareUpdatedAt={HOST_SOFTWARE_UPDATED_AT}
+        isHostDetailsPolling
+      />
+    );
+    rerender(
+      <SelfService
+        {...TEST_PROPS}
+        hostSoftwareUpdatedAt={HOST_SOFTWARE_UPDATED_AT}
+        isHostDetailsPolling={false}
+      />
+    );
+
+    // The card must show "Updated" and must NOT fall back to an "Update" button.
+    await waitFor(() => {
+      expect(within(getUpdatesCard()).getByText("Updated")).toBeInTheDocument();
+    });
+    expect(
+      within(getUpdatesCard()).queryByRole("button", { name: /^Update$/ })
+    ).not.toBeInTheDocument();
+  });
+
+  it("sorts rows by display name, falling back to the title name", async () => {
+    // Served in raw-name order so the assertion fails both if the table sorts by
+    // the raw name (a package identifier or script filename) and if it doesn't
+    // sort at all.
+    mockServer.use(
+      customDeviceSoftwareHandler({
+        software: [
+          createMockDeviceSoftware({ id: 1, name: "bbb-no-display-name" }),
+          createMockDeviceSoftware({
+            id: 2,
+            name: "GUI.delta.guard",
+            display_name: "Delta Guard",
+          }),
+          createMockDeviceSoftware({
+            id: 3,
+            name: "zzz.aurora.access",
+            display_name: "Aurora Access Client",
+          }),
+        ],
+        count: 3,
+      })
+    );
+
+    const render = createCustomRenderer({ withBackendMock: true });
+    render(<SelfService {...TEST_PROPS} />);
+
+    await screen.findAllByText("Aurora Access Client");
+
+    const expected = [
+      "Aurora Access Client",
+      "bbb-no-display-name",
+      "Delta Guard",
+    ];
+    const rendered = screen
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => expected.find((n) => row.textContent?.includes(n)));
+
+    expect(rendered).toEqual(expected);
   });
 });

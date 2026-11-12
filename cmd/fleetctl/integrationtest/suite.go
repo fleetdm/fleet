@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +24,7 @@ type WithDS struct {
 
 func (ts *WithDS) SetupSuite(dbName string) {
 	t := ts.Suite.T()
-	ts.DS = mysql.CreateNamedMySQLDS(t, dbName)
+	ts.DS = mysqltest.CreateNamedMySQLDS(t, dbName)
 	test.AddAllHostsLabel(t, ts.DS)
 
 	// Set up the required fields on AppConfig

@@ -1,10 +1,11 @@
-import React, { Component } from "react";
 import PropTypes from "prop-types";
+import React, { Component } from "react";
 
-import Form from "components/forms/Form";
-import formFieldInterface from "interfaces/form_field";
 import Button from "components/buttons/Button";
 import InputField from "components/forms/fields/InputField";
+import Form from "components/forms/Form";
+import formFieldInterface from "interfaces/form_field";
+
 import helpers from "./helpers";
 
 const formFields = ["name", "password", "password_confirmation", "email"];
@@ -60,12 +61,14 @@ class AdminDetails extends Component {
           inputOptions={{
             maxLength: "80",
           }}
+          ignore1password={false}
         />
         <InputField
           {...fields.email}
           label="Email"
           tabIndex={tabIndex}
           type="email"
+          ignore1password={false}
         />
         <InputField
           {...fields.password}
@@ -73,15 +76,22 @@ class AdminDetails extends Component {
           type="password"
           tabIndex={tabIndex}
           helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
+          ignore1password={false}
         />
         <InputField
           {...fields.password_confirmation}
           type="password"
           tabIndex={tabIndex}
           label="Confirm password"
+          ignore1password={false}
         />
-        <div className="button-wrap">
-          <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
+        <div className="button-wrap--center">
+          <Button
+            type="submit"
+            tabIndex={tabIndex}
+            disabled={!currentPage}
+            size="wide"
+          >
             Next
           </Button>
         </div>

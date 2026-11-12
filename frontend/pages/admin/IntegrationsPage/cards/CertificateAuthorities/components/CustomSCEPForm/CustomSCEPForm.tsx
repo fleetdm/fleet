@@ -1,19 +1,16 @@
 import React, { useMemo, useState } from "react";
 
-import { ICertificateAuthorityPartial } from "interfaces/certificates";
-
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import {
   generateFormValidations,
   ICustomSCEPFormValidation,
   validateFormData,
 } from "./helpers";
-
-const baseClass = "ndes-form";
 
 export interface ICustomSCEPFormData {
   name: string;
@@ -83,6 +80,7 @@ const CustomSCEPForm = ({
         parseTarget
         placeholder="WIFI_CERTIFICATE"
         helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_WIFI_CERTIFICATE)."
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <InputField
         label="SCEP URL"
@@ -118,7 +116,7 @@ const CustomSCEPForm = ({
             {submitBtnText}
           </Button>
         </TooltipWrapper>
-        <Button variant="inverse" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
       </div>

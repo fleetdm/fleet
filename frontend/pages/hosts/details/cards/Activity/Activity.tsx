@@ -1,7 +1,14 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import Card from "components/Card";
+import CardHeader from "components/CardHeader";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import TooltipWrapper from "components/TooltipWrapper";
 import { IHostUpcomingActivity } from "interfaces/activity";
 import {
   IHostPastActivitiesResponse,
@@ -9,21 +16,14 @@ import {
 } from "services/entities/activities";
 import { IGetCommandsResponse } from "services/entities/command";
 
-import Card from "components/Card";
-import CardHeader from "components/CardHeader";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
-
+import CommandFeed from "./CommandFeed";
+import {
+  CancelCommandHandler,
+  ShowCommandDetailsHandler,
+} from "./CommandItem/CommandItem";
+import MDMCommandsToggle from "./MDMCommandsToggle";
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
-import MDMCommandsToggle from "./MDMCommandsToggle";
-import PastCommandFeed from "./PastCommandFeed";
-import UpcomingCommandFeed from "./UpcomingCommandFeed";
-import CommandFeed from "./CommandFeed";
-import { ShowCommandDetailsHandler } from "./CommandItem/CommandItem";
 
 const baseClass = "host-activity-card";
 
@@ -32,10 +32,8 @@ const UpcomingTooltip = () => {
     <TooltipWrapper
       tipContent={
         <>
-          Failure of one activity won&apos;t cancel other activities.
-          <br />
-          <br />
-          Currently, only software and scripts are guaranteed to run in order.
+          Software and scripts always run in order. Each waits until the
+          previous one runs successfully or fails all retries.
         </>
       }
       className={`${baseClass}__upcoming-tooltip`}
@@ -58,12 +56,17 @@ interface IActivityProps {
    * upcoming activities and mdm commands. */
   upcomingCount: number;
   canCancelActivities: boolean;
+  /** When true, the Upcoming tab is disabled with a tooltip */
+  isUpcomingDisabled?: boolean;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
   onShowDetails: ShowActivityDetailsHandler;
   onShowCommandDetails: ShowCommandDetailsHandler;
   onCancel: (activity: IHostUpcomingActivity) => void;
+  /** When provided, cancelable pending MDM commands in the Upcoming tab
+   * render a cancel button. */
+  onCancelCommand?: CancelCommandHandler;
   onShowMDMCommands: () => void;
   onHideMDMCommands: () => void;
 }
@@ -79,12 +82,14 @@ const Activity = ({
   className,
   upcomingCount,
   canCancelActivities,
+  isUpcomingDisabled = false,
   onChangeTab,
   onNextPage,
   onPreviousPage,
   onShowDetails,
   onShowCommandDetails,
   onCancel,
+  onCancelCommand,
   onShowMDMCommands,
   onHideMDMCommands,
 }: IActivityProps) => {
@@ -93,11 +98,7 @@ const Activity = ({
   const commandCount = commands?.count ?? 0;
 
   return (
-    <Card
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      className={classNames}
-    >
+    <Card paddingSize="xlarge" className={classNames}>
       {isLoading && (
         <div className={`${baseClass}__loading-overlay`}>
           <Spinner centered />
@@ -116,8 +117,18 @@ const Activity = ({
             <Tab>
               <TabText>Past</TabText>
             </Tab>
-            <Tab>
-              <TabText count={upcomingCount}>Upcoming</TabText>
+            <Tab disabled={isUpcomingDisabled}>
+              {isUpcomingDisabled ? (
+                <TooltipWrapper
+                  tipContent="Currently, upcoming activity is only supported for macOS, Windows, Linux, iOS, and iPadOS hosts."
+                  showArrow
+                  underline={false}
+                >
+                  <TabText>Upcoming</TabText>
+                </TooltipWrapper>
+              ) : (
+                <TabText count={upcomingCount}>Upcoming</TabText>
+              )}
             </Tab>
           </TabList>
           <TabPanel className={`${baseClass}__tab-panel`}>
@@ -166,6 +177,7 @@ const Activity = ({
                 onShowDetails={onShowCommandDetails}
                 onNextPage={onNextPage}
                 onPreviousPage={onPreviousPage}
+                onCancelCommand={onCancelCommand}
               />
             ) : (
               <UpcomingActivityFeed

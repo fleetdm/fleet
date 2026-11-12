@@ -1,22 +1,46 @@
 name: safari_extensions
-description: Safari extensions add functionality to Safari.app, the native web browser in macOS. The `safari_extensions` table collects all Safari extensions installed on a Mac.
+description: |-
+  Safari browser extensions installed for macOS users. Modern Safari uses App Extensions and Web Extensions bundled as `.appex` plugins inside apps under `/Applications` (legacy `.safariextz` extensions are deprecated and are not returned).
 columns:
   - name: uid
 examples: |-
   Collect Safari extensions for all Mac users:
-  
+
   ```
   SELECT * FROM users CROSS JOIN safari_extensions USING (uid);
   ```
+
+  Collect Safari extensions for one user by UID:
+
+  ```
+  SELECT * FROM safari_extensions WHERE uid = 501;
+  ```
 notes: |-
-  Because Safari data is intentionally isolated for each macOS user to maintain privacy, this query requires [giving osquery full disk access](https://fleetdm.com/guides/enroll-hosts#grant-full-disk-access-to-osquery-on-macos) and a [`JOIN` against the `users` table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table).
-  
+  This table often returns no rows when Full Disk Access (FDA) is missing, when the query does not constrain `uid` (via a `users` join or `WHERE uid = ...`), or when no Safari App/Web Extensions are discoverable for that user.
+
+  Requirements:
+
+  - [Give osquery full disk access](https://fleetdm.com/guides/enroll-hosts#grant-full-disk-access-to-osquery-on-macos). Safari stores per-user extension state under `~/Library/Containers/com.apple.Safari/`, which macOS protects with TCC.
+  - Constrain `uid` with a JOIN/CROSS JOIN against the `users` table, or with `WHERE uid = ...`. This is a per-user table. [Learn more](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
+
+  How results are built (osquery 5.14+):
+
+  - osquery scans only top-level `/Applications/*/Contents/PlugIns/*.appex` for Safari App Extensions and Web Extensions (`NSExtensionPointIdentifier` containing `com.apple.Safari`).
+  - It matches those bundles to extensions installed for each user using:
+    - `~/Library/Containers/com.apple.Safari/Data/Library/Safari/AppExtensions/Extensions.plist`
+    - `~/Library/Containers/com.apple.Safari/Data/Library/Safari/WebExtensions/Extensions.plist`
+  - Extensions that exist on disk but are not listed in those plists for the user are not returned.
+  - Extensions whose `.appex` is outside `/Applications` (for example under `~/Library/Application Support/`) can appear in Safari and in those plists, but are excluded from this table.
+  - Bash examples that read those plists directly can list registrations the SQL table excludes (for example Webex under Application Support). Prefer the osquery table when comparing to Fleet inventory.
+  - Disabled extensions are still returned when they are present in those plists and their `.appex` is under `/Applications`. The table does not filter on Safari's Enabled flag.
+
   Query explanation:
-  
-  - The `safari_extensions` table has a row for each installed extension
-  - Each row has a column with the `uid` of the user who installed the extension
-  - Each `uid` from the `safari_extensions` table is matched in the `users` table to collect Safari extensions in the output data for all user accounts on the Mac by the `JOIN`
+
+  - The `safari_extensions` table has a row for each installed extension for a user.
+  - Each row includes the `uid` of the user who installed the extension.
+  - Joining to `users` returns matching extensions for eligible macOS user accounts (homes under `/Users` that have a matching Extensions.plist entry).
 
   Links:
 
   - [Apple documentation on Safari Extensions](https://support.apple.com/en-us/102343)
+  - Upstream tracking: [osquery#8684](https://github.com/osquery/osquery/issues/8684), Fleet [#6950](https://github.com/fleetdm/fleet/issues/6950)

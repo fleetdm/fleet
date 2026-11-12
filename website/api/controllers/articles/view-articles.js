@@ -34,9 +34,11 @@ module.exports = {
     let articles = [];
     let category = this.req.path.split('/')[1];
     if (category === 'articles') {
-      // If the category is `/articles` we'll show all articles
+      // If the category is `/articles` (the "All" link), we'll show every article category except
+      // Industry news, which stays out of the "All" view but is still reachable directly and is
+      // still included in the sitemap.
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
-        if(_.startsWith(page.htmlId, 'articles')) {
+        if(_.startsWith(page.htmlId, 'articles') && !_.startsWith(page.url, '/industry-news')) {
           return page;
         }
       });
@@ -48,7 +50,9 @@ module.exports = {
         }
       });
     }
-    // Sort articles in descending order by publish date.
+    // Sort articles in descending order by publish date. The listview only shows this single
+    // date per article (instead of also showing a separate "last updated" timestamp) to keep
+    // the list easy to scan, since the date shown always matches how the list is sorted.
     articles = _.sortByOrder(articles, 'meta.publishedOn', 'DESC');
 
     let pageTitleForMeta = 'Fleet blog';
@@ -60,11 +64,6 @@ module.exports = {
 
     // Set a pageTitleForMeta, pageDescriptionForMeta, and currentSection variable based on the article category.
     switch(category) {
-      case 'success-stories':
-        pageTitleForMeta = 'Success stories';
-        pageDescriptionForMeta = 'Read about how others are using Fleet and osquery.';
-        currentSection = 'platform';
-        break;
       case 'deploy':
         pageTitleForMeta = 'Deployment guides';
         pageDescriptionForMeta = 'Learn how to deploy Fleet on a variety of production environments.';
@@ -89,7 +88,7 @@ module.exports = {
         pageDescriptionForMeta = 'Read about engineering at Fleet and beyond.';
         break;
       case 'announcements':
-        pageTitleForMeta = 'Announcements';
+        pageTitleForMeta = 'Roadmap';
         pageDescriptionForMeta = 'Read the latest news from Fleet.';
         break;
       case 'podcasts':
@@ -97,8 +96,24 @@ module.exports = {
         pageDescriptionForMeta = 'Listen to the Future of Device Management podcast.';
         break;
       case 'articles':
-        pageTitleForMeta = 'Articles';
+        pageTitleForMeta = 'Blog';
         pageDescriptionForMeta = 'Read the latest articles from the Fleet team and community.';
+        break;
+      case 'whitepapers':
+        pageTitleForMeta = 'Whitepapers';
+        pageDescriptionForMeta = 'Browse our whitepapers to learn how modern teams manage and secure their devices.';
+        break;
+      case 'webinars':
+        pageTitleForMeta = 'Webinars';
+        pageDescriptionForMeta = 'Watch Fleet and industry practitioners discuss real-world device management and IT operations.';
+        break;
+      case 'newsletters':
+        pageTitleForMeta = 'Newsletters';
+        pageDescriptionForMeta = 'Catch up on past issues of the Fleet newsletter.';
+        break;
+      case 'industry-news':
+        pageTitleForMeta = 'Industry news';
+        pageDescriptionForMeta = 'Device management and security news, and what it means for the devices you manage.';
         break;
     }
 

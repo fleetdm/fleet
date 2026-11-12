@@ -1,4 +1,4 @@
-.host-software-card {
+.host-software-section {
   @include vertical-page-tab-panel-layout;
 
   .table-container {
@@ -19,33 +19,16 @@
     width: 100%;
   }
 
-  .table-container__data-table-block {
-    .data-table-block {
-      .data-table {
-        &__wrapper {
-          overflow-x: auto;
-        }
-      }
-    }
-  }
-
   .host-software-table {
-    &__software-filter {
-      min-width: 240px;
-      width: 240px; // Override .form-field 100%
-    }
-
-    &__filters {
-      display: flex;
-      align-items: center;
-
-      .children-wrapper {
-        gap: $pad-small;
-      }
-    }
-
     .table-container__search-input .input-with-icon {
       min-width: 305px; // Fit placeholder text
+    }
+
+    // The Show helpers slider sits inline beside the filters button and search.
+    .table-container .form-field--slider {
+      width: auto; // Override .form-field 100%
+      align-self: center;
+      white-space: nowrap;
     }
 
     .data-table-block {
@@ -54,6 +37,11 @@
           .Vulnerabilities__header {
             display: table-cell;
             max-width: px-to-rem(140);
+          }
+        }
+        tbody {
+          .name__cell {
+            max-width: 250px;
           }
         }
       }

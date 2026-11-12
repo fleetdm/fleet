@@ -1,30 +1,35 @@
-import React from "react";
 import {
-  isEmpty,
-  flatMap,
-  omit,
-  pick,
-  memoize,
-  reduce,
-  trim,
-  trimEnd,
-  union,
-  uniqueId,
-} from "lodash";
-import md5 from "js-md5";
-import {
-  formatDistanceToNow,
   formatDuration,
   intlFormat,
   intervalToDuration,
   isAfter,
   addDays,
 } from "date-fns";
+import md5 from "js-md5";
+import {
+  isEmpty,
+  flatMap,
+  omit,
+  pick,
+  reduce,
+  trim,
+  trimEnd,
+  union,
+  uniqueId,
+} from "lodash";
+import React from "react";
 
-import { QueryParams, buildQueryStringFromParams } from "utilities/url";
+import CustomLink from "components/CustomLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
+import type { PerformanceImpactIndicator } from "interfaces/schedulable_query";
+import {
+  PerformanceImpactIndicatorValue,
+  ISchedulableQueryStats,
+} from "interfaces/schedulable_query";
 import {
   IScheduledQuery,
   IPackQueryFormData,
@@ -36,9 +41,6 @@ import {
 } from "interfaces/target";
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
-
-import stringUtils from "utilities/strings";
-import sortUtils from "utilities/sort";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -49,11 +51,11 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
 } from "utilities/constants";
-import { ISchedulableQueryStats } from "interfaces/schedulable_query";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import CustomLink from "components/CustomLink";
+import { timeAgo } from "utilities/date_format";
+import stringUtils from "utilities/strings";
+import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 
-const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
+const ORG_INFO_ATTRS = ["org_name"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 
 export const addGravatarUrlToResource = (resource: any): any => {
@@ -85,10 +87,15 @@ export const addGravatarUrlToResource = (resource: any): any => {
   };
 };
 
-/** Removes Apple OS Prefix from host.os_version. */
-export const removeOSPrefix = (version: string): string => {
-  return version.replace(/^(macOS |iOS |iPadOS )/i, "");
-};
+/** A host's operating system as the UI shows it, e.g. "macOS 15.2". Unknown parts (empty, or normalized to the
+ * empty-cell value) are left out. */
+export const getHostOSDisplayName = (
+  osName?: string,
+  osVersion?: string
+): string =>
+  [osName, osVersion]
+    .filter((part) => part && part !== DEFAULT_EMPTY_CELL_VALUE)
+    .join(" ");
 
 /** Returns 1 if first version is newer, -1 if first version is older, and 0 if equal  */
 export const compareVersions = (version1: string, version2: string) => {
@@ -190,20 +197,20 @@ export const formatSelectedTargetsForApi = (
   // TODO: can flatMap be removed?
   const hostIds = flatMap(targets, filterTarget("hosts"));
   const labelIds = flatMap(targets, filterTarget("labels"));
-  const teamIds = flatMap(targets, filterTarget("teams"));
+  const fleetIds = flatMap(targets, filterTarget("teams"));
 
   return {
     hosts: hostIds.sort(),
     labels: labelIds.sort(),
-    teams: teamIds.sort(),
+    fleets: fleetIds.sort(),
   };
 };
 
 export const formatPackTargetsForApi = (
   targets: ISelectTargetsEntity[]
 ): IPackTargets => {
-  const { hosts, labels, teams } = formatSelectedTargetsForApi(targets);
-  return { host_ids: hosts, label_ids: labels, team_ids: teams };
+  const { hosts, labels, fleets } = formatSelectedTargetsForApi(targets);
+  return { host_ids: hosts, label_ids: labels, fleet_ids: fleets };
 };
 
 export const formatScheduledQueryForServer = (
@@ -217,7 +224,7 @@ export const formatScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -237,7 +244,7 @@ export const formatScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -275,7 +282,7 @@ export const formatScheduledQueryForClient = (
 
 export const formatGlobalScheduledQueryForServer = (
   scheduledQuery: IScheduledQuery
-): IScheduledQuery => {
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -283,7 +290,7 @@ export const formatGlobalScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -299,7 +306,7 @@ export const formatGlobalScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -344,9 +351,9 @@ export const formatTeamScheduledQueryForServer = (
     platform,
     query_id: queryID,
     shard,
-    team_id: teamID,
+    fleet_id: teamID,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id", "fleet_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -362,7 +369,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -370,7 +377,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (teamID) {
-    result.query_id = Number(teamID);
+    (result as any).fleet_id = Number(teamID);
   }
 
   return result;
@@ -412,7 +419,7 @@ export const formatTeamForClient = (team: ITeam): ITeam => {
 export const formatPackForClient = (pack: IPack): IPack => {
   pack.host_ids ||= [];
   pack.label_ids ||= [];
-  pack.team_ids ||= [];
+  pack.fleet_ids ||= [];
   return pack;
 };
 
@@ -445,6 +452,9 @@ export const formatScriptNameForActivityItem = (name: string | undefined) => {
   );
 };
 
+export const ROLE_VARIOUS = "Various";
+export const ROLE_GLOBAL = "Global";
+
 export const generateRole = (
   teams: ITeam[],
   globalRole: UserRole | null
@@ -467,16 +477,19 @@ export const generateRole = (
     } else if (listOfRoles.every((role): boolean => role === "observer_plus")) {
       // only team observers plus
       return "Observer+";
+    } else if (listOfRoles.every((role): boolean => role === "technician")) {
+      // only team technicians
+      return "Technician";
     }
 
-    return "Various"; // no global role and multiple teams
+    return ROLE_VARIOUS; // no global role and multiple teams
   }
 
   if (teams.length === 0) {
     // global role and no teams
     return stringUtils.capitalizeRole(globalRole);
   }
-  return "Various"; // global role and one or more teams
+  return ROLE_VARIOUS; // global role and one or more teams
 };
 
 export const generateTeam = (
@@ -486,38 +499,56 @@ export const generateTeam = (
   if (globalRole === null) {
     if (teams.length === 0) {
       // no global role and no teams
-      return "No team";
+      return "Unassigned";
     } else if (teams.length === 1) {
       // no global role and only one team
       return teams[0].name;
     }
-    return `${teams.length} teams`; // no global role and multiple teams
+    return `${teams.length} fleets`; // no global role and multiple teams
   }
 
   if (teams.length === 0) {
     // global role and no teams
-    return "Global";
+    return ROLE_GLOBAL;
   }
-  return `${teams.length + 1} teams`; // global role and one or more teams
+  return `${teams.length + 1} fleets`; // global role and one or more teams
+};
+
+export const generateTeamNames = (teams: ITeam[]): string[] => {
+  return teams.map((t) => t.name);
+};
+
+export const generateRoleGroups = (
+  teams: ITeam[]
+): { role: string; names: string[] }[] => {
+  const groups: { role: string; names: string[] }[] = [];
+  teams.forEach((team) => {
+    const role = stringUtils.capitalizeRole(team.role || "Unassigned");
+    const existing = groups.find((g) => g.role === role);
+    if (existing) {
+      existing.names.push(team.name);
+    } else {
+      groups.push({ role, names: [team.name] });
+    }
+  });
+  return groups;
 };
 
 export const greyCell = (roleOrTeamText: string): boolean => {
-  const GREYED_TEXT = ["Global", "Unassigned", "Various", "No team", "Unknown"];
+  const GREYED_TEXT = [ROLE_GLOBAL, "Unassigned", ROLE_VARIOUS, "Unknown"];
 
   return (
-    GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" teams")
+    GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" fleets")
   );
 };
 
-const setupData = (formData: any) => {
+const setupData = (formData: IRegistrationFormData) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
 
   return {
     server_url: formData.server_url,
-    org_info: {
-      ...orgInfo,
-    },
+    org_info: orgInfo,
     admin: {
       admin: true,
       ...adminInfo,
@@ -543,14 +574,14 @@ export const humanHostLastSeen = (lastSeen: string): string => {
   if (lastSeen === "Unavailable") {
     return "Unavailable";
   }
-  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
+  return timeAgo(new Date(lastSeen), { addSuffix: true });
 };
 
 export const humanHostEnrolled = (enrolled: string): string => {
   if (!enrolled || enrolled < INITIAL_FLEET_DATE) {
     return "Never";
   }
-  return formatDistanceToNow(new Date(enrolled), { addSuffix: true });
+  return timeAgo(new Date(enrolled), { addSuffix: true });
 };
 
 export const humanHostMemory = (bytes: number): string => {
@@ -564,7 +595,7 @@ export const humanHostDetailUpdated = (detailUpdated?: string): string => {
     return "unavailable";
   }
   try {
-    return formatDistanceToNow(new Date(detailUpdated), { addSuffix: true });
+    return timeAgo(new Date(detailUpdated), { addSuffix: true });
   } catch {
     return "unavailable";
   }
@@ -579,7 +610,7 @@ export const humanLastSeen = (lastSeen: string): string => {
     return "Unavailable";
   }
 
-  return formatDistanceToNow(new Date(lastSeen), { addSuffix: true });
+  return timeAgo(new Date(lastSeen), { addSuffix: true });
 };
 
 export const internationalTimeFormat = (date: number | Date): string => {
@@ -597,13 +628,58 @@ export const internationalTimeFormat = (date: number | Date): string => {
   );
 };
 
+/** Renders an "HH:MM" 24-hour string in the viewer's locale. UTC anchor
+ * + `timeZone: "UTC"` avoid DST wall-clock shifts on spring-forward. */
+export const internationalTimeOnlyFormat = (hhmm: string): string => {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(hhmm);
+  if (!match) return hhmm;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return hhmm;
+  const date = new Date(Date.UTC(2000, 0, 1, hours, minutes));
+  return intlFormat(
+    date,
+    { hour: "numeric", minute: "numeric", timeZone: "UTC" },
+    { locale: window.navigator.languages[0] }
+  );
+};
+
 export const internationalNumberFormat = (number: number): string => {
   return new Intl.NumberFormat(navigator.language).format(number);
 };
 
+/** Renders a deadline like "Tue, Nov 10 at 5:00 PM" (en-US) or
+ * "Tue, 10 Nov at 17:00" (en-GB) in the host's timezone, with 12/24-hour
+ * following the viewer's browser locale. Returns null when the browser doesn't
+ * know the host's timezone, since Intl throws a RangeError for it. */
+export const formatHostLocalDeadline = (
+  deadlineISO: string,
+  hostTimezone: string
+): string | null => {
+  const date = new Date(deadlineISO);
+  const locale = navigator.language;
+  try {
+    const datePart = new Intl.DateTimeFormat(locale, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      timeZone: hostTimezone,
+    }).format(date);
+    const timePart = new Intl.DateTimeFormat(locale, {
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: hostTimezone,
+    }).format(date);
+    return `${datePart} at ${timePart}`;
+  } catch (e) {
+    if (e instanceof RangeError) return null;
+    throw e;
+  }
+};
+
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
-    return "No team";
+    return "Unassigned";
   }
 
   return teamName;
@@ -616,7 +692,7 @@ export const humanQueryLastRun = (lastRun: string): string => {
   }
 
   try {
-    return formatDistanceToNow(new Date(lastRun), { addSuffix: true });
+    return timeAgo(new Date(lastRun), { addSuffix: true });
   } catch {
     return "Unavailable";
   }
@@ -658,13 +734,13 @@ export const readableDate = (date: string) => {
 
 export const getPerformanceImpactDescription = (
   scheduledQueryStats: ISchedulableQueryStats
-) => {
+): PerformanceImpactIndicator => {
   if (
     !scheduledQueryStats.total_executions ||
     scheduledQueryStats.total_executions === 0 ||
     scheduledQueryStats.total_executions === null
   ) {
-    return "Undetermined";
+    return PerformanceImpactIndicatorValue.UNDETERMINED;
   }
 
   if (
@@ -675,13 +751,59 @@ export const getPerformanceImpactDescription = (
       scheduledQueryStats.user_time_p50 + scheduledQueryStats.system_time_p50;
 
     if (indicator < 2000) {
-      return "Minimal";
+      return PerformanceImpactIndicatorValue.MINIMAL;
     }
     if (indicator < 4000) {
-      return "Considerable";
+      return PerformanceImpactIndicatorValue.CONSIDERABLE;
     }
   }
-  return "Excessive";
+  return PerformanceImpactIndicatorValue.EXCESSIVE;
+};
+
+export const getPerformanceImpactIndicatorTooltip = (
+  indicator: PerformanceImpactIndicator,
+  isHostSpecific = false
+) => {
+  switch (indicator) {
+    case PerformanceImpactIndicatorValue.MINIMAL:
+      return (
+        <>
+          Running this report very frequently has little to no impact on your
+          device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.CONSIDERABLE:
+      return (
+        <>
+          Running this report frequently can have a noticeable impact on your
+          device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.EXCESSIVE:
+      return (
+        <>
+          Running this report, even infrequently, can have a significant impact
+          on your device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.DENYLISTED:
+      return (
+        <>
+          This report has been stopped from running because of excessive
+          resource consumption.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.UNDETERMINED:
+      return (
+        <>
+          Performance impact will be available when{" "}
+          {isHostSpecific ? "the" : "this"} report runs
+          {isHostSpecific && " on this host"}.
+        </>
+      );
+    default:
+      return null;
+  }
 };
 
 export const secondsToDhms = (s: number): string => {
@@ -707,8 +829,7 @@ export const secondsToHms = (d: number): string => {
 export const abbreviateTimeUnits = (str: string): string =>
   str.replace("minute", "min").replace("second", "sec");
 
-// TODO: Type any because ts files missing the following properties from type 'JSON': parse, stringify, [Symbol.toStringTag]
-export const syntaxHighlight = (json: any): string => {
+export const syntaxHighlight = (json: unknown): string => {
   let jsonStr: string = JSON.stringify(json, undefined, 2);
   jsonStr = jsonStr
     .replace(/&/g, "&amp;")
@@ -746,18 +867,6 @@ export const tooltipTextWithLineBreaks = (lines: string[]) => {
     );
   });
 };
-
-export const getSortedTeamOptions = memoize((teams: ITeam[]) =>
-  teams
-    .map((team) => {
-      return {
-        disabled: false,
-        label: team.name,
-        value: team.id,
-      };
-    })
-    .sort((a, b) => sortUtils.caseInsensitiveAsc(a.label, b.label))
-);
 
 // returns a mixture of props from host
 export const normalizeEmptyValues = (
@@ -922,9 +1031,35 @@ export const isDateTimePast = (dt: string) => {
   return new Date(dt) < new Date();
 };
 
+/**
+ * Helper function to take whatever message is from the API and strip out the Learn More link and format it accordingly.
+ */
+export const generateGenericLearnMoreErrMsg = (errMsg: string) => {
+  const lowercasedErr = errMsg.toLowerCase();
+  if (lowercasedErr.includes(" learn more: https://")) {
+    const message = errMsg.substring(
+      0,
+      lowercasedErr.indexOf(" learn more: https://")
+    );
+    const link = errMsg.substring(lowercasedErr.indexOf("https://"));
+    return (
+      <>
+        {message}{" "}
+        <CustomLink
+          url={link}
+          text="Learn more"
+          variant="flash-message-link"
+          newTab
+        />
+      </>
+    );
+  }
+  return errMsg;
+};
+
 export default {
   addGravatarUrlToResource,
-  removeOSPrefix,
+  getHostOSDisplayName,
   compareVersions,
   formatLabelResponse,
   formatFloatAsPercentage,
@@ -939,7 +1074,11 @@ export default {
   formatSelectedTargetsForApi,
   formatPackTargetsForApi,
   generateRole,
+  generateRoleGroups,
   generateTeam,
+  generateTeamNames,
+  ROLE_VARIOUS,
+  ROLE_GLOBAL,
   getUniqueColsAreNumTypeFromRows,
   getCustomDropdownOptions,
   greyCell,
@@ -949,6 +1088,7 @@ export default {
   humanHostDetailUpdated,
   humanLastSeen,
   internationalTimeFormat,
+  internationalTimeOnlyFormat,
   internallyTruncateText,
   hostTeamName,
   humanQueryLastRun,
@@ -965,4 +1105,5 @@ export default {
   wait,
   wrapFleetHelper,
   isDateTimePast,
+  generateGenericLearnMoreErrMsg,
 };

@@ -1,7 +1,7 @@
 package fleetdm_client
 
-// This file gives us a nice API to use to call FleetDM's API. It's focused
-// only on teams.
+// This file gives us a nice API to use to call Fleet's API. It's focused
+// only on fleets (formerly "teams").
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ import (
 )
 
 const prefix = "/api/v1/fleet"
-const teamPrefix = prefix + "/teams"
+const fleetPrefix = prefix + "/fleets"
 
 type Team struct {
 	Name         string      `json:"name"`
@@ -37,11 +37,11 @@ type TeamCreate struct {
 }
 
 type TeamGetResponse struct {
-	Team Team `json:"team"`
+	Team Team `json:"fleet"`
 }
 
 type TeamQueryResponse struct {
-	Teams []Team `json:"teams"`
+	Teams []Team `json:"fleets"`
 }
 
 // FleetDMClient is a FleetDM HTTP client that overrides http.DefaultClient.
@@ -85,15 +85,15 @@ func (c *FleetDMClient) do(req *http.Request, query *url.Values) (*http.Response
 
 // TeamNameToID will return the ID of a team given the name.
 func (c *FleetDMClient) TeamNameToID(name string) (int64, error) {
-	req, err := http.NewRequest(http.MethodGet, teamPrefix, nil)
+	req, err := http.NewRequest(http.MethodGet, fleetPrefix, nil)
 	if err != nil {
-		return 0, fmt.Errorf("failed to create GET request for %s: %w", teamPrefix, err)
+		return 0, fmt.Errorf("failed to create GET request for %s: %w", fleetPrefix, err)
 	}
 	vals := make(url.Values)
 	vals.Add("query", name)
 	resp, err := c.do(req, &vals)
 	if err != nil {
-		return 0, fmt.Errorf("failed to GET %s %s: %w", teamPrefix, name, err)
+		return 0, fmt.Errorf("failed to GET %s %s: %w", fleetPrefix, name, err)
 	}
 	defer resp.Body.Close()
 
@@ -130,7 +130,7 @@ func (c *FleetDMClient) CreateTeam(name string, description string) (*TeamGetRes
 	if err != nil {
 		return nil, fmt.Errorf("failed to create team body: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, teamPrefix, bytes.NewReader(nameJson))
+	req, err := http.NewRequest(http.MethodPost, fleetPrefix, bytes.NewReader(nameJson))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create POST request for %s name %s: %w",
 			req.URL.String(), name, err)
@@ -162,7 +162,7 @@ func (c *FleetDMClient) CreateTeam(name string, description string) (*TeamGetRes
 
 // GetTeam returns the team with the provided ID.
 func (c *FleetDMClient) GetTeam(id int64) (*TeamGetResponse, error) {
-	url := teamPrefix + "/" + strconv.FormatInt(id, 10)
+	url := fleetPrefix + "/" + strconv.FormatInt(id, 10)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GET request for %s: %w",
@@ -197,7 +197,7 @@ func (c *FleetDMClient) UpdateTeam(id int64, name, description *string) (*TeamGe
 		return nil, fmt.Errorf("both name and description are nil")
 	}
 
-	url := teamPrefix + "/" + strconv.FormatInt(id, 10)
+	url := fleetPrefix + "/" + strconv.FormatInt(id, 10)
 	var teamUpdate TeamCreate
 	if name != nil {
 		teamUpdate.Name = *name
@@ -250,16 +250,16 @@ func (c *FleetDMClient) UpdateAgentOptions(id int64, ao string) (*TeamGetRespons
 		return nil, fmt.Errorf("agent_options isn't json: %s", ao)
 	}
 
-	aoUrl := teamPrefix + "/" + strconv.FormatInt(id, 10) + "/" + "agent_options"
+	aoUrl := fleetPrefix + "/" + strconv.FormatInt(id, 10) + "/" + "agent_options"
 	req, err := http.NewRequest(http.MethodPost, aoUrl, strings.NewReader(ao))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create agent_options POST request for %s id %d: %w",
-			teamPrefix, id, err)
+			fleetPrefix, id, err)
 	}
 	resp, err := c.do(req, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to POST agent_options %s id %d: %w",
-			teamPrefix, id, err)
+			fleetPrefix, id, err)
 	}
 	defer resp.Body.Close()
 
@@ -282,7 +282,7 @@ func (c *FleetDMClient) UpdateAgentOptions(id int64, ao string) (*TeamGetRespons
 
 // DeleteTeam deletes the team with the provided ID.
 func (c *FleetDMClient) DeleteTeam(id int64) error {
-	url := teamPrefix + "/" + strconv.FormatInt(id, 10)
+	url := fleetPrefix + "/" + strconv.FormatInt(id, 10)
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create DELETE request for %s: %w", url, err)

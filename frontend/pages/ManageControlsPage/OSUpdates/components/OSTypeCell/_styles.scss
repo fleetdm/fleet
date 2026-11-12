@@ -5,7 +5,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   align-items: center;
-  gap: $pad-small;
+  gap: $gap-icon-text;
 
   &__tooltip-wrapper {
     display: flex;

@@ -35,14 +35,25 @@ defaults:
 permissions:
   contents: read
 
+env:
+  # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
+  NPM_CONFIG_MIN_RELEASE_AGE: 0.5
+
 jobs:
   build:
     runs-on: macos-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
+
+      - name: Checkout fleetctl install script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: website/assets/resources/install-fleetctl.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Import package signing keys
         env:
@@ -60,7 +71,9 @@ jobs:
           rm certificate.p12
 
       - name: Install fleetctl
-        run: npm install -g fleetctl
+        run: |
+          bash website/assets/resources/install-fleetctl.sh
+          echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
       - name: Build PKG, sign, and notarize
         id: build-sign-notarize
@@ -68,14 +81,14 @@ jobs:
           AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
           AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          PACKAGE_SIGNING_IDENTITY_SHA1: D52080FD1F0941DE31346F06DA0F08AED6FACBBF
+          PACKAGE_SIGNING_IDENTITY_SHA1: 4608F71FB42E1845C7FC9B2D2B6A7A8D11BBD940
         run: |
           fleetctl package --type pkg --fleet-desktop \
             --use-system-configuration --sign-identity $PACKAGE_SIGNING_IDENTITY_SHA1 --notarize \
             --orbit-channel ${{ github.event.inputs.orbit-channel }} \
             --osqueryd-channel ${{ github.event.inputs.osqueryd-channel }} \
-            --desktop-channel ${{ github.event.inputs.desktop-channel }}
-          mv fleet-osquery*.pkg fleetd-base.pkg
+            --desktop-channel ${{ github.event.inputs.desktop-channel }} \
+            --outfile fleetd-base.pkg
           : # Calculate the SHA256 checksum of the package
           echo "fleetd_base_pkg_sha256=$(shasum -a 256 fleetd-base.pkg | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
 
@@ -107,14 +120,14 @@ jobs:
           </plist>' > fleetd-base-manifest.plist
 
       - name: Upload fleetd-base.pkg
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: fleetd-base.pkg
           path: |
             fleetd-base.pkg
 
       - name: Upload fleetd-base-manifest.plist
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: fleetd-base-manifest.plist
           path: |

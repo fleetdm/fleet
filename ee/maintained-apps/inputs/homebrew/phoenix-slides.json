@@ -1,0 +1,10 @@
+{
+  "name": "Phoenix Slides",
+  "unique_identifier": "net.blyt.phoenixslides",
+  "token": "phoenix-slides",
+  "installer_format": "dmg",
+  "slug": "phoenix-slides/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

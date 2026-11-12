@@ -1,0 +1,10 @@
+{
+  "name": "Morgen",
+  "unique_identifier": "com.todesktop.210203cqcj00tw1",
+  "token": "morgen",
+  "installer_format": "dmg",
+  "slug": "morgen/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

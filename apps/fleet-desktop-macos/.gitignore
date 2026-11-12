@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# Build output
+build/
+
+
+.build

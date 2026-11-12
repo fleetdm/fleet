@@ -2,7 +2,9 @@ package service
 
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -10,9 +12,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	kitlog "github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -26,8 +31,9 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
 	cfg := config.TestConfig()
-	h := MakeHandler(svc, cfg, kitlog.NewNopLogger(), limitStore, nil, nil)
-	router := h.(*mux.Router)
+	h, err := MakeHandler(svc, cfg, slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
+	require.NoError(t, err)
+	router := h.(interface{ Router() *mux.Router }).Router()
 
 	type testCase struct {
 		name string
@@ -43,7 +49,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	// conflicts with it and took precedence - a route conflict. The route's name
 	// is used to name the sub-test for that route.
 	status := 200
-	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
+	err = router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
 		_, path, err := mockRouteHandler(route, status)
 		if path == "" || err != nil { // failure or no method set
 			return err
@@ -80,13 +86,14 @@ func TestAPIRoutesMetrics(t *testing.T) {
 
 	svc, _ := newTestService(t, ds, nil, nil)
 	limitStore, _ := memstore.New(0)
-	h := MakeHandler(svc, config.TestConfig(), kitlog.NewNopLogger(), limitStore, nil, nil)
-	router := h.(*mux.Router)
+	h, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
+	require.NoError(t, err)
+	router := h.(interface{ Router() *mux.Router }).Router()
 
 	// replace all handlers with mocks, and collect the requests to make to each
 	// route.
 	var reqs []*http.Request
-	err := router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
+	err = router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
 		verb, path, err := mockRouteHandler(route, http.StatusOK)
 		if path == "" || err != nil { // failure or no method set
 			return err
@@ -326,4 +333,89 @@ func mockRouteHandler(route *mux.Route, status int) (verb, path string, err erro
 
 	route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) })
 	return meths[0], path, nil
+}
+
+func TestGzipResponses(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	gzipTestHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		// Write enough data to trigger gzip (default threshold is 1500 bytes)
+		data := make([]byte, 2000)
+		for i := range data {
+			data[i] = 'a'
+		}
+		// The response body is what the assertions inspect; a write error surfaces there.
+		_, _ = w.Write(data)
+	})
+	testRoute := func(r *mux.Router, opts []kithttp.ServerOption) {
+		r.Handle("/api/test-gzip", gzipTestHandler)
+		// A method-scoped route is served by the stdlib fast path rather than gorilla, which applies the router middleware
+		// itself, so gzip has to be exercised on both.
+		r.Handle("/api/test-gzip-fast", gzipTestHandler).Methods("GET")
+	}
+
+	t.Run("Enabled", func(t *testing.T) {
+		cfg := config.TestConfig()
+		cfg.Server.GzipResponses = true
+
+		_, server := RunServerForTestsWithDS(t, ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			FeatureRoutes:       []endpointer.HandlerRoutesFunc{testRoute},
+			SkipCreateTestUsers: true,
+		})
+		defer server.Close()
+
+		for _, path := range []string{"/api/test-gzip", "/api/test-gzip-fast"} {
+			t.Run("WithAcceptEncoding "+path, func(t *testing.T) {
+				req, err := http.NewRequest("GET", server.URL+path, nil)
+				require.NoError(t, err)
+				req.Header.Set("Accept-Encoding", "gzip")
+				resp, err := fleethttp.NewClient().Do(req)
+				require.NoError(t, err)
+				defer resp.Body.Close()
+
+				require.Equal(t, "gzip", resp.Header.Get("Content-Encoding"), "Expected gzip Content-Encoding when enabled")
+			})
+		}
+
+		t.Run("WithoutAcceptEncoding", func(t *testing.T) {
+			req, err := http.NewRequest("GET", server.URL+"/api/test-gzip", nil)
+			require.NoError(t, err)
+			// Do NOT set Accept-Encoding header
+			transport := fleethttp.NewTransport()
+			transport.DisableCompression = true // Prevents automatic addition of Accept-Encoding: gzip
+			client := fleethttp.NewClient()
+			client.Transport = transport
+			resp, err := client.Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			require.Empty(t, resp.Header.Get("Content-Encoding"), "Expected no gzip Content-Encoding when Accept-Encoding not set")
+		})
+	})
+
+	t.Run("Disabled", func(t *testing.T) {
+		t.Parallel()
+		cfg := config.TestConfig()
+		cfg.Server.GzipResponses = false
+		_, server := RunServerForTestsWithDS(t, ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			FeatureRoutes:       []endpointer.HandlerRoutesFunc{testRoute},
+			SkipCreateTestUsers: true,
+		})
+		defer server.Close()
+
+		req, err := http.NewRequest("GET", server.URL+"/api/test-gzip", nil)
+		require.NoError(t, err)
+		req.Header.Set("Accept-Encoding", "gzip")
+		resp, err := fleethttp.NewClient().Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		require.Empty(t, resp.Header.Get("Content-Encoding"), "Expected no gzip Content-Encoding when disabled")
+	})
 }

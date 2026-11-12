@@ -1,12 +1,11 @@
 import React from "react";
 import { useQuery } from "react-query";
 
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
 import { IBootstrapPackageAggregate } from "interfaces/mdm";
 import mdmAPI from "services/entities/mdm";
-
-import DataError from "components/DataError";
-import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
 
 import {
   COLUMN_CONFIGS,
@@ -58,7 +57,7 @@ const BootstrapPackageTable = ({
       disableCount
       hideFooter
       emptyComponent={() => (
-        <EmptyTable
+        <EmptyState
           header="No bootstrap package status"
           info="Expecting to status data? Try again in a few seconds as the system
               catches up."

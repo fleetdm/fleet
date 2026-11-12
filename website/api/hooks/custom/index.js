@@ -139,6 +139,123 @@ will be disabled and/or hidden in the UI.
       // ... Any other app-specific setup code that needs to run on lift,
       // even in production, goes here ...
 
+      // Initialize an Android Management API request counter. Each android-proxy
+      // endpoint (api/controllers/android-proxy/*) increments this every time it makes a request to
+      // Google, and the repeating timer below logs the count and resets it once a minute so we can monitor the number of requests the proxy is making.
+      sails.androidProxyApiRequestCount = 0;
+      // Track AMAPI requests per Android enterprise ID (keyed by enterprise ID) so we can
+      // graph request volume per enterprise in Datadog. Reset every minute alongside the total.
+      sails.androidProxyApiRequestCountByEnterpriseId = {};
+      // Track AMAPI requests keyed by enterpriseId:requestType so we can graph request volume
+      // broken down by request type and enterprise in Datadog. Reset every minute.
+      sails.androidProxyApiRequestCountByRequestType = {};
+      if (sails.config.custom.androidEnterpriseServiceAccountEmailAddress && sails.config.custom.androidEnterpriseServiceAccountPrivateKey) {
+        let logAndResetAndroidProxyApiRequestCount = ()=>{
+          let requestCountInLastMinute = sails.androidProxyApiRequestCount;
+          sails.androidProxyApiRequestCount = 0;// Reset for the next minute.
+          let requestCountByEnterpriseId = sails.androidProxyApiRequestCountByEnterpriseId;
+          sails.androidProxyApiRequestCountByEnterpriseId = {};// Reset for the next minute.
+          let requestCountByRequestType = sails.androidProxyApiRequestCountByRequestType;
+          sails.androidProxyApiRequestCountByRequestType = {};// Reset for the next minute.
+          if (requestCountInLastMinute === 0) {
+            return;// Stay quiet on idle minutes so the metric lines are easy to grep.
+          }
+
+          // Send the number of requests to Datadog.
+          if (sails.config.environment === 'production' && sails.config.custom.datadogApiKey) {
+            let timestampInSeconds = Math.floor(Date.now() / 1000);
+            let thisDyno = process.env.DYNO;
+            let sanitizeUrl = (url) => { try { return new URL(url).origin; } catch (unused) { return 'unknown'; } };
+            // Create an array of metrics, and add the total request count.
+            let metricsToSendToDatadog = [{
+              metric: 'android_proxy.amapi_request_count',
+              type: 1,// count
+              interval: 60,
+              points: [{ timestamp: timestampInSeconds, value: requestCountInLastMinute }],
+              tags: [`dyno:${thisDyno}`],
+            }];
+
+            let perEnterpriseMetrics = Object.keys(requestCountByEnterpriseId).map((enterpriseId)=>{
+              let entry = requestCountByEnterpriseId[enterpriseId];
+              let tags = [`dyno:${thisDyno}`, `android_enterprise_id:${enterpriseId}`];
+              if (entry.fleetServerUrl) {
+                tags.push(`fleet_server_url:${sanitizeUrl(entry.fleetServerUrl)}`);
+              }
+              return {
+                metric: 'android_proxy.amapi_request_count_by_enterprise',
+                type: 1,
+                interval: 60,
+                points: [{ timestamp: timestampInSeconds, value: entry.count }],
+                tags: tags,
+              };
+            });
+            metricsToSendToDatadog = metricsToSendToDatadog.concat(perEnterpriseMetrics);
+
+            let perRequestTypeMetrics = Object.keys(requestCountByRequestType).map((key)=>{
+              let entry = requestCountByRequestType[key];
+              return {
+                metric: 'android_proxy.amapi_request_count_by_request_type',
+                type: 1,
+                interval: 60,
+                points: [{ timestamp: timestampInSeconds, value: entry.count }],
+                tags: [`dyno:${thisDyno}`, `android_enterprise_id:${entry.enterpriseId}`, `fleet_server_url:${sanitizeUrl(entry.fleetServerUrl)}`, `request_type:${entry.requestType}`],
+              };
+            });
+            metricsToSendToDatadog = metricsToSendToDatadog.concat(perRequestTypeMetrics);
+
+            // Chunk metrics into batches of 500 to stay under Datadog's 512 KB request body limit.
+            let chunkedMetrics = _.chunk(metricsToSendToDatadog, 500);
+            for (let chunk of chunkedMetrics) {
+              sails.helpers.http.post.with({
+                url: 'https://api.us5.datadoghq.com/api/v2/series',
+                data: {
+                  series: chunk
+                },
+                headers: {
+                  'DD-API-KEY': sails.config.custom.datadogApiKey,
+                  'Content-Type': 'application/json',
+                },
+              }).exec((err)=>{
+                if (err) {
+                  sails.log.warn(`Background task failed: failed to send AMAPI request-count metric to Datadog. Full error: ${require('util').inspect(err)}`);
+                }
+              });//_∏_
+            }
+          }//ﬁ
+
+          sails.log.info(`Android proxy: ${requestCountInLastMinute} Android Management API request(s) in the last minute.`);
+        };
+        // Align the first tick to the top of the next minute so every web dyno logs on the same
+        // wall-clock cadence (e.g. all dynos log at :00) rather than at a random offset determined by
+        // when each dyno happened to boot.
+        let millisecondsUntilNextMinute = 60000 - (Date.now() % 60000);
+        let androidProxyMetricsStartTimeout = setTimeout(()=>{
+          logAndResetAndroidProxyApiRequestCount();
+          let androidProxyMetricsInterval = setInterval(logAndResetAndroidProxyApiRequestCount, 60 * 1000);
+          androidProxyMetricsInterval.unref();// Don't let this timer keep the process alive.
+        }, millisecondsUntilNextMinute);
+        androidProxyMetricsStartTimeout.unref();
+      }//ﬁ
+
+      // In non-production environments, make `builtStaticContent.testimonials` optional so pages that use the <scrollable-tweets> component still render before the build-static-content script has been run.
+      // To prevent the component from being empty whitespace on pages where it is used, we'll inject a single placeholder testimonial directing the user to run the build-static-content script.
+      if (sails.config.environment !== 'production') {
+        if (!_.isObject(sails.config.builtStaticContent)) {
+          sails.config.builtStaticContent = {};
+        }
+        if (!_.isArray(sails.config.builtStaticContent.testimonials) || sails.config.builtStaticContent.testimonials.length === 0) {
+          sails.config.builtStaticContent.testimonials = [{
+            quote: 'This placeholder appears because the website\'s static content has not been built. Run `sails run build-static-content` or `npm start-dev` to see real customer testimonials.',
+            quoteImageFilename: 'logo-blue-118x41@2x.png',
+            quoteAuthorName: 'Fleet',
+            quoteAuthorJobTitle: 'Placeholder testimonial',
+            quoteAuthorProfileImageFilename: 'fleet-profile-image.png',
+            quoteLinkUrl: '/',
+            productCategories: ['Device management', 'Observability', 'Software management'],
+          }];
+        }
+      }//ﬁ
+
     },
 
 
@@ -155,9 +272,7 @@ will be disabled and/or hidden in the UI.
         '/*': {
           skipAssets: true,
           fn: async function(req, res, next){
-
             var url = require('url');
-
             // First, if this is a GET request (and thus potentially a view) or a HEAD request,
             // attach a couple of guaranteed locals.
             if (req.method === 'GET' || req.method === 'HEAD') {
@@ -190,7 +305,7 @@ will be disabled and/or hidden in the UI.
             // Check for query parameters set by ad clicks.
             // This is used to track the reason behind a psychological stage change.
             // If the user performs any action that causes a stage change
-            // within 30 minutes of visiting the website from an ad, their psychological
+            // within 24 hour of visiting the website from an ad, their psychological
             // stage change will be attributed to the ad campaign that brought them here.
             if(req.param('utm_source') && req.param('creative_id') && req.param('campaign_id')){
               req.session.adAttributionString = `${req.param('utm_source')} ads - ${req.param('campaign_id')} - ${_.trim(req.param('creative_id'), '?')}`;// Trim questionmarks from the end of creative_id parameters.
@@ -198,6 +313,25 @@ will be disabled and/or hidden in the UI.
               req.session.visitedSiteFromAdAt = Date.now();
             }
 
+
+            // If a user does not have a marketingAttriution cookie set, check for UTM parameters
+            if(!req.cookies.marketingAttribution) {
+              let marketingAttributionCookieInformation = {
+                source: req.param('utm_source'),// will be undefined if this is not set
+                medium: req.param('utm_medium'),// will be undefined if this is not set
+                campaign: req.param('utm_campaign') || req.param('gad_campaignid'),// will be undefined if neither is set. (Google Ads auto-tagging sends gad_campaignid instead of utm_campaign)
+                gclid: req.param('gclid'),// will be undefined if this is not set
+                referrer: req.get('referer'),
+                initialUrl: req.url,
+              };
+              // Add the information to a new cookie for this user that expires 30 days from when it is set.
+              res.cookie('marketingAttribution', marketingAttributionCookieInformation, {maxAge: (1000 * 60 * 60 * 24 * 30)});
+            }
+
+            // FUTURE: Remove this code used for testing
+            if(req.param('clearAttributionCookie')){
+              res.clearCookie('marketingAttribution');
+            }
             // Check for website personalization parameter, and if valid, absorb it in the session.
             // (This makes the experience simpler and less confusing for people, prioritizing showing things that matter for them)
             // [?] https://en.wikipedia.org/wiki/UTM_parameters
@@ -216,6 +350,43 @@ will be disabled and/or hidden in the UI.
             if (req.method === 'GET' || req.method === 'HEAD') {
               // Include information about the primary buying situation for use in the HTML layout, views, and page scripts.
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
+
+              // Decide whether (and which) announcement banner to show in the layout.  See config/announcement-banner.js.
+              let bannerConfig = sails.config.announcementBanner;
+              res.locals.announcementBanner = undefined;
+              if (bannerConfig && bannerConfig.enabled) {
+                let requestPath = req.path.length > 1 ? req.path.replace(/\/+$/, '') : req.path;
+                let isOnHiddenPage = bannerConfig.hiddenOnPages.some((pagePattern)=>{
+                  if (pagePattern.endsWith('/*')) {
+                    let prefix = pagePattern.slice(0, -2);
+                    return requestPath === prefix || requestPath.startsWith(prefix + '/');
+                  }
+                  return requestPath === pagePattern;
+                });
+                if (!isOnHiddenPage) {
+                  let banner = bannerConfig.forEveryone ? { text: bannerConfig.forEveryone.text, textForSmallScreens: bannerConfig.forEveryone.textForSmallScreens, href: bannerConfig.forEveryone.href } : undefined;
+                  if (bannerConfig.forVisitorsInEurope) {
+                    const EUROPEAN_COUNTRY_CODES = [
+                      // EU member states
+                      'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
+                      // EEA (non-EU), UK, and Switzerland
+                      'IS', 'LI', 'NO', 'GB', 'CH'
+                    ];
+                    let visitorCountryCode = (req.get('cf-ipcountry') || '').toUpperCase();
+                    // Allow testing locally with ?simulateCountry=DE (non-production only).
+                    if (sails.config.environment !== 'production' && req.param('simulateCountry')) {
+                      visitorCountryCode = String(req.param('simulateCountry')).toUpperCase();
+                    }
+                    if (EUROPEAN_COUNTRY_CODES.includes(visitorCountryCode)) {
+                      banner = { text: bannerConfig.forVisitorsInEurope.text, textForSmallScreens: bannerConfig.forVisitorsInEurope.textForSmallScreens, href: bannerConfig.forVisitorsInEurope.href };
+                    }
+                  }
+                  // Don't advertise a page to someone who's already on it.
+                  if (banner && banner.href !== requestPath) {
+                    res.locals.announcementBanner = banner;
+                  }
+                }
+              }//ﬁ
             }//ﬁ
 
             // Next, if we're running in our actual "production" or "staging" Sails
@@ -341,12 +512,14 @@ will be disabled and/or hidden in the UI.
                       sails.log.verbose('Skipping Salesforce integration...');
                       return;
                     }
-                    let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+                    let attributionCookieOrUndefined = req.cookies.marketingAttribution;// Will be undefined if this is not set.
+
+                    let recordDetails = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
                       emailAddress: sanitizedUser.emailAddress,
                       firstName: sanitizedUser.firstName,
                       lastName: sanitizedUser.lastName,
-                      organization: sanitizedUser.organization,
                       contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
+                      marketingAttributionCookie: attributionCookieOrUndefined,
                     });
                     let websiteVisitReason;
                     if(req.session.adAttributionString && req.session.visitedSiteFromAdAt) {
@@ -358,11 +531,13 @@ will be disabled and/or hidden in the UI.
                     }
                     // Create the new Fleet website page view record.
                     await sails.helpers.salesforce.createHistoricalEvent.with({
-                      salesforceContactId: recordIds.salesforceContactId,
-                      salesforceAccountId: recordIds.salesforceAccountId,
+                      salesforceContactId: recordDetails.salesforceContactId,
+                      salesforceAccountId: recordDetails.salesforceAccountId,
                       fleetWebsitePageUrl: `https://fleetdm.com${req.url}`,
                       eventType: 'Website page view',
-                      websiteVisitReason: websiteVisitReason
+                      websiteVisitReason: websiteVisitReason,
+                      relatedCampaign: recordDetails.mostRecentCampaign,
+                      eventSource: 'Website - Sign up',
                     }).intercept((err)=>{
                       return new Error(`Could not create new Fleet website page view record. Error: ${err}`);
                     });
@@ -370,9 +545,9 @@ will be disabled and/or hidden in the UI.
                   .exec((err)=>{
                     if(err && typeof err.errorCode !== 'undefined' && err.errorCode === 'DUPLICATES_DETECTED') {
                       // Swallow errors related to duplicate records.
-                      sails.log.verbose(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, err);
+                      sails.log.verbose(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, require('util').inspect(err));
                     } else if(err){
-                      sails.log.warn(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, err);
+                      sails.log.warn(`Background task failed: When a logged-in user (email: ${sanitizedUser.emailAddress} visited a page, a Contact/Account/website activity record could not be created/updated in the CRM.`, require('util').inspect(err));
                     }
                     return;
                   });//_∏_

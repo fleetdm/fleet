@@ -1,0 +1,10 @@
+{
+  "name": "Mobirise",
+  "unique_identifier": "com.mobirise.Mobirise",
+  "token": "mobirise",
+  "installer_format": "dmg",
+  "slug": "mobirise/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

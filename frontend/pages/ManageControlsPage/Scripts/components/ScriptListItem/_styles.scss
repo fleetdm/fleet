@@ -1,8 +1,38 @@
 .script-list-item {
-  &__action-button {
-    width: 40px;
-    height: 40px;
+  .list-item__main-content {
+    max-width: px-to-rem(800);
+    min-width: 0;
+    flex-shrink: 1;
+    flex-grow: 0;
+    overflow: hidden;
   }
+
+  // Constrain the title slot so TooltipTruncatedText can engage its ellipsis
+  // when script names are long. min-width: 0 on the flex children is required
+  // because flex items default to min-width: auto, which refuses to shrink
+  // below content width — without it, __info inherits the long name's width
+  // and bleeds past __main-content's max-width.
+  .list-item__info {
+    min-width: 0;
+  }
+  .list-item__title {
+    display: block;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+
+    // Override TooltipWrapper's cursor: default (I-beam suppression on prose).
+    .component__tooltip-wrapper__element {
+      cursor: pointer;
+    }
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: $gap-action-elements;
+  }
+
   &__details {
     display: flex;
     gap: $pad-xxsmall;

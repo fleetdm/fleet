@@ -4,8 +4,12 @@ import {
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
   IWebhookActivities,
+  IWebhookHostActivities,
 } from "interfaces/webhook";
+
+import { IVulnExposureFilterDefaults } from "./charts";
 import { IGlobalIntegrations } from "./integration";
+import { EndUserLocalAccountType } from "./mdm";
 
 export interface ILicense {
   tier: string;
@@ -13,8 +17,6 @@ export interface ILicense {
   expiration: string;
   note: string;
   organization: string;
-  // Whether the Fleet instance is managed by FleetDM
-  managed_cloud: boolean;
   allow_disable_telemetry: boolean;
 }
 
@@ -39,15 +41,27 @@ interface ICustomSetting {
 }
 
 export interface IAppleDeviceUpdates {
+  /** The sentinel `"latest"` enforces the newest version available, with the
+   * deadline derived from `deadline_days` instead of a fixed date. */
   minimum_version: string;
   deadline: string;
+  /** Only set when `minimum_version` is `"latest"`; null otherwise. */
+  deadline_days: number | null;
   update_new_hosts?: boolean;
 }
 
 export interface IMdmConfig {
   /** Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) */
   apple_server_url: string;
+  /** @deprecated Virtual key: true only when all per-platform disk
+  encryption settings (`apple_settings`, `windows_settings`, `linux_settings`)
+  are enabled. Read the per-platform fields instead. */
   enable_disk_encryption: boolean;
+  /** Host name template applied to "No team" Apple hosts. Mirrors
+  `enable_disk_encryption` as a global-scope Controls > OS setting. */
+  name_template?: string;
+  macos_recovery_lock_password_enabled: boolean;
+  /** @deprecated Use `windows_settings.require_bitlocker_pin`. */
   windows_require_bitlocker_pin: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
   configured correctly. The naming is slightly confusing but at one point we
@@ -61,31 +75,63 @@ export interface IMdmConfig {
    */
   apple_bm_terms_expired: boolean;
   apple_bm_enabled_and_configured: boolean;
-  windows_enabled_and_configured: boolean;
+  windows_mdm_enabled: boolean;
   enable_turn_on_windows_mdm_manually: boolean;
-  windows_migration_enabled: boolean;
+  windows_mdm_migration_enabled: boolean;
   android_enabled_and_configured: boolean;
+  apple_require_hardware_attestation: boolean;
   end_user_authentication: IEndUserAuthentication;
   macos_updates: IAppleDeviceUpdates;
   ios_updates: IAppleDeviceUpdates;
   ipados_updates: IAppleDeviceUpdates;
-  macos_settings: {
-    custom_settings: null | ICustomSetting[];
+  apple_settings: {
+    configuration_profiles: null | ICustomSetting[];
     enable_disk_encryption: boolean;
+    enable_escrow_disk_encryption_key?: boolean;
   };
-  macos_setup: {
-    bootstrap_package: string | null;
+  setup_experience: {
+    macos_bootstrap_package: string | null;
     enable_end_user_authentication: boolean;
-    macos_setup_assistant: string | null;
-    enable_release_device_manually: boolean | null;
-    manual_agent_install: boolean | null;
-    require_all_software_macos: boolean | null;
+    apple_setup_assistant: string | null;
+    apple_enable_release_device_manually: boolean | null;
+    macos_enable_bootstrap_package_during_manual_enrollment: boolean;
+    macos_enable_bootstrap_package_during_migration: boolean;
+    macos_manual_agent_install: boolean | null;
+    macos_require_all_software: boolean | null;
+    windows_require_all_software: boolean | null;
+    lock_end_user_info: boolean | null;
+    enable_create_local_admin_account?: boolean;
+    end_user_local_account_type?: EndUserLocalAccountType;
+  };
+  macos_setup?: {
+    enable_managed_local_account?: boolean;
+  };
+  windows_settings?: {
+    enable_disk_encryption?: boolean;
+    require_bitlocker_pin?: boolean;
+    enable_managed_local_account?: boolean;
+  };
+  linux_settings?: {
+    enable_escrow_disk_encryption_key?: boolean;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
     deadline_days: number | null;
     grace_period_days: number | null;
   };
+  windows_entra_tenant_ids: string[] | null;
+  windows_entra_client_ids: string[] | null;
+  microsoft_graph_credential_invalid: boolean;
+  windows_automatic_enrollment?: IWindowsAutomaticEnrollment | null;
+  apple_account_provisioning?: IAppleAccountProvisioning;
+  only_allow_apple_business_enrollment: boolean;
+  enable_profile_validation: boolean;
+}
+
+/** Settings for new user-driven Windows MDM enrollments (Premium only). */
+export interface IWindowsAutomaticEnrollment {
+  /** Name of the fleet new MDM-enrolled Windows hosts are assigned to; "" means Unassigned. */
+  default_fleet: string;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
@@ -94,18 +140,35 @@ export interface IMdmConfig {
 export interface IDeviceGlobalConfig {
   mdm: {
     enabled_and_configured: boolean;
-    require_all_software_macos: boolean | null;
+    macos_require_all_software: boolean | null;
+    only_allow_apple_business_enrollment: boolean;
   };
-  features: Pick<IConfigFeatures, "enable_software_inventory">;
+  features: Pick<
+    IConfigFeatures,
+    | "enable_software_inventory"
+    | "enable_conditional_access"
+    | "enable_conditional_access_bypass"
+  >;
 }
 
 export interface IFleetDesktopSettings {
   transparency_url: string;
+  alternative_browser_host: string;
+  sso_enabled: boolean;
 }
 
 export interface IConfigFeatures {
   enable_host_users: boolean;
   enable_software_inventory: boolean;
+  enable_conditional_access: boolean;
+  enable_conditional_access_bypass: boolean;
+  historical_data: {
+    uptime: boolean;
+    vulnerabilities: boolean;
+  };
+  // GitOps-managed default filter state for the Vulnerability exposure chart.
+  // Optional/sparse: absent fields fall back to the chart's built-in defaults.
+  vulnerability_exposure_historical_reporting?: IVulnExposureFilterDefaults;
 }
 
 export interface IConfigServerSettings {
@@ -114,15 +177,19 @@ export interface IConfigServerSettings {
   enable_analytics: boolean;
   deferred_save_host: boolean;
   query_reports_disabled: boolean;
-  scripts_disabled: boolean;
   ai_features_disabled: boolean;
+  mcp_disabled: boolean;
 }
 
 export interface IConfig {
   org_info: {
     org_name: string;
+    /** @deprecated use `org_logo_url_dark_mode` */
     org_logo_url: string;
+    /** @deprecated use `org_logo_url_light_mode` */
     org_logo_url_light_background: string;
+    org_logo_url_dark_mode?: string;
+    org_logo_url_light_mode?: string;
     contact_url: string;
   };
   sandbox_enabled: boolean;
@@ -166,6 +233,8 @@ export interface IConfig {
     okta_assertion_consumer_service_url: string;
     okta_audience_uri: string;
     okta_certificate: string;
+    // Bypass setting
+    bypass_disabled?: boolean;
   };
   host_expiry_settings: {
     host_expiry_enabled: boolean;
@@ -174,6 +243,7 @@ export interface IConfig {
   activity_expiry_settings: {
     activity_expiry_enabled: boolean;
     activity_expiry_window?: number;
+    preserve_host_activities_on_reenrollment: boolean;
   };
   features: IConfigFeatures;
   agent_options: unknown; // Can pass empty object
@@ -200,15 +270,32 @@ export interface IConfig {
     config: {
       region: string;
       source_arn: string;
+      sender_domain: string;
     };
   };
   mdm: IMdmConfig;
   gitops: IGitOpsModeConfig;
   partnerships?: IFleetPartnerships;
+  /** Read-only, sourced from the fleet server configuration. Omitted when
+   * nothing in it is enabled. */
+  auth?: IAuthSettings;
+  max_software_package_size: number;
+  staged_upload_available: boolean;
 }
 
 interface IFleetPartnerships {
   enable_primo: boolean;
+}
+
+interface IAuthSettings {
+  mdm_apple_one_time_enroll_secrets?: boolean;
+  mdm_windows_one_time_enroll_secrets?: boolean;
+}
+
+export interface IAppleAccountProvisioning {
+  oauth_idp_token_url: string;
+  oauth_idp_client_id: string;
+  oauth_idp_client_secret: string;
 }
 
 export interface IWebhookSettings {
@@ -216,6 +303,7 @@ export interface IWebhookSettings {
   host_status_webhook: IWebhookHostStatus | null;
   vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
   activities_webhook: IWebhookActivities;
+  host_activities_webhook?: IWebhookHostActivities | null;
 }
 
 export type IAutomationsConfig = Pick<
@@ -229,7 +317,9 @@ export type LogDestination =
   | "kinesis"
   | "lambda"
   | "pubsub"
-  | "kafta"
+  | "kafka"
+  | "nats"
+  | "splunk"
   | "stdout"
   | "webhook"
   | "";
@@ -268,9 +358,16 @@ export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
 export interface IUserSettings {
   hidden_host_columns: string[];
 }
+export interface IGitOpsExceptions {
+  labels: boolean;
+  software: boolean;
+  secrets: boolean;
+}
+
 export interface IGitOpsModeConfig {
   gitops_mode_enabled: boolean;
   repository_url: string;
+  exceptions: IGitOpsExceptions;
 }
 
 /** Check if Okta conditional access is configured (all 4 fields must be present) */

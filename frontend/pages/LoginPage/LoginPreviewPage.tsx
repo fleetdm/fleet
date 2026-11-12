@@ -3,14 +3,13 @@
 import React, { useEffect, useContext } from "react";
 import { InjectedRouter } from "react-router";
 
-import paths from "router/paths";
-import { AppContext } from "context/app";
-import sessionsAPI from "services/entities/sessions";
-import local from "utilities/local";
-
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
 import LoginForm from "components/forms/LoginForm";
+import { AppContext } from "context/app";
+import paths from "router/paths";
+import sessionsAPI from "services/entities/sessions";
+import authToken from "utilities/auth_token";
 
 interface ILoginPreviewPageProps {
   router: InjectedRouter; // v3
@@ -32,13 +31,19 @@ const LoginPreviewPage = ({ router }: ILoginPreviewPageProps): JSX.Element => {
     const { DASHBOARD } = paths;
 
     try {
-      const { user, available_teams, token } = await sessionsAPI.login(
-        formData
-      );
-      local.setItem("auth_token", token);
+      const {
+        user,
+        available_fleets,
+        token,
+        token_expires_at,
+      } = await sessionsAPI.login(formData);
+      const expiresAt = token_expires_at
+        ? new Date(token_expires_at)
+        : undefined;
+      authToken.save(token, expiresAt);
 
       setCurrentUser(user);
-      setAvailableTeams(user, available_teams);
+      setAvailableTeams(user, available_fleets);
       setCurrentTeam(undefined);
 
       return router.push(DASHBOARD);

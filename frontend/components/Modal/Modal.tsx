@@ -1,17 +1,22 @@
-import React, { useEffect } from "react";
 import classnames from "classnames";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+
 import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
 
 const baseClass = "modal";
+const CLOSE_ANIMATION_MS = 100;
 
 type ModalWidth = "medium" | "large" | "xlarge" | "auto";
 //                  650px    800px      850px      auto
 
 export interface IModalProps {
   title: string | JSX.Element;
-  children: JSX.Element;
+  children: React.ReactNode;
   onExit: () => void;
+  /** Called when the user presses Enter. Avoid using this on modals that
+   * contain forms, reveal/copy controls, or other elements where Enter has
+   * its own meaning — it will conflict with keyboard navigation. */
   onEnter?: () => void;
   /**     medium 650px, large 800px, xlarge 850px, auto auto-width
    * @default "medium"
@@ -52,10 +57,24 @@ const Modal = ({
   disableClosingModal = false,
   className,
 }: IModalProps): JSX.Element => {
+  const isDownOnBackgroundRef = useRef(false);
+  const isFormDirtyRef = useRef(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const isClosingRef = useRef(false);
+
+  const handleClose = useCallback(() => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    setIsClosing(true);
+    setTimeout(() => {
+      onExit();
+    }, CLOSE_ANIMATION_MS);
+  }, [onExit]);
+
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onExit();
+        handleClose();
       }
     };
 
@@ -68,7 +87,7 @@ const Modal = ({
         document.removeEventListener("keydown", closeWithEscapeKey);
       }
     };
-  }, [disableClosingModal, onExit]);
+  }, [disableClosingModal, handleClose]);
 
   useEffect(() => {
     if (onEnter) {
@@ -84,10 +103,42 @@ const Modal = ({
         document.removeEventListener("keydown", closeOrSaveWithEnterKey);
       };
     }
+    return undefined;
   }, [onEnter]);
+
+  useEffect(() => {
+    const onWindowBlur = () => {
+      isDownOnBackgroundRef.current = false;
+    };
+    window.addEventListener("blur", onWindowBlur);
+    return () => {
+      window.removeEventListener("blur", onWindowBlur);
+    };
+  }, []);
+
+  useEffect(() => {
+    const { body, documentElement } = document;
+    // A stacked modal would measure the already-hidden scrollbar as 0.
+    if (!body.classList.contains("modal-open")) {
+      const scrollbarWidth = window.innerWidth - documentElement.clientWidth;
+      // Takes the place of the scrollbar that overflow: hidden removes, so the
+      // page doesn't widen. Inline to win over the command palette's scroll lock.
+      body.style.paddingRight = `${scrollbarWidth}px`;
+      body.classList.add("modal-open");
+    }
+    return () => {
+      // By cleanup time this modal's own background node is already
+      // detached, so only unlock scroll once none remain.
+      if (document.querySelectorAll(`.${baseClass}__background`).length === 0) {
+        body.classList.remove("modal-open");
+        body.style.removeProperty("padding-right");
+      }
+    };
+  }, []);
 
   const backgroundClasses = classnames(`${baseClass}__background`, {
     [`${baseClass}__hidden`]: isHidden,
+    [`${baseClass}__closing`]: isClosing,
   });
 
   const modalContainerClasses = classnames(
@@ -96,6 +147,7 @@ const Modal = ({
     `${baseClass}__modal_container__${width}`,
     {
       [`${className}__loading`]: isLoading,
+      [`${baseClass}__closing`]: isClosing,
     }
   );
 
@@ -107,20 +159,65 @@ const Modal = ({
     [`${baseClass}__content-disabled`]: isContentDisabled,
   });
 
+  const handleBackgroundMouseDown = () => {
+    isDownOnBackgroundRef.current = true;
+  };
+
+  const handleBackgroundMouseUp = () => {
+    if (
+      !disableClosingModal &&
+      isDownOnBackgroundRef.current &&
+      !isFormDirtyRef.current
+    ) {
+      handleClose();
+    }
+    isDownOnBackgroundRef.current = false;
+  };
+
+  const handleContainerMouseDown = (e: React.MouseEvent) => e.stopPropagation();
+
+  const handleContainerMouseUp = (e: React.MouseEvent) => e.stopPropagation();
+
+  const handleContainerInput = () => {
+    isFormDirtyRef.current = true;
+  };
+
+  const handleContainerClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const isCheckbox =
+      target instanceof HTMLInputElement && target.type === "checkbox";
+    const isToggle = !!target.closest('button[role="switch"]');
+    if (isCheckbox || isToggle) {
+      isFormDirtyRef.current = true;
+    }
+  };
+
   return (
-    <div className={backgroundClasses}>
+    <div
+      className={backgroundClasses}
+      style={
+        {
+          "--modal-close-duration": `${CLOSE_ANIMATION_MS}ms`,
+        } as React.CSSProperties
+      }
+      onMouseDown={handleBackgroundMouseDown}
+      onMouseUp={handleBackgroundMouseUp}
+    >
       <div
         className={modalContainerClasses}
         tabIndex={-1} // Make focusable
+        onMouseDown={handleContainerMouseDown}
+        onMouseUp={handleContainerMouseUp}
+        onInput={handleContainerInput}
+        onClick={handleContainerClick}
       >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
           {!disableClosingModal && (
             <div className={`${baseClass}__ex`}>
               <Button
-                variant="icon"
-                onClick={onExit}
-                iconStroke
+                variant="subdued"
+                onClick={handleClose}
                 autofocus={isContentDisabled}
               >
                 <Icon name="close" color="core-fleet-black" size="medium" />

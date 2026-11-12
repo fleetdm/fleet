@@ -3,7 +3,7 @@ parasails.registerPage('remediate', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    //…
+    isWindowsUser: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -13,7 +13,9 @@ parasails.registerPage('remediate', {
     //…
   },
   mounted: async function() {
-    //…
+    if(bowser.windows) {
+      this.isWindowsUser = true;
+    }
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

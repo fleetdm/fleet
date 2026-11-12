@@ -3,20 +3,18 @@ package service
 import (
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/go-kit/kit/log/level"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 // noCheckHash is used by homebrew to signal that a hash shouldn't be checked, and FMA carries this convention over
@@ -28,7 +26,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	appID uint,
 	installScript, preInstallQuery, postInstallScript, uninstallScript string,
 	selfService bool, automaticInstall bool,
-	labelsIncludeAny, labelsExcludeAny []string,
+	labelsIncludeAny, labelsExcludeAny, labelsIncludeAll []string,
 ) (titleID uint, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return 0, err
@@ -40,7 +38,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 
 	// validate labels before we do anything else
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, labelsIncludeAny, labelsExcludeAny)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, labelsIncludeAny, labelsExcludeAny, labelsIncludeAll)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "validating software labels")
 	}
@@ -58,20 +56,33 @@ func (svc *Service) AddFleetMaintainedApp(
 		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
 		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{installScript, postInstallScript, uninstallScript}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return 0, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", &installScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", &postInstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "uninstall script", &uninstallScript, argErr)
+		if argErr != nil {
+			return 0, argErr
+		}
+		return 0, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
+	}
 
 	app, err := svc.ds.GetMaintainedAppByID(ctx, appID, teamID)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "getting maintained app by id")
 	}
 
-	app, err = maintained_apps.Hydrate(ctx, app)
+	app, err = maintained_apps.Hydrate(ctx, app, "", teamID, nil)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "hydrating app from manifest")
 	}
 
 	// Download installer from the URL
 	timeout := maintained_apps.InstallerTimeout
-	if v := os.Getenv("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
+	if v := dev_mode.Env("FLEET_DEV_MAINTAINED_APPS_INSTALLER_TIMEOUT"); v != "" {
 		timeout, _ = time.ParseDuration(v)
 	}
 	client := fleethttp.NewClient(fleethttp.WithTimeout(timeout))
@@ -95,7 +106,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		app.SHA256 = gotHash
 	}
 
-	extension := strings.TrimLeft(filepath.Ext(filename), ".")
+	extension := extensionFromFilename(filename)
 
 	installScript = file.Dos2UnixNewlines(installScript)
 	if installScript == "" {
@@ -107,18 +118,41 @@ func (svc *Service) AddFleetMaintainedApp(
 		uninstallScript = app.UninstallScript
 	}
 
+	// Validate script contents (size, UTF-8, shebang for non-Windows platforms).
+	for _, sv := range []struct {
+		name    string
+		content string
+	}{
+		{"install script", installScript},
+		{"post-install script", postInstallScript},
+		{"uninstall script", uninstallScript},
+	} {
+		if err := fleet.ValidateSoftwareInstallerScript(sv.content, app.Platform); err != nil {
+			return 0, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't add. %s validation failed: %s", sv.name, err.Error()),
+			}
+		}
+	}
+
+	// validate the effective scripts, after empty inputs were defaulted from
+	// the maintained-app manifest above
+	if err := validateFleetVariablesOnInstallerScripts(ctx, &installScript, &postInstallScript, &uninstallScript); err != nil {
+		return 0, err
+	}
+
 	maintainedAppID := &app.ID
 	if strings.TrimSpace(installScript) != strings.TrimSpace(app.InstallScript) ||
 		strings.TrimSpace(uninstallScript) != strings.TrimSpace(app.UninstallScript) {
 		maintainedAppID = nil // don't set app as maintained if scripts have been modified
 	}
 
-	// For platforms other than macOS, installer name has to match what we see in software inventory,
-	// so we have the UniqueIdentifier field to indicate what that should be (independent of the name we
-	// display when listing the FMA). For macOS, unique identifier is bundle name, and we use bundle
-	// identifier to link installers with inventory, so we set the name to the FMA's display name instead.
+	// For Windows, installer name has to match what we see in software inventory, so we have the
+	// UniqueIdentifier field to indicate what that should be (independent of the FMA's display name).
+	// If we have an upgrade code to match inventory with, we can set the installer name to the FMA's
+	// display name instead. For macOS, unique identifier is bundle name, and we use bundle identifier
+	// to link installers with inventory, so we set the name to the FMA's display name instead.
 	appName := app.UniqueIdentifier
-	if app.Platform == "darwin" || appName == "" {
+	if app.Platform == "darwin" || appName == "" || app.UpgradeCode != "" {
 		appName = app.Name
 	}
 
@@ -151,6 +185,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		UpgradeCode:           app.UpgradeCode,
 		StorageID:             app.SHA256,
 		FleetMaintainedAppID:  maintainedAppID,
+		FMAName:               app.Name,
 		PreInstallQuery:       preInstallQuery,
 		PostInstallScript:     postInstallScript,
 		SelfService:           selfService,
@@ -161,27 +196,38 @@ func (svc *Service) AddFleetMaintainedApp(
 		AutomaticInstallQuery: app.AutomaticInstallQuery,
 		Categories:            app.Categories,
 		URL:                   app.InstallerURL,
+		PatchQuery:            app.PatchQuery,
+		AppOpenQuery:          app.AppOpenQuery,
 	}
 
-	payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-	catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+	categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "getting software category ids")
+		return 0, ctxerr.Wrap(ctx, err, "filtering fleet-maintained app categories")
 	}
-
-	if len(catIDs) != len(payload.Categories) {
-		return 0, &fleet.BadRequestError{
-			Message:     "some or all of the categories provided don't exist",
-			InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
-		}
-	}
-
+	payload.Categories = categories
 	payload.CategoryIDs = catIDs
 
 	// Create record in software installers table
 	_, titleID, err = svc.ds.MatchOrCreateSoftwareInstaller(ctx, payload)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "setting downloaded installer")
+	}
+
+	// Windows programs report the version inside their name, so software already
+	// inventoried for this app sits under a versioned title rather than the one this
+	// installer now owns, and the uninstall action stays hidden until they are merged.
+	// The periodic pass would get there, but only on its next run: doing it here is what
+	// makes the action appear as soon as the app is added.
+	//
+	// Best effort on purpose. The app is added and stored at this point, so failing the
+	// request over a merge that the periodic pass will redo would be the wrong trade.
+	if app.Platform == "windows" {
+		if err := svc.ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx); err != nil {
+			svc.logger.WarnContext(ctx, "reconciling Windows software titles after adding a maintained app",
+				"slug", app.Slug,
+				"err", err,
+			)
+		}
 	}
 
 	// Save in S3
@@ -199,7 +245,7 @@ func (svc *Service) AddFleetMaintainedApp(
 		teamName = &t.Name
 	}
 
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
 		SoftwareTitle:    payload.Title,
 		SoftwarePackage:  payload.Filename,
@@ -207,8 +253,9 @@ func (svc *Service) AddFleetMaintainedApp(
 		TeamID:           payload.TeamID,
 		SelfService:      payload.SelfService,
 		SoftwareTitleID:  titleID,
-		LabelsIncludeAny: actLabelsIncl,
-		LabelsExcludeAny: actLabelsExcl,
+		LabelsIncludeAny: actLabelsInclAny,
+		LabelsExcludeAny: actLabelsExclAny,
+		LabelsIncludeAll: actLabelsInclAll,
 	}); err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
@@ -220,14 +267,14 @@ func (svc *Service) AddFleetMaintainedApp(
 		}
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
-			level.Warn(svc.logger).Log("msg", "failed to create activity for create automatic install policy for FMA", "err", err)
+			svc.logger.WarnContext(ctx, "failed to create activity for create automatic install policy for FMA", "err", err)
 		}
 	}
 
 	return titleID, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	var authErr error
 	// viewing the maintained app list without showing team-specific info can be done by anyone who can view individual FMAs
 	if teamID == nil {
@@ -267,5 +314,5 @@ func (svc *Service) GetFleetMaintainedApp(ctx context.Context, appID uint, teamI
 		return nil, err
 	}
 
-	return maintained_apps.Hydrate(ctx, app)
+	return maintained_apps.Hydrate(ctx, app, "", teamID, nil)
 }

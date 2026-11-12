@@ -1,0 +1,10 @@
+{
+  "name": "Amie",
+  "unique_identifier": "so.amie.electron-app",
+  "token": "amie",
+  "installer_format": "zip",
+  "slug": "amie/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

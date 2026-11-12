@@ -6,17 +6,22 @@
       "org_name": "",
       "org_logo_url": "",
       "org_logo_url_light_background": "",
+      "org_logo_url_dark_mode": "",
+      "org_logo_url_light_mode": "",
       "contact_url": "https://fleetdm.com/company/contact"
     },
     "server_settings": {
       "server_url": "",
       "live_query_disabled": false,
+      "live_reporting_disabled": false,
       "query_report_cap": 0,
       "query_reports_disabled": false,
+      "report_cap": 0,
+      "discard_reports_data": false,
       "enable_analytics": false,
       "deferred_save_host": false,
-      "scripts_disabled": false,
-      "ai_features_disabled": false
+      "ai_features_disabled": false,
+      "mcp_disabled": false
     },
     "host_expiry_settings": {
       "host_expiry_enabled": false,
@@ -24,7 +29,8 @@
     },
     "activity_expiry_settings": {
       "activity_expiry_enabled": false,
-      "activity_expiry_window": 0
+      "activity_expiry_window": 0,
+      "preserve_host_activities_on_reenrollment": false
     },
     "conditional_access": {
       "microsoft_entra_tenant_id": "",
@@ -32,13 +38,20 @@
       "okta_idp_id": null,
       "okta_assertion_consumer_service_url": null,
       "okta_audience_uri": null,
-      "okta_certificate": null
+      "okta_certificate": null,
+      "bypass_disabled": null
     },
     "features": {
       "enable_host_users": true,
-      "enable_software_inventory": false
+      "enable_software_inventory": false,
+      "historical_data": {
+        "uptime": true,
+        "vulnerabilities": true
+      }
     },
     "fleet_desktop": {
+      "alternative_browser_host": "",
+      "sso_enabled": false,
       "transparency_url": "https://fleetdm.com/transparency"
     },
     "vulnerability_settings": {
@@ -72,6 +85,9 @@
       "jira": null,
       "zendesk": null,
       "google_calendar": null,
+      "certificates_idp_introspection_urls": null,
+      "certificates_idp_client_ids": null,
+      "certificates_disable_host_end_user_binding": null,
       "conditional_access_enabled": null
     },
     "mdm": {
@@ -80,56 +96,111 @@
       "apple_server_url": "",
       "apple_bm_enabled_and_configured": false,
       "enabled_and_configured": false,
+      "apple_business": null,
       "apple_business_manager": null,
+      "apple_account_provisioning": {
+        "oauth_idp_token_url": null,
+        "oauth_idp_client_id": null,
+        "oauth_idp_client_secret": null
+      },
       "volume_purchasing_program": null,
-      "windows_enabled_and_configured": false,
+      "windows_mdm_enabled": false,
       "enable_disk_encryption": false,
-      "windows_require_bitlocker_pin": null,
+      "name_template": null,
+      "macos_recovery_lock_password_enabled": false,
+      "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "ios_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "ipados_updates": {
         "minimum_version": null,
         "deadline": null,
+        "deadline_days": null,
         "update_new_hosts": null
       },
       "windows_updates": {
         "deadline_days": 7,
         "grace_period_days": 3
       },
-      "windows_migration_enabled": false,
+      "windows_mdm_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
+      "windows_entra_tenant_ids": null,
+      "windows_entra_client_ids": null,
+      "microsoft_graph_credential_invalid": false,
+      "apple_require_hardware_attestation": false,
+      "only_allow_apple_business_enrollment": false,
+      "enable_profile_validation": false,
       "macos_migration": {
         "enable": false,
         "mode": "",
         "webhook_url": ""
       },
+      "apple_settings": {
+        "configuration_profiles": null,
+        "enable_disk_encryption": false,
+        "enable_escrow_disk_encryption_key": false
+      },
       "macos_settings": {
-        "custom_settings": null
+        "custom_settings": null,
+        "enable_disk_encryption": false,
+        "enable_escrow_disk_encryption_key": false
       },
       "macos_setup": {
         "bootstrap_package": null,
         "enable_end_user_authentication": false,
-        "macos_setup_assistant": null,
+        "enable_managed_local_account": false,
         "enable_release_device_manually": false,
-        "script": null,
-        "software": null,
+        "end_user_local_account_type": "admin",
+        "lock_end_user_info": false,
+        "macos_enable_bootstrap_package_during_manual_enrollment": false,
+        "macos_enable_bootstrap_package_during_migration": false,
+        "macos_setup_assistant": null,
         "manual_agent_install": null,
-        "require_all_software_macos": false
+        "macos_require_all_software": false,
+        "windows_require_all_software": false,
+        "script": null,
+        "software": null
       },
+      "setup_experience": {
+        "apple_enable_release_device_manually": false,
+        "apple_setup_assistant": null,
+        "enable_create_local_admin_account": false,
+        "enable_end_user_authentication": false,
+        "end_user_local_account_type": "admin",
+        "lock_end_user_info": false,
+        "macos_bootstrap_package": null,
+        "macos_enable_bootstrap_package_during_manual_enrollment": false,
+        "macos_enable_bootstrap_package_during_migration": false,
+        "macos_manual_agent_install": null,
+        "macos_script": null,
+        "macos_require_all_software": false,
+        "windows_require_all_software": false,
+        "software": null
+      },
+      "windows_automatic_enrollment": null,
       "windows_settings": {
-        "custom_settings": null
+        "custom_settings": null,
+        "enable_disk_encryption": false,
+        "configuration_profiles": null,
+        "enable_managed_local_account": false,
+        "require_bitlocker_pin": false
+      },
+      "linux_settings": {
+        "enable_escrow_disk_encryption_key": false
       },
       "android_settings": {
         "certificates": null,
-        "custom_settings": null
+        "custom_settings": null,
+        "configuration_profiles": null
       },
       "end_user_authentication": {
         "entity_id": "",
@@ -142,7 +213,12 @@
     "scripts": null,
     "gitops": {
       "gitops_mode_enabled": false,
-      "repository_url": ""
+      "repository_url": "",
+      "exceptions": {
+        "labels": false,
+        "software": false,
+        "secrets": false
+      }
     }
   }
 }

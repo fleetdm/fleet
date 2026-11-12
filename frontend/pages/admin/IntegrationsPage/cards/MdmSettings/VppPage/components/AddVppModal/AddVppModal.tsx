@@ -1,13 +1,16 @@
 import React, { useCallback, useContext, useState } from "react";
 
-import { NotificationContext } from "context/notification";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import FileUploader from "components/FileUploader";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
-import Modal from "components/Modal";
-import Button from "components/buttons/Button";
-import FileUploader from "components/FileUploader";
+import VppFleetsSelector from "../VppFleetsSelector";
+import { fleetsForApi, IVppFleetsValue } from "../VppFleetsSelector/helpers";
 
-import VppSetupSteps from "../VppSetupSteps";
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "add-vpp-modal";
@@ -17,10 +20,19 @@ interface IAddVppModalProps {
   onAdded: () => void;
 }
 
+const LEARN_MORE_URL = "https://fleetdm.com/learn-more-about/add-vpp";
+const FLEETS_LEARN_MORE_URL =
+  "https://fleetdm.com/learn-more-about/vpp-tokens-best-practice";
+
 const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
+  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
 
   const [tokenFile, setTokenFile] = useState<File | null>(null);
+  const [fleetsValue, setFleetsValue] = useState<IVppFleetsValue>({
+    allFleets: true,
+    fleetIds: [],
+  });
   const [isUploading, setIsUploading] = useState(false);
 
   const onSelectFile = useCallback((files: FileList | null) => {
@@ -34,21 +46,38 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
     setIsUploading(true);
     if (!tokenFile) {
       setIsUploading(false);
-      renderFlash("error", "No token selected.");
+      notify.error("No token selected.");
       return;
     }
 
     try {
-      await mdmAppleAPI.uploadVppToken(tokenFile);
-      renderFlash("success", "Added successfully.");
+      const { token } = await mdmAppleAPI.uploadVppToken(tokenFile);
+      const fleets = fleetsForApi(fleetsValue);
+      // The new token is unassigned, so Custom with no fleets needs no PATCH.
+      if (fleets !== null && !gitOpsModeEnabled) {
+        try {
+          await mdmAppleAPI.editVppTeams({
+            tokenId: token.id,
+            teamIds: fleets,
+          });
+        } catch (e) {
+          notify.error(
+            "Couldn't assign fleets. The VPP token was added. Try again from Actions > Edit fleets.",
+            { response: e }
+          );
+          onAdded();
+          return;
+        }
+      }
+      notify.success("Added successfully.");
       onAdded();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e));
+      notify.error(getErrorMessage(e), { response: e });
       onCancel();
     } finally {
       setIsUploading(false);
     }
-  }, [tokenFile, renderFlash, onAdded, onCancel]);
+  }, [tokenFile, fleetsValue, gitOpsModeEnabled, onAdded, onCancel]);
 
   return (
     <Modal
@@ -57,8 +86,11 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
       onExit={onCancel}
       width="large"
     >
-      <>
-        <VppSetupSteps extendendSteps />
+      <p className={`${baseClass}__description`}>
+        Follow the step-by-step guide to add VPP.{" "}
+        <CustomLink url={LEARN_MORE_URL} text="Learn more" newTab />
+      </p>
+      <div className={`${baseClass}__form`}>
         <FileUploader
           className={`${baseClass}__file-uploader ${
             isUploading ? `${baseClass}__file-uploader--loading` : ""
@@ -66,21 +98,30 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
           accept=".vpptoken"
           message="Content token (.vpptoken)"
           graphicName="file-vpp"
-          buttonType="brand-inverse-icon"
+          buttonType="secondary"
           buttonMessage={isUploading ? "Uploading..." : "Upload"}
           fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
           onFileUpload={onSelectFile}
         />
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={uploadVppToken}
-            isLoading={isUploading}
-            disabled={!tokenFile || isUploading}
-          >
-            Add VPP
-          </Button>
-        </div>
-      </>
+        {!gitOpsModeEnabled && (
+          <VppFleetsSelector
+            value={fleetsValue}
+            onChange={setFleetsValue}
+            tooltipPosition="bottom-start"
+            tooltipLearnMoreUrl={FLEETS_LEARN_MORE_URL}
+            disabled={isUploading}
+          />
+        )}
+      </div>
+      <div className="modal-cta-wrap">
+        <Button
+          onClick={uploadVppToken}
+          isLoading={isUploading}
+          disabled={!tokenFile || isUploading}
+        >
+          Add VPP
+        </Button>
+      </div>
     </Modal>
   );
 };

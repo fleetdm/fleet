@@ -1,17 +1,18 @@
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import React, { useContext } from "react";
-
-import { NotificationContext } from "context/notification";
-import { IScript } from "interfaces/script";
-import scriptAPI from "services/entities/scripts";
+import React from "react";
 
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import ListItem from "components/ListItem";
-import { ISupportedGraphicNames } from "components/ListItem/ListItem";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import ListItem from "components/ListItem";
+import { ISupportedGraphicNames } from "components/ListItem/ListItem";
+import { notify } from "components/ToastNotification";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { IScript } from "interfaces/script";
+import scriptAPI from "services/entities/scripts";
 
 const baseClass = "script-list-item";
 
@@ -20,6 +21,7 @@ interface IScriptListItemProps {
   onDelete: (script: IScript) => void;
   onClickScript: (script: IScript) => void;
   onEdit: (script: IScript) => void;
+  isTechnician?: boolean;
 }
 
 // TODO - useful to have a 'platform' field from API, for use elsewhere in app as well?
@@ -30,7 +32,7 @@ const getFileRenderDetails = (
 
   switch (fileExtension) {
     case "py":
-      return { graphicName: "file-py", platform: null };
+      return { graphicName: "file-py", platform: "macOS & Linux" };
     case "sh":
       return { graphicName: "file-sh", platform: "macOS & Linux" };
     case "ps1":
@@ -45,15 +47,15 @@ interface IScriptListItemDetailsProps {
   createdAt: string;
 }
 
-const onDownload = async (script: IScript, renderFlash: any) => {
+const onDownload = async (script: IScript) => {
   try {
     const content = await scriptAPI.downloadScript(script.id);
     const formatDate = format(new Date(), "yyyy-MM-dd");
     const filename = `${formatDate} ${script.name}`;
     const file = new File([content], filename);
     FileSaver.saveAs(file);
-  } catch {
-    renderFlash("error", "Couldn’t Download. Please try again.");
+  } catch (e) {
+    notify.error("Couldn’t Download. Please try again.", { response: e });
   }
 };
 
@@ -79,75 +81,90 @@ const ScriptListItem = ({
   onDelete,
   onClickScript,
   onEdit,
+  isTechnician,
 }: IScriptListItemProps) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const { graphicName, platform } = getFileRenderDetails(script.name);
+  const { gitOpsModeEnabled } = useGitOpsMode();
 
-  const onClickEdit = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
+  // Technicians have no action buttons; GitOps-mode admins have the Edit
+  // pencil disabled (so Enter does nothing). In both cases the row click is
+  // the only way to open the Edit modal, so expose it to the keyboard.
+  const isInteractiveRow = !!isTechnician || gitOpsModeEnabled;
+
+  const onClickEdit = () => {
     onEdit(script);
   };
 
-  const onClickDownload = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
-    onDownload(script, renderFlash);
+  const onClickDownload = () => {
+    onDownload(script);
   };
 
-  const onClickDelete = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
+  const onClickDelete = () => {
     onDelete(script);
   };
 
   const actions = (
-    <>
+    <div
+      className={`${baseClass}__actions`}
+      onClick={(evt) => evt.stopPropagation()}
+    >
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
           <Button
             disabled={disableChildren}
             onClick={onClickEdit}
             className={`${baseClass}__action-button`}
-            variant="icon"
-          >
-            <Icon name="pencil" />
-          </Button>
+            variant="secondary"
+            ariaLabel={`Edit ${script.name}`}
+            icon="pencil"
+          />
         )}
       />
       <Button
         className={`${baseClass}__action-button`}
-        variant="icon"
+        variant="secondary"
         onClick={onClickDownload}
-      >
-        <Icon name="download" />
-      </Button>
+        ariaLabel={`Download ${script.name}`}
+        icon="download"
+      />
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
           <Button
             disabled={disableChildren}
             onClick={onClickDelete}
             className={`${baseClass}__action-button`}
-            variant="icon"
-          >
-            <Icon name="trash" />
-          </Button>
+            variant="secondary"
+            ariaLabel={`Delete ${script.name}`}
+            icon="trash"
+          />
         )}
       />
-    </>
+    </div>
   );
 
   return (
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={<Button variant="text-link">{script.name}</Button>}
+      title={
+        <TooltipWrapper
+          tipContent={`ID: ${script.id}`}
+          underline={false}
+          position="top"
+          showArrow
+        >
+          <TooltipTruncatedText value={script.name} fixedPositionStrategy />
+        </TooltipWrapper>
+      }
       details={
         <ScriptListItemDetails
           platform={platform}
           createdAt={script.created_at}
         />
       }
-      actions={actions}
+      actions={isTechnician ? undefined : actions}
       onClick={() => onClickScript(script)}
+      isInteractiveRow={isInteractiveRow}
     />
   );
 };

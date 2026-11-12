@@ -12,6 +12,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/service/schedule/scheduletest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +23,7 @@ func TestTriggerCronScheduleAuth(t *testing.T) {
 		func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 			return func() (fleet.CronSchedule, error) {
 				s := schedule.New(
-					ctx, "test_sched", "id", 1*time.Second, schedule.NopLocker{}, schedule.NopStatsStore{},
+					ctx, "test_sched", "id", 1*time.Second, scheduletest.NopLocker{}, scheduletest.NopStatsStore{},
 					schedule.WithJob("test_job", func(ctx context.Context) error {
 						return nil
 					}),
@@ -90,8 +91,8 @@ func TestTriggerCronScheduleAuth(t *testing.T) {
 
 func TestCronSchedulesService(t *testing.T) {
 	ds := new(mock.Store)
-	locker := schedule.SetupMockLocker("test_sched", "id", time.Now().Add(-1*time.Hour))
-	statsStore := schedule.SetUpMockStatsStore("test_sched", fleet.CronStats{
+	locker := scheduletest.SetupMockLocker("test_sched", "id", time.Now().Add(-1*time.Hour))
+	statsStore := scheduletest.SetUpMockStatsStore("test_sched", fleet.CronStats{
 		ID:        1,
 		StatsType: fleet.CronStatsTypeScheduled,
 		Name:      "test_sched",

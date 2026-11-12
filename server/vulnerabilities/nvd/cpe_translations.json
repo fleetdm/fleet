@@ -125,6 +125,25 @@
   },
   {
     "software": {
+      "bundle_identifier": ["com.nextcloud.desktopclient"]
+    },
+    "filter": {
+      "product": ["desktop"],
+      "vendor": ["nextcloud"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Brotli", "brotli"],
+      "source": ["python_packages", "homebrew_packages"]
+    },
+    "filter": {
+      "product": ["brotli"],
+      "vendor": ["google"]
+    }
+  },
+  {
+    "software": {
       "name": ["jira"],
       "source": ["python_packages"]
     },
@@ -143,7 +162,25 @@
   },
   {
     "software": {
+      "name": ["bash", "python3-bash"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["flock"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["slate"],
       "source": ["homebrew_packages"]
     },
     "filter": {
@@ -318,6 +355,15 @@
     "filter": {
       "product": ["mps"],
       "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "name": ["teamcity"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "skip": true
     }
   },
   {
@@ -628,6 +674,14 @@
   },
   {
     "software": {
+      "name": ["git-man"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["org.virtualbox.app.VirtualBox"]
     },
     "filter": {
@@ -685,6 +739,38 @@
   },
   {
     "software": {
+      "bundle_identifier": ["/^com\\.adobe\\.LightroomClassicCC\\d*$/"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lightroom"],
+      "vendor": ["adobe"],
+      "sw_edition": ["classic"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.adobe.lightroomCC", "com.adobe.mas.lightroomCC"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lightroom"],
+      "vendor": ["adobe"],
+      "sw_edition": ["desktop"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["org.mozilla.firefoxdeveloperedition"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["firefox"],
+      "vendor": ["mozilla"]
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["com.logi.bolt.app"],
       "source": ["apps"]
     },
@@ -709,6 +795,37 @@
     },
     "filter": {
       "target_sw": ["intellij"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/(?i)^pgadmin ?4/"],
+      "source": ["programs", "homebrew_packages"]
+    },
+    "filter": {
+      "product": ["pgadmin", "pgadmin_4"],
+      "vendor": ["pgadmin"],
+      "target_sw": ["postgresql"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Acrobat Reader"],
+      "source": ["apps"],
+      "bundle_identifier": ["com.adobe.Reader"]
+    },
+    "filter": {
+      "product": ["acrobat_reader_dc"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Mattermost", "/^Mattermost \\d/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["mattermost_desktop"],
+      "vendor": ["mattermost"]
     }
   }
 ]

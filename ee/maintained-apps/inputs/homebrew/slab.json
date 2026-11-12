@@ -1,0 +1,10 @@
+{
+  "name": "Slab",
+  "unique_identifier": "com.slab.slab",
+  "token": "slab",
+  "installer_format": "dmg",
+  "slug": "slab/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

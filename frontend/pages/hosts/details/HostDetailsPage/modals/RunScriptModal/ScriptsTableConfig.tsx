@@ -1,11 +1,11 @@
 import React from "react";
 
+import ActionsDropdown from "components/ActionsDropdown";
+import Button from "components/buttons/Button";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostScript, ILastExecution } from "interfaces/script";
 import { IUser } from "interfaces/user";
-
-import Icon from "components/Icon";
-import ActionsDropdown from "components/ActionsDropdown";
 import {
   isGlobalAdmin,
   isTeamMaintainer,
@@ -13,9 +13,9 @@ import {
   isGlobalMaintainer,
   isGlobalObserver,
   isTeamObserver,
+  isGlobalTechnician,
+  isTeamTechnician,
 } from "utilities/permissions/permissions";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
 
@@ -60,7 +60,9 @@ export const generateActionDropdownOptions = (
       // TODO - refactor all permissions to be clear and granular
       // each of these (confusingly) cover both observer and observer+
       isGlobalObserver(currentUser) ||
-      isTeamObserver(currentUser, teamId));
+      isTeamObserver(currentUser, teamId) ||
+      isGlobalTechnician(currentUser) ||
+      isTeamTechnician(currentUser, teamId));
   const options: IDropdownOption[] = [
     {
       label: "Show run details",
@@ -82,7 +84,6 @@ export const generateActionDropdownOptions = (
 export const generateTableColumnConfigs = (
   currentUser: IUser | null,
   hostTeamId: number | null,
-  scriptsDisabled: boolean,
   onClickViewScript: (scriptDetails: IHostScript) => void,
   onSelectAction: (value: string, script: IHostScript) => void
 ) => {
@@ -94,7 +95,7 @@ export const generateTableColumnConfigs = (
       accessor: "name",
       Cell: (cellProps: ICellProps) => {
         const onClickScriptName = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
+          // Allows for a button to be clickable in a clickable row
           e.stopPropagation();
           onClickViewScript(cellProps.row.original);
         };
@@ -103,11 +104,12 @@ export const generateTableColumnConfigs = (
           <Button
             className="script-info"
             onClick={onClickScriptName}
-            variant="inverse"
+            variant="link"
           >
-            <span className={`script-info-text`}>
-              {cellProps.row.original.name}
-            </span>
+            <TooltipTruncatedTextCell
+              value={cellProps.row.original.name}
+              className="w400" // Funky workaround for a truncation text cell WITHIN a button
+            />
           </Button>
         );
       },
@@ -127,25 +129,6 @@ export const generateTableColumnConfigs = (
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IActionsDropdownProps) => {
-        if (scriptsDisabled) {
-          // create a basic span that doesn't use the dropdown component (which relies on react-select
-          // and makes it difficult for us to style the disabled tooltip underline on the placeholder text.
-          return (
-            <span className="run-script-action--disabled">
-              <TooltipWrapper
-                tipContent={
-                  <div>
-                    Running scripts is disabled in organization settings
-                  </div>
-                }
-              >
-                Actions
-              </TooltipWrapper>
-              <Icon name="chevron-down" color="ui-fleet-black-50" />
-            </span>
-          );
-        }
-
         const opts = generateActionDropdownOptions(
           currentUser,
           hostTeamId,
@@ -158,9 +141,8 @@ export const generateTableColumnConfigs = (
               onSelectAction(value, cellProps.row.original)
             }
             placeholder="Actions"
-            disabled={scriptsDisabled}
             menuAlign="right"
-            variant="small-button"
+            variant="secondary"
           />
         );
       },

@@ -1,0 +1,66 @@
+.self-service-category-filter-wrapper {
+  flex-shrink: 0;
+  position: relative;
+}
+
+.self-service-category-filter {
+  // The visible trigger is a real Fleet <Button variant="unstyled">. Its
+  // :focus-visible outline comes from button-variant() in
+  // components/buttons/Button/_styles.scss, so we just style layout here.
+  &__button {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 0;
+
+    // Button renders label + chevron inside <div class="children-wrapper">,
+    // so the gap has to live there — not on the button itself.
+    .children-wrapper {
+      gap: $pad-small;
+    }
+  }
+
+  &__button-label {
+    color: $core-fleet-black;
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 24px;
+    max-width: 350px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__icon {
+    svg {
+      transition: transform 0.25s ease;
+    }
+
+    &--open {
+      svg {
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  &__search-field {
+    position: sticky;
+    top: 0;
+    padding-top: $pad-small;
+    background-color: $core-fleet-white;
+    z-index: 1;
+
+    .icon {
+      position: absolute;
+      left: 12px;
+      top: 19px;
+    }
+  }
+
+  &__options-spacer {
+    height: $pad-small;
+  }
+
+  &__search-input {
+    @include menu-search-input;
+  }
+}

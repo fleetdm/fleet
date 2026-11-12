@@ -1,0 +1,13 @@
+{
+  "name": "OneDrive",
+  "slug": "onedrive/windows",
+  "package_identifier": "Microsoft.OneDrive",
+  "unique_identifier": "Microsoft OneDrive",
+  "open_process_name_prefix": "onedrive",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/onedrive_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/onedrive_uninstall.ps1"
+}

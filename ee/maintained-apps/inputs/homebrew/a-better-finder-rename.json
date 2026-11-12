@@ -1,0 +1,10 @@
+{
+  "name": "A Better Finder Rename",
+  "unique_identifier": "net.publicspace.abfr12",
+  "token": "a-better-finder-rename",
+  "installer_format": "dmg",
+  "slug": "a-better-finder-rename/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

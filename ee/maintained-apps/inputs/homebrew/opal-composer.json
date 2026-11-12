@@ -1,0 +1,10 @@
+{
+  "name": "Opal Composer",
+  "unique_identifier": "com.opalcamera.Opal.v2",
+  "token": "opal-composer",
+  "installer_format": "dmg",
+  "slug": "opal-composer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

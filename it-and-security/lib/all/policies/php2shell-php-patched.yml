@@ -1,0 +1,208 @@
+# PHP2Shell (CVE-2026-109618, CVE-2026-109619), disclosed 2026-10-21.
+# Unauthenticated RCE in the PHP runtime for every install that serves web requests
+# (PHP-FPM, Apache mod_php, php-cgi, FrankenPHP, LiteSpeed). Fixed in PHP 8.5.12, 8.4.27,
+# 8.3.36, and 8.2.35. PHP 8.1 and older only get vendor backports, which keep the old
+# upstream version number, so the Linux policy compares the full package version against the
+# vendor's fixed build for that distro and PHP branch (as published 2026-10-23).
+# Queries are identical to docs/solutions/all/policies/php2shell.policies.yml.
+# Advisories: https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w
+#             https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp
+- name: Linux - PHP packages patched for PHP2Shell (CVE-2026-109618, CVE-2026-109619)
+  query: |
+    WITH os AS (
+      SELECT platform, platform_like, major, version FROM os_version LIMIT 1
+    ),
+    php AS (
+      SELECT name, version AS pkg
+      FROM deb_packages
+      WHERE status = 'install ok installed'
+        AND (name GLOB 'php[0-9].[0-9]-common' OR name GLOB 'php[0-9].[0-9]-fpm'
+             OR name GLOB 'php[0-9].[0-9]-cgi' OR name GLOB 'php[0-9].[0-9]-cli'
+             OR name GLOB 'php[0-9].[0-9]-embed' OR name GLOB 'libapache2-mod-php[0-9].[0-9]'
+             OR name GLOB 'lsphp[0-9][0-9]' OR name GLOB 'lsphp[0-9][0-9]-common'
+             OR name IN ('php5', 'php5-common', 'php5-fpm', 'php5-cgi', 'php5-cli', 'libapache2-mod-php5'))
+      UNION ALL
+      SELECT name, version || '-' || release
+      FROM rpm_packages
+      WHERE version GLOB '[5-8].[0-9]*.[0-9]*'
+        AND (name IN ('php', 'php-common', 'php-cli', 'php-fpm', 'php-cgi')
+             OR name GLOB 'php[0-9]*-common' OR name GLOB 'php[0-9]*-fpm' OR name GLOB 'php[0-9]*-cli'
+             OR name GLOB 'php[0-9]' OR name GLOB 'php[0-9][0-9]' OR name GLOB 'php[0-9].[0-9]'
+             OR name GLOB 'apache2-mod_php*' OR name GLOB 'mod_php*'
+             OR name GLOB 'lsphp[0-9][0-9]' OR name GLOB 'ea-php[0-9][0-9]-php-common' OR name GLOB 'alt-php[0-9][0-9]')
+    ),
+    branched AS (
+      SELECT p.name, p.pkg,
+             -- Strip a Debian epoch ("1:7.4.33-...") so the branch is always the first 3 chars.
+             CASE WHEN p.pkg LIKE '%:%' THEN substr(p.pkg, instr(p.pkg, ':') + 1) ELSE p.pkg END AS v,
+             (p.pkg LIKE '%sury%' OR p.pkg LIKE '%+0~20%') AS sury,
+             -- Remi, LiteSpeed, cPanel EasyApache, and CloudLinux ship upstream version numbers
+             (p.pkg LIKE '%.remi%' OR p.name GLOB 'lsphp*' OR p.name GLOB 'ea-php*' OR p.name GLOB 'alt-php*') AS upstream,
+             (p.pkg LIKE '%.alma.%') AS alma,
+             o.platform, o.platform_like, o.major, o.version AS os_version
+      FROM php p, os o
+    ),
+    fixed AS (
+      SELECT name, pkg, v, substr(v, 1, 3) AS branch,
+        -- Ubuntu security updates always carry "ubuntu" in the version; a GA sync build like
+        -- 8.3.6-0maysync1 does not, and version_compare can't order it against the fixed build
+        (platform = 'ubuntu' AND NOT sury AND NOT upstream AND v NOT LIKE '%ubuntu%') AS ga_build,
+        CASE
+          -- packages.sury.org and ppa:ondrej/php ship upstream version numbers (EOL branches: patched revisions)
+          WHEN sury THEN CASE substr(v, 1, 3)
+            WHEN '8.5' THEN '8.5.12' WHEN '8.4' THEN '8.4.27' WHEN '8.3' THEN '8.3.36' WHEN '8.2' THEN '8.2.35'
+            WHEN '8.1' THEN '8.1.34-9' WHEN '8.0' THEN '8.0.30-25' WHEN '7.4' THEN '7.4.33-31'
+            WHEN '7.3' THEN '7.3.33-35' WHEN '7.2' THEN '7.2.34-66' WHEN '7.1' THEN '7.1.33-80'
+            WHEN '7.0' THEN '7.0.33-92' WHEN '5.6' THEN '5.6.40-104' END
+          WHEN upstream THEN CASE substr(v, 1, 3)
+            WHEN '8.5' THEN '8.5.12' WHEN '8.4' THEN '8.4.27' WHEN '8.3' THEN '8.3.36' WHEN '8.2' THEN '8.2.35' END
+          -- Ubuntu backports without changing the upstream version (USN-8948-1, USN-8948-2)
+          WHEN platform = 'ubuntu' THEN CASE
+            WHEN os_version LIKE '26.10%' AND substr(v, 1, 3) = '8.5' THEN '8.5.9-0ubuntu2.1'
+            WHEN os_version LIKE '26.04%' AND substr(v, 1, 3) = '8.5' THEN '8.5.4-0ubuntu1.5'
+            WHEN os_version LIKE '24.04%' AND substr(v, 1, 3) = '8.3' THEN '8.3.6-0ubuntu0.24.04.13'
+            WHEN os_version LIKE '22.04%' AND substr(v, 1, 3) = '8.1' THEN '8.1.2-1ubuntu2.28'
+            WHEN os_version LIKE '20.04%' AND substr(v, 1, 3) = '7.4' THEN '7.4.3-4ubuntu2.29+esm5'
+            WHEN os_version LIKE '18.04%' AND substr(v, 1, 3) = '7.2' THEN '7.2.24-0ubuntu0.18.04.17+esm14'
+            WHEN os_version LIKE '16.04%' AND substr(v, 1, 3) = '7.0' THEN '7.0.33-0ubuntu0.16.04.16+esm22'
+            WHEN os_version LIKE '14.04%' AND substr(v, 1, 3) = '5.5' THEN '5.5.9+dfsg-1ubuntu4.29+esm18' END
+          -- Debian (DSA-6574-1, DLA-4848-1) and Freexian ELTS (ELA-1853-1, ELA-1854-1)
+          WHEN platform = 'debian' THEN CASE
+            WHEN substr(v, 1, 3) = '8.5' THEN '8.5.12' WHEN substr(v, 1, 3) = '8.4' THEN '8.4.27'
+            WHEN substr(v, 1, 3) = '8.3' THEN '8.3.36' WHEN substr(v, 1, 3) = '8.2' THEN '8.2.35'
+            WHEN major = '11' AND substr(v, 1, 3) = '7.4' THEN '7.4.33-1+deb11u14'
+            WHEN major = '10' AND substr(v, 1, 3) = '7.3' THEN '7.3.31-1~deb10u16' END
+          -- osquery reports every distro with /etc/redhat-release as platform 'rhel', Fedora included, so match Fedora first
+          WHEN platform = 'fedora' OR os_version LIKE 'Fedora%' THEN CASE substr(v, 1, 3)
+            WHEN '8.5' THEN '8.5.12' WHEN '8.4' THEN '8.4.27' END
+          -- AlmaLinux rebuilds keep the old version and add a .alma.1 release (ALSA 2026-10-21)
+          WHEN platform = 'rhel' AND alma THEN CASE
+            WHEN major = '10' AND substr(v, 1, 3) = '8.4' THEN '8.4.24-1.el10_2.alma.1'
+            WHEN major = '10' AND substr(v, 1, 3) = '8.3' THEN '8.3.33-1.el10_2.alma.1'
+            WHEN major = '9' AND substr(v, 1, 3) = '8.3' THEN '8.3.33-1.module_el9.8.0+328'
+            WHEN major = '9' AND substr(v, 1, 3) = '8.2' THEN '8.2.33-1.module_el9.8.0+327'
+            WHEN major = '9' AND substr(v, 1, 3) = '8.1' THEN '8.1.32-1.module_el9.8.0+326'
+            WHEN major = '9' AND substr(v, 1, 3) = '8.0' THEN '8.0.30-8.el9_8.alma.1'
+            WHEN major = '8' AND substr(v, 1, 3) = '8.2' THEN '8.2.33-1.module_el8.10.0+4320'
+            WHEN major = '8' AND substr(v, 1, 3) = '8.0' THEN '8.0.30-1.module_el8.10.0+4319'
+            WHEN major = '8' AND substr(v, 1, 3) = '7.4' THEN '7.4.33-8.module_el8.10.0+4321'
+            WHEN major = '8' AND substr(v, 1, 3) = '7.3' THEN '7.3.20-1.module_el8.10.0+4316'
+            WHEN major = '8' AND substr(v, 1, 3) = '7.2' THEN '7.2.24-1.module_el8.10.0+4315' END
+          -- RHEL, Rocky, Oracle, CentOS Stream (RHSA-2026:87070 to 87151). RHEL 9 php:8.4 had no fix on 2026-10-23.
+          WHEN platform = 'rhel' THEN CASE
+            WHEN major = '10' AND substr(v, 1, 3) = '8.4' THEN '8.4.27'
+            WHEN major = '10' AND substr(v, 1, 3) = '8.3' THEN '8.3.36'
+            WHEN major = '9' AND substr(v, 1, 3) = '8.3' THEN '8.3.36'
+            WHEN major = '9' AND substr(v, 1, 3) = '8.2' THEN '8.2.35'
+            WHEN major = '9' AND substr(v, 1, 3) = '8.0' THEN '8.0.30-8.el9_8.1'
+            WHEN major = '8' AND substr(v, 1, 3) = '8.2' THEN '8.2.35'
+            WHEN major = '8' AND substr(v, 1, 3) = '7.4' THEN '7.4.33-8' END
+          -- Amazon Linux 2023 (ALAS2023-2026-3301 to 3304) and the AL2 php8.2 extra. php8.1 and AL2 core php: no fix planned.
+          WHEN platform = 'amzn' THEN CASE substr(v, 1, 3)
+            WHEN '8.5' THEN '8.5.12' WHEN '8.4' THEN '8.4.27' WHEN '8.3' THEN '8.3.36' WHEN '8.2' THEN '8.2.35' END
+          -- SUSE (SUSE-SU-2026:4843-1, 4844-1, 4852-1, 4853-1, 4870-1)
+          WHEN platform_like LIKE '%suse%' THEN CASE
+            WHEN substr(v, 1, 3) = '8.5' THEN '8.5.12' WHEN substr(v, 1, 3) = '8.4' THEN '8.4.27'
+            WHEN substr(v, 1, 3) = '8.3' THEN '8.3.36' WHEN substr(v, 1, 3) = '8.2' THEN '8.2.35'
+            WHEN substr(v, 1, 3) = '8.0' THEN '8.0.30-150400.4.80.1'
+            WHEN substr(v, 1, 3) = '7.4' AND major = '15' THEN '7.4.33-150400.4.81.1'
+            WHEN substr(v, 1, 3) = '7.4' AND major = '12' THEN '7.4.33-1.74.1' END
+          -- Any other distro: supported branches use upstream numbers; EOL branches need a vendor check
+          ELSE CASE substr(v, 1, 3)
+            WHEN '8.5' THEN '8.5.12' WHEN '8.4' THEN '8.4.27' WHEN '8.3' THEN '8.3.36' WHEN '8.2' THEN '8.2.35' END
+        END AS fixed
+      FROM branched
+    )
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM fixed
+      -- version_compare treats "9+ubuntu22" as one token and longer tokens win, so turn + and _ into dots first
+      WHERE CASE WHEN fixed IS NULL THEN 1
+                 WHEN ga_build THEN 1
+                 WHEN version_compare(replace(replace(v, '+', '.'), '_', '.'), replace(replace(fixed, '+', '.'), '_', '.')) < 0 THEN 1
+                 ELSE 0 END = 1
+    );
+  critical: true
+  description: |
+    Passes when no PHP package is installed, or when every installed PHP package (deb or rpm)
+    is at or above the vendor's fixed build for PHP2Shell (CVE-2026-109618, CVE-2026-109619).
+    Fails when a package is older than the fix, or when the PHP branch has no known vendor fix
+    (for example PHP 8.1 on Amazon Linux 2023, RHEL 9 php:8.4, or a self-built PHP).
+    Only distro packages are checked. Containers and FrankenPHP bring their own PHP.
+  resolution: |
+    If you are failing this policy, drop a note in #help-it. Then, IT will run the remediate-php2shell-linux.sh
+    script (it-and-security/lib/linux/scripts/remediate-php2shell-linux.sh) on this host. It upgrades the PHP
+    packages with apt, dnf, yum, zypper, or apk and restarts PHP-FPM, and Apache when mod_php is loaded, so no
+    worker keeps the old code. If the policy stays failing, the host runs a PHP branch with no vendor fix
+    (switch to a supported branch) or a repository mirror hasn't synced yet.
+  platform: linux
+  calendar_events_enabled: false
+
+- name: macOS - Homebrew PHP patched for PHP2Shell (CVE-2026-109618, CVE-2026-109619)
+  query: |
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM homebrew_packages
+      WHERE (name = 'php' OR name LIKE 'php@%')
+        -- A Homebrew revision ("8.3.35_1") would otherwise outrank 8.3.36, so compare it as a 4th number
+        AND CASE
+              WHEN version LIKE '8.5.%' THEN version_compare(replace(version, '_', '.'), '8.5.12') < 0
+              WHEN version LIKE '8.4.%' THEN version_compare(replace(version, '_', '.'), '8.4.27') < 0
+              WHEN version LIKE '8.3.%' THEN version_compare(replace(version, '_', '.'), '8.3.36') < 0
+              WHEN version LIKE '8.2.%' THEN version_compare(replace(version, '_', '.'), '8.2.35') < 0
+              ELSE 1
+            END
+    );
+  critical: false
+  description: |
+    Passes when no Homebrew PHP formula is installed, or when every installed php or php@X.Y
+    formula is at or above 8.5.12, 8.4.27, 8.3.36, or 8.2.35. Fails for php@8.1 and older,
+    which Homebrew no longer updates. A Mac is only exposed when it serves web requests with
+    PHP (for example php-fpm or Apache with mod_php from Homebrew), but the fix is the same.
+    MAMP and other bundled PHP runtimes aren't covered by this policy.
+  resolution: |
+    If you are failing this policy, drop a note in #help-it. Then, IT will run the remediate-php2shell-macos.sh
+    script (it-and-security/lib/macos/scripts/remediate-php2shell-macos.sh) on this host. It runs brew update and
+    brew upgrade for each installed PHP formula as the Homebrew owner and restarts PHP services managed by
+    brew services. If you have php@8.1 or older, replace it with a supported formula, or uninstall it if you
+    don't need it.
+  platform: darwin
+  calendar_events_enabled: false
+
+- name: Windows - PHP builds patched for PHP2Shell (CVE-2026-109618, CVE-2026-109619)
+  query: |
+    WITH candidates AS (
+      SELECT path FROM file
+      WHERE path LIKE 'C:\php%\php.exe' OR path LIKE 'C:\Program Files\PHP\php.exe'
+         OR path LIKE 'C:\Program Files\PHP\%\php.exe' OR path LIKE 'C:\Program Files (x86)\PHP\%\php.exe'
+         OR path LIKE 'C:\xampp\php\php.exe' OR path LIKE 'C:\wamp64\bin\php\%\php.exe'
+         OR path LIKE 'C:\wamp\bin\php\%\php.exe' OR path LIKE 'C:\laragon\bin\php\%\php.exe'
+         OR path LIKE 'C:\tools\php%\php.exe' OR path LIKE 'C:\inetpub\PHP\%\php.exe'
+         OR path LIKE 'C:\Program Files\iis express\PHP\%\php.exe'
+      UNION
+      SELECT DISTINCT path FROM processes
+      WHERE name IN ('php.exe', 'php-cgi.exe', 'php-win.exe') AND path <> ''
+    )
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM candidates c
+      JOIN file f ON f.path = c.path
+      WHERE CASE
+              WHEN f.file_version LIKE '8.5.%' THEN version_compare(f.file_version, '8.5.12') < 0
+              WHEN f.file_version LIKE '8.4.%' THEN version_compare(f.file_version, '8.4.27') < 0
+              WHEN f.file_version LIKE '8.3.%' THEN version_compare(f.file_version, '8.3.36') < 0
+              WHEN f.file_version LIKE '8.2.%' THEN version_compare(f.file_version, '8.2.35') < 0
+              ELSE 1
+            END
+    );
+  critical: false
+  description: |
+    Passes when no PHP build is found, or when every php.exe in the common install locations
+    (C:\php*, Program Files\PHP, XAMPP, WAMP, Laragon, Chocolatey, inetpub) and every running
+    php.exe, php-cgi.exe, or php-win.exe reports a file version at or above 8.5.12, 8.4.27,
+    8.3.36, or 8.2.35. PHP 8.1 and older Windows builds have no fix and always fail.
+  resolution: |
+    If you are failing this policy, drop a note in #help-it. Then, IT will download the fixed build for the same
+    branch and architecture from https://windows.php.net/download/, replace the PHP directory, and restart IIS
+    (iisreset) or the Apache service so php-cgi.exe workers load the new build. For XAMPP, WAMP, or Laragon,
+    install the bundle's updated PHP. Until then, IT can run the mitigate-php2shell-windows.ps1 script
+    (it-and-security/lib/windows/scripts/mitigate-php2shell-windows.ps1) to disable session upload progress.
+  platform: windows
+  calendar_events_enabled: false

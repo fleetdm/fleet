@@ -1,11 +1,12 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import React from "react";
 
-import createMockUser from "__mocks__/userMock";
 import { createMockHostSummary } from "__mocks__/hostMock";
-
+import createMockUser from "__mocks__/userMock";
 import { BootstrapPackageStatus } from "interfaces/mdm";
+import { HostPlatform } from "interfaces/platform";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
+
 import HostSummary from "./HostSummary";
 
 describe("Host Summary section", () => {
@@ -28,7 +29,7 @@ describe("Host Summary section", () => {
     });
   });
 
-  describe("Team data", () => {
+  describe("Fleet data", () => {
     it("renders the team name when present", () => {
       const render = createCustomRenderer({
         context: {
@@ -39,25 +40,25 @@ describe("Host Summary section", () => {
           },
         },
       });
-      const summaryData = createMockHostSummary({ team_name: "Engineering" });
+      const summaryData = createMockHostSummary({ fleet_name: "Engineering" });
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
-      expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
+      expect(screen.getByText("Fleet").nextElementSibling).toHaveTextContent(
         "Engineering"
       );
     });
 
-    it("renders 'No team' when team_name is '---'", () => {
+    it("renders 'No team' when fleet_name is '---'", () => {
       const render = createCustomRenderer({
         /* ...context... */
       });
-      const summaryData = createMockHostSummary({ team_name: "---" });
+      const summaryData = createMockHostSummary({ fleet_name: "---" });
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
-      expect(screen.getByText("No team")).toBeInTheDocument();
+      expect(screen.getByText("Unassigned")).toBeInTheDocument();
     });
   });
 
   describe("iOS and iPadOS data", () => {
-    it("for iOS, renders Team data only", async () => {
+    it("for iOS, renders Fleet data only", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -69,21 +70,22 @@ describe("Host Summary section", () => {
       });
 
       const summaryData = createMockHostSummary({
-        team_id: 2,
-        team_name: "Mobile",
+        fleet_id: 2,
+        fleet_name: "Mobile",
         platform: "ios",
-        os_version: "iOS 14.7.1",
+        os_name: "iOS",
+        os_version: "14.7.1",
       });
 
-      const teamName = summaryData.team_name as string;
+      const teamName = summaryData.fleet_name as string;
 
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
-      expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
+      expect(screen.getByText("Fleet").nextElementSibling).toHaveTextContent(
         teamName
       );
     });
-    it("for iPadOS, renders Team data only", async () => {
+    it("for iPadOS, renders Fleet data only", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -95,17 +97,18 @@ describe("Host Summary section", () => {
       });
 
       const summaryData = createMockHostSummary({
-        team_id: 2,
-        team_name: "Mobile",
+        fleet_id: 2,
+        fleet_name: "Mobile",
         platform: "ipados",
-        os_version: "iPadOS 16.7.8",
+        os_name: "iPadOS",
+        os_version: "16.7.8",
       });
 
-      const teamName = summaryData.team_name as string;
+      const teamName = summaryData.fleet_name as string;
 
       render(<HostSummary summaryData={summaryData} isPremiumTier />);
 
-      expect(screen.getByText("Team").nextElementSibling).toHaveTextContent(
+      expect(screen.getByText("Fleet").nextElementSibling).toHaveTextContent(
         teamName
       );
     });
@@ -135,6 +138,230 @@ describe("Host Summary section", () => {
 
       expect(screen.getByText("Scheduled maintenance")).toBeInTheDocument();
       expect(screen.getByText(prettyStartTime)).toBeInTheDocument();
+    });
+  });
+
+  describe("Mobile Status row", () => {
+    it.each<[string, HostPlatform, string]>([
+      ["Android", "android", "Android 14"],
+      ["iOS", "ios", "iOS 17.4"],
+      ["iPadOS", "ipados", "iPadOS 17.4"],
+    ])(
+      "renders the Status row for a Free-tier %s host",
+      (_label, platform, os_version) => {
+        const render = createCustomRenderer({
+          context: {
+            app: {
+              isPremiumTier: false,
+              isGlobalAdmin: true,
+              currentUser: createMockUser(),
+            },
+          },
+        });
+        const summaryData = createMockHostSummary({
+          platform,
+          os_version,
+          status: "online",
+        });
+
+        render(<HostSummary summaryData={summaryData} isPremiumTier={false} />);
+
+        expect(screen.getByText("Status")).toBeInTheDocument();
+        expect(screen.getByText("Online")).toBeInTheDocument();
+      }
+    );
+  });
+
+  describe("Online history entry point", () => {
+    it.each<[string, HostPlatform]>([
+      ["macOS", "darwin"],
+      ["iOS", "ios"],
+      ["iPadOS", "ipados"],
+      ["Android", "android"],
+    ])(
+      "wraps the status pill in a clickable button for %s when toggleOnlineHistoryModal is provided",
+      async (_label, platform) => {
+        const toggleOnlineHistoryModal = jest.fn();
+        const summaryData = createMockHostSummary({
+          platform,
+          status: "online",
+        });
+
+        const { user } = renderWithSetup(
+          <HostSummary
+            summaryData={summaryData}
+            toggleOnlineHistoryModal={toggleOnlineHistoryModal}
+          />
+        );
+
+        await user.click(screen.getByRole("button", { name: /online/i }));
+        expect(toggleOnlineHistoryModal).toHaveBeenCalled();
+      }
+    );
+
+    it("renders the status pill as plain text when toggleOnlineHistoryModal is not provided (e.g., My device page)", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        status: "online",
+      });
+
+      renderWithSetup(<HostSummary summaryData={summaryData} />);
+
+      expect(screen.getByText("Online")).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /online/i })
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Patch deadline", () => {
+    it("renders the deadline in the host's timezone on a macOS Premium host", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        timezone: "America/Argentina/Buenos_Aires",
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          showPatchDeadline
+        />
+      );
+
+      expect(screen.getByText("Patch deadline")).toBeInTheDocument();
+      // 20:00 UTC → 17:00 in Buenos Aires (UTC-3)
+      expect(screen.getByText(/Oct 13 at 5:00 PM/)).toBeInTheDocument();
+    });
+
+    it("formats the deadline in 24-hour time for an en-GB viewer", () => {
+      const languageSpy = jest
+        .spyOn(window.navigator, "language", "get")
+        .mockReturnValue("en-GB");
+
+      try {
+        const summaryData = createMockHostSummary({
+          platform: "darwin",
+          timezone: "America/Argentina/Buenos_Aires",
+          patch_deadline_at: "2026-10-13T20:00:00Z",
+        });
+
+        renderWithSetup(
+          <HostSummary
+            summaryData={summaryData}
+            isPremiumTier
+            showPatchDeadline
+          />
+        );
+
+        // 20:00 UTC → 17:00 in Buenos Aires. en-GB → 24-hour time.
+        expect(screen.getByText(/17:00/)).toBeInTheDocument();
+        expect(screen.queryByText(/PM/)).not.toBeInTheDocument();
+      } finally {
+        languageSpy.mockRestore();
+      }
+    });
+
+    it("renders '---' when a deadline is set but the host's timezone hasn't been collected yet", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        timezone: null,
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          showPatchDeadline
+        />
+      );
+
+      const label = screen.getByText("Patch deadline");
+      expect(label.nextElementSibling).toHaveTextContent("---");
+    });
+
+    it("renders '---' when the browser doesn't support the host's timezone", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        timezone: "Not/AZone",
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          showPatchDeadline
+        />
+      );
+
+      const label = screen.getByText("Patch deadline");
+      expect(label.nextElementSibling).toHaveTextContent("---");
+    });
+
+    it("renders '---' on a macOS Premium host with no scheduled deadline", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        patch_deadline_at: null,
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          showPatchDeadline
+        />
+      );
+
+      const label = screen.getByText("Patch deadline");
+      expect(label.nextElementSibling).toHaveTextContent("---");
+    });
+
+    it("hides Patch deadline on non-macOS hosts", () => {
+      const summaryData = createMockHostSummary({
+        platform: "windows",
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier
+          showPatchDeadline
+        />
+      );
+
+      expect(screen.queryByText("Patch deadline")).not.toBeInTheDocument();
+    });
+
+    it("hides Patch deadline on Fleet Free", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(
+        <HostSummary
+          summaryData={summaryData}
+          isPremiumTier={false}
+          showPatchDeadline
+        />
+      );
+
+      expect(screen.queryByText("Patch deadline")).not.toBeInTheDocument();
+    });
+
+    it("hides Patch deadline when showPatchDeadline is not set (e.g., My device page)", () => {
+      const summaryData = createMockHostSummary({
+        platform: "darwin",
+        patch_deadline_at: "2026-10-13T20:00:00Z",
+      });
+
+      renderWithSetup(<HostSummary summaryData={summaryData} isPremiumTier />);
+
+      expect(screen.queryByText("Patch deadline")).not.toBeInTheDocument();
     });
   });
 

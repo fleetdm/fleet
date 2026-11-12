@@ -1,10 +1,9 @@
-import React, { useContext, useState } from "react";
-
-import certAPI, { ICertificate } from "services/entities/certificates";
-import { NotificationContext } from "context/notification";
+import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import certAPI, { ICertificate } from "services/entities/certificates";
 
 const baseClass = "delete-cert-template-modal";
 
@@ -19,7 +18,6 @@ const DeleteCertificateModal = ({
   onSuccess,
   onExit,
 }: IDeleteCertModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const { name, id } = cert;
@@ -28,37 +26,37 @@ const DeleteCertificateModal = ({
     setIsUpdating(true);
     try {
       await certAPI.deleteCert(id);
-      renderFlash("success", "Successfully deleted certificate.");
+      notify.success("Successfully deleted certificate.");
       setIsUpdating(false);
       onSuccess();
       onExit();
     } catch (e) {
       setIsUpdating(false);
-      renderFlash("error", "Couldn't delete certificate. Please try again.");
+      notify.error("Couldn't delete certificate. Please try again.", {
+        response: e,
+      });
     }
   };
 
   return (
     <Modal className={baseClass} title="Delete certificate" onExit={onExit}>
-      <>
-        <p>
-          This action will remove the <b>{name}</b> certificate from all hosts
-          assigned to this team.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            variant="alert"
-            onClick={onDelete}
-            isLoading={isUpdating}
-            disabled={isUpdating}
-          >
-            Delete
-          </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        This action will remove the <b>{name}</b> certificate from all hosts
+        assigned to this fleet.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          variant="alert"
+          onClick={onDelete}
+          isLoading={isUpdating}
+          disabled={isUpdating}
+        >
+          Delete
+        </Button>
+        <Button variant="secondary" onClick={onExit}>
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

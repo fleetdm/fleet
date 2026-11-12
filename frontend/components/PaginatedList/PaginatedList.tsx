@@ -1,16 +1,18 @@
+import classnames from "classnames";
 import React, {
   useState,
   useEffect,
   useImperativeHandle,
   forwardRef,
   Ref,
+  ReactElement,
 } from "react";
-import classnames from "classnames";
-import { ReactElement } from "react-markdown/lib/react-markdown";
+
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
 import Checkbox from "components/forms/fields/Checkbox";
+import Pagination from "components/Pagination";
 import Spinner from "components/Spinner";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Pagination from "components/Pagination";
 
 const baseClass = "paginated-list";
 
@@ -104,7 +106,6 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   const [dirtyItems, setDirtyItems] = useState<Record<string | number, TItem>>(
     {}
   );
-  const [error, setError] = useState<Error | null>(null);
   const idKey = _idKey ?? "id";
   const labelKey = _labelKey ?? "name";
   const pageSize = _pageSize ?? 20;
@@ -127,9 +128,6 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   const disableNext = !count
     ? data.length < pageSize
     : currentPage * pageSize + data.length >= count;
-
-  // TODO -- better error state?
-  if (error) return <p>Error: {error.message}</p>;
 
   // Render the list.
   const classes = classnames(baseClass, "form", {
@@ -208,7 +206,13 @@ function PaginatedListInner<TItem extends Record<string, any>>(
           );
         })}
       </ul>
-      {helpText && <div className="form-field__help-text">{helpText}</div>}
+      {helpText && (
+        <div className="form-field__help-text">
+          <CustomLinkSizeContext.Provider value="small">
+            {helpText}
+          </CustomLinkSizeContext.Provider>
+        </div>
+      )}
       <Pagination
         disablePrev={currentPage === 0}
         disableNext={disableNext}

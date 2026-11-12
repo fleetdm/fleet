@@ -146,4 +146,4 @@ than a 200, but I have skipped that for now.
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2023-05-09">
 <meta name="articleImageUrl" value="../website/assets/images/articles/using-fleet-and-okta-workflows-to-generate-a-daily-os-report-800x450@2x.jpg">
-<meta name="description" value="Learn how to use Fleet to query device OS information through the Fleet REST API and automate daily Slack notifications using Okta Workflows.">
+<meta name="description" value="Learn how to use Fleet to report device OS information through the Fleet REST API and automate daily Slack notifications using Okta Workflows.">

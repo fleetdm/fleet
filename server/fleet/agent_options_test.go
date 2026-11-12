@@ -30,7 +30,7 @@ func TestValidateAgentOptions(t *testing.T) {
 
 		{"valid script timeout", `{"script_execution_timeout": 600}`, true, ""},
 
-		{"invalid script timeout", `{"script_execution_timeout": 3601}`, true, `script_execution_timeout' value exceeds limit. Maximum value is 3600`},
+		{"invalid script timeout", `{"script_execution_timeout": 18001}`, true, `script_execution_timeout' value exceeds limit. Maximum value is 18000`},
 
 		{"overrides.platform is null", `{"overrides": {
 			"platforms": {
@@ -64,14 +64,14 @@ func TestValidateAgentOptions(t *testing.T) {
 				"disable_subscribers": true
 			},
 			"options": {"aws_debug": 1}
-		}}`, true, "cannot unmarshal bool into Go struct field .events.disable_subscribers of type []string"},
+		}}`, true, "cannot unmarshal bool into Go struct field osqueryAgentOptions.events.disable_subscribers of type []string"},
 		{"invalid overrides value", `{"overrides":{
 			"platforms": {
 				"linux": {
 					"options": {"aws_debug": true, "events_max": "nope"}
 				}
 			}
-		}}`, true, `cannot unmarshal string into Go struct field osqueryOptions.options.events_max of type uint64`},
+		}}`, true, `cannot unmarshal string into Go struct field osqueryAgentOptions.options.events_max of type uint64`},
 
 		{"valid packs string", `{"config":{
 			"packs": {
@@ -142,6 +142,23 @@ func TestValidateAgentOptions(t *testing.T) {
 		{"setting a valid os-specific flag", `{"command_line_flags":{
 			"users_service_delay": 123
 		}}`, true, ``},
+		{"unsupported command-line flag host_identifier", `{"command_line_flags":{
+			"host_identifier": "instance"
+		}}`, true, `The --host_identifier flag isn't supported`},
+		{"unsupported command-line flag database_path", `{"command_line_flags":{
+			"database_path": "/tmp/osquery.db"
+		}}`, true, `The --database_path flag isn't supported`},
+		{"extensions_autoload flag without extensions", `{"command_line_flags":{
+			"extensions_autoload": "/etc/osquery/extensions.load"
+		}}`, true, ``},
+		{"extensions_autoload flag with empty extensions", `{
+			"command_line_flags": {"extensions_autoload": "/etc/osquery/extensions.load"},
+			"extensions": {}
+		}`, true, ``},
+		{"extensions_autoload flag with extensions", `{
+			"command_line_flags": {"extensions_autoload": "/etc/osquery/extensions.load"},
+			"extensions": {"hello_world": {"channel": "stable", "platform": "macos"}}
+		}`, true, `The --extensions_autoload flag can't be used together with the extensions option`},
 		{"setting a valid os-specific option", `{"config":{
 			"options": {
 				"users_service_delay": 123
@@ -149,12 +166,12 @@ func TestValidateAgentOptions(t *testing.T) {
 		}}`, true, ``},
 		{"setting an invalid value for an os-specific flag", `{"command_line_flags":{
 			"disable_endpointsecurity": "ok"
-		}}`, true, `command-line flags: json: cannot unmarshal string into Go struct field osqueryCommandLineFlags.OsqueryCommandLineFlagsMacOS.disable_endpointsecurity of type bool`},
+		}}`, true, `command-line flags: json: cannot unmarshal string into Go struct field osqueryCommandLineFlags.disable_endpointsecurity of type bool`},
 		{"setting an invalid value for an os-specific option", `{"config":{
 			"options": {
 				"disable_endpointsecurity": "ok"
 			}
-		}}`, true, `common config: json: cannot unmarshal string into Go struct field osqueryOptions.options.OsqueryCommandLineFlagsMacOS.disable_endpointsecurity of type bool`},
+		}}`, true, `common config: json: cannot unmarshal string into Go struct field osqueryAgentOptions.options.disable_endpointsecurity of type bool`},
 		{"setting an empty update_channels", `{
 			"update_channels": null
 		}`, true, `update_channels cannot be null`},
@@ -196,8 +213,16 @@ func TestValidateAgentOptions(t *testing.T) {
 			},
 			"command_line_flags": {
 				"logger_tls_backoff_max": 200
-			} 
+			}
 		}`, true, ``},
+
+		{"orbit debug_logging_on_enroll_duration valid", `{"orbit": {"debug_logging_on_enroll_duration": 3600}}`, true, ``},
+		{"orbit debug_logging_on_enroll_duration zero", `{"orbit": {"debug_logging_on_enroll_duration": 0}}`, true, ``},
+		{"orbit debug_logging_on_enroll_duration max", `{"orbit": {"debug_logging_on_enroll_duration": 86400}}`, true, ``},
+		{"orbit debug_logging_on_enroll_duration over max", `{"orbit": {"debug_logging_on_enroll_duration": 86401}}`, true, `must not exceed 86400 seconds`},
+		{"orbit debug_logging_on_enroll_duration negative", `{"orbit": {"debug_logging_on_enroll_duration": -1}}`, true, `must not be negative`},
+		{"orbit debug_logging_on_enroll_duration string rejected", `{"orbit": {"debug_logging_on_enroll_duration": "1h"}}`, true, `cannot unmarshal string`},
+		{"orbit unknown subkey rejected", `{"orbit": {"foo": true}}`, true, `unknown field "foo"`},
 	}
 
 	for _, c := range cases {

@@ -1,11 +1,13 @@
 # Fleet-maintained apps (FMA)
 
+> **Using Claude Code?** The `new-fma` skill ([.claude/skills/new-fma/SKILL.md](../../.claude/skills/new-fma/SKILL.md)) automates this workflow and bakes in the gotchas this README doesn't cover — verifying the installed app's identity with `msiinfo`/`PlistBuddy` instead of trusting winget/cask metadata, handling bootstrapper installers, parsing unquoted `UninstallString`s, version-matching quirks, and more. Just ask it to "add X as a macOS/Windows FMA."
+
 ## Adding a new app (macOS)
 
 1. Find the app's metadata in its [Homebrew formulae](https://formulae.brew.sh/)
 2. Create a new manifest file called `$YOUR_APP_NAME.json` in the `inputs/homebrew/` directory. For
    example, if you wanted to add Box Drive, create the file `inputs/homebrew/box-drive.json`. 
-3. Fill out the file according to the [input schema below](#input-file-schema). For our example Box Drive app, it would look like this:
+3. Fill out the file according to the [input schema below](#macos-input-file-schema). For our example Box Drive app, it would look like this:
 
    ```json
    {
@@ -28,7 +30,7 @@
 
 6. Add a description for the app in `outputs/apps.json` file. You can use descriptions from [Homebrew formulae](https://formulae.brew.sh/). For consistency and presentation on the website, the description should follow sentence casing and the following format: `<App Name>` is a(n) (copy description from Homebrew)., making sure to end with a `.`.
 
-7. Open a PR to the `fleet` repository with the above changes. The [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added reviewer. Also, @ mention the #g-software Product Designer (PD) in a comment that points them to the new icon. This way, the icon change gets a second pair of eyes.
+7. Open a PR to the `fleet` repository with the above changes. The [#g-software Engineering Manager (EM)](https://fleetdm.com/handbook/company/product-groups#software-group) is automatically added reviewer. Also, @ mention the [Fleet-maintained apps DRI](https://fleetdm.com/handbook/company/communications#:~:text=Fleet%2Dmaintained%20apps).
 
 8. If the app passes automated tests, it is approved and merged. The EM reviews the PR within 3 business days. The app should appear shortly in the Fleet-maintained apps section when adding new software to Fleet. The app icon will not appear in Fleet until the following release.
 
@@ -46,6 +48,24 @@
 | `post_uninstall_scripts` | string        | Command lines run **after** the generated uninstall script (e.g., for [Box](inputs/homebrew/box-drive.json)).                                                                                                                                                                   |
 | `install_script_path`    | string        | Filepath to a custom install script (`.sh`). Overrides the generated install script. Script must be placed in `inputs/homebrew/scripts/`.                                                                                                      |
 | `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.sh`). Overrides the generated uninstall script. Cannot be used together with `pre_uninstall_scripts` or `post_uninstall_scripts`. Script must be placed in `inputs/homebrew/scripts/`.                 |
+| `cask_path`              | string        | Path (relative to the repo root) to a local file containing the cask JSON in the same schema as `https://formulae.brew.sh/api/cask/<token>.json`. Used to commit cask metadata for third-party taps directly into this repo under [`inputs/homebrew/custom-tap/`](inputs/homebrew/custom-tap/). See [Ingesting apps from a custom tap](#ingesting-apps-from-a-custom-tap) below. |
+
+### Ingesting apps from a custom tap
+
+Apps that live in a third-party Homebrew tap (not `Homebrew/homebrew-cask`) are not proxied by `https://formulae.brew.sh/api/`. To ingest them, commit both the `.rb` source and the generated `.json` into [`inputs/homebrew/custom-tap/`](inputs/homebrew/custom-tap/), laid out like a Homebrew tap:
+
+```
+custom-tap/
+├── Casks/<token>.rb      # Cask DSL source
+├── api/<token>.json      # Generated with regenerate.sh
+└── regenerate.sh         # Rebuild api/*.json from Casks/*.rb
+```
+
+1. Write the cask DSL in `inputs/homebrew/custom-tap/Casks/<token>.rb`.
+2. Run `./regenerate.sh` from inside `custom-tap/` to produce `api/<token>.json`. Requires macOS with Homebrew and `jq`.
+3. In the app's input manifest (`inputs/homebrew/<token>.json`), set `cask_path` to `ee/maintained-apps/inputs/homebrew/custom-tap/api/<token>.json`. See `inputs/homebrew/fleet-desktop.json` for an example.
+
+See [`inputs/homebrew/custom-tap/README.md`](inputs/homebrew/custom-tap/README.md) for the full contributor flow. Apps without `cask_path` continue to be fetched from `formulae.brew.sh`.
 
 ## Adding a new app (Windows)
 
@@ -97,13 +117,18 @@ go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 | `unique_identifier`      | string       | **Required.** Platform-specific unique identifier. For Windows, this is the `DisplayName`.                                                                                                                                                                       |
 | `package_identifier`                  | string       | **Required.** The `PackageIdentifier` from winget. Fleet uses this to pull the correct metadata for the app.                                                                                                                                                             |
 | `slug`                   | string       | **Required.** Identifies the app/platform combination (e.g., `box-drive/windows`). Used to name manifest files and reference the app in [Fleet's best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps). Format: `<app-name>/<platform>`, where app name is filesystem-friendly and platform is `darwin`.             |
-| `installer_arch`       | string       | **Required.** `x64` or `x86` (most apps use `x64`).                                                        |
+| `installer_arch`       | string       | **Required.** `x64`, `x86`, or `arm64` (most apps use `x64`). ARM64 builds are separate FMAs with an `-arm64` slug suffix and an `(ARM64)` name suffix, e.g. `firefox@nightly-arm64/windows`; CI validates them on the `windows-11-arm` runner. For `arm64`, the generated `exists` and `patched` queries pass on non-ARM hosts, which can't run those builds; `x64` builds run on ARM through emulation and stay unscoped.                                                        |
 | `installer_type`       | string       | **Required.** `exe`, `msi`, or `msix` (file type, not vendor tech like "wix")                                                        |
 | `installer_scope`       | string       | **Required.** `machine` or `user` (prefer `machine` for managed installs)                                                        |
+| `nested_installer_type`  | string       | For `zip` installers, only select the winget installer whose `NestedInstallerType` matches this value (e.g., `wix`). Use it when the manifest lists several zips for the same architecture and scope that differ only in what they contain. Paint.NET ships an `exe` setup front end and a `wix` MSI, and only the MSI installs silently as SYSTEM.  |
 | `default_categories`     | string       | **Required.** Default categories for self-service if none are specified. Valid values: `Browsers`, `Communication`, `Developer Tools`, `Productivity`.                                                                                                      |
 | `install_script_path`    | string        | Filepath to a custom install script (`.ps1`). Overrides the generated install script. Script must be placed in `inputs/winget/scripts/`. For `.msi` apps, the ingestor automatically generates install scripts. Do not add scripts unless you need to override the generated behavior. For `.exe` apps, you must provide PowerShell scripts that run the installer file directly. Fleet stores the installer and sends it to the host at install time; your script must execute it using the `INSTALLER_PATH` environment variable.                                                                                                |
 | `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.ps1`). Overrides the generated uninstall script. Script must be placed in `inputs/winget/scripts/`. For `.msi` apps, the ingestor automatically generates uninstall scripts. Do not add scripts unless you need to override the generated behavior. For `.exe` apps, you must provide a script to uninstall the app. Scripts for `.exe` apps are vendor-specific. Use the vendor’s documented silent uninstall switch or the registered UninstallString (if available), ensuring the script runs silently and returns the installer’s exit code.                  |
 | `fuzzy_match_name`       | boolean       | If the `unique_identifier` doesn't match the `DisplayName`, use `fuzzy_match_name` to specify that Fleet uses "fuzzy matching" to match the Fleet-maintained app and the inventoried software. For example, for Pritunl, the `unique_identifier` is "Pritunl" and the inventories software's `DisplayName` is "Pritunl Client". With `fuzzy_match_name` set to true, Pritunl app will be matched to the inventories software.  |
+| `open_process_names`     | array of strings | Executable filenames the "app is open" (pre-install) query matches, for apps whose process isn't `<name>.exe`. For example, use `["studio64.exe"]` for Android Studio, or several names for an app with more than one executable. Fleet lowercases and escapes the names. Inspect the `Path` property returned by `Get-Process` while the app is open and use its filename, including `.exe`. The displayed `ProcessName` omits the extension.  |
+| `open_process_name_prefix` | string     | Matches any process whose name starts with this prefix (e.g., `onedrive`), for apps whose process names vary. Fleet generates `LOWER(name) LIKE '<prefix>%'` and escapes `%` and `_`, so the prefix matches literally. Can't be combined with `open_process_names`.  |
+| `ignore_upgrade_code`    | boolean       | Set to `true` when the vendor gives every MSI build a new `UpgradeCode` (e.g., QGIS). Fleet links a Windows Fleet-maintained app to its software title by upgrade code, so a per-build code would move the app to a new title with each update. With this set, the title is linked by `unique_identifier` instead, so give each app that sets it a distinct `unique_identifier`.  |
+| `requires_client_os`     | boolean       | Set to `true` when the installer refuses to run on Windows Server SKUs (e.g., Dell Display and Peripheral Manager). Fleet's ingestion ignores this field; CI reads it to route validation to the `windows-11-arm` runner (the only GitHub-hosted client-OS Windows runner) instead of the default Windows Server x64 runner.  |
 
 #### Windows troubleshooting
 
@@ -142,6 +167,61 @@ If an app does not pass test criteria:
 
 - [Freeze the app](#freezing-an-existing-fleet-maintained-app)
 - File a bug for tracking
+
+## Editing an app's pre-install query
+
+With patch when closed on, Fleet runs the app's `open` query before an update and installs only if it returns a result (app is closed). To override the generated query:
+
+### macOS
+
+In `ingesters/homebrew/ingester.go`, add a `case` for the app's `token` to the `switch input.Token` block after `GenerateOpenQuery`. Escape `%` as `%%`.
+
+```go
+case "google-chrome", "microsoft-edge", "brave-browser", "vivaldi", "opera", "arc", "comet":
+	out.Queries.Open = fmt.Sprintf(
+		"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');",
+		out.UniqueIdentifier,
+	)
+```
+
+Add a test in `ingesters/homebrew/ingester_test.go`.
+
+### Windows
+
+The default query checks for a running `<app name>.exe`.
+
+To match other process names, set `open_process_names` in the app's input manifest. Fleet lowercases and escapes the names and generates `LOWER(name) = '...'` (one name) or `LOWER(name) IN (...)` (several):
+
+```json
+"open_process_names": ["7zfm.exe", "7zg.exe"]
+```
+
+To match every process whose name starts with a prefix, set `open_process_name_prefix` instead (the two can't be combined):
+
+```json
+"open_process_name_prefix": "onedrive"
+```
+
+To replace the whole query, set `out.Queries.Open` in `ingesters/winget/ingester.go` after `windowsOpenQuery`, in a `switch input.Slug` block (add one if it doesn't exist). Add a test in `ingesters/winget/ingester_test.go`.
+
+```go
+switch input.Slug {
+case "example-app/windows":
+	out.Queries.Open = `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(path) LIKE 'c:\program files\example app\%');`
+}
+```
+
+### Publish
+
+1. Regenerate the output and confirm `open` changed:
+
+   ```bash
+   go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
+   ```
+
+2. Open a PR.
+
+No Fleet release needed. Fleet servers pick up the new query on the next FMA auto-update, except for apps pinned to a specific version.
 
 ## Freezing an existing Fleet-maintained app
 

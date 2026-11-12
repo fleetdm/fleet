@@ -1,0 +1,10 @@
+{
+  "name": "Gitify",
+  "unique_identifier": "com.electron.gitify",
+  "token": "gitify",
+  "installer_format": "zip",
+  "slug": "gitify/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

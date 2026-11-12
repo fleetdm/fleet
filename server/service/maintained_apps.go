@@ -6,20 +6,27 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 type addFleetMaintainedAppRequest struct {
-	TeamID            *uint    `json:"team_id"`
+	TeamID *uint `json:"team_id"` //nolint:apiparamcheck // alias handled manually via sibling FleetID field (see DecodeRequest below)
+	// Note that we're adding an explicit FleetID field rather than using `renameto`.
+	// The POST /software/fleet_maintained_apps endpoint has a custom decoder
+	// and in this special case it's easier to handle the aliasing manually.
+	FleetID           *uint    `json:"fleet_id"`
 	AppID             uint     `json:"fleet_maintained_app_id"`
 	InstallScript     string   `json:"install_script"`
-	PreInstallQuery   string   `json:"pre_install_query"`
+	PreInstallQuery   string   `json:"pre_install_query"` //nolint:apiparamcheck
 	PostInstallScript string   `json:"post_install_script"`
 	SelfService       bool     `json:"self_service"`
 	UninstallScript   string   `json:"uninstall_script"`
 	LabelsIncludeAny  []string `json:"labels_include_any"`
 	LabelsExcludeAny  []string `json:"labels_exclude_any"`
+	LabelsIncludeAll  []string `json:"labels_include_all"`
 	AutomaticInstall  bool     `json:"automatic_install"`
 	Categories        []string `json:"categories"`
 }
@@ -39,6 +46,23 @@ func (addFleetMaintainedAppRequest) DecodeRequest(ctx context.Context, r *http.R
 		}
 	}
 
+	// Resolve fleet_id → team_id aliasing. The struct has both fields so
+	// json.Decode populates whichever the caller sent; we normalize here.
+	if req.FleetID != nil {
+		if req.TeamID != nil {
+			return nil, &fleet.BadRequestError{
+				Message: `Specify only one of "team_id" or "fleet_id"`,
+			}
+		}
+		req.TeamID = req.FleetID
+		req.FleetID = nil
+	} else if req.TeamID != nil && platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+		// Add a deprecation warning.
+		logging.WithExtras(ctx,
+			"deprecated_fields", "[team_id]",
+			"deprecation_warning", "use the updated field names (fleet_id) instead",
+		)
+	}
 	// Check if scripts are base64 encoded
 	if isScriptsEncoded(r) {
 		var err error
@@ -82,18 +106,21 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 		req.AutomaticInstall,
 		req.LabelsIncludeAny,
 		req.LabelsExcludeAny,
+		req.LabelsIncludeAll,
 	)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			err = fleet.NewGatewayTimeoutError("Couldn't add. Request timeout. Please make sure your server and load balancer timeout is long enough.", err)
+		switch {
+		case errors.Is(err, context.DeadlineExceeded):
+			err = fleet.NewGatewayTimeoutError(fleet.AddMaintainedAppTimeoutErrMsg, err)
+		case errors.Is(err, context.Canceled):
+			err = fleet.NewGatewayTimeoutError(fleet.AddMaintainedAppCanceledErrMsg, err)
 		}
-
 		return &addFleetMaintainedAppResponse{Err: err}, nil
 	}
 	return &addFleetMaintainedAppResponse{SoftwareTitleID: titleId}, nil
 }
 
-func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, _, _, _, _ string, _ bool, _ bool, _, _ []string) (uint, error) {
+func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, _, _, _, _ string, _ bool, _ bool, _, _, _ []string) (uint, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -103,11 +130,18 @@ func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, 
 
 type listFleetMaintainedAppsRequest struct {
 	fleet.ListOptions
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	// Platform optionally filters to apps available on the given platform
+	// ("darwin" or "windows").
+	Platform string `query:"platform,optional"`
+	// AvailableOnly, when true, returns only apps not yet added to the team
+	// (the "Hide added apps" filter).
+	AvailableOnly bool `query:"available,optional"`
 }
 
 type listFleetMaintainedAppsResponse struct {
 	FleetMaintainedApps []fleet.MaintainedApp     `json:"fleet_maintained_apps"`
+	Count               int                       `json:"count"`
 	Meta                *fleet.PaginationMetadata `json:"meta"`
 	Err                 error                     `json:"error,omitempty"`
 }
@@ -117,7 +151,13 @@ func (r listFleetMaintainedAppsResponse) Error() error { return r.Err }
 func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listFleetMaintainedAppsRequest)
 
-	apps, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID, req.ListOptions)
+	opts := fleet.MaintainedAppListOptions{
+		ListOptions:   req.ListOptions,
+		Platform:      req.Platform,
+		AvailableOnly: req.AvailableOnly,
+	}
+
+	apps, meta, err := svc.ListFleetMaintainedApps(ctx, req.TeamID, opts)
 	if err != nil {
 		return listFleetMaintainedAppsResponse{Err: err}, nil
 	}
@@ -126,11 +166,14 @@ func listFleetMaintainedAppsEndpoint(ctx context.Context, request any, svc fleet
 		FleetMaintainedApps: apps,
 		Meta:                meta,
 	}
+	if meta != nil {
+		listResp.Count = int(meta.TotalResults) //nolint:gosec // dismiss G115
+	}
 
 	return listResp, nil
 }
 
-func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, opts fleet.MaintainedAppListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -140,7 +183,7 @@ func (svc *Service) ListFleetMaintainedApps(ctx context.Context, teamID *uint, o
 
 type getFleetMaintainedAppRequest struct {
 	AppID  uint  `url:"app_id"`
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getFleetMaintainedAppResponse struct {

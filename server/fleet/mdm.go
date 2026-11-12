@@ -3,12 +3,18 @@ package fleet
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/google/uuid"
@@ -28,8 +34,17 @@ const (
 	// third-party MDM solution to Fleet.
 	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 
-	StickyMDMEnrollmentKeyPrefix = "sticky_mdm_enrollment_" // + host UUID
-	StickyMDMEnrollmentTTL       = 30 * time.Minute
+	// MDMProfileProcessingKeyPrefix is used to indicate that a host is currently being processed for MDM profile installation.
+	// We wrap the key in braces to make Redis hash the keys to the same slot, avoiding CrossSlot errors.
+	MDMProfileProcessingKeyPrefix = "{mdm_profile_processing}" // + :hostUUID
+	MDMProfileProcessingTTL       = 1 * time.Minute            // We use a low time here, to avoid letting it sit for too long in case of errors.
+
+	AppleMDMCommandTypeClearPasscode = "ClearPasscode"
+
+	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
+	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
+	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
+	WindowsMDMNotTurnedOnMessage                                 = `Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_mdm_enabled: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -64,24 +79,81 @@ const (
 	FleetVarHostEndUserIDPGroups            FleetVarName = "HOST_END_USER_IDP_GROUPS"
 	FleetVarHostEndUserIDPDepartment        FleetVarName = "HOST_END_USER_IDP_DEPARTMENT"
 	FleetVarHostEndUserIDPFullname          FleetVarName = "HOST_END_USER_IDP_FULL_NAME"
+	FleetVarHostEndUserIDPExternalID        FleetVarName = "HOST_END_USER_IDP_EXTERNAL_ID"
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID"
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
+
+	// FleetVarHostTargetOSVersion and FleetVarHostTargetOSDeadline are
+	// Fleet-internal: they are only ever placed in Fleet's own OS-update
+	// declaration when the platform's minimum_version is "latest", and are
+	// resolved per host at declaration fetch time from host_mdm_apple_os_updates.
+	// They are deliberately absent from the lists of variables admins may use in
+	// their own profiles and declarations.
+	FleetVarHostTargetOSVersion  FleetVarName = "HOST_TARGET_OS_VERSION"
+	FleetVarHostTargetOSDeadline FleetVarName = "HOST_TARGET_OS_DEADLINE"
+
+	// FleetVarPatchNotificationURL is Fleet-internal in the same way: resolved to
+	// a notification's device page URL at fetch time, and deliberately absent
+	// from FleetVarsSupportedInScripts since it carries a device auth token.
+	FleetVarPatchNotificationURL FleetVarName = "PATCH_NOTIFICATION_URL"
+
+	// FleetVarPSSODeviceRegistrationToken is the admin-facing variable placed in
+	// the RegistrationToken key of a Fleet com.apple.extensiblesso (Platform SSO
+	// v2) payload. It resolves to the FLEET_HOST_SECRET_ placeholder of the same
+	// name at profile-send time and is expanded to a per-host, Fleet-signed JWT
+	// at command-fetch time (so the token is never stored and never visible on
+	// the /commands endpoint).
+	FleetVarPSSODeviceRegistrationToken FleetVarName = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: variable name, not a credential
+
+	// FleetVarSilentMigrationSCEPChallenge marks the SCEP challenge in the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE
+	// env profile. It's replaced with the SCEP challenge host secret when renewals are sent, and is deliberately
+	// absent from the variables allowed in configuration profiles, so uploads can't get an enrollment challenge.
+	FleetVarSilentMigrationSCEPChallenge FleetVarName = "SILENT_MIGRATION_SCEP_CHALLENGE" // nolint:gosec // G101: variable name, not a credential
 
 	// Certificate authority variables
 	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
 	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
-	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID"
+	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID" // deprecated in favor of FleetVarCertificateRenewalID, but remains for back-compat
+	FleetVarCertificateRenewalID         FleetVarName = "CERTIFICATE_RENEWAL_ID"
 	FleetVarDigiCertDataPrefix           FleetVarName = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix       FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
+	FleetVarEJBCADataPrefix              FleetVarName = "EJBCA_DATA_"
+	FleetVarEJBCAPasswordPrefix          FleetVarName = "EJBCA_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 	FleetVarCustomSCEPChallengePrefix    FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
 	FleetVarCustomSCEPProxyURLPrefix     FleetVarName = "CUSTOM_SCEP_PROXY_URL_"
 	FleetVarSmallstepSCEPChallengePrefix FleetVarName = "SMALLSTEP_SCEP_CHALLENGE_"
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
+	// FleetVarConditionalAccessSCEPURL points a Windows SCEP profile at Fleet's conditional access SCEP server and marks
+	// its certificate as Fleet-tracked. The challenge is a global enroll secret the admin writes into the profile.
+	FleetVarConditionalAccessSCEPURL FleetVarName = "CONDITIONAL_ACCESS_SCEP_URL"
+
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
 )
+
+// NDESNotConfiguredMsg is the failure detail for a $FLEET_VAR_NDES_SCEP_CHALLENGE
+// reference when no NDES certificate authority is configured.
+const NDESNotConfiguredMsg = "NDES is not configured. Fleet couldn't populate $FLEET_VAR_NDES_SCEP_CHALLENGE."
+
+// HasCAVariables returns true if any of the given Fleet variable names
+// (as returned by variables.Find, without the FLEET_VAR_ prefix) correspond
+// to a certificate authority variable.
+func HasCAVariables(fleetVars []string) bool {
+	for _, v := range fleetVars {
+		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
+			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarCertificateRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
+			v == string(FleetVarConditionalAccessSCEPURL) ||
+			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
+			strings.HasPrefix(v, string(FleetVarEJBCADataPrefix)) || strings.HasPrefix(v, string(FleetVarEJBCAPasswordPrefix)) ||
+			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
+			strings.HasPrefix(v, string(FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarSmallstepSCEPProxyURLPrefix)) {
+			return true
+		}
+	}
+	return false
+}
 
 var (
 	// Fleet variable regexp patterns
@@ -93,10 +165,20 @@ var (
 	FleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPChallenge))
 	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
-	FleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPRenewalID))
-	FleetVarHostUUIDRegexp                        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
-	FleetVarHostPlatformRegexp                    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
-	FleetVarSCEPWindowsCertificateIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+	FleetVarHostEndUserIDPExternalIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPExternalID))
+	FleetVarCertificateRenewalIDRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarCertificateRenewalID))
+	// FleetVarRenewalIDRegexp matches either the preferred CERTIFICATE_RENEWAL_ID
+	// or the legacy SCEP_RENEWAL_ID name. Use this for validation checks where
+	// either form satisfies the requirement.
+	FleetVarRenewalIDRegexp = regexp.MustCompile(fmt.Sprintf(
+		`(\$FLEET_VAR_%[1]s)|(\${FLEET_VAR_%[1]s})|(\$FLEET_VAR_%[2]s)|(\${FLEET_VAR_%[2]s})`,
+		FleetVarCertificateRenewalID, FleetVarSCEPRenewalID,
+	))
+	FleetVarHostUUIDRegexp                    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
+	FleetVarHostPlatformRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
+	FleetVarSCEPWindowsCertificateIDRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+	FleetVarPSSODeviceRegistrationTokenRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarPSSODeviceRegistrationToken))
+	FleetVarConditionalAccessSCEPURLRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarConditionalAccessSCEPURL))
 
 	// Fleet variable replacement failed errors
 	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
@@ -109,7 +191,18 @@ var (
 		FleetVarHostEndUserIDPGroups,
 		FleetVarHostEndUserIDPDepartment,
 		FleetVarHostEndUserIDPFullname,
+		FleetVarHostEndUserIDPExternalID,
 	}
+	// FleetVarsSupportedInDigiCert lists the variables allowed in a DigiCert CA's common name, seat ID, and UPN.
+	// The IdP variables come from IDPFleetVariables because that's the list the CA field substitution resolves.
+	FleetVarsSupportedInDigiCert = slices.Concat([]FleetVarName{
+		FleetVarHostEndUserEmailIDP,
+		FleetVarHostHardwareSerial,
+		FleetVarHostPlatform,
+		FleetVarHostUUID,
+	}, IDPFleetVariables)
+	// FleetVarsSupportedInEJBCA lists the variables allowed in an EJBCA CA's common name, username template, and UPN.
+	FleetVarsSupportedInEJBCA = FleetVarsSupportedInDigiCert
 )
 
 type AppleMDM struct {
@@ -123,30 +216,25 @@ func (a AppleMDM) AuthzType() string {
 	return "mdm_apple"
 }
 
-type AppleBM struct {
-	AppleID      string    `json:"apple_id"`
-	OrgName      string    `json:"org_name"`
-	MDMServerURL string    `json:"mdm_server_url"`
-	RenewDate    time.Time `json:"renew_date"`
-	DefaultTeam  string    `json:"default_team"`
-}
-
-func (a AppleBM) AuthzType() string {
-	return "mdm_apple"
-}
-
-// TODO: during API implementation, remove AppleBM above or reconciliate those
-// two types. We'll likely need a new authz type for the ABM token.
 type ABMToken struct {
-	ID                  uint      `db:"id" json:"id"`
-	AppleID             string    `db:"apple_id" json:"apple_id"`
-	OrganizationName    string    `db:"organization_name" json:"org_name"`
-	RenewAt             time.Time `db:"renew_at" json:"renew_date"`
-	TermsExpired        bool      `db:"terms_expired" json:"terms_expired"`
-	MacOSDefaultTeamID  *uint     `db:"macos_default_team_id" json:"-"`
-	IOSDefaultTeamID    *uint     `db:"ios_default_team_id" json:"-"`
-	IPadOSDefaultTeamID *uint     `db:"ipados_default_team_id" json:"-"`
-	EncryptedToken      []byte    `db:"token" json:"-"`
+	ID               uint      `db:"id" json:"id"`
+	AppleID          string    `db:"apple_id" json:"apple_id"`
+	OrganizationName string    `db:"organization_name" json:"org_name"`
+	RenewAt          time.Time `db:"renew_at" json:"renew_date"`
+	TermsExpired     bool      `db:"terms_expired" json:"terms_expired"`
+	TokenInvalid     bool      `db:"token_invalid" json:"token_invalid"`
+	// ServerUUID is Apple's identifier for this MDM server in Apple Business,
+	// returned by the DEP AccountDetail API. Empty until fetched.
+	ServerUUID string `db:"server_uuid" json:"mdm_server_uuid"`
+	// IsDefault marks the token used for GetToken, and other cases where we need to pass a default token.
+	IsDefault bool `db:"is_default" json:"default"`
+
+	MacOSDefaultTeamID  *uint  `db:"macos_default_team_id" json:"-"`
+	IOSDefaultTeamID    *uint  `db:"ios_default_team_id" json:"-"`
+	IPadOSDefaultTeamID *uint  `db:"ipados_default_team_id" json:"-"`
+	BYODDefaultTeamID   *uint  `db:"byod_default_team_id" json:"-"`
+	EncryptedToken      []byte `db:"token" json:"-"`
+	EnrollmentURLToken  []byte `db:"enrollment_url_token" json:"-"`
 
 	// MDMServerURL is not a database field, it is computed from the AppConfig's
 	// Server URL and the static path to the MDM endpoint (using
@@ -159,38 +247,43 @@ type ABMToken struct {
 	MacOSTeamName  string `db:"macos_team" json:"-"`
 	IOSTeamName    string `db:"ios_team" json:"-"`
 	IPadOSTeamName string `db:"ipados_team" json:"-"`
+	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
-	MacOSTeam  ABMTokenTeam `json:"macos_team"`
-	IOSTeam    ABMTokenTeam `json:"ios_team"`
-	IPadOSTeam ABMTokenTeam `json:"ipados_team"`
+	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
+	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
+	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
+}
+
+func (a ABMToken) AuthzType() string {
+	return "mdm_apple"
 }
 
 type ABMTokenTeam struct {
 	Name string `json:"name"`
-	ID   uint   `json:"team_id"`
+	ID   uint   `json:"team_id" renameto:"fleet_id"`
 }
 
-type AppleCSR struct {
-	// NOTE: []byte automatically JSON-encodes as a base64-encoded string
-	APNsKey  []byte `json:"apns_key"`
-	SCEPCert []byte `json:"scep_cert"`
-	SCEPKey  []byte `json:"scep_key"`
-}
+// AppleCSR is the authorization subject of the Apple MDM setup endpoints.
+type AppleCSR struct{}
 
 func (a AppleCSR) AuthzType() string {
 	return "mdm_apple"
 }
 
 // ABMTermsUpdater is the minimal interface required to get and update the
-// AppConfig, and set an ABM token's terms_expired flag as required to handle
-// the DEP API errors to indicate that Apple's terms have changed and must be
-// accepted. The Fleet Datastore satisfies this interface.
+// AppConfig, and set an ABM token's terms_expired and token_invalid flags as
+// required to handle the DEP API errors to indicate that Apple's terms have
+// changed and must be accepted, or that the token itself was rejected.
+// The Fleet Datastore satisfies this interface.
 type ABMTermsUpdater interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	SaveAppConfig(ctx context.Context, info *AppConfig) error
 	SetABMTokenTermsExpiredForOrgName(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
 	CountABMTokensWithTermsExpired(ctx context.Context) (int, error)
+	SetABMTokenInvalidForOrgName(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error)
+	IsABMTokenInvalidForOrgName(ctx context.Context, orgName string) (bool, error)
 }
 
 // MDMIdPAccount contains account information of a third-party IdP that can be
@@ -204,12 +297,14 @@ type MDMIdPAccount struct {
 
 type MDMAppleBootstrapPackage struct {
 	Name      string    `json:"name"`
-	TeamID    uint      `json:"team_id" db:"team_id"`
+	TeamID    uint      `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	Bytes     []byte    `json:"bytes,omitempty" db:"bytes"`
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"-" db:"updated_at"`
+	// PackageFile, when set, is stored in the object store in place of Bytes.
+	PackageFile io.ReadSeeker `json:"-" db:"-"`
 }
 
 func (bp MDMAppleBootstrapPackage) AuthzType() string {
@@ -221,9 +316,49 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgURL.Path = "/api/latest/fleet/mdm/bootstrap"
+	pkgURL.Path = "/api/latest/fleet/bootstrap"
 	pkgURL.RawQuery = fmt.Sprintf("token=%s", bp.Token)
 	return pkgURL.String(), nil
+}
+
+// MDMEULAPlatform is a platform that can have its own EULA.
+type MDMEULAPlatform string
+
+const (
+	MDMEULAPlatformDarwin  MDMEULAPlatform = "darwin"
+	MDMEULAPlatformWindows MDMEULAPlatform = "windows"
+)
+
+// Validated returns the platform an EULA request acts on. Empty means darwin,
+// so clients from before Windows EULAs keep working.
+func (p MDMEULAPlatform) Validated() (MDMEULAPlatform, error) {
+	switch p {
+	case "":
+		return MDMEULAPlatformDarwin, nil
+	case MDMEULAPlatformDarwin, MDMEULAPlatformWindows:
+		return p, nil
+	default:
+		return "", NewInvalidArgumentError("platform", `must be "darwin" or "windows"`)
+	}
+}
+
+// ValidateEULAPlatform returns the platform an EULA request acts on, once
+// that platform's MDM is turned on. The EULA routes serve both platforms, so
+// route middleware can't check the MDM; the free and Premium builds share this.
+func ValidateEULAPlatform(ctx context.Context, svc Service, platform MDMEULAPlatform) (MDMEULAPlatform, error) {
+	platform, err := platform.Validated()
+	if err != nil {
+		return "", err
+	}
+	if platform == MDMEULAPlatformWindows {
+		err = svc.VerifyMDMWindowsConfigured(ctx)
+	} else {
+		err = svc.VerifyMDMAppleConfigured(ctx) // Validated leaves only darwin
+	}
+	if err != nil {
+		return "", err
+	}
+	return platform, nil
 }
 
 // MDMEULA represents an EULA (End User License Agreement) file.
@@ -233,10 +368,58 @@ type MDMEULA struct {
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	// Platform is reported in metadata, since the endpoints serve both.
+	Platform MDMEULAPlatform `json:"platform,omitempty" db:"platform"`
 }
 
+// MDMEULAMetadataLookup is the cached result of looking up a platform's EULA
+// metadata. A nil EULA records that none is uploaded: that is the usual answer,
+// and caching it is what keeps the Windows terms page off the database.
+type MDMEULAMetadataLookup struct {
+	EULA *MDMEULA
+}
+
+// Clone implements Cloner.
+func (l *MDMEULAMetadataLookup) Clone() (Cloner, error) {
+	clone := &MDMEULAMetadataLookup{}
+	if l.EULA != nil {
+		eula := *l.EULA
+		eula.Bytes = bytes.Clone(l.EULA.Bytes)
+		eula.Sha256 = bytes.Clone(l.EULA.Sha256)
+		clone.EULA = &eula
+	}
+	return clone, nil
+}
+
+// MaxEULAFileNameLength matches the eulas.name column, varchar(255).
+const MaxEULAFileNameLength = 255
+
+// MDMEULADefaultDarwinFileName names a macOS EULA whose uploaded name has nothing usable left after sanitizing. The
+// content is always a PDF, so the extension holds.
+const MDMEULADefaultDarwinFileName = "eula.pdf"
+
+// AuthzType is the same for every platform: their EULAs have the same access.
 func (e MDMEULA) AuthzType() string {
-	return "mdm_apple_eula"
+	return "mdm_eula"
+}
+
+// SanitizeEULAFileName returns the last element of an uploaded EULA file name,
+// splitting on both "/" and "\", without control or format characters (such as
+// a right-to-left override that disguises the extension). fleetctl
+// generate-gitops writes the stored name to disk on any OS, so it must not
+// carry a path. It returns "" when nothing usable is left.
+func SanitizeEULAFileName(name string) string {
+	name = name[strings.LastIndexAny(name, `/\`)+1:]
+	name = strings.TrimSpace(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return -1
+		}
+		return r
+	}, name))
+	if name == "." || name == ".." {
+		return ""
+	}
+	return name
 }
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
@@ -290,6 +473,23 @@ type HostMDMProfileRetryCount struct {
 	Retries     uint   `db:"retries"`
 }
 
+// ProfileACMECommandResult bundles the gates needed to decide whether an
+// InstallProfile ack should trigger a CertificateList refetch on macOS, and
+// which channel to send it on. Computed in a single query keyed on
+// (host_uuid, command_uuid).
+type ProfileACMECommandResult struct {
+	HostID         uint   `db:"host_id"`
+	Platform       string `db:"platform"`
+	ProfileUUID    string `db:"profile_uuid"`
+	HasACMEPayload bool   `db:"has_acme_payload"`
+	// Scope tells which channel installed the profile, hence which keychain its
+	// ACME cert landed in.
+	Scope PayloadScope `db:"scope"`
+	// UserEnrollmentID is the host's active user-channel enrollment, resolved
+	// only for user-scoped profiles. Empty when there is none.
+	UserEnrollmentID string `db:"user_enrollment_id"`
+}
+
 // TeamIDSetter defines the method to set a TeamID value on a struct,
 // which helps define authorization helpers based on teams.
 type TeamIDSetter interface {
@@ -313,12 +513,19 @@ type CommandEnqueueResult struct {
 // MDMCommandAuthz is used to check user authorization to read/write an
 // MDM command.
 type MDMCommandAuthz struct {
-	TeamID *uint `json:"team_id"` // required for authorization by team
+	TeamID   *uint  `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	Platform string `json:"platform"`                    // Platform of the targeted host
 }
 
 // SetTeamID implements the TeamIDSetter interface.
 func (m *MDMCommandAuthz) SetTeamID(tid *uint) {
 	m.TeamID = tid
+}
+
+func (m MDMCommandAuthz) ExtraAuthz() (map[string]any, error) {
+	return map[string]any{
+		"is_apple_mobile": IsAppleMobilePlatform(m.Platform),
+	}, nil
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -350,8 +557,11 @@ type MDMCommandResult struct {
 	Hostname string `json:"hostname" db:"-"`
 	// Payload is the contents of the command
 	Payload []byte `json:"payload" db:"payload"`
+	// Name is the optional human-readable name of the command, currently used for profile name when adding/removing
+	Name *string `json:"name" db:"name"`
 	// ResultsMetadata contains command-specific metadata.
-	// VPP install commands includes a "software_installed" boolean.
+	// VPP install commands include a "software_installed" boolean and
+	// "vpp_verify_timeout_seconds" integer.
 	ResultsMetadata map[string]any `json:"results_metadata,omitempty" db:"-"`
 }
 
@@ -375,6 +585,8 @@ type MDMCommand struct {
 	// to authorize the user to see the command, it is not returned as part of
 	// the response payload.
 	TeamID *uint `json:"-" db:"team_id"`
+	// Name is the optional human-readable name of the command, currently used for profile name when adding/removing
+	Name *string `json:"name" db:"name"`
 	// CommandStatus is the fleet computed field representing the status of the command
 	// based on the MDM protocol status
 	CommandStatus MDMCommandStatusFilter `json:"command_status" db:"command_status"`
@@ -389,6 +601,18 @@ type MDMCommandListOptions struct {
 	ListOptions
 	Filters MDMCommandFilters
 }
+
+// Pagination bounds for the list-MDM-commands endpoint (GET /api/v1/fleet/commands).
+const (
+	// DefaultMDMCommandsPerPage is the per_page value used when none is specified on the request.
+	DefaultMDMCommandsPerPage uint = 10
+	// MaxMDMCommandsPerPage caps per_page so a single request can't scan an unbounded number of command rows.
+	MaxMDMCommandsPerPage uint = 1000
+	// MaxMDMCommandsPage caps the offset (page * per_page) so deep
+	// traversal can't cause a timeout issue. Clients that need to walk the full set
+	// should use cursor pagination via the after query parameter.
+	MaxMDMCommandsPage uint = 100
+)
 
 type MDMCommandStatusFilter string
 
@@ -448,17 +672,31 @@ type MDMProfilesSummary struct {
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
 // a Windows or macOS profile.
 type HostMDMProfile struct {
-	HostUUID            string           `db:"-" json:"-"`
-	CommandUUID         string           `db:"-" json:"-"`
-	ProfileUUID         string           `db:"-" json:"profile_uuid"`
-	Name                string           `db:"-" json:"name"`
-	Identifier          string           `db:"-" json:"-"`
-	Status              *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
-	OperationType       MDMOperationType `db:"-" json:"operation_type"`
-	Detail              string           `db:"-" json:"detail"`
-	Platform            string           `db:"-" json:"platform"`
-	Scope               *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
-	ManagedLocalAccount *string          `db:"-" json:"managed_local_account"`
+	HostUUID              string           `db:"-" json:"-"`
+	CommandUUID           string           `db:"-" json:"-"`
+	ProfileUUID           string           `db:"-" json:"profile_uuid"`
+	Name                  string           `db:"-" json:"name"`
+	Identifier            string           `db:"-" json:"-"`
+	Status                *string          `db:"-" json:"status"` // MDMDeliveryStatus or CertificateTemplateStatus
+	OperationType         MDMOperationType `db:"-" json:"operation_type"`
+	Detail                string           `db:"-" json:"detail"`
+	Platform              string           `db:"-" json:"platform"`
+	Scope                 *string          `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
+	ManagedLocalAccount   *string          `db:"-" json:"managed_local_account"`
+	CertificateTemplateID *uint            `db:"-" json:"certificate_template_id,omitempty"`
+	// Retrying reports that Fleet is in the middle of automatically retrying this profile after a
+	// failed install, which leaves it in an in-progress status with nothing else to distinguish it
+	// from a first delivery. RetryCount is the number of retries already used and MaxRetries the
+	// number allowed, for reporting which attempt is in flight. Note that RetryCount is also set by
+	// a manual resend, so it does not on its own mean Fleet is retrying — use Retrying for that.
+	// All three are only set for Android certificate templates, and only on installs: removals are
+	// never retried.
+	Retrying   *bool `db:"-" json:"retrying,omitempty"`
+	RetryCount *uint `db:"-" json:"retry_count,omitempty"`
+	MaxRetries *uint `db:"-" json:"max_retries,omitempty"`
+
+	SelfService bool `db:"-" json:"self_service"`
+	Hidden      bool `db:"-" json:"hidden"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -474,7 +712,7 @@ type MDMDeliveryStatus string
 //     command failed to enqueue in ReconcileProfile (it resets the status to
 //     NULL). A failure in the asynchronous actual response of the MDM command
 //     (via MDMAppleCheckinAndCommandService.CommandAndReportResults) results in
-//     a retry of mdm.MaxProfileRetries times and if it still reports as failed
+//     a retry of mdm.MaxAppleProfileRetries times (or mdm.MaxWindowsProfileRetries for Windows) and if it still reports as failed
 //     it will be set to failed permanently.
 //
 //   - verified: the MDM command was successfully applied, and Fleet has
@@ -544,7 +782,7 @@ func (o MDMOperationType) IsValid() bool {
 // MDMConfigProfileAuthz is used to check user authorization to read/write an
 // MDM configuration profile.
 type MDMConfigProfileAuthz struct {
-	TeamID *uint `json:"team_id"` // required for authorization by team
+	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -556,11 +794,15 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
 	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
-	TeamID      *uint  `json:"team_id" db:"team_id"` // null for no-team
+	TeamID      *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"` // null for no-team
 	Name        string `json:"name" db:"name"`
+	Description string `json:"description" db:"description"`
 	Platform    string `json:"platform" db:"platform"`               // "windows", "android" or "darwin"
 	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
 	Scope       string `json:"scope,omitempty" db:"scope"`           // only set for macOS, can be "System" or "User"
+	// PayloadDisplayName is the name inside a .mobileconfig, which can differ
+	// from Name once an admin renames the profile. Empty for other types.
+	PayloadDisplayName string `json:"payload_display_name,omitempty" db:"-"`
 	// Checksum is the following
 	// - for Apple configuration profiles: the MD5 checksum of the profile contents
 	// - for Apple device declarations: the MD5 checksum of the profile contents and secrets updated timestamp (if profile contains secret variables)
@@ -571,23 +813,47 @@ type MDMConfigProfilePayload struct {
 	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`
 	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
+	// Base64-encoded activation for declaration (DDM) profiles, null for any
+	// other profile type and for declarations without a custom activation.
+	Activation []byte `json:"activation" db:"-"`
+	// SelfService is only supported for .mobileconfig profiles.
+	SelfService bool `json:"self_service" db:"self_service"`
+	Hidden      bool `json:"hidden" db:"hidden"`
 }
 
 // BatchModifyMDMConfigProfilePayload represents the payload for a config profile when
 // performing a batch modify operation.
 type BatchModifyMDMConfigProfilePayload struct {
-	Profile          []byte   `json:"profile,omitempty"`
+	Profile []byte `json:"profile,omitempty"`
+	Name    string `json:"name,omitempty"`
+	// DisplayName is the older spelling of Name, kept for compatibility.
 	DisplayName      string   `json:"display_name,omitempty"`
+	Description      string   `json:"description,omitempty"`
 	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	SelfService      bool     `json:"self_service,omitempty"`
+	Hidden           bool     `json:"hidden,omitempty"`
 }
 
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
 // a team or no-team.
+// MDMProfileChecksums holds the MD5 of a team's stored, unexpanded profile
+// contents: Apple profiles by identifier, declarations and Windows profiles by
+// name. Keys are lowercased, matching the columns' case-insensitive unique keys.
+type MDMProfileChecksums struct {
+	AppleByIdentifier  map[string][]byte
+	DeclarationsByName map[string][]byte
+	WindowsByName      map[string][]byte
+}
+
 type MDMProfileBatchPayload struct {
-	Name     string `json:"name,omitempty"`
-	Contents []byte `json:"contents,omitempty"`
+	Name string `json:"name,omitempty"`
+	// DisplayName is the older spelling of Name on the public batch endpoint,
+	// kept for compatibility. The service folds it into Name.
+	DisplayName string `json:"display_name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Contents    []byte `json:"contents,omitempty"`
 
 	// Deprecated: Labels is the backwards-compatible way of specifying
 	// LabelsIncludeAll.
@@ -596,6 +862,13 @@ type MDMProfileBatchPayload struct {
 	LabelsIncludeAny []string   `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []string   `json:"labels_exclude_any,omitempty"`
 	SecretsUpdatedAt *time.Time `json:"-"`
+
+	// Base64-encoded custom activation, only valid for Apple declarations.
+	Activation []byte `json:"activation,omitempty"`
+
+	// SelfService is only valid for .mobileconfig profiles.
+	SelfService bool `json:"self_service,omitempty"`
+	Hidden      bool `json:"hidden,omitempty"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -607,7 +880,9 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Platform:         "windows",
+		Hidden:           cp.Hidden,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
@@ -622,18 +897,22 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		tid = cp.TeamID
 	}
 	return &MDMConfigProfilePayload{
-		ProfileUUID:      cp.ProfileUUID,
-		TeamID:           tid,
-		Name:             cp.Name,
-		Identifier:       cp.Identifier,
-		Platform:         "darwin",
-		Checksum:         cp.Checksum,
-		CreatedAt:        cp.CreatedAt,
-		UploadedAt:       cp.UploadedAt,
-		Scope:            string(cp.Scope),
-		LabelsIncludeAll: cp.LabelsIncludeAll,
-		LabelsIncludeAny: cp.LabelsIncludeAny,
-		LabelsExcludeAny: cp.LabelsExcludeAny,
+		ProfileUUID:        cp.ProfileUUID,
+		TeamID:             tid,
+		Name:               cp.Name,
+		Description:        cp.Description,
+		PayloadDisplayName: PayloadDisplayNameFromMobileconfig(cp.Mobileconfig),
+		Identifier:         cp.Identifier,
+		Platform:           "darwin",
+		Checksum:           cp.Checksum,
+		CreatedAt:          cp.CreatedAt,
+		UploadedAt:         cp.UploadedAt,
+		Scope:              string(cp.Scope),
+		SelfService:        cp.SelfService,
+		Hidden:             cp.Hidden,
+		LabelsIncludeAll:   cp.LabelsIncludeAll,
+		LabelsIncludeAny:   cp.LabelsIncludeAny,
+		LabelsExcludeAny:   cp.LabelsExcludeAny,
 	}
 }
 
@@ -642,19 +921,25 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 	if decl.TeamID != nil && *decl.TeamID > 0 {
 		tid = decl.TeamID
 	}
-	return &MDMConfigProfilePayload{
+	payload := &MDMConfigProfilePayload{
 		ProfileUUID:      decl.DeclarationUUID,
 		TeamID:           tid,
 		Name:             decl.Name,
+		Description:      decl.Description,
 		Identifier:       decl.Identifier,
 		Platform:         "darwin",
 		Checksum:         []byte(decl.Token),
+		Hidden:           decl.Hidden,
 		CreatedAt:        decl.CreatedAt,
 		UploadedAt:       decl.UploadedAt,
 		LabelsIncludeAll: decl.LabelsIncludeAll,
 		LabelsIncludeAny: decl.LabelsIncludeAny,
 		LabelsExcludeAny: decl.LabelsExcludeAny,
 	}
+	if decl.Activation != nil {
+		payload.Activation = decl.Activation.RawJSON
+	}
+	return payload
 }
 
 func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConfigProfilePayload {
@@ -666,7 +951,9 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 		ProfileUUID:      cp.ProfileUUID,
 		TeamID:           tid,
 		Name:             cp.Name,
+		Description:      cp.Description,
 		Platform:         "android",
+		Hidden:           cp.Hidden,
 		CreatedAt:        cp.CreatedAt,
 		UploadedAt:       cp.UploadedAt,
 		LabelsIncludeAll: cp.LabelsIncludeAll,
@@ -678,7 +965,22 @@ func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConf
 // MDMProfileSpec represents the spec used to define configuration
 // profiles via yaml files.
 type MDMProfileSpec struct {
-	Path string `json:"path,omitempty"`
+	Path  string `json:"path,omitempty"`
+	Paths string `json:"paths,omitempty"`
+
+	// Name overrides the name derived from the file (PayloadDisplayName or
+	// file name). Only valid for a single file, so not with a multi-file glob.
+	Name string `json:"name,omitempty"`
+	// Description is free text shown next to the profile name.
+	Description string `json:"description,omitempty"`
+
+	// Activation is a path to a custom activation JSON file, only valid
+	// alongside an Apple declaration.
+	Activation string `json:"activation,omitempty"`
+
+	// SelfService is only valid for .mobileconfig profiles.
+	SelfService bool `json:"self_service,omitempty"`
+	Hidden      bool `json:"hidden,omitempty"`
 
 	// Deprecated: the Labels field is now deprecated, it is superseded by
 	// LabelsIncludeAll, so any value set via this field will be transferred to
@@ -699,6 +1001,39 @@ type MDMProfileSpec struct {
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
 }
 
+// Implement the SupportsFileInclude interface so that MDMProfileSpec
+// can support globs in GitOps.
+
+// GetBaseItem converts MDMProfileSpec's string Path/Paths to a BaseItem.
+// Nil pointers are returned for empty strings.
+func (p *MDMProfileSpec) GetBaseItem() BaseItem {
+	var b BaseItem
+	if p.Path != "" {
+		path := p.Path
+		b.Path = &path
+	}
+	if p.Paths != "" {
+		paths := p.Paths
+		b.Paths = &paths
+	}
+	return b
+}
+
+// SetBaseItem updates MDMProfileSpec's Path/Paths from a BaseItem.
+// Nil pointers become empty strings.
+func (p *MDMProfileSpec) SetBaseItem(v BaseItem) {
+	if v.Path != nil {
+		p.Path = *v.Path
+	} else {
+		p.Path = ""
+	}
+	if v.Paths != nil {
+		p.Paths = *v.Paths
+	} else {
+		p.Paths = ""
+	}
+}
+
 // UnmarshalJSON implements the json.Unmarshaler interface to add backwards
 // compatibility to previous ways to define profile specs.
 func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
@@ -710,13 +1045,9 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
 			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
 		}
-		p.Path = backwardsCompat
-
-		// FIXME: equivalent of no label condition, should clear all labels slice?
-		// p.Labels = nil
-		// p.LabelsIncludeAll = nil
-		// p.LabelsIncludeAny = nil
-		// p.LabelsExcludeAny = nil
+		// replace the whole spec, as below: decoding into a reused slice
+		// element would otherwise keep its name, description and labels
+		*p = MDMProfileSpec{Path: backwardsCompat}
 		return nil
 	}
 
@@ -771,14 +1102,36 @@ func labelCountMap(labels []string) map[string]int {
 	return counts
 }
 
-// MDMProfileSpecsMatch match checks if two slices contain the same spec
-// elements, regardless of order.
+// MDMProfileSpecsMatch checks if two slices contain the same spec elements,
+// regardless of order.
+//
+// Precondition: each slice must contain at most one entry per Path.
 func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
+	mustNotHaveDuplicatePaths("a", a)
+	mustNotHaveDuplicatePaths("b", b)
 	if len(a) != len(b) {
 		return false
 	}
 
+	type profileMetadata struct {
+		Name        string
+		Description string
+		Hidden      bool
+		SelfService bool
+	}
+	metadata := func(v MDMProfileSpec) profileMetadata {
+		return profileMetadata{
+			Name:        strings.TrimSpace(v.Name),
+			Description: strings.TrimSpace(v.Description),
+			Hidden:      v.Hidden,
+			SelfService: v.SelfService,
+		}
+	}
+
+	pathMetadata := make(map[string]profileMetadata, len(a))
 	pathLabelIncludeCounts := make(map[string]map[string]int)
+	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
+	pathLabelExcludeCounts := make(map[string]map[string]int)
 	for _, v := range a {
 		// the deprecated Labels field is only relevant if LabelsIncludeAll is
 		// empty.
@@ -787,14 +1140,10 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		} else {
 			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
 		}
-	}
-	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
-	for _, v := range a {
 		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
-	}
-	pathLabelExcludeCounts := make(map[string]map[string]int)
-	for _, v := range a {
 		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
+
+		pathMetadata[v.Path] = metadata(v)
 	}
 
 	for _, v := range b {
@@ -802,6 +1151,9 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 		includeAnyLabels, okInclAny := pathLabelsIncludeAnyCounts[v.Path]
 		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
 		if !okIncl || !okExcl || !okInclAny {
+			return false
+		}
+		if pathMetadata[v.Path] != metadata(v) {
 			return false
 		}
 
@@ -857,6 +1209,19 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
 }
 
+func mustNotHaveDuplicatePaths(name string, specs []MDMProfileSpec) {
+	if len(specs) < 2 {
+		return
+	}
+	seen := make(map[string]struct{}, len(specs))
+	for _, s := range specs {
+		if _, dup := seen[s.Path]; dup {
+			panic(fmt.Sprintf("MDMProfileSpecsMatch: %s contains duplicate Path %q; upstream validation should have rejected this", name, s.Path))
+		}
+		seen[s.Path] = struct{}{}
+	}
+}
+
 type MDMLabelsMode string
 
 const (
@@ -880,10 +1245,10 @@ const (
 	// MDMAssetAPNSCert is the name of the APNs (Apple Push Notifications
 	// service) private key used by MDM
 	MDMAssetAPNSCert MDMAssetName = "apns_cert"
-	// MDMAssetABMKey is the name of the ABM (Apple Business Manager)
+	// MDMAssetABMKey is the name of the AB (Apple Business)
 	// private key used to decrypt MDMAssetABMToken
 	MDMAssetABMKey MDMAssetName = "abm_key"
-	// MDMAssetABMCert is the name of the ABM (Apple Business Manager)
+	// MDMAssetABMCert is the name of the AB (Apple Business)
 	// private key used to encrypt MDMAssetABMToken
 	MDMAssetABMCert MDMAssetName = "abm_cert"
 	// MDMAssetABMTokenDeprecated is an encrypted JSON file that contains a token
@@ -920,6 +1285,28 @@ const (
 	MDMAssetConditionalAccessIDPCert MDMAssetName = "conditional_access_idp_cert"
 	// MDMAssetConditionalAccessIDPKey is the private key Fleet uses to sign SAML assertions as an IdP for conditional access
 	MDMAssetConditionalAccessIDPKey MDMAssetName = "conditional_access_idp_key"
+
+	// MDMAssetVPPProxyBearerToken is the bearer token Fleet uses to communicate with the fleetdm.com VPP metadata proxy
+	MDMAssetVPPProxyBearerToken MDMAssetName = "vpp_proxy_bearer_token" //nolint:gosec // no, this is not a credential
+	// MDMAssetProfileGeneratorFleetServerSecret is the bearer token Fleet sends to the fleetdm.com configuration
+	// profile generator when it has no unexpired Premium license to send instead.
+	MDMAssetProfileGeneratorFleetServerSecret MDMAssetName = "profile_generator_fleet_server_secret" //nolint:gosec // no, this is not a credential
+	// MDMAssetPSSOSigningKey is the EC P-256 private key Fleet uses to sign Platform SSO responses
+	// and publishes via the PSSO JWKS endpoint for the Mac extension to verify.
+	MDMAssetPSSOSigningKey MDMAssetName = "psso_signing_key" //nolint:gosec // private key, not a credential string
+	// MDMAssetPSSOCACert is the self-signed Platform SSO CA certificate Fleet uses
+	// to certify the provisioned unlock-key during key exchange. Its private key is
+	// MDMAssetPSSOSigningKey; both are minted once when the feature is first configured.
+	MDMAssetPSSOCACert MDMAssetName = "psso_ca_cert"
+	// MDMAssetPSSOEncryptionKey is the EC P-256 private key Fleet uses to decrypt
+	// the password the Mac extension encrypts "on the wire" (the embedded login
+	// assertion). It is published as an ECDH-ES encryption key in the PSSO JWKS so
+	// the extension can set it as loginRequestEncryptionPublicKey.
+	MDMAssetPSSOEncryptionKey MDMAssetName = "psso_encryption_key" //nolint:gosec // private key, not a credential string
+	// MDMAssetAppleAccountProvisioningIdPClientSecret is the OAuth ROPG IdP client
+	// secret for the macOS account provisioning / Platform SSO feature. Stored
+	// here (encrypted) rather than in the AppConfig JSON so the API never returns it.
+	MDMAssetAppleAccountProvisioningIdPClientSecret MDMAssetName = "apple_account_provisioning_idp_client_secret" //nolint:gosec // stored credential, name is not itself a secret
 )
 
 type MDMConfigAsset struct {
@@ -946,25 +1333,43 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 	return clone
 }
 
-// MDMPlatform returns "darwin" or "windows" as MDM platforms
-// derived from a host's platform (hosts.platform field).
+// ClassicMDMPlatform returns "darwin" or "windows" as MDM platforms derived
+// from a host's platform (a raw hosts.platform value, or the collapsed one
+// returned by Host.FleetPlatform), or "" for platforms that don't take part in
+// the classic MDM command pipeline.
 //
 // Note that "darwin" as MDM platform means Apple (we keep it as "darwin"
 // to keep backwards compatibility throughout the app).
-func MDMPlatform(hostPlatform string) string {
+//
+// Android is deliberately not part of this list: Android hosts don't take part
+// in the classic MDM command pipeline (raw XML/plist commands, the
+// nano_commands and mdm_windows_commands listings, the mdmlifecycle hooks and
+// the host_mdm turn-off/reset paths MDMTurnOff and MDMResetEnrollment). Android
+// has its own commands table and its own unenroll path. To check whether Fleet
+// can turn MDM on for a platform at all, use MDMTurnedOnSupported instead.
+func ClassicMDMPlatform(hostPlatform string) string {
 	switch hostPlatform {
 	case "darwin", "ios", "ipados":
 		return "darwin"
 	case "windows":
 		return "windows"
-		// TODO(android): add android to this list?
 	}
 	return ""
 }
 
-// MDMSupported returns whether MDM is supported for a given host platform.
-func MDMSupported(hostPlatform string) bool {
-	return MDMPlatform(hostPlatform) != ""
+// ClassicMDMSupported returns whether the given host platform takes part in the
+// classic MDM command pipeline. It returns false for Android, see
+// ClassicMDMPlatform for details.
+func ClassicMDMSupported(hostPlatform string) bool {
+	return ClassicMDMPlatform(hostPlatform) != ""
+}
+
+// MDMTurnedOnSupported returns whether Fleet supports any form of MDM
+// enrollment for the given host platform, Android included. Use this for the
+// checks that only care about MDM being turned on for the host, such as the
+// "Can't <action> the host because it doesn't have MDM turned on." pre-checks.
+func MDMTurnedOnSupported(hostPlatform string) bool {
+	return ClassicMDMSupported(hostPlatform) || IsAndroidPlatform(hostPlatform)
 }
 
 // FilterMacOSOnlyProfilesFromIOSIPadOS will filter out profiles that are only for macOS devices
@@ -1002,6 +1407,9 @@ const (
 	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
 
+// DeviceNameCommandUUIDPrefix is the prefix used for the MDM command that renames a device.
+const DeviceNameCommandUUIDPrefix = "DEVNAME-"
+
 func RefetchAppsCommandUUID() string {
 	return RefetchAppsCommandUUIDPrefix + uuid.NewString()
 }
@@ -1023,6 +1431,45 @@ func VerifySoftwareInstallCommandUUID() string {
 	return VerifySoftwareInstallVPPPrefix + uuid.NewString()
 }
 
+// AppleMDMCommandRetentionClass identifies a set of Fleet-generated commands
+// eligible for cleanup. An empty UUIDPrefix matches any command of RequestType.
+type AppleMDMCommandRetentionClass struct {
+	RequestType string
+	UUIDPrefix  string
+}
+
+// AppleMDMShortRetentionClasses are the recurring commands the cleanup deletes
+// after the short retention window. The UUID prefixes separate Fleet's own
+// inventory chatter from customer-run commands of the same request type, which
+// fall under the standard window instead.
+var AppleMDMShortRetentionClasses = []AppleMDMCommandRetentionClass{
+	{RequestType: "DeviceInformation", UUIDPrefix: RefetchDeviceCommandUUIDPrefix},
+	{RequestType: "InstalledApplicationList", UUIDPrefix: RefetchAppsCommandUUIDPrefix},
+	{RequestType: "CertificateList", UUIDPrefix: RefetchCertsCommandUUIDPrefix},
+	{RequestType: "Settings", UUIDPrefix: DeviceNameCommandUUIDPrefix},
+	{RequestType: "InstalledApplicationList", UUIDPrefix: VerifySoftwareInstallVPPPrefix},
+	{RequestType: "DeclarativeManagement"},
+}
+
+// AppleMDMStandardRetentionRequestTypes are the request types the cleanup
+// deletes after the standard retention window. Any type not listed here or in
+// the short classes is retained indefinitely, so a new feature's commands are
+// kept until someone reviews them for deletion.
+var AppleMDMStandardRetentionRequestTypes = []string{
+	"InstallProfile", "RemoveProfile", "InstallApplication",
+	"InstallEnterpriseApplication", "DeviceConfigured", "DeviceInformation",
+	"InstalledApplicationList", "CertificateList", "ProfileList", "SecurityInfo",
+	DeviceLocationCmdName, SetRecoveryLockCmdName, VerifyRecoveryLockCmdName, SetAutoAdminPasswordCmdName,
+	"UserList", RotateFileVaultKeyCmdName,
+}
+
+// AppleMDMInactivePurgeDenylist lists request types whose deactivated queue rows
+// are still read back afterwards (lock/wipe/lost-mode status), so the inactive
+// purge must skip them even at active = 0.
+var AppleMDMInactivePurgeDenylist = []string{
+	"DeviceLock", "EraseDevice", EnableLostModeCmdName, DisableLostModeCmdName, AccountConfigurationCmdName,
+}
+
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
 	OrgName   string `json:"org_name"`
@@ -1041,12 +1488,19 @@ type VPPTokenRaw struct {
 type VPPTokenData struct {
 	// Location comes from an Apple API:
 	// https://developer.apple.com/documentation/devicemanagement/client_config. It is the name of
-	// the "library" of apps in ABM that is associated with this VPP token.
+	// the organization unit (formerly "location") in Apple Business that is associated with this
+	// VPP token.
 	Location string `json:"location"`
 
 	// Token is the token that is downloaded from ABM. It is a base64 encoded JSON object with the
 	// structure of `VPPTokenRaw`.
 	Token string `json:"token"`
+
+	// CountryCode is the lowercase ISO 3166-1 alpha-2 country code of the
+	// Apple Business Manager account that owns this token (e.g. "us", "de").
+	// It comes from the same /client/config endpoint as Location. May be
+	// empty if the country lookup failed; the caller will lazy-backfill.
+	CountryCode string `json:"country_code"`
 }
 
 const VPPTimeFormat = "2006-01-02T15:04:05Z0700"
@@ -1059,14 +1513,28 @@ type VPPTokenDB struct {
 	RenewDate time.Time `db:"renew_at" json:"renew_date"`
 	// Token is the token dowloaded from ABM. It is the base64 encoded
 	// JSON object with the structure of `VPPTokenRaw`
-	Token string      `db:"token" json:"-"`
-	Teams []TeamTuple `json:"teams"`
-	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	Token string `db:"token" json:"-"`
+	// CountryCode is the lowercase ISO 3166-1 alpha-2 country code of the
+	// Apple Business Manager account that owns this token (e.g. "us", "de").
+	// Populated from Apple's /client/config endpoint when the token is
+	// uploaded; may be empty for tokens uploaded before this field was added,
+	// in which case it is lazily backfilled.
+	CountryCode string      `db:"country_code" json:"country_code"`
+	Teams       []TeamTuple `json:"teams" renameto:"fleets"`
+	CreatedAt   *time.Time  `db:"created_at" json:"created_at"`
+}
+
+// AvailableToTeam reports whether the token is assigned to teamID, directly or
+// through "All fleets". teamID 0 is "No fleet".
+func (t *VPPTokenDB) AvailableToTeam(teamID uint) bool {
+	if t.Teams != nil && len(t.Teams) == 0 {
+		return true
+	}
+	return slices.ContainsFunc(t.Teams, func(tt TeamTuple) bool { return tt.ID == teamID })
 }
 
 type TeamTuple struct {
-	ID   uint   `json:"team_id"`
+	ID   uint   `json:"team_id" renameto:"fleet_id"`
 	Name string `json:"name"`
 }
 
@@ -1123,10 +1591,20 @@ func (p InstallableDevicePlatform) IsApplePlatform() bool {
 	return slices.Contains(ApplePlatforms, p)
 }
 
+// DisplayName returns the platform name shown to users, e.g. "iOS".
+func (p InstallableDevicePlatform) DisplayName() string {
+	if name, ok := hostNameTemplatePlatformDisplayNames[string(p)]; ok {
+		return name
+	}
+	return string(p)
+}
+
 type AppleDevicesToRefetch struct {
-	HostID              uint                   `db:"host_id"`
-	UUID                string                 `db:"uuid"`
-	CommandsAlreadySent MDMCommandsAlreadySent `db:"commands_already_sent"`
+	HostID               uint                   `db:"host_id"`
+	UUID                 string                 `db:"uuid"`
+	InstalledFromDEP     bool                   `db:"installed_from_dep"`
+	IsPersonalEnrollment bool                   `db:"is_personal_enrollment"`
+	CommandsAlreadySent  MDMCommandsAlreadySent `db:"commands_already_sent"`
 }
 
 type MDMCommandsAlreadySent []string
@@ -1158,12 +1636,17 @@ func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
 type HostMDMCommand struct {
 	HostID      uint   `db:"host_id"`
 	CommandType string `db:"command_type"`
+	// CommandUUID is the queued command this tracking row refers to. Empty on
+	// rows written before Fleet recorded it and by flows that have not adopted
+	// it (e.g. VPP install verification); those rows keep the pre-UUID
+	// semantics everywhere.
+	CommandUUID string `db:"command_uuid"`
 }
 
 // MDMProfileUUIDFleetVariables represents the Fleet variables used by a
 // profile identified by its UUID.
 type MDMProfileUUIDFleetVariables struct {
-	// ProfileUUID is the UUID of the profile.
+	// ProfileUUID is the UUID of the profile or declaration.
 	ProfileUUID string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
@@ -1174,8 +1657,10 @@ type MDMProfileUUIDFleetVariables struct {
 // MDMProfileIdentifierFleetVariables represents the Fleet variables used by a
 // profile identified by its identifier.
 type MDMProfileIdentifierFleetVariables struct {
-	// Identifier is the identifier of the profile (which is unique by team for
-	// Apple profiles).
+	// Identifier is the identifier of the profile. Because the profile identifier is not guaranteed
+	// to be unique across platforms and types of profiles (e.g. Apple profiles vs declarations vs Windows
+	// profiles), it must be prefixed with the same letter used for the UUID prefix of the profile type.
+	// E.g. fleet.MDMAppleDeclarationUUIDPrefix.
 	Identifier string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
@@ -1222,4 +1707,160 @@ type HostMDMIdentifiers struct {
 	Hostname       string `db:"hostname"`
 	Platform       string `db:"platform"`
 	TeamID         *uint  `db:"team_id"`
+}
+
+type NanoMDMEnrollmentDetails struct {
+	LastMDMEnrollmentTime  *time.Time `db:"authenticate_at"`
+	LastMDMSeenTime        *time.Time `db:"last_seen_at"`
+	HardwareAttested       bool       `db:"hardware_attested"`
+	UnlockToken            *string    `db:"unlock_token"`
+	BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
+	// EnrollmentType is the MDM enrollment channel as reported by nanomdm, e.g.
+	// "Device" or "User Enrollment (Device)".
+	EnrollmentType string `db:"enrollment_type"`
+	// Enabled is false after checkout, when last_seen_at still keeps updating.
+	// Liveness-signal callers must ignore LastMDMSeenTime in that case.
+	Enabled bool `db:"enabled"`
+}
+
+// MDM SSO initiator constants identify which enrollment flow initiated the SSO
+// authentication. These values are stored in the SSO session and used in the
+// callback to determine the correct behavior.
+const (
+	// SSOInitiatorOTAEnroll is used for OTA/BYOD enrollment flows (Android,
+	// iPhone, iPad) initiated from the /enroll page.
+	SSOInitiatorOTAEnroll = "ota_enroll"
+	// SSOInitiatorOrbitSetupExperience is used when the Orbit agent opens the SSO
+	// browser window during the macOS Setup Assistant, Windows enrollment or Linux enrollment.
+	SSOInitiatorOrbitSetupExperience = "setup_experience"
+	// SSOInitiatorAccountDrivenEnroll is used for Apple's native account-driven
+	// MDM enrollment flow.
+	SSOInitiatorAccountDrivenEnroll = "account_driven_enroll"
+	// SSOInitiatorAppleMDMSSO is used for automatic MDM Apple enrollment SSO flow.
+	SSOInitiatorAppleMDMSSO = "mdm_sso"
+	// SSOInitiatorFleetDesktop is used when the Fleet Desktop "My device" page
+	// requires the end user to authenticate with the IdP.
+	SSOInitiatorFleetDesktop = "fleet_desktop"
+)
+
+// maxSSORelayStateLen is the cap the SAML 2.0 HTTP bindings put on RelayState.
+const maxSSORelayStateLen = 80
+
+// SSORelayState is a value Fleet asks the IdP to echo back with the SAML
+// assertion. It survives a callback whose SSO session can no longer be loaded
+type SSORelayState string
+
+// SSORelayStateNone leaves RelayState off the AuthnRequest entirely.
+const SSORelayStateNone = SSORelayState("")
+
+// ParseSSORelayState turns the raw RelayState an IdP posted back into the
+// initiator Fleet sent, or SSORelayStateNone when it echoed back nothing Fleet
+// recognizes.
+func ParseSSORelayState(raw string) SSORelayState {
+	if len(raw) > maxSSORelayStateLen {
+		return SSORelayStateNone
+	}
+	switch raw {
+	case SSOInitiatorOTAEnroll, SSOInitiatorOrbitSetupExperience,
+		SSOInitiatorAccountDrivenEnroll, SSOInitiatorAppleMDMSSO, SSOInitiatorFleetDesktop:
+		return SSORelayState(raw)
+	default:
+		return SSORelayStateNone
+	}
+}
+
+// DeviceSSOInitiation is what a device needs to start the Fleet Desktop SSO
+// flow: the IdP URL to navigate to, plus the handshake session that ties the
+// eventual SAML callback back to this request.
+type DeviceSSOInitiation struct {
+	// IdPURL is the URL the browser must navigate to in order to authenticate.
+	IdPURL string
+	// SessionID identifies the SSO handshake session, carried to the SAML
+	// callback by the __Host-FLEETSSOSESSIONID cookie.
+	SessionID string
+	// SessionDuration is how long the handshake session and its cookie stay
+	// valid; both must use it so neither outlives the other.
+	SessionDuration time.Duration
+}
+
+// DeviceSSOSession is minted after a successful IdP callback initiated from
+// the Fleet Desktop "My device" page, and consumed by the device endpoint SSO
+// gate. It is bound to the host whose device token started the flow, so one
+// device's session cannot unlock another device's page in the same browser.
+type DeviceSSOSession struct {
+	HostID uint `json:"host_id"`
+	// IdPAccountUUID identifies the mdm_idp_accounts row for the IdP identity
+	// that completed the SAML flow.
+	IdPAccountUUID string    `json:"idp_account_uuid"`
+	ExpiresAt      time.Time `json:"expires_at"`
+}
+
+// ValidateMDMProfileSpecs validates the label configuration for each profile spec: exactly one
+// include mode may be set, no label may appear in both include and exclude lists, and the legacy
+// Labels field is normalised to LabelsIncludeAll. Errors are accumulated into invalid.
+func ValidateMDMProfileSpecs(invalid *InvalidArgumentError, prefix string, customSettings []MDMProfileSpec) {
+	for i, prof := range customSettings {
+		includeCount := 0
+		for _, b := range []bool{len(prof.Labels) > 0, len(prof.LabelsIncludeAll) > 0, len(prof.LabelsIncludeAny) > 0} {
+			if b {
+				includeCount++
+			}
+		}
+		if includeCount > 1 {
+			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. For each profile, only one of "labels_include_all", "labels_include_any" or "labels" can be included.`, prefix))
+		}
+		includeLabels := slices.Concat(prof.Labels, prof.LabelsIncludeAll, prof.LabelsIncludeAny)
+		if overlap := LabelOverlap(includeLabels, prof.LabelsExcludeAny); overlap != "" {
+			invalid.Append(fmt.Sprintf("%s_settings.configuration_profiles", prefix),
+				fmt.Sprintf(`Couldn't edit %s_settings.configuration_profiles. Label %q cannot appear in both include and exclude lists.`, prefix, overlap))
+		}
+		if len(prof.Labels) > 0 {
+			customSettings[i].LabelsIncludeAll = customSettings[i].Labels
+			customSettings[i].Labels = nil
+		}
+	}
+}
+
+// GenerateRandom32ByteEntropyURLSafeToken generates a random 32-byte token
+// and base64 encodes it in a URL safe way (without padding).
+func GenerateRandom32ByteEntropyURLSafeToken() ([]byte, error) {
+	var token [32]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return nil, fmt.Errorf("generating 32-byte token: %w", err)
+	}
+	urlEncodedToken := make([]byte, base64.RawURLEncoding.EncodedLen(len(token)))
+	base64.RawURLEncoding.Encode(urlEncodedToken, token[:])
+	return urlEncodedToken, nil
+}
+
+// MDMProfileMaxDescriptionLen matches the description column on the profile
+// tables.
+const MDMProfileMaxDescriptionLen = 1023
+
+// ValidateMDMProfileName checks a profile name. It applies to every profile
+// type; derived names (PayloadDisplayName, file name) go through it too so the
+// limits are the same however the name was set.
+func ValidateMDMProfileName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return NewInvalidArgumentError("name", "Profile name can't be empty.")
+	}
+	if utf8.RuneCountInString(name) > MaxProfileNameLength {
+		return NewInvalidArgumentError("name", MaxProfileNameLengthErrMsg+".")
+	}
+	if len(ContainsPrefixVars(name, ServerSecretPrefix)) > 0 {
+		return NewInvalidArgumentError("name", "Profile name can't contain FLEET_SECRET variables.")
+	}
+	if _, reserved := mdm_types.FleetReservedProfileNames()[name]; reserved {
+		return NewInvalidArgumentError("name", fmt.Sprintf("Profile name %q is not allowed.", name))
+	}
+	return nil
+}
+
+// ValidateMDMProfileDescription checks an admin-provided profile description.
+func ValidateMDMProfileDescription(description string) error {
+	if utf8.RuneCountInString(description) > MDMProfileMaxDescriptionLen {
+		return NewInvalidArgumentError("description", fmt.Sprintf("Profile description can't be longer than %d characters.", MDMProfileMaxDescriptionLen))
+	}
+	return nil
 }

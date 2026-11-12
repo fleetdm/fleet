@@ -1,12 +1,13 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { noop } from "lodash";
+import React from "react";
+
 import {
   createMockHostSoftware,
   createMockHostAppStoreApp,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import { noop } from "lodash";
+import { renderWithSetup } from "test/test-utils";
 
 import InstallStatusCell from "./InstallStatusCell";
 
@@ -125,7 +126,7 @@ describe("InstallStatusCell - component", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders 'Ran' status for a payload-free package", async () => {
+  it("renders 'Ran' status for a script-only package", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -181,7 +182,7 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByRole("button", { name: /Install \(pending\)/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("pending-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Install (pending)"));
     await waitFor(() => {
@@ -191,7 +192,7 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
-  it("renders 'Running...' status for a payload-free package with tooltip if host is online", async () => {
+  it("renders 'Running...' status for a script-only package with tooltip if host is online", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -233,7 +234,7 @@ describe("InstallStatusCell - component", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders 'Run (pending)' for a payload-free package with tooltip if host is offline", async () => {
+  it("renders 'Run (pending)' for a script-only package with tooltip if host is offline", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -256,7 +257,7 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByRole("button", { name: /Run \(pending\)/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("pending-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Run (pending)"));
     await waitFor(() => {
@@ -334,7 +335,7 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByRole("button", { name: /Uninstall \(pending\)/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("pending-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Uninstall (pending)"));
     await waitFor(() => {
@@ -374,7 +375,41 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
-  it("renders 'Failed' for a payload-free package that failed to run", async () => {
+  it("renders 'Patch skipped' status with tooltip and opens install details on click", async () => {
+    const onShowInstallDetails = jest.fn();
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            skipped_install: true,
+            software_package: testSoftwarePackage,
+          }),
+          ui_status: "skipped_install",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={onShowInstallDetails}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    const button = screen.getByRole("button", { name: /patch skipped/i });
+    expect(button).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
+
+    await user.hover(button);
+    await waitFor(() => {
+      expect(screen.getByText(/The app was open/i)).toBeInTheDocument();
+    });
+
+    await user.click(button);
+    expect(onShowInstallDetails).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders 'Failed' for a script-only package that failed to run", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -440,7 +475,85 @@ describe("InstallStatusCell - component", () => {
     });
   });
 
-  it("renders 'Failed' for failed_install_update_available", async () => {
+  it("renders 'Installed' with failed install tooltip for failed_install_installed", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_install",
+            software_package: createMockHostSoftwarePackage({
+              last_install: {
+                installed_at: "2022-01-01T12:00:00Z",
+              } as any,
+            }),
+          }),
+          ui_status: "failed_install_installed",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Installed/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("success-icon")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Installed"));
+    await waitFor(() => {
+      // Core failure message
+      expect(
+        screen.getByText(/Software failed to install/i)
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("renders 'Installed' with failed uninstall tooltip for failed_uninstall_installed", async () => {
+    const { user } = renderWithSetup(
+      <InstallStatusCell
+        software={{
+          ...createMockHostSoftware({
+            status: "failed_uninstall",
+            software_package: createMockHostSoftwarePackage({
+              last_uninstall: {
+                script_execution_id: "123-abc",
+                uninstalled_at: "2022-01-01T12:00:00Z",
+              },
+            }),
+          }),
+          ui_status: "failed_uninstall_installed",
+        }}
+        onShowUpdateDetails={noop}
+        onShowInstallDetails={noop}
+        onShowIpaInstallDetails={noop}
+        onShowScriptDetails={noop}
+        onShowUninstallDetails={noop}
+        onShowVPPInstallDetails={noop}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Installed/i })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("success-icon")).toBeInTheDocument();
+
+    await user.hover(screen.getByText("Installed"));
+    await waitFor(() => {
+      // Core failure message
+      expect(
+        screen.getByText(/Software failed to uninstall/i)
+      ).toBeInTheDocument();
+      // Ensure the “to uninstall again” part of the tooltip is present
+      expect(screen.getByText(/to uninstall again/i)).toBeInTheDocument();
+    });
+  });
+
+  it("renders 'Failed' with failure tooltip for failed_install_update_available", async () => {
+    const onShowInstallDetails = jest.fn();
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -451,23 +564,27 @@ describe("InstallStatusCell - component", () => {
           ui_status: "failed_install_update_available",
         }}
         onShowUpdateDetails={noop}
-        onShowInstallDetails={noop}
+        onShowInstallDetails={onShowInstallDetails}
         onShowIpaInstallDetails={noop}
         onShowScriptDetails={noop}
         onShowUninstallDetails={noop}
         onShowVPPInstallDetails={noop}
       />
     );
-    expect(screen.getByRole("button", { name: /Failed/i })).toBeInTheDocument();
+    const failedButton = screen.getByRole("button", { name: /Failed/i });
+    expect(failedButton).toBeInTheDocument();
     expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Failed"));
     await waitFor(() => {
       expect(screen.getByText(/failed to install/i)).toBeInTheDocument();
     });
+
+    failedButton.click();
+    expect(onShowInstallDetails).toHaveBeenCalled();
   });
 
-  it("renders 'Failed (uninstall)' for failed_uninstall_update_available", async () => {
+  it("renders 'Update available' with failed uninstall tooltip for failed_uninstall_update_available", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -491,11 +608,11 @@ describe("InstallStatusCell - component", () => {
       />
     );
     expect(
-      screen.getByRole("button", { name: /Failed \(uninstall\)/i })
+      screen.getByRole("button", { name: /Update available/i })
     ).toBeInTheDocument();
     expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
-    await user.hover(screen.getByText("Failed (uninstall)"));
+    await user.hover(screen.getByText("Update available"));
     await waitFor(() => {
       expect(screen.getByText(/to uninstall again/i)).toBeInTheDocument();
     });
@@ -522,7 +639,7 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByRole("button", { name: /Update available/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("error-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Update available"));
     await waitFor(() => {
@@ -587,7 +704,7 @@ describe("InstallStatusCell - component", () => {
     expect(
       screen.getByRole("button", { name: /Update \(pending\)/i })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("pending-outline-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("pending-icon")).toBeInTheDocument();
 
     await user.hover(screen.getByText("Update (pending)"));
     await waitFor(() => {
@@ -659,7 +776,7 @@ describe("InstallStatusCell - component", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("renders '---' for a payload-free package available for run", async () => {
+  it("renders '---' for a script-only package available for run", async () => {
     const { user } = renderWithSetup(
       <InstallStatusCell
         software={{
@@ -683,8 +800,7 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getByText("---"));
     await waitFor(() => {
-      expect(screen.getByText(/can be/i)).toBeInTheDocument();
-      expect(screen.getByText(/ran/i)).toBeInTheDocument();
+      expect(screen.getByText(/can be run on the host/i)).toBeInTheDocument();
     });
 
     // Not clickable
@@ -749,9 +865,8 @@ describe("InstallStatusCell - component", () => {
 
     await user.hover(screen.getAllByText("---")[0]);
     await waitFor(() => {
-      expect(
-        screen.getByText(/App store app can be installed/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Mock Software/i)).toBeInTheDocument();
+      expect(screen.getByText(/can be/i)).toBeInTheDocument();
     });
 
     // Not clickable

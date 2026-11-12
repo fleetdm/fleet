@@ -14,7 +14,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -23,17 +25,31 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
+
+// matches IPv4 and IPv6 socket addresses
+var socketAddrPattern = regexp.MustCompile(`(?:\d{1,3}\.){3}\d{1,3}:\d+|\[[0-9a-fA-F:]+\]:\d+`)
+
+// replaces TCP/UDP socket addresses (if present) with a fixed placeholder
+func maybeReplaceSocketAddr(s string) string {
+	return socketAddrPattern.ReplaceAllString(s, "<addr>")
+}
+
+// statusCoder duck-types errors that expose an HTTP status code (matches
+// service.OsqueryError.Status). Used below to limit the socket-address
+// normalization to request-timeout errors only, without introducing a
+// service -> errorstore import cycle.
+type statusCoder interface {
+	Status() int
+}
 
 // Handler defines an error handler. Call Handler.Store to handle an error, and
 // Handler.Retrieve to retrieve all stored errors and optionally clear them
 // from the store. It is safe to call those methods concurrently.
 type Handler struct {
 	pool    fleet.RedisPool
-	logger  kitlog.Logger
+	logger  *slog.Logger
 	ttl     time.Duration
 	running int32 // accessed atomically
 	errCh   chan error
@@ -47,7 +63,7 @@ type Handler struct {
 // NewHandler creates an error handler using the provided pool and logger,
 // storing unique instances of errors in Redis using the pool. It stops storing
 // errors when ctx is cancelled. Errors are kept for the duration of ttl.
-func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger, ttl time.Duration) *Handler {
+func NewHandler(ctx context.Context, pool fleet.RedisPool, logger *slog.Logger, ttl time.Duration) *Handler {
 	eh := &Handler{
 		pool:   pool,
 		logger: logger,
@@ -60,7 +76,7 @@ func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger,
 	return eh
 }
 
-func newTestHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger, ttl time.Duration, onStart func(), onStore func(error)) *Handler {
+func newTestHandler(ctx context.Context, pool fleet.RedisPool, logger *slog.Logger, ttl time.Duration, onStart func(), onStore func(error)) *Handler {
 	eh := &Handler{
 		pool:   pool,
 		logger: logger,
@@ -151,8 +167,17 @@ func hashError(err error) string {
 	ferr := ctxerr.FleetCause(err)
 
 	var sb strings.Builder
-	// hash the cause type and message (it might not be a FleetError)
-	fmt.Fprintf(&sb, "%T\n%s\n", cause, cause.Error())
+	// hash the cause type and message (it might not be a FleetError).
+	// For request-timeout errors only, all socket addresses in the
+	// message (both local and remote, IPs and ports) are normalized
+	// away so that occurrences differing only by those addresses
+	// collapse into a single dedup entry.
+	msg := cause.Error()
+	var sc statusCoder
+	if errors.As(err, &sc) && sc.Status() == http.StatusRequestTimeout {
+		msg = maybeReplaceSocketAddr(msg)
+	}
+	fmt.Fprintf(&sb, "%T\n%s\n", cause, msg)
 
 	// hash the stack trace of the root FleetError in the chain
 	if ferr != nil {
@@ -202,7 +227,7 @@ func (h *Handler) handleErrors(ctx context.Context) {
 func (h *Handler) storeError(ctx context.Context, err error) {
 	errorHash, errorJson, err := hashAndMarshalError(err)
 	if err != nil {
-		level.Error(h.logger).Log("err", err, "msg", "hashErr failed")
+		h.logger.ErrorContext(ctx, "hashErr failed", "err", err)
 		if h.testOnStore != nil {
 			h.testOnStore(err)
 		}
@@ -238,7 +263,7 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 	}
 
 	if _, err := conn.Do(""); err != nil {
-		level.Error(h.logger).Log("err", err, "msg", "redis SET failed")
+		h.logger.ErrorContext(ctx, "redis SET failed", "err", err)
 		if h.testOnStore != nil {
 			h.testOnStore(err)
 		}

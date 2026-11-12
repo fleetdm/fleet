@@ -1,9 +1,30 @@
 .host-sw-library-table {
-  &__filter-controls {
-    width: 230px;
+  // Keep the dropdown and "Add software" button on one line next to the
+  // search, and stop the card's full-width search rule from squeezing them.
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: $gap-table-elements;
   }
 
-  .table-container__search {
-    width: 315px;
+  .table-container__results-count {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  // The search and dropdown shrink on narrow cards (768px viewport). The
+  // search stops at its input's 305px min-width (set in the card's
+  // stylesheet), so the dropdown absorbs the rest down to its own floor.
+  .table-container__header .table-container__search {
+    flex: 0 1 315px;
+  }
+
+  &__filter-controls {
+    flex: 0 1 230px;
+    min-width: 160px;
+  }
+
+  &__add-software-button {
+    flex-shrink: 0;
   }
 }

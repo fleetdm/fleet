@@ -19,7 +19,7 @@ import (
 
 type createDistributedQueryCampaignRequest struct {
 	QuerySQL string            `json:"query"`
-	QueryID  *uint             `json:"query_id"`
+	QueryID  *uint             `json:"query_id" renameto:"report_id"`
 	Selected fleet.HostTargets `json:"selected"`
 }
 
@@ -89,7 +89,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, err
 	}
 
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: query.ObserverCanRun}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: query.ObserverCanRun, ObserverTeamID: query.TeamID}
 
 	campaign, err := svc.ds.NewDistributedQueryCampaign(ctx, &fleet.DistributedQueryCampaign{
 		QueryID: query.ID,
@@ -166,6 +166,18 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, ctxerr.Wrap(ctx, err, "run query")
 	}
 
+	// Wake up targeted agents connected over the WebSocket transport so they
+	// pick up the campaign immediately instead of on their next poll.
+	// Best-effort: agents the notification misses get the query through
+	// polling or the interval check job. The wired notifier delays the publish
+	// so the live query store's in-memory cache can't hide the fresh campaign
+	// (see pubsub.DelayedAgentNotifier).
+	if svc.agentNotifier != nil {
+		if err := svc.agentNotifier.NotifyAgentsForLiveQuery(ctx, hostIDs, campaign.ID); err != nil {
+			svc.logger.ErrorContext(ctx, "notify agents for live query", "campaign_id", campaign.ID, "err", err)
+		}
+	}
+
 	return campaign, nil
 }
 
@@ -175,7 +187,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 
 type createDistributedQueryCampaignByIdentifierRequest struct {
 	QuerySQL string                                       `json:"query"`
-	QueryID  *uint                                        `json:"query_id"`
+	QueryID  *uint                                        `json:"query_id" renameto:"report_id"`
 	Selected distributedQueryCampaignTargetsByIdentifiers `json:"selected"`
 }
 
@@ -186,7 +198,8 @@ type distributedQueryCampaignTargetsByIdentifiers struct {
 }
 
 func createDistributedQueryCampaignByIdentifierEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer,
-	error) {
+	error,
+) {
 	req := request.(*createDistributedQueryCampaignByIdentifierRequest)
 	campaign, err := svc.NewDistributedQueryCampaignByIdentifiers(ctx, req.QuerySQL, req.QueryID, req.Selected.Hosts, req.Selected.Labels)
 	if err != nil {

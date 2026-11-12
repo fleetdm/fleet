@@ -1,0 +1,10 @@
+{
+  "name": "Chrome Remote Desktop",
+  "slug": "chrome-remote-desktop/windows",
+  "package_identifier": "Google.ChromeRemoteDesktopHost",
+  "unique_identifier": "Chrome Remote Desktop Host",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

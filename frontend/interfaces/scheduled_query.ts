@@ -1,5 +1,6 @@
 // legacy interfaces to maintain packs support
 import PropTypes from "prop-types";
+
 import ILegacySchedulableQueryStats, {
   ISchedulableQueryStats,
 } from "interfaces/schedulable_query";
@@ -54,7 +55,7 @@ export interface IScheduledQuery {
   denylist?: boolean;
   logging_type?: string;
   stats: ISchedulableQueryStats;
-  team_id?: number;
+  fleet_id?: number;
 }
 export interface IEditScheduledQuery extends IScheduledQuery {
   type: "global_scheduled_query" | "team_scheduled_query";
@@ -76,5 +77,5 @@ export interface IUpdateScheduledQuery {
 }
 
 export interface IUpdateTeamScheduledQuery extends IUpdateScheduledQuery {
-  team_id: number;
+  fleet_id: number;
 }

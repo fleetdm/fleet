@@ -1,0 +1,1087 @@
+import { render as defaultRender, screen } from "@testing-library/react";
+import { UserEvent } from "@testing-library/user-event";
+import React from "react";
+
+import {
+  createMockSoftwareTitle,
+  createMockSoftwareTitleDetails,
+  createMockSoftwarePackage,
+  createMockSoftwarePackageIos,
+  createMockAppStoreApp,
+  createMockAppStoreAppAndroid,
+  createMockAppStoreAppIos,
+} from "__mocks__/softwareMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
+
+import SoftwareSummaryCard from "./SoftwareSummaryCard";
+
+const router = createMockRouter();
+
+// Mock the SoftwareIcon component since it makes API calls.
+// We'll just check that it's called with the correct URL.
+const mockSoftwareIcon = jest.fn();
+jest.mock("../../components/icons/SoftwareIcon", () => {
+  return {
+    __esModule: true,
+    default: ({ url }: { url: string }) => {
+      mockSoftwareIcon({ url });
+      return <div />;
+    },
+  };
+});
+
+describe("Software Summary Card", () => {
+  beforeEach(() => {
+    mockSoftwareIcon.mockClear();
+  });
+  it("Shows the correct basic info about a software title", async () => {
+    const softwareTitle = createMockSoftwareTitle({
+      icon_url: "https://example.com/icon.png",
+    });
+    defaultRender(
+      <SoftwareSummaryCard
+        softwareTitle={softwareTitle}
+        softwareId={1}
+        router={router}
+        refetchSoftwareTitle={jest.fn()}
+        onClickVersions={jest.fn()}
+      />
+    );
+    // Get the text with aria label "software display name"
+    const displayNameElement = screen.getByLabelText("software display name");
+    expect(displayNameElement).toHaveTextContent(softwareTitle.name);
+    // Check for type "App (macOS)"
+    expect(screen.getByText("App (macOS)")).toBeInTheDocument();
+    // Check that the icon component is called with the correct URL.
+    expect(mockSoftwareIcon).toHaveBeenCalledWith({
+      url: "https://example.com/icon.png",
+    });
+  });
+
+  describe("IDs", () => {
+    const renderPremium = createCustomRenderer({
+      context: { app: { isPremiumTier: true, isGlobalAdmin: true } },
+    });
+    const renderFree = createCustomRenderer({
+      context: { app: { isPremiumTier: false, isGlobalAdmin: true } },
+    });
+    const fmaTitle = () =>
+      createMockSoftwareTitle({
+        software_package: createMockSoftwarePackage({
+          fleet_maintained_app_id: 1,
+          fleet_maintained_app_slug: "zoom/darwin",
+        }),
+      });
+    const renderCard = (
+      renderFn: (ui: React.ReactElement) => unknown,
+      softwareTitle: ReturnType<typeof createMockSoftwareTitle>
+    ) =>
+      renderFn(
+        <SoftwareSummaryCard
+          softwareTitle={softwareTitle}
+          softwareId={42}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+    it("shows the Fleet-maintained app slug on Premium", () => {
+      renderCard(renderPremium, fmaTitle());
+      expect(screen.getByText("Fleet-maintained app slug")).toBeInTheDocument();
+      expect(screen.getByText("zoom/darwin")).toBeInTheDocument();
+    });
+
+    it("shows the App Store ID for Apple VPP apps on Premium", () => {
+      renderCard(
+        renderPremium,
+        createMockSoftwareTitle({
+          software_package: null,
+          app_store_app: createMockAppStoreAppIos(),
+        })
+      );
+      expect(screen.getByText("App Store ID")).toBeInTheDocument();
+      expect(screen.getByText("546505307")).toBeInTheDocument();
+      expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
+    });
+
+    it("shows the Google Play ID for Android apps on Premium", () => {
+      renderCard(
+        renderPremium,
+        createMockSoftwareTitle({
+          software_package: null,
+          app_store_app: createMockAppStoreAppAndroid(),
+        })
+      );
+      expect(screen.getByText("Google Play ID")).toBeInTheDocument();
+      expect(screen.getByText("com.test.app")).toBeInTheDocument();
+      expect(screen.queryByText("App Store ID")).not.toBeInTheDocument();
+    });
+
+    it("hides the Google Play ID for Android web apps", () => {
+      renderCard(
+        renderPremium,
+        createMockSoftwareTitle({
+          software_package: null,
+          app_store_app: createMockAppStoreAppAndroid({
+            app_store_id: "com.google.enterprise.webapp.abc123",
+          }),
+        })
+      );
+      expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
+    });
+
+    it("shows no GitOps IDs for custom packages", () => {
+      renderCard(
+        renderPremium,
+        createMockSoftwareTitle({
+          software_package: createMockSoftwarePackage(),
+        })
+      );
+      expect(
+        screen.queryByText("Fleet-maintained app slug")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("App Store ID")).not.toBeInTheDocument();
+      expect(screen.queryByText("Google Play ID")).not.toBeInTheDocument();
+    });
+
+    it("hides the Fleet-maintained app slug on Fleet Free", () => {
+      renderCard(renderFree, fmaTitle());
+      expect(
+        screen.queryByText("Fleet-maintained app slug")
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText("zoom/darwin")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Actions dropdown", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          config: {
+            gitops: {
+              gitops_mode_enabled: false,
+              repository_url: "",
+            },
+          },
+        },
+      },
+    });
+
+    // Shared helper function to open the actions dropdown and retrieve all visible options.
+    const getDropdownOptions = async (user: UserEvent): Promise<string[]> => {
+      const actionsButton = screen.getByText("Actions");
+      expect(actionsButton).toBeInTheDocument();
+
+      await user.click(actionsButton);
+
+      // Get all options from the dropdown menu
+      const options = screen.getAllByTestId("dropdown-option");
+      return options.map((option) => option.textContent || "");
+    };
+
+    it("collapses to a single pencil-icon Edit (appearance) button for standard custom software packages", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage(),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+          canActivateMultiplePackages
+        />
+      );
+
+      // Custom non-FMA macOS/Linux/Windows titles drop the Actions dropdown.
+      // Per-installer Edit moves to the Library accordion row; the page-level
+      // CTA collapses to a single pencil-icon "Edit" that opens the Edit
+      // Appearance modal directly.
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      const editButton = screen.getByRole("button", { name: /Edit/ });
+      expect(editButton).toBeInTheDocument();
+    });
+
+    it("displays Edit appearance, Edit software, Edit configuration, and Schedule auto updates for iOS/iPadOS apps", async () => {
+      const { user } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "ios_apps",
+            app_store_app: createMockAppStoreAppIos(),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      const options = await getDropdownOptions(user);
+
+      expect(options).toContain("Edit appearance");
+      expect(options).toContain("Edit software");
+      expect(options).toContain("Edit configuration");
+      expect(options).toContain("Schedule auto updates");
+    });
+
+    it("displays Edit appearance and Edit configuration (but not Edit software) for Android apps", async () => {
+      const { user } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "android_apps",
+            app_store_app: createMockAppStoreAppAndroid(),
+            software_package: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      const options = await getDropdownOptions(user);
+
+      expect(options).toContain("Edit appearance");
+      expect(options).toContain("Edit configuration");
+      expect(options).not.toContain("Edit software");
+      expect(options).not.toContain("Schedule auto updates");
+    });
+
+    it("displays Edit appearance (but not Edit configuration nor Edit software) for Android web apps", async () => {
+      const { user } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "android_apps",
+            app_store_app: createMockAppStoreAppAndroid({
+              app_store_id: "com.google.enterprise.webapp.myapp",
+            }),
+            software_package: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      const options = await getDropdownOptions(user);
+
+      expect(options).toContain("Edit appearance");
+      expect(options).not.toContain("Edit software");
+      expect(options).not.toContain("Edit configuration");
+      expect(options).not.toContain("Schedule auto updates");
+    });
+
+    it("displays Edit configuration for iOS/iPadOS in-house (.ipa) apps", async () => {
+      const { user } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "ios_apps",
+            software_package: createMockSoftwarePackageIos(),
+            app_store_app: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      const options = await getDropdownOptions(user);
+
+      expect(options).toContain("Edit appearance");
+      expect(options).toContain("Edit software");
+      expect(options).toContain("Edit configuration");
+    });
+
+    it("collapses macOS .pkg titles to the single-Edit button (no Edit configuration, no Actions dropdown)", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "apps",
+            software_package: createMockSoftwarePackage(),
+            app_store_app: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+          canActivateMultiplePackages
+        />
+      );
+
+      // macOS in-house .pkg is a custom non-FMA, non-iOS title — collapses
+      // to the pencil Edit button. Edit configuration never applied here
+      // and the dropdown is gone entirely.
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      expect(screen.queryByText("Edit configuration")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Edit/ })).toBeInTheDocument();
+    });
+
+    it("does not display Edit configuration for macOS VPP apps", async () => {
+      const { user } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "apps",
+            // Explicit null — `createMockSoftwareTitle` defaults to a custom
+            // package, which would otherwise hide the dropdown for
+            // multi-package-capable titles.
+            software_package: null,
+            app_store_app: createMockAppStoreApp({ platform: "darwin" }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      const options = await getDropdownOptions(user);
+
+      expect(options).toContain("Edit appearance");
+      expect(options).toContain("Edit software");
+      expect(options).not.toContain("Edit configuration");
+    });
+
+    it("adds Versions after Deploy for a Premium Fleet-maintained app", async () => {
+      const { user } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      const options = await getDropdownOptions(user);
+      const deployIdx = options.indexOf("Deploy");
+      const versionsIdx = options.indexOf("Versions");
+
+      expect(deployIdx).toBeGreaterThan(-1);
+      expect(versionsIdx).toBeGreaterThan(-1);
+      expect(versionsIdx).toBe(deployIdx + 1);
+    });
+
+    it("hides Versions option on Fleet Free even for a Fleet-maintained app", async () => {
+      const freeRender = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            config: {
+              gitops: {
+                gitops_mode_enabled: false,
+                repository_url: "",
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = freeRender(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      const options = await getDropdownOptions(user);
+      expect(options).not.toContain("Versions");
+      expect(options).not.toContain("Deploy");
+    });
+
+    it("hides the Actions dropdown (and therefore Versions) for non-FMA custom installers", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage(),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+          canActivateMultiplePackages
+        />
+      );
+
+      // Non-FMA custom titles no longer use the Actions dropdown at all,
+      // so Versions is implicitly hidden — the whole dropdown is gone.
+      // (The `<dt>Versions</dt>` stat row in the description list remains;
+      // we're asserting against the dropdown item, not that stat.)
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("menuitem", { name: /Versions/ })
+      ).not.toBeInTheDocument();
+    });
+
+    it("still renders the Versions option when GitOps mode is on", async () => {
+      const gitopsRender = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            config: {
+              gitops: {
+                gitops_mode_enabled: true,
+                repository_url: "https://example.com/repo",
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = gitopsRender(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      const options = screen
+        .getAllByTestId("dropdown-option")
+        .map((opt) => opt.textContent);
+      expect(options).toContain("Versions");
+    });
+
+    it("keeps Edit appearance and Edit software clickable in GitOps mode for Apple VPP titles so admins can open the modals in their disabled state", async () => {
+      const gitopsRender = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            config: {
+              gitops: {
+                gitops_mode_enabled: true,
+                repository_url: "https://example.com/repo",
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = gitopsRender(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "apps",
+            app_store_app: createMockAppStoreApp({ platform: "darwin" }),
+            software_package: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+      const options = screen.getAllByTestId("dropdown-option");
+
+      const editAppearance = options.find(
+        (opt) => opt.textContent === "Edit appearance"
+      );
+      expect(editAppearance).toBeDefined();
+      expect(editAppearance).not.toHaveAttribute("aria-disabled", "true");
+
+      const editSoftware = options.find(
+        (opt) => opt.textContent === "Edit software"
+      );
+      expect(editSoftware).toBeDefined();
+      expect(editSoftware).not.toHaveAttribute("aria-disabled", "true");
+    });
+
+    it("hides the Actions dropdown on 'All fleets' for a VPP title", () => {
+      // `teamId` is undefined when viewing "All fleets" — none of the per-fleet
+      // Actions items can act (no team scope), and leaving the dropdown open
+      // stashes `show*Modal` state that pops the modal on team change.
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "apps",
+            app_store_app: createMockAppStoreApp({ platform: "darwin" }),
+            software_package: null,
+          })}
+          softwareId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+    });
+
+    it("hides Versions option for observers without manage permission", async () => {
+      const observerRender = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalObserver: true,
+            config: {
+              gitops: {
+                gitops_mode_enabled: false,
+                repository_url: "",
+              },
+            },
+          },
+        },
+      });
+
+      const { user } = observerRender(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      // Observers don't get an Actions dropdown at all when canManageSoftware
+      // is false — confirming Versions is unreachable from this role.
+      expect(screen.queryByText("Actions")).not.toBeInTheDocument();
+      expect(user).toBeDefined();
+    });
+  });
+
+  describe("Header pills", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isPremiumTier: true,
+          isGlobalAdmin: true,
+          config: {
+            gitops: {
+              gitops_mode_enabled: false,
+              repository_url: "",
+            },
+          },
+        },
+      },
+    });
+
+    it("renders the Fleet-maintained pill for an FMA", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("Fleet-maintained")).toBeInTheDocument();
+    });
+
+    it("renders the App Store (VPP) pill for an Apple VPP app (macOS)", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "apps",
+            app_store_app: createMockAppStoreApp({ platform: "darwin" }),
+            software_package: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("App Store (VPP)")).toBeInTheDocument();
+    });
+
+    it("does not render a Play Store pill for an Android Play Store app", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            source: "android_apps",
+            app_store_app: createMockAppStoreAppAndroid(),
+            software_package: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByText("Play Store")).not.toBeInTheDocument();
+    });
+
+    it("renders the Custom package pill for a non-FMA software package", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage(),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("Custom package")).toBeInTheDocument();
+    });
+
+    it("renders the Self-service pill when self_service is true", () => {
+      // FMA mock — custom packages hide the title-level Self-service /
+      // Auto install / Patch chips (per-row icons take over). FMA titles are
+      // single-package and keep the chips.
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              self_service: true,
+              fleet_maintained_app_id: 7,
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("Self service")).toBeInTheDocument();
+    });
+
+    it("hides the Self-service / Auto install / Patch chips for custom packages", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              self_service: true,
+              automatic_install_policies: [
+                { id: 1, name: "Policy A", type: "dynamic" },
+              ],
+              patch_policy: {
+                id: 42,
+                name: "Outdated Postman",
+                patch_when_closed: false,
+                continuous_automations_enabled: false,
+              },
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+          canActivateMultiplePackages
+        />
+      );
+
+      // Per-row icons on the Library accordion replace these for multi-
+      // package custom titles; the title-level chips would be misleading.
+      expect(screen.queryByText("Self service")).not.toBeInTheDocument();
+      expect(screen.queryByText("Auto install")).not.toBeInTheDocument();
+      expect(screen.queryByText("Patch policy")).not.toBeInTheDocument();
+    });
+
+    it("does not render the Self-service pill when self_service is false", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              self_service: false,
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByText("Self service")).not.toBeInTheDocument();
+    });
+
+    it("renders the Auto install pill when the title has linked auto-install policies", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+              automatic_install_policies: [
+                { id: 1, name: "Policy A", type: "dynamic" },
+                { id: 2, name: "Policy B", type: "dynamic" },
+              ],
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("Auto install")).toBeInTheDocument();
+    });
+
+    it("renders the Patch policy pill when only a patch_policy is linked", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+              patch_policy: {
+                id: 42,
+                name: "Outdated Postman",
+                patch_when_closed: false,
+                continuous_automations_enabled: false,
+              },
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("Patch policy")).toBeInTheDocument();
+      expect(screen.queryByText("Auto install")).not.toBeInTheDocument();
+    });
+
+    it("renders the Auto install pill when both auto-install and patch policies are linked", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+              automatic_install_policies: [
+                { id: 1, name: "Policy A", type: "dynamic" },
+              ],
+              patch_policy: {
+                id: 42,
+                name: "Outdated Postman",
+                patch_when_closed: false,
+                continuous_automations_enabled: false,
+              },
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("Auto install")).toBeInTheDocument();
+      expect(screen.queryByText("Patch policy")).not.toBeInTheDocument();
+    });
+
+    it("does not render the Auto install pill when no policies are linked", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage(),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByText("Auto install")).not.toBeInTheDocument();
+    });
+
+    it("navigates directly to the policy when only one policy is linked", async () => {
+      const pushedRouter = createMockRouter();
+      const { user } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+              automatic_install_policies: [
+                { id: 99, name: "Solo policy", type: "dynamic" },
+              ],
+            }),
+          })}
+          softwareId={1}
+          teamId={3}
+          router={pushedRouter}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      await user.click(screen.getByText("Auto install"));
+
+      expect(pushedRouter.push).toHaveBeenCalledWith(
+        expect.stringMatching(/\/policies\/99.*fleet_id=3/)
+      );
+    });
+
+    it("does not resurrect an open modal after a fleet-scope round trip", async () => {
+      // Command palette can switch fleets while a modal is open. The modal
+      // unmounts on the way to All fleets (softwareInstallerOnTeam flips
+      // false), but its show*Modal state must reset — otherwise it remounts
+      // when the user returns to a specific fleet.
+      const softwareTitle = createMockSoftwareTitle({
+        software_package: createMockSoftwarePackage({
+          fleet_maintained_app_id: 7,
+          automatic_install_policies: [
+            { id: 1, name: "Policy A", type: "dynamic" },
+            { id: 2, name: "Policy B", type: "dynamic" },
+          ],
+        }),
+      });
+      const { user, rerender } = render(
+        <SoftwareSummaryCard
+          softwareTitle={softwareTitle}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      await user.click(screen.getByText("Auto install"));
+      expect(screen.getAllByText("Policy A").length).toBeGreaterThan(0);
+
+      // Palette-driven switch to "All fleets": chip and modal unmount.
+      rerender(
+        <SoftwareSummaryCard
+          softwareTitle={softwareTitle}
+          softwareId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+      expect(screen.queryByText("Policy A")).not.toBeInTheDocument();
+
+      // Palette-driven switch back to the same fleet: modal must stay closed.
+      rerender(
+        <SoftwareSummaryCard
+          softwareTitle={softwareTitle}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+      expect(screen.queryByText("Policy A")).not.toBeInTheDocument();
+    });
+
+    it("opens the Policies modal when more than one policy is linked", async () => {
+      const { user } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              fleet_maintained_app_id: 7,
+              automatic_install_policies: [
+                { id: 1, name: "Policy A", type: "dynamic" },
+                { id: 2, name: "Policy B", type: "dynamic" },
+              ],
+            }),
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      await user.click(screen.getByText("Auto install"));
+
+      expect(screen.getAllByText("Policy A").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Policy B").length).toBeGreaterThan(0);
+    });
+
+    it("renders the Auto updates pill when a VPP app has auto_update_enabled", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitleDetails({
+            source: "ios_apps",
+            app_store_app: createMockAppStoreAppIos(),
+            software_package: null,
+            auto_update_enabled: true,
+            auto_update_window_start: "02:00",
+            auto_update_window_end: "04:00",
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText("Auto updates")).toBeInTheDocument();
+    });
+
+    it("does not render the Auto updates pill when auto_update_enabled is false", () => {
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitleDetails({
+            source: "ios_apps",
+            app_store_app: createMockAppStoreAppIos(),
+            software_package: null,
+            auto_update_enabled: false,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByText("Auto updates")).not.toBeInTheDocument();
+    });
+
+    it("opens the Schedule auto updates modal when the Auto updates pill is clicked", async () => {
+      // Modal fires a labels useQuery; needs withBackendMock so the tree has
+      // a QueryClient. The request itself can fail silently, we just check
+      // the dialog appears.
+      const renderWithBackend = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isPremiumTier: true,
+            isGlobalAdmin: true,
+            config: {
+              gitops: {
+                gitops_mode_enabled: false,
+                repository_url: "",
+              },
+            },
+          },
+        },
+      });
+      const { user } = renderWithBackend(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitleDetails({
+            source: "ios_apps",
+            app_store_app: createMockAppStoreAppIos(),
+            software_package: null,
+            auto_update_enabled: true,
+            auto_update_window_start: "02:00",
+            auto_update_window_end: "04:00",
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      await user.click(screen.getByText("Auto updates"));
+
+      // Actions dropdown item of the same text is only in the DOM when opened;
+      // asserting on the modal's title text is unambiguous here.
+      expect(screen.getByText("Schedule auto updates")).toBeInTheDocument();
+    });
+
+    it("hides all header pills (kind + Self-service / Auto install / Auto updates) on 'All fleets'", () => {
+      // Every pill derives from `app_store_app` / `software_package`, which
+      // the backend fills from an arbitrary team on nil teamID; we hide the
+      // row rather than mislabel one team's data as an "All fleets" fact.
+      render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitleDetails({
+            source: "ios_apps",
+            app_store_app: createMockAppStoreAppIos({ self_service: true }),
+            software_package: null,
+            auto_update_enabled: true,
+            auto_update_window_start: "02:00",
+            auto_update_window_end: "04:00",
+          })}
+          softwareId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(screen.queryByText("App Store (VPP)")).not.toBeInTheDocument();
+      expect(screen.queryByText("Self service")).not.toBeInTheDocument();
+      expect(screen.queryByText("Auto install")).not.toBeInTheDocument();
+      expect(screen.queryByText("Auto updates")).not.toBeInTheDocument();
+    });
+
+    it("does not render the pills row when there is no installer", () => {
+      const { container } = render(
+        <SoftwareSummaryCard
+          softwareTitle={createMockSoftwareTitle({
+            software_package: null,
+            app_store_app: null,
+          })}
+          softwareId={1}
+          teamId={1}
+          router={router}
+          refetchSoftwareTitle={jest.fn()}
+          onClickVersions={jest.fn()}
+        />
+      );
+
+      expect(
+        container.querySelector(".software-details-summary__header-pills")
+      ).toBeNull();
+    });
+  });
+});

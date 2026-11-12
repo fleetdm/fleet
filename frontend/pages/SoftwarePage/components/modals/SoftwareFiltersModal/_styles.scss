@@ -9,12 +9,19 @@
     gap: $pad-medium;
   }
 
-  .Select-menu {
-    padding-bottom: $pad-medium;
+  &__section-title {
+    font-size: $x-small;
   }
 
-  &__cvss-range {
-    display: flex;
-    gap: $pad-medium;
+  &__kev {
+    @include flex-column-8px-gap;
+  }
+
+  &__advanced-toggle {
+    width: auto;
+  }
+
+  .Select-menu {
+    padding-bottom: $pad-medium;
   }
 }

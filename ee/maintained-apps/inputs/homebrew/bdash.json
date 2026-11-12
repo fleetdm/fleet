@@ -1,0 +1,10 @@
+{
+  "name": "Bdash",
+  "unique_identifier": "io.bdash",
+  "token": "bdash",
+  "installer_format": "zip",
+  "slug": "bdash/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

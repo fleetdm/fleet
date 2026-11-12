@@ -1,0 +1,223 @@
+package externalrefs
+
+import (
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+
+	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+)
+
+// makeVersionShortener returns a manifest enricher that truncates the
+// Homebrew version to the first keepSegments dot-separated segments.
+// This aligns the manifest version with what macOS reports as
+// bundle_short_version, preventing false "Update available" status.
+func makeVersionShortener(keepSegments int) func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	return func(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+		if app.Version == "" {
+			return app, fmt.Errorf("empty version for app %s", app.Slug)
+		}
+		parts := strings.Split(app.Version, ".")
+		if len(parts) <= keepSegments {
+			return app, nil
+		}
+		app.Version = strings.Join(parts[:keepSegments], ".")
+		return app, nil
+	}
+}
+
+// https://github.com/fleetdm/fleet/issues/42673
+var (
+	AndroidStudioVersionShortener       = makeVersionShortener(2) // "2025.3.2.6" → "2025.3"
+	MicrosoftAutoUpdateVersionShortener = makeVersionShortener(2) // "4.82.26020434" → "4.82"
+	OperaVersionShortener               = makeVersionShortener(2) // "129.0.5823.28" → "129.0"
+	TwingateVersionShortener            = makeVersionShortener(2) // "2026.29.22575" → "2026.29"
+	Microsoft365CopilotVersionShortener = makeVersionShortener(2) // "1.2608.0301" → "1.2608"
+	CitrixWorkspaceVersionShortener     = makeVersionShortener(3) // "25.11.1.42" → "25.11.1"
+	ElgatoStreamDeckVersionShortener    = makeVersionShortener(3) // "7.3.1.22604" → "7.3.1"
+	FileMakerProVersionShortener        = makeVersionShortener(3) // "22.0.5.500" → "22.0.5"
+	RoyalTSXVersionShortener            = makeVersionShortener(3) // "6.4.2.1000" → "6.4.2"
+	GrammarlyDesktopVersionShortener    = makeVersionShortener(3) // "1.160.0.0" → "1.160.0"
+	AnkaVersionShortener                = makeVersionShortener(3) // "3.8.6.212" → "3.8.6"
+	OneDriveVersionShortener            = makeVersionShortener(3) // "26.139.0720.0007" → "26.139.0720"
+	HarmonySASEVersionShortener         = makeVersionShortener(3) // "12.11.0.12314" → "12.11.0"
+	OutsetVersionShortener              = makeVersionShortener(3) // "4.2.0.21973" → "4.2.0"
+	ExpressVPNVersionShortener          = makeVersionShortener(3) // "14.3.1.15429" → "14.3.1"
+	CmuxVersionShortener                = makeVersionShortener(3) // hotfix tag "0.65.2.2" → "0.65.2"
+	MEGAsyncVersionShortener            = makeVersionShortener(3) // "6.7.0.3" → "6.7.0"
+	CapCutVersionShortener              = makeVersionShortener(3) // "9.5.0.4590" → "9.5.0"
+	DevToysVersionShortener             = makeVersionShortener(3) // "2.0.9.0" → "2.0.9"
+	FontLabVersionShortener             = makeVersionShortener(3) // "8.4.2.8950" → "8.4.2"
+	MemoryAnalyzerVersionShortener      = makeVersionShortener(3) // "1.17.0.20260601" → "1.17.0"
+	NDIToolsVersionShortener            = makeVersionShortener(3) // "6.3.2.0" → "6.3.2"
+	PlexVersionShortener                = makeVersionShortener(3) // "1.115.0.426" → "1.115.0"
+	PlexHTPCVersionShortener            = makeVersionShortener(3) // "1.71.1.346" → "1.71.1"
+	ElgatoCameraHubVersionShortener     = makeVersionShortener(3) // "2.3.0.7295" → "2.3.0"
+	MuseScoreVersionShortener           = makeVersionShortener(3) // "4.7.6.261022093" → "4.7.6"
+	Shapr3DVersionShortener             = makeVersionShortener(3) // "26.202.0.12281" → "26.202.0"
+	YACReaderVersionShortener           = makeVersionShortener(3) // "10.4.0.261009428" → "10.4.0"
+	AdGuardVersionShortener             = makeVersionShortener(3) // "2.20.2.2629" → "2.20.2"
+	NumiVersionShortener                = makeVersionShortener(2) // "3.35.743" → "3.35"
+	OrigamiStudioVersionShortener       = makeVersionShortener(2) // "231.0.0.0.0" → "231.0"
+	SQLProVersionShortener              = makeVersionShortener(2) // "2026.301.2" → "2026.301"
+	KritaVersionShortener               = makeVersionShortener(3) // re-signed DMG "5.3.4.1" → "5.3.4"
+)
+
+// Apps whose CFBundleVersion is the full cask version. Their patched queries
+// compare bundle_version against the unshortened cask version (see the
+// homebrew ingester), so the shortened version only changes what Fleet shows.
+var (
+	OpenMediaVersionShortener               = makeVersionShortener(2) // 4K apps: "26.3.5" → "26.3"
+	GoogleEarthProVersionShortener          = makeVersionShortener(2) // "7.3.7.1327" → "7.3"
+	DiskDrillVersionShortener               = makeVersionShortener(2) // "6.3.2326" → "6.3"
+	KdenliveVersionShortener                = makeVersionShortener(2) // "26.08.3" → "26.08"
+	SyncMateVersionShortener                = makeVersionShortener(2) // "8.11.604" → "8.11"
+	REDCINEXProVersionShortener             = makeVersionShortener(2) // "65.2.1" → "65.2"
+	Bitrix24VersionShortener                = makeVersionShortener(3) // "24.0.37.92" → "24.0.37"
+	ChromeRemoteDesktopHostVersionShortener = makeVersionShortener(3) // "157.0.8103.38" → "157.0.8103"
+	MalwarebytesVersionShortener            = makeVersionShortener(3) // "5.29.2.4310" → "5.29.2"
+	PlexMediaServerVersionShortener         = makeVersionShortener(3) // "1.43.5.11079" → "1.43.5"
+	SigmaOSVersionShortener                 = makeVersionShortener(3) // "1.19.0.4" → "1.19.0"
+)
+
+// makeTrailingZeroTrimmer returns a manifest enricher that drops trailing ".0"
+// segments from the Homebrew version, keeping at least minSegments, for apps
+// whose bundle_short_version omits them ("4.6" for "4.6.0") but keeps a
+// nonzero patch ("4.5.1").
+func makeTrailingZeroTrimmer(minSegments int) func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	return func(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+		if app.Version == "" {
+			return app, fmt.Errorf("empty version for app %s", app.Slug)
+		}
+		parts := strings.Split(app.Version, ".")
+		for len(parts) > minSegments && parts[len(parts)-1] == "0" {
+			parts = parts[:len(parts)-1]
+		}
+		app.Version = strings.Join(parts, ".")
+		return app, nil
+	}
+}
+
+var (
+	MoomVersionTrimmer                     = makeTrailingZeroTrimmer(2) // "4.6.0" → "4.6"
+	OpalComposerVersionTrimmer             = makeTrailingZeroTrimmer(2) // "2.0.0" → "2.0"
+	PlistEditProVersionTrimmer             = makeTrailingZeroTrimmer(2) // "1.10.0" → "1.10"
+	RocketmanChoicesPackagerVersionTrimmer = makeTrailingZeroTrimmer(2) // "1.0.0" → "1.0"
+	// Runs after AdGuardVersionShortener: AdGuard reports "2.20" for "2.20.0.2626".
+	AdGuardVersionTrimmer = makeTrailingZeroTrimmer(2)
+)
+
+// SublimeVersionTransformer prepends "Build " to match what macOS reports as
+// bundle_short_version for Sublime Text and Sublime Merge (e.g. "4200" → "Build 4200").
+// Without this, osquery's version_compare treats the "Build " prefix as making
+// the host version always greater, breaking patch policy detection.
+func SublimeVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, fmt.Errorf("empty version for Sublime app %s", app.Slug)
+	}
+	if strings.HasPrefix(app.Version, "Build ") {
+		return app, nil
+	}
+	app.Version = "Build " + app.Version
+	return app, nil
+}
+
+// MySQLWorkbenchVersionTransformer appends ".CE" to match what macOS reports as
+// bundle_short_version for MySQL Workbench Community Edition (e.g. "8.0.46" → "8.0.46.CE").
+func MySQLWorkbenchVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for MySQL Workbench")
+	}
+	app.Version += ".CE"
+	return app, nil
+}
+
+// LensVersionTransformer appends "-latest" to match what macOS reports as
+// bundle_short_version for Lens (e.g. "2026.3.251250" → "2026.3.251250-latest").
+func LensVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Lens")
+	}
+	app.Version += "-latest"
+	return app, nil
+}
+
+// SonosVersionTransformer converts Homebrew's Sonos version scheme (e.g.
+// "90.0-77070") to the dotted form macOS reports as bundle_version (e.g.
+// "90.0.77070"). Sonos versions its cask by build number, which matches
+// CFBundleVersion rather than CFBundleShortVersionString (the unrelated
+// marketing version, e.g. "17.2.3"). The patch policy for Sonos compares
+// bundle_version (see the ingester); without this transform osquery's
+// version_compare treats "90.0-77070" and "90.0.77070" as different versions
+// and patch policy detection breaks.
+func SonosVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Sonos")
+	}
+	app.Version = strings.ReplaceAll(app.Version, "-", ".")
+	return app, nil
+}
+
+// PdVersionTransformer converts Homebrew's Pd version scheme (e.g. "0.56-3") to
+// the dotted form macOS reports as bundle_short_version (e.g. "0.56.3").
+// Without this, osquery's version_compare treats "0.56-3" and "0.56.3" as
+// different versions and patch policy detection breaks.
+func PdVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Pd")
+	}
+	app.Version = strings.ReplaceAll(app.Version, "-", ".")
+	return app, nil
+}
+
+// SmallstepAgentVersionTransformer prepends "v" to match what macOS reports as
+// bundle_short_version for Smallstep Agent (e.g. "0.68.0" → "v0.68.0"; the app's
+// CFBundleShortVersionString carries the "v" prefix). Without this, osquery's
+// version_compare treats the "v" prefix as making the host version always
+// greater, breaking patch policy detection.
+func SmallstepAgentVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Smallstep Agent")
+	}
+	if strings.HasPrefix(app.Version, "v") {
+		return app, nil
+	}
+	app.Version = "v" + app.Version
+	return app, nil
+}
+
+// RaspberryPiImagerVersionTransformer prepends "v" to match what macOS reports as
+// bundle_short_version for Raspberry Pi Imager (e.g. "2.0.11.1" → "v2.0.11.1"; the
+// app's CFBundleShortVersionString carries the upstream GitHub release tag's "v"
+// prefix). Without this, Fleet Desktop's own "update available" check treats the
+// "v" prefix as making the installed version older, showing a phantom update.
+func RaspberryPiImagerVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Raspberry Pi Imager")
+	}
+	if strings.HasPrefix(app.Version, "v") {
+		return app, nil
+	}
+	app.Version = "v" + app.Version
+	return app, nil
+}
+
+// shottrLetterSuffixPattern matches a Shottr cask version with a trailing
+// letter suffix (e.g. "1.9.3b").
+var shottrLetterSuffixPattern = regexp.MustCompile(`^(\d+(?:\.\d+)*)[a-zA-Z]+$`)
+
+// ShottrVersionTransformer strips the trailing letter suffix Shottr's cask
+// version sometimes carries (e.g. "1.9.3b" → "1.9.3"). The app's
+// CFBundleShortVersionString omits the suffix, so without this the validator
+// can't find the installed version and osquery's version_compare treats the
+// installed "1.9.3" as older than "1.9.3b", breaking patch policy detection.
+func ShottrVersionTransformer(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
+	if app.Version == "" {
+		return app, errors.New("empty version for Shottr")
+	}
+	if m := shottrLetterSuffixPattern.FindStringSubmatch(app.Version); m != nil {
+		app.Version = m[1]
+	}
+	return app, nil
+}

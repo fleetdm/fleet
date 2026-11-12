@@ -1,0 +1,121 @@
+module.exports = {
+
+
+  friendlyName: 'Create android webApp',
+
+
+  description: 'Creates a new webApp for an android enterprise.',
+
+
+  inputs: {
+    androidEnterpriseId: {
+      type: 'string',
+      required: true,
+    },
+    title: {
+      type: 'string',
+    },
+    startUrl: {
+      type: 'string',
+    },
+    icons: {
+      type: [{}],
+    },
+    displayMode: {
+      type: 'string',
+    },
+    versionCode: {
+      type: 'string',
+    },
+  },
+
+
+  exits: {
+    success: { description: 'The webApp of an Android enterprise was successfully created.' },
+    missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
+    unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
+    notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound' },
+    enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
+    invalidWebApp: { description: 'Invalid post webApp request', responseType: 'badRequest' },
+    managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
+    tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
+  },
+
+
+  fn: async function ({ androidEnterpriseId, title, startUrl, icons, displayMode, versionCode }) {
+
+    // Extract fleetServerSecret from the Authorization header
+    let authHeader = this.req.get('authorization');
+    let fleetServerSecret;
+
+    if (authHeader && authHeader.startsWith('Bearer')) {
+      fleetServerSecret = authHeader.replace('Bearer', '').trim();
+    } else {
+      throw 'missingAuthHeader';
+    }
+
+    // Authenticate this request
+    let thisAndroidEnterprise = await AndroidEnterprise.findOne({
+      androidEnterpriseId: androidEnterpriseId
+    });
+
+    // Return a 404 response if no records are found.
+    if (!thisAndroidEnterprise) {
+      throw 'notFound';
+    }
+    // Return an unauthorized response if the provided secret does not match.
+    if (thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
+      throw 'unauthorized';
+    }
+
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+
+    // Create the webApp.
+    // Note: We're using sails.helpers.flow.build here to handle any errors that occur using google's node library.
+    let createWebAppResponse = await sails.helpers.flow.build(async () => {
+      let { google } = require('googleapis');
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
+      // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Webapps.html#create
+      sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+      if (!sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId]) { sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] = {count: 0, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl}; }
+      sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId].count++;      let _rtKey = androidEnterpriseId + ':create_webapp';
+      if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'create_webapp'}; }
+      sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
+      let createWebAppResponse = await androidManagementConnection.enterprises.webApps.create({
+        parent: `enterprises/${androidEnterpriseId}`,
+        requestBody: {
+          title,
+          startUrl,
+          icons,
+          displayMode,
+          versionCode,
+        },
+      });
+      return createWebAppResponse.data;
+    }).intercept({status: 429}, ()=>{
+      // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
+      sails.log.warn(`p1: Android management API rate limit exceeded!`);
+      // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
+      return 'tooManyRequests';
+    }).intercept({ status: 400 }, (err) => {
+      return {'invalidWebApp': `Attempted to create a webApp with an invalid value for an Android enterprise (${androidEnterpriseId}): ${err}`};
+    }).intercept({status: 403}, ()=>{
+      // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
+      return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};
+    }).intercept((err)=>{
+      if([502, 503, 504].includes(err.status)){
+        return {'managementApiError': `The Android management API returned a transient 5xx error: ${err}`};
+      }
+      return new Error(`When attempting to create a webapp for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
+    });
+
+
+    // Return the created webApp back to the Fleet server.
+    return createWebAppResponse;
+
+  }
+
+
+};

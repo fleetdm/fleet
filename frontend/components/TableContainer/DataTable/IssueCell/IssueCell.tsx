@@ -1,10 +1,10 @@
-import React from "react";
 import { isEmpty } from "lodash";
+import React from "react";
 
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
-interface IIssueCellProps<T> {
+interface IIssueCellProps {
   issues: {
     total_issues_count: number;
     critical_vulnerabilities_count?: number;
@@ -13,7 +13,7 @@ interface IIssueCellProps<T> {
   rowId: number;
 }
 
-const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
+const IssueCell = ({ issues, rowId }: IIssueCellProps): JSX.Element => {
   if (isEmpty(issues) || issues.total_issues_count === 0) {
     return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
   }

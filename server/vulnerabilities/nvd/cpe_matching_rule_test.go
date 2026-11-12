@@ -207,7 +207,7 @@ func TestCPEProcessingRule(t *testing.T) {
 						},
 					},
 					CVEs: map[string]struct{}{"CVE-123": {}},
-				}, err: errors.New("improper constraint: .as.-as"),
+				}, err: errors.New(`improper constraint: ".as.-as"`),
 			},
 			{
 				rule: CPEMatchingRule{
@@ -261,4 +261,112 @@ func TestGetKnownNVDBugRules(t *testing.T) {
 	require.True(t, ok)
 	ok = rule.CPEMatches(cpeMeta)
 	require.False(t, ok)
+
+	// Test that CVE-2017-17522 (disputed Python webbrowser CVE) never matches. See #35148.
+	pythonCPEMeta, err := wfn.Parse("cpe:2.3:a:python:python:3.9.6:*:*:*:*:*:*:*")
+	require.NoError(t, err)
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2017-17522")
+	require.True(t, ok)
+	require.False(t, rule.CPEMatches(pythonCPEMeta), "CVE-2017-17522 should be ignored for all Python versions")
+
+	// Test that CVE-2023-36632 (disputed Python email.utils.parseaddr CVE) never matches. See #35148.
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2023-36632")
+	require.True(t, ok)
+	require.False(t, rule.CPEMatches(pythonCPEMeta), "CVE-2023-36632 should be ignored for all Python versions")
+
+	// Test that CVE-2024-3219 (Python socket.socketpair) only matches on Windows. See #35148.
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2024-3219")
+	require.True(t, ok)
+
+	pythonWindows, err := wfn.Parse("cpe:2.3:a:python:python:3.11.0:*:*:*:*:windows:*:*")
+	require.NoError(t, err)
+	require.True(t, rule.CPEMatches(pythonWindows), "CVE-2024-3219 should match Python on Windows")
+
+	pythonMacOS, err := wfn.Parse("cpe:2.3:a:python:python:3.11.0:*:*:*:*:macos:*:*")
+	require.NoError(t, err)
+	require.False(t, rule.CPEMatches(pythonMacOS), "CVE-2024-3219 should not match Python on macOS")
+
+	pythonLinux, err := wfn.Parse("cpe:2.3:a:python:python:3.11.0:*:*:*:*:linux:*:*")
+	require.NoError(t, err)
+	require.False(t, rule.CPEMatches(pythonLinux), "CVE-2024-3219 should not match Python on Linux")
+
+	pythonAnyTargetSW, err := wfn.Parse("cpe:2.3:a:python:python:3.11.0:*:*:*:*:*:*:*")
+	require.NoError(t, err)
+	require.False(t, rule.CPEMatches(pythonAnyTargetSW), "CVE-2024-3219 should not match Python with target_sw=*")
+
+	// Test that the VLC for Android CVEs only match on Android.
+	for _, cve := range []string{"CVE-2026-26227", "CVE-2026-26228"} {
+		rule, ok = cpeMatchingRules.FindMatch(cve)
+		require.True(t, ok)
+
+		vlcAndroid, err := wfn.Parse("cpe:2.3:a:videolan:vlc:3.6.5:*:*:*:*:android:*:*")
+		require.NoError(t, err)
+		require.True(t, rule.CPEMatches(vlcAndroid), "%s should match VLC on Android", cve)
+
+		for _, desktop := range []string{
+			"cpe:2.3:a:videolan:vlc:3.0.23:*:*:*:*:macos:*:*",
+			"cpe:2.3:a:videolan:vlc:3.0.23:*:*:*:*:windows:*:*",
+			"cpe:2.3:a:videolan:vlc:3.0.23:*:*:*:*:*:*:*",
+		} {
+			vlcDesktop, err := wfn.Parse(desktop)
+			require.NoError(t, err)
+			require.False(t, rule.CPEMatches(vlcDesktop), "%s should not match %s", cve, desktop)
+		}
+	}
+
+	// Test that gitk CVEs don't match the base git package
+	gitCPEMeta, err := wfn.Parse("cpe:2.3:a:git:git:2.47.1:*:*:*:*:*:*:*")
+	require.NoError(t, err)
+
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2025-27613")
+	require.True(t, ok)
+	ok = rule.CPEMatches(gitCPEMeta)
+	require.False(t, ok, "CVE-2025-27613 should not match git:git")
+
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2025-27614")
+	require.True(t, ok)
+	ok = rule.CPEMatches(gitCPEMeta)
+	require.False(t, ok, "CVE-2025-27614 should not match git:git")
+
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2025-46835")
+	require.True(t, ok)
+	ok = rule.CPEMatches(gitCPEMeta)
+	require.False(t, ok, "CVE-2025-46835 should not match git:git")
+
+	// Test that Admin By Request CVEs only match on Windows (not macOS/Linux). See #41586.
+	for _, cve := range []string{"CVE-2019-17201", "CVE-2019-17202"} {
+		rule, ok = cpeMatchingRules.FindMatch(cve)
+		require.True(t, ok)
+
+		abrMacOS, err := wfn.Parse("cpe:2.3:a:fasttracksoftware:admin_by_request:5.2:*:*:*:*:macos:*:*")
+		require.NoError(t, err)
+		require.False(t, rule.CPEMatches(abrMacOS), "%s should not match on macOS", cve)
+
+		abrLinux, err := wfn.Parse("cpe:2.3:a:fasttracksoftware:admin_by_request:4.0:*:*:*:*:linux:*:*")
+		require.NoError(t, err)
+		require.False(t, rule.CPEMatches(abrLinux), "%s should not match on Linux", cve)
+
+		abrWindows, err := wfn.Parse("cpe:2.3:a:fasttracksoftware:admin_by_request:5.0:*:*:*:*:windows:*:*")
+		require.NoError(t, err)
+		require.True(t, rule.CPEMatches(abrWindows), "%s should match on Windows", cve)
+	}
+
+	// Test that CVE-2024-7006 (libtiff) only matches on Linux.
+	rule, ok = cpeMatchingRules.FindMatch("CVE-2024-7006")
+	require.True(t, ok)
+
+	// Should not match on Windows
+	cpeMetaWindows, err := wfn.Parse("cpe:2.3:a:libtiff:libtiff:4.0.0:*:*:*:*:windows:*:*")
+	require.NoError(t, err)
+	require.False(t, rule.CPEMatches(cpeMetaWindows))
+
+	// Should not match on macOS
+	cpeMetaMacOS, err := wfn.Parse("cpe:2.3:a:libtiff:libtiff:4.0.0:*:*:*:*:macos:*:*")
+	require.NoError(t, err)
+	require.False(t, rule.CPEMatches(cpeMetaMacOS))
+
+	// Should match on Linux
+	cpeMetaLinux, err := wfn.Parse("cpe:2.3:a:libtiff:libtiff:4.0.0:*:*:*:*:linux:*:*")
+	require.NoError(t, err)
+	require.True(t, rule.CPEMatches(cpeMetaLinux))
 }

@@ -21,10 +21,18 @@ func queryCommand() *cli.Command {
 		flTimeout                               time.Duration
 	)
 	return &cli.Command{
-		Name:      "query",
-		Usage:     "Run a live query",
-		UsageText: `fleetctl query [options]`,
-		Description: `Runs the specified query as a live query on the specified targets. 
+		Name:      "report",
+		Aliases:   []string{"query"},
+		Usage:     "Run a live report",
+		UsageText: `fleetctl report [options]`,
+		Before: func(c *cli.Context) error {
+			applyLogTopicFlags(c)
+			logDeprecatedCommandName(c, []string{"query"}, "report")
+			logDeprecatedFlagName(c, "query-name", "report-name")
+			logDeprecatedEnvVar(c, "QUERYNAME", "REPORT_NAME")
+			return nil
+		},
+		Description: `Runs the specified query as a live query on the specified targets.
 
 Using the --hosts flag individual hosts can be specified with the host's hostname. Groups of hosts can
 specified by using labels. Note if both the --hosts and --labels flags are specified, the query will
@@ -65,11 +73,12 @@ be run on the union of the hosts and hosts with matching labels.
 				Usage:       "Query to run",
 			},
 			&cli.StringFlag{
-				Name:        "query-name",
-				EnvVars:     []string{"QUERYNAME"},
+				Name:        "report-name",
+				Aliases:     []string{"query-name"},
+				EnvVars:     []string{"REPORT_NAME", "QUERYNAME"},
 				Value:       "",
 				Destination: &flQueryName,
-				Usage:       "Name of saved query to run",
+				Usage:       "Name of saved report to run",
 			},
 			&cli.BoolFlag{
 				Name:        "pretty",
@@ -84,12 +93,14 @@ be run on the union of the hosts and hosts with matching labels.
 				Usage:       "How long to run query before exiting (10s, 1h, etc.)",
 			},
 			&cli.UintFlag{
-				Name:  teamFlagName,
-				Usage: "ID of the team where the named query belongs to (0 means global)",
+				Name:  fleetFlagName,
+				Usage: "ID of the fleet where the named report belongs to (0 means global)",
 			},
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
+			enableLogTopicsFlag(),
+			disableLogTopicsFlag(),
 		},
 		Action: func(c *cli.Context) error {
 			client, err := clientFromCLI(c)
@@ -97,18 +108,20 @@ be run on the union of the hosts and hosts with matching labels.
 				return err
 			}
 
-			if flHosts == "" && flLabels == "" {
+			hostIdentifiers := splitCommaSeparated(flHosts)
+			labels := splitCommaSeparated(flLabels)
+			if len(hostIdentifiers) == 0 && len(labels) == 0 {
 				return errors.New("No hosts or labels targeted. Please provide either --hosts or --labels.")
 			}
 
 			if flQuery != "" && flQueryName != "" {
-				return errors.New("--query and --query-name must not be provided together")
+				return errors.New("--query and --report-name must not be provided together")
 			}
 
 			var queryID *uint
 			if flQueryName != "" {
 				var teamID *uint
-				if tid := c.Uint(teamFlagName); tid != 0 {
+				if tid := c.Uint(fleetFlagName); tid != 0 {
 					teamID = &tid
 				}
 				queries, err := client.GetQueries(teamID, &flQueryName)
@@ -127,7 +140,7 @@ be run on the union of the hosts and hosts with matching labels.
 					return fmt.Errorf("Query '%s' not found", flQueryName)
 				}
 			} else if flQuery == "" {
-				return errors.New("Query must be specified with --query or --query-name")
+				return errors.New("Query must be specified with --query or --report-name")
 			}
 
 			var output outputWriter
@@ -136,9 +149,6 @@ be run on the union of the hosts and hosts with matching labels.
 			} else {
 				output = newJsonWriter(c.App.Writer)
 			}
-
-			hostIdentifiers := strings.Split(flHosts, ",")
-			labels := strings.Split(flLabels, ",")
 
 			res, err := client.LiveQuery(flQuery, queryID, labels, hostIdentifiers)
 			if err != nil {
@@ -243,4 +253,14 @@ be run on the union of the hosts and hosts with matching labels.
 			}
 		},
 	}
+}
+
+func splitCommaSeparated(s string) []string {
+	var parts []string
+	for part := range strings.SplitSeq(s, ",") {
+		if part = strings.TrimSpace(part); part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts
 }

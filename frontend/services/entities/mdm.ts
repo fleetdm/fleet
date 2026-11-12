@@ -1,26 +1,29 @@
+import { ResponseType as AxiosResponseType } from "axios";
+
 import {
+  EndUserLocalAccountType,
   IBootstrapPackageAggregate,
   IBootstrapPackageMetadata,
-  IHostMdmProfile,
+  IMdmAsset,
   IMdmProfile,
-  IMdmSSOReponse,
+  IMdmSSOResponse,
   MdmProfileStatus,
 } from "interfaces/mdm";
-import { API_NO_TEAM_ID } from "interfaces/team";
-import { ISoftwareTitle } from "interfaces/software";
 import { SetupExperiencePlatform } from "interfaces/platform";
-
-import sendRequest from "services";
+import { ISoftwareTitle } from "interfaces/software";
+import { API_NO_TEAM_ID } from "interfaces/team";
+import sendRequest, { uploadToStorage } from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
-import { ISoftwareTitlesResponse } from "./software";
 import { PaginationParams } from "./common";
+import { ISoftwareTitlesResponse } from "./software";
 
 export interface IEulaMetadataResponse {
   name: string;
   token: string;
   created_at: string;
+  platform?: "darwin" | "windows";
 }
 
 export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
@@ -28,7 +31,7 @@ export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
 export interface IGetProfilesApiParams {
   page?: number;
   per_page?: number;
-  team_id?: number;
+  fleet_id?: number;
 }
 
 export interface IMdmProfilesResponse {
@@ -42,33 +45,83 @@ export interface IMdmProfilesResponse {
 export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
+  /** Omit to let the server derive the name from the file. */
+  name?: string;
+  description?: string;
   labelsIncludeAll?: string[];
   labelsIncludeAny?: string[];
   labelsExcludeAny?: string[];
+  selfService?: boolean;
+  hidden?: boolean;
 }
 
-export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
+export interface IUpdateProfileApiParams {
+  profileUUID: string;
+  /** replacement profile contents. Omit to keep the current contents and only
+   * update label targeting. */
+  profile?: File;
+  /** Omit to keep the current name; a replacement file never renames. */
+  name?: string;
+  /** Omit to keep the current description; an empty string clears it. */
+  description?: string;
+  labelsIncludeAll?: string[];
+  labelsIncludeAny?: string[];
+  labelsExcludeAny?: string[];
+  /** Omit to keep the current deploy mode. */
+  selfService?: boolean;
+  hidden?: boolean;
+}
+
+export interface IGetAssetsApiParams {
+  fleet_id?: number;
+}
+
+export interface IListAssetsResponse {
+  assets: IMdmAsset[] | null;
+}
+
+export interface IUploadAssetApiParams {
+  file: File;
+  teamId?: number;
+}
+
+export interface IUploadAssetResponse {
+  asset_uuid: string;
+}
+
+export const isDDMProfile = (profile: Pick<IMdmProfile, "profile_uuid">) => {
   return profile.profile_uuid.startsWith("d");
 };
 
-interface IUpdateSetupExperienceBody {
-  team_id?: number;
+interface IUpdateSetupExperienceFormData {
+  fleet_id?: number;
   enable_end_user_authentication?: boolean;
-  enable_release_device_manually?: boolean;
-  manual_agent_install?: boolean;
+  lock_end_user_info?: boolean;
+  apple_enable_release_device_manually?: boolean;
+  macos_enable_bootstrap_package_during_manual_enrollment?: boolean;
+  macos_enable_bootstrap_package_during_migration?: boolean;
+  macos_manual_agent_install?: boolean;
+  enable_managed_local_account?: boolean;
+  end_user_local_account_type?: EndUserLocalAccountType;
 }
 
 export interface IAppleSetupEnrollmentProfileResponse {
-  team_id: number | null;
+  fleet_id: number | null;
   name: string;
   uploaded_at: string;
   // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
   enrollment_profile: Record<string, unknown>;
 }
 
+export interface IDefaultAppleSetupEnrollmentProfileResponse {
+  updated_at?: string;
+  // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
+  enrollment_profile: Record<string, unknown>;
+}
+
 export interface IMDMSSOParams {
   deviceinfo: string;
-  initiator: string;
+  initiator?: string;
   // optional host_uuid to link SSO to a specific host; used in Orbit-initiated
   // enrollments with end-user authentication.
   host_uuid?: string;
@@ -82,14 +135,14 @@ export interface IMDMAppleEnrollmentProfileParams {
 
 export interface IGetSetupExperienceScriptResponse {
   id: number;
-  team_id: number | null; // The API return null for no team in this case.
+  fleet_id: number | null; // The API return null for no team in this case.
   name: string;
   created_at: string;
   updated_at: string;
 }
 
 interface IGetSetupExperienceSoftwareParams extends Partial<PaginationParams> {
-  team_id: number;
+  fleet_id: number;
   platform: SetupExperiencePlatform;
 }
 
@@ -121,9 +174,7 @@ const mdmService = {
     params: IGetProfilesApiParams
   ): Promise<IMdmProfilesResponse> => {
     const { MDM_PROFILES } = endpoints;
-    const path = `${MDM_PROFILES}?${buildQueryStringFromParams({
-      ...params,
-    })}`;
+    const path = `${MDM_PROFILES}?${buildQueryStringFromParams(params)}`;
 
     return sendRequest("GET", path);
   },
@@ -131,9 +182,13 @@ const mdmService = {
   uploadProfile: ({
     file,
     teamId,
+    name,
+    description,
     labelsIncludeAll,
     labelsIncludeAny,
     labelsExcludeAny,
+    selfService,
+    hidden,
   }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
 
@@ -141,35 +196,96 @@ const mdmService = {
     formData.append("profile", file);
 
     if (teamId) {
-      formData.append("team_id", teamId.toString());
+      formData.append("fleet_id", teamId.toString());
+    }
+    if (name !== undefined) {
+      formData.append("name", name);
+    }
+    if (description !== undefined) {
+      formData.append("description", description);
     }
 
-    if (labelsIncludeAll || labelsIncludeAny || labelsExcludeAny) {
-      const labels = labelsIncludeAll || labelsIncludeAny || labelsExcludeAny;
+    labelsIncludeAll?.forEach((label) => {
+      formData.append("labels_include_all", label);
+    });
 
-      let labelKey = "";
-      if (labelsIncludeAll) {
-        labelKey = "labels_include_all";
-      } else if (labelsIncludeAny) {
-        labelKey = "labels_include_any";
-      } else {
-        labelKey = "labels_exclude_any";
-      }
+    labelsIncludeAny?.forEach((label) => {
+      formData.append("labels_include_any", label);
+    });
 
-      labels?.forEach((label) => {
-        formData.append(labelKey, label);
-      });
+    labelsExcludeAny?.forEach((label) => {
+      formData.append("labels_exclude_any", label);
+    });
+
+    if (selfService !== undefined) {
+      formData.append("self_service", String(selfService));
+    }
+    if (hidden !== undefined) {
+      formData.append("hidden", String(hidden));
     }
 
     return sendRequest("POST", MDM_PROFILES, formData);
   },
 
-  downloadProfile: (profileId: string) => {
+  /** Updates an existing profile's contents and/or label targeting. Labels
+   * use replace semantics: omitting all label fields clears label targeting
+   * (the profile targets all hosts). */
+  updateProfile: ({
+    profileUUID,
+    profile,
+    name,
+    description,
+    labelsIncludeAll,
+    labelsIncludeAny,
+    labelsExcludeAny,
+    selfService,
+    hidden,
+  }: IUpdateProfileApiParams) => {
+    const { CONFIG_PROFILE } = endpoints;
+
+    const formData = new FormData();
+
+    if (profile) {
+      formData.append("profile", profile);
+    }
+    if (name !== undefined) {
+      formData.append("name", name);
+    }
+    if (description !== undefined) {
+      formData.append("description", description);
+    }
+
+    labelsIncludeAll?.forEach((label) => {
+      formData.append("labels_include_all", label);
+    });
+
+    labelsIncludeAny?.forEach((label) => {
+      formData.append("labels_include_any", label);
+    });
+
+    labelsExcludeAny?.forEach((label) => {
+      formData.append("labels_exclude_any", label);
+    });
+
+    if (selfService !== undefined) {
+      formData.append("self_service", String(selfService));
+    }
+    if (hidden !== undefined) {
+      formData.append("hidden", String(hidden));
+    }
+
+    return sendRequest("PATCH", CONFIG_PROFILE(profileUUID), formData);
+  },
+
+  downloadProfile: (
+    profileId: string,
+    responseType: AxiosResponseType = "json"
+  ) => {
     const { MDM_PROFILE } = endpoints;
     const path = `${MDM_PROFILE(profileId)}?${buildQueryStringFromParams({
       alt: "media",
     })}`;
-    return sendRequest("GET", path);
+    return sendRequest("GET", path, undefined, responseType);
   },
 
   deleteProfile: (profileId: string) => {
@@ -177,17 +293,55 @@ const mdmService = {
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },
 
+  getAssets: (params: IGetAssetsApiParams): Promise<IListAssetsResponse> => {
+    const { MDM_ASSETS } = endpoints;
+    const queryString = buildQueryStringFromParams({ ...params });
+    return sendRequest(
+      "GET",
+      queryString ? `${MDM_ASSETS}?${queryString}` : MDM_ASSETS
+    );
+  },
+
+  uploadAsset: ({
+    file,
+    teamId,
+  }: IUploadAssetApiParams): Promise<IUploadAssetResponse> => {
+    const { MDM_ASSETS } = endpoints;
+
+    const formData = new FormData();
+    formData.append("asset", file);
+
+    if (teamId) {
+      formData.append("fleet_id", teamId.toString());
+    }
+
+    return sendRequest("POST", MDM_ASSETS, formData);
+  },
+
+  downloadAsset: (assetUuid: string) => {
+    const { MDM_ASSET } = endpoints;
+    const path = `${MDM_ASSET(assetUuid)}?${buildQueryStringFromParams({
+      alt: "media",
+    })}`;
+    return sendRequest("GET", path);
+  },
+
+  deleteAsset: (assetUuid: string) => {
+    const { MDM_ASSET } = endpoints;
+    return sendRequest("DELETE", MDM_ASSET(assetUuid));
+  },
+
   getProfilesStatusSummary: (teamId: number) => {
     let { PROFILES_STATUS_SUMMARY: path } = endpoints;
 
     if (teamId) {
-      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
+      path = `${path}?${buildQueryStringFromParams({ fleet_id: teamId })}`;
     }
 
     return sendRequest("GET", path);
   },
 
-  initiateMDMAppleSSO: (params: IMDMSSOParams): Promise<IMdmSSOReponse> => {
+  initiateMDMAppleSSO: (params: IMDMSSOParams): Promise<IMdmSSOResponse> => {
     const { MDM_APPLE_SSO } = endpoints;
     return sendRequest("POST", MDM_APPLE_SSO, params);
   },
@@ -200,14 +354,26 @@ const mdmService = {
     return sendRequest("GET", MDM_BOOTSTRAP_PACKAGE_METADATA(teamId));
   },
 
-  uploadBootstrapPackage: (file: File, teamId?: number) => {
+  uploadBootstrapPackage: async (
+    file: File,
+    teamId?: number,
+    directUpload = false
+  ) => {
     const { MDM_BOOTSTRAP_PACKAGE } = endpoints;
 
     const formData = new FormData();
-    formData.append("package", file);
+    if (directUpload) {
+      formData.append(
+        "upload_id",
+        await uploadToStorage({ target: "bootstrap_package", file, teamId })
+      );
+      formData.append("filename", file.name);
+    } else {
+      formData.append("package", file);
+    }
 
     if (teamId) {
-      formData.append("team_id", teamId.toString());
+      formData.append("fleet_id", teamId.toString());
     }
 
     return sendRequest("POST", MDM_BOOTSTRAP_PACKAGE, formData);
@@ -224,7 +390,7 @@ const mdmService = {
     let { MDM_BOOTSTRAP_PACKAGE_SUMMARY: path } = endpoints;
 
     if (teamId) {
-      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
+      path = `${path}?${buildQueryStringFromParams({ fleet_id: teamId })}`;
     }
 
     return sendRequest("GET", path);
@@ -254,30 +420,48 @@ const mdmService = {
     return sendRequest("GET", MDM_EULA(token));
   },
 
-  updateEndUserAuthentication: (teamId: number, isEnabled: boolean) => {
-    const { MDM_SETUP } = endpoints;
-    return sendRequest("PATCH", MDM_SETUP, {
-      team_id: teamId,
-      enable_end_user_authentication: isEnabled,
-    });
+  getWindowsEULAMetadata: () => {
+    const { MDM_EULA_METADATA } = endpoints;
+    const query = buildQueryStringFromParams({ platform: "windows" });
+    return sendRequest("GET", `${MDM_EULA_METADATA}?${query}`);
+  },
+
+  uploadWindowsEULA: (file: File) => {
+    const { MDM_EULA_UPLOAD } = endpoints;
+
+    const formData = new FormData();
+    formData.append("platform", "windows");
+    formData.append("eula", file);
+
+    return sendRequest("POST", MDM_EULA_UPLOAD, formData);
   },
 
   updateRequireAllSoftwareMacOS: (teamId: number, isEnabled: boolean) => {
-    const { MDM_SETUP } = endpoints;
-    return sendRequest("PATCH", MDM_SETUP, {
-      team_id: teamId,
-      require_all_software_macos: isEnabled,
+    const { MDM_SETUP_EXPERIENCE } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, {
+      fleet_id: teamId,
+      macos_require_all_software: isEnabled,
     });
   },
 
-  updateSetupExperienceSettings: (updateData: IUpdateSetupExperienceBody) => {
+  updateRequireAllSoftwareWindows: (teamId: number, isEnabled: boolean) => {
+    const { MDM_SETUP_EXPERIENCE } = endpoints;
+    return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, {
+      fleet_id: teamId,
+      windows_require_all_software: isEnabled,
+    });
+  },
+
+  updateSetupExperienceSettings: (
+    updateData: IUpdateSetupExperienceFormData
+  ) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
     const body = {
       ...updateData,
     };
 
-    if (updateData.team_id === API_NO_TEAM_ID) {
-      delete body.team_id;
+    if (updateData.fleet_id === API_NO_TEAM_ID) {
+      delete body.fleet_id;
     }
 
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
@@ -286,12 +470,13 @@ const mdmService = {
   updateReleaseDeviceSetting: (teamId: number, isEnabled: boolean) => {
     const { MDM_SETUP_EXPERIENCE } = endpoints;
 
-    const body: IUpdateSetupExperienceBody = {
-      enable_release_device_manually: isEnabled,
+    const body: IUpdateSetupExperienceFormData = {
+      fleet_id: teamId,
+      apple_enable_release_device_manually: isEnabled,
     };
 
-    if (teamId !== API_NO_TEAM_ID) {
-      body.team_id = teamId;
+    if (teamId === API_NO_TEAM_ID) {
+      delete body.fleet_id;
     }
 
     return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
@@ -304,9 +489,14 @@ const mdmService = {
     }
 
     const path = `${MDM_APPLE_SETUP_ENROLLMENT_PROFILE}?${buildQueryStringFromParams(
-      { team_id: teamId }
+      { fleet_id: teamId }
     )}`;
     return sendRequest("GET", path);
+  },
+
+  getDefaultSetupEnrollmentProfile: (): Promise<IDefaultAppleSetupEnrollmentProfileResponse> => {
+    const { MDM_APPLE_DEFAULT_SETUP_ENROLLMENT_PROFILE } = endpoints;
+    return sendRequest("GET", MDM_APPLE_DEFAULT_SETUP_ENROLLMENT_PROFILE);
   },
 
   uploadSetupEnrollmentProfile: (file: File, teamId: number) => {
@@ -323,7 +513,7 @@ const mdmService = {
             enrollment_profile: JSON.parse(reader.result as string),
           };
           if (teamId !== API_NO_TEAM_ID) {
-            body.team_id = teamId;
+            body.fleet_id = teamId;
           }
           resolve(
             sendRequest("POST", MDM_APPLE_SETUP_ENROLLMENT_PROFILE, body)
@@ -343,7 +533,7 @@ const mdmService = {
     }
 
     const path = `${MDM_APPLE_SETUP_ENROLLMENT_PROFILE}?${buildQueryStringFromParams(
-      { team_id: teamId }
+      { fleet_id: teamId }
     )}`;
     return sendRequest("DELETE", path);
   },
@@ -364,9 +554,7 @@ const mdmService = {
     const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
 
     const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
-      {
-        ...params,
-      }
+      params
     )}`;
 
     return sendRequest("GET", path);
@@ -379,7 +567,7 @@ const mdmService = {
   ) => {
     return sendRequest("PUT", endpoints.MDM_SETUP_EXPERIENCE_SOFTWARE, {
       software_title_ids: softwareTitlesIds,
-      team_id: teamId,
+      fleet_id: teamId,
       platform,
     });
   },
@@ -391,7 +579,7 @@ const mdmService = {
 
     let path = MDM_SETUP_EXPERIENCE_SCRIPT;
     if (teamId) {
-      path += `?${buildQueryStringFromParams({ team_id: teamId })}`;
+      path += `?${buildQueryStringFromParams({ fleet_id: teamId })}`;
     }
 
     return sendRequest("GET", path);
@@ -401,7 +589,10 @@ const mdmService = {
     const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
     let path = MDM_SETUP_EXPERIENCE_SCRIPT;
-    path += `?${buildQueryStringFromParams({ team_id: teamId, alt: "media" })}`;
+    path += `?${buildQueryStringFromParams({
+      fleet_id: teamId,
+      alt: "media",
+    })}`;
 
     return sendRequest("GET", path);
   },
@@ -413,7 +604,7 @@ const mdmService = {
     formData.append("script", file);
 
     if (teamId) {
-      formData.append("team_id", teamId.toString());
+      formData.append("fleet_id", teamId.toString());
     }
 
     return sendRequest("POST", MDM_SETUP_EXPERIENCE_SCRIPT, formData);
@@ -423,7 +614,7 @@ const mdmService = {
     const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
     const path = `${MDM_SETUP_EXPERIENCE_SCRIPT}?${buildQueryStringFromParams({
-      team_id: teamId,
+      fleet_id: teamId,
     })}`;
 
     return sendRequest("DELETE", path);

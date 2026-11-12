@@ -1,6 +1,6 @@
 import React from "react";
+
 import { PackageType } from "interfaces/package_type";
-import TooltipWrapper from "components/TooltipWrapper";
 
 type IPlatformDisplayName =
   | "macOS"
@@ -24,6 +24,7 @@ export const FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME: Record<
   "tar.gz": "Linux",
   sh: "macOS & Linux",
   ps1: "Windows",
+  py: "macOS & Linux",
   ipa: "iOS/iPadOS",
 };
 
@@ -70,37 +71,22 @@ export const getExtensionFromFileName = (fileName: string) => {
 };
 
 /** This gets the platform display name from the file.
- * Includes nuance for .sh software installers only supported on Linux
+ * Script packages (.sh, .py) map to "macOS & Linux" since they run on both;
+ * .ipa maps to iOS/iPadOS since it covers both.
  */
-export const getPlatformDisplayName = (
-  file: File,
-  isSoftwareInstaller = false
-) => {
+export const getPlatformDisplayName = (file: File) => {
   const fileExt = getExtensionFromFileName(file.name);
   if (!fileExt) {
     return undefined;
   }
-  if (fileExt === "ipa") {
-    return (
-      <TooltipWrapper tipContent="Software will be added for both platforms.">
-        {FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt]}
-      </TooltipWrapper>
-    );
-  }
-
-  if (fileExt === "sh" && isSoftwareInstaller) {
-    // Currently, .sh files for software installers are only supported for Linux
-    return "Linux";
-  }
-
   return FILE_EXTENSIONS_TO_PLATFORM_DISPLAY_NAME[fileExt];
 };
 
 /** This gets the file details from the file. */
-export const getFileDetails = (file: File, isSoftwareInstaller = false) => {
+export const getFileDetails = (file: File) => {
   return {
     name: file.name,
-    description: getPlatformDisplayName(file, isSoftwareInstaller),
+    description: getPlatformDisplayName(file),
   };
 };
 
@@ -108,3 +94,51 @@ export interface IFileDetails {
   name: string;
   description?: React.ReactNode;
 }
+
+// Both tables match the ones go-units gives the server, so the two agree at
+// every magnitude rather than only up to terabytes.
+const DECIMAL_ABBREVIATIONS = [
+  "B",
+  "kB",
+  "MB",
+  "GB",
+  "TB",
+  "PB",
+  "EB",
+  "ZB",
+  "YB",
+];
+const BINARY_ABBREVIATIONS = [
+  "B",
+  "KiB",
+  "MiB",
+  "GiB",
+  "TiB",
+  "PiB",
+  "EiB",
+  "ZiB",
+  "YiB",
+];
+
+const formatWithBase = (
+  bytes: number,
+  base: number,
+  abbreviations: string[]
+) => {
+  let size = bytes;
+  let abbreviationIndex = 0;
+  while (size >= base && abbreviationIndex < abbreviations.length - 1) {
+    size /= base;
+    abbreviationIndex += 1;
+  }
+  // 4 significant digits with trailing zeros dropped, matching Go's "%.4g"
+  return `${Number(size.toPrecision(4))}${abbreviations[abbreviationIndex]}`;
+};
+
+// Returns a human readable size, like the server's installersize.Human function
+export const formatFileSize = (bytes: number) => {
+  const decimal = formatWithBase(bytes, 1000, DECIMAL_ABBREVIATIONS);
+  const binary = formatWithBase(bytes, 1024, BINARY_ABBREVIATIONS);
+
+  return binary.length < decimal.length ? binary : decimal;
+};

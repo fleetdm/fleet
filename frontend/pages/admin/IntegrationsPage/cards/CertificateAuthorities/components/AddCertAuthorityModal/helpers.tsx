@@ -1,41 +1,55 @@
+import { mapValues } from "lodash";
 import React from "react";
 
-import { IAddCertAuthorityBody } from "services/entities/certificates";
-import { ICertificateAuthorityType } from "interfaces/certificates";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { getErrorReason } from "interfaces/errors";
-
 import CustomLink from "components/CustomLink";
+import { notify } from "components/ToastNotification";
+import { IFormErrors } from "hooks/useFormValidation";
+import { ICertificateAuthorityType } from "interfaces/certificates";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { getErrorReason, hasStatusKey } from "interfaces/errors";
+import { IAddCertAuthorityFormData } from "services/entities/certificates";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
-import { INDESFormData } from "../NDESForm/NDESForm";
-import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
-import { IHydrantFormData } from "../HydrantForm/HydrantForm";
-import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 import { ICustomESTFormData } from "../CustomESTForm/CustomESTForm";
+import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
+import { IDigicertFormData } from "../DigicertForm/DigicertForm";
+import { IEJBCAFormData } from "../EJBCAForm/EJBCAForm";
+import {
+  generateEJBCAAddData,
+  splitEJBCAServerErrors,
+} from "../EJBCAForm/helpers";
+import { IGoogleCASFormData } from "../GoogleCASForm/GoogleCASForm";
+import CA_LABEL_BY_TYPE from "../helpers";
+import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import { INDESFormData } from "../NDESForm/NDESForm";
+import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 
 // keep these alphabetized
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
   {
-    label: "Custom EST (Enrollment Over Secure Transport)",
+    label: CA_LABEL_BY_TYPE.custom_est_proxy,
     value: "custom_est_proxy",
   },
   {
-    label: "Custom SCEP (Simple Certificate Enrollment Protocol)",
+    label: CA_LABEL_BY_TYPE.custom_scep_proxy,
     value: "custom_scep_proxy",
   },
-  { label: "DigiCert", value: "digicert" },
+  { label: CA_LABEL_BY_TYPE.digicert, value: "digicert" },
+  { label: CA_LABEL_BY_TYPE.ejbca, value: "ejbca" },
+  { label: CA_LABEL_BY_TYPE.google_cas, value: "google_cas" },
   {
-    label: "Hydrant EST (Enrollment Over Secure Transport)",
+    label: CA_LABEL_BY_TYPE.hydrant,
     value: "hydrant",
   },
   {
-    label: "Microsoft NDES (Network Device Enrollment Service)",
+    label: CA_LABEL_BY_TYPE.ndes_scep_proxy,
     value: "ndes_scep_proxy",
   },
-  { label: "Smallstep", value: "smallstep" },
+  {
+    label: CA_LABEL_BY_TYPE.smallstep,
+    value: "smallstep",
+  },
 ];
 
 /**
@@ -43,21 +57,16 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
  * if one already exists
  */
 export const generateDropdownOptions = (hasNDESCert: boolean) => {
-  if (!hasNDESCert) {
-    return DEFAULT_CERT_AUTHORITY_OPTIONS;
-  }
-
-  // We only allow one NDES configuration, if ones exists disable the option and
-  // add a tooltip.
-  const ndesOption = DEFAULT_CERT_AUTHORITY_OPTIONS.find((option) => {
-    return option.value === "ndes_scep_proxy";
+  return DEFAULT_CERT_AUTHORITY_OPTIONS.map((option) => {
+    if (option.value === "ndes_scep_proxy" && hasNDESCert) {
+      return {
+        ...option,
+        disabled: true,
+        tooltipContent: "Only one NDES can be added.",
+      };
+    }
+    return option;
   });
-  if (ndesOption) {
-    ndesOption.disabled = true;
-    ndesOption.tooltipContent = "Only one NDES can be added.";
-  }
-
-  return DEFAULT_CERT_AUTHORITY_OPTIONS;
 };
 
 /**
@@ -69,7 +78,7 @@ export const generateDropdownOptions = (hasNDESCert: boolean) => {
 export const generateAddCertAuthorityData = (
   certAuthorityType: ICertificateAuthorityType,
   formData: ICertFormData
-): IAddCertAuthorityBody | undefined => {
+): IAddCertAuthorityFormData | undefined => {
   switch (certAuthorityType) {
     case "ndes_scep_proxy": {
       const {
@@ -109,6 +118,8 @@ export const generateAddCertAuthorityData = (
         },
       };
     }
+    case "ejbca":
+      return { ejbca: generateEJBCAAddData(formData as IEJBCAFormData) };
     case "custom_scep_proxy": {
       const {
         name: customSCEPName,
@@ -173,6 +184,24 @@ export const generateAddCertAuthorityData = (
         },
       };
     }
+    case "google_cas": {
+      const {
+        name,
+        projectId,
+        caPool,
+        location,
+        apiKeyJson,
+      } = formData as IGoogleCASFormData;
+      return {
+        google_cas: {
+          name,
+          project: projectId,
+          ca_pool: caPool,
+          location,
+          api_key_json: apiKeyJson,
+        },
+      };
+    }
     default:
       throw new Error(
         `Unknown certificate authority type: ${certAuthorityType}`
@@ -200,46 +229,91 @@ const PRIVATE_KEY_NOT_CONFIGURED_ERROR = (
     />
   </>
 );
-const INVALID_SCEP_URL_ERROR =
-  "Invalid SCEP URL. Please correct and try again.";
 const INVALID_ADMIN_URL_OR_CREDENTIALS_ERROR =
   "Invalid admin URL or credentials. Please correct and try again.";
+const INVALID_ADMIN_URL_ERROR =
+  "Invalid admin URL. Please correct and try again.";
+const INVALID_USERNAME_ERROR =
+  "Invalid username. Please correct and try again.";
+const INVALID_PASSWORD_ERROR =
+  "Invalid password. Please correct and try again.";
+const ADMIN_URL_CONNECTION_ERROR =
+  "Couldn't connect to admin URL. Please correct and try again.";
 const NDES_PASSWORD_CACHE_FULL_ERROR =
   "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again.";
 const INVALID_CHALLENGE_ERROR =
   "Invalid challenge. Please correct and try again.";
 const INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR =
   "Invalid challenge URL or credentials. Please correct and try again.";
+const CA_NOT_FOUND_ERROR =
+  "Fleet couldn't find the CA at the specified URL. Please correct and try again.";
+
+/**
+ * Matches the server's URL errors, which name the CA type inside the message (e.g. "Invalid
+ * Hydrant URL.").
+ */
+const INVALID_URL_PATTERN = /Invalid [\w ]*URL\./;
+
+const SERVER_ERROR_PREFIX = /^Couldn't (add|edit) certificate authority\. /;
 
 /**
  * Gets the error message we want to display from the api error message.
  * This is used in both add and edit certificate authority flows.
  */
-export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
+export const getDisplayErrMessage = (
+  err: unknown,
+  caType?: ICertificateAuthorityType
+): string | JSX.Element => {
   let message: string | JSX.Element = DEFAULT_ERROR;
-  const reason = getErrorReason(err).toLowerCase();
+  const rawReason = getErrorReason(err);
+  const reason = rawReason.toLowerCase();
+  const invalidUrlMatch = rawReason.match(INVALID_URL_PATTERN);
+  const unprefixedReason = rawReason.replace(SERVER_ERROR_PREFIX, "");
 
-  if (reason.includes("invalid api token")) {
+  // Google CAS errors name the field or Google setting to fix, and the server
+  // writes its 4xx reasons for admins, so they're shown as is.
+  if (
+    caType === "google_cas" &&
+    unprefixedReason &&
+    hasStatusKey(err) &&
+    err.status >= 400 &&
+    err.status < 500
+  ) {
+    message = unprefixedReason;
+  } else if (reason.includes("invalid api token")) {
     message = INVALID_API_TOKEN_ERROR;
   } else if (reason.includes("invalid profile guid")) {
     message = INVALID_PROFILE_GUID_ERROR;
-  } else if (
-    reason.includes("invalid url") ||
-    reason.includes("no such host")
-  ) {
-    message = INVALID_URL_ERROR;
   } else if (reason.includes("private key")) {
     message = PRIVATE_KEY_NOT_CONFIGURED_ERROR;
-  } else if (reason.includes("invalid scep url")) {
-    message = INVALID_SCEP_URL_ERROR;
-  } else if (reason.includes("invalid admin url or credentials")) {
+  } else if (reason.includes("admin url or credentials")) {
+    // the server names the CA type in this message, e.g. "Invalid NDES SCEP admin URL or
+    // credentials", so match on the part that doesn't vary
     message = INVALID_ADMIN_URL_OR_CREDENTIALS_ERROR;
+  } else if (reason.includes("invalid ndes scep admin url")) {
+    // must be checked after "admin url or credentials", which contains this string
+    message = INVALID_ADMIN_URL_ERROR;
+  } else if (reason.includes("invalid ndes scep username")) {
+    message = INVALID_USERNAME_ERROR;
+  } else if (reason.includes("invalid ndes scep password")) {
+    message = INVALID_PASSWORD_ERROR;
+  } else if (reason.includes("couldn't connect to ndes scep admin url")) {
+    message = ADMIN_URL_CONNECTION_ERROR;
   } else if (reason.includes("password cache is full")) {
     message = NDES_PASSWORD_CACHE_FULL_ERROR;
   } else if (reason.includes("invalid challenge url")) {
     message = INVALID_CHALLENGE_URL_OR_CREDENTIALS_ERROR;
   } else if (reason.includes("invalid challenge")) {
     message = INVALID_CHALLENGE_ERROR;
+  } else if (reason.includes("couldn't find the ca at the specified url")) {
+    message = CA_NOT_FOUND_ERROR;
+  } else if (invalidUrlMatch) {
+    message = `${invalidUrlMatch[0]} Please correct and try again.`;
+  } else if (
+    reason.includes("invalid url") ||
+    reason.includes("no such host")
+  ) {
+    message = INVALID_URL_ERROR;
   } else {
     message = DEFAULT_ERROR;
   }
@@ -247,8 +321,59 @@ export const getDisplayErrMessage = (err: unknown): string | JSX.Element => {
   return message;
 };
 
-export const getErrorMessage = (err: unknown): JSX.Element => {
+export const getErrorMessage = (
+  err: unknown,
+  caType: ICertificateAuthorityType
+): JSX.Element => {
   return (
-    <>Couldn&apos;t add certificate authority. {getDisplayErrMessage(err)}</>
+    <>
+      Couldn&apos;t add certificate authority.{" "}
+      {getDisplayErrMessage(err, caType)}
+    </>
   );
+};
+
+const PRIVATE_KEY_NOT_CONFIGURED_REASON = "Private key must be configured";
+
+/**
+ * The toast for the reasons of a failed EJBCA request that don't belong to a field.
+ */
+export const getEJBCAErrorMessage = (
+  action: "add" | "edit",
+  otherReasons: string[]
+) => {
+  if (!otherReasons.length) {
+    return `Couldn't ${action} certificate authority. Please try again.`;
+  }
+  return (
+    <>
+      Couldn&apos;t {action} certificate authority.{" "}
+      {otherReasons.map((otherReason) => {
+        const reason = otherReason.replace(SERVER_ERROR_PREFIX, "");
+        return (
+          <React.Fragment key={reason}>
+            {reason.startsWith(PRIVATE_KEY_NOT_CONFIGURED_REASON)
+              ? PRIVATE_KEY_NOT_CONFIGURED_ERROR
+              : reason}{" "}
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
+};
+
+/** Shows the errors of a failed EJBCA request: the form gets the ones of its fields, and the rest are a toast. */
+export const handleEJBCAServerError = (
+  err: unknown,
+  action: "add" | "edit",
+  setFieldErrors: (errors: IFormErrors) => void
+) => {
+  const { fieldErrors, otherReasons } = splitEJBCAServerErrors(err);
+  // a field's error is shown next to it, so it doesn't need to say what failed
+  setFieldErrors(
+    mapValues(fieldErrors, (reason) => reason?.replace(SERVER_ERROR_PREFIX, ""))
+  );
+  if (otherReasons.length || Object.keys(fieldErrors).length === 0) {
+    notify.error(getEJBCAErrorMessage(action, otherReasons), { response: err });
+  }
 };

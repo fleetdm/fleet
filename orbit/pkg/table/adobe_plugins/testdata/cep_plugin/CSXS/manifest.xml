@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExtensionManifest xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    ExtensionBundleId="com.example.test.plugin"
+    ExtensionBundleVersion="2.1.0"
+    Version="7.0">
+    <Author Name="Test Vendor"/>
+    <ExtensionList>
+        <Extension Id="com.example.test.plugin.panel" Version="2.1.0"/>
+    </ExtensionList>
+    <ExecutionEnvironment>
+        <HostList>
+            <Host Name="PHXS" Version="[15.0,99.9]"/>
+            <Host Name="ILST" Version="[19.0,99.9]"/>
+        </HostList>
+    </ExecutionEnvironment>
+</ExtensionManifest>

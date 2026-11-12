@@ -1,9 +1,14 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/variables"
+	"howett.net/plist"
 )
 
 type VPPAppID struct {
@@ -23,6 +28,10 @@ type VPPAppTeam struct {
 
 	AppTeamID   uint `db:"id" json:"-"`
 	SelfService bool `db:"self_service" json:"self_service"`
+	// VPPTokenID is the VPP token the app was added from on this fleet. Nil for Google Play apps.
+	VPPTokenID *uint `db:"vpp_token_id" json:"-"`
+	// VersionName is the name of this version of the app on the fleet. Empty means DefaultAppStoreAppVersionName.
+	VersionName string `db:"version_name" json:"-"`
 
 	// InstallDuringSetup is either the stored value of that flag for the VPP app
 	// or the value to set to that VPP app when batch-setting it. When used to
@@ -30,14 +39,18 @@ type VPPAppTeam struct {
 	// to false), while if not nil, it will update the flag's value in the DB.
 	InstallDuringSetup *bool `db:"install_during_setup" json:"-"`
 	// LabelsIncludeAny are the names of labels associated with this app. If a host has any of
-	// these labels, the app is in scope for that host. If this field is set, LabelsExcludeAny
+	// these labels, the app is in scope for that host. If this field is set, other label fields
 	// cannot be set.
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	// LabelsExcludeAny are the names of labels associated with this app. If a host has any of
-	// these labels, the app is out of scope for that host. If this field is set, LabelsIncludeAny
+	// these labels, the app is out of scope for that host. If this field is set, other label fields
 	// cannot be set.
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
-	// ValidatedLabels are the labels (either include or exclude any) that have been validated by
+	// LabelsIncludeAll are the names of labels associated with this app. If a host has all of
+	// these labels, the app is in scope for that host. If this field is set, other label fields
+	// cannot be set.
+	LabelsIncludeAll []string `json:"labels_include_all"`
+	// ValidatedLabels are the labels (either include any/all or exclude any) that have been validated by
 	// Fleet as being valid labels. This field is only used internally.
 	ValidatedLabels *LabelIdentsWithScope `json:"-"`
 	// AddAutoInstallPolicy indicates whether or not we should create an auto-install policy for
@@ -51,18 +64,13 @@ type VPPAppTeam struct {
 	// automatically created when a VPP app is added to Fleet. This field should be set after VPP
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
-	DisplayName                 *string `json:"display_name"`
-	// Configuration is a json file used to customize Android app
-	// behavior/settings. Applicable to Android apps only.
-	Configuration json.RawMessage `json:"configuration,omitempty"`
-}
-
-func (v VPPAppTeam) GetPlatform() string {
-	return string(v.Platform)
-}
-
-func (v VPPAppTeam) GetAppStoreID() string {
-	return v.AdamID
+	DisplayName                 *string `db:"display_name" json:"display_name"`
+	// Configuration is the managed app configuration payload.
+	// JSON for Android, XML for iOS / iPadOS.
+	Configuration       []byte  `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool   `db:"auto_update_enabled" json:"-"`
+	AutoUpdateStartTime *string `db:"auto_update_window_start" json:"-"`
+	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"-"`
 }
 
 // VPPApp represents a VPP (Volume Purchase Program) application,
@@ -79,10 +87,16 @@ type VPPApp struct {
 	Name string `db:"name" json:"name"`
 	// LatestVersion is the latest version of this app.
 	LatestVersion string `db:"latest_version" json:"latest_version"`
+	// CountryCode is the App Store storefront country (lowercase ISO 3166-1
+	// alpha-2 such as "us", "de") that this app is "anchored" to. It is set
+	// on the first add of the (adam_id, platform) and re-used for all future
+	// metadata fetches so the displayed name/icon/version stay consistent
+	// regardless of which team's token triggers the fetch.
+	CountryCode string `db:"country_code" json:"-"`
 	// TeamID is used for authorization, it must be json serialized to be available
 	// to the rego script. We don't set it outside authorization anyway, so it
 	// won't render otherwise.
-	TeamID  *uint `db:"-" json:"team_id,omitempty"`
+	TeamID  *uint `db:"-" json:"team_id,omitempty" renameto:"fleet_id"`
 	TitleID uint  `db:"title_id" json:"-"`
 
 	CreatedAt time.Time `db:"created_at" json:"-"`
@@ -104,7 +118,17 @@ type VPPAppStoreApp struct {
 	Status        *VPPAppStatusSummary `db:"-" json:"status"`
 	SelfService   bool                 `db:"self_service" json:"self_service"`
 	// only filled by GetVPPAppMetadataByTeamAndTitleID
-	VPPAppsTeamsID uint `db:"vpp_apps_teams_id" json:"-"`
+	VPPAppsTeamsID uint `db:"vpp_apps_teams_id" json:"id"`
+	// VPPTokenID is the token the app was added from on this fleet. Nil for Google Play apps.
+	VPPTokenID *uint            `db:"vpp_token_id" json:"-"`
+	VPPToken   *VPPTokenSummary `db:"-" json:"vpp_token"`
+
+	VersionName         string  `db:"version_name" json:"-"`
+	AutoUpdateEnabled   *bool   `db:"auto_update_enabled" json:"auto_update_enabled"`
+	AutoUpdateStartTime *string `db:"auto_update_window_start" json:"auto_update_window_start"`
+	AutoUpdateEndTime   *string `db:"auto_update_window_end" json:"auto_update_window_end"`
+	InstallDuringSetup  *bool   `db:"install_during_setup" json:"-"`
+	TitleID             uint    `db:"title_id" json:"-"`
 	// AutomaticInstallPolicies is the list of policies that trigger automatic
 	// installation of this software.
 	AutomaticInstallPolicies []AutomaticInstallPolicy `json:"automatic_install_policies" db:"-"`
@@ -112,6 +136,10 @@ type VPPAppStoreApp struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this app store app (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	// LabelsIncludeAll is the list of "include all" labels for this app store app (if not nil).
+	LabelsIncludeAll []SoftwareScopeLabel `json:"labels_include_all" db:"labels_include_all"`
+	// HasLabels is whether this app store app has any labels, only filled by GetAppStoreAppVersionsByFleetAndTitle.
+	HasLabels bool `json:"-" db:"has_labels"`
 	// BundleIdentifier is the bundle identifier for this app.
 	BundleIdentifier string `json:"-" db:"bundle_identifier"`
 	// AddedAt is when the VPP app was added to the team
@@ -120,9 +148,79 @@ type VPPAppStoreApp struct {
 	// "Browsers", etc.
 	Categories  []string `json:"categories"`
 	DisplayName string   `json:"display_name"`
-	// Configuration is a json file used to customize Android app
-	// behavior/settings. Applicable to Android apps only.
+	// Configuration is the managed app configuration payload.
+	// JSON for Android, XML for iOS / iPadOS.
 	Configuration json.RawMessage `json:"configuration,omitempty"`
+	// ConfigurationUpdatedAt is when the configuration last changed.
+	ConfigurationUpdatedAt *time.Time `db:"configuration_updated_at" json:"-"`
+}
+
+const (
+	// DefaultAppStoreAppVersionName is the name given to an App Store app version added without a name.
+	DefaultAppStoreAppVersionName = "Default version"
+	// MaxAppStoreAppVersions is the most versions an App Store app can have on one fleet.
+	MaxAppStoreAppVersions = 10
+	// MaxAppStoreAppVersionNameLength is the most characters a version name can have, the size of its column.
+	MaxAppStoreAppVersionNameLength = 255
+)
+
+// TODO: replace with VPPAppStoreApp once app_store_app is removed from software title responses.
+// AppStoreAppVersion is one version of an App Store app on a fleet, as returned in the app_store_apps list of a software title.
+type AppStoreAppVersion struct {
+	ID                       uint                      `json:"id"`
+	Name                     string                    `json:"name"`
+	AppStoreID               string                    `json:"app_store_id"`
+	Platform                 InstallableDevicePlatform `json:"platform"`
+	Version                  string                    `json:"version"`
+	Status                   *VPPAppStatusSummary      `json:"status"`
+	SelfService              bool                      `json:"self_service"`
+	AutomaticInstallPolicies []AutomaticInstallPolicy  `json:"automatic_install_policies"`
+	LabelsIncludeAny         []SoftwareScopeLabel      `json:"labels_include_any"`
+	LabelsExcludeAny         []SoftwareScopeLabel      `json:"labels_exclude_any"`
+	LabelsIncludeAll         []SoftwareScopeLabel      `json:"labels_include_all"`
+	AutoUpdateEnabled        *bool                     `json:"auto_update_enabled"`
+	AutoUpdateStartTime      *string                   `json:"auto_update_window_start"`
+	AutoUpdateEndTime        *string                   `json:"auto_update_window_end"`
+	AddedAt                  time.Time                 `json:"created_at"`
+	Categories               []string                  `json:"categories"`
+	DisplayName              string                    `json:"display_name"`
+	Configuration            json.RawMessage           `json:"configuration,omitempty"`
+	VPPToken                 *VPPTokenSummary          `json:"vpp_token"`
+}
+
+type AppStoreAppListItem struct {
+	ID                       uint                      `json:"id"`
+	Name                     string                    `json:"name"`
+	AppStoreID               string                    `json:"app_store_id"`
+	Platform                 InstallableDevicePlatform `json:"platform"`
+	Version                  string                    `json:"version"`
+	SelfService              bool                      `json:"self_service"`
+	AutomaticInstallPolicies []AutomaticInstallPolicy  `json:"automatic_install_policies"`
+	InstallDuringSetup       *bool                     `json:"install_during_setup,omitempty"`
+}
+
+func (v *VPPAppStoreApp) AppStoreAppVersion() AppStoreAppVersion {
+	return AppStoreAppVersion{
+		ID:                       v.VPPAppsTeamsID,
+		Name:                     v.VersionName,
+		AppStoreID:               v.AdamID,
+		Platform:                 v.Platform,
+		Version:                  v.LatestVersion,
+		Status:                   v.Status,
+		SelfService:              v.SelfService,
+		AutomaticInstallPolicies: v.AutomaticInstallPolicies,
+		LabelsIncludeAny:         v.LabelsIncludeAny,
+		LabelsExcludeAny:         v.LabelsExcludeAny,
+		LabelsIncludeAll:         v.LabelsIncludeAll,
+		AutoUpdateEnabled:        v.AutoUpdateEnabled,
+		AutoUpdateStartTime:      v.AutoUpdateStartTime,
+		AutoUpdateEndTime:        v.AutoUpdateEndTime,
+		AddedAt:                  v.AddedAt,
+		Categories:               v.Categories,
+		DisplayName:              v.DisplayName,
+		Configuration:            v.Configuration,
+		VPPToken:                 v.VPPToken,
+	}
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
@@ -135,15 +233,6 @@ type VPPAppStatusSummary struct {
 	Failed uint `json:"failed" db:"failed"`
 }
 
-type ErrVPPTokenTeamConstraint struct {
-	Name string
-	ID   *uint
-}
-
-func (e ErrVPPTokenTeamConstraint) Error() string {
-	return fmt.Sprintf("Error: %q team already has a VPP token. Each team can only have one VPP token.", e.Name)
-}
-
 // HostVPPSoftwareInstall represents a VPP software install attempt on a host.
 type HostVPPSoftwareInstall struct {
 	InstallCommandUUID   string     `db:"command_uuid"`
@@ -151,6 +240,23 @@ type HostVPPSoftwareInstall struct {
 	HostID               uint       `db:"host_id"`
 	InstallCommandStatus string     `db:"install_command_status"`
 	BundleIdentifier     string     `db:"bundle_identifier"`
+	RetryCount           int        `db:"retry_count"`
+	ExpectedVersion      string     `db:"expected_version"`
+	PolicyID             *uint      `db:"policy_id"`
+	VPPAppTeamID         *uint      `db:"vpp_app_team_id"`
+	CreatedAt            time.Time  `db:"created_at"`
+	NeedsResend          bool       `db:"needs_resend"`
+}
+
+type HostVPPInstallWithUpcoming struct {
+	HostVPPSoftwareInstall
+	UpcomingVPPAppTeamID *uint `db:"upcoming_vpp_app_team_id"`
+}
+
+type HostVPPSoftwareInstallLite struct {
+	InstallCommandUUID string `db:"command_uuid"`
+	HostID             uint   `db:"host_id"`
+	RetryCount         int    `db:"retry_count"`
 }
 
 // HostAndroidVPPSoftwareInstall represents the payload needed to
@@ -162,23 +268,235 @@ type HostVPPSoftwareInstall struct {
 // are always null and self-service is always false, while platform is
 // always android.
 type HostAndroidVPPSoftwareInstall struct {
-	HostID            uint   `db:"host_id"`
-	AdamID            string `db:"adam_id"`             // for Android, this is the e.g. com.chrome application ID
-	CommandUUID       string `db:"command_uuid"`        // uuid of the corresponding android_policy_request row
-	AssociatedEventID string `db:"associated_event_id"` // for Android (for the current setup-experience-only approach), we overload this field to store the Android policy version ID
+	HostID            uint       `db:"host_id"`
+	AdamID            string     `db:"adam_id"`             // for Android, this is the e.g. com.chrome application ID
+	CommandUUID       string     `db:"command_uuid"`        // uuid of the corresponding android_policy_request row
+	AssociatedEventID string     `db:"associated_event_id"` // for Android (for the current setup-experience-only approach), we overload this field to store the Android policy version ID
+	VPPAppTeamID      uint       `db:"vpp_app_team_id"`
+	CreatedAt         *time.Time `db:"created_at"` // read-only, the column is nullable
+}
+
+// HostAndroidSoftwareInstall is the app Fleet last put in an Android host's policy, one per host and app.
+type HostAndroidSoftwareInstall struct {
+	HostID          uint      `db:"host_id"`
+	AdamID          string    `db:"adam_id"`
+	VPPAppTeamID    *uint     `db:"vpp_app_team_id"`
+	InstallType     string    `db:"install_type"`
+	Status          string    `db:"status"`
+	NeedsResend     bool      `db:"needs_resend"`
+	InPolicyVersion *int64    `db:"in_policy_version"`
+	PolicyBuiltAt   time.Time `db:"policy_built_at"`
+	CreatedAt       time.Time `db:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at"`
 }
 
 const (
-	DefaultVPPInstallVerifyTimeout = 10 * time.Minute
-	DefaultVPPVerifyRequestDelay   = 5 * time.Second
+	// AndroidSoftwareInstallStatusPending means the app was sent in the host's
+	// policy and the device hasn't applied that policy version yet.
+	AndroidSoftwareInstallStatusPending = "pending"
+	// AndroidSoftwareInstallStatusVerified means the device applied a policy version that includes the app.
+	AndroidSoftwareInstallStatusVerified = "verified"
+	// AndroidSoftwareInstallStatusFailed means Fleet couldn't send the app to the host, e.g. because its
+	// configuration uses a Fleet variable that has no value for the host.
+	AndroidSoftwareInstallStatusFailed = "failed"
+	// AndroidSoftwareInstallStatusRequestFailed means the request that sent the host's app list failed.
+	AndroidSoftwareInstallStatusRequestFailed = "request_failed"
+)
+
+const (
+	// Time to wait between auto-update or configuration resend attempts (1 hour)
+	VPPAutomaticInstallWaitSeconds = 3600
+	MaxVPPAutomaticInstallRetries  = 2
+	// Time to wait after reaching maximum failed attempts
+	VPPAutomaticInstallRetryTimeout = 24 * time.Hour
 )
 
 type AppStoreAppUpdatePayload struct {
+	// VersionID is the vpp_apps_teams id of the version to update, required when the title has more than one version on the fleet.
+	VersionID        *uint
+	VersionName      *string
 	SelfService      *bool
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
+	LabelsIncludeAll []string
 	Categories       []string
 	DisplayName      *string
-	Configuration    json.RawMessage
+	Configuration    []byte
 	SoftwareAutoUpdateConfig
 }
+
+// VPPClientUserStatus is the lifecycle state of a row in vpp_client_users.
+type VPPClientUserStatus string
+
+const (
+	// VPPClientUserStatusPending means Fleet generated a client_user_id but
+	// Apple has not yet acknowledged the registration (or returned an error).
+	VPPClientUserStatusPending VPPClientUserStatus = "pending"
+	// VPPClientUserStatusRegistered means Apple has returned a userId for the
+	// client_user_id, and the row is ready for use in Associate Assets.
+	VPPClientUserStatusRegistered VPPClientUserStatus = "registered"
+	// VPPClientUserStatusRetired is reserved for future use when a host is
+	// unenrolled or its Managed Apple ID changes.
+	VPPClientUserStatusRetired VPPClientUserStatus = "retired"
+)
+
+// VPPClientUser represents a row in `vpp_client_users` — the mapping between a
+// VPP token (location), a Managed Apple ID, and the Fleet-generated
+// `clientUserId` we send to Apple's user-scoped VPP endpoints.
+type VPPClientUser struct {
+	ID             uint                `db:"id" json:"-"`
+	VPPTokenID     uint                `db:"vpp_token_id" json:"vpp_token_id"`
+	ManagedAppleID string              `db:"managed_apple_id" json:"managed_apple_id"`
+	ClientUserID   string              `db:"client_user_id" json:"client_user_id"`
+	AppleUserID    *string             `db:"apple_user_id" json:"apple_user_id,omitempty"`
+	Status         VPPClientUserStatus `db:"status" json:"status"`
+	CreatedAt      time.Time           `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time           `db:"updated_at" json:"updated_at"`
+}
+
+// FleetVarsSupportedInAppleAppConfig is the allow-list of Fleet variables that
+// can appear in an iOS / iPadOS managed app configuration plist. Subset of the
+// variables supported in Apple configuration profiles — credential variables
+// (NDES, SCEP, DigiCert) don't fit the InstallApplication command shape.
+var FleetVarsSupportedInAppleAppConfig = []FleetVarName{
+	FleetVarHostUUID,
+	FleetVarHostHardwareSerial,
+	FleetVarHostPlatform,
+	FleetVarHostEndUserEmailIDP,
+	FleetVarHostEndUserIDPUsername,
+	FleetVarHostEndUserIDPUsernameLocalPart,
+	FleetVarHostEndUserIDPGroups,
+	FleetVarHostEndUserIDPDepartment,
+	FleetVarHostEndUserIDPFullname,
+	FleetVarHostEndUserIDPExternalID,
+}
+
+// ValidateAppleAppConfiguration validates a managed app configuration payload
+// for an iOS or iPadOS InstallApplication command. The payload must be an XML
+// plist whose root element is a <dict>, and any Fleet variable tokens used in
+// string values or keys must be drawn from FleetVarsSupportedInAppleAppConfig.
+// Empty input is allowed — callers decide whether to store or clear.
+func ValidateAppleAppConfiguration(config []byte) error {
+	if len(config) == 0 {
+		return nil
+	}
+
+	var root map[string]any
+	format, err := plist.Unmarshal(config, &root)
+	if err != nil {
+		return NewInvalidArgumentError("configuration", fmt.Sprintf("invalid plist: %s", err))
+	}
+	// Apple's MDM InstallApplication only accepts XML plist for the
+	// Configuration dict; reject binary, OpenStep and GNUStep formats up front
+	// so admins don't get surprised when devices reject the install.
+	if format != plist.XMLFormat {
+		return NewInvalidArgumentError("configuration", "configuration must be an XML plist")
+	}
+
+	// Raw-bytes scan catches structural bypasses (duplicate keys, trailing
+	// siblings) invisible to the decoded tree. The decoded-tree walk below
+	// catches XML-entity-encoded tokens the regex won't match.
+	for _, name := range variables.Find(string(config)) {
+		if !slices.Contains(FleetVarsSupportedInAppleAppConfig, FleetVarName(name)) {
+			return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+		}
+	}
+	if name, ok := findUnsupportedFleetVar(root); ok {
+		return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+	}
+	return nil
+}
+
+// findUnsupportedFleetVar walks v's keys and string values and returns the
+// first $FLEET_VAR_* token that is not in FleetVarsSupportedInAppleAppConfig.
+// The second return is false when every referenced variable is allowed.
+func findUnsupportedFleetVar(v any) (string, bool) {
+	switch t := v.(type) {
+	case string:
+		for _, name := range variables.Find(t) {
+			if !slices.Contains(FleetVarsSupportedInAppleAppConfig, FleetVarName(name)) {
+				return name, true
+			}
+		}
+	case map[string]any:
+		for k, val := range t {
+			if name, ok := findUnsupportedFleetVar(k); ok {
+				return name, ok
+			}
+			if name, ok := findUnsupportedFleetVar(val); ok {
+				return name, ok
+			}
+		}
+	case []any:
+		for _, val := range t {
+			if name, ok := findUnsupportedFleetVar(val); ok {
+				return name, ok
+			}
+		}
+	}
+	return "", false
+}
+
+// VPPInstallReleaseInfo carries the per-install data the cancel path needs to
+// decide whether (and how) to release a previously-reserved VPP license seat
+// for a canceled install. AssociatedEventID is set only when this install was
+// the one that called AssociateAssets; HasOtherActiveInstall is true when
+// another non-canceled, non-failed install for the same (host, adam_id) is
+// still in flight and would still need the seat.
+type VPPInstallReleaseInfo struct {
+	AdamID                string
+	AssociatedEventID     string
+	HasOtherActiveInstall bool
+	// VPPTokenID is the token that assigned the license. Nil when unknown.
+	VPPTokenID *uint
+}
+
+// VPPTokenSummary is the VPP token an App Store app was added from, in the software title response.
+type VPPTokenSummary struct {
+	ID          uint   `json:"id"`
+	OrgName     string `json:"org_name"`
+	Location    string `json:"location"`
+	CountryCode string `json:"country_code"`
+}
+
+// ActivityVPPToken is the VPP token snapshot in App Store app activities.
+type ActivityVPPToken struct {
+	ID          uint   `json:"id"`
+	Location    string `json:"location"`
+	CountryCode string `json:"country_code"`
+}
+
+// ActivityVPPTokenByID returns the activity snapshot of the token with id, or
+// nil when id is nil or the token was deleted.
+func ActivityVPPTokenByID(ctx context.Context, ds Datastore, id *uint) (*ActivityVPPToken, error) {
+	if id == nil {
+		return nil, nil
+	}
+	tok, err := ds.GetVPPToken(ctx, *id)
+	if err != nil {
+		if IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &ActivityVPPToken{ID: tok.ID, Location: tok.Location, CountryCode: tok.CountryCode}, nil
+}
+
+type DuplicateStringGroup struct {
+	// Indices in the provided input slice
+	Indices []int
+}
+
+// HostAppStoreAppVersion is the App Store app version a host gets for a software title: the first-added version
+// the host is in label scope for, or the first-added version with InScope false when the host is in scope for none.
+type HostAppStoreAppVersion struct {
+	VPPAppTeamID uint   `db:"id"`
+	AdamID       string `db:"adam_id"`
+	TitleID      uint   `db:"title_id"`
+	Name         string `db:"name"`
+	InScope      bool   `db:"in_scope"`
+	VersionCount int    `db:"-"`
+}
+
+// AppStoreAppVersionsByFleetAndTitleID holds App Store app versions indexed by fleet id and then software title id, first-added first.
+type AppStoreAppVersionsByFleetAndTitleID map[uint]map[uint][]*VPPAppStoreApp

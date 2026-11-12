@@ -107,7 +107,7 @@ If you visit your Fleet instance, and check for hosts, you should see your Dropl
 
 That’s it: you’ve successfully deployed an osquery agent on a DigitalOcean Droplet. You will see the name of your Droplet and not fleet-box(the original name). You can now start running queries against that Droplet in your Fleet instance.
 
-To test out things I ran the query below in my Fleet instance with the recently enrolled Droplet as target:
+To test out things I ran the report below in my Fleet instance with the recently enrolled Droplet as target:
 
 ```sql
 SELECT * FROM shell_history;

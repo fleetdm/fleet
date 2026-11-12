@@ -7,6 +7,7 @@ windows_settings:
 scripts:
   - path: ./lib/collect-fleetd-logs.sh
 enable_disk_encryption: true
+macos_recovery_lock_password_enabled: true
 macos_migration:
   enable: false
   mode: ""
@@ -24,9 +25,13 @@ ios_updates:
 ipados_updates:
   deadline: null
   minimum_version: null
-windows_enabled_and_configured: true
-windows_migration_enabled: false
+windows_mdm_enabled: true
+windows_mdm_migration_enabled: false
 enable_turn_on_windows_mdm_manually: false
+windows_entra_tenant_ids: []
+windows_entra_client_ids: []
+apple_require_hardware_attestation: false
+only_allow_apple_business_enrollment: false
 windows_updates:
   deadline_days: null
   grace_period_days: null

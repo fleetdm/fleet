@@ -1,0 +1,375 @@
+import { isEqual } from "lodash";
+import React, { useCallback, useState, useMemo } from "react";
+import { InjectedRouter } from "react-router";
+
+import Button from "components/buttons/Button";
+import EmptyState from "components/EmptyState";
+import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { notify, INotifyBatchItem } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { isMacOS, SetupExperiencePlatform } from "interfaces/platform";
+import { ISoftwareTitle } from "interfaces/software";
+import PATHS from "router/paths";
+import mdmAPI from "services/entities/mdm";
+import { buildQueryStringFromParams } from "utilities/url";
+
+import InstallSoftwareTable from "../InstallSoftwareTable";
+
+import { hasNoSoftwareUploaded } from "./helpers";
+
+const baseClass = "install-software-form";
+
+const manuallyInstallTooltipText = (
+  <>
+    Disabled because you manually install Fleet&apos;s agent (
+    <b>Bootstrap package {">"} Advanced options</b>). Use your bootstrap package
+    to install software during the setup experience.
+  </>
+);
+
+const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
+  return softwareTitles.reduce<number[]>((acc, software) => {
+    if (
+      software.software_package?.install_during_setup ||
+      software.app_store_app?.install_during_setup
+    ) {
+      acc.push(software.id);
+    }
+    return acc;
+  }, []);
+};
+
+const getAddSoftwareUrl = (
+  platform: SetupExperiencePlatform,
+  teamId: number
+) => {
+  let path = "";
+  switch (platform) {
+    case "ios":
+    case "ipados":
+    case "android":
+      path = PATHS.SOFTWARE_ADD_APP_STORE;
+      break;
+    case "linux":
+      path = PATHS.SOFTWARE_ADD_PACKAGE;
+      break;
+    default:
+      path = PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
+  }
+
+  const params = {
+    fleet_id: teamId,
+    // Add android param to preselect Android dropdown on the Add App store page
+    ...(platform === "android" && { platform }),
+  };
+
+  return `${path}?${buildQueryStringFromParams(params)}`;
+};
+
+interface IInstallSoftwareFormProps {
+  currentTeamId: number;
+  hasManualAgentInstall: boolean;
+  softwareTitles: ISoftwareTitle[] | null;
+  platform: SetupExperiencePlatform;
+  savedRequireAllSoftwareMacOS?: boolean | null;
+  savedRequireAllSoftwareWindows?: boolean | null;
+  isWindowsMdmEnabled?: boolean;
+  router: InjectedRouter;
+  refetchSoftwareTitles: () => void;
+}
+
+const InstallSoftwareForm = ({
+  currentTeamId,
+  hasManualAgentInstall,
+  softwareTitles,
+  platform,
+  savedRequireAllSoftwareMacOS,
+  savedRequireAllSoftwareWindows,
+  isWindowsMdmEnabled = false,
+  router,
+  refetchSoftwareTitles,
+}: IInstallSoftwareFormProps) => {
+  const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
+  const [requireAllSoftwareMacOS, setRequireAllSoftwareMacOS] = useState(
+    savedRequireAllSoftwareMacOS ?? false
+  );
+  const [requireAllSoftwareWindows, setRequireAllSoftwareWindows] = useState(
+    savedRequireAllSoftwareWindows ?? false
+  );
+  const [isSaving, setIsSaving] = useState(false);
+
+  const initialSelectedSoftware = useMemo(
+    () => (softwareTitles ? initializeSelectedSoftwareIds(softwareTitles) : []),
+    [softwareTitles]
+  );
+
+  // Track if the user changed the require-all checkbox since the last save.
+  // We don't compare against props here to avoid races with parent refetch timing.
+  const [touchedRequireAll, setTouchedRequireAll] = useState(false);
+
+  const handleChangeRequireAllMacOS = (value: boolean) => {
+    setRequireAllSoftwareMacOS(value);
+    setTouchedRequireAll(true);
+  };
+
+  const handleChangeRequireAllWindows = (value: boolean) => {
+    setRequireAllSoftwareWindows(value);
+    setTouchedRequireAll(true);
+  };
+
+  const [selectedSoftwareIds, setSelectedSoftwareIds] = useState<number[]>(
+    initialSelectedSoftware
+  );
+
+  const installSoftwareDuringSetupCount = selectedSoftwareIds.length;
+
+  const onChangeSoftwareSelect = useCallback((select: boolean, id: number) => {
+    setSelectedSoftwareIds((prev) => {
+      if (select) {
+        if (prev.includes(id)) return prev;
+        return [...prev, id];
+      }
+      return prev.filter((selectedId) => selectedId !== id);
+    });
+  }, []);
+
+  const isSoftwareSelectionDirty = useMemo(
+    () =>
+      !isEqual(
+        selectedSoftwareIds.slice().sort(),
+        initialSelectedSoftware.slice().sort()
+      ),
+    [selectedSoftwareIds, initialSelectedSoftware]
+  );
+
+  const shouldUpdateSoftware = isSoftwareSelectionDirty;
+  const shouldUpdateRequireAll =
+    (platform === "macos" || platform === "windows") && touchedRequireAll;
+
+  const onClickSave = async (evt: React.FormEvent) => {
+    evt.preventDefault();
+
+    if (!softwareTitles) return;
+
+    setIsSaving(true);
+
+    const errorToasts: INotifyBatchItem[] = [];
+    let hadSuccess = false;
+
+    // 1. Software selection update
+    if (shouldUpdateSoftware) {
+      try {
+        await mdmAPI.updateSetupExperienceSoftware(
+          platform,
+          currentTeamId,
+          selectedSoftwareIds
+        );
+        hadSuccess = true;
+        // Still let parent refetch even if the macOS call later fails
+      } catch (e) {
+        errorToasts.push({
+          variant: "error",
+          message: "Couldn't save software. Please try again.",
+          options: { response: e },
+        });
+      }
+    }
+
+    // 2. "require all software" update (macOS or Windows)
+    if (shouldUpdateRequireAll) {
+      try {
+        if (platform === "windows") {
+          await mdmAPI.updateRequireAllSoftwareWindows(
+            currentTeamId,
+            requireAllSoftwareWindows
+          );
+        } else {
+          await mdmAPI.updateRequireAllSoftwareMacOS(
+            currentTeamId,
+            requireAllSoftwareMacOS
+          );
+        }
+        hadSuccess = true;
+        setTouchedRequireAll(false);
+      } catch (e) {
+        errorToasts.push({
+          variant: "error",
+          message:
+            "Couldn't update 'Cancel setup if software fails'. Please try again.",
+          options: { response: e },
+        });
+      }
+    }
+
+    // 3. Render flashes
+    if (errorToasts.length > 0) {
+      notify.batch(errorToasts);
+    } else if (hadSuccess) {
+      notify.success("Successfully updated.");
+    }
+
+    refetchSoftwareTitles();
+    setIsSaving(false);
+  };
+
+  const renderCustomCount = () => {
+    let orderTooltip: string;
+    if (platform === "android") {
+      orderTooltip = "Software order will vary.";
+    } else if (platform === "windows" || platform === "linux") {
+      orderTooltip =
+        "Installation order will depend on software name (0-9, then A-Z). Software without a policy is installed first, then software with a policy.";
+    } else {
+      orderTooltip =
+        "Installation order will depend on software name, starting with 0-9 then A-Z.";
+    }
+
+    return (
+      <div>
+        <strong>
+          {installSoftwareDuringSetupCount} software item
+          {installSoftwareDuringSetupCount !== 1 && "s"}
+        </strong>{" "}
+        will be{" "}
+        <TooltipWrapper tipContent={orderTooltip}>
+          installed during setup
+        </TooltipWrapper>
+        .
+      </div>
+    );
+  };
+
+  const manualAgentInstallBlockingSoftware =
+    hasManualAgentInstall && isMacOS(platform);
+
+  const onClickAddSoftware = (evt: React.MouseEvent<HTMLButtonElement>) => {
+    evt.preventDefault();
+
+    router.push(getAddSoftwareUrl(platform, currentTeamId));
+  };
+
+  const renderEmptyState = () => {
+    return (
+      <EmptyState
+        className={`${baseClass}__empty-table`}
+        header="No software available to install"
+        primaryButton={
+          <Button
+            className={`${baseClass}__button`}
+            onClick={onClickAddSoftware}
+          >
+            Add software
+          </Button>
+        }
+      />
+    );
+  };
+
+  if (noSoftwareUploaded || !softwareTitles) {
+    return <div className={baseClass}>{renderEmptyState()}</div>;
+  }
+
+  return (
+    <div className={baseClass}>
+      <form onSubmit={onClickSave}>
+        <InstallSoftwareTable
+          softwareTitles={softwareTitles}
+          onChangeSoftwareSelect={onChangeSoftwareSelect}
+          platform={platform}
+          renderCustomCount={renderCustomCount}
+          manualAgentInstallBlockingSoftware={
+            manualAgentInstallBlockingSoftware
+          }
+        />
+        {platform === "macos" && (
+          <div className={`${baseClass}__macos_options`}>
+            {/* `macos_require_all_software` lives in MDM.MacOSSetup, which is
+                applied unconditionally during gitops regardless of
+                exceptions.software — keep this checkbox globally gated. */}
+            <GitOpsModeTooltipWrapper
+              tipOffset={6}
+              position="left"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={
+                    disableChildren || manualAgentInstallBlockingSoftware
+                  }
+                  value={requireAllSoftwareMacOS}
+                  onChange={handleChangeRequireAllMacOS}
+                >
+                  <TooltipWrapper
+                    tipContent="If any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
+                    disableTooltip={disableChildren}
+                  >
+                    Cancel setup if software fails
+                  </TooltipWrapper>
+                </Checkbox>
+              )}
+            />
+          </div>
+        )}
+        {platform === "windows" && (
+          <div className={`${baseClass}__windows_options`}>
+            {/* `windows_require_all_software` lives in MDM.MacOSSetup, which is
+                applied unconditionally during gitops regardless of
+                exceptions.software — keep this checkbox globally gated. */}
+            <GitOpsModeTooltipWrapper
+              tipOffset={6}
+              position="left"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren || !isWindowsMdmEnabled}
+                  value={requireAllSoftwareWindows}
+                  onChange={handleChangeRequireAllWindows}
+                >
+                  <TooltipWrapper
+                    tipContent={
+                      isWindowsMdmEnabled
+                        ? "For hosts that automatically enroll, if any software fails, the end user will be prompted to restart setup. Remaining software installs will be canceled."
+                        : "Turn on Windows MDM to use this option."
+                    }
+                    disableTooltip={disableChildren}
+                  >
+                    Cancel setup if software fails
+                  </TooltipWrapper>
+                </Checkbox>
+              )}
+            />
+          </div>
+        )}
+        <GitOpsModeTooltipWrapper
+          tipOffset={6}
+          entityType="software"
+          renderChildren={(disableChildren) => (
+            <TooltipWrapper
+              className={"select-software-table__manual-install-tooltip"}
+              tipContent={manuallyInstallTooltipText}
+              disableTooltip={
+                disableChildren || !manualAgentInstallBlockingSoftware
+              }
+              position="top"
+              showArrow
+              underline={false}
+              tipOffset={12}
+            >
+              <Button
+                disabled={
+                  disableChildren ||
+                  isSaving ||
+                  manualAgentInstallBlockingSoftware
+                }
+                isLoading={isSaving}
+                type="submit"
+              >
+                Save
+              </Button>
+            </TooltipWrapper>
+          )}
+        />
+      </form>
+    </div>
+  );
+};
+
+export default InstallSoftwareForm;

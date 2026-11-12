@@ -1,10 +1,32 @@
 .software-options-selector {
+  &__categories-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+
+    .form-field__label {
+      margin: 0;
+    }
+  }
+
   &__categories-selector {
     display: flex;
     flex-direction: column;
-    border-radius: $border-radius;
+    border-radius: $border-radius-large;
     border: 1px solid $ui-fleet-black-10;
     overflow-y: auto;
+    // 210px shows about 4.5 rows so the last row is half-visible, hinting
+    // there is more to scroll to
+    max-height: 210px;
+  }
+
+  &__categories-loading,
+  &__categories-empty {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+    font-size: $x-small;
   }
 
   &__label {
@@ -33,8 +55,11 @@
     gap: $medium;
   }
 
-  &__preview-button {
-    align-self: start;
-    margin-bottom: $pad-medium; // Larger padding when categories are shown
+  &--disabled {
+    .form-field__label,
+    .software-options-selector__label-name {
+      color: $ui-fleet-black-50;
+    }
   }
+
 }

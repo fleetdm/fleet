@@ -1,0 +1,23 @@
+{
+  "versions": [
+    {
+      "version": "3.10.1",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'OpenRefine %' AND publisher = 'OpenRefine';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'OpenRefine %' AND publisher = 'OpenRefine' AND version_compare(version, '3.10.1') < 0);",
+        "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'openrefine.exe');"
+      },
+      "installer_url": "https://github.com/OpenRefine/OpenRefine/releases/download/3.10.1/openrefine-win-with-java-installer-3.10.1.exe",
+      "install_script_ref": "00224ffe",
+      "uninstall_script_ref": "4616fd60",
+      "sha256": "c987734b79f6b5d22e6cef7e03cebfe9d2d938d7d3812e890b6974232bafa080",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "00224ffe": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n  # Setup fails with exit code 5 when OpenRefine's files are in use. Fleet runs\n  # as SYSTEM, outside the user's session, so it can't ask the app to close:\n  # stop it first. Unsaved changes are lost.\n  $running = Get-Process -ErrorAction SilentlyContinue |\n    Where-Object { $_.Path -like \"*\\OpenRefine\\*\" }\n  foreach ($proc in $running) {\n    Write-Host \"Stopping $($proc.Name) (PID $($proc.Id)) before installing.\"\n    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue\n  }\n  $running | Wait-Process -Timeout 30 -ErrorAction SilentlyContinue\n\n  # Inno Setup installer: silent install\n  $processOptions = @{\n    FilePath     = \"$exeFilePath\"\n    ArgumentList = \"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /ALLUSERS\"\n    PassThru     = $true\n    Wait         = $true\n    NoNewWindow  = $true\n  }\n\n  $process = Start-Process @processOptions\n  $exitCode = $process.ExitCode\n\n  # A file can stay locked for a moment after the app is stopped. Setup rolls\n  # back cleanly on exit code 5, so retry once.\n  if ($exitCode -eq 5 -and $running) {\n    Write-Host \"Install exit code: 5. Retrying in 10 seconds.\"\n    Start-Sleep -Seconds 10\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n  }\n\n  Write-Host \"Install exit code: $exitCode\"\n  Exit $exitCode\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "4616fd60": "# Learn more about .exe uninstall scripts:\n# http://fleetdm.com/learn-more-about/exe-uninstall-scripts\n\n$softwareName = \"OpenRefine\"\n$publisherMatch = \"OpenRefine\"\n\ntry {\n  $uninstallKeys = @(\n    'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n    'HKCU:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n    'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',\n    'HKLM:\\SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'\n  )\n\n  $entries = Get-ChildItem -Path $uninstallKeys -ErrorAction SilentlyContinue |\n    ForEach-Object { Get-ItemProperty $_.PSPath } |\n    Where-Object {\n      ($_.DisplayName -eq $softwareName -or $_.DisplayName -like \"$softwareName*\") -and\n      ($publisherMatch -eq \"\" -or $_.Publisher -like \"*$publisherMatch*\")\n    }\n\n  if (-not $entries) {\n    Write-Host \"Uninstall entry not found for '$softwareName'\"\n    Exit 0\n  }\n\n  $key = $entries | Select-Object -First 1\n  $uninstallString = $key.UninstallString\n  if (-not $uninstallString) {\n    Write-Host \"No UninstallString found for '$softwareName'\"\n    Exit 0\n  }\n\n  # Parse the executable path from the UninstallString\n  if ($uninstallString -match '^\"([^\"]+)\"') {\n    $exePath = $matches[1]\n  } elseif ($uninstallString -match '^(.+?\\.exe)') {\n    $exePath = $matches[1]\n  } else {\n    $exePath = $uninstallString\n  }\n\n  # Determine install directory\n  $installDir = $key.InstallLocation\n  if ([string]::IsNullOrWhiteSpace($installDir) -or -not (Test-Path $installDir)) {\n    $installDir = Split-Path -Parent $exePath\n  }\n\n  $argumentList = @(\"/VERYSILENT\", \"/NORESTART\")\n\n  Write-Host \"Uninstall exe: $exePath\"\n  Write-Host \"Uninstall args: $argumentList\"\n\n  $process = Start-Process -FilePath $exePath -ArgumentList $argumentList -Wait -PassThru -NoNewWindow\n  $exitCode = $process.ExitCode\n  Write-Host \"Uninstall exit code: $exitCode\"\n\n  if ($installDir -and (Test-Path $installDir)) {\n    Remove-Item $installDir -Recurse -Force -ErrorAction SilentlyContinue\n  }\n\n  Exit $exitCode\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

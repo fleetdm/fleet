@@ -1,6 +1,6 @@
 {
   "name": "GPG Suite",
-  "unique_identifier": "org.gpgtools.gpgkeychain",
+  "unique_identifier": "org.gpgtools.updater",
   "token": "gpg-suite",
   "installer_format": "dmg",
   "slug": "gpg-suite/darwin",

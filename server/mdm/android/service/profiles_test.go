@@ -5,24 +5,30 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
+	"log/slog"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
+	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // TODO: there may be a better package to put this test in, as it required some
@@ -34,8 +40,8 @@ import (
 // TestReconcileProfiles uses a real mysql datastore to test Android profile
 // reconciliation scenarios, in a similar pattern to the datastore tests.
 func TestReconcileProfiles(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
-	mysql.TruncateTables(t, ds)
+	ds := mysqltest.CreateMySQLDS(t)
+	mysqltest.TruncateTables(t, ds)
 
 	setupEnterprise := func(t *testing.T, ds fleet.Datastore) {
 		u := *test.UserAdmin
@@ -80,11 +86,20 @@ func TestReconcileProfiles(t *testing.T) {
 		{"HostsWithLabelProfiles", testHostsWithLabelProfiles},
 		{"CertificateTemplates", testCertificateTemplates},
 		{"BuildAndSendFleetAgentConfigForEnrollment", testBuildAndSendFleetAgentConfigForEnrollment},
+		{"BuildAndSendFleetAgentConfigSavesTheAgentInstall", testBuildAndSendFleetAgentConfigSavesTheAgentInstall},
 		{"CertificateTemplatesIncludesExistingVerified", testCertificateTemplatesIncludesExistingVerified},
+		{"CertificateTemplatesHeldUntilHostPolicyApplied", testCertificateTemplatesHeldUntilHostPolicyApplied},
+		{"ONCWithheldUntilCertVerified", testONCWithheldUntilCertVerified},
+		{"UnresolvableFleetVarMarksProfileFailed", testUnresolvableFleetVarMarksProfileFailed},
+		{"MissingCustomHostVitalValueMarksProfileFailed", testMissingCustomHostVitalValueMarksProfileFailed},
+		{"ReconcileProfilesWithClientDisablesRetry", testReconcileProfilesWithClientDisablesRetry},
+		{"RejectedProfileRedeliveredAfterFixAndPolicyReset", testRejectedProfileRedeliveredAfterFixAndPolicyReset},
+		{"PolicyResetDuringBatchIsNotOverwritten", testPolicyResetDuringBatchIsNotOverwritten},
+		{"PolicyResetDuringFirstDeliveryIsNotOverwritten", testPolicyResetDuringFirstDeliveryIsNotOverwritten},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			setupEnterprise(t, ds)
 
 			client := &mock.Client{}
@@ -96,6 +111,11 @@ func TestReconcileProfiles(t *testing.T) {
 				DS:         ds,
 				Enterprise: enterprise,
 				Client:     client,
+				AndroidAgentConfig: config.AndroidAgentConfig{
+					Package:       "com.fleetdm.agent",
+					SigningSHA256: "abc123def456",
+				},
+				Logger: slog.New(slog.DiscardHandler),
 			}
 
 			c.fn(t, ds, client, reconciler)
@@ -115,13 +135,13 @@ func testNoHost(t *testing.T, ds fleet.Datastore, client *mock.Client, reconcile
 	}
 
 	// no host, so no calls to the Android API
-	err := reconciler.ReconcileProfiles(ctx)
+	_, err := reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 
 	// run again, still nothing
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -142,13 +162,13 @@ func testHostsWithoutProfile(t *testing.T, ds fleet.Datastore, client *mock.Clie
 	createAndroidHost(t, ds, 2)
 
 	// nothing to process, no profiles missing nor extraneous
-	err := reconciler.ReconcileProfiles(ctx)
+	_, err := reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 
 	// run again, still nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -172,11 +192,11 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore, client *mock.Client,
 
 	// add an android profile
 	p1 := androidProfileForTest("p1")
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 
 	// profile gets delivered to both hosts
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -189,10 +209,46 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore, client *mock.Client,
 	})
 
 	// run again, nothing to process as everything is pending
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+}
+
+func testReconcileProfilesWithClientDisablesRetry(t *testing.T, ds fleet.Datastore, client *mock.Client, _ *profileReconciler) {
+	ctx := t.Context()
+
+	appConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origAndroidEnabled := appConfig.MDM.AndroidEnabledAndConfigured
+	appConfig.MDM.AndroidEnabledAndConfigured = true
+	require.NoError(t, ds.SaveAppConfig(ctx, appConfig))
+	t.Cleanup(func() {
+		appConfig.MDM.AndroidEnabledAndConfigured = origAndroidEnabled
+		require.NoError(t, ds.SaveAppConfig(context.WithoutCancel(ctx), appConfig))
+	})
+
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, _ string, policy *androidmanagement.Policy, _ androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		assert.True(t, androidmgmt.RetryDisabled(ctx), "profile reconcile must not wait out AMAPI quota errors")
+		policy.Version = 1
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, _ string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		assert.True(t, androidmgmt.RetryDisabled(ctx), "profile reconcile must not wait out AMAPI quota errors")
+		return device, nil
+	}
+
+	createAndroidHost(t, ds, 1)
+	_, err = ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("p1"), nil)
+	require.NoError(t, err)
+
+	err = ReconcileProfilesWithClient(ctx, ds, slog.New(slog.DiscardHandler), "", client, config.AndroidAgentConfig{
+		Package:       "com.fleetdm.agent",
+		SigningSHA256: "abc123def456",
+	}, 0, nil)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
 }
 
 func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
@@ -213,15 +269,15 @@ func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock
 
 	// add an android profile
 	p1 := androidProfileWithPayloadForTest("p1", `{"key1": "a"}`)
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 	// add another one that overrides the first one
 	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b", "key2": "c"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
 
 	// profiles get delivered to both hosts, but p1 is failed
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -229,14 +285,14 @@ func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock
 	client.EnterprisesDevicesPatchFuncInvoked = false
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 	})
 
 	// run again, nothing to process as everything is pending/failed
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -266,17 +322,17 @@ func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore, client 
 	// and insert in different order than the names to verify that name ordering
 	// is applied.
 	p3 := androidProfileWithPayloadForTest("p3", `{"key1": "c", "key2": "c", "key3": "c", "key4": "c"}`)
-	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3)
+	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3, nil)
 	require.NoError(t, err)
 	p1 := androidProfileWithPayloadForTest("p1", `{"key1": "a", "key2": "a"}`)
-	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b", "key2": "b", "key3": "b"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
 
 	// profiles get delivered to h1 only
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -284,13 +340,13 @@ func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore, client 
 	client.EnterprisesDevicesPatchFuncInvoked = false
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1", and "key2" aren't applied. They are overridden by other configuration profile.`},
-		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1", "key2", and "key3" aren't applied. They are overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1", and "key2" aren't applied. They are overridden by other configuration profiles.`},
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1", "key2", and "key3" aren't applied. They are overridden by other configuration profiles.`},
 		{HostUUID: h1.UUID, ProfileUUID: p3.ProfileUUID, ProfileName: p3.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 	})
 
 	// run again, nothing to process as everything is pending/failed
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -313,11 +369,11 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// add an android profile
 	p1 := androidProfileForTest("p1")
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
 
 	for i := range 3 {
-		err = reconciler.ReconcileProfiles(ctx)
+		_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 		require.NoError(t, err)
 		require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 		client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -331,25 +387,25 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	}
 
 	// next run marks as failed
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error. Please re-add profile to try again.`},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error. Please re-add profile to try again.`},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error: nope. Please re-add the profile and try again.`},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error: nope. Please re-add the profile and try again.`},
 	})
 
 	// next run has nothing to do
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 
 	// add a new profile that "resets" the set of profiles to send, so will retry
 	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
 
 	// and this time make it succeed
@@ -358,7 +414,7 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		return policy, nil
 	}
 
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -371,6 +427,213 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 	})
+}
+
+func testRejectedProfileRedeliveredAfterFixAndPolicyReset(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	rejectPatches := true
+	var patchedPolicyNames []string
+	var lastMaxTimeToLock int64
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		if rejectPatches {
+			return nil, &googleapi.Error{Code: http.StatusBadRequest, Message: "policyEnforcementRules[0] must have a block action and a wipe action."}
+		}
+		patchedPolicyNames = append(patchedPolicyNames, policyName)
+		lastMaxTimeToLock = policy.MaximumTimeToLock
+		policy.Version = policy.MaximumTimeToLock
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	h1 := createAndroidHost(t, ds, 1)
+	h2 := createAndroidHost(t, ds, 2)
+	h1PolicyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), h1.UUID)
+	h2PolicyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), h2.UUID)
+
+	p1 := androidProfileWithPayloadForTest("p1", `{"maximumTimeToLock": "1"}`)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
+	require.NoError(t, err)
+
+	// Google rejects the policy until the profile is marked failed.
+	for range 4 {
+		_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+		require.NoError(t, err)
+	}
+	for _, h := range []*fleet.AndroidHost{h1, h2} {
+		profs, err := ds.GetHostMDMAndroidProfiles(ctx, h.UUID)
+		require.NoError(t, err)
+		require.Len(t, profs, 1)
+		require.NotNil(t, profs[0].Status)
+		require.Equal(t, fleet.MDMDeliveryFailed, *profs[0].Status)
+	}
+	require.Empty(t, patchedPolicyNames)
+
+	// The admin fixes the profile through a batch set (GitOps); the fixed content is
+	// re-delivered without any other change.
+	rejectPatches = false
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil, nil, []*fleet.MDMAndroidConfigProfile{
+		{ProfileUUID: p1.ProfileUUID, Name: p1.Name, RawJSON: []byte(`{"maximumTimeToLock": "2"}`)},
+	}, nil)
+	require.NoError(t, err)
+	p1Checksum := getAndroidProfileChecksum(t, ds, p1.ProfileUUID)
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{h1PolicyName, h2PolicyName}, patchedPolicyNames)
+	require.EqualValues(t, 2, lastMaxTimeToLock)
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2), PolicyRequestUUID: new(""), DeviceRequestUUID: new("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2), PolicyRequestUUID: new(""), DeviceRequestUUID: new("")},
+	})
+
+	// Both hosts verify the policy.
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2), Checksum: p1Checksum},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2), Checksum: p1Checksum},
+	})
+	require.NoError(t, err)
+	patchedPolicyNames = nil
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, patchedPolicyNames)
+
+	// h1 re-enrolls and the setup experience replaces its policy, so its profiles are sent
+	// again even though their content did not change; h2 is left alone.
+	err = ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, h1.UUID)
+	require.NoError(t, err)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{h1PolicyName}, patchedPolicyNames)
+	require.EqualValues(t, 2, lastMaxTimeToLock)
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2), PolicyRequestUUID: new(""), DeviceRequestUUID: new("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(2)},
+	})
+}
+
+// The setup experience can replace a host's policy and reset its profile rows while the
+// reconciler is still sending the batch the host is part of. The reconciler must not overwrite
+// that reset with the state it sent before the policy was replaced.
+func testPolicyResetDuringBatchIsNotOverwritten(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	h1 := createAndroidHost(t, ds, 1)
+	h2 := createAndroidHost(t, ds, 2)
+	h1PolicyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), h1.UUID)
+
+	var version int64
+	var patchedPolicyNames []string
+	resetDuringPatch := true
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		patchedPolicyNames = append(patchedPolicyNames, policyName)
+		version++
+		policy.Version = version
+		if resetDuringPatch && policyName == h1PolicyName {
+			// the setup experience replaces h1's policy right after this patch
+			version++
+			require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, h1.UUID))
+		}
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileWithPayloadForTest("p1", `{"maximumTimeToLock": "1"}`), nil)
+	require.NoError(t, err)
+	// the hosts already had the profile; a status NULL row is what brings them into the batch
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, OperationType: fleet.MDMOperationTypeInstall},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, OperationType: fleet.MDMOperationTypeInstall},
+	})
+	require.NoError(t, err)
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_android_profiles SET updated_at = NOW(6) - INTERVAL 1 HOUR`)
+		return err
+	})
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Len(t, patchedPolicyNames, 2)
+
+	// h1 keeps its reset, h2 is written normally
+	rowFor := func(hostUUID string) (status *fleet.MDMDeliveryStatus, includedInPolicyVersion *int) {
+		mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+			return q.QueryRowxContext(ctx, `SELECT status, included_in_policy_version FROM host_mdm_android_profiles
+				WHERE host_uuid = ? AND profile_uuid = ?`, hostUUID, p1.ProfileUUID).Scan(&status, &includedInPolicyVersion)
+		})
+		return status, includedInPolicyVersion
+	}
+	status, included := rowFor(h1.UUID)
+	assert.Nil(t, status)
+	assert.Nil(t, included)
+	status, included = rowFor(h2.UUID)
+	require.NotNil(t, status)
+	assert.Equal(t, fleet.MDMDeliveryPending, *status)
+	assert.NotNil(t, included)
+
+	// the next run sends h1's profiles again, into the replaced policy
+	resetDuringPatch = false
+	patchedPolicyNames = nil
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{h1PolicyName}, patchedPolicyNames)
+	profs, err := ds.GetHostMDMAndroidProfiles(ctx, h1.UUID)
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.NotNil(t, profs[0].Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *profs[0].Status)
+}
+
+// Same as testPolicyResetDuringBatchIsNotOverwritten, for a newly enrolled host that has no
+// profile rows yet when its policy is replaced.
+func testPolicyResetDuringFirstDeliveryIsNotOverwritten(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	h1 := createAndroidHost(t, ds, 1)
+	h1PolicyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), h1.UUID)
+
+	var version int64
+	var patchedPolicyNames []string
+	resetDuringPatch := true
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		patchedPolicyNames = append(patchedPolicyNames, policyName)
+		version++
+		policy.Version = version
+		if resetDuringPatch {
+			version++
+			require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, h1.UUID))
+		}
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+	_, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileWithPayloadForTest("p1", `{"maximumTimeToLock": "1"}`), nil)
+	require.NoError(t, err)
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{h1PolicyName}, patchedPolicyNames)
+
+	// nothing a status report for the replaced policy could verify
+	profs, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, h1.UUID, version)
+	require.NoError(t, err)
+	require.Empty(t, profs)
+
+	// the next run sends the profiles into the replaced policy
+	resetDuringPatch = false
+	patchedPolicyNames = nil
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{h1PolicyName}, patchedPolicyNames)
+	profs, err = ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, h1.UUID, version)
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.EqualValues(t, version, *profs[0].IncludedInPolicyVersion)
 }
 
 func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
@@ -392,11 +655,12 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 
 	// add a first android profile
 	p1 := androidProfileWithPayloadForTest("p1", `{"maximumTimeToLock": "1"}`)
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
+	p1Checksum := getAndroidProfileChecksum(t, ds, p1.ProfileUUID)
 
 	// profiles get delivered
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -409,7 +673,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	})
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -417,13 +681,13 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	// mark as verified (it will clear the request uuids, but that's not critical
 	// for this test)
 	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1)},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1)},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(1), Checksum: p1Checksum},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(1), Checksum: p1Checksum},
 	})
 	require.NoError(t, err)
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -444,7 +708,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	require.NoError(t, err)
 
 	// profile gets re-delivered
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -458,11 +722,12 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 
 	// add a second android profile
 	p2 := androidProfileWithPayloadForTest("p2", `{"maximumTimeToLock": "4"}`)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
+	p2Checksum := getAndroidProfileChecksum(t, ds, p2.ProfileUUID)
 
 	// profiles get re-delivered
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -470,14 +735,14 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	client.EnterprisesDevicesPatchFuncInvoked = false
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 	})
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -485,13 +750,13 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	// mark as verified the ones not failed (it will clear the request uuids, but
 	// that's not critical for this test)
 	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4)},
-		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4)},
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(4), Checksum: p2Checksum},
+		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(4), Checksum: p2Checksum},
 	})
 	require.NoError(t, err)
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -507,7 +772,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	}
 
 	// profiles get re-delivered
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -523,7 +788,7 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	})
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -531,19 +796,19 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	// mark as verified (it will clear the request uuids, but that's not critical
 	// for this test)
 	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(5)},
-		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(5)},
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(5), Checksum: p2Checksum},
+		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: new(5), Checksum: p2Checksum},
 	})
 	require.NoError(t, err)
 
 	// manually delete the p1 removal entries, simulating the verification
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_android_profiles WHERE profile_uuid = ?`, p1.ProfileUUID)
 		return err
 	})
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -572,19 +837,19 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 	// create profiles based on each label, and one with no label
 	pNoLabel := androidProfileWithPayloadForTest("pNoLabel", `{"maximumTimeToLock": "1"}`)
 	pNoLabel.TeamID = &tm.ID
-	pNoLabel, err = ds.NewMDMAndroidConfigProfile(ctx, *pNoLabel)
+	pNoLabel, err = ds.NewMDMAndroidConfigProfile(ctx, *pNoLabel, nil)
 	require.NoError(t, err)
 	pInclAny := androidProfileWithPayloadForTest("pInclAny", `{"maximumTimeToLock": "2"}`, linclAny)
 	pInclAny.TeamID = &tm.ID
-	pInclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAny)
+	pInclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAny, nil)
 	require.NoError(t, err)
 	pInclAll := androidProfileWithPayloadForTest("pInclAll", `{"maximumTimeToLock": "3"}`, linclAll)
 	pInclAll.TeamID = &tm.ID
-	pInclAll, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAll)
+	pInclAll, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAll, nil)
 	require.NoError(t, err)
 	pExclAny := androidProfileWithPayloadForTest("pExclAny", `{"maximumTimeToLock": "4"}`, lexclAny)
 	pExclAny.TeamID = &tm.ID
-	pExclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pExclAny)
+	pExclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pExclAny, nil)
 	require.NoError(t, err)
 
 	// mock and control the version number, and validate the expected MaximumTimeToLock value
@@ -600,7 +865,7 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 	}
 
 	// currently only the no-label profile is applied
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -622,7 +887,7 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 
 	// no-label and exclude any are applied
 	version++
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -631,9 +896,9 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
 		{HostUUID: h1.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h2.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 	})
 
 	// make h1 member of inclany and h2 of inclall
@@ -644,7 +909,7 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 
 	// no-label, exclude any and the respective include profiles are applied
 	version++
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -653,11 +918,11 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
 		{HostUUID: h1.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h1.UUID, ProfileUUID: pInclAny.ProfileUUID, ProfileName: pInclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
-		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: pInclAny.ProfileUUID, ProfileName: pInclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h2.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: pInclAll.ProfileUUID, ProfileName: pInclAll.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
-		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pInclAll.ProfileUUID, ProfileName: pInclAll.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 	})
 
 	// make h1 member of exclAny so it stops receiving this profile
@@ -667,7 +932,7 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 	// this only affects h1, h2 version is unchanged
 	h2Version := version
 	version++
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	client.EnterprisesPoliciesPatchFuncInvoked = false
@@ -676,26 +941,36 @@ func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.C
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
 		{HostUUID: h1.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h1.UUID, ProfileUUID: pInclAny.ProfileUUID, ProfileName: pInclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: pInclAny.ProfileUUID, ProfileName: pInclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 
 		{HostUUID: h2.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: pInclAll.ProfileUUID, ProfileName: pInclAll.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
-		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pInclAll.ProfileUUID, ProfileName: pInclAll.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by another configuration profile.`},
 	})
 
 	// run again, nothing to process
-	err = reconciler.ReconcileProfiles(ctx)
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+}
+
+func getAndroidProfileChecksum(t *testing.T, ds fleet.Datastore, profileUUID string) []byte {
+	mds := ds.(*mysql.Datastore)
+	var checksum []byte
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(t.Context(), q, &checksum,
+			`SELECT checksum FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, profileUUID)
+	})
+	return checksum
 }
 
 func assertHostProfiles(t *testing.T, ds fleet.Datastore, hostProfiles []*fleet.MDMAndroidProfilePayload) {
 	ctx := t.Context()
 	mds := ds.(*mysql.Datastore)
 	var got []*fleet.MDMAndroidProfilePayload
-	mysql.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &got, `SELECT host_uuid, status, operation_type, detail, profile_uuid, profile_name,
 			policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
 		FROM host_mdm_android_profiles`)
@@ -747,10 +1022,16 @@ func createAndroidHostInTeam(t *testing.T, ds fleet.Datastore, suffixID int, tea
 		},
 	}
 	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
-	_, err := ds.NewAndroidHost(context.Background(), host)
+	_, err := ds.NewAndroidHost(context.Background(), host, false)
 	require.NoError(t, err)
 
 	return host
+}
+
+// applyHostSpecificPolicy records that the host's device applied its host-specific policy.
+func applyHostSpecificPolicy(t *testing.T, ds fleet.Datastore, host *fleet.AndroidHost) {
+	host.Device.AppliedPolicyID = &host.Host.UUID
+	require.NoError(t, ds.UpdateAndroidHost(t.Context(), host, false, false))
 }
 
 func createNonAndroidHost(t *testing.T, ds fleet.Datastore, suffixID int) *fleet.Host {
@@ -845,12 +1126,16 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// Create Android hosts in the team
 	host1 := createAndroidHostInTeam(t, ds, 1, &team.ID)
+	applyHostSpecificPolicy(t, ds, host1)
 	host2 := createAndroidHostInTeam(t, ds, 2, &team.ID)
+	applyHostSpecificPolicy(t, ds, host2)
+	// still on the default policy, so its host-specific policy may not exist in AMAPI yet
+	defaultPolicyHost := createAndroidHostInTeam(t, ds, 3, &team.ID)
 
 	// Add host certificate templates for host 2 with 'delivered' status to exclude it from processing
 	// (only 'pending' status templates are picked up by reconcileCertificateTemplates)
 	var certificateTemplateIDs []uint
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `
 			SELECT id
 			FROM certificate_templates
@@ -899,40 +1184,42 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		return &androidmanagement.Policy{}, nil
 	}
 
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	defer func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	}()
-
 	err = reconciler.reconcileCertificateTemplates(ctx)
 	require.NoError(t, err)
 
 	// verify host1 is targetted by the api call
 	require.True(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
 	require.Equal(t, fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), host1.Host.UUID), capturedPolicyName)
+
+	// the host still on the default policy is left pending for the setup experience to deliver
+	var defaultPolicyHostStatuses []string
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &defaultPolicyHostStatuses,
+			`SELECT status FROM host_certificate_templates WHERE host_uuid = ?`, defaultPolicyHost.Host.UUID)
+	})
+	require.Equal(t, []string{string(fleet.CertificateTemplatePending), string(fleet.CertificateTemplatePending)}, defaultPolicyHostStatuses)
 	require.Len(t, capturedPolicies, 1)
 
-	// Verify the managed configuration contains certificate template IDs
+	// Verify the managed configuration contains certificate template IDs with status and operation
 	var managedConfig android.AgentManagedConfiguration
 	err = json.Unmarshal(capturedPolicies[0].ManagedConfiguration, &managedConfig)
 	require.NoError(t, err)
 	require.Len(t, managedConfig.CertificateTemplateIDs, 2)
 	for _, certTemplate := range managedConfig.CertificateTemplateIDs {
 		require.Contains(t, certificateTemplateIDs, certTemplate.ID)
+		// When sent to API, templates are in "delivering" status (transition to "delivered" happens after API success)
+		require.EqualValues(t, fleet.CertificateTemplateDelivering, certTemplate.Status)
+		require.EqualValues(t, fleet.MDMOperationTypeInstall, certTemplate.Operation)
 	}
 
-	// Verify that host_certificate_template records were created with pending status
+	// Verify that host_certificate_template records were created with delivered status
 	var host1CertTemplates []struct {
-		HostUUID              string `db:"host_uuid"`
-		CertificateTemplateID uint   `db:"certificate_template_id"`
-		FleetChallenge        string `db:"fleet_challenge"`
-		Status                string `db:"status"`
+		HostUUID              string  `db:"host_uuid"`
+		CertificateTemplateID uint    `db:"certificate_template_id"`
+		FleetChallenge        *string `db:"fleet_challenge"`
+		Status                string  `db:"status"`
 	}
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `
 			SELECT host_uuid, certificate_template_id, fleet_challenge, status
 			FROM host_certificate_templates
@@ -945,7 +1232,8 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	for _, hct := range host1CertTemplates {
 		require.Equal(t, host1.Host.UUID, hct.HostUUID)
-		require.NotEmpty(t, hct.FleetChallenge)
+		// Challenge is created on-demand when device fetches the certificate, so it's nil here
+		require.Nil(t, hct.FleetChallenge)
 		require.EqualValues(t, fleet.CertificateTemplateDelivered, hct.Status)
 	}
 
@@ -960,11 +1248,89 @@ func testCertificateTemplates(t *testing.T, ds fleet.Datastore, client *mock.Cli
 
 	// no duplicate records were created
 	var countHost1 int
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		query := `SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ?`
 		return sqlx.GetContext(ctx, q, &countHost1, query, host1.Host.UUID)
 	})
 	require.Equal(t, 2, countHost1)
+}
+
+// testCertificateTemplatesHeldUntilHostPolicyApplied verifies that a newly enrolled host, whose
+// device is still on the default policy, gets its profiles but not its certificates: its
+// host-specific policy may not exist in AMAPI yet, and the setup experience delivers them.
+func testCertificateTemplatesHeldUntilHostPolicyApplied(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-team"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "secret", TeamID: &team.ID}})
+	require.NoError(t, err)
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      new("Test SCEP CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
+	})
+	require.NoError(t, err)
+	certTemplate, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "cert-template",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Test Certificate",
+	})
+	require.NoError(t, err)
+
+	host := createAndroidHostInTeam(t, ds, 1, &team.ID)
+
+	profile := androidProfileForTest("p1")
+	profile.TeamID = &team.ID
+	_, err = ds.NewMDMAndroidConfigProfile(ctx, *profile, nil)
+	require.NoError(t, err)
+
+	_, err = ds.CreatePendingCertificateTemplatesForExistingHosts(ctx, certTemplate.ID, team.ID)
+	require.NoError(t, err)
+
+	appConfig, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConfig.ServerSettings.ServerURL = "https://fleet.example.com"
+	err = ds.SaveAppConfig(ctx, appConfig)
+	require.NoError(t, err)
+
+	hostPolicyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), host.Host.UUID)
+	var calls []string
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		calls = append(calls, "patch "+policyName)
+		policy.Version = 1
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		calls = append(calls, "modify applications "+policyName)
+		return &androidmanagement.Policy{}, nil
+	}
+
+	certStatuses := func() []string {
+		var statuses []string
+		mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &statuses, `SELECT status FROM host_certificate_templates WHERE host_uuid = ?`, host.Host.UUID)
+		})
+		return statuses
+	}
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{"patch " + hostPolicyName}, calls)
+	require.Equal(t, []string{string(fleet.CertificateTemplatePending)}, certStatuses())
+
+	// once the device reports its host-specific policy, the next pass delivers the certificate
+	applyHostSpecificPolicy(t, ds, host)
+	calls = nil
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{"modify applications " + hostPolicyName}, calls)
+	require.Equal(t, []string{string(fleet.CertificateTemplateDelivered)}, certStatuses())
 }
 
 // testBuildAndSendFleetAgentConfigForEnrollment tests the enrollment flow where we send
@@ -1004,22 +1370,17 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 		return &androidmanagement.Policy{}, nil
 	}
 
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	defer func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	}()
-
 	// Create service and call BuildAndSendFleetAgentConfig with skipHostsWithoutNewCerts=false
 	// This simulates the enrollment flow from software_worker.go
 	svc := &Service{
-		logger:           kitlog.NewNopLogger(),
+		logger:           slog.New(slog.DiscardHandler),
 		fleetDS:          ds,
 		ds:               ds.(fleet.AndroidDatastore),
 		androidAPIClient: client,
+		androidAgentConfig: config.AndroidAgentConfig{
+			Package:       "com.fleetdm.agent",
+			SigningSHA256: "abc123def456",
+		},
 	}
 
 	// Call with skipHostsWithoutNewCerts=false (enrollment scenario)
@@ -1050,6 +1411,39 @@ func testBuildAndSendFleetAgentConfigForEnrollment(t *testing.T, ds fleet.Datast
 
 	// Verify the API was NOT called since we're skipping hosts without new certs
 	require.False(t, client.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+}
+
+func testBuildAndSendFleetAgentConfigSavesTheAgentInstall(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "agent-install-team"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "agent-install-secret", TeamID: &team.ID}})
+	require.NoError(t, err)
+	host := createAndroidHostInTeam(t, ds, 400, &team.ID)
+	client.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(ctx context.Context, policyName string, policies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{Version: 7}, nil
+	}
+	svc := &Service{
+		logger:           slog.New(slog.DiscardHandler),
+		fleetDS:          ds,
+		ds:               ds.(fleet.AndroidDatastore),
+		androidAPIClient: client,
+		androidAgentConfig: config.AndroidAgentConfig{
+			Package:       "com.fleetdm.agent",
+			SigningSHA256: "abc123def456",
+		},
+	}
+
+	// send the host's Fleet agent configuration, the agent's install should be saved as pending in policy version 7
+	err = svc.BuildAndSendFleetAgentConfig(ctx, reconciler.Enterprise.Name(), []string{host.Host.UUID}, false)
+	require.NoError(t, err)
+	installsByHostID, err := ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	agentInstall := installsByHostID[host.Host.ID]["com.fleetdm.agent"]
+	require.NotNil(t, agentInstall)
+	require.Equal(t, android.AppStatusForceInstalled, agentInstall.InstallType)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, agentInstall.Status)
+	require.Equal(t, new(int64(7)), agentInstall.InPolicyVersion)
 }
 
 // testCertificateTemplatesIncludesExistingVerified tests that when a host has existing
@@ -1127,9 +1521,10 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 
 	// Create an Android host in the team
 	host := createAndroidHostInTeam(t, ds, 300, &team.ID)
+	applyHostSpecificPolicy(t, ds, host)
 
 	// Insert certificate templates with various statuses
-	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		// Verified status
 		_, err := q.ExecContext(ctx,
 			"INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, fleet_challenge, status, operation_type, name) VALUES (?, ?, ?, ?, ?, ?)",
@@ -1188,15 +1583,6 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 		return &androidmanagement.Policy{}, nil
 	}
 
-	oldPackageValue := os.Getenv("FLEET_DEV_ANDROID_AGENT_PACKAGE")
-	oldSHA256Value := os.Getenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", "com.fleetdm.agent")
-	os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", "abc123def456")
-	defer func() {
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_PACKAGE", oldPackageValue)
-		os.Setenv("FLEET_DEV_ANDROID_AGENT_SIGNING_SHA256", oldSHA256Value)
-	}()
-
 	// Run reconciliation
 	err = reconciler.reconcileCertificateTemplates(ctx)
 	require.NoError(t, err)
@@ -1214,14 +1600,368 @@ func testCertificateTemplatesIncludesExistingVerified(t *testing.T, ds fleet.Dat
 	require.Len(t, managedConfig.CertificateTemplateIDs, 5,
 		"Agent config should include all certificate templates (verified, delivered, delivering, failed, and pending)")
 
-	// Verify all certificate template IDs are present
-	templateIDs := make(map[uint]bool)
+	// Verify all certificate template IDs are present with correct status and operation
+	templatesByID := make(map[uint]android.AgentCertificateTemplate)
 	for _, tmpl := range managedConfig.CertificateTemplateIDs {
-		templateIDs[tmpl.ID] = true
+		templatesByID[tmpl.ID] = tmpl
 	}
-	require.True(t, templateIDs[verifiedCert.ID], "Verified certificate should be in the config")
-	require.True(t, templateIDs[deliveredCert.ID], "Delivered certificate should be in the config")
-	require.True(t, templateIDs[deliveringCert.ID], "Delivering certificate should be in the config")
-	require.True(t, templateIDs[failedCert.ID], "Failed certificate should be in the config")
-	require.True(t, templateIDs[pendingCert.ID], "Pending certificate should be in the config")
+
+	assertCertTemplate := func(certID uint, expectedStatus fleet.CertificateTemplateStatus, expectedOp fleet.MDMOperationType) {
+		require.Contains(t, templatesByID, certID)
+		require.EqualValues(t, expectedStatus, templatesByID[certID].Status)
+		require.EqualValues(t, expectedOp, templatesByID[certID].Operation)
+	}
+
+	assertCertTemplate(verifiedCert.ID, fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall)
+	assertCertTemplate(deliveredCert.ID, fleet.CertificateTemplateDelivered, fleet.MDMOperationTypeInstall)
+	assertCertTemplate(deliveringCert.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall)
+	assertCertTemplate(failedCert.ID, fleet.CertificateTemplateFailed, fleet.MDMOperationTypeInstall)
+	// Pending certificate transitions to delivering before the API call
+	assertCertTemplate(pendingCert.ID, fleet.CertificateTemplateDelivering, fleet.MDMOperationTypeInstall)
+}
+
+func testONCWithheldUntilCertVerified(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		policy.Version = 1
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	// Create a team with enroll secret
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "onc-test-team"})
+	require.NoError(t, err)
+	err = ds.ApplyEnrollSecrets(ctx, &team.ID, []*fleet.EnrollSecret{{Secret: "secret", TeamID: &team.ID}})
+	require.NoError(t, err)
+
+	// Create a certificate authority and certificate template
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      new("Test CA"),
+		URL:       new("http://localhost:8080/scep"),
+		Challenge: new("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	certTemplate, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "wifi-cert",
+		TeamID:                 team.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=WiFi Cert",
+	})
+	require.NoError(t, err)
+
+	// Create an Android host in the team
+	host := createAndroidHostInTeam(t, ds, 100, &team.ID)
+
+	// Create a host_certificate_template record in "delivered" status (agent has received it
+	// but hasn't completed SCEP enrollment yet). We use "delivered" instead of "pending" to
+	// avoid triggering cert template reconciliation (which would try to call AMAPI).
+	err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: certTemplate.ID,
+		Status:                fleet.CertificateTemplateDelivered,
+		OperationType:         fleet.MDMOperationTypeInstall,
+		Name:                  certTemplate.Name,
+	}})
+	require.NoError(t, err)
+	mds := ds.(*mysql.Datastore)
+
+	// Create an ONC profile referencing the certificate by alias (= template name)
+	oncProfile := androidProfileWithPayloadForTest("onc-wifi", fmt.Sprintf(`{
+		"openNetworkConfiguration": {
+			"NetworkConfigurations": [{
+				"GUID": "corp-wifi",
+				"Name": "Corporate WiFi",
+				"Type": "WiFi",
+				"WiFi": {
+					"SSID": "CorpNet",
+					"Security": "WPA-EAP",
+					"EAP": {
+						"Outer": "EAP-TLS",
+						"ClientCertType": "KeyPairAlias",
+						"ClientCertKeyPairAlias": %q
+					}
+				}
+			}]
+		}
+	}`, certTemplate.Name))
+	oncProfile.TeamID = &team.ID
+	oncProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *oncProfile, nil)
+	require.NoError(t, err)
+
+	// Create a non-ONC profile (should always be applied)
+	nonONCProfile := androidProfileForTest("camera-policy")
+	nonONCProfile.TeamID = &team.ID
+	nonONCProfile, err = ds.NewMDMAndroidConfigProfile(ctx, *nonONCProfile, nil)
+	require.NoError(t, err)
+
+	// --- Phase 1: cert is pending, ONC should be withheld, non-ONC applied ---
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		// Non-ONC profile is applied normally
+		{
+			HostUUID: host.UUID, ProfileUUID: nonONCProfile.ProfileUUID, ProfileName: nonONCProfile.Name,
+			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: new(1), RequestFailCount: 0,
+			PolicyRequestUUID: new(""), DeviceRequestUUID: new(""),
+		},
+		// ONC profile is withheld (pending with detail, no policy/device request)
+		{
+			HostUUID: host.UUID, ProfileUUID: oncProfile.ProfileUUID, ProfileName: oncProfile.Name,
+			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
+			Detail:           fmt.Sprintf("Waiting for certificate %q to be installed on the host before applying this profile.", certTemplate.Name),
+			RequestFailCount: 0,
+		},
+	})
+
+	// --- Phase 2: transition cert to "verified", ONC should now be applied ---
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateVerified, host.UUID, certTemplate.ID,
+		)
+		return err
+	})
+
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+
+	// Both profiles should now be applied (included in policy, with request UUIDs)
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		{
+			HostUUID: host.UUID, ProfileUUID: nonONCProfile.ProfileUUID, ProfileName: nonONCProfile.Name,
+			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: new(1), RequestFailCount: 0,
+			PolicyRequestUUID: new(""), DeviceRequestUUID: new(""),
+		},
+		{
+			HostUUID: host.UUID, ProfileUUID: oncProfile.ProfileUUID, ProfileName: oncProfile.Name,
+			Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: new(1), RequestFailCount: 0,
+			PolicyRequestUUID: new(""), DeviceRequestUUID: new(""),
+		},
+	})
+
+	// --- Phase 3: test that ONC is also released on terminal failure ---
+	// Reset cert to pending and profile to need re-delivery
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateDelivered, host.UUID, certTemplate.ID,
+		)
+		return err
+	})
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_mdm_android_profiles SET status = NULL WHERE host_uuid = ?",
+			host.UUID,
+		)
+		return err
+	})
+
+	// cert is "delivered" (not terminal), ONC should be withheld
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+
+	phase3Profiles, err := ds.GetHostMDMAndroidProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	for _, p := range phase3Profiles {
+		if p.ProfileUUID == oncProfile.ProfileUUID {
+			require.Equal(t, &fleet.MDMDeliveryPending, p.Status)
+			require.Contains(t, p.Detail, "Waiting for certificate")
+		}
+	}
+
+	// Now set cert to "failed" (terminal) and re-reconcile
+	mysqltest.ExecAdhocSQL(t, mds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateFailed, host.UUID, certTemplate.ID,
+		)
+		return err
+	})
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+
+	// Both profiles applied (cert is terminally failed, ONC released)
+	finalProfiles, err := ds.GetHostMDMAndroidProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	for _, p := range finalProfiles {
+		if p.ProfileUUID == oncProfile.ProfileUUID {
+			require.NotContains(t, p.Detail, "Waiting for certificate")
+		}
+	}
+}
+
+// testUnresolvableFleetVarMarksProfileFailed verifies that when a profile
+// contains a $FLEET_VAR_HOST_* variable that can't be resolved for a host
+// (e.g., missing IDP linkage), the profile is marked as MDMDeliveryFailed
+// with an appropriate detail message visible on the host's OS settings page.
+func testUnresolvableFleetVarMarksProfileFailed(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	// Create a host with no IDP user linked.
+	h1 := createAndroidHost(t, ds, 1)
+
+	// Create a profile that references an IDP variable the host can't resolve.
+	p1 := androidProfileWithPayloadForTest("wifi-eap", `{"name": "$FLEET_VAR_HOST_END_USER_IDP_USERNAME"}`)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
+	require.NoError(t, err)
+
+	// Reconcile — should NOT call AMAPI (no policy to patch) but should
+	// persist the profile as failed.
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		{
+			HostUUID:      h1.UUID,
+			ProfileUUID:   p1.ProfileUUID,
+			ProfileName:   p1.Name,
+			Status:        &fleet.MDMDeliveryFailed,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Detail:        fmt.Sprintf("There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPUsername),
+		},
+	})
+
+	// AMAPI should NOT have been called — the substitution failure prevents
+	// the policy patch.
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+}
+
+// Failed-profile mechanism exercised above for an unresolvable $FLEET_VAR_*,
+// but taking the $FLEET_HOST_VITAL_ branch of androidVarSubstitutionFailureDetail.
+func testMissingCustomHostVitalValueMarksProfileFailed(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	// Create a host with no value set for the vital.
+	h1 := createAndroidHost(t, ds, 1)
+
+	vital, err := ds.CreateCustomHostVital(ctx, "Asset tag")
+	require.NoError(t, err)
+
+	// Create a profile that references the vital.
+	p1 := androidProfileWithPayloadForTest("asset-tag-profile", fmt.Sprintf(`{"name": "$%s%d"}`, fleet.CustomHostVitalPrefix, vital.ID))
+	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
+	require.NoError(t, err)
+
+	_, err = reconciler.ReconcileProfiles(ctx, "", 0)
+	require.NoError(t, err)
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidProfilePayload{
+		{
+			HostUUID:      h1.UUID,
+			ProfileUUID:   p1.ProfileUUID,
+			ProfileName:   p1.Name,
+			Status:        &fleet.MDMDeliveryFailed,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Detail:        (&fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{vital.ID}, MissingNames: []string{vital.Name}}).Error(),
+		},
+	})
+
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+}
+
+func TestAndroidVarSubstitutionFailureDetail(t *testing.T) {
+	t.Run("missing custom host vital value", func(t *testing.T) {
+		detail, ok := androidVarSubstitutionFailureDetail(&fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}})
+		require.True(t, ok)
+		require.Contains(t, detail, "no value set for this host")
+	})
+
+	t.Run("unresolvable Fleet variable with detail", func(t *testing.T) {
+		err := &profiles.UnresolvableAndroidAppConfigVarError{FleetVar: "HOST_HARDWARE_SERIAL", Detail: "no serial for this host"}
+		detail, ok := androidVarSubstitutionFailureDetail(err)
+		require.True(t, ok)
+		require.Equal(t, "no serial for this host", detail)
+	})
+
+	t.Run("unresolvable Fleet variable without detail falls back to error message", func(t *testing.T) {
+		err := &profiles.UnresolvableAndroidAppConfigVarError{FleetVar: "SOME_VAR"}
+		detail, ok := androidVarSubstitutionFailureDetail(err)
+		require.True(t, ok)
+		require.Equal(t, err.Error(), detail)
+	})
+
+	t.Run("unrelated error is not handled here", func(t *testing.T) {
+		_, ok := androidVarSubstitutionFailureDetail(errors.New("some other error"))
+		require.False(t, ok)
+	})
+}
+
+func TestSubstituteProfileVarsForHostCustomHostVitals(t *testing.T) {
+	ctx := t.Context()
+
+	t.Run("skips datastore lookup when no vars or vitals present", func(t *testing.T) {
+		ds := new(ds_mock.DataStore)
+		profilesContents := map[string]json.RawMessage{
+			"prof-1": json.RawMessage(`{"name": "plain"}`),
+		}
+		got, err := substituteProfileVarsForHost(ctx, ds, "host-uuid-1", profilesContents)
+		require.NoError(t, err)
+		require.Equal(t, profilesContents, got)
+		require.False(t, ds.AndroidHostLiteByHostUUIDFuncInvoked)
+	})
+
+	t.Run("expands a custom host vital using the host's numeric ID", func(t *testing.T) {
+		ds := new(ds_mock.DataStore)
+		ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: 42, UUID: hostUUID}}, nil
+		}
+		ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
+			require.EqualValues(t, 42, hostID)
+			return `{"name": "asset-123"}`, nil
+		}
+		profilesContents := map[string]json.RawMessage{
+			"prof-1": json.RawMessage(`{"name": "$FLEET_HOST_VITAL_7"}`),
+		}
+		got, err := substituteProfileVarsForHost(ctx, ds, "host-uuid-1", profilesContents)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"name": "asset-123"}`, string(got["prof-1"]))
+	})
+
+	t.Run("no value set for host surfaces MissingCustomHostVitalValueError", func(t *testing.T) {
+		ds := new(ds_mock.DataStore)
+		ds.AndroidHostLiteByHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+			return &fleet.AndroidHost{Host: &fleet.Host{ID: 42, UUID: hostUUID}}, nil
+		}
+		ds.ExpandCustomHostVitalsFunc = func(ctx context.Context, hostID uint, document string) (string, error) {
+			return "", &fleet.MissingCustomHostVitalValueError{MissingIDs: []uint{7}}
+		}
+		profilesContents := map[string]json.RawMessage{
+			"prof-1": json.RawMessage(`{"name": "$FLEET_HOST_VITAL_7"}`),
+		}
+		_, err := substituteProfileVarsForHost(ctx, ds, "host-uuid-1", profilesContents)
+		var missing *fleet.MissingCustomHostVitalValueError
+		require.ErrorAs(t, err, &missing)
+
+		detail, ok := androidVarSubstitutionFailureDetail(err)
+		require.True(t, ok)
+		require.Contains(t, detail, "no value set for this host")
+	})
 }

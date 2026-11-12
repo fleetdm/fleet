@@ -1,24 +1,24 @@
 #!/bin/bash
 
-# This script creates 2 teams and 9 users with various roles.
+# This script creates 2 fleets (formerly "teams") and 9 users with various roles.
 # These users are seeded to Fleet Premium E2E tests
 
 source $FLEET_ENV_PATH
 
-# Create teams
-create_team_endpoint="api/latest/fleet/teams"
+# Create fleets
+create_fleet_endpoint="api/latest/fleet/fleets"
 
 # Create Apples
 data='{
   "name": "Apples"
 }'
-curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_team_endpoint" -d "$data" --insecure
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_fleet_endpoint" -d "$data" --insecure
 
 # Create Oranges
 data='{
   "name": "Oranges"
 }'
-curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_team_endpoint" -d "$data" --insecure
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_fleet_endpoint" -d "$data" --insecure
 
 # Create users
 create_user_endpoint="api/latest/fleet/users/admin"
@@ -75,7 +75,7 @@ data='{
   "invited_by": 1,
   "global_role": null,
   "admin_forced_password_reset": false,
-  "teams": [
+  "fleets": [
     {
       "id": 1,
       "role": "observer"
@@ -96,7 +96,7 @@ data='{
   "invited_by": 1,
   "global_role": null,
   "admin_forced_password_reset": false,
-  "teams": [
+  "fleets": [
     {
       "id": 1,
       "role": "admin"
@@ -114,7 +114,7 @@ data='{
   "invited_by": 1,
   "global_role": null,
   "admin_forced_password_reset": false,
-  "teams": [
+  "fleets": [
     {
       "id": 1,
       "role": "maintainer"
@@ -131,7 +131,7 @@ data='{
   "invited_by": 1,
   "global_role": null,
   "admin_forced_password_reset": false,
-  "teams": [
+  "fleets": [
     {
       "id": 1,
       "role": "observer"
@@ -148,7 +148,7 @@ data='{
   "invited_by": 1,
   "global_role": null,
   "admin_forced_password_reset": false,
-  "teams": [
+  "fleets": [
     {
       "id": 1,
       "role": "observer_plus"

@@ -1,0 +1,10 @@
+{
+  "name": "Requestly",
+  "unique_identifier": "io.requestly.beta",
+  "token": "requestly",
+  "installer_format": "dmg",
+  "slug": "requestly/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

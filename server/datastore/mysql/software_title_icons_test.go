@@ -256,7 +256,7 @@ func testDeleteSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	var teamID, titleID, installerID uint
+	var teamID, titleID, installerID, installer2ID, vppTokenID uint
 	var err error
 	testCases := []struct {
 		name     string
@@ -303,10 +303,17 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 				"INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, ?)",
 				installerID, label1.ID, true)
 			require.NoError(t, err)
-			// Insert include label
+			// Insert include any label
 			_, err = ds.writer(ctx).ExecContext(ctx,
 				"INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, ?)",
 				installerID, label2.ID, false)
+			require.NoError(t, err)
+			// Insert include all label
+			label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3"})
+			require.NoError(t, err)
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO software_installer_labels (software_installer_id, label_id, exclude, require_all) VALUES (?, ?, ?, ?)",
+				installerID, label3.ID, false, true)
 			require.NoError(t, err)
 
 			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
@@ -323,6 +330,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Equal(t, installerID, *activity.SoftwareInstallerID)
 			require.Nil(t, activity.AdamID)
 			require.Nil(t, activity.VPPAppTeamID)
+			require.Nil(t, activity.VPPTokenID)
 			require.Nil(t, activity.VPPIconUrl)
 			require.Equal(t, "foo", activity.SoftwareTitle)
 			require.Equal(t, "foo.pkg", *activity.Filename)
@@ -335,6 +343,8 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Equal(t, "label1", activity.LabelsExcludeAny[0].Name)
 			require.Len(t, activity.LabelsIncludeAny, 1)
 			require.Equal(t, "label2", activity.LabelsIncludeAny[0].Name)
+			require.Len(t, activity.LabelsIncludeAll, 1)
+			require.Equal(t, "label3", activity.LabelsIncludeAll[0].Name)
 		}},
 		{"vpp app", func(ds *Datastore) {
 			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
@@ -346,6 +356,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
 			require.NoError(t, err)
+			vppTokenID = tok1.ID
 
 			vppApp := &fleet.VPPApp{
 				Name:    "foo",
@@ -359,7 +370,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 				},
 				BundleIdentifier: "foo.bundle.id",
 			}
-			vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, &teamID)
+			vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, &teamID, nil)
 			require.NoError(t, err)
 
 			var vppAppsTitleIds []struct {
@@ -381,10 +392,17 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 				"INSERT INTO vpp_app_team_labels (vpp_app_team_id, label_id, exclude) VALUES (?, ?, ?)",
 				vppApp.VPPAppTeam.AppTeamID, label1.ID, true)
 			require.NoError(t, err)
-			// Insert include label
+			// Insert include any label
 			_, err = ds.writer(ctx).ExecContext(ctx,
 				"INSERT INTO vpp_app_team_labels (vpp_app_team_id, label_id, exclude) VALUES (?, ?, ?)",
 				vppApp.VPPAppTeam.AppTeamID, label2.ID, false)
+			require.NoError(t, err)
+			// Insert include all label
+			label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3"})
+			require.NoError(t, err)
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO vpp_app_team_labels (vpp_app_team_id, label_id, exclude, require_all) VALUES (?, ?, ?, ?)",
+				vppApp.VPPAppTeam.AppTeamID, label3.ID, false, true)
 			require.NoError(t, err)
 
 			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
@@ -401,6 +419,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Nil(t, activity.SoftwareInstallerID)
 			require.Equal(t, "1", *activity.AdamID)
 			require.NotEmpty(t, *activity.VPPAppTeamID)
+			require.Equal(t, &vppTokenID, activity.VPPTokenID)
 			require.Equal(t, "fleetdm.com/icon.png", *activity.VPPIconUrl)
 			require.Equal(t, "foo", activity.SoftwareTitle)
 			require.Nil(t, activity.Filename)
@@ -413,6 +432,12 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Equal(t, "label1", activity.LabelsExcludeAny[0].Name)
 			require.Len(t, activity.LabelsIncludeAny, 1)
 			require.Equal(t, "label2", activity.LabelsIncludeAny[0].Name)
+			require.Len(t, activity.LabelsIncludeAll, 1)
+			require.Equal(t, "label3", activity.LabelsIncludeAll[0].Name)
+			// VPP titles populate VersionName from the first-added vpp_apps_teams
+			// row (MIN(vat.id)); InsertVPPAppWithTeam defaults an unset name to
+			// fleet.DefaultAppStoreAppVersionName, which is what we see here.
+			require.Equal(t, fleet.DefaultAppStoreAppVersionName, activity.VersionName)
 		}},
 		{"team id 0", func(ds *Datastore) {
 			user := test.NewUser(t, ds, "user1", "user1@example.com", false)
@@ -480,6 +505,89 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Nil(t, activity.Platform)
 			require.Nil(t, activity.LabelsExcludeAny)
 			require.Nil(t, activity.LabelsIncludeAny)
+			require.Nil(t, activity.LabelsIncludeAll)
+		}},
+		{"multi-team software installer", func(ds *Datastore) {
+			// Create two teams sharing the same software title with installers in both teams.
+			// This verifies that the query returns exactly one row per team instead of N rows.
+			user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
+			require.NoError(t, err)
+
+			// Create a second team
+			tm2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+			require.NoError(t, err)
+
+			// Create installer in team 1
+			tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+			require.NoError(t, err)
+			installerID, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				InstallScript:    "hello",
+				InstallerFile:    tfr1,
+				StorageID:        "storage1",
+				Filename:         "foo.pkg",
+				Title:            "foo",
+				Version:          "0.0.3",
+				Source:           "apps",
+				TeamID:           &teamID,
+				UserID:           user.ID,
+				BundleIdentifier: "foo.bundle.id",
+				ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			})
+			require.NoError(t, err)
+
+			// Create installer in team 2 for the same title
+			tfr2, err := fleet.NewTempFileReader(strings.NewReader("world"), t.TempDir)
+			require.NoError(t, err)
+			installer2ID, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				InstallScript:    "world",
+				InstallerFile:    tfr2,
+				StorageID:        "storage2",
+				Filename:         "foo.pkg",
+				Title:            "foo",
+				Version:          "0.0.3",
+				Source:           "apps",
+				TeamID:           &tm2.ID,
+				UserID:           user.ID,
+				BundleIdentifier: "foo.bundle.id",
+				ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			})
+			require.NoError(t, err)
+
+			// Create icons in both teams
+			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+				TeamID:    teamID,
+				TitleID:   titleID,
+				StorageID: "icon-storage-1",
+				Filename:  "icon1.png",
+			})
+			require.NoError(t, err)
+			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+				TeamID:    tm2.ID,
+				TitleID:   titleID,
+				StorageID: "icon-storage-2",
+				Filename:  "icon2.png",
+			})
+			require.NoError(t, err)
+		}, func(t *testing.T, ds *Datastore) {
+			// Query for team 1 should return exactly one row with team 1's installer
+			activity1, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, teamID, titleID)
+			require.NoError(t, err)
+			require.Equal(t, installerID, *activity1.SoftwareInstallerID)
+			require.Equal(t, "team1", *activity1.TeamName)
+			require.Equal(t, teamID, activity1.TeamID)
+
+			// Query for team 2 should also succeed (not produce multiple rows)
+			tm2, err := ds.TeamByName(ctx, "team2")
+			require.NoError(t, err)
+			require.NotZero(t, tm2.ID)
+
+			activity2, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, tm2.ID, titleID)
+			require.NoError(t, err)
+			require.NotNil(t, activity2.SoftwareInstallerID)
+			require.Equal(t, installer2ID, *activity2.SoftwareInstallerID)
+			require.Equal(t, "team2", *activity2.TeamName)
+			require.Equal(t, tm2.ID, activity2.TeamID)
 		}},
 		{"in house app", func(ds *Datastore) {
 			user := test.NewUser(t, ds, "user1", "user1@example.com", false)
@@ -519,10 +627,17 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 				"INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude) VALUES (?, ?, ?)",
 				installerID, label1.ID, true)
 			require.NoError(t, err)
-			// Insert include label
+			// Insert include any label
 			_, err = ds.writer(ctx).ExecContext(ctx,
 				"INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude) VALUES (?, ?, ?)",
 				installerID, label2.ID, false)
+			require.NoError(t, err)
+			// Insert include all label
+			label3, err := ds.NewLabel(ctx, &fleet.Label{Name: "label3"})
+			require.NoError(t, err)
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO in_house_app_labels (in_house_app_id, label_id, exclude, require_all) VALUES (?, ?, ?, ?)",
+				installerID, label3.ID, false, true)
 			require.NoError(t, err)
 
 			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
@@ -551,6 +666,8 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Equal(t, "label1", activity.LabelsExcludeAny[0].Name)
 			require.Len(t, activity.LabelsIncludeAny, 1)
 			require.Equal(t, "label2", activity.LabelsIncludeAny[0].Name)
+			require.Len(t, activity.LabelsIncludeAll, 1)
+			require.Equal(t, "label3", activity.LabelsIncludeAll[0].Name)
 		}},
 	}
 
@@ -697,7 +814,7 @@ func testDeleteIconsAssociatedWithTitlesWithoutInstallers(t *testing.T, ds *Data
 					},
 					BundleIdentifier: "foo.bundle.id",
 				}
-				_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, &teamID)
+				_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, &teamID, nil)
 				require.NoError(t, err)
 
 				var vppAppsTitleIds []struct {

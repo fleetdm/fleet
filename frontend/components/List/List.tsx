@@ -1,0 +1,96 @@
+import classnames from "classnames";
+import React, { KeyboardEvent, ReactElement } from "react";
+
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
+
+const baseClass = "list";
+
+type WithIdKey<TKey extends string = "id"> = Record<TKey, React.Key>;
+
+export interface IListProps<TItem, TKey extends string = "id"> {
+  data: TItem[];
+  isLoading?: boolean;
+  idKey?: TKey;
+  renderItemRow?: (item: TItem) => ReactElement | false | null | undefined;
+  onClickRow?: (item: TItem) => void;
+  isRowClickable?: (item: TItem) => boolean;
+  heading?: JSX.Element;
+  helpText?: React.ReactNode;
+}
+
+function List<TItem extends WithIdKey<TKey>, TKey extends string = "id">({
+  data,
+  isLoading = false,
+  idKey: _idKey,
+  renderItemRow,
+  onClickRow,
+  isRowClickable,
+  heading,
+  helpText,
+}: IListProps<TItem, TKey>): JSX.Element {
+  const idKey = (_idKey ?? "id") as TKey;
+
+  return (
+    <div className={baseClass}>
+      {isLoading && <div className="loading-overlay" />}
+      <ul className={`${baseClass}__list`}>
+        {heading && (
+          <li className={`${baseClass}__row ${baseClass}__header`}>
+            {heading}
+          </li>
+        )}
+        {data.map((item) => {
+          if (!item) return null;
+
+          const clickable = isRowClickable?.(item) ?? !!onClickRow;
+
+          const rowClasses = classnames(`${baseClass}__row`, {
+            [`${baseClass}__row--clickable`]: clickable,
+          });
+
+          const activate = () => clickable && onClickRow?.(item);
+          const handleKeyDown = (e: KeyboardEvent<HTMLLIElement>) => {
+            if (!clickable) return;
+            // Only react when the row itself has focus. Guards against a
+            // nested focusable child (future inline action) bubbling Space /
+            // Enter up and firing the row click in addition to its own.
+            if (e.target !== e.currentTarget) return;
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              activate();
+            }
+          };
+
+          return (
+            // Clickable rows wear role="button" + tabIndex and get the mouse
+            // and keyboard handlers; non-clickable rows stay plain `<li>` so
+            // the jsx-a11y rule has nothing to flag.
+            <li
+              className={rowClasses}
+              key={item[idKey]}
+              {...(clickable
+                ? {
+                    role: "button",
+                    tabIndex: 0,
+                    onClick: activate,
+                    onKeyDown: handleKeyDown,
+                  }
+                : {})}
+            >
+              {renderItemRow?.(item) ?? null}
+            </li>
+          );
+        })}
+      </ul>
+      {helpText && (
+        <div className="form-field__help-text">
+          <CustomLinkSizeContext.Provider value="small">
+            {helpText}
+          </CustomLinkSizeContext.Provider>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default List;

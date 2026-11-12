@@ -1,0 +1,10 @@
+{
+  "name": "Jami",
+  "unique_identifier": "cx.ring",
+  "token": "jami",
+  "installer_format": "dmg",
+  "slug": "jami/darwin",
+  "default_categories": [
+    "Communication"
+  ]
+}

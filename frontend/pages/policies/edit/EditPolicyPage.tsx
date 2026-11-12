@@ -1,0 +1,335 @@
+import React, { useState, useEffect, useContext } from "react";
+import { useErrorHandler } from "react-error-boundary";
+import { useQuery, useMutation } from "react-query";
+import { InjectedRouter, Params } from "react-router/lib/Router";
+
+import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner/InfoBanner";
+import MainContent from "components/MainContent";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import SidePanelContent from "components/SidePanelContent";
+import SidePanelPage from "components/SidePanelPage";
+import Spinner from "components/Spinner/Spinner";
+import { AppContext } from "context/app";
+import { PolicyContext } from "context/policy";
+import useTeamIdParam from "hooks/useTeamIdParam";
+import {
+  IPolicyFormData,
+  IPolicy,
+  IStoredPolicyResponse,
+} from "interfaces/policy";
+import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import { DEFAULT_POLICY } from "pages/policies/constants";
+import QueryEditor from "pages/policies/edit/screens/QueryEditor";
+import PATHS from "router/paths";
+import globalPoliciesAPI from "services/entities/global_policies";
+import policiesAPI from "services/entities/policies";
+import statusAPI from "services/entities/status";
+import teamPoliciesAPI from "services/entities/team_policies";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
+
+interface IPolicyPageProps {
+  router: InjectedRouter;
+  params: Params;
+  location: {
+    pathname: string;
+    search: string;
+    query: { fleet_id: string };
+  };
+}
+
+const baseClass = "edit-policy-page";
+
+const PolicyPage = ({
+  router,
+  params: { id: paramsPolicyId },
+  location,
+}: IPolicyPageProps): JSX.Element => {
+  const policyId = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null; // TODO(sarah): What should happen if this doesn't parse (e.g. the string is "foo")?
+  const handlePageError = useErrorHandler();
+  const {
+    isOnGlobalTeam,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin,
+    config,
+  } = useContext(AppContext);
+  const {
+    lastEditedQueryBody,
+    policyTeamId,
+    selectedOsqueryTable,
+    setSelectedOsqueryTable,
+    setLastEditedQueryId,
+    setLastEditedQueryName,
+    setLastEditedQueryDescription,
+    setLastEditedQueryBody,
+    setLastEditedQueryResolution,
+    setLastEditedQueryCritical,
+    setLastEditedQueryHidden,
+    setLastEditedQueryPlatform,
+    setLastEditedQueryLabelsIncludeAny,
+    setLastEditedQueryLabelsIncludeAll,
+    setLastEditedQueryLabelsExcludeAny,
+    setLastEditedQueryLabelsExcludeAll,
+    setPolicyTeamId,
+  } = useContext(PolicyContext);
+
+  const {
+    isRouteOk,
+    isTeamAdmin,
+    isTeamMaintainer,
+    isTeamObserver,
+    teamIdForApi,
+    isObserverPlus,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: true,
+    permittedAccessByTeamRole: {
+      admin: true,
+      maintainer: true,
+      observer: true,
+      observer_plus: true,
+      technician: true,
+    },
+  });
+
+  // // TODO(Sarah): What should happen if a user without save permissions tries to directly navigate
+  // // to the new policy page? Should we redirect to the manage policies page?
+  // const hasSavePermissions =
+  //   isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  //
+  // useEffect(() => {
+  //   if (!isRouteOk) {
+  //     return;
+  //   }
+  //   if (trimEnd(location.pathname, "/").endsWith("/new")) {
+  //     !hasSavePermissions && router.push(paths.MANAGE_POLICIES);
+  //   }
+  // }, [hasSavePermissions, isRouteOk, location.pathname, router]);
+
+  useEffect(() => {
+    if (!isRouteOk) {
+      return;
+    }
+    if (policyTeamId !== teamIdForApi) {
+      setPolicyTeamId(
+        teamIdForApi === API_ALL_TEAMS_ID
+          ? APP_CONTEXT_ALL_TEAMS_ID
+          : teamIdForApi
+      );
+    }
+  }, [isRouteOk, teamIdForApi, policyTeamId, setPolicyTeamId]);
+
+  useEffect(() => {
+    if (lastEditedQueryBody === "") {
+      setLastEditedQueryBody(DEFAULT_POLICY.query);
+    }
+  }, []);
+
+  useEffect(() => {
+    // cleanup when component unmounts
+    return () => {
+      setLastEditedQueryCritical(false);
+      setLastEditedQueryHidden(false);
+      setLastEditedQueryPlatform(null);
+    };
+  }, []);
+
+  const [isLiveQueryRunnable, setIsLiveQueryRunnable] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showOpenSchemaActionText, setShowOpenSchemaActionText] = useState(
+    false
+  );
+
+  const {
+    isLoading: isStoredPolicyLoading,
+    data: storedPolicy,
+    error: storedPolicyError,
+  } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
+    ["policy", policyId, teamIdForApi],
+    () => policiesAPI.load(policyId as number),
+    {
+      enabled: isRouteOk && !!policyId,
+      refetchOnWindowFocus: false,
+      retry: false,
+      select: (data: IStoredPolicyResponse) => data.policy,
+      onSuccess: (returnedQuery) => {
+        const deNulledReturnedQueryTeamId = returnedQuery.fleet_id ?? undefined;
+
+        setLastEditedQueryId(returnedQuery.id);
+        setLastEditedQueryName(returnedQuery.name);
+        setLastEditedQueryDescription(returnedQuery.description);
+        setLastEditedQueryBody(returnedQuery.query);
+        setLastEditedQueryResolution(returnedQuery.resolution);
+        setLastEditedQueryCritical(returnedQuery.critical);
+        setLastEditedQueryHidden(returnedQuery.hidden ?? false);
+        setLastEditedQueryPlatform(returnedQuery.platform);
+        setLastEditedQueryLabelsIncludeAny(
+          returnedQuery.labels_include_any || []
+        );
+        setLastEditedQueryLabelsIncludeAll(
+          returnedQuery.labels_include_all || []
+        );
+        setLastEditedQueryLabelsExcludeAny(
+          returnedQuery.labels_exclude_any || []
+        );
+        setLastEditedQueryLabelsExcludeAll(
+          returnedQuery.labels_exclude_all || []
+        );
+        // TODO(sarah): What happens if the team id in the policy response doesn't match the
+        // url param? In theory, the backend should ensure this doesn't happen.
+        setPolicyTeamId(
+          deNulledReturnedQueryTeamId === API_ALL_TEAMS_ID
+            ? APP_CONTEXT_ALL_TEAMS_ID
+            : deNulledReturnedQueryTeamId
+        );
+      },
+      onError: (error) => handlePageError(error),
+    }
+  );
+
+  /** Pesky bug affecting team level users:
+   - Navigating to policies/:id immediately defaults the user to the first team they're on
+  with the most permissions, in the URL bar because of useTeamIdParam
+  even if the policies/:id entity has a team attached to it
+  Hacky fix:
+   - Push entity's team id to url for team level users
+  */
+  if (
+    !isOnGlobalTeam &&
+    !isStoredPolicyLoading &&
+    storedPolicy?.fleet_id !== undefined &&
+    storedPolicy?.fleet_id !== null &&
+    !(storedPolicy?.fleet_id?.toString() === location.query.fleet_id)
+  ) {
+    router.push(
+      getPathWithQueryParams(location.pathname, {
+        fleet_id: storedPolicy?.fleet_id?.toString(),
+      })
+    );
+  }
+
+  // this function is passed way down, wrapped and ultimately called by SaveNewPolicyModal
+  const { mutateAsync: createPolicy } = useMutation(
+    (formData: IPolicyFormData) => {
+      return formData.fleet_id !== undefined
+        ? teamPoliciesAPI.create(formData)
+        : globalPoliciesAPI.create(formData);
+    }
+  );
+
+  const detectIsFleetQueryRunnable = () => {
+    statusAPI.live_query().catch(() => {
+      setIsLiveQueryRunnable(false);
+    });
+  };
+
+  useEffect(() => {
+    detectIsFleetQueryRunnable();
+  }, []);
+
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // e.g., Antivirus healthy (Linux) | Policies | Fleet
+    if (storedPolicy?.name) {
+      document.title = `${storedPolicy.name} | Policies | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Policies | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
+  }, [location.pathname, storedPolicy?.name]);
+
+  useEffect(() => {
+    setShowOpenSchemaActionText(!isSidebarOpen);
+  }, [isSidebarOpen]);
+
+  const onOsqueryTableSelect = (tableName: string) => {
+    setSelectedOsqueryTable(tableName);
+  };
+
+  const onCloseSchemaSidebar = () => {
+    setIsSidebarOpen(false);
+  };
+
+  const onOpenSchemaSidebar = () => {
+    setIsSidebarOpen(true);
+  };
+
+  const renderLiveQueryWarning = (): JSX.Element | null => {
+    if (isLiveQueryRunnable || config?.server_settings.live_query_disabled) {
+      return null;
+    }
+
+    return (
+      <InfoBanner color="yellow">
+        Fleet is unable to run a live report. Refresh the page or log in again.
+        If this keeps happening please{" "}
+        <CustomLink
+          url="https://github.com/fleetdm/fleet/issues/new/choose"
+          text="file an issue"
+          newTab
+          variant="banner-link"
+        />
+      </InfoBanner>
+    );
+  };
+
+  const renderScreen = () => {
+    const queryEditorOpts = {
+      router,
+      baseClass,
+      policyIdForEdit: policyId,
+      showOpenSchemaActionText,
+      storedPolicy,
+      isStoredPolicyLoading,
+      isTeamAdmin,
+      isTeamMaintainer,
+      isTeamObserver,
+      isObserverPlus,
+      storedPolicyError,
+      createPolicy,
+      onOsqueryTableSelect,
+      goToSelectTargets: () =>
+        router.push(
+          getPathWithQueryParams(PATHS.LIVE_POLICY(policyId), {
+            from: "edit",
+            fleet_id: teamIdForApi,
+          })
+        ),
+      onOpenSchemaSidebar,
+      renderLiveQueryWarning,
+      teamIdForApi,
+    };
+
+    return <QueryEditor {...queryEditorOpts} />;
+  };
+
+  const showSidebar =
+    isSidebarOpen &&
+    (isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin);
+
+  if (!isRouteOk) {
+    return <Spinner />;
+  }
+
+  return (
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>{renderScreen()}</MainContent>
+        {showSidebar && (
+          <SidePanelContent>
+            <QuerySidePanel
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={onCloseSchemaSidebar}
+            />
+          </SidePanelContent>
+        )}
+      </>
+    </SidePanelPage>
+  );
+};
+
+export default PolicyPage;

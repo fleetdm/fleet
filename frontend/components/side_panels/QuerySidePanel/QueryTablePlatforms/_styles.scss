@@ -1,26 +1,25 @@
 .query-table-platforms {
+  @include flex-column-16px-gap;
+
   h3 {
     font-size: $small;
     font-weight: $bold;
+    margin: 0;
   }
 
   &__platform-list {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
     list-style: none;
+    margin: 0;
     padding-left: 0;
   }
 
   .platform-list-item {
     display: flex;
     align-items: center;
-    padding-bottom: $pad-medium;
+    gap: $pad-small;
     font-size: $x-small;
-
-    &:last-child {
-      padding-bottom: 0;
-    }
-
-    .icon {
-      margin-right: $pad-small;
-    }
   }
 }

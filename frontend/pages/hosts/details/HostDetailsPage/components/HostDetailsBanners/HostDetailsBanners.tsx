@@ -1,21 +1,31 @@
+import { addHours, isPast } from "date-fns";
 import React, { useContext } from "react";
-import { AppContext } from "context/app";
 
-import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
-import { IOSSettings } from "interfaces/host";
+import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
+import { AppContext } from "context/app";
+import { IOSSettings, MacDiskEncryptionActionRequired } from "interfaces/host";
+import {
+  DiskEncryptionStatus,
+  MdmEnrollmentStatus,
+  isAutomaticDeviceEnrollment,
+} from "interfaces/mdm";
 import {
   HostPlatform,
+  isAppleDevice,
   isDiskEncryptionSupportedLinuxPlatform,
 } from "interfaces/platform";
-
-import InfoBanner from "components/InfoBanner";
-import CustomLink from "components/CustomLink";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import {
+  INITIAL_FLEET_DATE,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
 const baseClass = "host-details-banners";
 
 export interface IHostBannersBaseProps {
   macDiskEncryptionStatus: DiskEncryptionStatus | null | undefined;
+  /** Why the macOS disk encryption status is action_required, if it is */
+  diskEncryptionActionRequired?: MacDiskEncryptionActionRequired | null;
   mdmEnrollmentStatus: MdmEnrollmentStatus | null;
   connectedToFleetMdm?: boolean;
   hostPlatform?: HostPlatform;
@@ -27,33 +37,56 @@ export interface IHostBannersBaseProps {
   diskIsEncrypted?: boolean;
   /** Whether or not Fleet has escrowed the host's disk encryption key */
   diskEncryptionKeyAvailable?: boolean;
+  /** The timestamp of the last MDM enrollment */
+  lastMdmEnrolledAt?: string;
+  /** The timestamp of the last detail update */
+  detailUpdatedAt?: string;
+  /** Whether or not this host is assigned to Fleet via DEP */
+  depAssignedToFleet: boolean;
+  onlyAllowAppleBusinessEnrollment: boolean;
 }
 /**
- * Handles the displaying of banners on the host details page
+ * Returns the banner to show on the host details page, or null if none applies.
+ * The page uses this to know whether it has a banner before rendering.
  */
-const HostDetailsBanners = ({
+export const useHostDetailsBanner = ({
   mdmEnrollmentStatus,
   hostPlatform,
   hostOsVersion,
   connectedToFleetMdm,
   macDiskEncryptionStatus,
+  diskEncryptionActionRequired,
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
-}: IHostBannersBaseProps) => {
+  lastMdmEnrolledAt,
+  detailUpdatedAt,
+  depAssignedToFleet,
+  onlyAllowAppleBusinessEnrollment,
+}: IHostBannersBaseProps): JSX.Element | null => {
   const { config } = useContext(AppContext);
 
   const isMdmUnenrolled = mdmEnrollmentStatus === "Off" || !mdmEnrollmentStatus;
+  const isNewMdmEnrollment =
+    !isMdmUnenrolled &&
+    !!lastMdmEnrolledAt &&
+    // if less than an hour has passed since the last MDM enrollment, we consider it a new
+    // enrollment and won't show the disk encryption action required banner, as it's possible the
+    // host just hasn't sent its disk encryption status to Fleet yet
+    !isPast(addHours(lastMdmEnrolledAt, 1));
 
   const showTurnOnMdmInfoBanner =
     hostPlatform === "darwin" &&
     isMdmUnenrolled &&
-    config?.mdm.enabled_and_configured;
+    config?.mdm.enabled_and_configured &&
+    detailUpdatedAt &&
+    detailUpdatedAt > INITIAL_FLEET_DATE;
 
   const showMacDiskEncryptionUserActionRequired =
     config?.mdm.enabled_and_configured &&
     connectedToFleetMdm &&
-    macDiskEncryptionStatus === "action_required";
+    macDiskEncryptionStatus === "action_required" &&
+    !isNewMdmEnrollment;
 
   const actionRequiredBanner = (
     <div className={baseClass}>
@@ -65,6 +98,42 @@ const HostDetailsBanners = ({
     </div>
   );
 
+  if (
+    onlyAllowAppleBusinessEnrollment &&
+    !depAssignedToFleet &&
+    isMdmUnenrolled &&
+    isAppleDevice(hostPlatform)
+  ) {
+    return (
+      <div className={baseClass}>
+        <InfoBanner color="yellow">
+          This host can&apos;t enroll in Apple MDM. Only current devices listed
+          in Apple Business can enroll. To allow manual enrollment, turn off the
+          &quot;Only allow Apple Business enrollment&quot; setting <br /> in{" "}
+          <strong>Organization settings &gt; Advanced options</strong>.
+        </InfoBanner>
+      </div>
+    );
+  }
+
+  if (
+    onlyAllowAppleBusinessEnrollment &&
+    isAppleDevice(hostPlatform) &&
+    !depAssignedToFleet &&
+    !isAutomaticDeviceEnrollment(mdmEnrollmentStatus)
+  ) {
+    return (
+      <div className={baseClass}>
+        <InfoBanner color="yellow">
+          This host is no longer eligible for Apple MDM. It was enrolled
+          manually, but only Apple Business devices can enroll now. To allow
+          manual enrollment, turn off the &quot;Only allow Apple Business
+          enrollment&quot; setting in{" "}
+          <strong>Organization settings &gt; Advanced options</strong>.
+        </InfoBanner>
+      </div>
+    );
+  }
   if (showTurnOnMdmInfoBanner) {
     return (
       <div className={baseClass}>
@@ -80,8 +149,18 @@ const HostDetailsBanners = ({
     return (
       <div className={baseClass}>
         <InfoBanner color="yellow">
-          Disk encryption: Requires action from the end user. Ask the end user
-          to log out of their device or restart it.
+          {diskEncryptionActionRequired === "turn_on_encryption" ? (
+            <>
+              Disk encryption: Disk encryption is off, and this host&apos;s
+              fleet doesn&apos;t enforce it. Fleet will store the recovery key
+              when the end user turns on FileVault.
+            </>
+          ) : (
+            <>
+              Disk encryption: Requires action from the end user. Ask the end
+              user to log out of their device or restart it.
+            </>
+          )}
         </InfoBanner>
       </div>
     );
@@ -125,10 +204,29 @@ const HostDetailsBanners = ({
     hostPlatform === "windows" &&
     diskEncryptionOSSetting?.status === "action_required"
   ) {
-    return actionRequiredBanner;
+    // Fleet is holding the repair until the host restarts, so point the admin at the restart rather than at My device.
+    if (diskEncryptionOSSetting?.action_required === "restart") {
+      return (
+        <div className={baseClass}>
+          <InfoBanner color="yellow">
+            Disk encryption: Requires a restart. Ask the user to restart their
+            device so disk encryption protection can be turned back on.
+          </InfoBanner>
+        </div>
+      );
+    }
+    if (diskEncryptionOSSetting?.action_required === "create_pin") {
+      return actionRequiredBanner;
+    }
   }
 
   return null;
 };
+
+/**
+ * Handles the displaying of banners on the host details page
+ */
+const HostDetailsBanners = (props: IHostBannersBaseProps) =>
+  useHostDetailsBanner(props);
 
 export default HostDetailsBanners;

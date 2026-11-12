@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 2.5.1.3</string>
+      <key>PayloadType</key>
+      <string>com.apple.applicationaccess</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-2.5.1.3.check</string>
+      <key>PayloadUUID</key>
+      <string>ECE767B6-6232-4C94-AF15-D7BDEF18ED64</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>allowMailSummary</key>
+      <false/>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 2.5.1.3 - Ensure Mail Summarization Is Disabled</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure Mail Summarization Is Disabled</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-2.5.1.3</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>2489A75D-7160-43C5-8C18-3AA4DC32F4D2</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -33,6 +34,30 @@ func TestValidateUserRoles(t *testing.T) {
 			payload: UserPayload{
 				GlobalRole: ptr.String(RoleGitOps),
 				APIOnly:    ptr.Bool(true),
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
+			checkErr: nil,
+		},
+		{
+			name:   "global-gitops-create-not-premium-not-api-only",
+			create: true,
+			payload: UserPayload{
+				GlobalRole: new(RoleGitOps),
+				APIOnly:    new(false),
+			},
+			license: LicenseInfo{
+				Tier: TierFree,
+			},
+			checkErr: checkErrCode(ErrAPIOnlyRole),
+		},
+		{
+			name:   "team-gitops-create-not-premium",
+			create: true,
+			payload: UserPayload{
+				Teams:   &[]UserTeam{{Role: RoleGitOps}},
+				APIOnly: new(true),
 			},
 			license: LicenseInfo{
 				Tier: TierFree,
@@ -232,6 +257,18 @@ func TestValidateUserRoles(t *testing.T) {
 			checkErr: checkErrCode(ErrNoRoleNeeded),
 		},
 		{
+			name:   "empty-global-role-with-team-role",
+			create: true,
+			payload: UserPayload{
+				GlobalRole: new(""),
+				Teams:      &[]UserTeam{{Role: RoleAdmin}},
+			},
+			license: LicenseInfo{
+				Tier: TierPremium,
+			},
+			checkErr: checkErrCode(ErrNoRoleNeeded),
+		},
+		{
 			name:   "no-roles-set",
 			create: true,
 			payload: UserPayload{
@@ -289,8 +326,9 @@ func TestTeamMDMCopy(t *testing.T) {
 	t.Run("copy MacOSSettings", func(t *testing.T) {
 		tm := &TeamMDM{
 			MacOSSettings: MacOSSettings{
-				CustomSettings:                 []MDMProfileSpec{{Path: "a"}, {Path: "b"}},
-				DeprecatedEnableDiskEncryption: ptr.Bool(false),
+				CustomSettings:                []MDMProfileSpec{{Path: "a"}, {Path: "b"}},
+				EnableDiskEncryption:          optjson.SetBool(false),
+				EnableEscrowDiskEncryptionKey: optjson.SetBool(true),
 			},
 		}
 		clone := tm.Copy()
@@ -300,7 +338,16 @@ func TestTeamMDMCopy(t *testing.T) {
 			reflect.ValueOf(tm.MacOSSettings.CustomSettings).Pointer(),
 			reflect.ValueOf(clone.MacOSSettings.CustomSettings).Pointer(),
 		)
-		require.NotSame(t, tm.MacOSSettings.DeprecatedEnableDiskEncryption, clone.MacOSSettings.DeprecatedEnableDiskEncryption)
+	})
+
+	t.Run("copy HostNameTemplate", func(t *testing.T) {
+		tm := &TeamMDM{HostNameTemplate: "$FLEET_VAR_HOST_HARDWARE_SERIAL"}
+		clone := tm.Copy()
+		require.Equal(t, tm.HostNameTemplate, clone.HostNameTemplate)
+
+		// mutating the copy must not affect the original (plain-string value copy)
+		clone.HostNameTemplate = "changed"
+		require.Equal(t, "$FLEET_VAR_HOST_HARDWARE_SERIAL", tm.HostNameTemplate)
 	})
 }
 
@@ -356,10 +403,6 @@ func TestTeamConfigCopy(t *testing.T) {
 				EnableHostUsers:         true,
 				EnableSoftwareInventory: true,
 				AdditionalQueries:       ptr.RawMessage([]byte(`{"query": "test"}`)),
-				DetailQueryOverrides: map[string]*string{
-					"key1": ptr.String("value1"),
-					"key2": ptr.String("value2"),
-				},
 			},
 		}
 
@@ -371,17 +414,44 @@ func TestTeamConfigCopy(t *testing.T) {
 		require.NotSame(t, tc.Features.AdditionalQueries, clone.Features.AdditionalQueries)
 		require.Equal(t, tc.Features.AdditionalQueries, clone.Features.AdditionalQueries)
 
-		// Verify deep copy of DetailQueryOverrides map
-		require.NotEqual(t,
-			reflect.ValueOf(tc.Features.DetailQueryOverrides).Pointer(),
-			reflect.ValueOf(clone.Features.DetailQueryOverrides).Pointer(),
-		)
-		require.Equal(t, tc.Features.DetailQueryOverrides, clone.Features.DetailQueryOverrides)
-
 		// Modify original and verify clone is unaffected
 		tc.Features.EnableHostUsers = false
-		*tc.Features.DetailQueryOverrides["key1"] = "modified"
+		(*tc.Features.AdditionalQueries)[0] = 'X'
 		require.True(t, clone.Features.EnableHostUsers)
-		require.Equal(t, "value1", *clone.Features.DetailQueryOverrides["key1"])
+		require.JSONEq(t, `{"query": "test"}`, string(*clone.Features.AdditionalQueries))
+	})
+}
+
+// TestTeamMarshalJSONMacOSSetupDefaults verifies that a team whose stored
+// config predates the managed local account keys (e.g. created in 4.84.0)
+// serializes with the "admin" default rather than null, matching what
+// AppConfig.MarshalJSON serves for the global config (#49346).
+func TestTeamMarshalJSONMacOSSetupDefaults(t *testing.T) {
+	t.Run("missing keys fall back to admin default", func(t *testing.T) {
+		var team Team // MacOSSetup keys unset (Valid == false)
+
+		b, err := json.Marshal(team)
+		require.NoError(t, err)
+
+		var got Team
+		require.NoError(t, json.Unmarshal(b, &got))
+		require.True(t, got.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
+		require.Equal(t, "admin", got.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+		require.True(t, got.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Valid)
+		require.False(t, got.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
+	})
+
+	t.Run("explicit values are preserved", func(t *testing.T) {
+		var team Team
+		team.Config.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("standard")
+		team.Config.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(true)
+
+		b, err := json.Marshal(team)
+		require.NoError(t, err)
+
+		var got Team
+		require.NoError(t, json.Unmarshal(b, &got))
+		require.Equal(t, "standard", got.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+		require.True(t, got.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 	})
 }

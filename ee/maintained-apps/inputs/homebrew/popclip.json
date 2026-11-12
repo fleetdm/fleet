@@ -1,0 +1,10 @@
+{
+  "name": "PopClip",
+  "unique_identifier": "com.pilotmoon.popclip",
+  "token": "popclip",
+  "installer_format": "zip",
+  "slug": "popclip/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

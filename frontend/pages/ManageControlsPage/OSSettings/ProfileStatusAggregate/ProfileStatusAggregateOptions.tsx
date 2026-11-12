@@ -1,6 +1,7 @@
 import React from "react";
-import { MdmProfileStatus } from "interfaces/mdm";
+
 import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
+import { MdmProfileStatus } from "interfaces/mdm";
 
 interface IAggregateDisplayOption {
   value: MdmProfileStatus;
@@ -13,7 +14,7 @@ const AGGREGATE_STATUS_DISPLAY_OPTIONS: IAggregateDisplayOption[] = [
   {
     value: "verified",
     text: "Verified",
-    iconName: "success",
+    iconName: "verified",
     tooltipText: <>These hosts applied all OS settings. Fleet verified.</>,
   },
   {

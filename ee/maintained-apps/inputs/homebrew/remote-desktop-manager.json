@@ -1,0 +1,10 @@
+{
+  "name": "Remote Desktop Manager",
+  "unique_identifier": "com.devolutions.remotedesktopmanager",
+  "token": "remote-desktop-manager",
+  "installer_format": "dmg",
+  "slug": "remote-desktop-manager/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

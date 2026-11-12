@@ -1,20 +1,21 @@
-import React from "react";
 import classnames from "classnames";
 import { isEmpty } from "lodash";
-
-import TooltipWrapper from "components/TooltipWrapper";
+import React from "react";
 import { PlacesType } from "react-tooltip-5";
+
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
+import TooltipWrapper from "components/TooltipWrapper";
 
 // all form-field styles are defined in _global.scss, which apply here and elsewhere
 const baseClass = "form-field";
 
 export interface IFormFieldProps {
   children: JSX.Element;
-  label: Array<any> | JSX.Element | string;
+  label: React.ReactNode;
   name: string;
-  helpText?: Array<any> | JSX.Element | string;
+  helpText?: React.ReactNode;
   type?: string;
-  error?: string;
+  error?: string | null;
   className?: string;
   tooltip?: React.ReactNode;
   labelTooltipPosition?: PlacesType;
@@ -67,7 +68,13 @@ const FormField = ({
 
   const renderHelpText = () => {
     if (helpText) {
-      return <span className={`${baseClass}__help-text`}>{helpText}</span>;
+      return (
+        <span className={`${baseClass}__help-text`}>
+          <CustomLinkSizeContext.Provider value="small">
+            {helpText}
+          </CustomLinkSizeContext.Provider>
+        </span>
+      );
     }
 
     return false;

@@ -1,0 +1,10 @@
+{
+  "name": "Commander One",
+  "unique_identifier": "com.eltima.cmd1",
+  "token": "commander-one",
+  "installer_format": "dmg",
+  "slug": "commander-one/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "Firefly Shimmer",
+  "unique_identifier": "org.iota.firefly-shimmer",
+  "token": "firefly-shimmer",
+  "installer_format": "dmg",
+  "slug": "firefly-shimmer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

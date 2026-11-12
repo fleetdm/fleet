@@ -1,0 +1,10 @@
+{
+  "name": "Sonos",
+  "unique_identifier": "com.sonos.macController2",
+  "token": "sonos",
+  "installer_format": "dmg",
+  "slug": "sonos/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

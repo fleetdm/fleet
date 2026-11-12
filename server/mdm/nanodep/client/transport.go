@@ -16,7 +16,7 @@ const (
 	ADMAuthSession        = "X-ADM-Auth-Session"
 	ServerProtocolVersion = "X-Server-Protocol-Version"
 
-	DefaultServerProtocolVersion = "8"
+	DefaultServerProtocolVersion = "9"
 
 	SessionEndpoint = "/session"
 
@@ -223,6 +223,10 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		)
 		if err != nil {
 			return nil, fmt.Errorf("transport: creating session request: %w", err)
+		}
+		if userAgent := req.Header.Get("User-Agent"); userAgent != "" {
+			// copy the UA from the original request to the auth request
+			sessionReq.Header.Set("User-Agent", userAgent)
 		}
 
 		// use the same version header from the original request (which we

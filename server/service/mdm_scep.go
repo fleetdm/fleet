@@ -4,13 +4,14 @@ import (
 	"context"
 	"crypto/rsa"
 	"errors"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
-
-	"github.com/go-kit/log"
 	"github.com/smallstep/scep"
 )
 
@@ -23,7 +24,7 @@ type service struct {
 	signer scepserver.CSRSignerContext
 
 	/// info logging is implemented in the service middleware layer.
-	debugLogger log.Logger
+	debugLogger *slog.Logger
 
 	ds fleet.MDMAssetRetriever
 }
@@ -45,7 +46,15 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	if len(data) == 0 {
 		return nil, &fleet.BadRequestError{Message: "missing data for PKIOperation"}
 	}
-	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(svc.debugLogger))
+
+	if err := cryptoutil.ValidateBERDepth(data, cryptoutil.MaxBERDepth); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
+	}
+
+	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(kitlogadapter.NewLogger(svc.debugLogger)))
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +70,12 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	}
 
 	if err := msg.DecryptPKIEnvelope(cert.Leaf, pk); err != nil {
-		return nil, err
+		svc.debugLogger.ErrorContext(ctx, "failed to decrypt PKI envelope", "err", err)
+		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
+		if err != nil {
+			return nil, err
+		}
+		return certRep.Raw, nil
 	}
 
 	crt, err := svc.signer.SignCSRContext(ctx, msg.CSRReqMessage)
@@ -69,13 +83,19 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		err = errors.New("no signed certificate")
 	}
 	if err != nil {
-		svc.debugLogger.Log("msg", "failed to sign CSR", "err", err)
+		svc.debugLogger.ErrorContext(ctx, "failed to sign CSR", "err", err)
 		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
-		return certRep.Raw, err
+		if err != nil {
+			return nil, err
+		}
+		return certRep.Raw, nil
 	}
 
 	certRep, err := msg.Success(cert.Leaf, pk, crt)
-	return certRep.Raw, err
+	if err != nil {
+		return nil, err
+	}
+	return certRep.Raw, nil
 }
 
 func (svc *service) GetNextCACert(ctx context.Context) ([]byte, error) {
@@ -83,10 +103,10 @@ func (svc *service) GetNextCACert(ctx context.Context) ([]byte, error) {
 }
 
 // NewService creates a new scep service
-func NewSCEPService(ds fleet.MDMAssetRetriever, signer scepserver.CSRSignerContext, logger log.Logger) scepserver.Service {
+func NewSCEPService(ds fleet.MDMAssetRetriever, signer scepserver.CSRSignerContext, logger *slog.Logger) scepserver.Service {
 	return &service{
 		signer:      signer,
-		debugLogger: log.NewNopLogger(),
+		debugLogger: slog.New(slog.DiscardHandler),
 		ds:          ds,
 	}
 }

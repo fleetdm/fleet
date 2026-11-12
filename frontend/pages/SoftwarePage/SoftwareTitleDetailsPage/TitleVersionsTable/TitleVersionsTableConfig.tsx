@@ -1,0 +1,133 @@
+import React from "react";
+import { CellProps } from "react-table";
+
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import {
+  IHeaderProps,
+  INumberCellProps,
+  IStringCellProps,
+} from "interfaces/datatable_config";
+import {
+  formatSoftwareVersion,
+  ISoftwareTitleVersion,
+  SoftwareSource,
+} from "interfaces/software";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
+
+import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
+
+interface ISoftwareTitleVersionsTableConfigProps {
+  teamId?: number;
+  isIPadOSOrIOSApp: boolean;
+  /** Versions carry no source of their own; the title's applies to every row. */
+  source: SoftwareSource;
+}
+
+type IVersionCellProps = IStringCellProps<ISoftwareTitleVersion>;
+type IVulnCellProps = CellProps<ISoftwareTitleVersion, string[] | null>;
+type IHostCountCellProps = INumberCellProps<ISoftwareTitleVersion>;
+type IViewAllHostsLinkProps = CellProps<ISoftwareTitleVersion>;
+type ITableHeaderProps = IHeaderProps<ISoftwareTitleVersion>;
+
+const generateSoftwareTitleVersionsTableConfig = ({
+  teamId,
+  isIPadOSOrIOSApp,
+  source,
+}: ISoftwareTitleVersionsTableConfigProps) => {
+  const tableHeaders = [
+    {
+      title: "Version",
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell
+          value="Version"
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
+      accessor: "version",
+      sortType: "version",
+      Cell: (cellProps: IVersionCellProps): JSX.Element => {
+        if (!cellProps.cell.value) {
+          // renders desired empty state
+          return <TextCell />;
+        }
+        const { id } = cellProps.row.original;
+        const softwareVersionDetailsPath = getPathWithQueryParams(
+          PATHS.SOFTWARE_VERSION_DETAILS(id.toString()),
+          { fleet_id: teamId }
+        );
+
+        return (
+          <LinkCell
+            className="name-link"
+            path={softwareVersionDetailsPath}
+            value={formatSoftwareVersion({ ...cellProps.row.original, source })}
+          />
+        );
+      },
+    },
+    {
+      title: "Vulnerabilities",
+      Header: "Vulnerabilities",
+      disableSortBy: true,
+      // the "vulnerabilities" accessor is used but the data is actually coming
+      // from the version attribute. We do this as we already have a "versions"
+      // attribute used for the "Version" column and we cannot reuse. This is a
+      // limitation of react-table.
+      // With the versions data, we can sum up the vulnerabilities to get the
+      // total number of vulnerabilities for the software title
+      accessor: "vulnerabilities",
+      Cell: (cellProps: IVulnCellProps): JSX.Element => {
+        if (isIPadOSOrIOSApp) {
+          return <TextCell value="Not supported" grey />;
+        }
+        return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
+        // TODO: tooltip
+      },
+    },
+    {
+      title: "Hosts",
+      Header: (cellProps: ITableHeaderProps) => (
+        <HeaderCell
+          value="Hosts"
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
+      accessor: "hosts_count",
+      Cell: (cellProps: IHostCountCellProps): JSX.Element => (
+        <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      title: "",
+      Header: "",
+      accessor: "linkToFilteredHosts",
+      disableSortBy: true,
+      Cell: (cellProps: IViewAllHostsLinkProps) => {
+        return (
+          <>
+            {cellProps.row.original && (
+              <ViewAllHostsLink
+                queryParams={{
+                  software_version_id: cellProps.row.original.id,
+                  fleet_id: teamId,
+                }}
+                className="software-link"
+                rowHover
+              />
+            )}
+          </>
+        );
+      },
+    },
+  ];
+
+  return tableHeaders;
+};
+
+export default generateSoftwareTitleVersionsTableConfig;

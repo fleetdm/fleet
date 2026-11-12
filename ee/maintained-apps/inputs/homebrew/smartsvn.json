@@ -1,0 +1,10 @@
+{
+  "name": "SmartSVN",
+  "unique_identifier": "com.syntevo.smartsvn",
+  "token": "smartsvn",
+  "installer_format": "dmg",
+  "slug": "smartsvn/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

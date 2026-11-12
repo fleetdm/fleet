@@ -1,12 +1,14 @@
 import React, { useCallback, useEffect, useState } from "react";
 
-import { IPack } from "interfaces/pack";
-import { IEmptyTableProps } from "interfaces/empty_table";
 import Button from "components/buttons/Button";
-
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
 import { IActionButtonProps } from "components/TableContainer/DataTable/ActionButton/ActionButton";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { IEmptyStateProps } from "interfaces/empty_state";
+import { IPack } from "interfaces/pack";
+
 import { generateTableHeaders, generateDataSet } from "./PacksTableConfig";
 
 const baseClass = "packs-table";
@@ -48,7 +50,7 @@ const PacksTable = ({
   }, [packs, searchString, setFilteredPacks]);
 
   const onQueryChange = useCallback(
-    (queryData: any) => {
+    (queryData: ITableQueryData) => {
       const { searchQuery } = queryData;
       setSearchString(searchQuery);
     },
@@ -57,8 +59,7 @@ const PacksTable = ({
 
   // TODO: useCallback search string
   const emptyState = () => {
-    const emptyPacks: IEmptyTableProps = {
-      graphicName: "empty-packs",
+    const emptyPacks: IEmptyStateProps = {
       header: "You don't have any packs",
       info:
         "Query packs allow you to schedule recurring queries for your hosts.",
@@ -67,12 +68,11 @@ const PacksTable = ({
           className={`${baseClass}__create-button`}
           onClick={onCreatePackClick}
         >
-          Create new pack
+          Add new pack
         </Button>
       ),
     };
     if (searchString) {
-      delete emptyPacks.graphicName;
       emptyPacks.header = "No packs match the current search criteria";
       emptyPacks.info =
         "Expecting to see packs? Try again in a few seconds as the system catches up.";
@@ -88,17 +88,22 @@ const PacksTable = ({
       name: "enable",
       onClick: onEnablePackClick,
       buttonText: "Enable",
-      variant: "inverse",
+      variant: "secondary",
       iconSvg: "check",
     },
     {
       name: "disable",
       onClick: onDisablePackClick,
       buttonText: "Disable",
-      variant: "inverse",
+      variant: "secondary",
       iconSvg: "disable",
     },
   ];
+
+  const renderPackCount = useCallback(() => {
+    return <TableCount name="packs" count={filteredPacks?.length || 0} />;
+  }, [filteredPacks]);
+
   return (
     <div className={`${baseClass}`}>
       <TableContainer
@@ -118,18 +123,18 @@ const PacksTable = ({
           name: "delete pack",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "inverse",
+          variant: "secondary",
           onClick: onDeletePackClick,
         }}
+        renderCount={renderPackCount}
         secondarySelectActions={secondarySelectActions}
-        emptyComponent={() =>
-          EmptyTable({
-            graphicName: emptyState().graphicName,
-            header: emptyState().header,
-            info: emptyState().info,
-            primaryButton: emptyState().primaryButton,
-          })
-        }
+        emptyComponent={() => (
+          <EmptyState
+            header={emptyState().header}
+            info={emptyState().info}
+            primaryButton={emptyState().primaryButton}
+          />
+        )}
       />
     </div>
   );

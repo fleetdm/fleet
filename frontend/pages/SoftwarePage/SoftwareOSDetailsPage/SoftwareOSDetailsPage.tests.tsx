@@ -1,11 +1,13 @@
 // __tests__/SoftwareOSDetailsCards.test.tsx
-import React from "react";
+
 import { render, screen } from "@testing-library/react";
-import { createMockRouter } from "test/test-utils";
+import React from "react";
+
 import {
   createMockLinuxOSVersion,
   createMockOSVersion,
 } from "__mocks__/operatingSystemsMock";
+import { createMockRouter } from "test/test-utils";
 
 import {
   SummaryCard,
@@ -52,6 +54,26 @@ describe("VulnerabilitiesCard", () => {
     expect(screen.getByText("Unavailable")).toBeInTheDocument(); // No created_at date
   });
 
+  it("renders vulnerability table for Android versions", () => {
+    render(
+      <VulnerabilitiesCard
+        osVersion={createMockOSVersion({
+          name: "Android 16 (2026-05-01)",
+          name_only: "Android",
+          version: "16 (2026-05-01)",
+          platform: "android",
+        })}
+        isLoading={false}
+        router={mockRouter}
+        teamIdForApi={1}
+      />
+    );
+
+    expect(screen.getByText("Vulnerabilities")).toBeInTheDocument();
+    expect(screen.getByText("Detected")).toBeInTheDocument();
+    expect(screen.getByText("CVE-2020-0001")).toBeInTheDocument();
+  });
+
   it("renders 'not supported' empty state if platform doesn't support vulns", () => {
     render(
       <VulnerabilitiesCard
@@ -87,10 +109,11 @@ describe("KernelsCard", () => {
     );
 
     expect(screen.getByText("Kernels")).toBeInTheDocument();
-    expect(screen.getByText("35 items")).toBeInTheDocument();
+    expect(screen.getByText("3 items")).toBeInTheDocument();
     expect(screen.getAllByText("6.11.0-26.26~24.04.1").length).toBeGreaterThan(
       0
     );
+
     expect(screen.getByText("14 vulnerabilities")).toBeInTheDocument();
   });
 

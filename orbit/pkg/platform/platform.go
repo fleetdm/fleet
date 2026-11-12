@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	gopsutil_process "github.com/shirou/gopsutil/v3/process"
+	gopsutil_process "github.com/shirou/gopsutil/v4/process"
 )
 
 var (
@@ -16,7 +16,6 @@ var (
 type UUIDSource string
 
 const (
-	UUIDSourceInvalid  = "UUID_Source_Invalid"
 	UUIDSourceWMI      = "UUID_Source_WMI"
 	UUIDSourceHardware = "UUID_Source_Hardware"
 )

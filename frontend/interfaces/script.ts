@@ -2,7 +2,7 @@ import { HOST_LINUX_PLATFORMS } from "./platform";
 
 export interface IScript {
   id: number;
-  team_id: number | null;
+  fleet_id: number | null;
   name: string;
   created_at: string;
   updated_at: string;
@@ -15,7 +15,7 @@ export const addTeamIdCriteria = (
   pred: any,
   teamId: number,
   isFreeTier?: boolean
-) => (isFreeTier ? { ...pred } : { ...pred, team_id: teamId });
+) => (isFreeTier ? { ...pred } : { ...pred, fleet_id: teamId });
 
 export type IScriptExecutionStatus = "ran" | "pending" | "error";
 

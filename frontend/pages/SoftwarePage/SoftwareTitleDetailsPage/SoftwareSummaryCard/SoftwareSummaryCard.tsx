@@ -1,159 +1,439 @@
 /** software/titles/:id > First section */
 
-import React, { useState } from "react";
-
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { InjectedRouter } from "react-router";
 
+import Card from "components/Card";
+import Chip from "components/Chip";
+import { AppContext } from "context/app";
 import { useSoftwareInstaller } from "hooks/useSoftwareInstallerMeta";
 import {
   formatSoftwareType,
+  isAndroidSoftwareSource,
   isIpadOrIphoneSoftwareSource,
   ISoftwareTitleDetails,
-  NO_VERSION_OR_HOST_DATA_SOURCES,
-  IAppStoreApp,
 } from "interfaces/software";
-
-import Card from "components/Card";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
-import TitleVersionsTable from "./TitleVersionsTable";
+import {
+  getAutoUpdateTooltip,
+  getDisplayedSoftwareName,
+  getSelfServiceTooltip,
+  mergePolicies,
+} from "pages/SoftwarePage/helpers";
+import PATHS from "router/paths";
+import { pluralize } from "utilities/strings/stringUtils";
+import { getPathWithQueryParams } from "utilities/url";
+
+import DeployModal from "../DeployModal";
+import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
+import EditConfigurationModal from "../EditConfigurationModal";
 import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
-import EditConfigurationModal from "../EditConfigurationModal";
+import PoliciesModal from "../PoliciesModal";
 
 interface ISoftwareSummaryCard {
   softwareTitle: ISoftwareTitleDetails;
   softwareId: number;
   teamId?: number;
-  isAvailableForInstall?: boolean;
-  isLoading?: boolean;
   router: InjectedRouter;
   refetchSoftwareTitle: () => void;
-  onToggleViewYaml: () => void;
+  /** Opens the page-owned Versions modal; the Actions item is gated here by
+   * `canManageVersions`. */
+  onClickVersions: () => void;
+  /** Canonical "this title can hold multiple custom packages" flag. When
+   * true the card hides its Self-service / Auto install / Patch chips
+   * (Library accordion rows show per-package icons instead) and collapses
+   * the Actions dropdown into a single pencil-icon Edit-appearance button. */
+  canActivateMultiplePackages?: boolean;
+  /** Parallel of `canActivateMultiplePackages` for multi-version iOS/iPadOS/
+   * Android App Store app titles. When true: hides title-level chips whose
+   * state is now per-version (Self service, Auto update), swaps the Versions
+   * data value to the admin-added version count, and collapses the Actions
+   * dropdown into a single pencil-icon Edit (appearance) button. */
+  canActivateMultipleVersions?: boolean;
 }
 
 const baseClass = "software-summary-card";
+
+const getPolicyChipTooltip = (
+  isPatchPolicyOnly: boolean,
+  isSinglePolicy: boolean
+) => {
+  if (isPatchPolicyOnly) {
+    return <>Policy fails if the host is on an older version.</>;
+  }
+  return isSinglePolicy ? (
+    <>Policy triggers install.</>
+  ) : (
+    <>Policies trigger install.</>
+  );
+};
 
 const SoftwareSummaryCard = ({
   softwareTitle,
   softwareId,
   teamId,
-  isAvailableForInstall,
-  isLoading = false,
   router,
   refetchSoftwareTitle,
-  onToggleViewYaml,
+  onClickVersions,
+  canActivateMultiplePackages = false,
+  canActivateMultipleVersions = false,
 }: ISoftwareSummaryCard) => {
+  const { isPremiumTier } = useContext(AppContext);
   const installerResult = useSoftwareInstaller(softwareTitle);
 
   const [iconUploadedAt, setIconUploadedAt] = useState("");
   const [showEditIconModal, setShowEditIconModal] = useState(false);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
+  const [showDeployModal, setShowDeployModal] = useState(false);
   const [showEditConfigurationModal, setShowEditConfigurationModal] = useState(
     false
   );
+  const [
+    showEditAutoUpdateConfigModal,
+    setShowEditAutoUpdateConfigModal,
+  ] = useState(false);
+  const [showPoliciesModal, setShowPoliciesModal] = useState(false);
 
-  // Hide versions table for tgz_packages, sh_packages, & ps1_packages and when no hosts have the
-  // software installed
-  const showVersionsTable =
-    !!softwareTitle.hosts_count &&
-    !NO_VERSION_OR_HOST_DATA_SOURCES.includes(softwareTitle.source);
+  // Team-scoped fields on the response (chips, dropdown, installer modals)
+  // come from whichever team the backend picks on nil teamID — hide them
+  // under "All fleets" rather than mislabel one team's state as an aggregate.
+  const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
 
-  // If there is no installer (no package/app), bail out of installer‑related UI.
-  if (!installerResult) {
-    // when no installer, no edit actions:
+  // Command palette lets the user switch fleets while a modal is open. The
+  // modal unmounts because `softwareInstallerOnTeam` flips false on scope
+  // change, but its `show*Modal` state persists and would remount the modal
+  // on the next specific-fleet scope. Reset on team change so it can't.
+  useEffect(() => {
+    setShowEditIconModal(false);
+    setShowEditSoftwareModal(false);
+    setShowDeployModal(false);
+    setShowEditConfigurationModal(false);
+    setShowEditAutoUpdateConfigModal(false);
+    setShowPoliciesModal(false);
+  }, [teamId]);
+
+  const softwareDisplayName = getDisplayedSoftwareName(
+    softwareTitle.name,
+    softwareTitle.display_name,
+    softwareTitle.bundle_identifier
+  );
+
+  // Pre-compute meta-derived values via optional chaining so the hooks below
+  // can run unconditionally (React requires stable hook order across renders).
+  const installerType = installerResult?.meta.installerType;
+  const isFleetMaintainedApp = !!installerResult?.meta.isFleetMaintainedApp;
+  const isAndroidPlayStoreApp = !!installerResult?.meta.isAndroidPlayStoreApp;
+  const isCustomPackage = !!installerResult?.meta.isCustomPackage;
+  const isIosOrIpadosApp = !!installerResult?.meta.isIosOrIpadosApp;
+  const canManageSoftware = !!installerResult?.meta.canManageSoftware;
+
+  // Depend on the optional-chained sources directly so the memo's cache hits
+  // when both are nullish — `?? []` would mint a fresh array literal each
+  // render and bust the cache (and cascade into `headerPills` below).
+  const packageAutoInstallPolicies =
+    softwareTitle.software_package?.automatic_install_policies;
+  const appStoreAutoInstallPolicies =
+    softwareTitle.app_store_app?.automatic_install_policies;
+  const patchPolicy = softwareTitle.software_package?.patch_policy;
+  const mergedPolicies = useMemo(
+    () =>
+      mergePolicies({
+        automaticInstallPolicies:
+          packageAutoInstallPolicies ?? appStoreAutoInstallPolicies,
+        patchPolicy,
+      }),
+    [packageAutoInstallPolicies, appStoreAutoInstallPolicies, patchPolicy]
+  );
+  const isSelfService =
+    !!softwareTitle.software_package?.self_service ||
+    !!softwareTitle.app_store_app?.self_service;
+  // Show the Auto install pill whenever the title has any linked policy —
+  // patch-only policies live under `software_package.patch_policy` (not in
+  // `automatic_install_policies`), so we key off the merged set.
+  const hasLinkedPolicies = mergedPolicies.length > 0;
+  // If every linked policy is patch-only, surface a "Patch policy" pill
+  // instead of "Auto install". When at least one policy is dynamic, the
+  // Auto install pill wins (it's the stronger statement).
+  const isPatchPolicyOnly =
+    hasLinkedPolicies && mergedPolicies.every((p) => !p.type.has("dynamic"));
+
+  // VPP / App Store distinguishes by installer source (app-store vs package),
+  // not by the host OS — VPP apps can be macOS too, and an iOS/iPadOS title can
+  // ship as a custom package.
+  const isAppleVpp = installerType === "app-store" && !isAndroidPlayStoreApp;
+  // Multi-package custom titles pluralize the kind chip — a title with two
+  // .pkg installers reads "Custom packages", not "Custom package". Falls back
+  // to singular for single-package titles (and back-compat responses where
+  // `packages` is still null — `pluralize(0)` also returns the plural form,
+  // but those titles never reach the custom-package branch of `find` below).
+  const customPackageCount = softwareTitle.packages?.length ?? 1;
+  const customPackageChipLabel = pluralize(
+    customPackageCount,
+    "Custom package"
+  );
+  // Order matters: `.find` returns the first truthy row. FMA is checked first
+  // because a Fleet-maintained app uploaded as a custom package still counts
+  // as FMA; Apple VPP precedes Play Store so cross-platform store titles label
+  // by their dominant source; Custom package is the catch-all fallback.
+  // Hidden on "All fleets": the kind derives from the backend's arbitrary-team
+  // installer pick, so it's not a reliable aggregate fact either.
+  const installerKindLabel = hasValidTeamId
+    ? ([
+        [isFleetMaintainedApp, "Fleet-maintained"],
+        [isAppleVpp, "App Store (VPP)"],
+        [isCustomPackage, customPackageChipLabel],
+      ] as const).find(([flag]) => flag)?.[1]
+    : undefined;
+
+  // Titles that can hold multiple custom packages move Self-service and
+  // Auto-install/Patch indicators down to per-row icons on the Library
+  // accordion. The title-level chips would be misleading when one package
+  // is self-service and another isn't. FMA and iOS in-house .ipa keep the
+  // chips since they're single-package — the flag is owned by the page.
+  // Self-service / Auto install / Patch / Auto updates are per-team config.
+  // On "All fleets" the backend returns state from an arbitrary team, so hide
+  // the chips rather than mislabel it as an all-fleets fact.
+  const showSelfServiceChip =
+    hasValidTeamId &&
+    isSelfService &&
+    !canActivateMultiplePackages &&
+    !canActivateMultipleVersions;
+  const showAutoInstallChip =
+    hasValidTeamId && hasLinkedPolicies && !canActivateMultiplePackages;
+  // Gates on `app_store_app` directly since `isAppleVpp` flips false when
+  // a co-existing custom package hides the VPP installer. Suppressed on
+  // multi-version titles because auto-update is a per-version setting there.
+  const showAutoUpdateChip =
+    hasValidTeamId &&
+    !!softwareTitle.app_store_app &&
+    isIosOrIpadosApp &&
+    !canActivateMultipleVersions &&
+    !!softwareTitle.auto_update_enabled &&
+    !!softwareTitle.auto_update_window_start &&
+    !!softwareTitle.auto_update_window_end;
+  const canEditAutoUpdateConfig =
+    !!softwareTitle.app_store_app && isIosOrIpadosApp && canManageSoftware;
+
+  const showHeaderPills =
+    !!installerKindLabel ||
+    showSelfServiceChip ||
+    showAutoInstallChip ||
+    showAutoUpdateChip;
+
+  const headerPills = useMemo(() => {
+    if (!showHeaderPills) {
+      return undefined;
+    }
     return (
       <>
-        <Card borderRadiusSize="xxlarge" className={baseClass}>
+        {installerKindLabel && <Chip text={installerKindLabel} />}
+        {showSelfServiceChip && (
+          <Chip
+            icon="self-service"
+            text="Self service"
+            tooltip={getSelfServiceTooltip(
+              isIpadOrIphoneSoftwareSource(softwareTitle.source),
+              isAndroidSoftwareSource(softwareTitle.source)
+            )}
+            tooltipTextBalanced={false}
+          />
+        )}
+        {showAutoInstallChip && (
+          <Chip
+            icon={isPatchPolicyOnly ? undefined : "install-auto"}
+            text={isPatchPolicyOnly ? "Patch policy" : "Auto install"}
+            onClick={() => {
+              // Single-policy case: jump straight to the policy. The modal
+              // would just show a one-item list with that same link.
+              if (mergedPolicies.length === 1) {
+                router.push(
+                  getPathWithQueryParams(
+                    PATHS.POLICY_DETAILS(mergedPolicies[0].id),
+                    { fleet_id: teamId }
+                  )
+                );
+                return;
+              }
+              setShowPoliciesModal(true);
+            }}
+            tooltip={getPolicyChipTooltip(
+              isPatchPolicyOnly,
+              mergedPolicies.length === 1
+            )}
+          />
+        )}
+        {showAutoUpdateChip && (
+          <Chip
+            icon="install-auto"
+            text="Auto updates"
+            onClick={
+              canEditAutoUpdateConfig
+                ? () => setShowEditAutoUpdateConfigModal(true)
+                : undefined
+            }
+            tooltip={getAutoUpdateTooltip(
+              softwareTitle.auto_update_window_start ?? "",
+              softwareTitle.auto_update_window_end ?? ""
+            )}
+          />
+        )}
+      </>
+    );
+  }, [
+    showHeaderPills,
+    installerKindLabel,
+    showSelfServiceChip,
+    showAutoInstallChip,
+    isPatchPolicyOnly,
+    mergedPolicies,
+    softwareTitle.source,
+    showAutoUpdateChip,
+    canEditAutoUpdateConfig,
+    softwareTitle.auto_update_window_start,
+    softwareTitle.auto_update_window_end,
+    router,
+    teamId,
+  ]);
+
+  const policiesModal = showPoliciesModal && (
+    <PoliciesModal
+      policies={mergedPolicies}
+      teamId={teamId}
+      onExit={() => setShowPoliciesModal(false)}
+    />
+  );
+
+  // Multi-version App Store titles show the admin-added version count (the
+  // number of versions on the title's `app_store_apps` array) rather than
+  // the inventory version count. The `app_store_app ? 1 : 0` fallback keeps
+  // the count accurate on titles that pre-date the array in the response.
+  const versionsCount = canActivateMultipleVersions
+    ? softwareTitle.app_store_apps?.length ??
+      (softwareTitle.app_store_app ? 1 : 0)
+    : softwareTitle.versions?.length ?? 0;
+
+  if (!installerResult) {
+    return (
+      <>
+        <Card className={baseClass}>
           <SoftwareDetailsSummary
-            displayName={softwareTitle.display_name || softwareTitle.name}
+            displayName={softwareDisplayName}
             type={formatSoftwareType(softwareTitle)}
-            versions={softwareTitle.versions?.length ?? 0}
+            versions={versionsCount}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{ software_title_id: softwareId, team_id: teamId }}
+            queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
             name={softwareTitle.name}
             source={softwareTitle.source}
             iconUrl={softwareTitle.icon_url}
             iconUploadedAt={iconUploadedAt}
+            headerPills={headerPills}
           />
-          {showVersionsTable && (
-            <TitleVersionsTable
-              router={router}
-              data={softwareTitle.versions ?? []}
-              isLoading={isLoading}
-              teamIdForApi={teamId}
-              isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(
-                softwareTitle.source
-              )}
-              isAvailableForInstall={isAvailableForInstall}
-              countsUpdatedAt={softwareTitle.counts_updated_at}
-            />
-          )}
         </Card>
+        {policiesModal}
       </>
     );
   }
 
-  const { meta } = installerResult;
   const {
     softwareInstaller,
-    installerType,
-    isIosOrIpadosApp,
-    isAndroidPlayStoreApp,
-    canManageSoftware,
-  } = meta;
+    isAndroidPlayStoreWebApp,
+    androidPlayStoreId,
+  } = installerResult.meta;
+
+  const fleetMaintainedAppSlug =
+    isPremiumTier &&
+    isFleetMaintainedApp &&
+    "fleet_maintained_app_slug" in softwareInstaller
+      ? softwareInstaller.fleet_maintained_app_slug
+      : undefined;
+  const appStoreId =
+    isPremiumTier && isAppleVpp && "app_store_id" in softwareInstaller
+      ? softwareInstaller.app_store_id
+      : undefined;
+  const googlePlayId =
+    isPremiumTier && !isAndroidPlayStoreWebApp ? androidPlayStoreId : undefined;
 
   const canEditAppearance = canManageSoftware;
-  const canEditSoftware = canManageSoftware;
-  const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
-  /** Installer modals require a specific team; hidden from "All Teams" */
-  const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
+  const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
+  /** Permission to manage software + Google Playstore app (not a web app) or iOS/iPadOS app */
+  const canEditConfiguration =
+    canManageSoftware &&
+    ((isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp) || isIosOrIpadosApp);
+  const canDeploySoftware =
+    canManageSoftware && isFleetMaintainedApp && !!isPremiumTier;
+  /** Versions / pin is a Premium-only Fleet-maintained app feature */
+  const canManageVersions =
+    canManageSoftware && isFleetMaintainedApp && !!isPremiumTier;
+  const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
+  const onClickDeploy = () => setShowDeployModal(true);
   const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
+  const onClickEditAutoUpdateConfig = () =>
+    setShowEditAutoUpdateConfigModal(true);
+
+  // Collapse the Actions dropdown into a single pencil-icon Edit (appearance)
+  // button when per-X controls move to the Library accordion rows: custom
+  // multi-package titles have per-package controls, multi-version App Store
+  // titles (iOS/iPadOS/Android) have per-version controls.
+  const useSingleEditAppearanceButton =
+    canActivateMultiplePackages || canActivateMultipleVersions;
 
   return (
     <>
-      <Card borderRadiusSize="xxlarge" className={baseClass}>
+      <Card className={baseClass}>
         <SoftwareDetailsSummary
-          displayName={softwareTitle.display_name || softwareTitle.name}
+          displayName={softwareDisplayName}
           type={formatSoftwareType(softwareTitle)}
-          versions={softwareTitle.versions?.length ?? 0}
+          versions={versionsCount}
           hostCount={softwareTitle.hosts_count}
           countsUpdatedAt={softwareTitle.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,
-            team_id: teamId,
+            fleet_id: teamId,
           }}
           name={softwareTitle.name}
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
           iconUploadedAt={iconUploadedAt}
-          canManageSoftware={canManageSoftware}
+          canManageSoftware={canManageSoftware && hasValidTeamId}
           onClickEditAppearance={
             canEditAppearance ? onClickEditAppearance : undefined
           }
           onClickEditSoftware={
-            canEditSoftware ? onClickEditSoftware : undefined
+            // Multi-package AND multi-version titles move per-installer /
+            // per-version editing to the Library accordion row; the page-
+            // level Edit button collapses to a single pencil-icon Edit
+            // (appearance) button below. Single-slot types (FMA, macOS VPP,
+            // iOS in-house .ipa) keep the Actions dropdown.
+            canEditSoftware && !useSingleEditAppearanceButton
+              ? onClickEditSoftware
+              : undefined
           }
+          useSingleEditAppearanceButton={useSingleEditAppearanceButton}
+          onClickDeploy={canDeploySoftware ? onClickDeploy : undefined}
+          onClickVersions={canManageVersions ? onClickVersions : undefined}
           onClickEditConfiguration={
             canEditConfiguration ? onClickEditConfiguration : undefined
           }
+          onClickEditAutoUpdateConfig={
+            canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
+          }
+          headerPills={headerPills}
+          fleetMaintainedAppSlug={fleetMaintainedAppSlug}
+          appStoreId={appStoreId}
+          vppToken={
+            isPremiumTier && isAppleVpp
+              ? softwareTitle.app_store_app?.vpp_token ?? undefined
+              : undefined
+          }
+          googlePlayId={googlePlayId}
         />
-        {showVersionsTable && (
-          <TitleVersionsTable
-            router={router}
-            data={softwareTitle.versions ?? []}
-            isLoading={isLoading}
-            teamIdForApi={teamId}
-            isIPadOSOrIOSApp={isIosOrIpadosApp}
-            isAvailableForInstall={isAvailableForInstall}
-            countsUpdatedAt={softwareTitle.counts_updated_at}
-          />
-        )}
       </Card>
-      {showEditIconModal && hasValidTeamId && softwareInstaller && (
+      {showEditIconModal && softwareInstallerOnTeam && (
         <EditIconModal
           softwareId={softwareId}
           teamIdForApi={teamId}
@@ -162,9 +442,9 @@ const SoftwareSummaryCard = ({
           refetchSoftwareTitle={refetchSoftwareTitle}
           iconUploadedAt={iconUploadedAt}
           setIconUploadedAt={setIconUploadedAt}
-          installerType={installerType}
+          installerType={installerResult.meta.installerType}
           previewInfo={{
-            name: softwareTitle.display_name || softwareTitle.name,
+            name: softwareDisplayName,
             titleName: softwareTitle.name,
             type: formatSoftwareType(softwareTitle),
             source: softwareTitle.source,
@@ -175,31 +455,52 @@ const SoftwareSummaryCard = ({
           }}
         />
       )}
-      {showEditSoftwareModal && hasValidTeamId && softwareInstaller && (
+      {showEditSoftwareModal && softwareInstallerOnTeam && (
         <EditSoftwareModal
-          router={router}
           softwareId={softwareId}
           teamId={teamId}
           softwareInstaller={softwareInstaller}
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
-          installerType={installerType}
-          openViewYamlModal={onToggleViewYaml}
+          installerType={installerResult.meta.installerType}
+          isFleetMaintainedApp={isFleetMaintainedApp}
           isIosOrIpadosApp={isIosOrIpadosApp}
           name={softwareTitle.name}
-          displayName={softwareTitle.display_name || softwareTitle.name}
+          displayName={softwareDisplayName}
           source={softwareTitle.source}
+          iconUrl={softwareTitle.icon_url}
+          preInstallQueryLocked={
+            softwareTitle.software_package?.patch_policy?.patch_when_closed
+          }
         />
       )}
-      {showEditConfigurationModal && hasValidTeamId && softwareInstaller && (
+      {showDeployModal && softwareInstallerOnTeam && (
+        <DeployModal
+          softwareTitle={softwareTitle}
+          teamId={teamId}
+          onSuccess={refetchSoftwareTitle}
+          onExit={() => setShowDeployModal(false)}
+        />
+      )}
+      {showEditConfigurationModal && softwareInstallerOnTeam && (
         <EditConfigurationModal
-          softwareInstaller={softwareInstaller as IAppStoreApp}
+          softwareInstaller={softwareInstaller}
           softwareId={softwareId}
           teamId={teamId}
+          isApplePlatform={isIosOrIpadosApp}
           refetchSoftwareTitle={refetchSoftwareTitle}
           onExit={() => setShowEditConfigurationModal(false)}
         />
       )}
+      {showEditAutoUpdateConfigModal && softwareInstallerOnTeam && (
+        <EditAutoUpdateConfigModal
+          softwareTitle={softwareTitle}
+          teamId={teamId}
+          refetchSoftwareTitle={refetchSoftwareTitle}
+          onExit={() => setShowEditAutoUpdateConfigModal(false)}
+        />
+      )}
+      {policiesModal}
     </>
   );
 };

@@ -1,0 +1,10 @@
+{
+  "name": "HP Easy Admin",
+  "unique_identifier": "com.hp.hp-easy-admin",
+  "token": "hp-easy-admin",
+  "installer_format": "zip",
+  "slug": "hp-easy-admin/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

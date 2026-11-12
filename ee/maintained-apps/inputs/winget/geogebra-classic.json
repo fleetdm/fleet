@@ -1,0 +1,12 @@
+{
+  "name": "GeoGebra Classic",
+  "slug": "geogebra-classic/windows",
+  "package_identifier": "GeoGebra.Classic",
+  "unique_identifier": "GeoGebra Classic",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": [
+    "Productivity"
+  ]
+}

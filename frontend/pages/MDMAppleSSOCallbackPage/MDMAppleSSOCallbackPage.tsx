@@ -1,13 +1,11 @@
 import React, { useState } from "react";
 import { WithRouterProps } from "react-router";
 
-import endpoints from "utilities/endpoints";
-
-import Spinner from "components/Spinner/Spinner";
-import SSOError from "components/MDM/SSOError";
-import Button from "components/buttons/Button";
-
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import Button from "components/buttons/Button";
+import SSOError from "components/MDM/SSOError";
+import Spinner from "components/Spinner/Spinner";
+import endpoints from "utilities/endpoints";
 
 const baseClass = "mdm-apple-sso-callback-page";
 
@@ -19,24 +17,24 @@ const RedirectTo = ({ url }: { url: string }) => {
 interface IEnrollmentGateProps {
   profileToken?: string;
   eulaToken?: string;
-  enrollmentReference?: string;
   initiator?: string;
   error?: boolean;
+  reason?: string;
 }
 
 const EnrollmentGate = ({
   profileToken,
   eulaToken,
-  enrollmentReference,
   initiator,
   error,
+  reason,
 }: IEnrollmentGateProps) => {
   const [showEULA, setShowEULA] = useState(Boolean(eulaToken));
 
   const deviceinfo = localStorage.getItem("deviceinfo") || "";
 
   if ((!profileToken && initiator !== "setup_experience") || error) {
-    return <SSOError />;
+    return <SSOError sessionExpired={reason === "session_expired"} />;
   }
 
   if (initiator === "setup_experience") {
@@ -73,7 +71,6 @@ const EnrollmentGate = ({
     <RedirectTo
       url={endpoints.MDM_APPLE_ENROLLMENT_PROFILE(
         profileToken as string,
-        enrollmentReference,
         deviceinfo
       )}
     />
@@ -83,9 +80,9 @@ const EnrollmentGate = ({
 interface IMDMSSOCallbackQuery {
   eula_token?: string;
   profile_token?: string;
-  enrollment_reference?: string;
   initiator?: string;
   error?: boolean;
+  reason?: string;
 }
 
 const MDMAppleSSOCallbackPage = (
@@ -94,18 +91,18 @@ const MDMAppleSSOCallbackPage = (
   const {
     eula_token,
     profile_token,
-    enrollment_reference,
     initiator,
     error,
+    reason,
   } = props.location.query;
   return (
     <div className={baseClass}>
       <EnrollmentGate
         eulaToken={eula_token}
         profileToken={profile_token}
-        enrollmentReference={enrollment_reference}
         initiator={initiator}
         error={error}
+        reason={reason}
       />
     </div>
   );

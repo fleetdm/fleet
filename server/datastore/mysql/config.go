@@ -1,11 +1,11 @@
 package mysql
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
-	"github.com/go-kit/log"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/ngrok/sqlmw"
 )
 
@@ -18,9 +18,17 @@ const (
 type DBOption func(o *common_mysql.DBOptions) error
 
 // Logger adds a Logger to the datastore.
-func Logger(l log.Logger) DBOption {
+func Logger(l *slog.Logger) DBOption {
 	return func(o *common_mysql.DBOptions) error {
 		o.Logger = l
+		return nil
+	}
+}
+
+// WithReprepareRetry retries statements the server rejects with MySQL 1615.
+func WithReprepareRetry() DBOption {
+	return func(o *common_mysql.DBOptions) error {
+		o.Interceptor = common_mysql.ReprepareRetryInterceptor{}
 		return nil
 	}
 }
@@ -36,7 +44,7 @@ func WithInterceptor(i sqlmw.Interceptor) DBOption {
 // Replica sets the configuration of the read replica for the datastore.
 func Replica(conf *config.MysqlConfig) DBOption {
 	return func(o *common_mysql.DBOptions) error {
-		o.ReplicaConfig = conf
+		o.ReplicaConfig = toCommonMysqlConfig(conf)
 		return nil
 	}
 }
@@ -53,7 +61,7 @@ func LimitAttempts(attempts int) DBOption {
 
 func TracingEnabled(lconfig *config.LoggingConfig) DBOption {
 	return func(o *common_mysql.DBOptions) error {
-		o.TracingConfig = lconfig
+		o.TracingConfig = toCommonLoggingConfig(lconfig)
 		return nil
 	}
 }

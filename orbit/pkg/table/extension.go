@@ -8,12 +8,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_agent_sessions"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filecontents"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firefox_preferences"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_logs"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/go_binaries"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/mcp_listening_servers"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/netskope"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sentinelone"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/yaml_to_json"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
@@ -24,10 +29,16 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// ExtensionName is the name orbit's extension manager server registers with
+// osquery. It is what osquery's --extensions_require flag takes to wait for
+// this extension before activating plugins.
+const ExtensionName = "com.fleetdm.orbit.osquery_extension.v1"
+
 // Runner wraps the osquery extension manager with okglog/run Execute and Interrupt functions.
 type Runner struct {
 	socket          string
 	tableExtensions []Extension
+	plugins         []osquery.OsqueryPlugin
 	executeDone     chan struct{}
 
 	// mu protects access to srv, ctx and cancel in Execute and Interrupt.
@@ -62,6 +73,14 @@ func WithExtension(t Extension) Opt {
 	}
 }
 
+// WithPlugin registers an arbitrary osquery plugin (e.g. a distributed plugin)
+// on the Runner, alongside the table plugins.
+func WithPlugin(p osquery.OsqueryPlugin) Opt {
+	return func(r *Runner) {
+		r.plugins = append(r.plugins, p)
+	}
+}
+
 // NewRunner creates an extension runner.
 func NewRunner(socket string, opts ...Opt) *Runner {
 	r := &Runner{
@@ -87,7 +106,7 @@ func (r *Runner) Execute() error {
 	ticker := time.NewTicker(200 * time.Millisecond)
 	for {
 		srv, err := osquery.NewExtensionManagerServer(
-			"com.fleetdm.orbit.osquery_extension.v1",
+			ExtensionName,
 			r.socket,
 			// This timeout is only used for registering the extension tables
 			// and for the heartbeat ping requests in r.srv.Run().
@@ -125,6 +144,7 @@ func (r *Runner) Execute() error {
 			t.GenerateFunc,
 		))
 	}
+	plugins = append(plugins, r.plugins...)
 	r.srv.RegisterPlugin(plugins...)
 
 	if err := r.srv.Run(); err != nil {
@@ -147,6 +167,7 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		// Orbit extensions.
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
 		fleetd_logs.TablePlugin(),
+		table.NewPlugin("go_binaries", go_binaries.GoBinariesColumns(), go_binaries.GenerateGoBinaries),
 
 		// Note: the logger passed here and to all other tables is the global logger from zerolog.
 		// This logger has already been configured with some required settings in
@@ -170,6 +191,27 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		),
 
 		table.NewPlugin("yaml_to_json", yaml_to_json.Columns(), yaml_to_json.GenerateFunc),
+
+		// ai_tools: unified table of AI software (apps, IDE plugins, agents, MCP
+		// servers, sockets, instruction files, browser extensions) and their risk
+		// factors. Vendored from github.com/karmine05/agentic-detector.
+		table.NewPlugin("ai_tools", ai_tools.Columns(), ai_tools.Generate),
+
+		// ai_agent_sessions / ai_agent_session_messages: sessions of AI coding
+		// agents (Claude Code, Copilot CLI, Cursor CLI, Codex CLI, Gemini CLI)
+		// and their content, from every user's transcripts. Ported from
+		// github.com/allenhouchins/fleet-extensions.
+		table.NewPlugin("ai_agent_sessions", ai_agent_sessions.SessionsColumns(), ai_agent_sessions.GenerateSessions),
+		table.NewPlugin("ai_agent_session_messages", ai_agent_sessions.MessagesColumns(), ai_agent_sessions.GenerateMessages),
+
+		// netskope: local Netskope client state, from `nsdiag -f`.
+		// Registered on every platform: hosts without the client report a single
+		// row with client_installed = 0.
+		table.NewPlugin("netskope", netskope.Columns(), netskope.Generate),
+
+		// sentinelone: local SentinelOne agent state, from `sentinelctl status`.
+		// Registered on every platform: hosts without the agent report no rows.
+		table.NewPlugin("sentinelone", sentinelone.Columns(), sentinelone.Generate),
 	}
 	return plugins
 }

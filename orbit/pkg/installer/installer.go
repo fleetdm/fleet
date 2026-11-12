@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -77,6 +78,8 @@ type Runner struct {
 	// the script's temporary directory after execution.
 	removeAllFn func(string) error
 
+	nowFn func() time.Time
+
 	connectOsquery func(*Runner) error
 
 	scriptsEnabled func() bool
@@ -88,19 +91,31 @@ type Runner struct {
 	retryOpts []retry.Option
 
 	logger zerolog.Logger
+
+	// installerNotFoundFirstSeen records, per execution_id, when we first saw
+	// a "not found" response from GetInstallerDetails (#44084). Guarded by
+	// installerNotFoundMu.
+	installerNotFoundFirstSeen map[string]time.Time
+	installerNotFoundMu        sync.Mutex
 }
 
 const extractionDirectoryName = "extracted"
 
+// installerNotFoundRetryWindow bounds how long orbit silently retries a 404
+// from GetInstallerDetails before it reports a synthetic failure (#44084).
+var installerNotFoundRetryWindow = 5 * time.Minute
+
 func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, rootDirPath string) *Runner {
 	r := &Runner{
-		OrbitClient:               client,
-		osquerySocketPath:         socketPath,
-		scriptsEnabled:            scriptsEnabled,
-		installerExecutionTimeout: pkgscripts.MaxHostSoftwareInstallExecutionTime,
-		rootDirPath:               rootDirPath,
-		retryOpts:                 []retry.Option{retry.WithMaxAttempts(5)},
-		logger:                    log.With().Str("runner", "installer").Logger(),
+		OrbitClient:                client,
+		osquerySocketPath:          socketPath,
+		scriptsEnabled:             scriptsEnabled,
+		installerExecutionTimeout:  pkgscripts.MaxHostSoftwareInstallExecutionTime,
+		rootDirPath:                rootDirPath,
+		retryOpts:                  []retry.Option{retry.WithMaxAttempts(5)},
+		logger:                     log.With().Str("runner", "installer").Logger(),
+		nowFn:                      time.Now,
+		installerNotFoundFirstSeen: make(map[string]time.Time),
 	}
 
 	return r
@@ -161,9 +176,9 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 		payload, err := r.installSoftware(ctx, installerID, logger)
 		if err != nil {
 			errs = append(errs, err)
-			if payload == nil {
-				continue
-			}
+		}
+		if payload == nil {
+			continue
 		}
 		attemptNum := 1
 		err = retry.Do(func() error {
@@ -185,6 +200,48 @@ func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
 	}
 
 	return nil
+}
+
+// handleInstallerNotFound returns a synthetic failure payload once
+// installerNotFoundRetryWindow has elapsed for execID, nil otherwise (#44084).
+func (r *Runner) handleInstallerNotFound(execID string, logger zerolog.Logger) *fleet.HostSoftwareInstallResultPayload {
+	r.installerNotFoundMu.Lock()
+	defer r.installerNotFoundMu.Unlock()
+
+	nowFn := r.nowFn
+	if nowFn == nil {
+		nowFn = time.Now
+	}
+	if r.installerNotFoundFirstSeen == nil {
+		r.installerNotFoundFirstSeen = make(map[string]time.Time)
+	}
+
+	now := nowFn()
+	firstSeen, ok := r.installerNotFoundFirstSeen[execID]
+	if !ok {
+		r.installerNotFoundFirstSeen[execID] = now
+		return nil
+	}
+	if now.Sub(firstSeen) < installerNotFoundRetryWindow {
+		return nil
+	}
+
+	logger.Warn().
+		Dur("retry_window", installerNotFoundRetryWindow).
+		Msg("installer not found for longer than retry window; reporting failure to server")
+
+	delete(r.installerNotFoundFirstSeen, execID)
+	return &fleet.HostSoftwareInstallResultPayload{
+		InstallUUID:           execID,
+		InstallScriptExitCode: ptr.Int(fleet.ExitCodeInstallerNotFound),
+		InstallScriptOutput:   ptr.String("Installer no longer exists on the server. Abandoning install after retry window."),
+	}
+}
+
+func (r *Runner) clearInstallerNotFound(execID string) {
+	r.installerNotFoundMu.Lock()
+	defer r.installerNotFoundMu.Unlock()
+	delete(r.installerNotFoundFirstSeen, execID)
 }
 
 func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, string, error) {
@@ -221,9 +278,20 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 	logger.Info().Msg("fetching installer details")
 	installer, err := r.OrbitClient.GetInstallerDetails(installID)
 	if err != nil {
+		if client.IsNotFoundErr(err) {
+			if payload := r.handleInstallerNotFound(installID, logger); payload != nil {
+				logger.Err(err).Msg("fetch installer details")
+				return payload, nil
+			}
+			logger.Debug().Err(err).Msg("installer not found, within retry window")
+			return nil, nil
+		}
 		logger.Err(err).Msg("fetch installer details")
+		r.clearInstallerNotFound(installID)
 		return nil, fmt.Errorf("fetching software installer details: %w", err)
 	}
+
+	r.clearInstallerNotFound(installID)
 
 	payload := &fleet.HostSoftwareInstallResultPayload{}
 	payload.InstallUUID = installID
@@ -432,13 +500,8 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 		installerPath = extractDestination
 	}
 
-	scriptExtension := ".sh"
-	if runtime.GOOS == "windows" {
-		scriptExtension = ".ps1"
-	}
-
 	logger.Info().Msg("about to run install script")
-	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptExtension)
+	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptFileExtension(installer.InstallScript, runtime.GOOS))
 	payload.InstallScriptOutput = &installOutput
 	payload.InstallScriptExitCode = &installExitCode
 	if err != nil {
@@ -449,7 +512,7 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 
 	if installer.PostInstallScript != "" {
 		logger.Info().Str("installerPath", installerPath).Msg("about to run post-install script")
-		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptExtension)
+		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptFileExtension(installer.PostInstallScript, runtime.GOOS))
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode
 
@@ -471,7 +534,7 @@ func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareIn
 				uninstallScript = file.GetRemoveScript(ext)
 			}
 			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath,
-				"rollback-script"+scriptExtension)
+				"rollback-script"+scriptFileExtension(uninstallScript, runtime.GOOS))
 			logger.Info().Msgf(
 				"rollback status: exit code: %d, error: %s, output: %s",
 				uninstallExitCode, uninstallErr, uninstallOutput,
@@ -573,6 +636,20 @@ func isNetworkOrTransientError(err error) bool {
 	return false
 }
 
+// scriptFileExtension picks the temp script filename extension so interpreter
+// error output (e.g. Python tracebacks) references a correctly-typed file.
+// Windows scripts are always PowerShell; on unix we honor the script's shebang.
+// goos is passed in (rather than read from runtime) so it stays a pure function.
+func scriptFileExtension(contents, goos string) string {
+	if goos == "windows" {
+		return ".ps1"
+	}
+	if kind, _, err := fleet.ShebangInfo(contents); err == nil && kind == fleet.ShebangPython {
+		return ".py"
+	}
+	return ".sh"
+}
+
 func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, installerPath string, fileName string) (string, int, error) {
 	// run script in installer directory
 	installerDir := filepath.Dir(installerPath)
@@ -596,7 +673,14 @@ func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, 
 
 	output, exitCode, err := execFn(ctx, scriptPath, env)
 	if err != nil {
-		return string(output), exitCode, err
+		out := string(output)
+		// An execve failure (e.g. a missing shebang interpreter) surfaces as exit
+		// code -1 with no output; the only diagnostic lives in err, so fold it into
+		// the output so the server reports something actionable instead of blank.
+		if exitCode == -1 && out == "" {
+			out = err.Error()
+		}
+		return out, exitCode, err
 	}
 
 	return string(output), exitCode, nil

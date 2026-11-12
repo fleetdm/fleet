@@ -1,15 +1,27 @@
 import React from "react";
 
+import ActivityItem from "components/ActivityItem";
+import { isMobilePlatform } from "interfaces/platform";
 import {
   getInstallUninstallStatusPredicate,
+  getInstallUninstallStatusPredicatePassive,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-
-import ActivityItem from "components/ActivityItem";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 
 const baseClass = "installed-software-activity-item";
+
+// Mirror of GlobalActivityItem's makeVersionSuffix so the host activity feed
+// reads the same "<App> (Version name)" copy as the dashboard. macOS activities
+// carry version_name ("Default version") too; scope the suffix to mobile so
+// macOS copy stays unchanged.
+const makeVersionSuffix = (
+  platform: string | undefined,
+  versionName: string | undefined
+): string =>
+  versionName && isMobilePlatform(platform || "") ? ` (${versionName})` : "";
 
 const InstalledSoftwareActivityItem = ({
   tab,
@@ -17,19 +29,69 @@ const InstalledSoftwareActivityItem = ({
   onShowDetails,
   onCancel,
   hideCancel,
+  hideShowDetails,
   isSoloActivity,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
-  const { self_service, software_title: title, source } = details;
+  const {
+    self_service,
+    software_title,
+    software_display_name,
+    source,
+    from_setup_experience,
+    from_auto_update,
+    host_platform: hostPlatform,
+    version_name: versionName,
+  } = details;
+  const title = getDisplayedSoftwareName(software_title, software_display_name);
   const status =
     details.status === "failed" ? "failed_uninstall" : details.status;
   const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
+  const versionSuffix = makeVersionSuffix(hostPlatform, versionName);
 
-  const actorDisplayName = self_service ? (
-    <span>End user</span>
-  ) : (
-    <b>{actorName ?? "Fleet"}</b>
-  );
+  if (details.skipped_install) {
+    return (
+      <ActivityItem
+        className={baseClass}
+        activity={activity}
+        hideCancel={hideCancel}
+        hideShowDetails={hideShowDetails}
+        onShowDetails={onShowDetails}
+        onCancel={onCancel}
+        isSoloActivity={isSoloActivity}
+      >
+        <b>Fleet</b> skipped install of <b>{title}</b>
+        {versionSuffix} on <b>{details.host_display_name || "this host"}</b>.
+      </ActivityItem>
+    );
+  }
+
+  // Self-service installs/uninstalls can be triggered by anyone who opens the
+  // host's My device page, including admins. Drop the actor and switch to
+  // passive voice so the activity reads "<software> was installed on this
+  // host (self-service)." without misrepresenting who initiated it.
+  if (self_service) {
+    const passivePrefix = getInstallUninstallStatusPredicatePassive(
+      status,
+      isScriptPackageSource
+    );
+    return (
+      <ActivityItem
+        className={baseClass}
+        activity={activity}
+        hideCancel={hideCancel}
+        hideShowDetails={hideShowDetails}
+        onShowDetails={onShowDetails}
+        onCancel={onCancel}
+        isSoloActivity={isSoloActivity}
+      >
+        <b>{title}</b>
+        {versionSuffix} {passivePrefix} on this host
+        {from_setup_experience ? " during setup experience" : ""} (self
+        service).
+      </ActivityItem>
+    );
+  }
 
   let installedSoftwarePrefix = getInstallUninstallStatusPredicate(
     status,
@@ -40,17 +102,27 @@ const InstalledSoftwareActivityItem = ({
       status === "pending_uninstall" ? "will uninstall" : "will install";
   }
 
+  // Auto-update installs are always Fleet-initiated even when the payload
+  // carries a stale actor (e.g. a pre-fix retry that re-attributed to the
+  // admin who set up the schedule). A missing actor means the initiating
+  // admin has been deleted since the install was queued (LEFT JOIN on users
+  // returns nil). Trim so whitespace-only names also count as missing. Both
+  // cases render as "Fleet".
+  const actor = from_auto_update || !actorName?.trim() ? "Fleet" : actorName;
+
   return (
     <ActivityItem
       className={baseClass}
       activity={activity}
       hideCancel={hideCancel}
+      hideShowDetails={hideShowDetails}
       onShowDetails={onShowDetails}
       onCancel={onCancel}
       isSoloActivity={isSoloActivity}
     >
-      <>{actorDisplayName}</> {installedSoftwarePrefix} <b>{title}</b> on this
-      host{self_service && " (self-service)"}.{" "}
+      <b>{actor}</b> {installedSoftwarePrefix} <b>{title}</b>
+      {versionSuffix} on this host
+      {from_setup_experience ? " during setup experience" : ""}.
     </ActivityItem>
   );
 };

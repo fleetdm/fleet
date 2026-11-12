@@ -7,9 +7,22 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"time"
 
+	"github.com/beevik/etree"
 	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+)
+
+const (
+	// maxSAMLResponseDepth bounds how deeply nested the SAMLResponse XML may
+	// be. Legitimate SAML responses are shallow; deep nesting is the signature
+	// of a canonicalization bomb, which runs before any certificate or signature
+	// check on the unauthenticated SSO callback endpoints.
+	maxSAMLResponseDepth = 100
+	// maxSAMLResponseElements bounds the total number of XML elements in the
+	// SAMLResponse, for the same reason (a bomb can be wide rather than deep).
+	maxSAMLResponseElements = 5000
 )
 
 // Since there's not a standard for display names, I have collected the most
@@ -84,6 +97,33 @@ func (r resp) AssertionAttributes() []fleet.SAMLAttribute {
 	return attrs
 }
 
+// AssertionID partially implements the fleet.Auth interface.
+func (r resp) AssertionID() string {
+	if r.assertion == nil {
+		return ""
+	}
+	return r.assertion.ID
+}
+
+// AssertionNotOnOrAfter partially implements the fleet.Auth interface.
+func (r resp) AssertionNotOnOrAfter() time.Time {
+	var notOnOrAfter time.Time
+	if r.assertion == nil {
+		return notOnOrAfter
+	}
+	if r.assertion.Conditions != nil {
+		notOnOrAfter = r.assertion.Conditions.NotOnOrAfter
+	}
+	if r.assertion.Subject != nil {
+		for _, sc := range r.assertion.Subject.SubjectConfirmations {
+			if sc.SubjectConfirmationData != nil && sc.SubjectConfirmationData.NotOnOrAfter.After(notOnOrAfter) {
+				notOnOrAfter = sc.SubjectConfirmationData.NotOnOrAfter
+			}
+		}
+	}
+	return notOnOrAfter
+}
+
 // DecodeSAMLResponse base64-decodes the SAMLResponse.
 func DecodeSAMLResponse(samlResponse string) ([]byte, error) {
 	decodedSAMLResponse, err := base64.StdEncoding.DecodeString(samlResponse)
@@ -109,8 +149,49 @@ func validateAudiences(assertion *saml.Assertion, expectedAudiences []string) er
 	return fmt.Errorf("wrong audience: %+v", assertion.Conditions.AudienceRestrictions)
 }
 
+// validateSAMLResponseShape parses the decoded SAMLResponse XML and rejects
+// documents that are excessively deep or have too many elements before they
+// reach goxmldsig's pre-signature canonicalization, which (as of the time of writing)
+// has no traversal limit of its own.
+func validateSAMLResponseShape(samlResponse []byte) error {
+	doc := etree.NewDocument()
+	if err := doc.ReadFromBytes(samlResponse); err != nil {
+		return fmt.Errorf("parsing SAMLResponse XML: %w", err)
+	}
+	root := doc.Root()
+	if root == nil {
+		return errors.New("SAMLResponse has no root element")
+	}
+
+	count := 0
+	var walk func(el *etree.Element, depth int) error
+	walk = func(el *etree.Element, depth int) error {
+		if depth > maxSAMLResponseDepth {
+			return fmt.Errorf("SAMLResponse exceeds maximum nesting depth of %d", maxSAMLResponseDepth)
+		}
+		count++
+		if count > maxSAMLResponseElements {
+			return fmt.Errorf("SAMLResponse exceeds maximum element count of %d", maxSAMLResponseElements)
+		}
+		for _, child := range el.ChildElements() {
+			if err := walk(child, depth+1); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return walk(root, 1)
+}
+
 // ParseAndVerifySAMLResponse runs the parsing and validation of SAMLResponses.
 func ParseAndVerifySAMLResponse(samlProvider *saml.ServiceProvider, samlResponse []byte, requestID string, acsURL *url.URL) (fleet.Auth, error) {
+	// Reject oversized/over-nested documents before handing them to
+	// crewjam/saml -> goxmldsig, whose pre-signature canonicalization is (at the time of writing)
+	// unbounded and runs without authentication.
+	if err := validateSAMLResponseShape(samlResponse); err != nil {
+		return nil, err
+	}
+
 	verifiedAssertion, err := samlProvider.ParseXMLResponse(samlResponse, []string{requestID}, *acsURL)
 	if err != nil {
 		if samlErr, ok := err.(*saml.InvalidResponseError); ok {

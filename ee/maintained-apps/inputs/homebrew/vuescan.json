@@ -1,0 +1,10 @@
+{
+  "name": "VueScan",
+  "unique_identifier": "com.hamrick.vuescan",
+  "token": "vuescan",
+  "installer_format": "dmg",
+  "slug": "vuescan/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

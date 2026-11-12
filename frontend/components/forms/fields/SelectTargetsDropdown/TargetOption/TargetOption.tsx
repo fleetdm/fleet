@@ -1,10 +1,16 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
+// @ts-ignore
+import Button from "components/buttons/Button/Button";
+// @ts-ignore
+import Icon from "components/Icon";
 import { ISelectTargetsEntity } from "interfaces/target";
+
+import { isTargetHost, isTargetLabel, isTargetTeam } from "../helpers";
+
 // @ts-ignore
 import TargetIcon from "./TargetIcon";
-import { isTargetHost, isTargetLabel, isTargetTeam } from "../helpers";
 
 const baseClass = "target-option";
 
@@ -58,9 +64,10 @@ const TargetOption = ({
 
   return (
     <div className={wrapperClassName}>
-      <button
+      <Button
         className={`button button--unstyled ${baseClass}__target-content`}
         onClick={onMoreInfoClick(target)}
+        variant="unstyled"
       >
         <div>
           <TargetIcon target={target} />
@@ -69,11 +76,15 @@ const TargetOption = ({
           </span>
         </div>
         {renderTargetDetail()}
-      </button>
-      <button
-        className={`button button--unstyled ${baseClass}__add-btn`}
+      </Button>
+      <Button
+        className={`${baseClass}__add-btn`}
         onClick={handleSelect}
-      />
+        variant="subdued"
+        size="small"
+      >
+        <Icon name="plus" color="core-fleet-green" />
+      </Button>
     </div>
   );
 };

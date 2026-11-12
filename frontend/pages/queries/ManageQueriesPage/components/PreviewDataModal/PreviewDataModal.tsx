@@ -1,11 +1,11 @@
 /* This component is used for creating and editing both global and team scheduled queries */
 
 import React from "react";
-import { syntaxHighlight } from "utilities/helpers";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import TooltipWrapper from "components/TooltipWrapper";
+import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "preview-data-modal";
 
@@ -41,8 +41,8 @@ const PreviewDataModal = ({
           <TooltipWrapper
             tipContent={
               <>
-                The &quot;snapshot&quot; key includes the query&apos;s results.
-                These will be unique to your query.
+                The &quot;snapshot&quot; key includes the report&apos;s results.
+                These will be unique to your report.
               </>
             }
           >
@@ -54,7 +54,7 @@ const PreviewDataModal = ({
           <pre dangerouslySetInnerHTML={{ __html: syntaxHighlight(json) }} />
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
+          <Button onClick={onCancel}>Close</Button>
         </div>
       </div>
     </Modal>

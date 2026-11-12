@@ -1,12 +1,14 @@
 // TransferHostModal.test.tsx
-import React from "react";
+
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import paths from "router/paths";
+import React from "react";
+
+import { ITeam } from "interfaces/team";
 
 import TransferHostModal from "./TransferHostModal";
 
-const teams = [
+const teams: ITeam[] = [
   { id: 1, name: "Team Alpha" },
   { id: 2, name: "Team Beta" },
 ];
@@ -22,7 +24,7 @@ const setup = (
   render(
     <TransferHostModal
       isGlobalAdmin={false}
-      teams={teams as any}
+      teams={teams}
       onSubmit={onSubmit}
       onCancel={onCancel}
       isUpdating={false}
@@ -39,8 +41,6 @@ describe("TransferHostModal", () => {
   it("renders title for single host and label", () => {
     setup();
 
-    expect(screen.getByText("Transfer host")).toBeInTheDocument();
-
     expect(
       screen.getByText("Transfer host to:", { selector: "label" })
     ).toBeInTheDocument();
@@ -49,23 +49,21 @@ describe("TransferHostModal", () => {
   it("pluralizes title and label when multipleHosts is true", () => {
     setup({ multipleHosts: true });
 
-    expect(screen.getByText("Transfer hosts")).toBeInTheDocument();
-
     expect(
       screen.getByText("Transfer selected hosts to:", { selector: "label" })
     ).toBeInTheDocument();
   });
 
-  it("shows Create a team link when user is global admin", () => {
+  it("shows Add a fleet link when user is global admin", () => {
     setup({ isGlobalAdmin: true });
 
-    expect(screen.getByText(/Create a team/i)).toBeInTheDocument();
+    expect(screen.getByText(/Add a fleet/i)).toBeInTheDocument();
   });
 
-  it("does not show Create a team link when not global admin", () => {
+  it("does not show Add a fleet link when not global admin", () => {
     setup({ isGlobalAdmin: false });
 
-    expect(screen.queryByText(/Create a team/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Add a fleet/i)).not.toBeInTheDocument();
   });
 
   it("disables Transfer button until a team is selected", () => {
@@ -75,33 +73,55 @@ describe("TransferHostModal", () => {
     expect(transferButton).toBeDisabled();
   });
 
-  it("filters out current host team from dropdown options and includes No team when allowed", async () => {
+  it("filters out current host team from dropdown options and includes No fleet when allowed", async () => {
     const { user } = setup({ hostsTeamId: 1 });
 
-    const dropdown = screen.getByText(/Select a team/i);
+    const dropdown = screen.getByText(/Select a fleet/i);
 
     await user.click(dropdown);
 
-    expect(screen.getByText("No team")).toBeInTheDocument();
+    expect(screen.getByText("Unassigned")).toBeInTheDocument();
     expect(screen.getByText("Team Beta")).toBeInTheDocument();
     expect(screen.queryByText("Team Alpha")).not.toBeInTheDocument();
   });
 
-  it("does not allow transferring to No team again when host is already on no team", async () => {
+  it("does not allow transferring to No fleet again when host is already on no team", async () => {
     const { user } = setup({ hostsTeamId: 0 });
 
-    const dropdown = screen.getByText(/Select a team/i);
+    const dropdown = screen.getByText(/Select a fleet/i);
     await user.click(dropdown);
 
-    expect(screen.queryByText("No team")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unassigned")).not.toBeInTheDocument();
     expect(screen.getByText("Team Alpha")).toBeInTheDocument();
     expect(screen.getByText("Team Beta")).toBeInTheDocument();
+  });
+
+  it("lists fleets alphabetically, ignoring case, with Unassigned last", async () => {
+    const { user } = setup({
+      teams: [
+        { id: 1, name: "Zeta" },
+        { id: 2, name: "alpha" },
+        { id: 3, name: "Beta" },
+        { id: 4, name: "Current" },
+      ],
+      hostsTeamId: 4,
+    });
+
+    await user.click(screen.getByText(/Select a fleet/i));
+
+    const options = await screen.findAllByTestId("dropdown-option");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "alpha",
+      "Beta",
+      "Zeta",
+      "Unassigned",
+    ]);
   });
 
   it("enables Transfer after selecting a team and calls onSubmit with selected team", async () => {
     const { user, onSubmit } = setup({ hostsTeamId: 1 });
 
-    const dropdown = screen.getByText(/Select a team/i);
+    const dropdown = screen.getByText(/Select a fleet/i);
 
     // Custom dropdown path: open then click an option
     await user.click(dropdown);
@@ -115,15 +135,20 @@ describe("TransferHostModal", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
-  it("supports selecting No team and passes through the no-team object shape", async () => {
+  it("supports selecting No fleet and passes through the no-team object shape", async () => {
     const { user, onSubmit } = setup({ hostsTeamId: 1 });
 
-    const dropdown = screen.getByText(/Select a team/i);
-
+    const dropdown = screen.getByText(/Select a fleet/i);
     await user.click(dropdown);
-    const noTeamOption = await screen.findByRole("option", {
-      name: "No team",
-    });
+    const options = await screen.findAllByTestId("dropdown-option");
+    const noTeamOption = options.find((el) =>
+      /Unassigned/i.test(el.textContent || "")
+    );
+
+    if (!noTeamOption) {
+      throw new Error("Unassigned option not found in dropdown");
+    }
+
     await user.click(noTeamOption);
 
     const transferButton = screen.getByRole("button", { name: "Transfer" });

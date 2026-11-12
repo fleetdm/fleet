@@ -1,3 +1,7 @@
+activity_expiry_settings:
+  activity_expiry_enabled: false
+  activity_expiry_window: 30
+  preserve_host_activities_on_reenrollment: true
 certificate_authorities:
   custom_est_proxy:
   - name: some-est-name
@@ -18,6 +22,28 @@ certificate_authorities:
       name: some-digicert-name
       profile_id: some-digicert-profile-id
       url: https://some-digicert-url.com
+  ejbca:
+    - certificate_authority_name: some-ejbca-certificate-authority-name
+      certificate_common_name: some-ejbca-certificate-common-name
+      certificate_profile_name: some-ejbca-certificate-profile-name
+      certificate_user_principal_names:
+        - some-ejbca-certificate-user-principal-name
+      client_p12: ___GITOPS_COMMENT_0___
+      end_entity_profile_name: some-ejbca-end-entity-profile-name
+      name: some-ejbca-name
+      password: ___GITOPS_COMMENT_1___
+      trust_ca_bundle: |
+        -----BEGIN CERTIFICATE-----
+        some-ejbca-trust-bundle
+        -----END CERTIFICATE-----
+      url: https://some-ejbca-url.com
+      username_template: some-ejbca-username-template
+  google_cas:
+    - api_key_json: '{"type":"service_account"}'
+      ca_pool: some-google-cas-pool
+      location: us-central1
+      name: some-google-cas-name
+      project: some-google-cas-project
   hydrant:
     - name: some-hydrant-name
       url: https://some-hydrant-url.com
@@ -40,20 +66,30 @@ features:
   additional_queries:
     time: "SELECT * FROM time"
     macs: "SELECT mac FROM interface_details"
-  detail_query_overrides:
-    users:
-    mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
+  historical_data:
+    uptime: true
+    vulnerabilities: true
 fleet_desktop:
+  alternative_browser_host: musica.alternativa
+  sso_enabled: false
   transparency_url: https://fleetdm.com/transparency
 host_expiry_settings:
   host_expiry_enabled: false
   host_expiry_window: 59995
 integrations:
+  certificates_disable_host_end_user_binding:
+  certificates_idp_client_ids:
+  certificates_idp_introspection_urls:
   conditional_access_enabled: true
   google_calendar:
     - api_key_json:
         owl: hoot
       domain: fleetdm.com
+  google_workspace:
+    - api_key_json:
+        owl: hoot
+      domain: fleetdm.com
+      impersonated_user_email: admin@fleetdm.com
   jira:
     - api_token: some-jira-api-token
       enable_failing_policies: false
@@ -69,11 +105,18 @@ integrations:
       group_id: 123456789
       url: https://some-zendesk-url.com
 mdm:
-  apple_business_manager:
-    - ios_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      ipados_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      macos_team: "\U0001F4BB Workstations"
+  apple_business:
+    - byod_fleet: "📱🔐 Personal mobile devices"
+      default: true
+      ios_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+      ipados_fleet: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+      macos_fleet: "\U0001F4BB Workstations"
       organization_name: Fleet Device Management Inc.
+    - byod_fleet: ""
+      ios_fleet: ""
+      ipados_fleet: ""
+      macos_fleet: "\U0001F4BB Workstations"
+      organization_name: Second Org LLC
   apple_server_url: http://some-apple-server-url.com
   end_user_authentication:
     entity_id: some-mdm-entity-id.com
@@ -84,15 +127,18 @@ mdm:
   end_user_license_agreement: ./lib/eula/test.pdf
   volume_purchasing_program:
     - location: Fleet Device Management Inc.
-      teams:
+      fleets:
         - "\U0001F4BB Workstations"
         - "\U0001F4BB\U0001F423 Workstations (canary)"
         - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
         - "\U0001F4F1\U0001F510 Personal mobile devices"
+  windows_automatic_enrollment:
+    default_fleet: "\U0001F4BB Workstations"
+  windows_eula: ./lib/eula/terms.md
 org_info:
   contact_url: https://fleetdm.com/company/contact
-  org_logo_url: http://some-org-logo-url.com
-  org_logo_url_light_background: http://some-org-logo-url-light-background.com
+  org_logo_url_dark_mode: http://some-org-logo-url.com
+  org_logo_url_light_mode: http://some-org-logo-url-light-background.com
   org_name: Fleet
 secrets:
   - secret: some-secret-number-one
@@ -104,10 +150,10 @@ server_settings:
     - 3
   deferred_save_host: false
   enable_analytics: true
-  live_query_disabled: false
-  query_report_cap: 1
-  query_reports_disabled: false
-  scripts_disabled: false
+  live_reporting_disabled: false
+  mcp_disabled: false
+  report_cap: 1
+  discard_reports_data: false
   server_url: https://dogfood.fleetdm.com
 sso_settings:
   enable_jit_provisioning: true
@@ -127,7 +173,6 @@ webhook_settings:
     destination_url: https://some-failing-policies-webhook-url.com
     enable_failing_policies_webhook: true
     host_batch_size: 2
-    policy_ids: []
   host_status_webhook:
     days_count: 5
     destination_url: https://some-host-status-webhook-url.com

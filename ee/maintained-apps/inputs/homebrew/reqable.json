@@ -1,0 +1,10 @@
+{
+  "name": "Reqable",
+  "unique_identifier": "com.reqable.macosx",
+  "token": "reqable",
+  "installer_format": "dmg",
+  "slug": "reqable/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

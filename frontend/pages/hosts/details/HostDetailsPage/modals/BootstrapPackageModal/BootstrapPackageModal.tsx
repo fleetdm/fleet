@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 
 const baseClass = "bootstrap-package-modal";
 
@@ -23,18 +23,16 @@ const BootstrapPackageModal = ({
       onEnter={onClose}
       className={baseClass}
     >
-      <>
-        <p className={`${baseClass}__package-name`}>
-          <b>{packageName}</b> failed to install with the following error:
-        </p>
-        <p className={`${baseClass}__details`}>{details}</p>
+      <p className={`${baseClass}__package-name`}>
+        <b>{packageName}</b> failed to install with the following error:
+      </p>
+      <p className={`${baseClass}__details`}>{details}</p>
 
-        <div className="modal-cta-wrap">
-          <Button type="button" onClick={onClose} className="delete-loading">
-            Done
-          </Button>
-        </div>
-      </>
+      <div className="modal-cta-wrap">
+        <Button type="button" onClick={onClose} className="delete-loading">
+          Close
+        </Button>
+      </div>
     </Modal>
   );
 };

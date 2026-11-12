@@ -1,0 +1,10 @@
+{
+  "name": "Mist",
+  "unique_identifier": "com.ninxsoft.mist",
+  "token": "mist",
+  "installer_format": "pkg",
+  "slug": "mist/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

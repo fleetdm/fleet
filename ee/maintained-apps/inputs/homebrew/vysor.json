@@ -1,0 +1,10 @@
+{
+  "name": "Vysor",
+  "unique_identifier": "com.electron.vysor",
+  "token": "vysor",
+  "installer_format": "zip",
+  "slug": "vysor/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

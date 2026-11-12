@@ -1,5 +1,5 @@
-import { Meta, StoryObj } from "@storybook/react";
 import { action } from "@storybook/addon-actions";
+import { Meta, StoryObj } from "@storybook/react";
 
 import Editor from ".";
 
@@ -9,7 +9,7 @@ const meta: Meta<typeof Editor> = {
   argTypes: {
     mode: {
       control: "select",
-      options: ["sh", "powershell"],
+      options: ["sh", "python", "powershell"],
       description: "Syntax highlighting mode",
     },
     readOnly: { control: "boolean" },

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 2.6.3.1</string>
+      <key>PayloadType</key>
+      <string>com.apple.SubmitDiagInfo</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-2.6.3.1.check</string>
+      <key>PayloadUUID</key>
+      <string>E8744BA4-AF83-4752-8C48-BC60B79857FC</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>AutoSubmit</key>
+      <false/>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 2.6.3.1 - Ensure Share Mac Analytics Is Disabled</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure Share Mac Analytics Is Disabled</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-2.6.3.1</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>EE14214D-22E9-429B-BEAC-A9927B5ED310</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

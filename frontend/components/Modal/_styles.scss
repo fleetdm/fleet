@@ -1,7 +1,7 @@
 .modal {
   &__background {
     @include position(fixed, 0 0 0 0);
-    background-color: rgba($core-fleet-black, 0.4);
+    background-color: $core-fleet-black-overlay-40;
     z-index: 101;
     overflow: auto;
     display: flex;
@@ -10,6 +10,10 @@
     visibility: visible;
     opacity: 1; // Used for transitions between modals
     transition: opacity 150ms ease-out, visibility 0s; // Used for transitions between modals
+
+    &.modal__closing {
+      animation: fade-out var(--modal-close-duration) ease-in forwards;
+    }
   }
 
   &__hidden {
@@ -22,10 +26,33 @@
     }
   }
 
+  // Tab rows are sized for full-width pages; inside a capped modal they'd shrink
+  // tabs below their text width and wrap labels like "iOS & iPadOS" mid-phrase.
+  // Extra class needed to outrank `.tab-nav .react-tabs__*`, which loads later.
+  &__background &__modal_container .react-tabs {
+    &__tab-list {
+      flex-wrap: wrap;
+      height: auto;
+      min-height: 33px;
+    }
+
+    &__tab {
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+  }
+
+  // Secondary tabs' 10px bottom padding assumes the fixed 33px row height. With
+  // `height: auto` the row already fits the tabs, so that padding would float the
+  // selected underline above the border.
+  &__background &__modal_container .tab-nav--secondary .react-tabs__tab-list {
+    padding-bottom: 1px;
+  }
+
   &__content-wrapper {
     margin-top: $pad-large;
     font-size: $x-small;
-    line-height: 1.5;
+    line-height: $line-height;
 
     .input-field {
       width: 100%;
@@ -62,20 +89,30 @@
   &__modal_container {
     @include position(absolute, 22px null null null);
     box-sizing: border-box;
+    // Fixed widths below exceed the narrowest supported viewport (768px), so
+    // cap every modal to the window minus a gutter on each side.
+    max-width: calc(100vw - #{$pad-large} * 2);
     background-color: $core-fleet-white;
     padding: $pad-xxlarge;
     border-radius: 8px;
     animation: scale-up 150ms ease-out;
 
+    &.modal__closing {
+      animation: scale-down var(--modal-close-duration) ease-in forwards;
+    }
+
     &__medium {
       width: 650px;
     }
+
     &__large {
       width: 800px;
     }
+
     &__xlarge {
       width: 850px;
     }
+
     &__auto {
       width: auto;
     }
@@ -104,10 +141,10 @@
     padding-top: $pad-medium;
 
     // Styles both primary-actions and secondary-actions
-    > * {
+    >* {
       display: flex;
       justify-content: space-between;
-      gap: $pad-medium;
+      gap: $gap-action-elements;
       align-items: center;
     }
 
@@ -132,5 +169,5 @@
   display: flex;
   flex-direction: row-reverse;
   margin-top: $pad-xlarge;
-  gap: $pad-medium;
+  gap: $gap-action-elements;
 }

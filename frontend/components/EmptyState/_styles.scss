@@ -1,0 +1,236 @@
+// EmptyState — decorative ghost-table empty state component.
+// Layout:
+//   .empty-state                    → positioned container (draws nothing itself)
+//     .empty-state__ghost-table     → bordered flex row of ghost columns, masked to fade out
+//       .empty-state__ghost-col     → individual column with header + skeleton rows
+//     .empty-state__content-wrapper → centers the content over the ghost table
+//       .empty-state__content       → content surface (header, info, buttons)
+
+$ghost-row-height: 40px;
+$ghost-skeleton-height: 12px;
+$ghost-skeleton-radius: 4px;
+// The mask fades the ghost table across its full height, so these heights are
+// the element's *visible* height — no transparent tail padding the layout out.
+$ghost-table-height: 270px;
+// The form ghost needs more room: 3 label+input pairs and a button.
+$ghost-form-height: 360px;
+$ghost-cell-padding-x: $pad-large; // 24px, matches Figma
+
+.empty-state {
+  position: relative;
+  // Span the full width of the parent regardless of its align-items setting.
+  // Without this, parents using `align-items: flex-start` (or any non-stretch
+  // value) collapse the empty state to its intrinsic content width — see #46370.
+  width: 100%;
+  height: $ghost-table-height;
+
+  // ----------------------------------------------------------
+  // Ghost table — decorative fake-column backdrop
+  // ----------------------------------------------------------
+  &__ghost-table {
+    display: flex;
+    // border-box so the 1px border doesn't push the layer 2px past the
+    // container in content-box mode (Fleet has no global box-sizing reset).
+    box-sizing: border-box;
+    // Fill the parent even when it turns `.empty-state` into a flex container;
+    // without this, ghost-table becomes a flex item and shrinks to content.
+    width: 100%;
+    height: 100%;
+    // Opaque so non-white parents (mobile self-service) don't show through.
+    background-color: $core-fleet-white;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 8px;
+    overflow: hidden;
+
+    // Fade the entire decorative layer — border, dividers and skeletons — down
+    // to nothing. A mask rather than an opaque overlay so the fade is to
+    // whatever is behind the component, which keeps it correct in dark mode.
+    mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0%, transparent);
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.5) 0%,
+      transparent
+    );
+  }
+
+  &__ghost-col {
+    flex: 1 1 0;
+    min-width: 0;
+    border-right: 1px solid $ui-fleet-black-10;
+
+    &:last-child {
+      border-right: none;
+    }
+
+    // First column is wider, matching Figma's ~66% proportion
+    &--first {
+      flex: 0 0 66%;
+    }
+  }
+
+  &__ghost-header {
+    display: flex;
+    align-items: center;
+    height: $ghost-row-height;
+    padding: 0 $ghost-cell-padding-x;
+    background-color: $ui-off-white;
+    border-bottom: 1px solid $ui-fleet-black-10;
+  }
+
+  &__ghost-cell {
+    display: flex;
+    align-items: center;
+    height: $ghost-row-height;
+    padding: 0 $ghost-cell-padding-x;
+    border-bottom: 1px solid $ui-fleet-black-10;
+    gap: 0; // default single-line layout
+  }
+
+  &__ghost-skeleton {
+    height: $ghost-skeleton-height;
+    border-radius: $ghost-skeleton-radius;
+    background-color: $ui-fleet-black-10;
+
+    &--secondary {
+      height: 8px;
+      opacity: 0.6;
+    }
+  }
+
+  &__content-wrapper {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  // ----------------------------------------------------------
+  // Inner — content surface
+  // ----------------------------------------------------------
+  &__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-medium; // 16px between content groups and buttons
+    max-width: 480px;
+    text-align: center;
+
+    // Subtle radial glow behind content for legibility over ghost table
+    background: radial-gradient(
+      ellipse at center,
+      var(--core-fleet-white) 0%,
+      color-mix(in srgb, var(--core-fleet-white) 0%, transparent) 70%
+    );
+    padding: $pad-xlarge;
+
+    h3 {
+      font-size: $small; // 16px per Figma
+      font-weight: $bold;
+      line-height: $line-height;
+      color: $core-fleet-black;
+      margin: 0;
+    }
+  }
+
+  &__content-text {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall; // 4px between text elements
+  }
+
+  &__info,
+  &__additional-info {
+    @include help-text;
+
+    line-height: $line-height;
+    text-align: center;
+    margin: 0;
+  }
+
+  &__cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: $pad-large;
+  }
+
+  // ----------------------------------------------------------
+  // List variants — single ghost column (non-table contexts)
+  // ----------------------------------------------------------
+  &--list {
+    .empty-state__ghost-col {
+      flex: 1 1 100%;
+      border-right: none;
+
+      &--first {
+        flex: 1 1 100%;
+      }
+    }
+
+    .empty-state__ghost-cell {
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      height: 56px;
+      gap: 6px;
+    }
+  }
+
+  // ----------------------------------------------------------
+  // Form variant — ghost form fields with a save button
+  // ----------------------------------------------------------
+  &--form {
+    height: $ghost-form-height;
+
+    .empty-state__ghost-table {
+      display: block;
+      padding: $pad-xlarge;
+    }
+  }
+
+  &__ghost-form {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__ghost-field {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__ghost-label {
+    height: $ghost-skeleton-height;
+    border-radius: $ghost-skeleton-radius;
+  }
+
+  &__ghost-input {
+    height: 40px;
+    width: 100%;
+    border-radius: 4px;
+    background-color: $ui-fleet-black-10 !important;
+  }
+
+  &__ghost-button {
+    width: 80px;
+    height: 36px;
+    border-radius: 6px;
+    margin-top: $pad-small;
+  }
+
+  // ----------------------------------------------------------
+  // Small variant — 2 ghost columns instead of 3 (modal use)
+  // ----------------------------------------------------------
+  &--small {
+    height: 210px;
+
+    .empty-state__ghost-col {
+      flex: 0 0 40%;
+    }
+
+    .empty-state__ghost-col--first {
+      flex: 1 1 auto;
+    }
+  }
+}

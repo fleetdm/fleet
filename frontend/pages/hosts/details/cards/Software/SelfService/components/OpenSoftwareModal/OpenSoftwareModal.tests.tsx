@@ -1,7 +1,9 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
 import { noop } from "lodash";
+import React from "react";
+
+import { renderWithSetup } from "test/test-utils";
+
 import OpenSoftwareModal from "./OpenSoftwareModal";
 
 describe("OpenSoftwareModal", () => {
@@ -18,7 +20,7 @@ describe("OpenSoftwareModal", () => {
     expect(screen.getByText(/Finder > Applications/i)).toBeVisible();
     expect(screen.getByText(/and double-click it/i)).toBeVisible();
 
-    expect(screen.getByRole("button", { name: /Done/i })).toBeVisible();
+    expect(screen.getByRole("button", { name: /Close/i })).toBeVisible();
   });
 
   it("renders Windows instructions when softwareSource is 'programs'", () => {
@@ -35,7 +37,7 @@ describe("OpenSoftwareModal", () => {
     expect(screen.getByText(/Start Menu/i)).toBeVisible();
     expect(screen.getByText(/and click it/i)).toBeVisible();
 
-    expect(screen.getByRole("button", { name: /Done/i })).toBeVisible();
+    expect(screen.getByRole("button", { name: /Close/i })).toBeVisible();
   });
 
   it("renders nothing when softwareSource is unknown", () => {
@@ -53,7 +55,7 @@ describe("OpenSoftwareModal", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("calls onExit when Done button is clicked", async () => {
+  it("calls onExit when Close button is clicked", async () => {
     const onExitMock = jest.fn();
     const { user } = renderWithSetup(
       <OpenSoftwareModal
@@ -63,7 +65,7 @@ describe("OpenSoftwareModal", () => {
       />
     );
 
-    await user.click(screen.getByRole("button", { name: /Done/i }));
+    await user.click(screen.getByRole("button", { name: /Close/i }));
     expect(onExitMock).toHaveBeenCalled();
   });
 });

@@ -38,7 +38,8 @@ module.exports = {
     invalidEnterpriseToken: {
       description: 'The provided enterprise token is invalid or expired.',
       responseType: 'badRequest'
-    }
+    },
+    tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
   },
 
 
@@ -62,24 +63,17 @@ module.exports = {
     enterprise.pubsubTopic = fullPubSubTopicName;
     let newSubscriptionName = `projects/${sails.config.custom.androidEnterpriseProjectId}/subscriptions/${newPubSubTopicName}`;
 
+
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+
     // Complete the setup of the new Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     let newEnterprise = await sails.helpers.flow.build(async ()=>{
       let { google } = require('googleapis');
-      let androidmanagement = google.androidmanagement('v1');
-      let googleAuth = new google.auth.GoogleAuth({
-        scopes: [
-          'https://www.googleapis.com/auth/androidmanagement',
-          'https://www.googleapis.com/auth/pubsub'
-        ],
-        credentials: {
-          client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-          private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-        },
-      });
-      // Acquire the google auth client, and bind it to all future calls
-      let authClient = await googleAuth.getClient();
-      let pubsub = google.pubsub({version: 'v1', auth: authClient});
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
+      let pubsub = google.pubsub({version: 'v1', auth: androidManagementAuthClient});
 
       // Create a new pubsub topic for this enterprise.
       // [?]: https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/create
@@ -88,7 +82,6 @@ module.exports = {
         requestBody: {
           messageRetentionDuration: '86400s'// 24 hours
         },
-        auth: authClient,
       });
 
       // Debugging attempt - Give it a second before calling the getIamPolicy (plus excessive back-off retry delays.)
@@ -100,7 +93,6 @@ module.exports = {
       const newPubSubTopicIamPolicy = await sails.helpers.flow.build(async () => {
         const policy =  await pubsub.projects.topics.getIamPolicy({
           resource: fullPubSubTopicName,
-          auth: authClient,
         });
 
         return policy.data;
@@ -124,7 +116,6 @@ module.exports = {
           requestBody: {
             policy: newPubSubTopicIamPolicy
           },
-          auth: authClient,
         });
       }).retry(undefined, [1000, 1500, 2000]);
 
@@ -141,18 +132,23 @@ module.exports = {
             pushEndpoint: pubsubPushUrl// Use the pubsubPushUrl provided by the Fleet server.
           }
         },
-        auth: authClient,
       });
 
       // Now create the new enterprise for this Fleet server.
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises.html#create
-      let createEnterpriseResponse = await androidmanagement.enterprises.create({
+      sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+      let _enterpriseIdPending = 'pending:' + fleetServerUrl;
+      if (!sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending]) { sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending] = {count: 0, fleetServerUrl: fleetServerUrl}; }
+      sails.androidProxyApiRequestCountByEnterpriseId[_enterpriseIdPending].count++;
+      let _rtKey = _enterpriseIdPending + ':create_enterprise';
+      if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: _enterpriseIdPending, fleetServerUrl: fleetServerUrl, requestType: 'create_enterprise'}; }
+      sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
+      let createEnterpriseResponse = await androidManagementConnection.enterprises.create({
         agreementAccepted: true,
         enterpriseToken: enterpriseToken,
         projectId: sails.config.custom.androidEnterpriseProjectId,
         signupUrlName: signupUrlName,
         requestBody: enterprise,
-        auth: authClient,
       });
       return createEnterpriseResponse.data;
     }).intercept({status: 400}, (err)=>{
@@ -173,10 +169,11 @@ module.exports = {
     }).intercept({status: 403}, (err)=>{
       sails.log.warn('Error details when creating Android enterprise with Android Management API (from 403):', require('util').inspect(err));
       return {'invalidEnterpriseToken': 'Access forbidden to Android Management API.'};
-    }).intercept({status: 429}, (err)=>{
+    }).intercept({status: 429}, ()=>{
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
-      return new Error(`When attempting to create a new Android enterprise, an error occurred. Error: ${require('util').inspect(err)}`);
+      // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
+      return 'tooManyRequests';
     }).intercept((err)=>{
       // For all other errors (5XX, network errors, etc.), maintain existing behavior
       return new Error(`When attempting to create a new Android enterprise, an error occurred. Error: ${require('util').inspect(err)}`);

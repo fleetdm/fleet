@@ -1,0 +1,8 @@
+{
+  "name": "GoToMeeting",
+  "slug": "gotomeeting/darwin",
+  "unique_identifier": "com.logmein.GoToMeeting",
+  "token": "gotomeeting",
+  "installer_format": "dmg",
+  "default_categories": ["Communication"]
+}

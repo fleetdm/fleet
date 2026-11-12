@@ -3,11 +3,12 @@ package service
 import (
 	"context"
 	"errors"
+	"uuid"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log/level"
 )
 
 type conditionalAccessMicrosoftCreateRequest struct {
@@ -41,8 +42,13 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 		return "", ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
-	if !svc.config.MicrosoftCompliancePartner.IsSet() {
-		return "", &fleet.BadRequestError{Message: "microsoft conditional access configuration not set"}
+	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
+		return "", fleet.ErrMissingLicense
+	}
+
+	// The tenant ID is later sent to the proxy in query strings, so only accept the canonical GUID format Entra uses.
+	if _, err := uuid.Parse(tenantID); len(tenantID) != 36 || err != nil {
+		return "", fleet.NewInvalidArgumentError("microsoft_tenant_id", "must be a valid Microsoft Entra tenant ID (GUID)")
 	}
 
 	// Load current integration, if any.
@@ -82,6 +88,7 @@ func (svc *Service) ConditionalAccessMicrosoftCreateIntegration(ctx context.Cont
 
 	// Retrieve settings of the integration to get the admin consent URL.
 	getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, proxyCreateResponse.TenantID, proxyCreateResponse.Secret)
+
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "failed to get the integration settings")
 	}
@@ -116,8 +123,8 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 		return false, "", ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
-	if !svc.config.MicrosoftCompliancePartner.IsSet() {
-		return false, "", &fleet.BadRequestError{Message: "microsoft conditional access configuration not set"}
+	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
+		return false, "", fleet.ErrMissingLicense
 	}
 
 	// Load current integration.
@@ -132,14 +139,14 @@ func (svc *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (conf
 
 	getResponse, err := svc.conditionalAccessMicrosoftProxy.Get(ctx, integration.TenantID, integration.ProxyServerSecret)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "failed to get integration settings from proxy", "err", err)
+		svc.logger.ErrorContext(ctx, "failed to get integration settings from proxy", "err", err)
 		return false, "", nil
 	}
 
 	if !getResponse.SetupDone {
 		var setupError string
 		if getResponse.SetupError != nil {
-			level.Error(svc.logger).Log("msg", "setup is not done", "setup_error", getResponse.SetupError)
+			svc.logger.ErrorContext(ctx, "setup is not done", "setup_error", getResponse.SetupError)
 			setupError = *getResponse.SetupError
 		}
 		return false, setupError, nil
@@ -182,8 +189,8 @@ func (svc *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 		return ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
-	if !svc.config.MicrosoftCompliancePartner.IsSet() {
-		return &fleet.BadRequestError{Message: "microsoft conditional access configuration not set"}
+	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
+		return fleet.ErrMissingLicense
 	}
 
 	// Load current integration.
@@ -201,7 +208,7 @@ func (svc *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error 
 		if fleet.IsNotFound(err) {
 			// In case there's an issue on the Proxy database we want to make sure to
 			// allow deleting the integration in Fleet, so we continue.
-			svc.logger.Log("msg", "delete returned not found, continuing...")
+			svc.logger.WarnContext(ctx, "delete returned not found, continuing...")
 		} else {
 			return ctxerr.Wrap(ctx, err, "failed to delete the integration on the proxy")
 		}
@@ -231,7 +238,7 @@ func (svc *Service) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.C
 		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
 	}
 
-	if !svc.config.MicrosoftCompliancePartner.IsSet() {
+	if lic, _ := license.FromContext(ctx); lic == nil || !lic.IsPremium() {
 		return nil, nil
 	}
 

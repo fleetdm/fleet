@@ -9,8 +9,8 @@ To use:
 3. Ensure no bootstrap package is uploaded.
 4. Ensure no custom setup profile is uploaded.
 5. Add some software and/or scripts to the setup experience config.
-6. Enroll your macOS VM into a team. 
-7. Get the UUID of the VM, either via a live query on Fleet (`SELECT uuid FROM osquery_info`), by inspecting the API response from the `/fleet/device/:token` endpoint on the My Device page, or querying the `hosts` table of the MySQL database directly.
+6. Enroll your macOS VM into a fleet. 
+7. Get the UUID of the VM, either via a live report on Fleet (`SELECT uuid FROM osquery_info`), by inspecting the API response from the `/fleet/device/:token` endpoint on the My Device page, or querying the `hosts` table of the MySQL database directly.
 7. Run this tool with the appropriate flags to set up the necessary database records, e.g.:
 
 ```bash

@@ -1,0 +1,10 @@
+{
+  "name": "Dropzone",
+  "unique_identifier": "com.aptonic.Dropzone4",
+  "token": "dropzone",
+  "installer_format": "zip",
+  "slug": "dropzone/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

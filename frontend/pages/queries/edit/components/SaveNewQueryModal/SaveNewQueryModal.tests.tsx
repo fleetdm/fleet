@@ -1,13 +1,15 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import createMockQuery from "__mocks__/queryMock";
-import createMockUser from "__mocks__/userMock";
-import createMockConfig from "__mocks__/configMock";
 import userEvent from "@testing-library/user-event";
-import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
+import { delay, http, HttpResponse } from "msw";
+import React from "react";
+
+import createMockConfig from "__mocks__/configMock";
+import createMockQuery from "__mocks__/queryMock";
+import createMockTeam from "__mocks__/teamMock";
+import createMockUser from "__mocks__/userMock";
 import { QueryablePlatform } from "interfaces/platform";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import SaveNewQueryModal from "./SaveNewQueryModal";
 
@@ -75,7 +77,7 @@ describe("SaveNewQueryModal", () => {
     expect(screen.getByText("Interval")).toBeInTheDocument();
     expect(screen.getByText("Observers can run")).toBeInTheDocument();
     expect(screen.getByText("Automations off")).toBeInTheDocument();
-    expect(screen.getByText("Show advanced options")).toBeInTheDocument();
+    expect(screen.getByText("Advanced options")).toBeInTheDocument();
 
     const nameInput = screen.getByLabelText("Name");
     await user.type(nameInput, "Test Query");
@@ -96,13 +98,30 @@ describe("SaveNewQueryModal", () => {
 
     const { user } = render(<SaveNewQueryModal {...defaultProps} />);
 
-    const advancedOptionsButton = screen.getByText("Show advanced options");
+    const advancedOptionsButton = screen.getByText("Advanced options");
     await user.click(advancedOptionsButton);
 
     expect(screen.getByText("Minimum osquery version")).toBeInTheDocument();
     expect(screen.getByText("Logging")).toBeInTheDocument();
 
     await user.click(advancedOptionsButton);
+  });
+
+  it("caps the report name input at 255 characters", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    render(<SaveNewQueryModal {...defaultProps} />);
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("maxlength", "255");
   });
 
   it("displays error when query name is empty", async () => {
@@ -121,7 +140,27 @@ describe("SaveNewQueryModal", () => {
 
     await user.click(screen.getByText("Save"));
 
-    expect(screen.getByText("Query name must be present")).toBeInTheDocument();
+    expect(screen.getByText("Enter a report name")).toBeInTheDocument();
+  });
+
+  it("neither saves nor toggles automations when Enter is pressed in the name field", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          currentUser: createMockUser(),
+          config: createMockConfig(),
+          isPremiumTier: false,
+        },
+      },
+    });
+
+    const { user } = render(<SaveNewQueryModal {...defaultProps} />);
+
+    await user.type(screen.getByLabelText("Name"), "Report{Enter}");
+
+    expect(defaultProps.saveQuery).not.toHaveBeenCalled();
+    expect(screen.getByRole("switch")).not.toBeChecked();
   });
 
   it("should not show the target selector in the free tier", async () => {
@@ -145,7 +184,7 @@ describe("SaveNewQueryModal", () => {
     expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
   });
 
-  it("should disable the save button in when no platforms are selected", async () => {
+  it("surfaces an inline platforms error on Save click when none are selected", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
@@ -162,19 +201,28 @@ describe("SaveNewQueryModal", () => {
       },
     });
 
+    const saveQuery = jest.fn();
     const props = {
       ...defaultProps,
+      saveQuery,
       platformSelector: {
         getSelectedPlatforms: () => [] as QueryablePlatform[],
         setSelectedPlatforms: jest.fn(),
         isAnyPlatformSelected: false,
-        render: () => <></>,
+        render: (error?: string | null) => <>{error}</>,
       },
     };
 
-    render(<SaveNewQueryModal {...props} />);
+    const { user } = render(<SaveNewQueryModal {...props} />);
     const saveButton = screen.getByRole("button", { name: "Save" });
-    expect(saveButton).toBeDisabled();
+    expect(saveButton).toBeEnabled();
+    const nameInput = screen.getByLabelText("Name");
+    await user.type(nameInput, "name");
+    await user.click(saveButton);
+    expect(saveQuery).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Select at least one platform")
+    ).toBeInTheDocument();
   });
 
   it("should send platforms when saving a new query", async () => {
@@ -221,6 +269,7 @@ describe("SaveNewQueryModal", () => {
       context: {
         app: {
           currentUser: createMockUser(),
+          currentTeam: createMockTeam(),
           isGlobalObserver: false,
           isGlobalAdmin: true,
           isGlobalMaintainer: false,
@@ -236,6 +285,19 @@ describe("SaveNewQueryModal", () => {
       mockServer.use(labelSummariesHandler);
     });
 
+    it("keeps Save enabled while labels are being fetched", async () => {
+      mockServer.use(
+        http.get(baseUrl("/labels/summary"), async () => {
+          await delay(500);
+          return HttpResponse.json({ labels: mockLabels });
+        })
+      );
+      render(<SaveNewQueryModal {...defaultProps} />);
+      // Before the labels request resolves, Save must stay enabled so name
+      // and platform errors can surface on click.
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    });
+
     it("should show the target selector in All hosts target mode when the query has no labels", async () => {
       render(<SaveNewQueryModal {...defaultProps} />);
       await waitFor(() => {
@@ -245,8 +307,11 @@ describe("SaveNewQueryModal", () => {
       });
     });
 
-    it("should disable the save button in Custom target mode when no labels are selected, and enable it once labels are selected", async () => {
-      render(<SaveNewQueryModal {...defaultProps} />);
+    it("surfaces an inline labels error on Save click in Custom target mode when no labels are selected", async () => {
+      const saveQuery = jest.fn();
+      const { user } = render(
+        <SaveNewQueryModal {...defaultProps} saveQuery={saveQuery} />
+      );
       let allHosts;
       let custom;
       await waitFor(() => {
@@ -255,14 +320,21 @@ describe("SaveNewQueryModal", () => {
         expect(allHosts).toBeInTheDocument();
         expect(custom).toBeInTheDocument();
       });
-      custom && (await userEvent.click(custom));
-      const saveButton = screen.getByRole("button", { name: "Save" });
-      expect(saveButton).toBeDisabled();
+      custom && (await user.click(custom));
 
-      const funButton = screen.getByLabelText("Fun");
-      expect(funButton).not.toBeChecked();
-      await userEvent.click(funButton);
+      await user.type(screen.getByLabelText("Name"), "name");
+      const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeEnabled();
+      await user.click(saveButton);
+
+      expect(saveQuery).not.toHaveBeenCalled();
+      expect(screen.getByText(/Select at least one label/)).toBeInTheDocument();
+
+      const funButton = await screen.findByRole("checkbox", { name: "Fun" });
+      await user.click(funButton);
+      expect(
+        screen.queryByText(/Select at least one label/)
+      ).not.toBeInTheDocument();
     });
 
     it("should send labels when saving a new query in Custom target mode", async () => {
@@ -278,7 +350,9 @@ describe("SaveNewQueryModal", () => {
 
       // Set a label.
       await userEvent.click(screen.getByLabelText("Custom"));
-      await userEvent.click(screen.getByLabelText("Fun"));
+      await userEvent.click(
+        await screen.findByRole("checkbox", { name: "Fun" })
+      );
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
       expect(saveQuery.mock.calls[0][0].labels_include_any).toEqual(["Fun"]);

@@ -1,5 +1,12 @@
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import React from "react";
-import { screen, fireEvent } from "@testing-library/react";
+
+import {
+  emptySelfServiceCategoriesHandler,
+  listSelfServiceCategoriesErrorHandler,
+  listSelfServiceCategoriesHandler,
+} from "test/handlers/self-service-categories-handlers";
+import mockServer from "test/mock-server";
 import { createCustomRenderer } from "test/test-utils";
 
 import SoftwareOptionsSelector from "./SoftwareOptionsSelector";
@@ -20,155 +27,238 @@ const defaultProps = {
   onClickPreviewEndUserExperience: jest.fn(),
 };
 
+const getSwitchByLabelText = (text: string) => {
+  const label = screen.getByText(text);
+  const wrapper = label.closest(".fleet-slider__wrapper");
+  if (!wrapper) throw new Error(`Wrapper not found for "${text}"`);
+  const btn = wrapper.querySelector('button[role="switch"]');
+  if (!btn) throw new Error(`Switch button not found for "${text}"`);
+  return btn as HTMLButtonElement;
+};
+
 describe("SoftwareOptionsSelector", () => {
   const renderComponent = (props = {}) => {
-    return createCustomRenderer({ context: {} })(
+    return createCustomRenderer({ context: {}, withBackendMock: true })(
       <SoftwareOptionsSelector {...defaultProps} {...props} />
     );
   };
 
-  it("calls onToggleSelfService when the self-service checkbox is toggled", () => {
+  it("calls onToggleSelfService when the self-service slider is toggled", () => {
     const onToggleSelfService = jest.fn();
     renderComponent({ onToggleSelfService });
 
-    const selfServiceCheckbox = screen
-      .getByText("Self-service")
-      .closest('div[role="checkbox"]');
-    if (selfServiceCheckbox) {
-      fireEvent.click(selfServiceCheckbox);
-    } else {
-      throw new Error("Self-service checkbox not found");
-    }
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
+    fireEvent.click(selfServiceSwitch);
 
     expect(onToggleSelfService).toHaveBeenCalledTimes(1);
-    expect(onToggleSelfService).toHaveBeenCalledWith(true);
+    // Slider calls onChange with no args
+    expect(onToggleSelfService).toHaveBeenCalledWith();
   });
 
-  it("calls onToggleAutomaticInstall when the automatic install checkbox is toggled", () => {
-    const onToggleAutomaticInstall = jest.fn();
-    renderComponent({ onToggleAutomaticInstall });
-
-    const automaticInstallCheckbox = screen
-      .getByText("Automatic install")
-      .closest('div[role="checkbox"]');
-    if (automaticInstallCheckbox) {
-      fireEvent.click(automaticInstallCheckbox);
-    } else {
-      throw new Error("Automatic install checkbox not found");
-    }
-
-    expect(onToggleAutomaticInstall).toHaveBeenCalledTimes(1);
-    expect(onToggleAutomaticInstall).toHaveBeenCalledWith(true);
-  });
-
-  it("enables self-service and disables automatic install checkboxes for iOS", () => {
+  it("enables self-service sliders for iOS", () => {
     renderComponent({ platform: "ios" });
 
-    // Targeting the checkbox elements directly
-    const selfServiceCheckbox = screen
-      .getByText("Self-service")
-      .closest('[role="checkbox"]');
-    const automaticInstallCheckbox = screen
-      .getByText("Automatic install")
-      .closest('[role="checkbox"]');
-
-    expect(selfServiceCheckbox).toHaveAttribute("aria-disabled", "false");
-    expect(automaticInstallCheckbox).toHaveAttribute("aria-disabled", "true");
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
+    expect(selfServiceSwitch.disabled).toBe(false);
   });
 
-  it("enables self-service and disables automatic install checkboxes for iPadOS", () => {
+  it("enables self-service  for iPadOS", () => {
     renderComponent({ platform: "ipados" });
 
-    // Targeting the checkbox elements directly
-    const selfServiceCheckbox = screen
-      .getByText("Self-service")
-      .closest('[role="checkbox"]');
-    const automaticInstallCheckbox = screen
-      .getByText("Automatic install")
-      .closest('[role="checkbox"]');
-
-    expect(selfServiceCheckbox).toHaveAttribute("aria-disabled", "false");
-    expect(automaticInstallCheckbox).toHaveAttribute("aria-disabled", "true");
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
+    expect(selfServiceSwitch.disabled).toBe(false);
   });
 
-  it("disables checkboxes when disableOptions is true", () => {
+  it("disables self-service when disableOptions is true", () => {
     renderComponent({ disableOptions: true });
 
-    const selfServiceCheckbox = screen
-      .getByText("Self-service")
-      .closest('[role="checkbox"]');
-    const automaticInstallCheckbox = screen
-      .getByText("Automatic install")
-      .closest('[role="checkbox"]');
+    const selfServiceSwitch = getSwitchByLabelText("Self service");
 
-    expect(selfServiceCheckbox).toHaveAttribute("aria-disabled", "true");
-    expect(automaticInstallCheckbox).toHaveAttribute("aria-disabled", "true");
+    expect(selfServiceSwitch.disabled).toBe(true);
   });
 
-  it("renders the InfoBanner when automaticInstall is true and isCustomPackage is true", () => {
-    renderComponent({
-      formData: { ...defaultProps.formData, automaticInstall: true },
-      isCustomPackage: true,
+  describe("dynamic categories (teamId provided)", () => {
+    const selfServiceEditingProps = {
+      ...defaultProps,
+      formData: { ...defaultProps.formData, selfService: true },
+      isEditingSoftware: true,
+      teamId: 1,
+    };
+
+    it("renders categories returned by the API as checkboxes", async () => {
+      mockServer.use(
+        listSelfServiceCategoriesHandler([
+          { id: 1, name: "🌎 Browsers" },
+          { id: 2, name: "🔐 Security" },
+        ])
+      );
+
+      renderComponent(selfServiceEditingProps);
+
+      expect(await screen.findByText("🌎 Browsers")).toBeInTheDocument();
+      expect(screen.getByText("🔐 Security")).toBeInTheDocument();
     });
 
-    expect(
-      screen.getByText(
-        /Installing software over existing installations might cause issues/i
-      )
-    ).toBeInTheDocument();
-  });
+    it("treats teamId 0 (no team) as dynamic, fetching categories from the API", async () => {
+      // A name absent from the hardcoded fallback proves teamId 0 queried the API.
+      mockServer.use(
+        listSelfServiceCategoriesHandler([
+          { id: 9, name: "🛟 No-team custom category" },
+        ])
+      );
 
-  it("does not render the InfoBanner when automaticInstall is false", () => {
-    renderComponent({
-      formData: { ...defaultProps.formData, automaticInstall: false },
-      isCustomPackage: true,
+      renderComponent({ ...selfServiceEditingProps, teamId: 0 });
+
+      expect(
+        await screen.findByText("🛟 No-team custom category")
+      ).toBeInTheDocument();
     });
 
-    expect(
-      screen.queryByText(
-        /Installing software over existing installations might cause issues/i
-      )
-    ).not.toBeInTheDocument();
-  });
+    it("shows the empty state with an Add category link when no categories exist", async () => {
+      mockServer.use(emptySelfServiceCategoriesHandler);
 
-  it("does not render the InfoBanner when isCustomPackage is false", () => {
-    renderComponent({
-      formData: { ...defaultProps.formData, automaticInstall: true },
-      isCustomPackage: false,
+      renderComponent(selfServiceEditingProps);
+
+      const link = await screen.findByRole("link", { name: /add category/i });
+      expect(link).toHaveAttribute(
+        "href",
+        "/software/library/settings/categories?fleet_id=1"
+      );
+      expect(screen.getByText("to assign software to it.")).toBeInTheDocument();
     });
 
-    expect(
-      screen.queryByText(
-        /Installing software over existing installations might cause issues/i
-      )
-    ).not.toBeInTheDocument();
+    it("includes fleet_id=0 in the Add category link when on no team", async () => {
+      mockServer.use(emptySelfServiceCategoriesHandler);
+
+      renderComponent({ ...selfServiceEditingProps, teamId: 0 });
+
+      const link = await screen.findByRole("link", { name: /add category/i });
+      expect(link).toHaveAttribute(
+        "href",
+        "/software/library/settings/categories?fleet_id=0"
+      );
+    });
+
+    it("does not render the empty state while categories are loading", () => {
+      mockServer.use(emptySelfServiceCategoriesHandler);
+
+      renderComponent(selfServiceEditingProps);
+
+      expect(
+        screen.queryByText("to assign software to it.")
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders a data error and not the empty state when the API errors", async () => {
+      mockServer.use(listSelfServiceCategoriesErrorHandler);
+
+      renderComponent(selfServiceEditingProps);
+
+      expect(
+        await screen.findByText(/something's gone wrong/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText("to assign software to it.")
+      ).not.toBeInTheDocument();
+    });
+
+    it("fires onSelectCategory with the API category name when a checkbox is toggled", async () => {
+      mockServer.use(
+        listSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+      );
+      const onSelectCategory = jest.fn();
+
+      renderComponent({ ...selfServiceEditingProps, onSelectCategory });
+
+      const checkbox = await screen.findByRole("checkbox", {
+        name: "🌎 Browsers",
+      });
+      fireEvent.click(checkbox);
+
+      expect(onSelectCategory).toHaveBeenCalledTimes(1);
+      expect(onSelectCategory).toHaveBeenCalledWith({
+        name: "🌎 Browsers",
+        value: true,
+      });
+    });
+
+    it("renders pre-selected categories as checked", async () => {
+      mockServer.use(
+        listSelfServiceCategoriesHandler([
+          { id: 1, name: "🌎 Browsers" },
+          { id: 2, name: "🔐 Security" },
+        ])
+      );
+
+      renderComponent({
+        ...selfServiceEditingProps,
+        formData: {
+          ...selfServiceEditingProps.formData,
+          categories: ["🔐 Security"],
+        },
+      });
+
+      const security = await screen.findByRole("checkbox", {
+        name: "🔐 Security",
+      });
+      const browsers = await screen.findByRole("checkbox", {
+        name: "🌎 Browsers",
+      });
+
+      expect(security).toHaveAttribute("aria-checked", "true");
+      expect(browsers).toHaveAttribute("aria-checked", "false");
+    });
   });
 
-  it("does not render automatic install checkbox when isEditingSoftware is true", () => {
-    renderComponent({ isEditingSoftware: true });
+  describe("category list visibility (canSelectSoftwareCategories)", () => {
+    it("does not render the categories list when self-service is off, even with a teamId", () => {
+      mockServer.use(
+        listSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+      );
 
-    expect(screen.queryByText("Automatic install")).not.toBeInTheDocument();
+      renderComponent({
+        ...defaultProps,
+        formData: { ...defaultProps.formData, selfService: false },
+        isEditingSoftware: true,
+        teamId: 1,
+      });
+
+      expect(screen.queryByText("Categories")).not.toBeInTheDocument();
+      expect(screen.queryByText("🌎 Browsers")).not.toBeInTheDocument();
+    });
+
+    it("does not render the categories list when not in edit mode, even with self-service on and a teamId", () => {
+      mockServer.use(
+        listSelfServiceCategoriesHandler([{ id: 1, name: "🌎 Browsers" }])
+      );
+
+      renderComponent({
+        ...defaultProps,
+        formData: { ...defaultProps.formData, selfService: true },
+        isEditingSoftware: false,
+        teamId: 1,
+      });
+
+      expect(screen.queryByText("Categories")).not.toBeInTheDocument();
+      expect(screen.queryByText("🌎 Browsers")).not.toBeInTheDocument();
+    });
   });
 
-  it("displays platform-specific message for iOS", () => {
-    renderComponent({ platform: "ios" });
+  describe("static categories (no teamId)", () => {
+    it("renders the hardcoded category list when teamId is not provided", async () => {
+      const props = {
+        ...defaultProps,
+        formData: { ...defaultProps.formData, selfService: true },
+        isEditingSoftware: true,
+      };
 
-    expect(
-      screen.getByText(/Automatic install for iOS and iPadOS is coming soon./i)
-    ).toBeInTheDocument();
-  });
+      renderComponent(props);
 
-  it("displays platform-specific message for iPadOS", () => {
-    renderComponent({ platform: "ipados" });
-
-    expect(
-      screen.getByText(/Automatic install for iOS and iPadOS is coming soon./i)
-    ).toBeInTheDocument();
-  });
-
-  it("does not render automatic install checkbox in edit mode", () => {
-    renderComponent({ isEditingSoftware: true });
-
-    expect(screen.queryByText("Automatic install")).not.toBeInTheDocument();
+      // Wait a tick so any pending dynamic fetch would have surfaced
+      await waitFor(() =>
+        expect(screen.getByText("🌎 Browsers")).toBeInTheDocument()
+      );
+      expect(screen.getByText("👬 Communication")).toBeInTheDocument();
+    });
   });
 });

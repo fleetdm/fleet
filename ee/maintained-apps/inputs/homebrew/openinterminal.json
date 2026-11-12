@@ -1,0 +1,10 @@
+{
+  "name": "OpenInTerminal",
+  "unique_identifier": "wang.jianing.app.OpenInTerminal",
+  "token": "openinterminal",
+  "installer_format": "zip",
+  "slug": "openinterminal/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

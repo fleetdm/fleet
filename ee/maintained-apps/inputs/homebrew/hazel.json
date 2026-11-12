@@ -1,0 +1,10 @@
+{
+  "name": "Hazel",
+  "unique_identifier": "com.noodlesoft.Hazel",
+  "token": "hazel",
+  "installer_format": "dmg",
+  "slug": "hazel/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

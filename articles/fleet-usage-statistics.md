@@ -19,7 +19,7 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "numTeams": 999,
   "numQueries": 999,
   "numPolicies": 999,
-  "numQueries": 999,
+  "numPoliciesAutomationEnabledSoftware": 999,
   "numLabels": 999,
   "softwareInventoryEnabled": true,
   "vulnDetectionEnabled": true,
@@ -28,6 +28,14 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "mdmMacOsEnabled": true,
   "hostExpiryEnabled": true,
   "mdmWindowsEnabled": false,
+  "mdmAndroidEnabled": false,
+  "numHostsFleetMDMEnrolledMacOS": 999,
+  "numHostsFleetMDMEnrolledWindows": 999,
+  "numHostsABMPending": 999,
+  "numMDMAppleProfiles": 999,
+  "numMDMWindowsProfiles": 999,
+  "numMDMAppleDeclarations": 999,
+  "numMDMAndroidProfiles": 999,
   "liveQueryDisabled": false,
   "numWeeklyActiveUsers": 999,
   "numWeeklyPolicyViolationDaysActual": 999,
@@ -39,14 +47,86 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "numSoftwareCPEs": 999,
   "numSoftwareCVEs": 999,
   "numHostsNotResponding": 9,
+  "numHostsFleetDesktopEnabled": 999,
   "aiFeaturesDisabled": true,
   "maintenanceWindowsEnabled": true,
   "maintenanceWindowsConfigured": true,
-  "numHostsFleetDesktopEnabled": 999,
+  "resultLogDestination": "firehose",
+  "statusLogDestination": "firehose",
+  "auditLogDestination": "firehose",
+  "anyVulnerabilitiesWebhookEnabled": true, // true if configured for any Fleet
+  "anyFailingPoliciesWebhookEnabled": true, // true if configured for any Fleet
+  "anyHostActivitiesWebhookEnabled": true, // true if configured for any Fleet
+  "ticketDestinationConfigured": true,
+  "ssoConfiguredFleetUsers": true,
+  "ssoConfiguredEndUsers": true,
+  "accountProvisioningConfigured": true,
+  "idpSCIMConfigured": true,
+  "idpGoogleWorkspaceConfigured": false,
+  "certificateAuthorityConfigured": true,
+  "globalActivityWebhookEnabled": true,
+  "oktaConditionalAccessConfigured": true,
+  "entraConditionalAccessConfigured": true,
+  "conditionalAccessBypassDisabled": false,
+  "conditionalAccessEnabled": true,
+  "numFleetsManagedAdminAccountEnabled": 999,
+  "anyFleetRecoveryLockPasswordEnabled": true,
+  "fleetDesktopSSOEnabled": false,
+  "gitOpsModeEnabled": true,
+  "gitOpsModeExceptions": [
+    "labels",
+    "software",
+    "secrets"
+  ],
+  "fleetMaintainedAppsMacOS": [
+    {
+      "name": "1password/darwin",
+      "patchPolicy": true,
+      "softwareAutomation": false
+    },
+    {
+      "name": "slack/darwin",
+      "patchPolicy": true,
+      "softwareAutomation": false
+    }
+  ],
+  "fleetMaintainedAppsWindows": [
+    {
+      "name": "google-chrome/windows",
+      "patchPolicy": true,
+      "softwareAutomation": false
+    },
+    {
+      "name": "microsoft-edge/windows",
+      "patchPolicy": true,
+      "softwareAutomation": false
+    }
+  ],
   "hostsEnrolledByOperatingSystem": {
+    "android": [
+      {
+        "version": "Android 15",
+        "numEnrolled": 999
+      },
+      ...
+    ],
     "darwin": [
       {
         "version": "macOS 12.3.1",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "ios": [
+      {
+        "version": "iOS 26.0.1",
+        "numEnrolled": 999
+      },
+      ...
+    ],
+    "ipados": [
+      {
+        "version": "iPadOS 26.1",
         "numEnrolled": 999
       },
       ...
@@ -118,9 +198,7 @@ Statistics contain no personal information about any particular device or person
 
 For Fleet Free instances, usage statistics are anonymous. The "organization" property is reported as "unknown."
 
-Sending Usage statistics from your Fleet Free instance is optional and can be disabled.
-
-Note: Usage statistics are not optional for Fleet Premium instances.
+Sending Usage statistics from your Fleet Free instance is optional and can be disabled. It cannot be disabled on Premium instances.
 
 ## Why should we enable usage statistics?
 
@@ -131,6 +209,7 @@ Every time we ship a Fleet release without usage statistics, it's like launching
 Insights about Fleet version adoption helps the team be more efficient when planning upgrade guides, release notes, and future security notices for users running vulnerable software versions.
 
 ## Disable usage statistics
+> Note: Usage statistics are not optional for Fleet Premium instances.
 
 Users with the Admin role can disable usage statistics.
 

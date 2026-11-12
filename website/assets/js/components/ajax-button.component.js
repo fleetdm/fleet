@@ -15,6 +15,7 @@ parasails.registerComponent('ajaxButton', {
   //  ╩  ╩╚═╚═╝╩  ╚═╝
   props: [
     'syncing',
+    'syncingMessage'
   ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
@@ -34,7 +35,11 @@ parasails.registerComponent('ajaxButton', {
     <span class="button-text" v-if="!syncing"><slot name="default">Submit</slot></span>
     <span class="button-loader clearfix" v-if="syncing">
       <slot name="syncing-state">
-        <div class="loading-spinner"></div>
+        <div purpose="message-with-spinner" v-if="syncingMessage">
+          <span purpose="syncing-message">{{syncingMessage}}</span>
+          <div class="loading-spinner"></div>
+        </div>
+        <div class="loading-spinner" v-else></div>
       </slot>
     </span>
   </button>
@@ -44,7 +49,11 @@ parasails.registerComponent('ajaxButton', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    if(this.syncingMessage) {
+      if(typeof this.syncingMessage !== 'string') {
+        throw new Error('Invalid `syncing-message` value passed to <ajax-button>.  Expected a string, but instead got a '+typeof this.syncingMessage);
+      }
+    }
   },
   mounted: async function(){
     //…

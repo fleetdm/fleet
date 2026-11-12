@@ -1,0 +1,10 @@
+{
+  "name": "QLab",
+  "unique_identifier": "com.figure53.QLab.5",
+  "token": "qlab",
+  "installer_format": "zip",
+  "slug": "qlab/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

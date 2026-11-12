@@ -1,7 +1,9 @@
-import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+
 import TabText from "components/TabText";
+
 import TabNav from "./TabNav";
 
 describe("TabNav", () => {

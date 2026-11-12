@@ -1,0 +1,10 @@
+{
+  "name": "SpamSieve",
+  "unique_identifier": "com.c-command.SpamSieve",
+  "token": "spamsieve",
+  "installer_format": "dmg",
+  "slug": "spamsieve/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

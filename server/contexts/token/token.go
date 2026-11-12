@@ -10,7 +10,10 @@ import (
 
 type key int
 
-const tokenKey key = 0
+const (
+	tokenKey       key = 0
+	tokenDelimiter     = " "
+)
 
 // Token is the concrete type that represents Fleet session tokens
 type Token string
@@ -18,19 +21,14 @@ type Token string
 // FromHTTPRequest extracts an Authorization
 // from an HTTP request if present.
 func FromHTTPRequest(r *http.Request) Token {
-	headers := r.Header.Get("Authorization")
-	headerParts := strings.Split(headers, " ")
-	if len(headerParts) > 0 && strings.ToUpper(headerParts[0]) == "BEARER" {
-		if len(headerParts) == 2 {
-			return Token(headerParts[1])
-		}
-		// This indicates "no token". We don't want to read the request-body here.
-		return ""
+	authHeader := r.Header.Get("Authorization")
+	headerCouple, ok := parseHeaderLimited(authHeader)
+	if ok && strings.ToUpper(headerCouple[0]) == "BEARER" {
+		// If the Authorization header is present and properly formatted, return the token.
+		// Preserve case-insensitivity for "Bearer" prefix while case-sensitivity for the token value
+		return Token(headerCouple[1])
 	}
-	if err := r.ParseForm(); err != nil {
-		return ""
-	}
-	return Token(r.FormValue("token"))
+	return ""
 }
 
 // NewContext returns a new context carrying the Authorization Bearer token.
@@ -45,4 +43,25 @@ func NewContext(ctx context.Context, token Token) context.Context {
 func FromContext(ctx context.Context) (Token, bool) {
 	token, ok := ctx.Value(tokenKey).(Token)
 	return token, ok
+}
+
+// parseHeaderLimited splits an authHeader into exactly two parts or nil, and returns an ok boolean indicating whether the passed in authHeader did have exactly 2 parts. If it did not, nil and false are returned.
+func parseHeaderLimited(authHeader string) ([]string, bool) {
+	parts := make([]string, 2)
+
+	pre, remain, foundDelimiter := strings.Cut(authHeader, tokenDelimiter)
+	if !foundDelimiter {
+		return nil, false
+	}
+	parts[0] = pre
+	// Ensure the token value is the last part of the string and there are no more
+	// delimiters. This avoids an issue where malicious input could contain additional delimiters
+	// causing unnecessary overhead parsing tokens.
+	post, _, unexpectedDelimiterFound := strings.Cut(remain, tokenDelimiter)
+	if unexpectedDelimiterFound {
+		// more than 2 parts
+		return nil, false
+	}
+	parts[1] = post
+	return parts, true
 }

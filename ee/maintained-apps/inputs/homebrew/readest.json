@@ -1,0 +1,10 @@
+{
+  "name": "Readest",
+  "unique_identifier": "com.bilingify.readest",
+  "token": "readest",
+  "installer_format": "dmg",
+  "slug": "readest/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -2,13 +2,17 @@ package mdmtest
 
 import (
 	"bytes"
+	"crypto/md5" //nolint:gosec // Windows MDM Auth uses MD5
+	"crypto/rsa"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -24,6 +28,9 @@ type TestWindowsMDMClient struct {
 	DeviceID string
 	// HardwareID identifies a device.
 	HardwareID string
+	// EntraDeviceID is the Entra device ID signed into the access token of an automatic (Entra) enrollment. Empty omits the
+	// deviceid claim.
+	EntraDeviceID string
 	// NotInOOBE indicates whether the enrollment is happening outside of the OOBE(Out Of Box Experience).
 	// NotInOOBE true basically means the enrollment happened post-setup(i.e. settings->Work or School Account)
 	// False means the enrollment is happening during OOBE/autopilot.
@@ -42,10 +49,29 @@ type TestWindowsMDMClient struct {
 	// queuedCommandResponses tracks the commands that will be sent next
 	// time the device responds to the server.
 	queuedCommandResponses map[string]fleet.SyncMLCmd
+	// jwtSigningKey is the key used to sign JWTs
+	jwtSigningKey *rsa.PrivateKey
+	// jwtSigningKeyID is the ID to report in the header for the signing key
+	jwtSigningKeyID string
+	// Entra Tenant ID to include int he JWT
+	entraTenantID string
+
+	username string
+	password string
+	nonce    string
+
+	// loginStatus is the value reported in the com.microsoft/MDM/LoginStatus device alert at the start of every management session.
+	loginStatus string
+
+	// malformedCSR makes Enroll send a certificate request the server cannot parse.
+	malformedCSR bool
 }
 
 // This is a test-only enrollment type to force erroneous behavior.
 const WindowsMDMEmptyBinarySecurityTokenEnrollmentType fleet.WindowsMDMEnrollmentType = -1
+
+// windowsMDMEntraEnrollmentType is a test-only enrollment type for clients that authenticate with an Entra JWT.
+const windowsMDMEntraEnrollmentType fleet.WindowsMDMEnrollmentType = -2
 
 // TestWindowsMDMClientOption allows configuring a
 // TestWindowsMDMClient.
@@ -65,6 +91,30 @@ func TestWindowsMDMClientNotInOOBE() TestWindowsMDMClientOption {
 	}
 }
 
+// TestWindowsMDMClientWithLoginStatus configures the value the client reports in the
+// com.microsoft/MDM/LoginStatus device alert ("user", "others" or "none").
+func TestWindowsMDMClientWithLoginStatus(status string) TestWindowsMDMClientOption {
+	return func(c *TestWindowsMDMClient) {
+		c.loginStatus = status
+	}
+}
+
+// TestWindowsMDMClientWithMalformedCSR configures the client to send a certificate request the server cannot parse, so
+// its enrollment fails after authentication.
+func TestWindowsMDMClientWithMalformedCSR() TestWindowsMDMClientOption {
+	return func(c *TestWindowsMDMClient) {
+		c.malformedCSR = true
+	}
+}
+
+func TestWindowsMDMClientWithSigningKeyAndTenantID(signingKey *rsa.PrivateKey, signingKeyID, tenantID string) TestWindowsMDMClientOption {
+	return func(c *TestWindowsMDMClient) {
+		c.jwtSigningKey = signingKey
+		c.jwtSigningKeyID = signingKeyID
+		c.entraTenantID = tenantID
+	}
+}
+
 func NewTestMDMClientWindowsProgramatic(serverURL string, orbitNodeKey string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
 	return newTestMDMClient(serverURL, fleet.WindowsMDMProgrammaticEnrollmentType, orbitNodeKey, opts...)
 }
@@ -74,7 +124,7 @@ func NewTestMDMClientWindowsEmptyBinarySecurityToken(serverURL string, orbitNode
 }
 
 func NewTestMDMClientWindowsAutomatic(serverURL string, email string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
-	return newTestMDMClient(serverURL, fleet.WindowsMDMAutomaticEnrollmentType, email, opts...)
+	return newTestMDMClient(serverURL, windowsMDMEntraEnrollmentType, email, opts...)
 }
 
 func newTestMDMClient(serverURL string, enrollmentType fleet.WindowsMDMEnrollmentType, tokenIdentifier string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
@@ -84,7 +134,9 @@ func newTestMDMClient(serverURL string, enrollmentType fleet.WindowsMDMEnrollmen
 		enrollmentType:  enrollmentType,
 		TokenIdentifier: tokenIdentifier,
 		HardwareID:      uuid.NewString(),
+		EntraDeviceID:   uuid.NewString(),
 	}
+	c.loginStatus = string(fleet.WindowsMDMLoginStatusUser)
 	for _, fn := range opts {
 		fn(&c)
 	}
@@ -130,7 +182,7 @@ func (c *TestWindowsMDMClient) StartManagementSession() (map[string]fleet.ProtoC
 		<Meta>
 		<Type xmlns="syncml:metinf">com.microsoft/MDM/LoginStatus</Type>
 		</Meta>
-		<Data>user</Data>
+		<Data>` + c.loginStatus + `</Data>
 	</Item>
 	</Alert>
 	<Replace>
@@ -180,29 +232,74 @@ func (c *TestWindowsMDMClient) doManagementReq(rawXMLReq []byte) (map[string]fle
 		fmt.Println(string(rawXMLReq))
 	}
 
-	// TODO: this request works because we're allowing devices without
-	// certificates to communicate with the server. We will need to include the
-	// certificate we generated during enrollment when we fix that.
-	managementResp, err := c.request(microsoft_mdm.MDE2ManagementPath, rawXMLReq)
+	sendRequest := func(req []byte) (*fleet.SyncML, error) {
+		managementResp, err := c.request(microsoft_mdm.MDE2ManagementPath, req)
+		if err != nil {
+			return nil, err
+		}
+
+		rawXMLResp, err := io.ReadAll(managementResp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading response body: %w", err)
+		}
+
+		if c.debug {
+			fmt.Println("=============== management response ================")
+			fmt.Println(string(rawXMLResp))
+		}
+
+		var syncML fleet.SyncML
+		if err := xml.Unmarshal(rawXMLResp, &syncML); err != nil {
+			return nil, fmt.Errorf("unmarshalling response body: %w", err)
+		}
+
+		return &syncML, nil
+	}
+
+	syncML, err := sendRequest(rawXMLReq)
 	if err != nil {
 		return nil, err
 	}
 
-	rawXMLResp, err := io.ReadAll(managementResp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response body: %w", err)
+	if username, password := c.isRekeyRequest(syncML); username != "" && password != "" {
+		c.username = username
+		c.password = password
+
+		// We rekeyed, so we need to resend the original request
+		syncML, err = sendRequest(rawXMLReq)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	if c.debug {
-		fmt.Println("=============== management response ================")
-		fmt.Println(string(rawXMLResp))
+	if shouldAuth, nonce := c.shouldAuth(syncML); shouldAuth {
+		var reqSyncML fleet.SyncML
+		if err := xml.Unmarshal(rawXMLReq, &reqSyncML); err != nil {
+			return nil, fmt.Errorf("unmarshalling request body for auth: %w", err)
+		}
+
+		extractedNonce, _ := base64.StdEncoding.DecodeString(*nonce)
+		c.nonce = string(extractedNonce)
+		reqSyncML.SyncHdr.Cred = c.getCredHDR()
+
+		// resend the request but now with credentials
+		rawXMLReq, err = xml.MarshalIndent(reqSyncML, "", "\t")
+		if err != nil {
+			return nil, fmt.Errorf("serializing XML req with auth: %w", err)
+		}
+
+		if c.debug {
+			fmt.Println("=============== management request with auth ================")
+			fmt.Println(string(rawXMLReq))
+		}
+
+		syncML, err = sendRequest(rawXMLReq)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	var syncML fleet.SyncML
-	if err := xml.Unmarshal(rawXMLResp, &syncML); err != nil {
-		return nil, fmt.Errorf("unmarshalling response body: %w", err)
-	}
-	c.lastManagementResp = &syncML
+	c.lastManagementResp = syncML
 
 	cmds := make(map[string]fleet.ProtoCmdOperation)
 	for _, p := range c.lastManagementResp.GetOrderedCmds() {
@@ -214,7 +311,39 @@ func (c *TestWindowsMDMClient) doManagementReq(rawXMLReq []byte) (map[string]fle
 	return cmds, nil
 }
 
+func (c *TestWindowsMDMClient) isRekeyRequest(req *fleet.SyncML) (username string, password string) {
+	for _, cmd := range req.GetOrderedCmds() {
+		if cmd.Verb == fleet.CmdReplace && strings.Contains(cmd.Cmd.GetTargetURI(), "AAuthName") {
+			username = cmd.Cmd.GetTargetData()
+		} else if cmd.Verb == fleet.CmdReplace && strings.Contains(cmd.Cmd.GetTargetURI(), "AAuthSecret") {
+			password = cmd.Cmd.GetTargetData()
+		}
+	}
+	return
+}
+
+func (c *TestWindowsMDMClient) shouldAuth(req *fleet.SyncML) (bool, *string) {
+	for _, cmd := range req.GetOrderedCmds() {
+		if cmd.Verb == fleet.CmdStatus && cmd.Cmd.Chal != nil {
+			return true, cmd.Cmd.Chal.Meta.NextNonce.Content
+		}
+	}
+	return false, nil
+}
+
 func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperation, error) {
+	// A real Windows client does not POST a message that contains only a SyncHdr Status ack and
+	// no protocol commands. Per [MS-MDM] §2.2.7.8 (Status):
+	//   "when a client creates a message containing only a successful Status in a SyncHdr,
+	//    the entire message MUST NOT be sent."
+	// (https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/36b1a4d9-fd93-48ce-b865-6a9d396c52a4)
+	// This is the same section that limits Status-on-Status to auth-renegotiation edge cases, so
+	// when Fleet's response contained only <Status> acks, the client has nothing to send back.
+	// Fleet also rejects such a body with "invalid SyncML body: no SyncML protocol commands"
+	if len(c.queuedCommandResponses) == 0 {
+		return nil, nil
+	}
+
 	// Get SessionID
 	sessionID, err := c.lastManagementResp.GetSessionID()
 	if err != nil {
@@ -242,6 +371,7 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 		Target: &fleet.LocURI{
 			LocURI: ptr.String(c.fleetServerURL + microsoft_mdm.MDE2ManagementPath),
 		},
+		Cred: c.getCredHDR(),
 	}
 
 	// iterate over mocked responses and append them to the SyncML message
@@ -255,6 +385,36 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 	}
 
 	return c.doManagementReq(xmlReq)
+}
+
+func (c *TestWindowsMDMClient) getCredHDR() *fleet.CredHdr {
+	return &fleet.CredHdr{
+		Meta: fleet.Meta{
+			Type: &fleet.MetaAttr{
+				XMLNS:   syncml.SyncMLMetaNamespace,
+				Content: ptr.String(syncml.AuthMD5),
+			},
+			Format: &fleet.MetaAttr{
+				XMLNS:   syncml.SyncMLMetaNamespace,
+				Content: ptr.String(syncml.AuthB64Format),
+			},
+		},
+		Data: c.hashedCredentials(),
+	}
+}
+
+func (c *TestWindowsMDMClient) hashedCredentials() string {
+	credentials := fmt.Sprintf("%s:%s", c.username, c.password)
+	credentialsHash := md5.Sum([]byte(credentials)) //nolint:gosec // Windows MDM Auth uses MD5
+	credentialsWithNonce := fmt.Sprintf("%s:%s", base64.StdEncoding.EncodeToString(credentialsHash[:]), c.nonce)
+	digestHash := md5.Sum([]byte(credentialsWithNonce)) //nolint:gosec // Windows MDM Auth uses MD5
+	return base64.StdEncoding.EncodeToString(digestHash[:])
+}
+
+// SetLoginStatus changes the value reported in the com.microsoft/MDM/LoginStatus alert of subsequent sessions,
+// which is how a scenario simulates a user signing in partway through.
+func (c *TestWindowsMDMClient) SetLoginStatus(status string) {
+	c.loginStatus = status
 }
 
 // AppendResponse sets a response for a specific command UUID.
@@ -307,7 +467,7 @@ func (c *TestWindowsMDMClient) Enroll() error {
         <wst:RequestSecurityToken>
             <wst:TokenType>http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken</wst:TokenType>
             <wst:RequestType>http://docs.oasis-open.org/ws-sx/ws-trust/200512/Issue</wst:RequestType>
-            <wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">MIIC5jCCAc4CAQAwSjFIMEYGA1UEAww/MEYzQjhFNkMtQTI3MS00NTU2LTlCNzIt
+            <wsse:BinarySecurityToken ValueType="http://schemas.microsoft.com/windows/pki/2009/01/enrollment#PKCS10" EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary">` + c.enrollCSR(`MIIC5jCCAc4CAQAwSjFIMEYGA1UEAww/MEYzQjhFNkMtQTI3MS00NTU2LTlCNzIt
 QTI2Q0JEITgwOTBDOEI0ODRBMEUyNEVCNUM1NkU4MDZDQjRFRTVCMIIBIjANBgkq
 hkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAoLj7gBWVMPiVsbrB13jW86bB/Rz+bAOj
 J9MxMwuwOtbPicESpReZ7QgjNhv5tTubLCHRlIRhcawxPOhpZCZTRolT/3q2xhYT
@@ -323,7 +483,7 @@ xfIAH4rmdhJ9ccpnugSLMYr3+UKLWSOjeTB2ZKcVx7LTsHzqaDg3ghJDSNx12wSY
 LmEKCHDR1FNPcXB6hfs3CfJOnJhcOX+Gg2GrqjAEA2ty2rEJ9LVZo0Q3A7pfEezs
 YioVozr1IWYySwWVzMf/SUwKZkKJCAJmSVcixE+4kxPkyPGyauIrN3wWC0zb+mjF
 3aJBpJrK45UhKb1LOBHOtV7BsoEkOUNmCdQ=
-</wsse:BinarySecurityToken>
+`) + `</wsse:BinarySecurityToken>
             <ac:AdditionalContext
                 xmlns="http://schemas.xmlsoap.org/ws/2006/12/authorization">
                 <ac:ContextItem Name="UXInitiated">
@@ -374,11 +534,77 @@ YioVozr1IWYySwWVzMf/SUwKZkKJCAJmSVcixE+4kxPkyPGyauIrN3wWC0zb+mjF
 </s:Envelope>
 `)
 
-	if _, err := c.request(microsoft_mdm.MDE2EnrollPath, enrollReq); err != nil {
+	resp, err := c.request(microsoft_mdm.MDE2EnrollPath, enrollReq)
+	if err != nil {
 		return err
 	}
 
+	// Check for SOAP fault
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(string(body), "s:fault") {
+		return fmt.Errorf("enroll request returned SOAP fault: %s", string(body))
+	}
+
+	var soapResponse fleet.SoapResponse
+	if err := xml.Unmarshal(body, &soapResponse); err != nil {
+		return fmt.Errorf("unmarshalling enroll response body: %w", err)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(soapResponse.Body.RequestSecurityTokenResponseCollection.RequestSecurityTokenResponse.RequestedSecurityToken.BinarySecurityToken.Content)
+	if err != nil {
+		return fmt.Errorf("decoding enroll response binary security token: %w", err)
+	}
+
+	// strip xml header
+	decoded = bytes.TrimPrefix(decoded, []byte(xml.Header))
+	var provDoc fleet.WapProvisioningDoc
+	if err := xml.Unmarshal(decoded, &provDoc); err != nil {
+		return fmt.Errorf("unmarshalling enroll response provisioning doc: %w", err)
+	}
+
+Outer:
+	for _, char := range provDoc.Characteristics {
+		if char.Type != "APPLICATION" {
+			continue
+		}
+
+		for _, appChar := range char.Characteristics {
+			if appChar.Type != "APPAUTH" {
+				continue
+			}
+			username := ""
+			password := ""
+			for _, appAuthParam := range appChar.Params {
+				if appAuthParam.Name == "AAUTHNAME" {
+					username = appAuthParam.Value
+				}
+				if appAuthParam.Name == "AAUTHSECRET" {
+					password = appAuthParam.Value
+				}
+			}
+
+			// We can do this since only the client credentials characteristic has both username and password, the other one only has password.
+			if username != "" && password != "" {
+				c.username = username
+				c.password = password
+				break Outer
+			}
+		}
+	}
+
 	return nil
+}
+
+// enrollCSR returns the certificate request Enroll sends: valid, or a malformed one when configured.
+func (c *TestWindowsMDMClient) enrollCSR(valid string) string {
+	if c.malformedCSR {
+		return "bm90IGEgY3Ny"
+	}
+	return valid
 }
 
 func (c *TestWindowsMDMClient) Discovery() error {
@@ -416,8 +642,19 @@ func (c *TestWindowsMDMClient) Discovery() error {
 
 	// TODO: parse the response and store the policy and enroll endpoints instead
 	// of hardcoding them to truly test that the server is behaving as expected.
-	if _, err := c.request(microsoft_mdm.MDE2DiscoveryPath, discoveryReq); err != nil {
+	resp, err := c.request(microsoft_mdm.MDE2DiscoveryPath, discoveryReq)
+	if err != nil {
 		return err
+	}
+
+	// Check for SOAP fault
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(string(body), "s:fault") {
+		return fmt.Errorf("discovery request returned SOAP fault: %s", string(body))
 	}
 
 	return nil
@@ -467,8 +704,18 @@ func (c *TestWindowsMDMClient) Policy() error {
 
 	// TODO: store the policy requirements to generate a certificate and generate
 	// one on the fly using them instead of using hardcoded values.
-	if _, err := c.request(microsoft_mdm.MDE2PolicyPath, policyReq); err != nil {
+	resp, err := c.request(microsoft_mdm.MDE2PolicyPath, policyReq)
+	if err != nil {
 		return err
+	}
+	// Check for SOAP fault
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(string(body), "s:fault") {
+		return fmt.Errorf("policy request returned SOAP fault: %s", string(body))
 	}
 
 	return nil
@@ -479,7 +726,7 @@ func (c *TestWindowsMDMClient) request(path string, reqBody []byte) (*http.Respo
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
+	cc := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithTLSClientConfig(&tls.Config{
 		// Ignoring "G402: TLS InsecureSkipVerify set true", this is only used for automated testing.
 		InsecureSkipVerify: true, //nolint:gosec
 	}))
@@ -496,16 +743,25 @@ func (c *TestWindowsMDMClient) request(path string, reqBody []byte) (*http.Respo
 
 func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType string, err error) {
 	switch c.enrollmentType {
-	case fleet.WindowsMDMAutomaticEnrollmentType:
+	case windowsMDMEntraEnrollmentType:
 		claims := &jwt.MapClaims{
 			"upn":         c.TokenIdentifier,
-			"tid":         "tenant_id",
+			"tid":         c.entraTenantID,
 			"unique_name": "foo_bar",
 			"scp":         "mdm_delegation",
+			"iss":         "https://sts.windows.net/" + c.entraTenantID + "/",
+			"aud":         c.fleetServerURL,
+		}
+		if c.EntraDeviceID != "" {
+			(*claims)["deviceid"] = c.EntraDeviceID
+		}
+		if c.jwtSigningKey == nil || c.jwtSigningKeyID == "" {
+			return "", "", errors.New("jwt signing key is not set")
 		}
 
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-		tokenString, err := token.SignedString([]byte("foo"))
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		token.Header["kid"] = c.jwtSigningKeyID
+		tokenString, err := token.SignedString(c.jwtSigningKey)
 		if err != nil {
 			return "", "", err
 		}
@@ -527,4 +783,39 @@ func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType
 	}
 
 	return binarySecToken, tokenValueType, nil
+}
+
+func (c *TestWindowsMDMClient) Unenroll() error {
+	unenrollRequest := []byte(`
+			 <SyncML xmlns="SYNCML:SYNCML1.2">
+			<SyncHdr>
+				<VerDTD>1.2</VerDTD>
+				<VerProto>DM/1.2</VerProto>
+				<SessionID>2</SessionID>
+				<MsgID>1</MsgID>
+				<Target>
+				<LocURI>` + c.fleetServerURL + microsoft_mdm.MDE2ManagementPath + `</LocURI>
+				</Target>
+				<Source>
+				<LocURI>` + c.DeviceID + `</LocURI>
+				</Source>
+			</SyncHdr>
+			<SyncBody>
+				<Alert>
+				<CmdID>4</CmdID>
+				<Data>1226</Data>
+				<Item>
+					<Meta>
+					<Type xmlns="syncml:metinf">com.microsoft:mdm.unenrollment.userrequest</Type>
+					<Format xmlns="syncml:metinf">int</Format>
+					</Meta>
+					<Data>1</Data>
+				</Item>
+				</Alert>
+				<Final/>
+			</SyncBody>
+			</SyncML>`)
+
+	_, err := c.doManagementReq(unenrollRequest)
+	return err
 }

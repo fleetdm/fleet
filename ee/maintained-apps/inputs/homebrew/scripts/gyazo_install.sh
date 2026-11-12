@@ -1,0 +1,124 @@
+#!/bin/bash
+
+# Gyazo's pkg postinstall ends with two un-try'd `open gyazo://grantaccess` calls
+# that need a GUI session, so `installer` reports failure as root even though the
+# payload installed. Tolerate that only when the app is present at the version the
+# package declares; anything else is a real failure.
+
+APPDIR="/Applications"
+BUNDLE_ID="com.gyazo.menu"
+APP_PATH="$APPDIR/Gyazo Menu.app"
+
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
+quit_application() {
+  local bundle_id="$1"
+  local console_user="$2"
+  local timeout_duration=10
+
+  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then
+    echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
+    return
+  fi
+
+  echo "Quitting application '$bundle_id'..."
+
+  local quit_success=false quit_sent=false still_running quit_error
+  SECONDS=0
+  while (( SECONDS < timeout_duration )); do
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      if [[ "$quit_sent" == false ]]; then
+        APP_WAS_RUNNING=false
+        echo "Application '$bundle_id' isn't running; it won't be relaunched."
+      else
+        echo "Application '$bundle_id' quit successfully."
+      fi
+      quit_success=true
+      break
+    fi
+    quit_sent=true
+    sleep 1
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+      echo "Application '$bundle_id' quit successfully."
+      quit_success=true
+      break
+    fi
+  done
+
+  if [[ "$quit_success" = false ]]; then
+    echo "Application '$bundle_id' did not quit."
+    return 1
+  fi
+}
+
+pkg_declared_version() {
+  local workdir
+  workdir=$(mktemp -d) || return 1
+
+  local version=""
+  if (cd "$workdir" && xar -xf "$INSTALLER_PATH" Gyazo.pkg/PackageInfo >/dev/null 2>&1); then
+    # Require whitespace before version= so format-version= and
+    # generator-version= on the same element aren't picked up.
+    version=$(sed -n 's/.*<pkg-info[^>]*[[:space:]]version="\([^"]*\)".*/\1/p' \
+      "$workdir/Gyazo.pkg/PackageInfo" | head -1)
+  fi
+
+  rm -rf "$workdir"
+  [[ -n "$version" ]] || return 1
+  echo "$version"
+}
+
+installed_app_version() {
+  [[ -d "$APP_PATH" ]] || return 1
+  /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" \
+    "$APP_PATH/Contents/Info.plist" 2>/dev/null
+}
+
+CONSOLE_USER=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
+
+APP_WAS_RUNNING=false
+if [[ "$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$BUNDLE_ID" 2>/dev/null)" == "true" ]]; then
+  APP_WAS_RUNNING=true
+  quit_application "$BUNDLE_ID" "$CONSOLE_USER" || exit 1
+fi
+
+installer -pkg "$INSTALLER_PATH" -target /
+INSTALLER_STATUS=$?
+
+if [[ $INSTALLER_STATUS -ne 0 ]]; then
+  echo "installer exited with status $INSTALLER_STATUS; checking whether the payload installed anyway."
+
+  EXPECTED_VERSION=$(pkg_declared_version)
+  if [[ -z "$EXPECTED_VERSION" ]]; then
+    echo "Could not read the version declared by the package; treating this as a failed install."
+    exit $INSTALLER_STATUS
+  fi
+
+  INSTALLED_VERSION=$(installed_app_version)
+  if [[ "$INSTALLED_VERSION" != "$EXPECTED_VERSION" ]]; then
+    echo "'$APP_PATH' is at version '${INSTALLED_VERSION:-<not installed>}', expected '$EXPECTED_VERSION'; the payload did not install."
+    exit $INSTALLER_STATUS
+  fi
+
+  echo "'$APP_PATH' installed at '$EXPECTED_VERSION'; only the postinstall script failed. Treating as successful."
+fi
+
+if [[ "$APP_WAS_RUNNING" == "true" ]]; then
+  sleep 2
+  echo "Relaunching application '$BUNDLE_ID'..."
+  # launchctl asuser bootstraps the console user's GUI session; sudo -u alone
+  # doesn't, which can fail LSOpenURLsWithRole() even when open exits 0.
+  if [[ $EUID -eq 0 && -n "$CONSOLE_USER" && "$CONSOLE_USER" != "root" ]]; then
+    CONSOLE_UID=$(id -u "$CONSOLE_USER")
+    /bin/launchctl asuser "$CONSOLE_UID" sudo -u "$CONSOLE_USER" open -b "$BUNDLE_ID" || true
+  else
+    open -b "$BUNDLE_ID" || true
+  fi
+fi

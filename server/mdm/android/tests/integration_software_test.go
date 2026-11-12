@@ -3,17 +3,18 @@ package tests
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json/v2"
 	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-json-experiment/json"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -131,7 +132,7 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
-	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
 		// Check software table for correct values, we should have as many rows as there were ApplicationReports sent
 		var software []*fleet.Software
 		err := sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source, title_id FROM software")
@@ -185,7 +186,7 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
 	var hostID1 uint
-	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
 		// Get host id
 		err := sqlx.GetContext(ctx, q, &hostID1, "SELECT id FROM hosts WHERE uuid = ?", enterpriseSpecificID1)
 		require.NoError(t, err)
@@ -231,7 +232,7 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 	}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
-	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
 		var software []*fleet.Software
 		err = sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source, title_id FROM software JOIN host_software ON host_software.software_id = software.id WHERE host_software.host_id = ?", hostID1)
 		require.NoError(t, err)
@@ -263,7 +264,7 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 	}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
-	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
 		var software []*fleet.Software
 		err = sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source, title_id FROM software JOIN host_software ON host_software.software_id = software.id WHERE host_software.host_id = ?", hostID1)
 		require.NoError(t, err)
@@ -325,6 +326,7 @@ func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidm
 		},
 	}
 
+	android_mock.RegisterDevice(deviceInfo)
 	data, err := json.Marshal(deviceInfo)
 	require.NoError(t, err)
 
@@ -339,7 +341,7 @@ func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidm
 }
 
 func createAndroidDeviceID(name string) string {
-	return "enterprises/mock-enterprise-id/devices/" + name
+	return "enterprises/" + EnterpriseID + "/devices/" + name
 }
 
 func createAndroidDeviceWithSoftware(deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail, software []*androidmanagement.ApplicationReport) androidmanagement.Device {
@@ -369,6 +371,7 @@ func createAndroidDeviceWithSoftware(deviceId, name, policyName string, policyVe
 }
 
 func createStatusReportMessageFromDevice(t *testing.T, device androidmanagement.Device) android.PubSubMessage {
+	android_mock.RegisterDevice(device)
 	data, err := json.Marshal(device)
 	require.NoError(t, err)
 

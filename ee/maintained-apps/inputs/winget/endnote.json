@@ -1,0 +1,12 @@
+{
+  "name": "EndNote",
+  "slug": "endnote/windows",
+  "package_identifier": "ClarivateAnalytics.EndNote",
+  "unique_identifier": "EndNote 2025",
+  "fuzzy_match_name": "EndNote 20%",
+  "installer_arch": "x86",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "ignore_hash": true,
+  "default_categories": ["Productivity"]
+}

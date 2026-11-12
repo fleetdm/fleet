@@ -12,14 +12,15 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+
 	"github.com/gorilla/mux"
 )
 
 type getSoftwareTitleIconsRequest struct {
 	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id"`
+	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
 }
 type getSoftwareTitleIconsResponse struct {
 	Err         error  `json:"error,omitempty"`
@@ -97,7 +98,7 @@ func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 
 type putSoftwareTitleIconRequest struct {
 	TitleID    uint  `url:"title_id"`
-	TeamID     *uint `query:"team_id"`
+	TeamID     *uint `query:"team_id" renameto:"fleet_id"`
 	File       *multipart.FileHeader
 	HashSHA256 *string
 	Filename   *string
@@ -125,7 +126,12 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 	if titleIDUint64 > math.MaxUint {
 		return nil, &fleet.BadRequestError{Message: "title_id value too large"}
 	}
-	teamID := r.URL.Query().Get("team_id")
+	// Accept both fleet_id and team_id without deprecation warning, since
+	// persisted icon URLs may still contain team_id.
+	teamID := r.URL.Query().Get("fleet_id")
+	if teamID == "" {
+		teamID = r.URL.Query().Get("team_id")
+	}
 	if teamID == "" {
 		return nil, &fleet.BadRequestError{Message: "team_id is required"}
 	}
@@ -143,7 +149,7 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 		TeamID:  &teamIDUint,
 	}
 
-	err = r.ParseMultipartForm(6 * units.MiB)
+	err = r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -277,7 +283,7 @@ func ValidateIcon(file io.ReadSeeker) error {
 
 type deleteSoftwareTitleIconRequest struct {
 	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id"`
+	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
 }
 
 type deleteSoftwareTitleIconResponse struct {

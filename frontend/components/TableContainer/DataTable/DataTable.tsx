@@ -1,6 +1,9 @@
 /* eslint-disable react/prop-types */
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
+
+import classnames from "classnames";
+import { kebabCase, noop } from "lodash";
 import React, {
   useMemo,
   useEffect,
@@ -8,7 +11,6 @@ import React, {
   useContext,
   useRef,
 } from "react";
-import classnames from "classnames";
 import {
   Column,
   HeaderGroup,
@@ -20,16 +22,15 @@ import {
   useSortBy,
   useTable,
 } from "react-table";
-import { kebabCase, noop } from "lodash";
 import { useDebouncedCallback } from "use-debounce";
 
+import Button from "components/buttons/Button";
+import Pagination from "components/Pagination";
+import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
 import useDeepEffect from "hooks/useDeepEffect";
 import sort from "utilities/sort";
-import { AppContext } from "context/app";
 
-import Button from "components/buttons/Button";
-import Spinner from "components/Spinner";
-import Pagination from "components/Pagination";
 import ActionButton from "./ActionButton";
 import { IActionButtonProps } from "./ActionButton/ActionButton";
 
@@ -50,6 +51,7 @@ interface IDataTableProps {
   isAllPagesSelected: boolean; // TODO: make dependent on showMarkAllPages
   toggleAllPagesSelected?: any; // TODO: an event type and make it dependent on showMarkAllPages
   resultsTitle?: string;
+  totalCount?: number;
   defaultPageSize: number;
   defaultPageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;
@@ -67,13 +69,19 @@ interface IDataTableProps {
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
-  /** Set to true to persist the row selections across table data filters */
+  /** Set to true to persist row selection across client-side filters and pagination */
   persistSelectedRows?: boolean;
   /** Set to `true` to not display the footer section of the table */
   hideFooter?: boolean;
   onSelectSingleRow?: (value: Row) => void;
+  canClickRow?: (row: any) => boolean;
   onClickRow?: (value: any) => void;
   onResultsCountChange?: (value: number) => void;
+  /** When set and the table has zero rows (and is not loading), the empty tbody is replaced with
+   * faded ghost skeleton rows and this content is centered over them. Used when the real headers
+   * must stay interactive (e.g. per-column filter inputs) so a traditional empty state can't
+   * replace the whole table. */
+  renderNoResultsInBody?: () => React.ReactNode;
   /** Optional help text to render on bottom-left of the table. Hidden when table is loading and no
    * rows of data are present. */
   renderTableHelpText?: () => JSX.Element | null;
@@ -81,6 +89,10 @@ interface IDataTableProps {
   setExportRows?: (rows: Row[]) => void;
   onClearSelection?: () => void;
   suppressHeaderActions?: boolean;
+  /** Optional override for react-table's row ID derivation.
+   *  Note: avoid index-only row IDs in server-side paginated or selectable tables,
+   *  as IDs would collide across pages. */
+  getRowId?: (row: any, index: number) => string;
 }
 
 interface IHeaderGroup extends HeaderGroup {
@@ -105,6 +117,7 @@ const DataTable = ({
   isAllPagesSelected,
   toggleAllPagesSelected,
   resultsTitle = "results",
+  totalCount,
   defaultPageSize,
   defaultPageIndex,
   defaultSelectedRows = {},
@@ -121,13 +134,16 @@ const DataTable = ({
   persistSelectedRows = false,
   hideFooter = false,
   onSelectSingleRow,
+  canClickRow,
   onClickRow,
   onResultsCountChange,
+  renderNoResultsInBody,
   renderTableHelpText,
   renderPagination,
   setExportRows,
   onClearSelection = noop,
   suppressHeaderActions,
+  getRowId: getRowIdProp,
 }: IDataTableProps): JSX.Element => {
   // used to track the initial mount of the component.
   const isInitialRender = useRef(true);
@@ -180,6 +196,11 @@ const DataTable = ({
     {
       columns,
       data,
+      // Use a stable row ID when available (row.id), otherwise fall back to the index-based ID (default of react-table)
+      getRowId:
+        getRowIdProp ??
+        ((row: any, index: number) =>
+          row && row.id != null ? String(row.id) : String(index)),
       initialState: {
         sortBy: initialSortBy,
         pageIndex: defaultPageIndex,
@@ -197,8 +218,8 @@ const DataTable = ({
       disableSortRemove: true,
       manualSortBy,
       autoResetPage,
-      // Resets row selection on (server-side) pagination
-      autoResetSelectedRows: true,
+      // Resets row selection on pagination
+      autoResetSelectedRows: !persistSelectedRows,
       // Expands the enumerated `filterTypes` for react-table
       // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
@@ -255,6 +276,11 @@ const DataTable = ({
             b: { values: Record<string, unknown[]> },
             id: string
           ) => sort.hostPolicyStatus(a.values[id], b.values[id]),
+          version: (
+            a: { values: Record<string, unknown> },
+            b: { values: Record<string, unknown> },
+            id: string
+          ) => sort.versionAsc(a.values[id], b.values[id]),
         }),
         []
       ),
@@ -442,8 +468,10 @@ const DataTable = ({
     return (
       <p>
         <span>
-          {selectedCount}
-          {isAllPagesSelected && "+"}
+          {isAllPagesSelected && totalCount !== undefined
+            ? totalCount
+            : selectedCount}
+          {isAllPagesSelected && totalCount === undefined && "+"}
         </span>{" "}
         selected
       </p>
@@ -511,11 +539,21 @@ const DataTable = ({
 
   const pageOrRows = isClientSidePagination ? page : rows;
 
+  const showGhostNoResults =
+    !!renderNoResultsInBody && !isLoading && !rows.length;
+
   const tableStyles = classnames({
     "data-table__table": true,
     "data-table__no-rows": !rows.length,
     "is-observer": isOnlyObserver,
   });
+
+  const GHOST_ROW_COUNT = 6;
+  const ghostColumnCount = headerGroups[0]?.headers?.length ?? 1;
+  // Deterministic jitter so skeletons don't align into vertical stripes.
+  const ghostWidthOffsets = [0, 14, -8, 22, -4, 18, -12, 26, 6, -10];
+  const varyGhostWidth = (base: number, index: number) =>
+    base + ghostWidthOffsets[index % ghostWidthOffsets.length];
 
   const renderHeaderWithActions = () => (
     <thead className="active-selection">
@@ -541,20 +579,11 @@ const DataTable = ({
             </div>
             {toggleAllPagesSelected && renderAreAllSelected()}
             {shouldRenderToggleAllPages && (
-              <Button
-                onClick={onToggleAllPagesClick}
-                variant="inverse"
-                className="light-text"
-                size="small"
-              >
+              <Button onClick={onToggleAllPagesClick} variant="link">
                 <>Select all matching {resultsTitle}</>
               </Button>
             )}
-            <Button
-              onClick={onClearSelectionClick}
-              variant="inverse"
-              size="small"
-            >
+            <Button onClick={onClearSelectionClick} variant="link">
               Clear selection
             </Button>
           </div>
@@ -571,9 +600,9 @@ const DataTable = ({
     // table is client-side paginated with more than 1 page of rows
     ((isClientSidePagination && (canNextPage || canPreviousPage)) ||
       // table's pagination is externally controlled
-      renderPagination ||
+      renderPagination?.() != null ||
       // there is help text and at least 1 row of data
-      (renderTableHelpText && !!rows?.length));
+      (renderTableHelpText?.() != null && !!rows?.length));
 
   return (
     <div className={baseClass}>
@@ -582,7 +611,11 @@ const DataTable = ({
           <Spinner />
         </div>
       )}
-      <div className="data-table data-table__wrapper">
+      <div
+        className={classnames("data-table", "data-table__wrapper", {
+          "data-table__wrapper--no-rows": !rows.length && !showGhostNoResults,
+        })}
+      >
         <table className={tableStyles}>
           {!suppressHeaderActions &&
             Object.keys(selectedRowIds).length !== 0 &&
@@ -618,70 +651,118 @@ const DataTable = ({
               </tr>
             ))}
           </thead>
-          <tbody>
-            {pageOrRows.map((row: Row) => {
-              prepareRow(row);
-
-              const rowStyles = classnames({
-                "single-row": disableMultiRowSelect,
-                "disable-highlight": disableHighlightOnHover,
-                "clickable-row": !!onClickRow,
-              });
-              return (
-                <tr
-                  className={rowStyles}
-                  {...row.getRowProps({
-                    // @ts-ignore // TS complains about prop not existing
-                    onClick: () => {
-                      (onSelectRowClick &&
-                        disableMultiRowSelect &&
-                        onSelectRowClick(row)) ||
-                        (disableMultiRowSelect &&
-                          onClickRow &&
-                          onClickRow(row));
-                    },
-                    // For accessibility when tabable
-                    onKeyDown: (e: KeyboardEvent) => {
-                      if (e.key === "Enter") {
-                        e.stopPropagation();
-                        (onSelectRowClick &&
-                          disableMultiRowSelect &&
-                          onSelectRowClick(row)) ||
-                          (disableMultiRowSelect &&
-                            onClickRow &&
-                            onClickRow(row));
-                      }
-                    },
-                  })}
-                  // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
-                  tabIndex={keyboardSelectableRows ? 0 : -1}
-                >
-                  {row.cells.map((cell: any, index: number) => {
-                    // Only allow row click behavior on first cell
-                    // if the first cell is not a checkbox
-                    const cellProps = cell.getCellProps();
-                    const multiRowSelectEnabled = !disableMultiRowSelect;
-
-                    return (
-                      <td
-                        key={cell.column.id}
-                        className={
-                          cell.column.id ? `${cell.column.id}__cell` : ""
-                        }
-                        style={
-                          multiRowSelectEnabled ? { cursor: "initial" } : {}
-                        }
-                        {...cellProps}
-                      >
-                        {cell.render("Cell")}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
+          <tbody
+            className={classnames({
+              "data-table__ghost-tbody": showGhostNoResults,
             })}
+          >
+            {showGhostNoResults &&
+              Array.from({ length: GHOST_ROW_COUNT }).map((_, rowIdx) => (
+                <tr
+                  // eslint-disable-next-line react/no-array-index-key
+                  key={`ghost-${rowIdx}`}
+                  className="data-table__ghost-row"
+                  style={{
+                    // Match EmptyState's mask fade: top row at 0.5, bottom at ~0.
+                    opacity: 0.5 * (1 - rowIdx / (GHOST_ROW_COUNT - 1)),
+                  }}
+                  aria-hidden
+                >
+                  {Array.from({ length: ghostColumnCount }).map(
+                    (__, colIdx) => (
+                      <td
+                        // eslint-disable-next-line react/no-array-index-key
+                        key={`ghost-${rowIdx}-${colIdx}`}
+                      >
+                        <div
+                          className="data-table__ghost-skeleton"
+                          style={{
+                            width: varyGhostWidth(
+                              80,
+                              rowIdx * ghostColumnCount + colIdx
+                            ),
+                          }}
+                        />
+                      </td>
+                    )
+                  )}
+                </tr>
+              ))}
+            {!showGhostNoResults &&
+              pageOrRows.map((row: Row) => {
+                prepareRow(row);
+
+                const rowStyles = classnames({
+                  "single-row": disableMultiRowSelect,
+                  "disable-highlight": disableHighlightOnHover,
+                  "clickable-row":
+                    !!onClickRow && (!canClickRow || canClickRow(row)),
+                });
+                return (
+                  <tr
+                    className={rowStyles}
+                    {...row.getRowProps({
+                      // @ts-ignore // TS complains about prop not existing
+                      onClick: () => {
+                        if (!canClickRow || canClickRow(row)) {
+                          (onSelectRowClick &&
+                            disableMultiRowSelect &&
+                            onSelectRowClick(row)) ||
+                            (disableMultiRowSelect &&
+                              onClickRow &&
+                              onClickRow(row));
+                        }
+                      },
+                      // For accessibility when tabable
+                      onKeyDown: (e: KeyboardEvent) => {
+                        if (e.key === "Enter") {
+                          e.stopPropagation();
+                          (onSelectRowClick &&
+                            disableMultiRowSelect &&
+                            onSelectRowClick(row)) ||
+                            (disableMultiRowSelect &&
+                              (!canClickRow || canClickRow(row)) &&
+                              onClickRow &&
+                              onClickRow(row));
+                        }
+                      },
+                    })}
+                    // Can tab onto an entire row if a child element does not have the same onClick functionality as clicking the whole row
+                    tabIndex={keyboardSelectableRows ? 0 : -1}
+                  >
+                    {row.cells.map((cell: any) => {
+                      // Only allow row click behavior on first cell
+                      // if the first cell is not a checkbox
+                      const cellProps = cell.getCellProps();
+                      const multiRowSelectEnabled = !disableMultiRowSelect;
+
+                      return (
+                        <td
+                          key={cell.column.id}
+                          className={
+                            cell.column.id ? `${cell.column.id}__cell` : ""
+                          }
+                          style={
+                            multiRowSelectEnabled ? { cursor: "initial" } : {}
+                          }
+                          {...cellProps}
+                        >
+                          {cell.render("Cell")}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
           </tbody>
         </table>
+      </div>
+      <div className="data-table__no-match-overlay" role="status">
+        {showGhostNoResults && (
+          <div className="data-table__no-match-content">
+            {renderNoResultsInBody?.()}
+          </div>
+        )}
       </div>
       {shouldShowFooter && (
         <div className={`${baseClass}__footer`}>
@@ -695,13 +776,13 @@ const DataTable = ({
               disablePrev={!canPreviousPage}
               disableNext={!canNextPage}
               onPrevPage={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                !persistSelectedRows && toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange
                   ? onClientSidePaginationChange(pageIndex - 1)
                   : previousPage();
               }}
               onNextPage={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                !persistSelectedRows && toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange
                   ? onClientSidePaginationChange(pageIndex + 1)
                   : nextPage();

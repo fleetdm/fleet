@@ -2,28 +2,27 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import Icon from "components/Icon/Icon";
+import ListItem from "components/ListItem";
+import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
+import ProgressBar from "components/ProgressBar";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { isValidScriptBatchStatus, ScriptBatchStatus } from "interfaces/script";
 import PATHS from "router/paths";
-
 import scriptsAPI, {
   IScriptBatchSummaryV2,
   IScriptBatchSummariesResponse,
 } from "services/entities/scripts";
-
-import { isValidScriptBatchStatus, ScriptBatchStatus } from "interfaces/script";
-
 import { COLORS } from "styles/var/colors";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
-import Spinner from "components/Spinner";
-import ProgressBar from "components/ProgressBar";
-import SectionHeader from "components/SectionHeader";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
-import ListItem from "components/ListItem";
-import Icon from "components/Icon/Icon";
-
+import { getWhen } from "../../helpers";
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
-import getWhen from "../../helpers";
 
 const baseClass = "script-batch-progress";
 
@@ -33,20 +32,38 @@ const STATUS_BY_INDEX: ScriptBatchStatus[] = [
   "finished",
 ];
 
-export const EMPTY_STATE_DETAILS: Record<ScriptBatchStatus, string> = {
-  started: "When a script is run on multiple hosts, progress will appear here.",
-  scheduled:
-    "When a script is scheduled to run in the future, it will appear here.",
-  finished:
-    "When a batch script is completed or canceled, historical results will appear here.",
+const EMPTY_STATE_DETAILS: Record<ScriptBatchStatus, JSX.Element> = {
+  started: (
+    <>
+      Scripts running on multiple hosts will appear here. <br />
+      <CustomLink
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/batch-scripts`}
+        newTab
+        text="Learn more about batch scripts"
+      />
+    </>
+  ),
+  scheduled: (
+    <>
+      Scheduled scripts will appear here.
+      <br />
+      <CustomLink
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/batch-scripts`}
+        newTab
+        text="Learn more about batch scripts"
+      />
+    </>
+  ),
+  finished: <>Completed or canceled batch scripts will appear here.</>,
 };
 
 const getEmptyState = (status: ScriptBatchStatus) => {
   return (
-    <div className={`${baseClass}__empty`}>
-      <b>No batch scripts {status} for this team</b>
-      <p>{EMPTY_STATE_DETAILS[status]}</p>
-    </div>
+    <EmptyState
+      variant="list"
+      header={`No batch scripts ${status}`}
+      info={EMPTY_STATE_DETAILS[status]}
+    />
   );
 };
 
@@ -70,7 +87,7 @@ const ScriptBatchProgress = ({
   const DEFAULT_PAGE_SIZE = 10;
 
   const queryKey = {
-    team_id: teamId,
+    fleet_id: teamId,
     status: selectedStatus,
     page: pageNumber,
     per_page: DEFAULT_PAGE_SIZE,
@@ -84,7 +101,7 @@ const ScriptBatchProgress = ({
     keepPreviousData: true,
   });
 
-  const handleTabChange = useCallback(
+  const buildTabPath = useCallback(
     (index: number) => {
       const newStatus = STATUS_BY_INDEX[index];
 
@@ -92,14 +109,19 @@ const ScriptBatchProgress = ({
       newParams.set("status", newStatus);
       const newQuery = newParams.toString();
 
-      router.push(
-        PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS.concat(
-          newQuery ? `?${newQuery}` : ""
-        )
+      return PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS.concat(
+        newQuery ? `?${newQuery}` : ""
       );
+    },
+    [location?.search]
+  );
+
+  const handleTabChange = useCallback(
+    (index: number) => {
+      router.push(buildTabPath(index));
       setPageNumber(0);
     },
-    [location?.search, router]
+    [buildTabPath, router]
   );
 
   const onClickRow = (r: IScriptBatchSummaryV2) => {
@@ -145,11 +167,7 @@ const ScriptBatchProgress = ({
               ]}
             />
             <div className={`${baseClass}__row-errors`}>
-              <Icon
-                name="error-outline"
-                color="ui-fleet-black-50"
-                size="small"
-              />{" "}
+              <Icon name="error" color="ui-fleet-black-50" />{" "}
               <div>{errored_host_count}</div>
             </div>
           </div>
@@ -158,12 +176,13 @@ const ScriptBatchProgress = ({
     );
   };
 
-  // Reset to first tab if status is invalid.
+  // replace (not push) — pushing re-fires this effect on browser Back
   useEffect(() => {
     if (!isValidScriptBatchStatus(statusParam)) {
-      handleTabChange(0);
+      router.replace(buildTabPath(0));
+      setPageNumber(0);
     }
-  }, [statusParam, handleTabChange]);
+  }, [buildTabPath, router, statusParam]);
 
   const renderTabContent = (status: ScriptBatchStatus) => {
     // If we're switching to a new tab, show the loading spinner

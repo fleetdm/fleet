@@ -1,15 +1,16 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { noop } from "lodash";
+import React from "react";
+
 import {
   createMockHostAppStoreApp,
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import { IHostAppStoreApp } from "interfaces/software";
-
 import { createMockAppStoreApp } from "__mocks__/softwareMock";
-import { noop } from "lodash";
+import { IHostAppStoreApp } from "interfaces/software";
+import { renderWithSetup } from "test/test-utils";
+
 import {
   getActionButtonState,
   HostInstallerActionCell,
@@ -225,7 +226,7 @@ describe("HostInstallerActionCell component", () => {
     // Install button
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
     expect(installBtn).toHaveTextContent("Reinstall");
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("retry-icon")).toBeInTheDocument();
     expect(installBtn.closest("button")).not.toBeDisabled();
 
     // Uninstall button
@@ -345,7 +346,7 @@ describe("HostInstallerActionCell component", () => {
     expect(
       screen.getByTestId(`${baseClass}__install-button--test`)
     ).toHaveTextContent("Reinstall");
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("retry-icon")).toBeInTheDocument();
 
     expect(
       screen.getByTestId(`${baseClass}__uninstall-button--test`)
@@ -383,7 +384,7 @@ describe("HostInstallerActionCell component", () => {
         software={{
           ...defaultSoftware,
           status: "failed_install",
-          ui_status: "failed_install",
+          ui_status: "failed_install_installed",
         }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
@@ -393,7 +394,7 @@ describe("HostInstallerActionCell component", () => {
       />
     );
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("retry-icon")).toBeInTheDocument();
     expect(installBtn).toHaveTextContent("Retry");
 
     const uninstallBtn = screen.getByTestId(
@@ -420,7 +421,7 @@ describe("HostInstallerActionCell component", () => {
       />
     );
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("retry-icon")).toBeInTheDocument();
     expect(installBtn).toHaveTextContent("Retry");
     // Uninstall does not exist
     expect(
@@ -445,7 +446,7 @@ describe("HostInstallerActionCell component", () => {
       />
     );
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("retry-icon")).toBeInTheDocument();
     expect(installBtn).toHaveTextContent("Retry");
     const uninstallBtn = screen.getByTestId(
       `${baseClass}__uninstall-button--test`
@@ -460,7 +461,7 @@ describe("HostInstallerActionCell component", () => {
         software={{
           ...defaultSoftware,
           status: "failed_uninstall",
-          ui_status: "failed_uninstall",
+          ui_status: "failed_uninstall_installed",
         }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
@@ -470,8 +471,8 @@ describe("HostInstallerActionCell component", () => {
       />
     );
     // Both reinstall and retry uninstall have the same icon
-    const refreshIcons = screen.getAllByTestId("refresh-icon");
-    expect(refreshIcons).toHaveLength(2);
+    const retryIcons = screen.getAllByTestId("retry-icon");
+    expect(retryIcons).toHaveLength(2);
 
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
     expect(installBtn).toHaveTextContent("Reinstall");
@@ -498,7 +499,7 @@ describe("HostInstallerActionCell component", () => {
       />
     );
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("retry-icon")).toBeInTheDocument();
     expect(installBtn).toHaveTextContent("Reinstall");
 
     expect(
@@ -521,9 +522,8 @@ describe("HostInstallerActionCell component", () => {
         hostMDMEnrolled
       />
     );
-    // Both reinstall and retry uninstall have the same icon
-    const refreshIcons = screen.getAllByTestId("refresh-icon");
-    expect(refreshIcons).toHaveLength(2);
+    expect(screen.getByTestId("update-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("retry-icon")).toBeInTheDocument();
 
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
     expect(installBtn).toHaveTextContent("Update");
@@ -549,7 +549,7 @@ describe("HostInstallerActionCell component", () => {
       />
     );
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("update-icon")).toBeInTheDocument();
     expect(installBtn).toHaveTextContent("Update");
     expect(installBtn.closest("button")).toBeDisabled();
 
@@ -577,7 +577,7 @@ describe("HostInstallerActionCell component", () => {
       />
     );
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("update-icon")).toBeInTheDocument();
     expect(installBtn).toHaveTextContent("Update");
     expect(installBtn.closest("button")).toBeDisabled();
 
@@ -607,7 +607,7 @@ describe("HostInstallerActionCell component", () => {
 
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
     expect(installBtn).toHaveTextContent("Update");
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("update-icon")).toBeInTheDocument();
     expect(installBtn.closest("button")).not.toBeDisabled();
 
     const uninstallBtn = screen.getByTestId(
@@ -616,6 +616,29 @@ describe("HostInstallerActionCell component", () => {
     expect(uninstallBtn).toHaveTextContent("Uninstall");
     expect(screen.getByTestId("trash-icon")).toBeInTheDocument();
     expect(uninstallBtn.closest("button")).not.toBeDisabled();
+  });
+
+  it('renders Update (not Install) for "skipped_install" ui_status — the label column shows "Patch skipped", but the action is still a deferred update', () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          status: "failed_install",
+          skipped_install: true,
+          ui_status: "skipped_install",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
+    expect(installBtn).toHaveTextContent("Update");
+    expect(screen.getByTestId("update-icon")).toBeInTheDocument();
+    expect(installBtn.closest("button")).not.toBeDisabled();
   });
 
   it('renders Reinstall and Uninstall for "uninstalling" ui_status', () => {
@@ -636,7 +659,7 @@ describe("HostInstallerActionCell component", () => {
 
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
     expect(installBtn).toHaveTextContent("Reinstall");
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("retry-icon")).toBeInTheDocument();
     expect(installBtn.closest("button")).toBeDisabled();
 
     const uninstallBtn = screen.getByTestId(
@@ -665,7 +688,7 @@ describe("HostInstallerActionCell component", () => {
 
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
     expect(installBtn).toHaveTextContent("Reinstall");
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("retry-icon")).toBeInTheDocument();
     expect(installBtn.closest("button")).toBeDisabled();
 
     const uninstallBtn = screen.getByTestId(
@@ -697,7 +720,7 @@ describe("HostInstallerActionCell component", () => {
 
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
     expect(installBtn).toHaveTextContent("Reinstall");
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("retry-icon")).toBeInTheDocument();
     expect(installBtn.closest("button")).toBeEnabled();
 
     const uninstallBtn = screen.getByTestId(
@@ -729,7 +752,7 @@ describe("HostInstallerActionCell component", () => {
 
     const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
     expect(installBtn).toHaveTextContent("Reinstall");
-    expect(screen.getByTestId("refresh-icon")).toBeInTheDocument();
+    expect(screen.getByTestId("retry-icon")).toBeInTheDocument();
     expect(installBtn.closest("button")).toBeDisabled();
 
     const uninstallBtn = screen.getByTestId(
@@ -770,9 +793,184 @@ describe("HostInstallerActionCell component", () => {
     expect(uninstallBtn.closest("button")).toBeEnabled();
 
     // Both reinstall and retry uninstall have the same icon
-    const refreshIcons = screen.getAllByTestId("refresh-icon");
-    expect(refreshIcons).toHaveLength(2);
+    const retryIcons = screen.getAllByTestId("retry-icon");
+    expect(retryIcons).toHaveLength(2);
   });
+
+  it.each([["installed" as const], ["recently_installed" as const]])(
+    "renders enabled Uninstall when ui_status is %s but installed_versions is empty (title-id mismatch, fleet#42026)",
+    (uiStatus) => {
+      render(
+        <HostInstallerActionCell
+          software={{
+            ...defaultSoftware,
+            status: "installed",
+            ui_status: uiStatus,
+            software_package: mockSoftwarePackage,
+            installed_versions: [],
+            app_store_app: null,
+          }}
+          onClickInstallAction={noop}
+          onClickUninstallAction={noop}
+          baseClass={baseClass}
+          hostScriptsEnabled
+          hostMDMEnrolled
+        />
+      );
+
+      const uninstallBtn = screen.getByTestId(
+        `${baseClass}__uninstall-button--test`
+      );
+      expect(uninstallBtn).toHaveTextContent("Uninstall");
+      expect(uninstallBtn.closest("button")).toBeEnabled();
+    }
+  );
+
+  // .tgz and script-only installers may be uploaded without an uninstall
+  // script; gate the Uninstall action on has_uninstall_script.
+  it("does not render Uninstall for a tgz package without an uninstall script", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "tgz_packages",
+          ui_status: "installed",
+          status: "installed",
+          software_package: createMockHostSoftwarePackage({
+            has_uninstall_script: false,
+          }),
+          installed_versions: [],
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    expect(
+      screen.queryByTestId(`${baseClass}__uninstall-button--test`)
+    ).toBeNull();
+  });
+
+  it.each([
+    ["sh_packages" as const],
+    ["ps1_packages" as const],
+    ["py_packages" as const],
+  ])(
+    "renders enabled Uninstall for a %s script package that has ran and has an uninstall script",
+    (source) => {
+      render(
+        <HostInstallerActionCell
+          software={{
+            ...defaultSoftware,
+            source,
+            status: "installed",
+            ui_status: "ran_script",
+            software_package: mockSoftwarePackage,
+            installed_versions: [],
+            app_store_app: null,
+          }}
+          onClickInstallAction={noop}
+          onClickUninstallAction={noop}
+          baseClass={baseClass}
+          hostScriptsEnabled
+          hostMDMEnrolled
+        />
+      );
+
+      const uninstallBtn = screen.getByTestId(
+        `${baseClass}__uninstall-button--test`
+      );
+      expect(uninstallBtn).toHaveTextContent("Uninstall");
+      expect(uninstallBtn.closest("button")).toBeEnabled();
+    }
+  );
+
+  it("does not render Uninstall for a script package with no uninstall script", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "ps1_packages",
+          status: "installed",
+          ui_status: "ran_script",
+          software_package: createMockHostSoftwarePackage({
+            has_uninstall_script: false,
+          }),
+          installed_versions: [],
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    expect(
+      screen.queryByTestId(`${baseClass}__uninstall-button--test`)
+    ).toBeNull();
+  });
+
+  it("does not render Uninstall for a script package that never ran, even with an uninstall script", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "sh_packages",
+          status: null,
+          ui_status: "never_ran_script",
+          software_package: mockSoftwarePackage,
+          installed_versions: [],
+          app_store_app: null,
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+      />
+    );
+
+    expect(
+      screen.queryByTestId(`${baseClass}__uninstall-button--test`)
+    ).toBeNull();
+  });
+
+  // Parent returns false on API error (see HostSoftwareLibrary.onClick*Action).
+  // Without the child re-enable, the row's optimistic pending state persists
+  // and the user has to refresh.
+  it.each([
+    ["uninstall" as const, "installed" as const],
+    ["install" as const, "failed_install" as const],
+  ])(
+    "re-enables the %s button after an API failure",
+    async (action, uiStatus) => {
+      const failing = jest.fn().mockResolvedValue(false);
+      const { user } = renderWithSetup(
+        <HostInstallerActionCell
+          software={{ ...defaultSoftware, ui_status: uiStatus }}
+          onClickInstallAction={action === "install" ? failing : noop}
+          onClickUninstallAction={action === "uninstall" ? failing : noop}
+          baseClass={baseClass}
+          hostScriptsEnabled
+          hostMDMEnrolled
+        />
+      );
+
+      const btn = screen.getByTestId(`${baseClass}__${action}-button--test`);
+      await user.click(btn);
+
+      expect(failing).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(btn.closest("button")).toBeEnabled();
+      });
+    }
+  );
 });
 
 describe("HostInstallerActionCell dropdown on My Device page", () => {
@@ -962,5 +1160,70 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
 
     expect(screen.queryByText("Uninstall")).not.toBeInTheDocument();
     expect(screen.queryByText("How to open")).toBeInTheDocument();
+  });
+
+  it.each([["installed" as const], ["recently_installed" as const]])(
+    "renders standalone Uninstall button on My Device when ui_status is %s but installed_versions is empty (title-id mismatch, fleet#42026)",
+    (uiStatus) => {
+      // installed_versions is empty so canViewOpenInstructions is false; Uninstall surfaces
+      // as a standalone button rather than via the More dropdown.
+      render(
+        <HostInstallerActionCell
+          software={{
+            ...createMockHostSoftware({
+              software_package: mockSoftwarePackage,
+              installed_versions: [],
+            }),
+            status: "installed",
+            ui_status: uiStatus,
+          }}
+          onClickInstallAction={noop}
+          onClickUninstallAction={noop}
+          baseClass={baseClass}
+          hostScriptsEnabled
+          hostMDMEnrolled
+          isMyDevicePage
+        />
+      );
+
+      const uninstallBtn = screen.getByTestId(
+        `${baseClass}__uninstall-button--test`
+      );
+      expect(uninstallBtn).toHaveTextContent("Uninstall");
+      expect(uninstallBtn.closest("button")).toBeEnabled();
+    }
+  );
+
+  it("leaves reinstall/uninstall buttons enabled after clicking Uninstall on My Device (fleet#50856)", async () => {
+    // Empty installed_versions surfaces Uninstall as a standalone button rather
+    // than under the More dropdown, so we can click it directly in a test.
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{
+          ...createMockHostSoftware({
+            software_package: mockSoftwarePackage,
+            installed_versions: [],
+          }),
+          status: "installed",
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const uninstallBtn = screen.getByTestId(
+      `${baseClass}__uninstall-button--test`
+    );
+    const installBtn = screen.getByTestId(`${baseClass}__install-button--test`);
+
+    await user.click(uninstallBtn);
+
+    expect(uninstallBtn.closest("button")).toBeEnabled();
+    expect(installBtn.closest("button")).toBeEnabled();
   });
 });

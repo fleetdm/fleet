@@ -1,11 +1,13 @@
 import React, { ReactNode, useState } from "react";
 
-import validate_presence from "components/forms/validators/validate_presence";
-
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
+
 import TeamNameField from "../TeamNameField/TeamNameField";
+
+import { validateLabelFormData, ILabelFormValidation } from "./helpers";
 
 export interface ILabelFormData {
   name: string;
@@ -20,6 +22,8 @@ interface ILabelFormProps {
   teamName: string | null;
   onCancel: () => void;
   immutableFields: string[];
+  /** In GitOps mode, lock only the name and description rather than the whole form, for manual labels. */
+  gitOpsLocksDefinitionOnly?: boolean;
   onSave: (formData: ILabelFormData, isValid: boolean) => void;
 }
 
@@ -33,11 +37,19 @@ const generateDescriptionHelpText = (immutableFields: string[]) => {
   const SUFFIX =
     "are immutable. To make changes, delete this label and create a new one.";
 
-  return immutableFields.length === 1
-    ? `Label ${immutableFields[0]} ${SUFFIX}`
-    : `Label ${immutableFields
-        .slice(0, -1)
-        .join(", ")} and ${immutableFields.pop()} ${SUFFIX}`;
+  if (immutableFields.length === 1) {
+    return `Label ${immutableFields[0]} ${SUFFIX}`;
+  }
+
+  if (immutableFields.length === 2) {
+    // No comma for two items: "queries and platforms"
+    return `Label ${immutableFields[0]} and ${immutableFields[1]} ${SUFFIX}`;
+  }
+
+  // 3+ items: Oxford comma before "and"
+  const allButLast = immutableFields.slice(0, -1).join(", ");
+  const last = immutableFields.slice(-1);
+  return `Label ${allButLast}, and ${last} ${SUFFIX}`;
 };
 
 const LabelForm = ({
@@ -49,52 +61,136 @@ const LabelForm = ({
   onCancel,
   onSave,
   immutableFields,
+  gitOpsLocksDefinitionOnly = false,
 }: ILabelFormProps) => {
   const [name, setName] = useState(defaultName);
   const [description, setDescription] = useState(defaultDescription);
-  const [nameError, setNameError] = useState<string | null>("");
+  // this holds only the errors we're currently showing
+  const [formValidation, setFormValidation] = useState<ILabelFormValidation>({
+    isValid: true,
+  });
 
-  const onNameChange = (value: string) => {
-    setName(value);
-    setNameError(null);
+  const currentData = { name, description };
+
+  type ParsedTarget = { name: string; value: string };
+
+  const onFormChange = ({ name: fieldName, value }: ParsedTarget) => {
+    const nextData =
+      fieldName === "name"
+        ? { name: value, description }
+        : { name, description: value };
+
+    if (fieldName === "name") {
+      setName(value);
+    } else if (fieldName === "description") {
+      setDescription(value);
+    }
+
+    // full validation for new data
+    const fullValidation = validateLabelFormData(nextData);
+
+    setFormValidation((prev) => {
+      const next: ILabelFormValidation = { ...prev, isValid: true };
+
+      // start from previous errors
+      if (prev.name) next.name = prev.name;
+
+      // ONLY CLEAR existing error on this field if it is now valid.
+      // Do NOT set a new error if there wasn't one before.
+      if (fieldName === "name") {
+        if (prev.name && fullValidation.name?.isValid) {
+          next.name = undefined; // clear existing name error
+        }
+      }
+
+      // recompute isValid from remaining errors
+      next.isValid = !next.name || next.name.isValid;
+
+      return next;
+    });
   };
 
-  const onDescriptionChange = (value: string) => {
-    setDescription(value);
+  const onInputBlur = ({ name: fieldName, value }: ParsedTarget) => {
+    const nextData =
+      fieldName === "name"
+        ? { name: value, description }
+        : { name, description: value };
+
+    // full validation for new data
+    const fullValidation = validateLabelFormData(nextData);
+    setFormValidation(fullValidation);
+  };
+
+  const handleBlur = (
+    evt: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const target = evt.currentTarget as HTMLInputElement;
+    onInputBlur({ name: target.name, value: target.value });
   };
 
   const onSubmitForm = (evt: React.FormEvent) => {
     evt.preventDefault();
 
-    let isFormValid = true;
-    if (!validate_presence(name)) {
-      setNameError("Label name must be present");
-      isFormValid = false;
-    }
+    // on submit, also show all errors
+    const fullValidation = validateLabelFormData(currentData);
+    setFormValidation(fullValidation);
 
-    onSave({ name, description }, isFormValid);
+    onSave(currentData, fullValidation.isValid);
   };
+
+  // When git owns only the definition, each field carries its own GitOps tooltip and Save stays
+  // enabled. Otherwise the fields render as-is and Save carries the gate for the whole form.
+  const renderDefinitionField = (
+    field: (disabled?: boolean) => React.ReactNode
+  ) =>
+    gitOpsLocksDefinitionOnly ? (
+      <GitOpsModeTooltipWrapper
+        entityType="labels"
+        isInputField
+        renderChildren={field}
+      />
+    ) : (
+      field()
+    );
+
+  const renderSaveButton = (disabled?: boolean) => (
+    <Button type="submit" isLoading={isUpdatingLabel} disabled={disabled}>
+      Save
+    </Button>
+  );
 
   return (
     <form className={`${baseClass}__wrapper`} onSubmit={onSubmitForm}>
-      <InputField
-        error={nameError}
-        name="name"
-        onChange={onNameChange}
-        value={name}
-        inputClassName={`${baseClass}__label-title`}
-        label="Name"
-        placeholder="Label name"
-      />
-      <InputField
-        name="description"
-        onChange={onDescriptionChange}
-        value={description}
-        inputClassName={`${baseClass}__label-description`}
-        label="Description"
-        type="textarea"
-        placeholder="Label description (optional)"
-      />
+      {renderDefinitionField((disabled) => (
+        <InputField
+          error={formValidation.name?.message}
+          parseTarget
+          name="name"
+          onChange={onFormChange}
+          onBlur={handleBlur}
+          value={name}
+          disabled={disabled}
+          inputClassName={`${baseClass}__label-title`}
+          label="Name"
+          placeholder="Label name"
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+        />
+      ))}
+      {renderDefinitionField((disabled) => (
+        <InputField
+          parseTarget
+          name="description"
+          onChange={onFormChange}
+          onBlur={handleBlur}
+          value={description}
+          disabled={disabled}
+          inputClassName={`${baseClass}__label-description`}
+          label="Description"
+          type="textarea"
+          placeholder="Label description (optional)"
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
+        />
+      ))}
       {immutableFields.length > 0 ? (
         <span className={`${baseClass}__help-text`}>
           {generateDescriptionHelpText(immutableFields)}
@@ -103,11 +199,16 @@ const LabelForm = ({
       {teamName ? <TeamNameField name={teamName} /> : null}
       {additionalFields}
       <div className="button-wrap">
-        <Button onClick={onCancel} variant="inverse">
+        {gitOpsLocksDefinitionOnly ? (
+          renderSaveButton()
+        ) : (
+          <GitOpsModeTooltipWrapper
+            entityType="labels"
+            renderChildren={renderSaveButton}
+          />
+        )}
+        <Button onClick={onCancel} variant="secondary">
           Cancel
-        </Button>
-        <Button type="submit" isLoading={isUpdatingLabel}>
-          Save
         </Button>
       </div>
     </form>

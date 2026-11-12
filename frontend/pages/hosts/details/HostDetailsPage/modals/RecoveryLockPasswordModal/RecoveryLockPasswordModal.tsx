@@ -1,0 +1,131 @@
+import React, { useState } from "react";
+import { useQuery } from "react-query";
+
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
+import InfoBanner from "components/InfoBanner";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { getErrorReason } from "interfaces/errors";
+import { IHostRecoveryLockPasswordResponse } from "interfaces/host";
+import hostAPI from "services/entities/hosts";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
+import { monthDayTimeFormat } from "utilities/date_format";
+
+const baseClass = "recovery-lock-password-modal";
+
+interface IRecoveryLockPasswordModalProps {
+  hostId: number;
+  canRotatePassword: boolean;
+  onCancel: () => void;
+}
+
+const RecoveryLockPasswordModal = ({
+  hostId,
+  canRotatePassword,
+  onCancel,
+}: IRecoveryLockPasswordModalProps) => {
+  const [isRotating, setIsRotating] = useState(false);
+
+  const {
+    data: recoveryLockData,
+    error: recoveryLockPasswordError,
+    isLoading,
+  } = useQuery<
+    IHostRecoveryLockPasswordResponse,
+    unknown,
+    IHostRecoveryLockPasswordResponse["recovery_lock_password"]
+  >(
+    ["hostRecoveryLockPassword", hostId],
+    () => hostAPI.getRecoveryLockPassword(hostId),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      select: (data) => data.recovery_lock_password,
+      // prevent caching this sensitive string
+      cacheTime: 0,
+    }
+  );
+
+  const onRotatePassword = async () => {
+    setIsRotating(true);
+    try {
+      await hostAPI.rotateRecoveryLockPassword(hostId);
+      notify.success(
+        "Successfully sent request to rotate Recovery Lock password."
+      );
+      onCancel();
+    } catch (e) {
+      const msg = getErrorReason(e).includes("already in progress")
+        ? "Recovery lock password rotation is already in progress for this host."
+        : "Couldn't send request to rotate Recovery Lock password. Please try again.";
+
+      notify.error(msg, { response: e });
+    }
+    setIsRotating(false);
+  };
+
+  const renderRotateButton = () => {
+    if (!canRotatePassword) {
+      return null;
+    }
+
+    return (
+      <Button
+        variant="secondary"
+        onClick={onRotatePassword}
+        disabled={isRotating}
+        className={`${baseClass}__rotate-button`}
+        icon="refresh"
+      >
+        {isRotating ? "Rotating..." : "Rotate password"}
+      </Button>
+    );
+  };
+
+  return (
+    <Modal
+      title="Recovery Lock password"
+      onExit={onCancel}
+      onEnter={onCancel}
+      className={baseClass}
+    >
+      {isLoading && <Spinner />}
+      {recoveryLockPasswordError ? (
+        <DataError />
+      ) : (
+        !isLoading && (
+          <>
+            <InputFieldHiddenContent value={recoveryLockData?.password ?? ""} />
+            <p>
+              Use this to unlock and regain access to the host if the end user
+              forgets their local password.{" "}
+              <CustomLink
+                newTab
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/startup-security-macos`}
+                text="Learn more"
+              />
+            </p>
+            {recoveryLockData?.auto_rotate_at && (
+              <InfoBanner color="yellow">
+                Password rotates automatically after{" "}
+                {monthDayTimeFormat(recoveryLockData.auto_rotate_at)}.
+              </InfoBanner>
+            )}
+            <div className="modal-cta-wrap">
+              <Button onClick={onCancel}>Close</Button>
+              {renderRotateButton()}
+            </div>
+          </>
+        )
+      )}
+    </Modal>
+  );
+};
+
+export default RecoveryLockPasswordModal;

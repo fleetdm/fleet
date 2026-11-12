@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"strings"
 	"time"
@@ -17,8 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -28,14 +27,14 @@ const maxCommonNameLength = 64
 type ConditionalAccessSCEPDepot struct {
 	db     *sqlx.DB
 	ds     fleet.Datastore
-	logger log.Logger
+	logger *slog.Logger
 	config *config.FleetConfig
 }
 
 var _ depot.Depot = (*ConditionalAccessSCEPDepot)(nil)
 
 // NewConditionalAccessSCEPDepot creates and returns a *ConditionalAccessSCEPDepot.
-func NewConditionalAccessSCEPDepot(db *sqlx.DB, ds fleet.Datastore, logger log.Logger, cfg *config.FleetConfig) (*ConditionalAccessSCEPDepot, error) {
+func NewConditionalAccessSCEPDepot(db *sqlx.DB, ds fleet.Datastore, logger *slog.Logger, cfg *config.FleetConfig) (*ConditionalAccessSCEPDepot, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
@@ -86,8 +85,8 @@ func (d *ConditionalAccessSCEPDepot) HasCN(cn string, allowTime int, cert *x509.
 }
 
 // Put stores a certificate under the given name.
-// The certificate must contain a SAN URI with the device UUID in the format:
-// urn:device:apple:uuid:<uuid>
+// The certificate must contain a SAN URI with the device UUID in one of the deviceUUIDURIPrefixes formats, such as
+// urn:device:fleet:uuid:<uuid>
 // The UUID is used to look up the host in Fleet, and the certificate is only issued
 // if the host exists. Old certificates for the same host are automatically revoked.
 func (d *ConditionalAccessSCEPDepot) Put(name string, crt *x509.Certificate) error {
@@ -98,15 +97,13 @@ func (d *ConditionalAccessSCEPDepot) Put(name string, crt *x509.Certificate) err
 		return errors.New("cannot represent serial number as int64")
 	}
 
-	// Extract UUID from SAN URI
-	// Expected format: urn:device:apple:uuid:<device-uuid>
 	uuid := extractUUIDFromCert(crt)
 	if uuid == "" {
 		return errors.New("no device UUID found in certificate SAN URI")
 	}
 
 	// Look up host BEFORE storing certificate
-	host, err := d.ds.HostByIdentifier(context.Background(), uuid)
+	host, err := d.ds.HostByUUID(context.Background(), uuid)
 	if err != nil {
 		return fmt.Errorf("host not found for UUID %s: %w", uuid, err)
 	}
@@ -152,8 +149,7 @@ func (d *ConditionalAccessSCEPDepot) Put(name string, crt *x509.Certificate) err
 		return err
 	}
 
-	level.Info(d.logger).Log(
-		"msg", "stored conditional access certificate",
+	d.logger.InfoContext(context.TODO(), "stored conditional access certificate",
 		"cn", name,
 		"serial", crt.SerialNumber.Int64(),
 		"host_id", host.ID,
@@ -163,16 +159,19 @@ func (d *ConditionalAccessSCEPDepot) Put(name string, crt *x509.Certificate) err
 	return nil
 }
 
+// deviceUUIDURIPrefixes are the accepted SAN URI prefixes. Apple profiles use the first; Windows profiles use the
+// platform-neutral second.
+var deviceUUIDURIPrefixes = []string{"urn:device:apple:uuid:", "urn:device:fleet:uuid:"}
+
 // extractUUIDFromCert extracts the device UUID from the SAN URI field.
-// Expected format: urn:device:apple:uuid:<uuid>
 // Returns the UUID portion or empty string if not found.
 func extractUUIDFromCert(crt *x509.Certificate) string {
-	const prefix = "urn:device:apple:uuid:"
 	for _, uri := range crt.URIs {
-		// Check if this is a device URI (urn:device:apple:uuid:...)
-		uriStr := uri.String()
-		if strings.HasPrefix(uriStr, prefix) {
-			return strings.TrimPrefix(uriStr, prefix)
+		s := uri.String()
+		for _, prefix := range deviceUUIDURIPrefixes {
+			if uuid, ok := strings.CutPrefix(s, prefix); ok {
+				return uuid
+			}
 		}
 	}
 	return ""

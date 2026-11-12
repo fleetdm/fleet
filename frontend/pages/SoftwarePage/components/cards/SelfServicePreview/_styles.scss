@@ -1,0 +1,97 @@
+.self-service-preview {
+  &__preview-card {
+    overflow: hidden;
+    height: 310px;
+
+    &--mobile {
+      height: 230px; // Mobile preview is shorter height than Desktop preview
+    }
+
+    &__self-service {
+      width: 515px;
+      height: 310px;
+      @include vertical-card-layout;
+    }
+
+    .card-header__header {
+      font-size: initial;
+    }
+  }
+
+  &__preview-img-container--mobile {
+    img {
+      width: 100%;
+    }
+  }
+
+  &__filter-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-medium;
+    // Intentionally extend past the inner card's right edge. The outer
+    // .__preview-card has overflow: hidden, so the SearchField clips at the
+    // outer card boundary — matching the visual on the real self-service page
+    // where the search bar is wider than the dropdown row.
+    margin-right: -70px;
+
+    .input-field-search {
+      width: 280px;
+      flex-shrink: 0;
+    }
+  }
+
+  // Visual-only mimic of CategoryFilter's trigger; not interactive because the
+  // entire preview sits under .__disabled-overlay.
+  &__static-dropdown {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-small;
+    padding: 4px 0;
+    flex-shrink: 0;
+  }
+
+  &__static-dropdown-label {
+    color: $core-fleet-black;
+    font-weight: 600;
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  &__disabled-overlay {
+    position: absolute;
+    width: 540px;
+    height: 265px;
+    z-index: 1000;
+  }
+
+  &__self-service-preview--mobile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    max-width: 210px;
+    left: 154px;
+    top: -85px;
+    gap: $pad-xsmall;
+
+    .software-icon__xsmall {
+      border-radius: $border-radius-small;
+    }
+  }
+
+  &__self-service-preview-name-version--mobile {
+    display: flex;
+    flex-direction: column;
+    font-size: 8px;
+    max-width: 110px; // Required for tooltip truncating long software names (mobile)
+  }
+
+  // Required for tooltip truncating long software names
+  &__self-service-preview-name--mobile {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    font-weight: $bold;
+  }
+}

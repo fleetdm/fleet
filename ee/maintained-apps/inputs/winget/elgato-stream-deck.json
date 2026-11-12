@@ -1,0 +1,10 @@
+{
+  "name": "Elgato Stream Deck",
+  "slug": "elgato-stream-deck/windows",
+  "package_identifier": "Elgato.StreamDeck",
+  "unique_identifier": "Elgato Stream Deck",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

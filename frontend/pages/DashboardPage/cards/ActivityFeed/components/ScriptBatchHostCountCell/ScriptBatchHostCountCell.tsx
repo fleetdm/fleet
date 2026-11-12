@@ -1,7 +1,7 @@
 import React from "react";
 
-import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import PATHS from "router/paths";
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -25,7 +25,7 @@ const ScriptBatchHostCountCell = ({
   const hostPath = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
     script_batch_execution_status: status,
     script_batch_execution_id: batchExecutionId,
-    team_id: teamId,
+    fleet_id: teamId,
   })}`;
 
   const renderCancelButton = () => {
@@ -37,7 +37,7 @@ const ScriptBatchHostCountCell = ({
       <Button
         className={`${baseClass}__cancel-button`}
         onClick={onClickCancel}
-        variant="inverse"
+        variant="secondary"
       >
         Cancel
       </Button>

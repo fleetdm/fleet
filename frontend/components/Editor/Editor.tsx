@@ -1,25 +1,43 @@
-import React, { MouseEvent, ReactNode, useState, useCallback } from "react";
-
 import classnames from "classnames";
+import React, { ReactNode, useEffect, useState } from "react";
 import AceEditor from "react-ace";
+
 import "ace-builds/src-noconflict/mode-sh";
 import "ace-builds/src-noconflict/mode-powershell";
-import { IAceEditor } from "react-ace/lib/types";
+import "ace-builds/src-noconflict/mode-python";
+import "ace-builds/src-noconflict/mode-xml";
+import "ace-builds/src-noconflict/mode-json";
 
-import { stringToClipboard } from "utilities/copy_text";
+import { Ace } from "ace-builds";
 
+import CopyButton from "components/buttons/CopyButton";
 import TooltipWrapper from "components/TooltipWrapper";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
+import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
+
+import "utilities/ace_theme";
 
 const baseClass = "editor";
 
-interface IEditorProps {
+export type EditorMode =
+  | "sh"
+  | "powershell"
+  | "python"
+  | "xml"
+  | "json"
+  | "text";
+
+export interface IEditorProps {
   focus?: boolean;
   label?: string;
+  /** Accessible name for the text input. Defaults to `label`. */
+  ariaLabel?: string;
   labelTooltip?: string | JSX.Element;
   error?: string | null;
   readOnly?: boolean;
+  /** Visually and functionally disables the editor: forces `readOnly` and
+   * applies the shared greyed-out treatment (opacity + grayscale). Use for
+   * form-field-style disabled states (e.g. gitops mode). */
+  disabled?: boolean;
   /**
    * Help text to display below the editor.
    */
@@ -34,6 +52,15 @@ interface IEditorProps {
    * @default false
    */
   enableCopy?: boolean;
+  /** Where the copy button sits when `enableCopy` is on.
+   * - `"overlay"` (default): subdued copy icon absolute-positioned over the
+   *   top-right of the editor, matching InputField's `enableCopy`.
+   * - `"label"`: outlined copy button in the label row, aligned opposite the
+   *   label text. For readonly display-and-copy blocks where overlaying the
+   *   content isn't desired.
+   * @default "overlay"
+   */
+  copyButtonLocation?: "overlay" | "label";
   /** Enabled wrapping lines.
    * @default false
    */
@@ -44,15 +71,24 @@ interface IEditorProps {
   name?: string;
   /** The syntax highlighting mode to use.
    */
-  mode?: string;
+  mode?: EditorMode;
   /** Include correct styles as a form field.
    * @default true
    */
   isFormField?: boolean;
   maxLines?: number;
+  /** @default 2 */
+  minLines?: number;
+  /** @default true */
+  showPrintMargin?: boolean;
+  /** Shown while the editor is empty. */
+  placeholder?: string;
   className?: string;
-  onChange?: (value: string, event?: any) => void;
+  onChange?: (value: string, event?: Ace.Delta) => void;
   onBlur?: () => void;
+  onFocus?: () => void;
+  /** Called after the Ace editor mounts with the editor instance. */
+  onLoad?: (editor: Ace.Editor) => void;
 }
 
 /**
@@ -65,63 +101,72 @@ interface IEditorProps {
 const Editor = ({
   helpText,
   label,
+  ariaLabel,
   labelTooltip,
   error,
   focus,
   value,
   defaultValue,
   readOnly = false,
+  disabled = false,
   enableCopy = false,
+  copyButtonLocation = "overlay",
   wrapEnabled = false,
   name = "editor",
-  mode,
+  mode = "text",
   isFormField = true,
   maxLines = 20,
+  minLines = 2,
+  showPrintMargin = true,
+  placeholder,
   className,
   onChange,
   onBlur,
+  onFocus,
+  onLoad: onLoadProp,
 }: IEditorProps) => {
   const classNames = classnames(baseClass, className, {
     "form-field": isFormField,
     [`${baseClass}__error`]: !!error,
+    [`${baseClass}--disabled`]: disabled,
   });
 
-  const [showCopiedMessage, setShowCopiedMessage] = useState(false);
-
-  const onClickCopy = useCallback(
-    (e: MouseEvent) => {
-      e.preventDefault();
-      stringToClipboard(value).then(() => {
-        setShowCopiedMessage(true);
-        setTimeout(() => {
-          setShowCopiedMessage(false);
-        }, 2000);
-      });
-    },
-    [value]
+  // Track the editor's displayed content so copy works for uncontrolled
+  // editors (defaultValue + edits) as well as controlled ones.
+  const [displayedValue, setDisplayedValue] = useState(
+    value ?? defaultValue ?? ""
   );
+  useEffect(() => {
+    if (value !== undefined) {
+      setDisplayedValue(value);
+    }
+  }, [value]);
+
+  const handleChange = (newValue: string, event?: Ace.Delta) => {
+    setDisplayedValue(newValue);
+    onChange?.(newValue, event);
+  };
 
   const renderCopyButton = () => {
-    const copyButtonValue = <Icon name="copy" />;
-    const wrapperClasses = classnames(`${baseClass}__copy-wrapper`);
-
-    const copiedConfirmationClasses = classnames(
-      `${baseClass}__copied-confirmation`
-    );
-
     return (
-      <div className={wrapperClasses}>
-        {showCopiedMessage && (
-          <span className={copiedConfirmationClasses}>Copied!</span>
-        )}
-        <Button variant={"icon"} onClick={onClickCopy} iconStroke>
-          {copyButtonValue}
-        </Button>
+      <div className={`${baseClass}__copy-wrapper`}>
+        <CopyButton copyText={displayedValue} variant="subdued" />
       </div>
     );
   };
 
-  const onLoadHandler = (editor: IAceEditor) => {
+  const renderLabelCopyButton = () => {
+    return (
+      <CopyButton
+        copyText={displayedValue}
+        variant="secondary"
+        ariaLabel={ariaLabel ? `Copy ${ariaLabel}` : "Copy"}
+        disabled={!displayedValue}
+      />
+    );
+  };
+
+  const onLoadHandler = (editor: Ace.Editor) => {
     // Lose focus using the Escape key so you can Tab forward (or Shift+Tab backwards) through app
     editor.commands.addCommand({
       name: "escapeToBlur",
@@ -132,6 +177,11 @@ const Editor = ({
       },
       readOnly: true,
     });
+
+    // Prevent scrolling from selecting text after a stationary click (#48490).
+    releaseStuckSelectionOnScroll(editor);
+
+    onLoadProp?.(editor);
   };
 
   const renderLabel = () => {
@@ -139,24 +189,35 @@ const Editor = ({
     const labelClassName = classnames(`${baseClass}__label`, {
       [`${baseClass}__label--error`]: !!error,
     });
+    const showInlineCopyButton =
+      enableCopy && copyButtonLocation === "label" && !error;
 
-    if (!labelText) {
+    if (!labelText && !showInlineCopyButton) {
       return null;
     }
 
-    if (labelTooltip) {
-      return (
-        <TooltipWrapper
-          className={labelClassName}
-          tipContent={labelTooltip}
-          position="top-start"
-        >
-          {labelText}
-        </TooltipWrapper>
-      );
+    const labelNode = labelTooltip ? (
+      <TooltipWrapper
+        className={labelClassName}
+        tipContent={labelTooltip}
+        position="top-start"
+      >
+        {labelText as string}
+      </TooltipWrapper>
+    ) : (
+      <div className={labelClassName}>{labelText}</div>
+    );
+
+    if (!showInlineCopyButton) {
+      return labelNode;
     }
 
-    return <div className={labelClassName}>{labelText}</div>;
+    return (
+      <div className={`${baseClass}__label-row`}>
+        {labelNode}
+        {renderLabelCopyButton()}
+      </div>
+    );
   };
 
   const renderHelpText = () => {
@@ -169,7 +230,7 @@ const Editor = ({
   return (
     <div className={classNames}>
       {renderLabel()}
-      {enableCopy && renderCopyButton()}
+      {enableCopy && copyButtonLocation === "overlay" && renderCopyButton()}
       <AceEditor
         mode={mode}
         wrapEnabled={wrapEnabled}
@@ -178,16 +239,25 @@ const Editor = ({
         fontSize={14}
         theme="fleet"
         width="100%"
-        readOnly={readOnly}
-        minLines={2}
+        readOnly={readOnly || disabled}
+        minLines={minLines}
         maxLines={maxLines}
+        showPrintMargin={showPrintMargin}
+        placeholder={placeholder}
         editorProps={{ $blockScrolling: Infinity }}
+        setOptions={{
+          textInputAriaLabel: ariaLabel ?? label,
+          // Fleet doesn't serve Ace's worker-*.js scripts and validates content
+          // itself, so the JSON/XML syntax workers would only 404.
+          useWorker: false,
+        }}
         value={value}
         defaultValue={defaultValue}
         tabSize={2}
         focus={focus}
-        onChange={onChange}
+        onChange={handleChange}
         onBlur={onBlur}
+        onFocus={onFocus}
         onLoad={onLoadHandler}
       />
       {renderHelpText()}

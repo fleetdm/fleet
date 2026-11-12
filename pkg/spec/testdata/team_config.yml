@@ -1,5 +1,5 @@
 name: Team1
-team_settings:
+settings:
   path: ./team-settings.yml
 agent_options:
   path: ./agent-options.yml
@@ -59,6 +59,7 @@ software:
         - a
   fleet_maintained_apps:
     - slug: slack/darwin
+      version: "4.47.65"
       self_service: true
       categories:
         - Productivity

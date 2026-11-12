@@ -1,10 +1,21 @@
 import React from "react";
 
-const Calendar = () => {
+import { COLORS, Colors } from "styles/var/colors";
+import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
+
+interface ICalendarProps {
+  color?: Colors;
+  size?: IconSizes;
+}
+
+const Calendar = ({
+  color = "ui-fleet-black-75",
+  size = "medium",
+}: ICalendarProps) => {
   return (
     <svg
-      width="16"
-      height="16"
+      width={ICON_SIZES[size]}
+      height={ICON_SIZES[size]}
       viewBox="0 0 16 16"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -12,8 +23,8 @@ const Calendar = () => {
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M4.75 1.29999C4.75 0.885774 4.41421 0.549988 4 0.549988C3.58579 0.549988 3.25 0.885774 3.25 1.29999V2.49999H2C0.895431 2.49999 0 3.39542 0 4.49999V14.5C0 15.6046 0.895431 16.5 2 16.5H14C15.1046 16.5 16 15.6046 16 14.5V4.49999C16 3.39542 15.1046 2.49999 14 2.49999H12.75V1.29999C12.75 0.885777 12.4142 0.549991 12 0.549991C11.5858 0.549991 11.25 0.885777 11.25 1.29999V2.49999H4.75V1.29999ZM2 7.24999V14.5H14V7.24999H2ZM14 5.74999H2V4.49999L14 4.49999V5.74999Z"
-        fill="#515774"
+        d="M11.25 0C11.664 0 12 0.335 12 0.75V1.5H13C14.38 1.5 15.5 2.619 15.5 4V13.5C15.5 14.88 14.38 16 13 16H3C1.619 16 0.5 14.88 0.5 13.5V4C0.5 2.619 1.619 1.5 3 1.5H4V0.75C4 0.335 4.335 0 4.75 0C5.164 0 5.5 0.335 5.5 0.75V1.5H10.5V0.75C10.5 0.335 10.835 0 11.25 0ZM2 13.5C2 14.052 2.447 14.5 3 14.5H13C13.552 14.5 14 14.052 14 13.5V7.5H2V13.5ZM3 3C2.447 3 2 3.447 2 4V6H14V4C14 3.447 13.552 3 13 3H12V4.25C12 4.664 11.664 5 11.25 5C10.835 5 10.5 4.664 10.5 4.25V3H5.5V4.25C5.5 4.664 5.164 5 4.75 5C4.335 5 4 4.664 4 4.25V3H3Z"
+        fill={COLORS[color]}
       />
     </svg>
   );

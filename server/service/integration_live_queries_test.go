@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -16,12 +17,11 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -59,9 +59,9 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	lq := live_query_mock.New(s.T())
 	s.lq = lq
 
-	opts := &TestServerOpts{Lq: lq, Rs: rs}
+	opts := &TestServerOpts{Lq: lq, Rs: rs, DBConns: s.dbConns}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = kitlog.NewNopLogger()
+		opts.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, opts)
 	s.server = server
@@ -119,7 +119,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		require.NoError(t, err)
 
 		s.lq.On("QueriesForHost", uint(1)).Return(map[string]string{fmt.Sprint(q1.ID): query}, nil)
-		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 		s.lq.On("RunQuery", mock.Anything, query, []uint{host.ID}).Return(nil)
 		s.lq.On("StopQuery", mock.Anything).Return(nil)
 
@@ -172,7 +172,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 			for range ticker.C {
 				if endpoint == customQueryOneHostIdentifierEndpoint || endpoint == customQueryOneHostIdEndpoint {
 					campaign := fleet.DistributedQueryCampaign{}
-					err := mysql.ExecAdhocSQLWithError(
+					err := mysqltest.ExecAdhocSQLWithError(
 						s.ds, func(q sqlx.ExtContext) error {
 							return sqlx.GetContext(
 								context.Background(), q, &campaign,
@@ -272,11 +272,11 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 			defer ticker.Stop()
 			for range ticker.C {
 				details := json.RawMessage{}
-				err := mysql.ExecAdhocSQLWithError(
+				err := mysqltest.ExecAdhocSQLWithError(
 					s.ds, func(q sqlx.ExtContext) error {
 						return sqlx.GetContext(
 							context.Background(), q, &details,
-							`SELECT details FROM activities WHERE activity_type = 'live_query' ORDER BY id DESC LIMIT 1`,
+							`SELECT details FROM activity_past WHERE activity_type = 'live_query' ORDER BY id DESC LIMIT 1`,
 						)
 					},
 				)
@@ -302,7 +302,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 			t.Error("Timeout: activity not created for TestLiveQueriesRestOneHostOneQuery")
 		}
 
-		aggStats, err := mysql.GetAggregatedStats(context.Background(), s.ds, fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
+		aggStats, err := mysqltest.GetAggregatedStats(context.Background(), s.ds, fleet.AggregatedStatsTypeScheduledQuery, q1.ID)
 		if savedQuery && hasStats {
 			require.NoError(t, err)
 			assert.Equal(t, 1, int(*aggStats.TotalExecutions))
@@ -362,7 +362,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 		fmt.Sprint(q1.ID): "select 1 from osquery;",
 		fmt.Sprint(q2.ID): "select 2 from osquery;",
 	}, nil)
-	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 	s.lq.On("RunQuery", mock.Anything, "select 1 from osquery;", []uint{host.ID}).Return(nil)
 	s.lq.On("RunQuery", mock.Anything, "select 2 from osquery;", []uint{host.ID}).Return(nil)
 	s.lq.On("StopQuery", mock.Anything).Return(nil)
@@ -479,7 +479,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 		fmt.Sprint(q1.ID): "select 1 from osquery;",
 		fmt.Sprint(q2.ID): "select 2 from osquery;",
 	}, nil)
-	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 	s.lq.On("RunQuery", mock.Anything, "select 1 from osquery;", []uint{h1.ID, h2.ID}).Return(nil)
 	s.lq.On("RunQuery", mock.Anything, "select 2 from osquery;", []uint{h1.ID, h2.ID}).Return(nil)
 	s.lq.On("StopQuery", mock.Anything).Return(nil)
@@ -585,7 +585,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesSomeFailToAuthorize() {
 	require.NoError(t, err)
 
 	s.lq.On("QueriesForHost", uint(1)).Return(map[string]string{fmt.Sprint(q1.ID): "select 2 from osquery;"}, nil)
-	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 	s.lq.On("RunQuery", mock.Anything, "select 2 from osquery;", []uint{host.ID}).Return(nil)
 	s.lq.On("StopQuery", mock.Anything).Return(nil)
 
@@ -772,7 +772,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsToCreateCampaign() {
 	require.Len(t, liveQueryResp.Results, 1)
 	assert.Equal(t, 0, liveQueryResp.Summary.RespondedHostCount)
 	require.NotNil(t, liveQueryResp.Results[0].Error)
-	assert.Contains(t, *liveQueryResp.Results[0].Error, "Query 999 was not found in the datastore")
+	assert.Contains(t, *liveQueryResp.Results[0].Error, "Report 999 was not found in the datastore")
 
 	oneLiveQueryRequest := runOneLiveQueryRequest{
 		HostIDs: []uint{888},
@@ -834,7 +834,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 
 		s.lq.On("QueriesForHost", h1.ID).Return(map[string]string{fmt.Sprint(q1.ID): "select 1 from osquery;"}, nil)
 		s.lq.On("QueriesForHost", h2.ID).Return(map[string]string{fmt.Sprint(q1.ID): "select 1 from osquery;"}, nil)
-		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(true, nil)
 		s.lq.On("RunQuery", mock.Anything, "select 1 from osquery;", []uint{h1.ID, h2.ID}).Return(nil)
 		s.lq.On("StopQuery", mock.Anything).Return(nil)
 
@@ -1031,6 +1031,41 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	}
 
 	s.DoJSON("POST", "/api/latest/fleet/queries/run_by_identifiers", req3, http.StatusBadRequest, &createResp)
+}
+
+func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaignIgnoresBlankHostIdentifiers() {
+	t := s.T()
+
+	s.lq.On("RunQuery", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	s.lq.On("StopQuery", mock.Anything).Return(nil)
+
+	// The suite's hosts all have an empty hardware serial, so a blank identifier would match every one of them.
+	labeledHost := s.hosts[0]
+	var labelResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: t.Name(), Hosts: []string{labeledHost.UUID}}, http.StatusOK, &labelResp)
+	labelID := labelResp.Label.ID
+	t.Cleanup(func() {
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", labelID), nil, http.StatusOK)
+	})
+
+	blankHostsWithLabel := createDistributedQueryCampaignByIdentifierRequest{
+		QuerySQL: "SELECT 1",
+		Selected: distributedQueryCampaignTargetsByIdentifiers{
+			Hosts:  []string{"", " "},
+			Labels: []string{t.Name()},
+		},
+	}
+	var createResp createDistributedQueryCampaignResponse
+	s.DoJSON("POST", "/api/latest/fleet/reports/run_by_identifiers", blankHostsWithLabel, http.StatusOK, &createResp)
+	assert.Equal(t, uint(1), createResp.Campaign.Metrics.TotalHosts, "only the label's host is targeted")
+	targets, err := s.ds.DistributedQueryCampaignTargetIDs(t.Context(), createResp.Campaign.ID)
+	require.NoError(t, err)
+	assert.Empty(t, targets.HostIDs, "blank identifiers must not add host targets")
+	assert.Equal(t, []uint{labelID}, targets.LabelIDs)
+
+	blankHostsOnly := blankHostsWithLabel
+	blankHostsOnly.Selected.Labels = nil
+	s.DoJSON("POST", "/api/latest/fleet/reports/run_by_identifiers", blankHostsOnly, http.StatusBadRequest, &createResp)
 }
 
 func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {

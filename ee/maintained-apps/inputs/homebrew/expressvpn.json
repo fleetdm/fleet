@@ -1,8 +1,11 @@
 {
   "name": "ExpressVPN",
-  "unique_identifier": "com.expressvpn.ExpressVPN",
+  "unique_identifier": "com.express.vpn",
   "token": "expressvpn",
-  "installer_format": "pkg",
+  "installer_format": "zip",
   "slug": "expressvpn/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": [
+    "Productivity"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/expressvpn-install.sh"
 }

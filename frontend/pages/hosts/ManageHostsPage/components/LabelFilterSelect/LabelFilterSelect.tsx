@@ -1,7 +1,15 @@
-import React, { useMemo, useRef, useState } from "react";
-import Select, { GroupBase, SelectInstance, components } from "react-select-5";
 import classnames from "classnames";
+import React, { useMemo, useRef, useState } from "react";
+import Select, {
+  GroupBase,
+  SelectInstance,
+  components,
+  MenuProps,
+} from "react-select-5";
 
+import Icon from "components/Icon";
+import Spinner from "components/Spinner";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { ILabel } from "interfaces/label";
 import {
   hasPlatformTypeIcon,
@@ -9,11 +17,11 @@ import {
   PLATFORM_LABEL_DISPLAY_NAMES,
   PLATFORM_TYPE_ICONS,
 } from "utilities/constants";
-import Icon from "components/Icon";
 
-import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
-import { createDropdownOptions, IEmptyOption, IGroupOption } from "./helpers";
 import CustomDropdownIndicator from "../CustomDropdownIndicator";
+import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
+
+import { createDropdownOptions, IEmptyOption, IGroupOption } from "./helpers";
 
 // Extending the react-select module to add custom props we need for our custom
 // group heading. More info here:
@@ -61,8 +69,24 @@ const formatOptionLabel = (data: ILabel | IEmptyOption) => {
           className="option-icon"
         />
       )}
-      <span>{displayText}</span>
+      <TooltipTruncatedText
+        className="option-label__text"
+        value={displayText}
+        fixedPositionStrategy
+      />
     </div>
+  );
+};
+
+const LoadingMenu = (
+  props: MenuProps<ILabel | IEmptyOption, false, IGroupOption>
+) => {
+  return (
+    <components.Menu {...props}>
+      <div className={`${baseClass}__menu-loading`}>
+        <Spinner />
+      </div>
+    </components.Menu>
   );
 };
 
@@ -73,6 +97,8 @@ interface ILabelFilterSelectProps {
   className?: string;
   onChange: (labelId: ILabel) => void;
   onAddLabel: () => void;
+  isLoading?: boolean;
+  isDisabled?: boolean;
 }
 
 const LabelFilterSelect = ({
@@ -82,6 +108,8 @@ const LabelFilterSelect = ({
   className,
   onChange,
   onAddLabel,
+  isLoading = false,
+  isDisabled = false,
 }: ILabelFilterSelectProps) => {
   const [labelQuery, setLabelQuery] = useState("");
 
@@ -168,7 +196,7 @@ const LabelFilterSelect = ({
     return (
       components.ValueContainer && (
         <components.ValueContainer {...props}>
-          {!!children && <Icon name="filter-alt" className="filter-icon" />}
+          {!!children && <Icon name="tag" className="filter-icon" />}
           {children}
         </components.ValueContainer>
       )
@@ -176,7 +204,7 @@ const LabelFilterSelect = ({
   };
 
   return (
-    <div className={classes} onClick={toggleMenu}>
+    <div className={classes} onClick={isDisabled ? undefined : toggleMenu}>
       <Select<ILabel | IEmptyOption, false, IGroupOption>
         ref={selectRef}
         name="input-filter-select"
@@ -185,10 +213,12 @@ const LabelFilterSelect = ({
         placeholder="Filter by platform or label"
         value={selectedLabel}
         isSearchable={false}
+        isDisabled={isDisabled}
         components={{
           GroupHeading: CustomLabelGroupHeading,
           DropdownIndicator: CustomDropdownIndicator,
           ValueContainer,
+          Menu: isLoading ? LoadingMenu : components.Menu,
         }}
         onChange={handleChange}
         closeMenuOnSelect

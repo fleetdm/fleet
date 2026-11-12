@@ -7,22 +7,23 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
-	"github.com/go-kit/kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/smallstep/scep"
 )
 
 const (
-	scepPath         = "/api/fleet/conditional_access/scep"
+	scepPath         = fleet.ConditionalAccessSCEPPath
 	scepValidityDays = 398 // Apple's maximum allowed certificate validity
 )
 
@@ -45,7 +46,7 @@ func RegisterSCEP(
 	mux *http.ServeMux,
 	scepStorage scepdepot.Depot,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	fleetConfig *config.FleetConfig,
 ) error {
 	if fleetConfig == nil {
@@ -68,10 +69,10 @@ func RegisterSCEP(
 	scepService := NewSCEPService(
 		ds,
 		signer,
-		kitlog.With(logger, "component", "conditional-access-scep"),
+		logger.With("component", "conditional-access-scep"),
 	)
 
-	scepLogger := kitlog.With(logger, "component", "http-conditional-access-scep")
+	scepLogger := logger.With("component", "http-conditional-access-scep")
 	e := scepserver.MakeServerEndpoints(scepService)
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
@@ -83,6 +84,8 @@ func RegisterSCEP(
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
 	scepHandler = otel.WrapHandler(scepHandler, scepPath, *fleetConfig)
 	mux.Handle(scepPath, scepHandler)
+	// The Windows SCEP client appends /pkiclient.exe to the server URL, as NDES expects, and can't be told not to.
+	mux.Handle(scepPath+"/pkiclient.exe", scepHandler)
 	return nil
 }
 
@@ -96,12 +99,17 @@ func challengeMiddleware(ds fleet.Datastore, next scepserver.CSRSignerContext) s
 		if m.ChallengePassword == "" {
 			return nil, errors.New("missing challenge")
 		}
-		_, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
+		secret, err := ds.VerifyEnrollSecret(ctx, m.ChallengePassword)
 		switch {
 		case fleet.IsNotFound(err):
 			return nil, errors.New("invalid challenge")
 		case err != nil:
 			return nil, fmt.Errorf("verifying enrollment secret: %w", err)
+		}
+		// Only global enroll secrets (team_id IS NULL) are valid for
+		// conditional-access SCEP. Reject team-scoped secrets.
+		if secret.TeamID != nil {
+			return nil, errors.New("invalid challenge")
 		}
 		return next.SignCSRContext(ctx, m)
 	}
@@ -112,7 +120,7 @@ var _ scepserver.Service = (*service)(nil)
 type service struct {
 	// The (chainable) CSR signing function
 	signer scepserver.CSRSignerContext
-	logger log.Logger
+	logger *slog.Logger
 	ds     fleet.Datastore
 }
 
@@ -159,7 +167,15 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	if len(data) == 0 {
 		return nil, &fleet.BadRequestError{Message: "missing data for PKIOperation"}
 	}
-	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(svc.logger))
+
+	if err := cryptoutil.ValidateBERDepth(data, cryptoutil.MaxBERDepth); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
+	}
+
+	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(kitlogadapter.NewLogger(svc.logger)))
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +191,12 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	}
 
 	if err := msg.DecryptPKIEnvelope(cert.Leaf, pk); err != nil {
-		return nil, err
+		svc.logger.ErrorContext(ctx, "failed to decrypt PKI envelope", "err", err)
+		certRep, err := msg.Fail(cert.Leaf, pk, scep.BadRequest)
+		if certRep == nil {
+			return nil, err
+		}
+		return certRep.Raw, err
 	}
 
 	crt, err := svc.signer.SignCSRContext(ctx, msg.CSRReqMessage)
@@ -183,7 +204,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		err = errors.New("signer returned nil certificate without error")
 	}
 	if err != nil {
-		svc.logger.Log("msg", "failed to sign CSR", "err", err)
+		svc.logger.ErrorContext(ctx, "failed to sign CSR", "err", err)
 
 		// Check if this is a rate limit error (permanent error from backoff)
 		var permanentErr *backoff.PermanentError
@@ -212,7 +233,7 @@ func (svc *service) GetNextCACert(_ context.Context) ([]byte, error) {
 }
 
 // NewSCEPService creates a new conditional access SCEP service.
-func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger log.Logger) scepserver.Service {
+func NewSCEPService(ds fleet.Datastore, signer scepserver.CSRSignerContext, logger *slog.Logger) scepserver.Service {
 	return &service{
 		ds:     ds,
 		signer: signer,

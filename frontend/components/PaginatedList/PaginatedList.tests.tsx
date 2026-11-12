@@ -1,6 +1,7 @@
-import React, { createRef } from "react";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React, { createRef } from "react";
+
 import { renderWithSetup } from "test/test-utils";
 
 import PaginatedList, { IPaginatedListHandle } from "./PaginatedList";
@@ -46,13 +47,6 @@ describe("PaginatedList", () => {
       checkMeBruh: false,
     },
   ];
-
-  const fetchTinyPage = (pageNumber: number) => {
-    if (pageNumber <= 2) {
-      return [items[pageNumber]];
-    }
-    throw new Error("Invalid page number");
-  };
 
   const fetchSmallPage = (pageNumber: number) => {
     if (pageNumber === 0) {

@@ -12,6 +12,44 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// ErrLastGlobalAdmin is returned when an operation would remove the last global admin.
+var ErrLastGlobalAdmin = errors.New("cannot remove the last global admin")
+
+// UserSummary contains the minimal user fields.
+type UserSummary struct {
+	ID          uint   `db:"id"`
+	Name        string `db:"name"`
+	Email       string `db:"email"`
+	GravatarURL string `db:"gravatar_url"`
+	APIOnly     bool   `db:"api_only"`
+}
+
+// APIEndpointRef represents an endpoint an API-only user has access to.
+type APIEndpointRef struct {
+	Method string `json:"method"`
+	Path   string `json:"path"`
+}
+
+// OptionalAPIEndpoints is a JSON-nullable field that distinguishes three states
+// when decoding a PATCH request body:
+//
+//   - Field absent → Present=false: no change to the user's current endpoints.
+//   - Field is null → Present=true, Value=nil: clear all entries (full access).
+//   - Field is an array → Present=true, Value=[...]: replace with specific entries.
+type OptionalAPIEndpoints struct {
+	Present bool
+	Value   []APIEndpointRef
+}
+
+func (o *OptionalAPIEndpoints) UnmarshalJSON(data []byte) error {
+	o.Present = true
+	if string(data) == "null" {
+		o.Value = nil
+		return nil
+	}
+	return json.Unmarshal(data, &o.Value)
+}
+
 // User is the model struct that represents a Fleet user.
 type User struct {
 	UpdateCreateTimestamps
@@ -29,15 +67,83 @@ type User struct {
 	MFAEnabled bool    `json:"mfa_enabled" db:"mfa_enabled"`
 	GlobalRole *string `json:"global_role" db:"global_role"`
 	APIOnly    bool    `json:"api_only" db:"api_only"`
+	// LastLoginAt is the last time the user logged in (i.e. the last time a
+	// session was created for the user). It is nil if the user has never
+	// logged in (or hasn't logged in since the column was introduced).
+	LastLoginAt *time.Time `json:"last_login_at" db:"last_login_at"`
+	// LastActivityAt is the last time the user made an authenticated request
+	// with one of its live sessions. This is the inactivity signal for
+	// API-only users, whose long-lived token session is created once but
+	// accessed on every request. It is computed from live sessions, which are
+	// deleted on logout and expiry, so it is nil when the user has no live
+	// session.
+	LastActivityAt *time.Time `json:"last_activity_at" db:"last_activity_at"`
 
 	// Teams is the teams this user has roles in. For users with a global role, Teams is expected to be empty.
-	Teams []UserTeam `json:"teams"`
+	Teams []UserTeam `json:"fleets"`
 
 	// Only used to to prevent duplicate invite acceptance
 	InviteID *uint `json:"-" db:"invite_id"`
 
 	Settings *UserSettings `json:"settings,omitempty"`
 	Deleted  bool          `json:"-" db:"deleted"`
+
+	// APIEndpoints if this user is an API-only user, this returns
+	// a list of all end-points the user has access to.
+	APIEndpoints []APIEndpointRef `json:"api_endpoints,omitempty"`
+
+	// Status is the account's activity status, computed at read time by
+	// ComputeStatus (see UserStatus). It is not stored in the database and is
+	// only populated by the list users and get user service methods; other
+	// responses carrying a user (create, modify, me, ...) omit it from JSON.
+	Status UserStatus `json:"status,omitempty" db:"-"`
+}
+
+// UserStatus is the activity status of a user account, computed at read time
+// from the user's roles and last login/activity timestamps.
+type UserStatus string
+
+const (
+	// UserStatusActive means the account was seen within UserInactiveAfter.
+	UserStatusActive = UserStatus("active")
+	// UserStatusInactive means the account hasn't logged in or had session
+	// activity for UserInactiveAfter or more.
+	UserStatusInactive = UserStatus("inactive")
+	// UserStatusNoAccess means the account has no global role and no team
+	// roles.
+	UserStatusNoAccess = UserStatus("no_access")
+)
+
+// UserInactiveAfter is the period without login or session activity after
+// which a user account is considered inactive.
+const UserInactiveAfter = 30 * 24 * time.Hour
+
+// ComputeStatus returns the user's activity status as of now.
+//
+// The user was last seen at the most recent of LastActivityAt (the signal for
+// API-only users, whose long-lived token session is accessed on every
+// request) and LastLoginAt, falling back to CreatedAt for users who have
+// never logged in (including accounts that predate last login tracking).
+//
+// NOTE: it must be called on a user with its full team memberships loaded
+// (before any scoping/filtering of Teams), otherwise a user could be
+// misreported as having no access.
+func (u *User) ComputeStatus(now time.Time) UserStatus {
+	if u.GlobalRole == nil && len(u.Teams) == 0 {
+		return UserStatusNoAccess
+	}
+
+	lastSeen := u.CreatedAt
+	if u.LastLoginAt != nil && u.LastLoginAt.After(lastSeen) {
+		lastSeen = *u.LastLoginAt
+	}
+	if u.LastActivityAt != nil && u.LastActivityAt.After(lastSeen) {
+		lastSeen = *u.LastActivityAt
+	}
+	if now.Sub(lastSeen) >= UserInactiveAfter {
+		return UserStatusInactive
+	}
+	return UserStatusActive
 }
 
 type UserSettings struct {
@@ -83,6 +189,19 @@ func (u *User) IsAdminForcedPasswordReset() bool {
 	return u.AdminForcedPasswordReset
 }
 
+// IsAnyAdmin checks if the user is either Global Admin or Admin on any team.
+func (u *User) IsAnyAdmin() bool {
+	if u.GlobalRole != nil && *u.GlobalRole == RoleAdmin {
+		return true
+	}
+	for _, t := range u.Teams {
+		if t.IsAdmin() {
+			return true
+		}
+	}
+	return false
+}
+
 func (u *User) AuthzType() string {
 	return "user"
 }
@@ -92,6 +211,10 @@ type UserTeam struct {
 	Team
 	// Role is the role the user has for the team.
 	Role string `json:"role" db:"role"`
+}
+
+func (u UserTeam) IsAdmin() bool {
+	return u.Role == RoleAdmin
 }
 
 func (u UserTeam) MarshalJSON() ([]byte, error) {
@@ -184,10 +307,15 @@ type UserPayload struct {
 	GlobalRole               *string       `json:"global_role,omitempty"`
 	AdminForcedPasswordReset *bool         `json:"admin_forced_password_reset,omitempty"`
 	APIOnly                  *bool         `json:"api_only,omitempty"`
-	Teams                    *[]UserTeam   `json:"teams,omitempty"`
+	Teams                    *[]UserTeam   `json:"fleets,omitempty"`
 	NewPassword              *string       `json:"new_password,omitempty"`
 	Settings                 *UserSettings `json:"settings,omitempty"`
 	InviteID                 *uint         `json:"-"`
+	JITProvisioned           bool          `json:"-"`
+
+	// If this is an API-only user, then this can be used to specify which
+	// API endpoints the user has access to
+	APIEndpoints *[]APIEndpointRef `json:"api_endpoints,omitempty"`
 }
 
 func (p *UserPayload) VerifyInviteCreate() error {
@@ -330,6 +458,9 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 	}
 	if p.APIOnly != nil {
 		user.APIOnly = *p.APIOnly
+		if p.APIEndpoints != nil {
+			user.APIEndpoints = *p.APIEndpoints
+		}
 	}
 	if p.Teams != nil {
 		user.Teams = *p.Teams
@@ -353,6 +484,9 @@ func (u *User) ValidatePassword(password string) error {
 }
 
 func (u *User) SetPassword(plaintext string, keySize, cost int) error {
+	if u.SSOEnabled {
+		return errors.New("set password for single sign on user not allowed")
+	}
 	if err := ValidatePasswordRequirements(plaintext); err != nil {
 		return err
 	}
@@ -446,7 +580,7 @@ func (u *User) TeamIDsWithAnyRole() (teamIDs []uint) {
 }
 
 func (u *User) HasAnyGlobalRole() bool {
-	return u.GlobalRole != nil
+	return u.GlobalRole != nil && *u.GlobalRole != ""
 }
 
 func (u *User) HasAnyTeamRole() bool {

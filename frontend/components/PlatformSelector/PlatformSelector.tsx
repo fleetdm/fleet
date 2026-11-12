@@ -1,12 +1,14 @@
-import React from "react";
 import classNames from "classnames";
+import React from "react";
 
-import { IPolicySoftwareToInstall } from "interfaces/policy";
-import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
+import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
-import { getPathWithQueryParams } from "utilities/url";
+import { IPolicySoftwareToInstall } from "interfaces/policy";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import paths from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
 interface IPlatformSelectorProps {
   baseClass?: string;
@@ -21,6 +23,8 @@ interface IPlatformSelectorProps {
   disabled?: boolean;
   installSoftware?: IPolicySoftwareToInstall;
   currentTeamId?: number;
+  /** Replaces the "Target" label with a red validation message. */
+  error?: string | null;
 }
 
 export const PlatformSelector = ({
@@ -36,49 +40,56 @@ export const PlatformSelector = ({
   disabled = false,
   installSoftware,
   currentTeamId,
+  error,
 }: IPlatformSelectorProps): JSX.Element => {
   const baseClass = "platform-selector";
 
   const labelClasses = classNames("form-field__label", {
     [`form-field__label--disabled`]: disabled,
+    [`form-field__label--error`]: !!error,
   });
 
   const renderInstallSoftwareHelpText = () => {
     if (!installSoftware) {
       return null;
     }
-    const softwareName = installSoftware.display_name || installSoftware.name;
+    const softwareName = getDisplayedSoftwareName(
+      installSoftware.name,
+      installSoftware.display_name
+    );
     const softwareId = installSoftware.software_title_id.toString();
     const softwareLink = getPathWithQueryParams(
       paths.SOFTWARE_TITLE_DETAILS(softwareId),
-      { team_id: currentTeamId }
+      { fleet_id: currentTeamId }
     );
 
     return (
       <div className="form-field__help-text">
-        <span className={`${baseClass}__install-software`}>
-          <CustomLink text={softwareName} url={softwareLink} /> will only
-          install on{" "}
-          <TooltipWrapper
-            tipContent={
-              <>
-                To see targets, select{" "}
-                <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
-                that aren&apos;t targeted show an empty (---) policy status.
-              </>
-            }
-          >
-            targeted hosts
-          </TooltipWrapper>
-          .
-        </span>
+        <CustomLinkSizeContext.Provider value="small">
+          <span className={`${baseClass}__install-software`}>
+            <CustomLink text={softwareName} url={softwareLink} /> will only
+            install on{" "}
+            <TooltipWrapper
+              tipContent={
+                <>
+                  To see targets, select{" "}
+                  <b>{softwareName} &gt; Actions &gt; Edit</b>. Currently, hosts
+                  that aren&apos;t targeted show an empty (---) policy status.
+                </>
+              }
+            >
+              targeted hosts
+            </TooltipWrapper>
+            .
+          </span>
+        </CustomLinkSizeContext.Provider>
       </div>
     );
   };
 
   return (
     <div className={`${parentClass}__${baseClass} ${baseClass} form-field`}>
-      <span className={labelClasses}>Target</span>
+      <span className={labelClasses}>{error || "Target"}</span>
       <span className={`${baseClass}__checkboxes`}>
         <Checkbox
           value={checkDarwin}

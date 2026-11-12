@@ -12,6 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -73,8 +74,8 @@ func output(metadata *file.InstallerMetadata) {
 }
 
 func processPackageFromUrl(url string) (*file.InstallerMetadata, error) {
-	client := fleethttp.NewClient()
-	client.Transport = fleethttp.NewSizeLimitTransport(fleet.MaxSoftwareInstallerSize)
+	// Installers can be up to MaxSoftwareInstallerSize (10 GiB), which will not finish inside the default timeout.
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithMaxResponseSize(installersize.MaxSoftwareInstallerSize))
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {

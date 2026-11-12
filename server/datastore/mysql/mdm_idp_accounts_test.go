@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,6 +21,7 @@ func TestMDMIdPAccountsReconciliation(t *testing.T) {
 	}{
 		{"AssociateHostMDMIdPAccountTriggersReconciliation", testAssociateHostMDMIdPAccountTriggersReconciliation},
 		{"AndroidEnrollmentFlowWithIdP", testAndroidEnrollmentFlowWithIdP},
+		{"ReconcileSupersedesManuallySetIdPMapping", testReconcileSupersedesManuallySetIdPMapping},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -34,7 +36,13 @@ func TestMDMIdPAccountsReconciliation(t *testing.T) {
 func testAssociateHostMDMIdPAccountTriggersReconciliation(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// Android and one Apple platform to verify cross-platform behavior
+	// Android, macOS, Windows, and Linux to verify cross-platform
+	// behavior. Windows and Linux pin down issue #45066: the Orbit Setup
+	// Experience SSO callback (shared by Windows MSI / Linux Orbit enrollment
+	// with End User Authentication).
+	//
+	// This test ensures the full AssociateHostMDMIdPAccount
+	// populates host_emails on every supported platform.
 	platforms := []struct {
 		name     string
 		platform string
@@ -42,6 +50,8 @@ func testAssociateHostMDMIdPAccountTriggersReconciliation(t *testing.T, ds *Data
 	}{
 		{"Android", "android", "android-host-uuid"},
 		{"macOS", "darwin", "macos-host-uuid"}, // Apple platforms
+		{"Windows", "windows", "windows-host-uuid"},
+		{"Linux", "ubuntu", "linux-host-uuid"},
 	}
 
 	// create IdP account
@@ -76,7 +86,7 @@ func testAssociateHostMDMIdPAccountTriggersReconciliation(t *testing.T, ds *Data
 			require.NotZero(t, h.ID)
 
 			// associate host with IdP account, should trigger reconciliation
-			err = ds.AssociateHostMDMIdPAccount(ctx, p.uuid, idpAccount.UUID)
+			_, err = ds.AssociateHostMDMIdPAccount(ctx, p.uuid, idpAccount.UUID)
 			require.NoError(t, err)
 
 			// host_emails table has IdP email
@@ -89,7 +99,7 @@ func testAssociateHostMDMIdPAccountTriggersReconciliation(t *testing.T, ds *Data
 			assert.Equal(t, "test.user@example.com", emails[0])
 
 			// calling again shouldn't create duplicates
-			err = ds.AssociateHostMDMIdPAccount(ctx, p.uuid, idpAccount.UUID)
+			_, err = ds.AssociateHostMDMIdPAccount(ctx, p.uuid, idpAccount.UUID)
 			require.NoError(t, err)
 
 			emails = nil
@@ -101,6 +111,188 @@ func testAssociateHostMDMIdPAccountTriggersReconciliation(t *testing.T, ds *Data
 			assert.Equal(t, "test.user@example.com", emails[0])
 		})
 	}
+}
+
+// testReconcileSupersedesManuallySetIdPMapping verifies that reconciling a
+// host's IdP association on (re-)enrollment replaces a manually set IdP
+// mapping (source "idp", written by SetOrUpdateIDPHostDeviceMapping) instead
+// of adding a second mapping reported under the same "mdm_idp_accounts" API
+// source (issue #49914: duplicate device mapping after EACS wipe and ADE
+// re-enrollment).
+func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	idpAccount := &fleet.MDMIdPAccount{
+		Username: "sso.user",
+		Fullname: "SSO User",
+		Email:    "sso.user@example.com",
+	}
+	err := ds.InsertMDMIdPAccount(ctx, idpAccount)
+	require.NoError(t, err)
+
+	insertedAccount, err := ds.GetMDMIdPAccountByEmail(ctx, "sso.user@example.com")
+	require.NoError(t, err)
+	require.NotNil(t, insertedAccount)
+	idpAccount.UUID = insertedAccount.UUID
+
+	newDarwinHost := func(t *testing.T, uuid string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      uuid + "-hostname",
+			UUID:          uuid,
+			Platform:      "darwin",
+			NodeKey:       new(uuid + "-key"),
+			OsqueryHostID: new(uuid + "-osquery"),
+		})
+		require.NoError(t, err)
+		require.NotZero(t, h.ID)
+		return h
+	}
+
+	countRawIdpRows := func(t *testing.T, hostID uint) int {
+		var count int
+		err := sqlx.GetContext(ctx, ds.writer(ctx), &count,
+			`SELECT COUNT(*) FROM host_emails WHERE host_id = ? AND source = ?`,
+			hostID, fleet.DeviceMappingIDP)
+		require.NoError(t, err)
+		return count
+	}
+
+	t.Run("manual mapping with different email", func(t *testing.T) {
+		host := newDarwinHost(t, "uuid-manual-diff")
+
+		_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
+		require.NoError(t, err)
+
+		// enrollment reconciles the association and supersedes the manual mapping
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
+		require.NoError(t, err)
+
+		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
+		require.NoError(t, err)
+		require.Len(t, mappings, 1)
+		assert.Equal(t, "sso.user@example.com", mappings[0].Email)
+		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source)
+		assert.Zero(t, countRawIdpRows(t, host.ID))
+	})
+
+	t.Run("manual mapping with same email", func(t *testing.T) {
+		host := newDarwinHost(t, "uuid-manual-same")
+
+		_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "sso.user@example.com")
+		require.NoError(t, err)
+
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
+		require.NoError(t, err)
+
+		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
+		require.NoError(t, err)
+		require.Len(t, mappings, 1)
+		assert.Equal(t, "sso.user@example.com", mappings[0].Email)
+		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source)
+		assert.Zero(t, countRawIdpRows(t, host.ID))
+	})
+
+	t.Run("correct mapping kept and stray manual mapping removed", func(t *testing.T) {
+		host := newDarwinHost(t, "uuid-hit-plus-manual")
+
+		// a correct enrollment row already exists alongside a stray manual row
+		// with a different email
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?), (?, ?, ?)`,
+			host.ID, "sso.user@example.com", fleet.DeviceMappingMDMIdpAccounts,
+			host.ID, "someone.else@example.com", fleet.DeviceMappingIDP)
+		require.NoError(t, err)
+
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
+		require.NoError(t, err)
+
+		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
+		require.NoError(t, err)
+		require.Len(t, mappings, 1)
+		assert.Equal(t, "sso.user@example.com", mappings[0].Email)
+		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source)
+		assert.Zero(t, countRawIdpRows(t, host.ID))
+	})
+
+	t.Run("existing duplicate mapping is healed on re-enrollment", func(t *testing.T) {
+		host := newDarwinHost(t, "uuid-dup")
+
+		// manufacture the duplicate state from #49914: a manual "idp" row alongside
+		// an enrollment "mdm_idp_accounts" row with the same email
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?), (?, ?, ?)`,
+			host.ID, "sso.user@example.com", fleet.DeviceMappingIDP,
+			host.ID, "sso.user@example.com", fleet.DeviceMappingMDMIdpAccounts)
+		require.NoError(t, err)
+
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
+		require.NoError(t, err)
+
+		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
+		require.NoError(t, err)
+		require.Len(t, mappings, 1)
+		assert.Equal(t, "sso.user@example.com", mappings[0].Email)
+		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source)
+		assert.Zero(t, countRawIdpRows(t, host.ID))
+	})
+
+	t.Run("device-reported mapping superseded by enrollment", func(t *testing.T) {
+		host := newDarwinHost(t, "uuid-entra-join")
+
+		// only SCIM-provisioned users are mapped from the device; a username of its
+		// own so creating it cannot link a host left behind by another subtest
+		_, err := ds.CreateScimUser(ctx, &fleet.ScimUser{
+			UserName:   "entra.join@example.com",
+			GivenName:  new("Entra"),
+			FamilyName: new("Join"),
+		})
+		require.NoError(t, err)
+
+		updated, err := ds.SetOrUpdateEntraJoinHostDeviceMapping(ctx, host.ID, "entra.join@example.com")
+		require.NoError(t, err)
+		require.True(t, updated)
+
+		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
+		require.NoError(t, err)
+
+		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
+		require.NoError(t, err)
+		require.Len(t, mappings, 1)
+		assert.Equal(t, "sso.user@example.com", mappings[0].Email)
+		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source)
+		var entraRows int
+		err = sqlx.GetContext(ctx, ds.writer(ctx), &entraRows,
+			`SELECT COUNT(*) FROM host_emails WHERE host_id = ? AND source = ?`, host.ID, fleet.DeviceMappingEntraJoin)
+		require.NoError(t, err)
+		assert.Zero(t, entraRows)
+		// the SCIM link that came with the device-reported mapping is gone too, so the
+		// authenticated user can be linked instead of the stale one surviving
+		_, err = ds.ScimUserByHostID(ctx, host.ID)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("manual mapping survives reconcile without idp account", func(t *testing.T) {
+		host := newDarwinHost(t, "uuid-manual-no-idp")
+
+		_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
+		require.NoError(t, err)
+
+		// no host_mdm_idp_accounts association exists (e.g. re-enrollment without SSO)
+		err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := reconcileHostEmailsFromMdmIdpAccountsDB(ctx, tx, ds.logger, host.ID)
+			return err
+		})
+		require.NoError(t, err)
+
+		mappings, err := ds.ListHostDeviceMapping(ctx, host.ID)
+		require.NoError(t, err)
+		require.Len(t, mappings, 1)
+		assert.Equal(t, "someone.else@example.com", mappings[0].Email)
+		// a lone manual mapping is still reported under the translated
+		// "mdm_idp_accounts" source
+		assert.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source)
+		assert.Equal(t, 1, countRawIdpRows(t, host.ID))
+	})
 }
 
 // testAndroidEnrollmentFlowWithIdP tests the complete Android enrollment flow
@@ -146,7 +338,7 @@ func testAndroidEnrollmentFlowWithIdP(t *testing.T, ds *Datastore) {
 	androidHost.SetNodeKey(enterpriseSpecificID)
 
 	// simulates enrollment call
-	result, err := ds.NewAndroidHost(ctx, androidHost)
+	result, err := ds.NewAndroidHost(ctx, androidHost, false)
 	require.NoError(t, err)
 	require.NotZero(t, result.Host.ID)
 
@@ -159,7 +351,7 @@ func testAndroidEnrollmentFlowWithIdP(t *testing.T, ds *Datastore) {
 	require.Empty(t, emails, "No IdP emails should exist immediately after NewAndroidHost")
 
 	// associate with IdP account
-	err = ds.AssociateHostMDMIdPAccount(ctx, "android-uuid-001", idpAccount.UUID)
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, "android-uuid-001", idpAccount.UUID)
 	require.NoError(t, err)
 
 	// verify reconciliation happened

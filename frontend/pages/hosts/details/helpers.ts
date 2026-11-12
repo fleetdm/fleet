@@ -1,7 +1,16 @@
 /** Helpers used across the host details and my device pages and components. */
-import { HostMdmDeviceStatus, HostMdmPendingAction } from "interfaces/host";
+import {
+  HostMdmDeviceStatus,
+  HostMdmPendingAction,
+  IHostMdmHostNameSetting,
+  IOSSettings,
+  RecoveryLockPasswordStatus,
+} from "interfaces/host";
 import {
   IHostMdmProfile,
+  isEnrolledInMdm,
+  MdmEnrollmentStatus,
+  ProfilePlatform,
   WindowsDiskEncryptionStatus,
   MdmProfileStatus,
   LinuxDiskEncryptionStatus,
@@ -25,6 +34,8 @@ const generateWindowsDiskEncryptionMessage = (
   return detail;
 };
 
+export const WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID = "0";
+
 /**
  * Manually generates a setting for the windows disk encryption status. We need
  * this as we don't have a windows disk encryption profile in the `profiles`
@@ -35,7 +46,7 @@ export const generateWinDiskEncryptionSetting = (
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "0", // This is the only type of profile that can have this value
+    profile_uuid: WIN_DISK_ENC_SYNTHETIC_PROFILE_UUID,
     platform: "windows",
     name: "Disk encryption",
     status: convertWinDiskEncryptionStatusToSettingStatus(diskEncryptionStatus),
@@ -43,8 +54,12 @@ export const generateWinDiskEncryptionSetting = (
     operation_type: null,
     scope: null,
     managed_local_account: null,
+    hidden: false,
+    self_service: false,
   };
 };
+
+export const LINUX_DISK_ENC_SYNTHETIC_PROFILE_UUID = "disk_enc_dummy";
 
 /**
  * Manually generates a setting for the linux disk encryption status. We need
@@ -57,7 +72,7 @@ export const generateLinuxDiskEncryptionSetting = (
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "0", // This is the only type of profile that can have this value
+    profile_uuid: LINUX_DISK_ENC_SYNTHETIC_PROFILE_UUID,
     platform: "linux",
     name: "Disk encryption",
     status: diskEncryptionStatus,
@@ -65,7 +80,79 @@ export const generateLinuxDiskEncryptionSetting = (
     operation_type: null,
     scope: null,
     managed_local_account: null,
+    hidden: false,
+    self_service: false,
   };
+};
+
+export const REC_LOCK_SYNTHETIC_PROFILE_UUID = "rec_lock_dummy";
+
+export const generateRecoveryLockPasswordSetting = (
+  status: RecoveryLockPasswordStatus,
+  detail: string
+): IHostMdmProfile => {
+  return {
+    profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
+    platform: "darwin",
+    name: "Recovery Lock password",
+    status,
+    detail,
+    operation_type: null,
+    scope: null,
+    managed_local_account: null,
+    hidden: false,
+    self_service: false,
+  };
+};
+
+export const HOST_NAME_SYNTHETIC_PROFILE_UUID = "host_name_dummy";
+
+/**
+ * Manually generates a setting for the host name template status. We need this
+ * as the host name template is enforced via a one-off MDM command, so it does
+ * not appear in the `profiles` attribute of the GET /hosts/:id API response.
+ */
+const generateHostNameSetting = (
+  hostName: IHostMdmHostNameSetting,
+  platform: ProfilePlatform
+): IHostMdmProfile => {
+  return {
+    profile_uuid: HOST_NAME_SYNTHETIC_PROFILE_UUID,
+    platform,
+    name: "Host name",
+    status: hostName.status,
+    detail: hostName.detail,
+    operation_type: null,
+    scope: null,
+    managed_local_account: null,
+    hidden: false,
+    self_service: false,
+  };
+};
+
+/** Platforms that can enforce a host name template (Apple only). */
+const HOST_NAME_TEMPLATE_PLATFORMS = ["darwin", "ios", "ipados"];
+
+/**
+ * Returns the synthetic "Host name" row when the host is an Apple host enrolled
+ * in MDM and enforcing a host name template, otherwise null.
+ */
+export const generateHostNameSettingIfEligible = (
+  platform: string,
+  enrollmentStatus: MdmEnrollmentStatus | null,
+  osSettings?: IOSSettings
+): IHostMdmProfile | null => {
+  if (
+    HOST_NAME_TEMPLATE_PLATFORMS.includes(platform) &&
+    isEnrolledInMdm(enrollmentStatus) &&
+    osSettings?.host_name?.status
+  ) {
+    return generateHostNameSetting(
+      osSettings.host_name,
+      platform as ProfilePlatform
+    );
+  }
+  return null;
 };
 
 export type HostMdmDeviceStatusUIState =
@@ -74,7 +161,10 @@ export type HostMdmDeviceStatusUIState =
   | "unlocking"
   | "locking"
   | "wiped"
-  | "wiping";
+  | "wiping"
+  | "clearing_passcode"
+  | "locating"
+  | "unenrolling";
 
 // Exclude the empty string from HostPendingAction as that doesn't represent a
 // valid device status.
@@ -88,9 +178,22 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
   lock: "locking",
   wiped: "wiped",
   wipe: "wiping",
+  clear_passcode: "clearing_passcode",
+  /** When device_status is "locked" and pending_action is "location", show "locating",
+   * device_status is "unlocked" and pending_action is "location" is still "locking"
+   */
+  location: "locating",
+  /** Android BYOD only: the work-profile wipe behind Unenroll is pending. */
+  unenroll: "unenrolling",
 };
 
-const deviceUpdatingStates = ["unlocking", "locking", "wiping"] as const;
+const deviceUpdatingStates = [
+  "unlocking",
+  "locking",
+  "wiping",
+  "clearing_passcode",
+  "unenrolling",
+] as const;
 
 /**
  * Gets the current UI state for the host device status. This helps us know what
@@ -107,6 +210,14 @@ export const getHostDeviceStatusUIState = (
   if (pendingAction === "") {
     return API_TO_UI_DEVICE_STATUS_MAP[deviceStatus];
   }
+
+  // Special case: when pending_action is "location" and device_status is "unlocked",
+  // the device is in the process of locking in order to enable location tracking.
+  // Return "locking" in this case.
+  if (pendingAction === "location" && deviceStatus === "unlocked") {
+    return "locking";
+  }
+
   return API_TO_UI_DEVICE_STATUS_MAP[pendingAction];
 };
 

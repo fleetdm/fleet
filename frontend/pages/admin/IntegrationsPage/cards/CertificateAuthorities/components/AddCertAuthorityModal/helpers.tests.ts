@@ -1,0 +1,285 @@
+import { render, screen } from "@testing-library/react";
+import React from "react";
+
+import { createMockEJBCACertAuthority } from "__mocks__/certificatesMock";
+import { notify } from "components/ToastNotification";
+
+import { generateEJBCAFormData } from "../EJBCAForm/helpers";
+
+import {
+  generateAddCertAuthorityData,
+  generateDropdownOptions,
+  getDisplayErrMessage,
+  getEJBCAErrorMessage,
+  handleEJBCAServerError,
+} from "./helpers";
+
+/** Builds an API error in the shape getErrorReason reads. */
+const apiError = (reason: string, status?: number) => ({
+  status,
+  errors: [{ name: "base", reason }],
+});
+
+describe("AddCertAuthorityModal helpers", () => {
+  it("has EJBCA in the dropdown options", () => {
+    expect(generateDropdownOptions(false).map((o) => o.value)).toContain(
+      "ejbca"
+    );
+  });
+
+  it("generates the data to add an EJBCA CA", () => {
+    const formData = {
+      ...generateEJBCAFormData(createMockEJBCACertAuthority()),
+      clientP12: "AQID",
+      password: "p12-password",
+    };
+
+    expect(generateAddCertAuthorityData("ejbca", formData)).toEqual({
+      ejbca: expect.objectContaining({
+        name: "TEST_EJBCA",
+        client_p12: "AQID",
+        password: "p12-password",
+        certificate_authority_name: "ManagementCA",
+      }),
+    });
+  });
+
+  describe("getDisplayErrMessage", () => {
+    // The server names the CA type in the message ("Invalid NDES SCEP admin URL or
+    // credentials"), so the match can't assume the reason starts with "invalid admin URL".
+    it.each([
+      "Couldn't add certificate authority. Invalid NDES SCEP admin URL or credentials. Please correct and try again.",
+      "Couldn't edit certificate authority. Invalid NDES SCEP admin URL or credentials. Please correct and try again.",
+    ])("returns the credentials error for: %s", (reason) => {
+      expect(getDisplayErrMessage(apiError(reason))).toBe(
+        "Invalid admin URL or credentials. Please correct and try again."
+      );
+    });
+
+    it.each([
+      [
+        "Couldn't edit certificate authority. Invalid NDES SCEP admin URL. Please correct and try again.",
+        "Invalid admin URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't edit certificate authority. Invalid NDES SCEP username. Please correct and try again.",
+        "Invalid username. Please correct and try again.",
+      ],
+      [
+        "Couldn't edit certificate authority. Invalid NDES SCEP password. Please correct and try again.",
+        "Invalid password. Please correct and try again.",
+      ],
+      [
+        "Couldn't edit certificate authority. Couldn't connect to NDES SCEP admin URL. Please correct and try again.",
+        "Couldn't connect to admin URL. Please correct and try again.",
+      ],
+    ])("returns a specific error for: %s", (reason, expected) => {
+      expect(getDisplayErrMessage(apiError(reason))).toBe(expected);
+    });
+
+    it.each([
+      [
+        "Couldn't add certificate authority. Invalid Hydrant URL. Please correct and try again.",
+        "Invalid Hydrant URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't add certificate authority. Invalid DigiCert URL. Please correct and try again.",
+        "Invalid DigiCert URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't add certificate authority. Invalid EST URL. Please correct and try again.",
+        "Invalid EST URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't add certificate authority. Invalid NDES SCEP URL. Please correct and try again.",
+        "Invalid NDES SCEP URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't add certificate authority. Invalid Smallstep SCEP URL. Please correct and try again.",
+        "Invalid Smallstep SCEP URL. Please correct and try again.",
+      ],
+      [
+        "Couldn't edit certificate authority. Invalid Hydrant URL. Please correct and try again.",
+        "Invalid Hydrant URL. Please correct and try again.",
+      ],
+    ])("names the CA type in the URL error for: %s", (reason, expected) => {
+      expect(getDisplayErrMessage(apiError(reason))).toBe(expected);
+    });
+
+    it("returns the SCEP URL error", () => {
+      expect(
+        getDisplayErrMessage(
+          apiError(
+            "Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again."
+          )
+        )
+      ).toBe("Invalid SCEP URL. Please correct and try again.");
+    });
+
+    it("returns the generic URL error when the CA type isn't named", () => {
+      expect(
+        getDisplayErrMessage(
+          apiError(
+            'Couldn\'t add certificate authority. Post "https://example.com": dial tcp: lookup example.com: no such host'
+          )
+        )
+      ).toBe("Invalid URL. Please correct and try again.");
+    });
+
+    it("returns the password cache error", () => {
+      expect(
+        getDisplayErrMessage(
+          apiError(
+            "Couldn't edit certificate authority. The NDES password cache is full. Please increase the number of cached passwords in NDES and try again."
+          )
+        )
+      ).toBe(
+        "The NDES password cache is full. Please increase the number of cached passwords in NDES and try again."
+      );
+    });
+
+    // These name a URL too, so they'd be captured by the CA-type URL match if it ran first.
+    it.each([
+      "Couldn't edit certificate authority. Invalid challenge URL or credentials. Please correct and try again.",
+      "Couldn't edit certificate authority. Invalid Challenge URL. Please correct and try again.",
+    ])("returns the challenge URL error for Smallstep: %s", (reason) => {
+      expect(getDisplayErrMessage(apiError(reason))).toBe(
+        "Invalid challenge URL or credentials. Please correct and try again."
+      );
+    });
+
+    // The server's Google CAS errors name the field or Google setting to fix,
+    // so its 4xx reasons are shown as they are.
+    it.each([
+      [
+        "Couldn't add certificate authority. The CA pool can only contain letters, numbers, hyphens and underscores.",
+        "The CA pool can only contain letters, numbers, hyphens and underscores.",
+      ],
+      [
+        "Couldn't add certificate authority. The service account key must be a JSON object.",
+        "The service account key must be a JSON object.",
+      ],
+      [
+        "Couldn't edit certificate authority. Couldn't authenticate with Google CAS. Check that the service account key is valid.",
+        "Couldn't authenticate with Google CAS. Check that the service account key is valid.",
+      ],
+      [
+        'Couldn\'t add certificate authority. CA pool "my-pool" wasn\'t found in project "my-project", location "us-central1".',
+        'CA pool "my-pool" wasn\'t found in project "my-project", location "us-central1".',
+      ],
+      [
+        "Couldn't edit certificate authority. Google couldn't issue an access token (HTTP 503). Try again later.",
+        "Google couldn't issue an access token (HTTP 503). Try again later.",
+      ],
+      [
+        'Couldn\'t add certificate authority. "GOOGLE_WIFI" name is already used by another Google CAS certificate authority. Please choose a different name and try again.',
+        '"GOOGLE_WIFI" name is already used by another Google CAS certificate authority. Please choose a different name and try again.',
+      ],
+    ])("shows the Google CAS error as it is for: %s", (reason, expected) => {
+      expect(getDisplayErrMessage(apiError(reason, 422), "google_cas")).toBe(
+        expected
+      );
+    });
+
+    it("falls back to the default error for a Google CAS server error", () => {
+      expect(
+        getDisplayErrMessage(
+          apiError(
+            "Couldn't add certificate authority. Internal server error",
+            500
+          ),
+          "google_cas"
+        )
+      ).toBe("Please try again.");
+    });
+
+    it("doesn't show another CA type's reason as it is", () => {
+      expect(
+        getDisplayErrMessage(
+          apiError(
+            "Couldn't add certificate authority. The CA pool can only contain letters.",
+            422
+          ),
+          "hydrant"
+        )
+      ).toBe("Please try again.");
+    });
+
+    it("falls back to the default error for an unrecognized reason", () => {
+      expect(getDisplayErrMessage(apiError("something unexpected"))).toBe(
+        "Please try again."
+      );
+    });
+  });
+});
+
+describe("generateDropdownOptions", () => {
+  it("offers Google CAS after EJBCA", () => {
+    const values = generateDropdownOptions(false).map((option) => option.value);
+    expect(values.indexOf("google_cas")).toBe(values.indexOf("ejbca") + 1);
+  });
+});
+
+describe("generateAddCertAuthorityData", () => {
+  it("maps the Google CAS form to the API's field names", () => {
+    expect(
+      generateAddCertAuthorityData("google_cas", {
+        name: "GOOGLE_WIFI",
+        projectId: "my-project",
+        caPool: "my-ca-pool",
+        location: "us-central1",
+        apiKeyJson: '{"type":"service_account"}',
+      })
+    ).toEqual({
+      google_cas: {
+        name: "GOOGLE_WIFI",
+        project: "my-project",
+        ca_pool: "my-ca-pool",
+        location: "us-central1",
+        api_key_json: '{"type":"service_account"}',
+      },
+    });
+  });
+});
+
+describe("EJBCA server errors", () => {
+  it("says what failed and what to do when the server gave no reason", () => {
+    expect(getEJBCAErrorMessage("edit", [])).toBe(
+      "Couldn't edit certificate authority. Please try again."
+    );
+  });
+
+  it("shows the errors of the fields without the prefix, and the rest in a toast with the link to configure the private key", () => {
+    const prefix = "Couldn't add certificate authority. ";
+    const setFieldErrors = jest.fn();
+    const notifyError = jest.spyOn(notify, "error").mockImplementation();
+    handleEJBCAServerError(
+      {
+        errors: [
+          {
+            name: "client_p12",
+            reason: `${prefix}The private key in the PKCS#12 file doesn't match its certificate.`,
+          },
+          {
+            name: "base",
+            reason: `${prefix}Private key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key`,
+          },
+        ],
+      },
+      "add",
+      setFieldErrors
+    );
+
+    expect(setFieldErrors).toHaveBeenCalledWith({
+      clientP12:
+        "The private key in the PKCS#12 file doesn't match its certificate.",
+    });
+    const { container } = render(
+      React.createElement("div", null, notifyError.mock.calls[0][0])
+    );
+    expect(container).toHaveTextContent(
+      `${prefix}Private key must be configured. Learn more`
+    );
+    expect(screen.getByRole("link", { name: /Learn more/ })).toBeVisible();
+  });
+});

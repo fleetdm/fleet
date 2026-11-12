@@ -1,8 +1,7 @@
 import classnames from "classnames";
+import { uniqueId } from "lodash";
 import React from "react";
 import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
-
-import { uniqueId } from "lodash";
 
 interface IDropdownOptionTooltipWrapper {
   children: React.ReactNode;
@@ -29,9 +28,7 @@ const DropdownOptionTooltipWrapper = ({
   offset = 24,
 }: IDropdownOptionTooltipWrapper) => {
   const wrapperClassNames = classnames(baseClass, className);
-
   const elementClassNames = classnames(`${baseClass}__element`);
-
   const tipClassNames = classnames(
     `${baseClass}__tip-text`,
     `${baseClass}__dropdown-tooltip-arrow`,
@@ -55,7 +52,7 @@ const DropdownOptionTooltipWrapper = ({
         disableStyleInjection
         clickable={clickable}
         offset={offset}
-        positionStrategy="fixed"
+        positionStrategy="fixed" // TODO: Found out this does not work with a dropdown within a Modal, it renders the tooltip in the wrong place
       >
         {tipContent}
       </ReactTooltip5>

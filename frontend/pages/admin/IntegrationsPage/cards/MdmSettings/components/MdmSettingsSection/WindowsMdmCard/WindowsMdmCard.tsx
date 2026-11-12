@@ -1,9 +1,8 @@
 import React, { useContext } from "react";
 
+import Button from "components/buttons/Button";
 import { AppContext } from "context/app";
 
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import SectionCard from "../../SectionCard";
 
 const baseClass = "windows-mdm-card";
@@ -37,8 +36,7 @@ const TurnOffWindowsMdmCard = ({
     <SectionCard
       iconName="success"
       cta={
-        <Button onClick={onClickEdit} variant="inverse">
-          <Icon name="pencil" />
+        <Button onClick={onClickEdit} variant="subdued" icon="pencil">
           Edit
         </Button>
       }
@@ -59,8 +57,7 @@ const WindowsMdmCard = ({
 }: IWindowsMdmCardProps) => {
   const { config } = useContext(AppContext);
 
-  const isWindowsMdmEnabled =
-    config?.mdm?.windows_enabled_and_configured ?? false;
+  const isWindowsMdmEnabled = config?.mdm?.windows_mdm_enabled ?? false;
 
   return isWindowsMdmEnabled ? (
     <TurnOffWindowsMdmCard onClickEdit={editWindowsMdm} />

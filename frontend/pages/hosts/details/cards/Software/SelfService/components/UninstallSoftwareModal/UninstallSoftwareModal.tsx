@@ -1,10 +1,9 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useState } from "react";
 
-import deviceUserAPI from "services/entities/device_user";
-import { NotificationContext } from "context/notification";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { notify } from "components/ToastNotification";
+import deviceUserAPI from "services/entities/device_user";
 
 const baseClass = "uninstall-software-modal";
 
@@ -23,7 +22,6 @@ const UninstallSoftwareModal = ({
   onExit,
   onSuccess,
 }: IUninstallSoftwareModalProps) => {
-  const { renderFlash } = useContext(NotificationContext);
   const [isUninstalling, setIsUninstalling] = useState(false);
 
   const onUninstallSoftware = useCallback(async () => {
@@ -33,11 +31,13 @@ const UninstallSoftwareModal = ({
       onSuccess();
     } catch (error) {
       // We only show toast message to end user if API returns an error
-      renderFlash("error", "Couldn't uninstall. Please try again.");
+      notify.error("Couldn't uninstall. Please try again.", {
+        response: error,
+      });
     }
     setIsUninstalling(false);
     onExit();
-  }, [softwareId, renderFlash, onSuccess, onExit]);
+  }, [softwareId, onSuccess, onExit]);
 
   const displaySoftwareName = softwareName || "software";
 
@@ -48,25 +48,22 @@ const UninstallSoftwareModal = ({
       onExit={onExit}
       isContentDisabled={isUninstalling}
     >
-      <>
-        <p>
-          Uninstalling this software will remove it and may remove{" "}
-          {softwareName} data from your device. You can always reinstall it
-          again later.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            variant="alert"
-            onClick={onUninstallSoftware}
-            isLoading={isUninstalling}
-          >
-            Uninstall
-          </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        Uninstalling this software will remove it and may remove {softwareName}{" "}
+        data from your device. You can always reinstall it again later.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          variant="alert"
+          onClick={onUninstallSoftware}
+          isLoading={isUninstalling}
+        >
+          Uninstall
+        </Button>
+        <Button variant="secondary" onClick={onExit}>
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

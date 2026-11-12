@@ -1,16 +1,15 @@
 import React from "react";
 
+import CustomLink from "components/CustomLink";
 import { getErrorReason } from "interfaces/errors";
 import { FLEET_GUIDES_BASE_LINK } from "utilities/constants";
-
-import CustomLink from "components/CustomLink";
 
 const DEFAULT_ERROR_MESSAGE = "Unable to update Windows MDM. Please try again.";
 
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (err: unknown) => {
   let message = getErrorReason(err, {
-    nameEquals: "mdm.windows_enabled_and_configured",
+    nameEquals: "mdm.windows_mdm_enabled",
   });
   if (message) {
     return (
@@ -28,7 +27,7 @@ export const getErrorMessage = (err: unknown) => {
   }
 
   message = getErrorReason(err, {
-    nameEquals: "mdm.windows_migration_enabled",
+    nameEquals: "mdm.windows_mdm_migration_enabled",
   });
   if (message) {
     return message;

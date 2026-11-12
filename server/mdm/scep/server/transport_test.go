@@ -5,19 +5,21 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"io"
 	"io/ioutil"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/gorilla/mux"
-
-	kitlog "github.com/go-kit/log"
+	"github.com/smallstep/scep"
 )
 
 func TestCACaps(t *testing.T) {
@@ -86,6 +88,25 @@ func TestGetCACertMessage(t *testing.T) {
 	}
 }
 
+func TestEncodeSCEPRequest_PKIOperation_UsesStdBase64(t *testing.T) {
+	// Data that encodes to "++++////" in standard base64
+	testData := []byte{0xfb, 0xef, 0xbe, 0xff, 0xff, 0xff}
+
+	req, _ := http.NewRequest("GET", "http://example.com/scep", nil)
+	if err := scepserver.EncodeSCEPRequest(t.Context(), req, scepserver.SCEPRequest{
+		Operation: "PKIOperation",
+		Message:   testData,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Verify message decodes correctly with StdEncoding (not URLEncoding)
+	msg := req.URL.Query().Get("message")
+	if _, err := base64.StdEncoding.DecodeString(msg); err != nil {
+		t.Fatalf("message should be valid standard base64: %v", err)
+	}
+}
+
 func TestPKIOperation(t *testing.T) {
 	server, _, teardown := newServer(t)
 	defer teardown()
@@ -120,6 +141,54 @@ func TestPKIOperationGET(t *testing.T) {
 	}
 	if resp.StatusCode != http.StatusOK {
 		t.Error("expected", http.StatusOK, "got", resp.StatusCode)
+	}
+}
+
+func TestPKIOperationUndecryptableEnvelope(t *testing.T) {
+	server, svc, teardown := newServer(t)
+	defer teardown()
+
+	caRaw, _, err := svc.GetCACert(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	caCert, err := x509.ParseCertificate(caRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := mdmtest.NewPKCSReqUndecryptableBy(caCert)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := http.Post(server.URL+"/scep?operation=PKIOperation", "", bytes.NewReader(req.Raw)) //nolint:gosec
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+	if got := resp.Header.Get("Content-Type"); got != "application/x-pki-message" {
+		t.Fatalf("expected application/x-pki-message, got %q", got)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	certRep, err := scep.ParsePKIMessage(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if certRep.PKIStatus != scep.FAILURE {
+		t.Errorf("expected pkiStatus %s, got %s", scep.FAILURE, certRep.PKIStatus)
+	}
+	if certRep.FailInfo != scep.BadRequest {
+		t.Errorf("expected failInfo %s, got %s", scep.BadRequest, certRep.FailInfo)
+	}
+	if certRep.TransactionID != req.TransactionID {
+		t.Errorf("expected transaction id %s, got %s", req.TransactionID, certRep.TransactionID)
 	}
 }
 
@@ -221,9 +290,9 @@ func newServer(t *testing.T, opts ...scepserver.ServiceOption) (*httptest.Server
 			t.Fatal(err)
 		}
 	}
-	logger := kitlog.NewNopLogger()
+	slogLogger := slog.New(slog.DiscardHandler)
 	e := scepserver.MakeServerEndpoints(svc)
-	scepHandler := scepserver.MakeHTTPHandler(e, svc, logger)
+	scepHandler := scepserver.MakeHTTPHandler(e, svc, slogLogger)
 	r := mux.NewRouter()
 	r.Handle("/scep", scepHandler)
 	server := httptest.NewServer(r)

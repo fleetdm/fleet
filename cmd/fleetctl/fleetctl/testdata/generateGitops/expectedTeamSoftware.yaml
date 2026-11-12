@@ -1,32 +1,91 @@
 packages:
   - categories:
-    - Browsers
+      - Browsers
     hash_sha256: software-package-hash ___GITOPS_COMMENT_0___
     setup_experience: true
     install_script:
-      path: ../lib/some-team/scripts/my-software-package-darwin-install
+      path: ../lib/some-team/scripts/my-software-package-darwin-install.sh
     labels_include_any:
-    - Label A
-    - Label B
+      - Label A
+      - Label B
     post_install_script:
-      path: ../lib/some-team/scripts/my-software-package-darwin-postinstall
-    pre_install_query: 
+      path: ../lib/some-team/scripts/my-software-package-darwin-postinstall.sh
+    pre_install_query:
       path: ../lib/some-team/queries/my-software-package-darwin-preinstallquery.yml
     self_service: true
     uninstall_script:
-      path: ../lib/some-team/scripts/my-software-package-darwin-uninstall
+      path: ../lib/some-team/scripts/my-software-package-darwin-uninstall.sh
     url: https://example.com/download/my-software.pkg
+fleet_maintained_apps:
+  - categories:
+      - Browsers
+    setup_experience: true
+    slug: fma1/darwin
+    labels_include_any:
+      - Label A
+      - Label B
+    post_install_script:
+      path: ../lib/some-team/scripts/my-fma-darwin-postinstall.sh
+    pre_install_query:
+      path: ../lib/some-team/queries/my-fma-darwin-preinstallquery.yml
+    self_service: true
+  - slug: fma2/windows
+    labels_include_all:
+      - Label A
+      - Label B
+    self_service: true
+    version: "10.0"
+  - slug: fma3/windows
+    self_service: true
+    version: ^123
+  - slug: fma4/darwin
+  - slug: fma5/darwin
 app_store_apps:
-  - app_store_id: com.example.team-software
+  - app_store_id: "1234567890"
     labels_exclude_any:
-     - Label C
-     - Label D
+      - Label C
+      - Label D
     categories:
-    - Productivity
-    - Utilities
+      - Productivity
+      - Utilities
     self_service: true
     platform: darwin
-  - app_store_id: com.example.setup-experience-software
+  - app_store_id: "55566677778"
+    labels_include_all:
+      - Label C
+      - Label D
     platform: android
     self_service: true
     setup_experience: true
+    configuration:
+      path: ../lib/some-team/software/my-setup-experience-app-android-config.json
+  - app_store_id: "9999888877"
+    labels_include_all:
+      - Label C
+      - Label D
+    auto_update_enabled: true
+    auto_update_window_start: "01:00"
+    auto_update_window_end: "03:00"
+    platform: ios
+    configuration:
+      path: ../lib/some-team/software/my-ios-auto-update-app-ios-config.xml
+  - app_store_id: "4444333322"
+    platform: ios
+    setup_experience: true
+    versions:
+      - name: Production
+        self_service: true
+        categories:
+          - Productivity
+        labels_exclude_any:
+          - Label C
+        auto_update_enabled: true
+        auto_update_window_start: "01:00"
+        auto_update_window_end: "03:00"
+        configuration:
+          path: ../lib/some-team/software/my-multi-version-app-ios-production-config.xml
+      - name: Test
+        labels_include_any:
+          - Label C
+        configuration:
+          path: ../lib/some-team/software/my-multi-version-app-ios-test-config.xml

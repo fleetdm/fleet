@@ -10,6 +10,7 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -131,7 +132,7 @@ func testCollectHostsLastSeen(t *testing.T, ds *mysql.Datastore, pool fleet.Redi
 
 	selectRows := func(t *testing.T) []hostLastSeen {
 		var rows []hostLastSeen
-		mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, tx, &rows, `SELECT host_id, seen_time FROM host_seen_times ORDER BY 1`)
 		})
 		return rows

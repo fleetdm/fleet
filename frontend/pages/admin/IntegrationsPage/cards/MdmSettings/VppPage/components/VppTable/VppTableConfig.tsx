@@ -1,28 +1,28 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IMdmAbmToken, IMdmVppToken } from "interfaces/mdm";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { IDropdownOption } from "interfaces/dropdownOption";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ActionsDropdown from "components/ActionsDropdown";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import { IStringCellProps } from "interfaces/datatable_config";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IMdmVppToken } from "interfaces/mdm";
+import { formatCountry } from "utilities/country";
 import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import RenewDateCell from "../../../components/RenewDateCell";
 import { IRenewDateCellStatusConfig } from "../../../components/RenewDateCell/RenewDateCell";
+
 import TeamsCell from "./TeamsCell";
 
 type IAbmTableConfig = Column<IMdmVppToken>;
 type ITableStringCellProps = IStringCellProps<IMdmVppToken>;
 type IRenewDateCellProps = CellProps<IMdmVppToken, IMdmVppToken["renew_date"]>;
-type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["teams"]>;
-
-type ITableHeaderProps = IHeaderProps<IMdmVppToken>;
+type ICreatedAtCellProps = CellProps<IMdmVppToken, IMdmVppToken["created_at"]>;
+type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["fleets"]>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "editTeams", label: "Edit teams", disabled: false },
+  { value: "editTeams", label: "Edit fleets", disabled: false },
   { value: "renew", label: "Renew", disabled: false },
   { value: "delete", label: "Delete", disabled: false },
 ];
@@ -74,23 +74,39 @@ export const generateTableConfig = (
   return [
     {
       accessor: "org_name",
-      sortType: "caseInsensitive",
-      Header: (cellProps: ITableHeaderProps) => (
-        <HeaderCell
-          value="Organization name"
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
+      disableSortBy: true,
+      Header: "Organization name",
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
     },
     {
       accessor: "location",
-      Header: "Location",
+      Header: "Organization unit",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />
+      ),
+    },
+    {
+      accessor: "country_code",
+      Header: "Country",
+      disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={formatCountry(cellProps.cell.value) || undefined} />
+      ),
+    },
+    {
+      accessor: "created_at",
+      Header: "Added to Fleet",
+      disableSortBy: true,
+      Cell: (cellProps: ICreatedAtCellProps) => (
+        <TextCell
+          value={cellProps.cell.value}
+          formatter={(createdAt) => (
+            <HumanTimeDiffWithDateTip timeString={createdAt} />
+          )}
+        />
       ),
     },
     {
@@ -107,11 +123,11 @@ export const generateTableConfig = (
     },
 
     {
-      accessor: "teams",
-      Header: "Teams",
+      accessor: "fleets",
+      Header: "Fleets",
       disableSortBy: true,
       Cell: (cellProps: ITeamsCellProps) => (
-        <TeamsCell teams={cellProps.cell.value} className="vpp-teams-cell" />
+        <TeamsCell teams={cellProps.cell.value} />
       ),
     },
     {
@@ -127,13 +143,13 @@ export const generateTableConfig = (
             actionSelectHandler(value, cellProps.row.original)
           }
           placeholder="Actions"
-          variant="small-button"
+          variant="secondary"
         />
       ),
     },
   ];
 };
 
-export const generateTableData = (data: IMdmAbmToken[]) => {
+export const generateTableData = (data: IMdmVppToken[]) => {
   return data;
 };

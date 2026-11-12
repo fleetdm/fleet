@@ -30,6 +30,6 @@ func (c commonFailingStore) Cleanup(ctx context.Context, usedIconIDs []string, r
 	return 0, nil
 }
 
-func (c commonFailingStore) Sign(_ context.Context, _ string) (string, error) {
+func (c commonFailingStore) Sign(_ context.Context, _ string, _ time.Duration) (string, error) {
 	return "", fmt.Errorf("%s store not properly configured", c.Entity)
 }

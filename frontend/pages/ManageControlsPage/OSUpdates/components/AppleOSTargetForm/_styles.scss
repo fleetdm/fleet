@@ -1,0 +1,6 @@
+.apple-os-target-form {
+  // The target dropdown, the fields it reveals, the checkbox and the save
+  // button are stacked siblings, so spacing belongs to the form rather than
+  // to each field.
+  @include vertical-form-layout;
+}

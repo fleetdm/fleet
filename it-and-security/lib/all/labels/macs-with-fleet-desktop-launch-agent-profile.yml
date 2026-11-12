@@ -1,0 +1,5 @@
+- name: Macs with Fleet Desktop.app launch agent MDM profile
+  description: macOS hosts that have the Fleet Desktop.app launch agent configuration profile installed
+  query: SELECT 1 FROM macos_profiles WHERE identifier = 'com.fleetdm.profile.fleet-desktop-launchagent' LIMIT 1;
+  label_membership_type: dynamic
+  platform: darwin

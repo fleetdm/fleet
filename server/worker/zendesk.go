@@ -6,17 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"sync"
 	"text/template"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	zendesk "github.com/nukosuke/go-zendesk/zendesk"
 )
 
@@ -89,7 +90,7 @@ This ticket was created automatically by your Fleet Zendesk integration.
 * [{{ .DisplayName }}]({{ $.FleetURL }}/hosts/{{ .ID }})
 {{ end }}
 
-View hosts that failed {{ .PolicyName }} on the [**Hosts**]({{ .FleetURL }}/hosts/manage/?order_key=hostname&order_direction=asc&{{ if .TeamID }}team_id={{ .TeamID }}&{{ end }}policy_id={{ .PolicyID }}&policy_response=failing) page in Fleet.
+View hosts that failed {{ .PolicyName }} on the [**Hosts**]({{ .FleetURL }}/hosts/manage/?order_key=hostname&order_direction=asc&{{ if .TeamID }}fleet_id={{ .TeamID }}&{{ end }}policy_id={{ .PolicyID }}&policy_response=failing) page in Fleet.
 
 ----
 
@@ -121,10 +122,11 @@ type ZendeskClient interface {
 
 // Zendesk is the job processor for zendesk integrations.
 type Zendesk struct {
-	FleetURL      string
-	Datastore     fleet.Datastore
-	Log           kitlog.Logger
-	NewClientFunc func(*externalsvc.ZendeskOptions) (ZendeskClient, error)
+	FleetURL       string
+	Datastore      fleet.Datastore
+	Log            *slog.Logger
+	NewClientFunc  func(*externalsvc.ZendeskOptions) (ZendeskClient, error)
+	NewActivitySvc activity_api.NewActivityService
 
 	// mu protects concurrent access to clientsCache, so that the job processor
 	// can potentially be run concurrently.
@@ -265,6 +267,26 @@ func (z *Zendesk) Run(ctx context.Context, argsJSON json.RawMessage) error {
 	}
 }
 
+// OnFinalFailure records a failed_automation_ticket host activity once
+// the worker has exhausted all retries for a failing-policy job. Vulnerability
+// jobs are ignored as they are not host- or policy-scoped.
+func (z *Zendesk) OnFinalFailure(ctx context.Context, argsJSON json.RawMessage, jobErr string) error {
+	var args zendeskArgs
+	if err := json.Unmarshal(argsJSON, &args); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshal args")
+	}
+	if args.FailingPolicy == nil {
+		return nil
+	}
+
+	return z.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeFailedAutomationTicket{
+		PolicyID:      args.FailingPolicy.PolicyID,
+		HostIDList:    args.FailingPolicy.hostIDs(),
+		Type:          "zendesk",
+		ErrorResponse: str.TruncateErrorResponse(jobErr),
+	})
+}
+
 func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskArgs) error {
 	vargs := args.Vulnerability
 	if vargs == nil {
@@ -303,8 +325,7 @@ func (z *Zendesk) runVuln(ctx context.Context, cli ZendeskClient, args zendeskAr
 	if err != nil {
 		return err
 	}
-	level.Debug(z.Log).Log(
-		"msg", "created zendesk ticket for cve",
+	z.Log.DebugContext(ctx, "created zendesk ticket for cve",
 		"cve", vargs.CVE,
 		"ticket_id", createdTicket.ID,
 	)
@@ -319,8 +340,7 @@ func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args 
 		return err
 	}
 
-	attrs := []interface{}{
-		"msg", "created zendesk ticket for failing policy",
+	attrs := []any{
 		"policy_id", args.FailingPolicy.PolicyID,
 		"policy_name", args.FailingPolicy.PolicyName,
 		"ticket_id", createdTicket.ID,
@@ -328,11 +348,21 @@ func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args 
 	if args.FailingPolicy.TeamID != nil {
 		attrs = append(attrs, "team_id", *args.FailingPolicy.TeamID)
 	}
-	level.Debug(z.Log).Log(attrs...)
+	z.Log.DebugContext(ctx, "created zendesk ticket for failing policy", attrs...)
+
+	if err := z.NewActivitySvc.NewActivity(ctx, nil, fleet.ActivityTypeRanAutomationTicket{
+		PolicyID:   args.FailingPolicy.PolicyID,
+		HostIDList: args.FailingPolicy.hostIDs(),
+		Type:       "zendesk",
+		TicketID:   createdTicket.ID,
+	}); err != nil {
+		z.Log.WarnContext(ctx, "failed to record zendesk policy automation queued activity",
+			"policy_id", args.FailingPolicy.PolicyID, "err", err)
+	}
 	return nil
 }
 
-func (z *Zendesk) createTemplatedTicket(ctx context.Context, cli ZendeskClient, summaryTpl, descTpl *template.Template, args interface{}) (*zendesk.Ticket, error) {
+func (z *Zendesk) createTemplatedTicket(ctx context.Context, cli ZendeskClient, summaryTpl, descTpl *template.Template, args any) (*zendesk.Ticket, error) {
 	var buf bytes.Buffer
 	if err := summaryTpl.Execute(&buf, args); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "execute summary template")
@@ -362,11 +392,11 @@ func (z *Zendesk) createTemplatedTicket(ctx context.Context, cli ZendeskClient, 
 func QueueZendeskVulnJobs(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	recentVulns []fleet.SoftwareVulnerability,
 	cveMeta map[string]fleet.CVEMeta,
 ) error {
-	level.Info(logger).Log("enabled", "true", "recentVulns", len(recentVulns))
+	logger.InfoContext(ctx, "zendesk integration enabled", "recent_vulns", len(recentVulns))
 
 	// for troubleshooting, log in debug level the CVEs that we will process
 	// (cannot be done in the loop below as we want to add the debug log
@@ -376,7 +406,7 @@ func QueueZendeskVulnJobs(
 		cves = append(cves, vuln.GetCVE())
 	}
 	sort.Strings(cves)
-	level.Debug(logger).Log("recent_cves", fmt.Sprintf("%v", cves))
+	logger.DebugContext(ctx, "recent CVEs to process", "recent_cves", fmt.Sprintf("%v", cves))
 
 	cveGrouped := make(map[string][]uint)
 	for _, v := range recentVulns {
@@ -395,14 +425,14 @@ func QueueZendeskVulnJobs(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "queueing job")
 		}
-		level.Debug(logger).Log("job_id", job.ID)
+		logger.DebugContext(ctx, "queued zendesk vuln job", "job_id", job.ID)
 	}
 	return nil
 }
 
 // QueueZendeskFailingPolicyJob queues a Zendesk job for a failing policy to
 // process asynchronously via the worker.
-func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
+func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger,
 	policy *fleet.Policy, hosts []fleet.PolicySetHost,
 ) error {
 	attrs := []interface{}{
@@ -414,12 +444,11 @@ func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logge
 		attrs = append(attrs, "team_id", *policy.TeamID)
 	}
 	if len(hosts) == 0 {
-		attrs = append(attrs, "msg", "skipping, no host")
-		level.Debug(logger).Log(attrs...)
+		logger.DebugContext(ctx, "skipping, no host", attrs...)
 		return nil
 	}
 
-	level.Info(logger).Log(attrs...)
+	logger.InfoContext(ctx, "queueing Zendesk failing policy job", attrs...)
 
 	args := &failingPolicyArgs{
 		PolicyID:       policy.ID,
@@ -432,6 +461,6 @@ func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logge
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
-	level.Debug(logger).Log("job_id", job.ID)
+	logger.DebugContext(ctx, "queued zendesk failing policy job", "job_id", job.ID)
 	return nil
 }

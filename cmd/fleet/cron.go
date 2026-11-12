@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"strconv"
@@ -14,40 +14,52 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	eewebhooks "github.com/fleetdm/fleet/v4/ee/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	acme_api "github.com/fleetdm/fleet/v4/server/mdm/acme/api"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/policies"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
+	"github.com/fleetdm/fleet/v4/server/service/redis_install_attempts"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	androidvuln "github.com/fleetdm/fleet/v4/server/vulnerabilities/android"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/customcve"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/goval_dictionary"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/govulndb"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/macoffice"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/osv"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/winoffice"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
-	"github.com/hashicorp/go-multierror"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
-func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
-	level.Error(logger).Log("msg", msg, "err", err)
+func errHandler(ctx context.Context, logger *slog.Logger, msg string, err error) {
+	logger.ErrorContext(ctx, msg, "err", err)
 	ctxerr.Handle(ctx, err)
 }
 
@@ -55,16 +67,16 @@ func newVulnerabilitiesSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	config *config.VulnerabilitiesConfig,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronVulnerabilities)
 	interval := config.Periodicity
-	vulnerabilitiesLogger := kitlog.With(logger, "cron", name)
+	vulnerabilitiesLogger := logger.With("cron", name)
 
 	var options []schedule.Option
 
-	options = append(options, schedule.WithLogger(vulnerabilitiesLogger))
+	options = append(options, schedule.WithLogger(vulnerabilitiesLogger), schedule.WithTriggerPollInterval(60*time.Second))
 
 	vulnFuncs := getVulnFuncs(ds, vulnerabilitiesLogger, config)
 	for _, fn := range vulnFuncs {
@@ -79,14 +91,14 @@ func newVulnerabilitiesSchedule(
 func cronVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	config *config.VulnerabilitiesConfig,
 ) error {
 	if config == nil {
 		return errors.New("nil configuration")
 	}
 
-	level.Info(logger).Log("periodicity", config.Periodicity)
+	logger.InfoContext(ctx, "", "periodicity", config.Periodicity)
 
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -94,13 +106,13 @@ func cronVulnerabilities(
 	}
 
 	if !appConfig.Features.EnableSoftwareInventory {
-		level.Info(logger).Log("msg", "software inventory not configured")
+		logger.InfoContext(ctx, "software inventory not configured")
 		return nil
 	}
 
-	vulnPath := configureVulnPath(*config, appConfig, logger)
+	vulnPath := configureVulnPath(ctx, *config, appConfig, logger)
 	if vulnPath != "" {
-		level.Info(logger).Log("msg", "scanning vulnerabilities")
+		logger.InfoContext(ctx, "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
 			return fmt.Errorf("scanning vulnerabilities: %w", err)
 		}
@@ -114,20 +126,24 @@ func cronVulnerabilities(
 	return nil
 }
 
-func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, maxConcurrency int) error {
+func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, maxConcurrency int) error {
+	ctx, span := tracer.Start(ctx, "vuln.update_host_counts")
+	defer span.End()
+
 	// Prevent invalid values for max concurrency
 	if maxConcurrency <= 0 {
-		level.Info(logger).Log("msg", "invalid maxConcurrency value provided, setting value to 1", "providedValue", maxConcurrency)
+		logger.InfoContext(ctx, "invalid maxConcurrency value provided, setting value to 1", "providedValue", maxConcurrency)
 		maxConcurrency = 1
 	}
 
 	start := time.Now()
-	level.Info(logger).Log("msg", "updating vulnerability host counts")
+	logger.InfoContext(ctx, "updating vulnerability host counts")
 
 	if err := ds.UpdateVulnerabilityHostCounts(ctx, maxConcurrency); err != nil {
+		span.RecordError(err)
 		return fmt.Errorf("updating vulnerability host counts: %w", err)
 	}
-	level.Info(logger).Log("msg", "vulnerability host counts updated", "took", time.Since(start).Seconds())
+	logger.InfoContext(ctx, "vulnerability host counts updated", "took", time.Since(start))
 
 	return nil
 }
@@ -135,12 +151,12 @@ func updateVulnHostCounts(ctx context.Context, ds fleet.Datastore, logger kitlog
 func scanVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	config *config.VulnerabilitiesConfig,
 	appConfig *fleet.AppConfig,
 	vulnPath string,
 ) error {
-	level.Debug(logger).Log("msg", "creating vulnerabilities databases path", "databases_path", vulnPath)
+	logger.DebugContext(ctx, "creating vulnerabilities databases path", "databases_path", vulnPath)
 	err := os.MkdirAll(vulnPath, 0o755)
 	if err != nil {
 		return fmt.Errorf("create vulnerabilities databases directory: %w", err)
@@ -178,40 +194,119 @@ func scanVulnerabilities(
 		}
 	}
 
-	level.Debug(logger).Log("vulnAutomationEnabled", vulnAutomationEnabled)
+	logger.DebugContext(ctx, "", "vulnAutomationEnabled", vulnAutomationEnabled)
 
 	startTime, err := ds.GetCurrentTime(ctx)
 	if err != nil {
 		return fmt.Errorf("getting current time from database: %w", err)
 	}
 
-	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
-	ovalVulns := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
+	scanStart := time.Now()
 
+	phaseStart := time.Now()
+	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "nvd", "elapsed", time.Since(phaseStart))
+
+	var ovalVulns []fleet.SoftwareVulnerability
+
+	// OVAL processes all platforms by default, but will exclude Ubuntu if OSV feature flag is enabled
+	phaseStart = time.Now()
+	ovalResults := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	ovalVulns = append(ovalVulns, ovalResults...)
+	logger.InfoContext(ctx, "phase completed", "phase", "oval", "elapsed", time.Since(phaseStart))
+
+	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
+		osvVulns := checkOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+		ovalVulns = append(ovalVulns, osvVulns...)
+		logger.InfoContext(ctx, "phase completed", "phase", "osv", "elapsed", time.Since(phaseStart))
+	}
+
+	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
+		rhelOSVVulns := checkRHELOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+		ovalVulns = append(ovalVulns, rhelOSVVulns...)
+		logger.InfoContext(ctx, "phase completed", "phase", "rhel_osv", "elapsed", time.Since(phaseStart))
+	}
+
+	phaseStart = time.Now()
+	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "goval_dictionary", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "mac_office", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "win_office", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	goVulnDBVulns := checkGoVulnDBVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "govulndb", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "custom", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "windows_msrc", "elapsed", time.Since(phaseStart))
+
+	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
+		checkAndroidVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+		logger.InfoContext(ctx, "phase completed", "phase", "android_osv", "elapsed", time.Since(phaseStart))
+	}
+
+	// Clean up orphaned vulnerabilities (software/OS no longer associated with any host).
+	// This runs here (not in cleanups_then_aggregation) to stay in series with the scanners
+	// that write to the same tables, avoiding cross-schedule lock contention. The LEFT JOIN
+	// queries are index-backed on both sides, so execution time is fast for low orphan counts.
+	phaseStart = time.Now()
+	if err := ds.DeleteOrphanedSoftwareVulnerabilities(ctx); err != nil {
+		errHandler(ctx, logger, "deleting orphaned software vulnerabilities", err)
+	}
+	if err := ds.DeleteOrphanedOSVulnerabilities(ctx); err != nil {
+		errHandler(ctx, logger, "deleting orphaned OS vulnerabilities", err)
+	}
+	logger.InfoContext(ctx, "phase completed", "phase", "orphan_cleanup", "elapsed", time.Since(phaseStart))
+
+	logger.InfoContext(ctx, "all phases completed", "total_elapsed", time.Since(scanStart))
 
 	// If no automations enabled, then there is nothing else to do...
 	if vulnAutomationEnabled == "" {
 		return nil
 	}
 
-	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns))
+	automationCtx, automationSpan := tracer.Start(ctx, "vuln.trigger_automations",
+		trace.WithAttributes(attribute.String("automation_type", vulnAutomationEnabled)))
+	defer automationSpan.End()
+
+	vulns := make([]fleet.SoftwareVulnerability, 0, len(nvdVulns)+len(ovalVulns)+len(macOfficeVulns)+len(winOfficeVulns))
 	vulns = append(vulns, nvdVulns...)
 	vulns = append(vulns, ovalVulns...)
 	vulns = append(vulns, macOfficeVulns...)
+	vulns = append(vulns, winOfficeVulns...)
 	vulns = append(vulns, govalDictVulns...)
+	vulns = append(vulns, goVulnDBVulns...)
 	vulns = append(vulns, customVulns...)
 
-	meta, err := ds.ListCVEs(ctx, config.RecentVulnerabilityMaxAge)
-	if err != nil {
-		errHandler(ctx, logger, "could not fetch CVE meta", err)
-		return nil
+	var recentV []fleet.SoftwareVulnerability
+	var matchingMeta map[string]fleet.CVEMeta
+	if license.IsPremium(ctx) {
+		meta, err := ds.ListCVEs(automationCtx, config.RecentVulnerabilityMaxAge)
+		if err != nil {
+			errHandler(automationCtx, logger, "could not fetch CVE meta", err)
+			return nil
+		}
+		recentV, matchingMeta = utils.RecentVulns(vulns, meta)
+	} else {
+		recentV = vulns
+		matchingMeta = make(map[string]fleet.CVEMeta)
 	}
 
-	recentV, matchingMeta := utils.RecentVulns(vulns, meta)
+	automationSpan.SetAttributes(attribute.Int("recent_vulns", len(recentV)))
 
 	if len(recentV) > 0 {
 		switch vulnAutomationEnabled {
@@ -223,47 +318,47 @@ func scanVulnerabilities(
 				Time:           time.Now(),
 			}
 			mapper := webhooks.NewMapper()
-			if license.IsPremium(ctx) {
+			if license.IsPremium(automationCtx) {
 				mapper = eewebhooks.NewMapper()
 			}
 			// send recent vulnerabilities via webhook
 			if err := webhooks.TriggerVulnerabilitiesWebhook(
-				ctx,
+				automationCtx,
 				ds,
-				kitlog.With(logger, "webhook", "vulnerabilities"),
+				logger.With("webhook", "vulnerabilities"),
 				args,
 				mapper,
 			); err != nil {
-				errHandler(ctx, logger, "triggering vulnerabilities webhook", err)
+				errHandler(automationCtx, logger, "triggering vulnerabilities webhook", err)
 			}
 
 		case "jira":
 			// queue job to create jira issues
 			if err := worker.QueueJiraVulnJobs(
-				ctx,
+				automationCtx,
 				ds,
-				kitlog.With(logger, "jira", "vulnerabilities"),
+				logger.With("jira", "vulnerabilities"),
 				recentV,
 				matchingMeta,
 			); err != nil {
-				errHandler(ctx, logger, "queueing vulnerabilities to jira", err)
+				errHandler(automationCtx, logger, "queueing vulnerabilities to jira", err)
 			}
 
 		case "zendesk":
 			// queue job to create zendesk ticket
 			if err := worker.QueueZendeskVulnJobs(
-				ctx,
+				automationCtx,
 				ds,
-				kitlog.With(logger, "zendesk", "vulnerabilities"),
+				logger.With("zendesk", "vulnerabilities"),
 				recentV,
 				matchingMeta,
 			); err != nil {
-				errHandler(ctx, logger, "queueing vulnerabilities to Zendesk", err)
+				errHandler(automationCtx, logger, "queueing vulnerabilities to Zendesk", err)
 			}
 
 		default:
-			err = ctxerr.New(ctx, "no vuln automations enabled")
-			errHandler(ctx, logger, "attempting to process vuln automations", err)
+			err = ctxerr.New(automationCtx, "no vuln automations enabled")
+			errHandler(automationCtx, logger, "attempting to process vuln automations", err)
 		}
 	}
 
@@ -273,16 +368,19 @@ func scanVulnerabilities(
 func checkCustomVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	collectVulns bool,
 	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_custom")
+	defer span.End()
+
 	vulns, err := customcve.CheckCustomVulnerabilities(ctx, ds, logger, startTime)
 	if err != nil {
 		errHandler(ctx, logger, "checking custom vulnerabilities", err)
 	}
 
-	level.Debug(logger).Log("msg", "custom-vulnerabilities-analysis-done", "found new", len(vulns))
+	logger.DebugContext(ctx, "custom-vulnerabilities-analysis-done", "found new", len(vulns))
 
 	if !collectVulns {
 		return nil
@@ -294,11 +392,14 @@ func checkCustomVulnerabilities(
 func checkWinVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.OSVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_windows")
+	defer span.End()
+
 	var results []fleet.OSVulnerability
 
 	// Get OS
@@ -310,24 +411,26 @@ func checkWinVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync MSRC definitions
-		err = msrc.SyncFromGithub(ctx, vulnPath, os)
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.msrc.sync")
+		err = msrc.SyncFromGithub(syncCtx, vulnPath, os)
 		if err != nil {
-			errHandler(ctx, logger, "updating msrc definitions", err)
+			errHandler(syncCtx, logger, "updating msrc definitions", err)
 		}
+		syncSpan.End()
 	}
 
 	// Analyze all Win OS using the synched MSRC artifact.
 	if !config.DisableWinOSVulnerabilities {
+		analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.msrc.analyze")
 		for _, o := range os {
 			if !o.IsWindows() {
 				continue
 			}
 
 			start := time.Now()
-			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns, logger)
+			r, err := msrc.Analyze(analyzeCtx, ds, o, vulnPath, collectVulns, logger)
 			elapsed := time.Since(start)
-			level.Debug(logger).Log(
-				"msg", "msrc-analysis-done",
+			logger.DebugContext(analyzeCtx, "msrc-analysis-done",
 				"os name", o.Name,
 				"os version", o.Version,
 				"display version", o.DisplayVersion,
@@ -335,10 +438,66 @@ func checkWinVulnerabilities(
 				"found new", len(r))
 			results = append(results, r...)
 			if err != nil {
-				errHandler(ctx, kitlog.With(logger, "os name", o.Name, "display version", o.DisplayVersion), "analyzing hosts for Windows vulnerabilities", err)
+				errHandler(analyzeCtx, logger.With("os name", o.Name, "display version", o.DisplayVersion), "analyzing hosts for Windows vulnerabilities", err)
 			}
 		}
+		analyzeSpan.End()
 	}
+
+	return results
+}
+
+func checkAndroidVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.OSVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_android")
+	defer span.End()
+
+	var results []fleet.OSVulnerability
+
+	oses, err := ds.ListOperatingSystemsForPlatform(ctx, "android")
+	if err != nil {
+		errHandler(ctx, logger, "fetching list of Android operating systems", err)
+		return nil
+	}
+
+	if len(oses) == 0 {
+		return nil
+	}
+
+	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.android.sync")
+		downloaded, err := osv.RefreshAndroid(syncCtx, oses, vulnPath)
+		if err != nil {
+			errHandler(syncCtx, logger, "updating Android OSV artifacts", err)
+		}
+		for _, d := range downloaded {
+			logger.DebugContext(syncCtx, "android-osv-sync-downloaded", "artifact", d)
+		}
+		syncSpan.End()
+	}
+
+	cache := androidvuln.NewArtifactCache()
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.android.analyze")
+	for _, o := range oses {
+		start := time.Now()
+		r, err := androidvuln.Analyze(analyzeCtx, ds, o, vulnPath, collectVulns, logger, cache)
+		elapsed := time.Since(start)
+		logger.DebugContext(analyzeCtx, "android-osv-analysis-done",
+			"os_version", o.Version,
+			"elapsed", elapsed,
+			"found_new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(analyzeCtx, logger.With("os_version", o.Version), "analyzing Android OS vulnerabilities", err)
+		}
+	}
+	analyzeSpan.End()
 
 	return results
 }
@@ -346,11 +505,14 @@ func checkWinVulnerabilities(
 func checkOvalVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_oval")
+	defer span.End()
+
 	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
@@ -360,49 +522,253 @@ func checkOvalVulnerabilities(
 		return nil
 	}
 
+	// If OSV feature flag is enabled, filter out platforms handled by OSV (OVAL will skip them)
+	processVersions := versions
+	if config.OSVForVulnerabilities {
+		var nonOSVPlatforms []fleet.OSVersion
+		for _, v := range versions.OSVersions {
+			// Fedora reports platform "rhel" but Red Hat OSV doesn't cover it — keep in OVAL
+			if osv.IsPlatformSupported(v.Platform) && !strings.Contains(v.Name, "Fedora") {
+				continue
+			}
+			nonOSVPlatforms = append(nonOSVPlatforms, v)
+		}
+
+		processVersions = &fleet.OSVersions{
+			CountsUpdatedAt: versions.CountsUpdatedAt,
+			OSVersions:      nonOSVPlatforms,
+		}
+		logger.DebugContext(ctx, "oval-excluding-osv-platforms", "total_platforms", len(versions.OSVersions), "processing", len(nonOSVPlatforms))
+	}
+
 	if !config.DisableDataSync {
 		// Sync on disk OVAL definitions with current OS Versions.
-		downloaded, err := oval.Refresh(ctx, versions, vulnPath)
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.oval.refresh")
+		downloaded, err := oval.Refresh(refreshCtx, processVersions, vulnPath)
 		if err != nil {
-			errHandler(ctx, logger, "updating oval definitions", err)
+			errHandler(refreshCtx, logger, "updating oval definitions", err)
 		}
 		for _, d := range downloaded {
-			level.Debug(logger).Log("oval-sync-downloaded", d)
+			logger.DebugContext(refreshCtx, "", "oval-sync-downloaded", d)
 		}
+		refreshSpan.End()
 	}
 
 	// Analyze all supported os versions using the synched OVAL definitions.
-	for _, version := range versions.OSVersions {
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.oval.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(processVersions.OSVersions))))
+	for _, version := range processVersions.OSVersions {
 		start := time.Now()
-		r, err := oval.Analyze(ctx, ds, version, vulnPath, collectVulns)
+		r, err := oval.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns)
 		if err != nil && errors.Is(err, oval.ErrUnsupportedPlatform) {
-			level.Debug(logger).Log("msg", "oval-analysis-unsupported", "platform", version.Name)
+			logger.DebugContext(analyzeCtx, "oval-analysis-unsupported", "platform", version.Name)
 			continue
 		}
 
 		elapsed := time.Since(start)
-		level.Debug(logger).Log(
-			"msg", "oval-analysis-done",
+		logger.DebugContext(analyzeCtx, "oval-analysis-done",
 			"platform", version.Name,
 			"elapsed", elapsed,
 			"found new", len(r))
 		results = append(results, r...)
 		if err != nil {
-			errHandler(ctx, logger, "analyzing oval definitions", err)
+			errHandler(analyzeCtx, logger, "analyzing oval definitions", err)
 		}
 	}
+	analyzeSpan.End()
+
+	cleanupStaleOSVVulnerabilities(ctx, ds, logger, config.OSVForVulnerabilities)
+	cleanupStaleRHELOSVVulnerabilities(ctx, ds, logger, config.OSVForVulnerabilities)
 
 	return results
+}
+
+func checkOSVVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_osv")
+	defer span.End()
+
+	var results []fleet.SoftwareVulnerability
+
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	if err != nil {
+		errHandler(ctx, logger, "listing platforms for OSV", err)
+		return nil
+	}
+
+	var now time.Time
+	if !config.DisableDataSync {
+		now = time.Now().UTC()
+	}
+
+	if !config.DisableDataSync {
+		// Sync on disk OSV artifacts with current OS Versions
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.osv.refresh")
+		downloaded, err := osv.Refresh(refreshCtx, versions, vulnPath, now)
+		if err != nil {
+			errHandler(refreshCtx, logger, "updating OSV artifacts", err)
+		}
+		for _, d := range downloaded {
+			logger.DebugContext(refreshCtx, "", "osv-sync-downloaded", d)
+		}
+		refreshSpan.End()
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.osv.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		r, err := osv.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger, now)
+		if err != nil && errors.Is(err, osv.ErrUnsupportedPlatform) {
+			logger.DebugContext(analyzeCtx, "osv-analysis-unsupported", "platform", version.Name)
+			continue
+		}
+
+		elapsed := time.Since(start)
+		logger.DebugContext(analyzeCtx, "osv-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(analyzeCtx, logger, "analyzing OSV artifacts", err)
+		}
+	}
+	analyzeSpan.End()
+
+	cleanupStaleOVALVulnerabilities(ctx, ds, logger)
+
+	return results
+}
+
+const (
+	// deleteAllVulnerabilitiesTime is used with DeleteOutOfDateVulnerabilities to delete
+	// all vulnerabilities for a given source, regardless of their updated_at timestamp.
+	// DeleteOutOfDateVulnerabilities deletes records where updated_at < olderThan,
+	// so we use 100 years into the future.
+	deleteAllVulnerabilitiesTime = 100 * 365 * 24 * time.Hour
+)
+
+// cleanupStaleOSVVulnerabilities removes OSV vulnerabilities for platforms supported by OSV
+func cleanupStaleOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, osvEnabled bool) {
+	if osvEnabled {
+		return
+	}
+
+	logger.DebugContext(ctx, "cleaning up Ubuntu OSV vulnerabilities because OSV is disabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOSVSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up Ubuntu OSV vulnerabilities", err)
+	}
+}
+
+// cleanupStaleOVALVulnerabilities removes OVAL vulnerabilities for platforms supported by OSV
+func cleanupStaleOVALVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) {
+	logger.DebugContext(ctx, "cleaning up Ubuntu OVAL vulnerabilities because OSV is enabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.UbuntuOVALSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up Ubuntu OVAL vulnerabilities", err)
+	}
+}
+
+func checkRHELOSVVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_rhel_osv")
+	defer span.End()
+
+	var results []fleet.SoftwareVulnerability
+
+	versions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
+	if err != nil {
+		errHandler(ctx, logger, "listing platforms for RHEL OSV", err)
+		return nil
+	}
+
+	var now time.Time
+	if !config.DisableDataSync {
+		now = time.Now().UTC()
+	}
+
+	if !config.DisableDataSync {
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.rhel_osv.refresh")
+		downloaded, err := osv.RefreshRHEL(refreshCtx, versions, vulnPath, now)
+		if err != nil {
+			errHandler(refreshCtx, logger, "updating RHEL OSV artifacts", err)
+		}
+		for _, d := range downloaded {
+			logger.DebugContext(refreshCtx, "", "rhel-osv-sync-downloaded", d)
+		}
+		refreshSpan.End()
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.rhel_osv.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
+	for _, version := range versions.OSVersions {
+		start := time.Now()
+		r, err := osv.AnalyzeRHEL(analyzeCtx, ds, version, vulnPath, collectVulns, logger, now)
+		if err != nil && errors.Is(err, osv.ErrUnsupportedPlatform) {
+			logger.DebugContext(analyzeCtx, "rhel-osv-analysis-unsupported", "platform", version.Name)
+			continue
+		}
+
+		elapsed := time.Since(start)
+		logger.DebugContext(analyzeCtx, "rhel-osv-analysis-done",
+			"platform", version.Name,
+			"elapsed", elapsed,
+			"found new", len(r))
+		results = append(results, r...)
+		if err != nil {
+			errHandler(analyzeCtx, logger, "analyzing RHEL OSV artifacts", err)
+		}
+	}
+	analyzeSpan.End()
+
+	cleanupStaleRHELOVALVulnerabilities(ctx, ds, logger)
+
+	return results
+}
+
+// cleanupStaleRHELOSVVulnerabilities removes RHEL OSV vulnerabilities when the flag is disabled.
+func cleanupStaleRHELOSVVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, osvEnabled bool) {
+	if osvEnabled {
+		return
+	}
+
+	logger.DebugContext(ctx, "cleaning up RHEL OSV vulnerabilities because RHEL OSV is disabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.RHELOSVSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up RHEL OSV vulnerabilities", err)
+	}
+}
+
+// cleanupStaleRHELOVALVulnerabilities removes RHEL OVAL vulnerabilities when RHEL OSV is enabled.
+func cleanupStaleRHELOVALVulnerabilities(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) {
+	logger.DebugContext(ctx, "cleaning up RHEL OVAL vulnerabilities because RHEL OSV is enabled")
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.RHELOVALSource, time.Now().Add(deleteAllVulnerabilitiesTime)); err != nil {
+		errHandler(ctx, logger, "cleaning up RHEL OVAL vulnerabilities", err)
+	}
 }
 
 func checkGovalDictionaryVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_goval_dictionary")
+	defer span.End()
+
 	var results []fleet.SoftwareVulnerability
 
 	// Get Platforms
@@ -414,48 +780,95 @@ func checkGovalDictionaryVulnerabilities(
 
 	if !config.DisableDataSync {
 		// Sync on disk goval_dictionary sqlite with current OS Versions.
-		downloaded, err := goval_dictionary.Refresh(versions, vulnPath, logger)
+		refreshCtx, refreshSpan := tracer.Start(ctx, "vuln.goval_dictionary.refresh")
+		downloaded, err := goval_dictionary.Refresh(refreshCtx, versions, vulnPath, logger)
 		if err != nil {
-			errHandler(ctx, logger, "updating goval_dictionary databases", err)
+			errHandler(refreshCtx, logger, "updating goval_dictionary databases", err)
 		}
 		for _, d := range downloaded {
-			level.Debug(logger).Log("goval_dictionary-sync-downloaded", d)
+			logger.DebugContext(refreshCtx, "", "goval_dictionary-sync-downloaded", d)
 		}
+		refreshSpan.End()
 	}
 
 	// Analyze all supported os versions using the synced goval_dictionary definitions.
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.goval_dictionary.analyze",
+		trace.WithAttributes(attribute.Int("os_count", len(versions.OSVersions))))
 	for _, version := range versions.OSVersions {
+		// Skip OSV-supported Linux platforms (for example, Ubuntu and RHEL) when OSV is enabled.
+		// Fedora reports platform "rhel" but Red Hat OSV doesn't cover it — keep in goval-dictionary.
+		if config.OSVForVulnerabilities && osv.IsPlatformSupported(version.Platform) && !strings.Contains(version.Name, "Fedora") {
+			continue
+		}
 		start := time.Now()
-		r, err := goval_dictionary.Analyze(ctx, ds, version, vulnPath, collectVulns, logger)
+		r, err := goval_dictionary.Analyze(analyzeCtx, ds, version, vulnPath, collectVulns, logger)
 		if err != nil && errors.Is(err, goval_dictionary.ErrUnsupportedPlatform) {
-			level.Debug(logger).Log("msg", "goval_dictionary-analysis-unsupported", "platform", version.Name)
+			logger.DebugContext(analyzeCtx, "goval_dictionary-analysis-unsupported", "platform", version.Name)
 			continue
 		}
 		elapsed := time.Since(start)
-		level.Debug(logger).Log(
-			"msg", "goval_dictionary-analysis-done",
+		logger.DebugContext(analyzeCtx, "goval_dictionary-analysis-done",
 			"platform", version.Name,
 			"elapsed", elapsed,
 			"found new", len(r))
 		results = append(results, r...)
 		if err != nil {
-			errHandler(ctx, logger, "analyzing goval_dictionary definitions", err)
+			errHandler(analyzeCtx, logger, "analyzing goval_dictionary definitions", err)
 		}
 	}
+	analyzeSpan.End()
 
 	return results
 }
 
-func checkNVDVulnerabilities(
+func checkGoVulnDBVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 	startTime time.Time,
 ) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_govulndb")
+	defer span.End()
+
 	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.govulndb.sync")
+		artifact, err := govulndb.Refresh(syncCtx, vulnPath)
+		if err != nil {
+			errHandler(syncCtx, logger, "updating Go vulnerability database", err)
+		} else {
+			logger.DebugContext(syncCtx, "finished sync Go vulnerability database", "artifact", artifact)
+		}
+		syncSpan.End()
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.govulndb.analyze")
+	defer analyzeSpan.End()
+
+	r, err := govulndb.Analyze(analyzeCtx, ds, vulnPath, collectVulns, startTime, logger)
+	if err != nil {
+		errHandler(analyzeCtx, logger, "analyzing go binaries for vulnerabilities", err)
+	}
+
+	return r
+}
+
+func checkNVDVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+	startTime time.Time,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_nvd")
+	defer span.End()
+
+	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.nvd.sync")
 		opts := nvd.SyncOptions{
 			VulnPath:             config.DatabasesPath,
 			CPEDBURL:             config.CPEDatabaseURL,
@@ -463,29 +876,38 @@ func checkNVDVulnerabilities(
 			CVEFeedPrefixURL:     config.CVEFeedPrefixURL,
 			CISAKnownExploitsURL: config.CISAKnownExploitsURL,
 		}
-		err := nvd.Sync(opts, logger)
+		err := nvd.Sync(syncCtx, opts, logger)
 		if err != nil {
-			errHandler(ctx, logger, "syncing vulnerability database", err)
+			errHandler(syncCtx, logger, "syncing vulnerability database", err)
 			// don't return, continue on ...
 		}
+		syncSpan.End()
 	}
 
-	if err := nvd.LoadCVEMeta(ctx, logger, vulnPath, ds); err != nil {
-		errHandler(ctx, logger, "load cve meta", err)
+	loadCtx, loadSpan := tracer.Start(ctx, "vuln.nvd.load_cve_meta")
+	if err := nvd.LoadCVEMeta(loadCtx, logger, vulnPath, ds); err != nil {
+		errHandler(loadCtx, logger, "load cve meta", err)
 		// don't return, continue on ...
 	}
+	loadSpan.End()
 
-	err := nvd.TranslateSoftwareToCPE(ctx, ds, vulnPath, logger)
+	cpeCtx, cpeSpan := tracer.Start(ctx, "vuln.nvd.translate_software_to_cpe")
+	err := nvd.TranslateSoftwareToCPE(cpeCtx, ds, vulnPath, logger)
 	if err != nil {
-		errHandler(ctx, logger, "analyzing vulnerable software: Software->CPE", err)
+		errHandler(cpeCtx, logger, "analyzing vulnerable software: Software->CPE", err)
+		cpeSpan.End()
 		return nil
 	}
+	cpeSpan.End()
 
-	vulns, err := nvd.TranslateCPEToCVE(ctx, ds, vulnPath, logger, collectVulns, startTime)
+	cveCtx, cveSpan := tracer.Start(ctx, "vuln.nvd.translate_cpe_to_cve")
+	vulns, err := nvd.TranslateCPEToCVE(cveCtx, ds, vulnPath, logger, collectVulns, startTime)
 	if err != nil {
-		errHandler(ctx, logger, "analyzing vulnerable software: CPE->CVE", err)
-		return nil
+		// Partial results are still returned: their rows are already inserted,
+		// so dropping them here would suppress their automations forever.
+		errHandler(cveCtx, logger, "analyzing vulnerable software: CPE->CVE", err)
 	}
+	cveSpan.End()
 
 	return vulns
 }
@@ -493,32 +915,77 @@ func checkNVDVulnerabilities(
 func checkMacOfficeVulnerabilities(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	vulnPath string,
 	config *config.VulnerabilitiesConfig,
 	collectVulns bool,
 ) []fleet.SoftwareVulnerability {
-	if !config.DisableDataSync {
-		err := macoffice.SyncFromGithub(ctx, vulnPath)
-		if err != nil {
-			errHandler(ctx, logger, "updating mac office release notes", err)
-		}
+	ctx, span := tracer.Start(ctx, "vuln.check_macoffice")
+	defer span.End()
 
-		level.Debug(logger).Log("msg", "finished sync mac office release notes")
+	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.macoffice.sync")
+		err := macoffice.SyncFromGithub(syncCtx, vulnPath)
+		if err != nil {
+			errHandler(syncCtx, logger, "updating mac office release notes", err)
+		}
+		syncSpan.End()
+
+		logger.DebugContext(ctx, "finished sync mac office release notes")
 	}
 
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.macoffice.analyze")
 	start := time.Now()
-	r, err := macoffice.Analyze(ctx, ds, vulnPath, collectVulns)
+	r, err := macoffice.Analyze(analyzeCtx, ds, vulnPath, collectVulns)
 	elapsed := time.Since(start)
 
-	level.Debug(logger).Log(
-		"msg", "mac-office-analysis-done",
+	logger.DebugContext(analyzeCtx, "mac-office-analysis-done",
 		"elapsed", elapsed,
 		"found new", len(r))
 
 	if err != nil {
-		errHandler(ctx, logger, "analyzing mac office products for vulnerabilities", err)
+		errHandler(analyzeCtx, logger, "analyzing mac office products for vulnerabilities", err)
 	}
+	analyzeSpan.End()
+
+	return r
+}
+
+func checkWinOfficeVulnerabilities(
+	ctx context.Context,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	vulnPath string,
+	config *config.VulnerabilitiesConfig,
+	collectVulns bool,
+) []fleet.SoftwareVulnerability {
+	ctx, span := tracer.Start(ctx, "vuln.check_winoffice")
+	defer span.End()
+
+	if !config.DisableDataSync {
+		syncCtx, syncSpan := tracer.Start(ctx, "vuln.winoffice.sync")
+		err := winoffice.SyncFromGithub(syncCtx, vulnPath)
+		if err != nil {
+			errHandler(syncCtx, logger, "updating windows office bulletin", err)
+		}
+		syncSpan.End()
+
+		logger.DebugContext(ctx, "finished sync windows office bulletin")
+	}
+
+	analyzeCtx, analyzeSpan := tracer.Start(ctx, "vuln.winoffice.analyze")
+	start := time.Now()
+	r, err := winoffice.Analyze(analyzeCtx, ds, vulnPath, collectVulns)
+	elapsed := time.Since(start)
+
+	logger.DebugContext(analyzeCtx, "win-office-analysis-done",
+		"elapsed", elapsed,
+		"found new", len(r))
+
+	if err != nil {
+		errHandler(analyzeCtx, logger, "analyzing windows office products for vulnerabilities", err)
+	}
+	analyzeSpan.End()
 
 	return r
 }
@@ -527,9 +994,10 @@ func newAutomationsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	intervalReload time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
+	newActivitySvc activity_api.NewActivityService,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronAutomations)
@@ -542,7 +1010,7 @@ func newAutomationsSchedule(
 	s := schedule.New(
 		// TODO(sarah): Reconfigure settings so automations interval doesn't reside under webhook settings
 		ctx, name, instanceID, appConfig.WebhookSettings.Interval.ValueOr(defaultInterval), ds, ds,
-		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithLogger(logger.With("cron", name)),
 		schedule.WithConfigReloadInterval(intervalReload, func(ctx context.Context) (time.Duration, error) {
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
@@ -555,20 +1023,20 @@ func newAutomationsSchedule(
 			"host_status_webhook",
 			func(ctx context.Context) error {
 				return webhooks.TriggerHostStatusWebhook(
-					ctx, ds, kitlog.With(logger, "automation", "host_status"),
+					ctx, ds, logger.With("automation", "host_status"),
 				)
 			},
 		),
 		schedule.WithJob(
 			"fire_outdated_automations",
 			func(ctx context.Context) error {
-				return scheduleFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "fire_outdated_automations"), failingPoliciesSet)
+				return scheduleFailingPoliciesAutomation(ctx, ds, logger.With("automation", "fire_outdated_automations"), failingPoliciesSet)
 			},
 		),
 		schedule.WithJob(
 			"failing_policies_automation",
 			func(ctx context.Context) error {
-				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet)
+				return triggerFailingPoliciesAutomation(ctx, ds, logger.With("automation", "failing_policies"), failingPoliciesSet, newActivitySvc)
 			},
 		),
 	)
@@ -579,7 +1047,7 @@ func newAutomationsSchedule(
 func scheduleFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
 ) error {
 	for {
@@ -590,7 +1058,7 @@ func scheduleFailingPoliciesAutomation(
 		if len(batch) == 0 {
 			break
 		}
-		level.Debug(logger).Log("adding_hosts", len(batch))
+		logger.DebugContext(ctx, "", "adding_hosts", len(batch))
 		for _, p := range batch {
 			if err := failingPoliciesSet.AddHost(p.PolicyID, p.Host); err != nil {
 				return ctxerr.Wrap(ctx, err, "failingPolicesSet.AddHost")
@@ -603,8 +1071,9 @@ func scheduleFailingPoliciesAutomation(
 func triggerFailingPoliciesAutomation(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
+	newActivitySvc activity_api.NewActivityService,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -619,7 +1088,7 @@ func triggerFailingPoliciesAutomation(
 		switch cfg.AutomationType {
 		case policies.FailingPolicyWebhook:
 			return webhooks.SendFailingPoliciesBatchedPOSTs(
-				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger)
+				ctx, policy, failingPoliciesSet, cfg.HostBatchSize, serverURL, cfg.WebhookURL, time.Now(), logger, newActivitySvc)
 
 		case policies.FailingPolicyJira:
 			hosts, err := failingPoliciesSet.ListHosts(policy.ID)
@@ -658,12 +1127,13 @@ func newWorkerIntegrationsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
-	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
-	vppInstaller fleet.AppleMDMVPPInstaller,
 	androidModule android.Service,
+	chartSvc chart_api.Service,
+	androidBatchSize int,
+	newActivitySvc activity_api.NewActivityService,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -676,7 +1146,7 @@ func newWorkerIntegrationsSchedule(
 		maxRunTime       = 10 * time.Minute // allow the worker to run for 10 minutes
 	)
 
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 
 	// create the worker and register the Jira and Zendesk jobs even if no
 	// integration is enabled, as that config can change live (and if it's not
@@ -685,14 +1155,16 @@ func newWorkerIntegrationsSchedule(
 	// leave the url empty for now, will be filled when the lock is acquired with
 	// the up-to-date config.
 	jira := &worker.Jira{
-		Datastore:     ds,
-		Log:           logger,
-		NewClientFunc: newJiraClient,
+		Datastore:      ds,
+		Log:            logger,
+		NewClientFunc:  newJiraClient,
+		NewActivitySvc: newActivitySvc,
 	}
 	zendesk := &worker.Zendesk{
-		Datastore:     ds,
-		Log:           logger,
-		NewClientFunc: newZendeskClient,
+		Datastore:      ds,
+		Log:            logger,
+		NewClientFunc:  newZendeskClient,
+		NewActivitySvc: newActivitySvc,
 	}
 	var (
 		depSvc *apple_mdm.DEPService
@@ -711,13 +1183,7 @@ func newWorkerIntegrationsSchedule(
 		DEPService: depSvc,
 		DEPClient:  depCli,
 	}
-	appleMDM := &worker.AppleMDM{
-		Datastore:             ds,
-		Log:                   logger,
-		Commander:             commander,
-		BootstrapPackageStore: bootstrapPackageStore,
-		VPPInstaller:          vppInstaller,
-	}
+
 	vppVerify := &worker.AppleSoftware{
 		Datastore: ds,
 		Log:       logger,
@@ -728,11 +1194,20 @@ func newWorkerIntegrationsSchedule(
 		Log:       logger,
 	}
 	softwareWorker := &worker.SoftwareWorker{
-		Datastore:     ds,
-		Log:           logger,
-		AndroidModule: androidModule,
+		Datastore:        ds,
+		Log:              logger,
+		AndroidModule:    androidModule,
+		AndroidBatchSize: androidBatchSize,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, appleMDM, dbMigrate, vppVerify, softwareWorker)
+	chartScrubGlobal := &worker.ChartScrubGlobal{
+		ChartService: chartSvc,
+		Log:          logger,
+	}
+	chartScrubFleet := &worker.ChartScrubFleet{
+		ChartService: chartSvc,
+		Log:          logger,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker, chartScrubGlobal, chartScrubFleet)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -833,29 +1308,90 @@ func newFailerClient(forcedFailures string) *worker.TestAutomationFailer {
 	return failerClient
 }
 
+func newAppleMDMWorkerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	commander *apple_mdm.MDMAppleCommander,
+	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+	inHouseAppInstaller worker.InHouseAppInstaller,
+	newActivityFn fleet.NewActivityFunc,
+) (*schedule.Schedule, error) {
+	const (
+		name             = string(fleet.CronAppleMDMWorker)
+		scheduleInterval = 10 * time.Second // schedule a worker to run every 10 seconds if none is running
+		maxRunTime       = 10 * time.Minute // allow the worker to run for 10 minutes
+	)
+
+	logger = logger.With("cron", name)
+
+	w := worker.NewWorker(ds, logger)
+
+	appleMDM := &worker.AppleMDM{
+		Datastore:             ds,
+		Log:                   logger,
+		Commander:             commander,
+		BootstrapPackageStore: bootstrapPackageStore,
+		VPPInstaller:          vppInstaller,
+		InHouseAppInstaller:   inHouseAppInstaller,
+		NewActivityFn:         newActivityFn,
+	}
+
+	w.Register(appleMDM)
+
+	s := schedule.New(
+		ctx, name, instanceID, scheduleInterval, ds, ds,
+		schedule.WithAltLockID("apple_mdm"),
+		schedule.WithLogger(logger),
+		schedule.WithJob("apple_mdm_worker", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+
+			if err := w.ProcessJobs(workCtx); err != nil {
+				return fmt.Errorf("processing apple mdm jobs: %w", err)
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
+}
+
 func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	carveStore fleet.CarveStore,
 	svc fleet.Service,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
+	cleanupStateStore fleet.MDMAppleCommandCleanupStateStore,
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
 	softwareTitleIconStore fleet.SoftwareTitleIconStore,
+	stagedUploadStore fleet.StagedUploadStore,
 	androidSvc android.Service,
+	activitySvc activity_api.Service,
+	notificationsSvc notifications_api.Service,
+	acmeSvc acme_api.Service,
+	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronCleanupsThenAggregation)
-		defaultInterval = 1 * time.Hour
+		name                          = string(fleet.CronCleanupsThenAggregation)
+		defaultInterval               = 1 * time.Hour
+		expiredHostsCleanupMaxRunTime = 10 * time.Minute
+		expiredHostsCleanupBatchSize  = 5000
+		installerCleanupMaxRunTime    = 10 * time.Minute
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		// Using leader for the lock to be backwards compatilibity with old deployments.
 		schedule.WithAltLockID("leader"),
-		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithLogger(logger.With("cron", name)),
 		// Run cleanup jobs first.
 		schedule.WithJob(
 			"distributed_query_campaigns",
@@ -865,7 +1401,7 @@ func newCleanupsAndAggregationSchedule(
 					return err
 				}
 				if expired > 0 {
-					level.Info(logger).Log("msg", "expired distributed query campaigns", "count", expired)
+					logger.InfoContext(ctx, "expired distributed query campaigns", "count", expired)
 				}
 
 				targetsStart := time.Now()
@@ -875,8 +1411,7 @@ func newCleanupsAndAggregationSchedule(
 					return err
 				}
 				if deleted > 0 {
-					level.Info(logger).Log(
-						"msg", "cleaned up campaign targets",
+					logger.InfoContext(ctx, "cleaned up campaign targets",
 						"deleted", deleted,
 						"duration_ms", time.Since(targetsStart).Milliseconds(),
 					)
@@ -894,16 +1429,17 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"carves",
 			func(ctx context.Context) error {
-				_, err := ds.CleanupCarves(ctx, time.Now())
+				expired, err := carveStore.CleanupCarves(ctx, time.Now())
+				if expired > 0 {
+					logger.InfoContext(ctx, "expired carves", "count", expired)
+				}
 				return err
 			},
 		),
 		schedule.WithJob(
 			"expired_hosts",
 			func(ctx context.Context) error {
-				// Call service method to handle activity creation
-				_, err := svc.CleanupExpiredHosts(ctx)
-				return err
+				return cleanupExpiredHostsCronJob(ctx, svc, logger, expiredHostsCleanupMaxRunTime, expiredHostsCleanupBatchSize)
 			},
 		),
 		schedule.WithJob(
@@ -937,10 +1473,36 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"cleanup_expired_bitlocker_pin_requests",
+			func(ctx context.Context) error {
+				return ds.CleanupExpiredBitLockerPINRequests(ctx)
+			},
+		),
+		schedule.WithJob(
 			"expired_challenges",
 			func(ctx context.Context) error {
 				_, err := ds.CleanupExpiredChallenges(ctx)
 				return err
+			},
+		),
+		schedule.WithJob(
+			"expired_in_house_app_install_tokens",
+			func(ctx context.Context) error {
+				_, err := ds.DeleteExpiredInHouseAppInstallTokens(ctx)
+				return err
+			},
+		),
+		schedule.WithJob(
+			"cleanup_host_one_time_enroll_secrets",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupHostOneTimeEnrollSecrets(ctx)
+				return err
+			},
+		),
+		schedule.WithJob(
+			"cleanup_orphaned_query_stats",
+			func(ctx context.Context) error {
+				return ds.DeleteOrphanedQueryStats(ctx)
 			},
 		),
 		// Run aggregation jobs after cleanups.
@@ -960,6 +1522,13 @@ func newCleanupsAndAggregationSchedule(
 			"aggregated_munki_and_mdm",
 			func(ctx context.Context) error {
 				return ds.GenerateAggregatedMunkiAndMDM(ctx)
+			},
+		),
+		schedule.WithJob(
+			// Self-healing safety net for the per-host Windows profile status rollup. This reconciles any drift and removes orphan rows.
+			"windows_profiles_status_reconcile",
+			func(ctx context.Context) error {
+				return ds.ReconcileWindowsProfilesStatus(ctx)
 			},
 		),
 		schedule.WithJob(
@@ -983,11 +1552,14 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"renew_scep_certificates",
 			func(ctx context.Context) error {
-				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
+				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander, acmeSvc)
 			},
 		),
 		schedule.WithJob("renew_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.RenewMDMManagedCertificates(ctx)
+		}),
+		schedule.WithJob("renew_android_certificate_templates", func(ctx context.Context) error {
+			return android_svc.RenewCertificateTemplates(ctx, ds, logger)
 		}),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
@@ -1018,31 +1590,83 @@ func newCleanupsAndAggregationSchedule(
 			if !appConfig.ActivityExpirySettings.ActivityExpiryEnabled {
 				return nil
 			}
-			// A maxCount of 5,000 means that the cron job will keep the activities (and associated tables)
-			// sizes in control for deployments that generate (5k x 24 hours) ~120,000 activities per day.
+			// A maxCount of 5,000 means that the cron job will keep the activities table
+			// size in control for deployments that generate (5k x 24 hours) ~120,000 activities per day.
 			const maxCount = 5000
-			return ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
+			return activitySvc.CleanupExpiredActivities(ctx, maxCount, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
+		}),
+		schedule.WithJob("cleanup_live_queries", func(ctx context.Context) error {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+			if !appConfig.ActivityExpirySettings.ActivityExpiryEnabled {
+				return nil
+			}
+			return ds.CleanupExpiredLiveQueries(ctx, appConfig.ActivityExpirySettings.ActivityExpiryWindow)
 		}),
 		schedule.WithJob("cleanup_unused_software_installers", func(ctx context.Context) error {
-			// remove only those unused created more than a minute ago to avoid a
-			// race where we delete those created after the mysql query to get those
-			// in use.
-			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore, time.Now().Add(-time.Minute))
+			return cleanupUnusedSoftwareInstallersCronJob(ctx, ds, softwareInstallStore, installerCleanupMaxRunTime)
 		}),
 		schedule.WithJob("cleanup_unused_software_title_icons", func(ctx context.Context) error {
-			return ds.CleanupUnusedSoftwareTitleIcons(ctx, softwareTitleIconStore, time.Now().Add(-time.Minute))
+			return cleanupUnusedSoftwareTitleIconsCronJob(ctx, ds, softwareTitleIconStore, installerCleanupMaxRunTime)
 		}),
 		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
-			// remove only those unused created more than a minute ago to avoid a
-			// race where we delete those created after the mysql query to get those
-			// in use.
-			return ds.CleanupUnusedBootstrapPackages(ctx, bootstrapPackageStore, time.Now().Add(-time.Minute))
+			return cleanupUnusedBootstrapPackagesCronJob(ctx, ds, bootstrapPackageStore, installerCleanupMaxRunTime)
+		}),
+		schedule.WithJob("cleanup_staged_uploads", func(ctx context.Context) error {
+			if stagedUploadStore == nil {
+				return nil
+			}
+			// A staging object only exists once its PUT completes, so the cutoff only
+			// has to outlast the gap between upload and finalize.
+			workCtx, cancel := context.WithTimeout(ctx, installerCleanupMaxRunTime)
+			defer cancel()
+			_, err := stagedUploadStore.Cleanup(workCtx, nil, time.Now().Add(-24*time.Hour))
+			return err
 		}),
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
 			return ds.CleanupHostMDMCommands(ctx)
 		}),
+		schedule.WithJob("cleanup_windows_mdm_command_queue", func(ctx context.Context) error {
+			return ds.CleanupWindowsMDMCommandQueue(ctx)
+		}),
+		schedule.WithJob("cleanup_stale_windows_mdm_enrollments", func(ctx context.Context) error {
+			return cleanupStaleWindowsMDMEnrollmentsCronJob(ctx, ds, logger, config.MDM.WindowsEnrollmentRetention)
+		}),
+		// After the queue and enrollment reapers, so the commands they orphan
+		// go in the same tick.
+		schedule.WithJob("cleanup_windows_mdm_command_history", func(ctx context.Context) error {
+			return cleanupWindowsMDMCommandHistoryCronJob(ctx, ds, logger, config.MDM.WindowsCommandRetention)
+		}),
+		// Before the script results sweep, so a script result this one orphans is
+		// collected in the same tick rather than an hour later.
+		schedule.WithJob("cleanup_host_software_installs", func(ctx context.Context) error {
+			return cleanupHostSoftwareInstallsCronJob(ctx, ds, logger, config.Server.SoftwareInstallResultsRetention)
+		}),
+		schedule.WithJob("cleanup_host_script_results", func(ctx context.Context) error {
+			return cleanupHostScriptResultsCronJob(ctx, ds, logger, config.Server.ScriptResultsRetention)
+		}),
+		schedule.WithJob("cleanup_windows_mdm_profile_prior_content", func(ctx context.Context) error {
+			// Retained prior content for deleted and edited Windows profiles is GC'd (reference-counted) once no host still has that
+			// version installed, so the content survives exactly as long as some host could still need its <Delete>.
+			return ds.CleanupWindowsMDMProfilePriorContent(ctx)
+		}),
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
+		}),
+		schedule.WithJob("cleanup_unenrolled_host_mdm_certificates", func(ctx context.Context) error {
+			count, err := ds.SoftDeleteMDMHostCertificatesForUnenrolledHosts(ctx)
+			if err != nil {
+				return err
+			}
+			if count > 0 {
+				logger.InfoContext(ctx, "soft-deleted mdm host certificates for unenrolled hosts", "count", count)
+			}
+			return nil
+		}),
+		schedule.WithJob("cleanup_host_certificates", func(ctx context.Context) error {
+			return cleanupHostCertificatesCronJob(ctx, ds, logger, config.Server.DeletedHostCertificatesRetention)
 		}),
 		schedule.WithJob("cleanup_host_mdm_apple_profiles", func(ctx context.Context) error {
 			return ds.CleanupHostMDMAppleProfiles(ctx)
@@ -1062,12 +1686,13 @@ func newCleanupsAndAggregationSchedule(
 				return err
 			}
 			if count > 0 {
-				level.Info(logger).Log("msg", "revoked old conditional access certificates", "count", count)
+				logger.InfoContext(ctx, "revoked old conditional access certificates", "count", count)
 			}
 			return nil
 		}),
 		schedule.WithJob("cleanup_android_enterprise", func(ctx context.Context) error {
-			return androidSvc.VerifyExistingEnterpriseIfAny(ctx)
+			// Don't hold up the other cleanup jobs waiting out an AMAPI quota error; the next run retries.
+			return androidSvc.VerifyExistingEnterpriseIfAny(androidmgmt.WithoutRetry(ctx))
 		}),
 		schedule.WithJob("revert_stale_android_certificate_templates", func(ctx context.Context) error {
 			// Revert certificate templates stuck in 'delivering' status for too long
@@ -1078,9 +1703,249 @@ func newCleanupsAndAggregationSchedule(
 				return err
 			}
 			if affected > 0 {
-				level.Info(logger).Log("msg", "reverted stale certificate templates", "count", affected)
+				logger.InfoContext(ctx, "reverted stale certificate templates", "count", affected)
 			}
 			return nil
+		}),
+		schedule.WithJob("cleanup_apple_mdm_commands", func(ctx context.Context) error {
+			return cleanupAppleMDMCommandsJob(ctx, ds, cleanupStateStore, config.MDM, logger)
+		}),
+		schedule.WithJob("cleanup_chart_data", func(ctx context.Context) error {
+			return chartSvc.CleanupData(ctx, 30)
+		}),
+		schedule.WithJob("cleanup_end_user_notifications", func(ctx context.Context) error {
+			return notificationsSvc.CleanupNotifications(ctx, 30*24*time.Hour)
+		}),
+	)
+
+	return s, nil
+}
+
+func cleanupExpiredHostsCronJob(ctx context.Context, svc fleet.Service, logger *slog.Logger, maxRunTime time.Duration, batchSize int) error {
+	deadline := time.Now().Add(maxRunTime)
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		if time.Now().After(deadline) {
+			logger.InfoContext(ctx, "expired hosts cleanup reached runtime limit", "max_run_time", maxRunTime)
+			return nil
+		}
+
+		// Keep deleting batches while the service reports deleted hosts, but
+		// cap the expired_hosts loop so a
+		// large backlog cannot monopolize the cleanups schedule. The budget is
+		// only checked between batches: hosts are deleted in individual
+		// transactions, so cancelling mid-batch would leave already-deleted
+		// hosts without their deleted_host activity.
+		deleted, err := svc.CleanupExpiredHostsBatch(ctx, batchSize)
+		if err != nil {
+			return err
+		}
+		if len(deleted) == 0 {
+			return nil
+		}
+	}
+}
+
+// cleanupStaleWindowsMDMEnrollmentsCronJob is disabled by a non-positive
+// retention, the documented off switch for mdm.windows_enrollment_retention.
+func cleanupStaleWindowsMDMEnrollmentsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupStaleMDMWindowsEnrollments(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup stale windows mdm enrollments failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up stale windows mdm enrollments", "deleted", deleted)
+	}
+	return nil
+}
+
+// cleanupWindowsMDMCommandHistoryCronJob is disabled by a non-positive
+// retention, the documented off switch for mdm.windows_command_retention.
+func cleanupWindowsMDMCommandHistoryCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	counts, err := ds.CleanupMDMWindowsCommandHistory(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if counts.Total() > 0 {
+			logger.WarnContext(ctx, "cleanup windows mdm command history failed after partial progress",
+				"responses", counts.Responses, "results", counts.Results, "commands", counts.Commands)
+		}
+		return err
+	}
+	if counts.Total() > 0 {
+		logger.InfoContext(ctx, "cleaned up windows mdm command history",
+			"responses", counts.Responses, "results", counts.Results, "commands", counts.Commands)
+	}
+	return nil
+}
+
+// cleanupHostSoftwareInstallsCronJob is disabled by a non-positive retention,
+// the documented off switch for server.software_install_results_retention.
+func cleanupHostSoftwareInstallsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupHostSoftwareInstalls(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup host software installs failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up host software installs", "deleted", deleted)
+	}
+	return nil
+}
+
+// cleanupHostScriptResultsCronJob is disabled by a non-positive retention, the
+// documented off switch for server.script_results_retention.
+func cleanupHostScriptResultsCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupHostScriptResults(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup host script results failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up host script results", "deleted", deleted)
+	}
+	return nil
+}
+
+// cleanupHostCertificatesCronJob is disabled by a non-positive retention
+func cleanupHostCertificatesCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, retention time.Duration) error {
+	if retention <= 0 {
+		return nil
+	}
+	deleted, err := ds.CleanupSoftDeletedHostCertificates(ctx, time.Now().Add(-retention).UTC())
+	if err != nil {
+		if deleted > 0 {
+			logger.WarnContext(ctx, "cleanup soft-deleted host certificates failed after partial progress", "deleted", deleted)
+		}
+		return err
+	}
+	if deleted > 0 {
+		logger.InfoContext(ctx, "cleaned up soft-deleted host certificates", "deleted", deleted)
+	}
+	return nil
+}
+
+func cleanupUnusedSoftwareInstallersCronJob(ctx context.Context, ds fleet.Datastore, softwareInstallStore fleet.SoftwareInstallerStore, maxRunTime time.Duration) error {
+	// Jobs in this schedule run one after another under a leader lock that keeps being extended while
+	// a job runs, so an S3 call with no deadline here blocks every job after it until a restart. The
+	// budget goes on the context rather than the wall clock because interrupting an S3 list or delete
+	// mid-call is safe.
+	workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+	defer cancel()
+
+	// remove only those unused created more than a minute ago to avoid a
+	// race where we delete those created after the mysql query to get those
+	// in use.
+	return ds.CleanupUnusedSoftwareInstallers(workCtx, softwareInstallStore, time.Now().Add(-time.Minute))
+}
+
+func cleanupUnusedSoftwareTitleIconsCronJob(ctx context.Context, ds fleet.Datastore, softwareTitleIconStore fleet.SoftwareTitleIconStore, maxRunTime time.Duration) error {
+	workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+	defer cancel()
+
+	return ds.CleanupUnusedSoftwareTitleIcons(workCtx, softwareTitleIconStore, time.Now().Add(-time.Minute))
+}
+
+func cleanupUnusedBootstrapPackagesCronJob(ctx context.Context, ds fleet.Datastore, bootstrapPackageStore fleet.MDMBootstrapPackageStore, maxRunTime time.Duration) error {
+	workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+	defer cancel()
+
+	// remove only those unused created more than a minute ago to avoid a
+	// race where we delete those created after the mysql query to get those
+	// in use.
+	return ds.CleanupUnusedBootstrapPackages(workCtx, bootstrapPackageStore, time.Now().Add(-time.Minute))
+}
+
+// buildChartScopeResolver returns a per-dataset scope resolver for the chart
+// collection cron. It computes (skip, disabledFleetIDs) from the license and the
+// global and per-team historical-data flags. Extracted from the cron closure so
+// it can be unit-tested without spinning up a schedule.
+func buildChartScopeResolver(appCfg *fleet.AppConfig, teams []*fleet.Team, isPremium bool, logger *slog.Logger) chart_api.CollectScopeFn {
+	return func(name string) (skip bool, disabledFleetIDs []uint) {
+		if name == chart_api.MetricCVE && !isPremium {
+			return true, nil
+		}
+
+		ok, err := appCfg.Features.HistoricalData.Enabled(name)
+		if err != nil {
+			// Unknown dataset — fall back to enabled with no team filter.
+			// The chart service is the source of truth for which datasets are
+			// registered; an unknown name here means a new dataset was added
+			// without a corresponding entry in Enabled().
+			if logger != nil {
+				logger.WarnContext(context.Background(), "chart scope: unknown dataset", "dataset", name, "err", err)
+			}
+			return false, nil
+		}
+		if !ok {
+			return true, nil
+		}
+		var disabled []uint
+		for _, t := range teams {
+			tok, terr := t.Config.Features.HistoricalData.Enabled(name)
+			if terr == nil && !tok {
+				disabled = append(disabled, t.ID)
+			}
+		}
+		return false, disabled
+	}
+}
+
+func newChartDataCollectionSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	chartSvc chart_api.Service,
+	isPremium bool,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronChartDataCollection)
+		defaultInterval = 1 * time.Hour
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger.With("cron", name)),
+		schedule.WithJob("collect_chart_datasets", func(ctx context.Context) error {
+			// Build a per-dataset scope resolver from AppConfig + team configs.
+			// Loaded fresh each tick so config changes take effect without
+			// a process restart. Failures here halt this tick so that we don't
+			// collect data that we shouldn't (i.e. from disabled teams or datasets).
+			// The cron retries on its next interval.
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				logger.ErrorContext(ctx, "load app config for chart scope", "err", err)
+				return ctxerr.Wrap(ctx, err, "load app config for chart scope")
+			}
+			teams, err := ds.ListTeams(ctx,
+				fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}},
+				fleet.ListOptions{},
+			)
+			if err != nil {
+				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
+				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
+			}
+			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, isPremium, logger))
 		}),
 	)
 
@@ -1092,7 +1957,7 @@ func newFrequentCleanupsSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	lq fleet.LiveQueryStore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronFrequentCleanups)
@@ -1102,7 +1967,7 @@ func newFrequentCleanupsSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		// Using leader for the lock to be backwards compatilibity with old deployments.
 		schedule.WithAltLockID("leader_frequent_cleanups"),
-		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithLogger(logger.With("cron", name)),
 		// Run cleanup jobs first.
 		schedule.WithJob("redis_live_queries", func(ctx context.Context) error {
 			// It's necessary to avoid lingering live queries in case of:
@@ -1113,7 +1978,7 @@ func newFrequentCleanupsSchedule(
 			if err != nil {
 				return err
 			}
-			ids := stringSliceToUintSlice(names, logger)
+			ids := stringSliceToUintSlice(ctx, names, logger)
 			completed, err := ds.GetCompletedCampaigns(ctx, ids)
 			if err != nil {
 				return err
@@ -1126,31 +1991,96 @@ func newFrequentCleanupsSchedule(
 	return s, nil
 }
 
+func newQueryResultsCleanupSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	liveQueryStore fleet.LiveQueryStore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronQueryResultsCleanup)
+		defaultInterval = 1 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger.With("cron", name)),
+		// Runs first so the excess cleanup's counts don't include rows about to be deleted.
+		schedule.WithJob("cleanup_stale_query_results", func(ctx context.Context) error {
+			return ds.CleanupStaleQueryResults(ctx)
+		}),
+		schedule.WithJob("cleanup_excess_query_results", func(ctx context.Context) error {
+			appConfig, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+			// Results are stored per host, so raising the cap to the host count
+			// bounds each report to one row per host while letting one-row-per-host
+			// reports cover the whole fleet. Cached in Redis for the ingest path.
+			hostCount, err := ds.CountAllHosts(ctx)
+			if err != nil {
+				// Fall back to the last cached count. Without any count the cap would drop to
+				// the configured value and the cleanup could delete valid rows, so skip this
+				// tick instead.
+				logger.WarnContext(ctx, "failed to count hosts for query report cap", "err", err)
+				var ok bool
+				if hostCount, ok, err = liveQueryStore.GetQueryReportsHostCount(); err != nil {
+					return ctxerr.Wrap(ctx, err, "get query reports host count from redis")
+				}
+				if !ok {
+					return ctxerr.New(ctx, "query reports host count unavailable from database and redis")
+				}
+			} else if err := liveQueryStore.SetQueryReportsHostCount(hostCount); err != nil {
+				logger.WarnContext(ctx, "failed to set query reports host count in redis", "err", err)
+			}
+			maxRows := appConfig.ServerSettings.GetEffectiveQueryReportCap(hostCount)
+			queryCounts, err := ds.CleanupExcessQueryResultRows(ctx, maxRows)
+			if err != nil {
+				return err
+			}
+			// Sync Redis counters to actual database row counts
+			for queryID, count := range queryCounts {
+				if err := liveQueryStore.SetQueryResultsCount(queryID, count); err != nil {
+					logger.WarnContext(ctx, "failed to set query results count in redis", "query_id", queryID, "err", err)
+				}
+			}
+			return nil
+		}),
+		schedule.WithJob("update_query_results_last_fetched", func(ctx context.Context) error {
+			return service.UpdateQueryResultsLastFetched(ctx, ds, liveQueryStore)
+		}),
+	)
+
+	return s, nil
+}
+
 func verifyDiskEncryptionKeys(
 	ctx context.Context,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	ds fleet.Datastore,
 ) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
-		logger.Log("err", "unable to get app config", "details", err)
+		logger.ErrorContext(ctx, "unable to get app config", "details", err)
 		return ctxerr.Wrap(ctx, err, "fetching app config")
 	}
 
 	if !appCfg.MDM.EnabledAndConfigured {
-		logger.Log("inf", "skipping verification of macOS encryption keys as MDM is not fully configured")
+		logger.InfoContext(ctx, "skipping verification of macOS encryption keys as MDM is not fully configured")
 		return nil
 	}
 
 	keys, err := ds.GetUnverifiedDiskEncryptionKeys(ctx)
 	if err != nil {
-		logger.Log("err", "unable to get unverified disk encryption keys from the database", "details", err)
+		logger.ErrorContext(ctx, "unable to get unverified disk encryption keys from the database", "details", err)
 		return err
 	}
 
-	cert, err := assets.CAKeyPair(ctx, ds)
+	// Include previously-rolled-over CA certs so keys escrowed against an
+	// earlier CA still decrypt with the (unchanged) private key.
+	caCerts, caKey, err := assets.CACertsAndKeyForDecryption(ctx, ds)
 	if err != nil {
-		logger.Log("err", "unable to get CA keypair", "details", err)
+		logger.ErrorContext(ctx, "unable to get CA certs and key", "details", err)
 		return ctxerr.Wrap(ctx, err, "parsing SCEP keypair")
 	}
 
@@ -1161,7 +2091,7 @@ func verifyDiskEncryptionKeys(
 		if key.UpdatedAt.After(latest) {
 			latest = key.UpdatedAt
 		}
-		if _, err := mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
+		if _, err := mdm.DecryptBase64CMSWithCerts(key.Base64Encrypted, caKey, caCerts); err != nil {
 			undecryptable = append(undecryptable, key.HostID)
 			continue
 		}
@@ -1169,31 +2099,31 @@ func verifyDiskEncryptionKeys(
 	}
 
 	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, decryptable, true, latest); err != nil {
-		logger.Log("err", "unable to update decryptable status", "details", err)
+		logger.ErrorContext(ctx, "unable to update decryptable status", "details", err)
 		return err
 	}
 	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, undecryptable, false, latest); err != nil {
-		logger.Log("err", "unable to update decryptable status", "details", err)
+		logger.ErrorContext(ctx, "unable to update decryptable status", "details", err)
 		return err
 	}
 
 	return nil
 }
 
-func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, logger kitlog.Logger) (*schedule.Schedule, error) {
+func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet.Datastore, config config.FleetConfig, logger *slog.Logger) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUsageStatistics)
 		defaultInterval = 1 * time.Hour
 	)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
-		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		schedule.WithLogger(logger.With("cron", name)),
 		schedule.WithJob(
 			"try_send_statistics",
 			func(ctx context.Context) error {
 				// NOTE(mna): this is not a route from the fleet server (not in server/service/handler.go) so it
 				// will not automatically support the /latest/ versioning. Leaving it as /v1/ for that reason.
-				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config)
+				return trySendStatistics(ctx, ds, fleet.StatisticsFrequency, "https://fleetdm.com/api/v1/webhooks/receive-usage-analytics", config, logger)
 			},
 		),
 	)
@@ -1201,7 +2131,7 @@ func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet
 	return s, nil
 }
 
-func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig) error {
+func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.Duration, url string, config config.FleetConfig, logger *slog.Logger) error {
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
 		return err
@@ -1220,7 +2150,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 		return nil
 	}
 
-	if err := server.PostJSONWithTimeout(ctx, url, stats); err != nil {
+	if err := server.PostJSONWithTimeout(ctx, url, stats, logger); err != nil {
 		return err
 	}
 
@@ -1232,7 +2162,7 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 }
 
 // newAppleMDMDEPProfileAssigner creates the schedule to run the DEP syncer+assigner.
-// The DEP syncer+assigner fetches devices from Apple Business Manager (aka ABM) and applies
+// The DEP syncer+assigner fetches devices from Apple Business (aka AB) and applies
 // the current configured DEP profile to them.
 func newAppleMDMDEPProfileAssigner(
 	ctx context.Context,
@@ -1240,10 +2170,10 @@ func newAppleMDMDEPProfileAssigner(
 	periodicity time.Duration,
 	ds fleet.Datastore,
 	depStorage *mysql.NanoDEPStorage,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMDEPProfileAssigner)
-	logger = kitlog.With(logger, "cron", name, "component", "nanodep-syncer")
+	logger = logger.With("cron", name, "component", "nanodep-syncer")
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
@@ -1256,7 +2186,7 @@ func newAppleMDMDEPProfileAssigner(
 func appleMDMDEPSyncerJob(
 	ds fleet.Datastore,
 	depStorage *mysql.NanoDEPStorage,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) func(context.Context) error {
 	var fleetSyncer *apple_mdm.DEPService
 	return func(ctx context.Context) error {
@@ -1279,14 +2209,14 @@ func appleMDMDEPSyncerJob(
 			return ctxerr.Wrap(ctx, err, "retrieving migrated ABM token")
 		}
 		if incompleteToken != nil {
-			logger.Log("msg", "migrated ABM token found, updating its metadata")
+			logger.InfoContext(ctx, "migrated ABM token found, updating its metadata")
 			if err := apple_mdm.SetABMTokenMetadata(ctx, incompleteToken, depStorage, ds, logger, false); err != nil {
 				return ctxerr.Wrap(ctx, err, "updating migrated ABM token metadata")
 			}
 			if err := ds.SaveABMToken(ctx, incompleteToken); err != nil {
 				return ctxerr.Wrap(ctx, err, "saving updated migrated ABM token")
 			}
-			logger.Log("msg", "completed migration of existing ABM token")
+			logger.InfoContext(ctx, "completed migration of existing ABM token")
 		}
 
 		if fleetSyncer == nil {
@@ -1302,7 +2232,10 @@ func newAppleMDMProfileManagerSchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	redisKeyValue fleet.AdvancedKeyValueStore,
+	logger *slog.Logger,
+	certProfilesLimit int,
+	useOneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMAppleProfileManager)
@@ -1312,15 +2245,18 @@ func newAppleMDMProfileManagerSchedule(
 		defaultInterval = 30 * time.Second
 	)
 
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
-			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
+			return service.ReconcileAppleProfilesBatched(ctx, ds, commander, redisKeyValue, logger, certProfilesLimit, useOneTimeEnrollSecrets)
 		}),
 		schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
-			return service.ReconcileAppleDeclarations(ctx, ds, commander, logger)
+			return service.ReconcileAppleDeclarationsBatched(ctx, ds, commander, logger)
+		}),
+		schedule.WithJob("manage_apple_device_names", func(ctx context.Context) error {
+			return service.ReconcileHostDeviceNames(ctx, ds, commander, logger)
 		}),
 	)
 
@@ -1331,7 +2267,8 @@ func newWindowsMDMProfileManagerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
+	useOneTimeEnrollSecrets bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronMDMWindowsProfileManager)
@@ -1341,12 +2278,12 @@ func newWindowsMDMProfileManagerSchedule(
 		defaultInterval = 30 * time.Second
 	)
 
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
-			return service.ReconcileWindowsProfiles(ctx, ds, logger)
+			return service.ReconcileWindowsProfiles(ctx, ds, logger, useOneTimeEnrollSecrets)
 		}),
 	)
 
@@ -1357,20 +2294,24 @@ func newAndroidMDMProfileManagerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	licenseKey string,
+	androidAgentConfig config.AndroidAgentConfig,
+	batchSize int,
+	redisPool fleet.RedisPool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidProfileManager)
 		defaultInterval = 30 * time.Second
 	)
 
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
+	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AppStoreAppPrefix)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
-			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey)
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey, androidAgentConfig, batchSize, retryCounter)
 		}),
 	)
 
@@ -1382,12 +2323,12 @@ func newMDMAppleServiceDiscoverySchedule(
 	instanceID string,
 	ds fleet.Datastore,
 	depStorage *mysql.NanoDEPStorage,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	urlPrefix string,
 ) (*schedule.Schedule, error) {
 	const name = "mdm_service_discovery"
 	interval := 1 * time.Hour
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithLogger(logger),
@@ -1403,154 +2344,189 @@ func newMDMAPNsPusher(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	interval time.Duration,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMAPNsPusher)
 
-	interval := 1 * time.Minute
-	if intervalEnv := os.Getenv("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
+	if intervalEnv := dev_mode.Env("FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL"); intervalEnv != "" {
 		var err error
 		interval, err = time.ParseDuration(intervalEnv)
 		if err != nil {
-			level.Warn(logger).Log("msg", "invalid duration provided for FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL, using default interval")
+			logger.WarnContext(ctx, "invalid duration provided for FLEET_DEV_CUSTOM_APNS_PUSHER_INTERVAL, using default interval")
 			interval = 1 * time.Minute
 		}
 	}
 
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("apns_push_to_pending_hosts", func(ctx context.Context) error {
-			appCfg, err := ds.AppConfig(ctx)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "retrieving app config")
-			}
-
-			if !appCfg.MDM.EnabledAndConfigured {
-				return nil
-			}
-
-			return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
+			return apnsPusherJob(ctx, ds, commander, logger)
 		}),
 	)
 
 	return s, nil
 }
 
-func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, instanceID string) {
+// apnsMaxRunTime caps one run of either APNs push cron. The schedule context
+// carries no deadline, so without a cap a large backlog against a slow APNs
+// (each request is individually bounded, but there can be many) holds the
+// schedule for hours. Cutting a run short loses nothing: pushes already sent
+// stand, and the rest are picked up on the next tick — the pusher re-queries
+// pending commands and the sweep resumes from its persisted cursor.
+const apnsMaxRunTime = 10 * time.Minute
+
+func apnsPusherJob(ctx context.Context, ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger *slog.Logger) error {
+	ctx, cancel := context.WithTimeout(ctx, apnsMaxRunTime)
+	defer cancel()
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+
+	if !appCfg.MDM.EnabledAndConfigured {
+		return nil
+	}
+
+	return service.SendPushesToPendingDevices(ctx, ds, commander, logger)
+}
+
+// Caps a run so slow scans can't hold the hourly schedule; each batch is its own transaction and the rest waits for the next tick.
+const appleCommandCleanupMaxRunTime = 10 * time.Minute
+
+func cleanupAppleMDMCommandsJob(ctx context.Context, ds fleet.Datastore, stateStore fleet.MDMAppleCommandCleanupStateStore, cfg config.MDMConfig, logger *slog.Logger) error {
+	ctx, cancel := context.WithTimeout(ctx, appleCommandCleanupMaxRunTime)
+	defer cancel()
+
+	appCfg, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving app config")
+	}
+	if !appCfg.MDM.EnabledAndConfigured {
+		return nil
+	}
+
+	state, err := stateStore.GetMDMAppleCommandCleanupState(ctx)
+	if err != nil {
+		// a lost cursor only costs a restart from the oldest rows
+		logger.WarnContext(ctx, "failed to read apple mdm command cleanup state; scans restart from the oldest rows", "err", err)
+		state = nil
+	}
+	logger.InfoContext(ctx, "apple mdm command cleanup starting", "cursors", state)
+
+	state, stats, err := ds.CleanupNanoCommands(ctx, fleet.MDMAppleCommandCleanupOptions{
+		ShortRetention:    cfg.AppleCommandCleanupShortRetention,
+		StandardRetention: cfg.AppleCommandCleanupStandardRetention,
+		MaxRowDeletions:   cfg.AppleCommandCleanupMaxRowDeletionsPerRun,
+		MaxCmdDeletions:   cfg.AppleCommandCleanupMaxCmdDeletionsPerRun,
+	}, state)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup apple mdm commands")
+	}
+	if err := stateStore.SetMDMAppleCommandCleanupState(ctx, state); err != nil {
+		return ctxerr.Wrap(ctx, err, "save apple mdm command cleanup state")
+	}
+	logger.InfoContext(ctx, "cleaned up apple mdm commands",
+		"inactive_pairs_deleted", stats.InactivePairsDeleted,
+		"short_retention_pairs_deleted", stats.ShortPairsDeleted,
+		"standard_retention_pairs_deleted", stats.StandardPairsDeleted,
+		"commands_deleted", stats.CommandsDeleted,
+		"orphan_commands_deleted", stats.OrphanCommandsDeleted,
+		"cursors", state)
+	if stats.RowBudgetExhausted || stats.CmdBudgetExhausted {
+		logger.WarnContext(ctx, "apple mdm command cleanup stopped early, remaining rows will be cleaned on the next run",
+			"row_budget_exhausted", stats.RowBudgetExhausted,
+			"command_budget_exhausted", stats.CmdBudgetExhausted)
+	}
+	return nil
+}
+
+func apnsSweepJob(ctx context.Context, ds fleet.Datastore, commander *apple_mdm.MDMAppleCommander, logger *slog.Logger, interval time.Duration) error {
+	ctx, cancel := context.WithTimeout(ctx, apnsMaxRunTime)
+	defer cancel()
+
+	return apple_mdm.SweepAPNsPushes(ctx, ds, commander, logger, interval)
+}
+
+// newMDMAPNsSweepSchedule runs the APNs sweep: one bounded page of enabled
+// enrollments per tick, re-pushing any silent for more than a day, one lap
+// per ~24h. Registered instead of the legacy per-minute pusher unless the
+// FLEET_MDM_APPLE_LEGACY_APNS_PUSHER_INTERVAL rollback lever is set.
+func newMDMAPNsSweepSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	interval time.Duration,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const name = string(fleet.CronAppleMDMAPNsSweep)
+
+	if interval <= 0 {
+		logger.WarnContext(ctx, "invalid mdm.apple_apns_sweep_interval, using 1m")
+		interval = 1 * time.Minute
+	}
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("apns_sweep", func(ctx context.Context) error {
+			return apnsSweepJob(ctx, ds, commander, logger, interval)
+		}),
+	)
+
+	return s, nil
+}
+
+func cleanupCronStatsOnShutdown(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, instanceID string) {
 	if err := ds.UpdateAllCronStatsForInstance(ctx, instanceID, fleet.CronStatsStatusPending, fleet.CronStatsStatusCanceled); err != nil {
-		logger.Log("err", "cancel pending cron stats for instance", "details", err)
+		logger.ErrorContext(ctx, "cancel pending cron stats for instance", "details", err)
 	}
 }
 
 func newActivitiesStreamingSchedule(
 	ctx context.Context,
 	instanceID string,
+	activitySvc activity_api.Service,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
-	auditLogger fleet.JSONLogger,
+	logger *slog.Logger,
+	auditLogger activity_api.JSONLogger,
 ) (*schedule.Schedule, error) {
 	const (
 		name     = string(fleet.CronActivitiesStreaming)
 		interval = 5 * time.Minute
 	)
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob(
 			"cron_activities_streaming",
 			func(ctx context.Context) error {
-				return cronActivitiesStreaming(ctx, ds, logger, auditLogger)
+				// Use system context for authorization since cron jobs don't have a user context
+				systemCtx := viewer.NewSystemContext(ctx)
+				return activitySvc.StreamActivities(systemCtx, auditLogger)
 			},
 		),
 	)
 	return s, nil
 }
 
-var ActivitiesToStreamBatchCount uint = 500
-
-func cronActivitiesStreaming(
-	ctx context.Context,
-	ds fleet.Datastore,
-	logger kitlog.Logger,
-	auditLogger fleet.JSONLogger,
-) error {
-	page := uint(0)
-	for {
-		// (1) Get batch of activities that haven't been streamed.
-		activitiesToStream, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-			ListOptions: fleet.ListOptions{
-				OrderKey:       "id",
-				OrderDirection: fleet.OrderAscending,
-				PerPage:        ActivitiesToStreamBatchCount,
-				Page:           page,
-			},
-			Streamed: ptr.Bool(false),
-		})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "list activities")
-		}
-		if len(activitiesToStream) == 0 {
-			return nil
-		}
-
-		// (2) Stream the activities.
-		var (
-			streamedIDs []uint
-			multiErr    error
-		)
-		// We stream one activity at a time (instead of writing them all with
-		// one auditLogger.Write call) to know which ones succeeded/failed,
-		// and also because this method happens asynchronously,
-		// so we don't need real-time performance.
-		for _, activity := range activitiesToStream {
-			b, err := json.Marshal(activity)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "marshal activity")
-			}
-			if err := auditLogger.Write(ctx, []json.RawMessage{json.RawMessage(b)}); err != nil {
-				if len(streamedIDs) == 0 {
-					return ctxerr.Wrapf(ctx, err, "stream first activity: %d", activity.ID)
-				}
-				multiErr = multierror.Append(multiErr, ctxerr.Wrapf(ctx, err, "stream activity: %d", activity.ID))
-				// We stop streaming upon the first error (will retry on next cron iteration)
-				break
-			}
-			streamedIDs = append(streamedIDs, activity.ID)
-		}
-
-		logger.Log("streamed-events", len(streamedIDs))
-
-		// (3) Mark the streamed activities as streamed.
-		if err := ds.MarkActivitiesAsStreamed(ctx, streamedIDs); err != nil {
-			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "mark activities as streamed"))
-		}
-
-		// If there was an error while streaming or updating activities, return.
-		if multiErr != nil {
-			return multiErr
-		}
-
-		if len(activitiesToStream) < int(ActivitiesToStreamBatchCount) { //nolint:gosec // dismiss G115
-			return nil
-		}
-		page += 1
-	}
-}
-
 func newHostVitalsLabelMembershipSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name     = string(fleet.CronHostVitalsLabelMembership)
 		interval = 5 * time.Minute
 	)
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithLogger(logger),
@@ -1570,7 +2546,12 @@ func cronHostVitalsLabelMembership(
 ) error {
 	// Get all labels. We don't have a function for labels by membership type
 	// so we'll filter them later.
-	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{
+	//
+	// We use a global admin filter so that fleet/team-scoped labels are included.
+	// An empty TeamFilter (nil User) falls back to the "global-only" filter
+	// (l.team_id IS NULL), which would silently exclude every fleet-scoped host
+	// vitals label and leave them unpopulated. See #46869.
+	labels, err := ds.ListLabels(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}, fleet.ListOptions{
 		PerPage: 0, // No limit.
 	}, false)
 	if err != nil {
@@ -1582,8 +2563,10 @@ func cronHostVitalsLabelMembership(
 		if label.LabelMembershipType != fleet.LabelMembershipTypeHostVitals {
 			continue
 		}
-		// Update membership for the label.
-		_, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
+		// Update membership for the label. The changed host IDs are consumed
+		// by the config ETag invalidation decorator wrapping ds; nothing to
+		// do with them here.
+		_, _, err = ds.UpdateLabelMembershipByHostCriteria(ctx, label)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "update label membership for label %d (%s)", label.ID, label.Name)
 		}
@@ -1595,13 +2578,13 @@ func newBatchActivityCompletionCheckerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name     = string(fleet.CronBatchActivityCompletionChecker)
 		interval = 5 * time.Minute
 	)
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithLogger(logger),
@@ -1626,12 +2609,12 @@ func cronBatchActivityCompletionChecker(
 	return nil
 }
 
-func stringSliceToUintSlice(s []string, logger kitlog.Logger) []uint {
+func stringSliceToUintSlice(ctx context.Context, s []string, logger *slog.Logger) []uint {
 	result := make([]uint, 0, len(s))
 	for _, v := range s {
 		i, err := strconv.ParseUint(v, 10, 64)
 		if err != nil {
-			level.Warn(logger).Log("msg", "failed to parse string to uint", "string", v, "err", err)
+			logger.WarnContext(ctx, "failed to parse string to uint", "string", v, "err", err)
 			continue
 		}
 		result = append(result, uint(i))
@@ -1652,16 +2635,17 @@ func newIPhoneIPadRefetcher(
 	periodicity time.Duration,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	newActivityFn apple_mdm.NewActivityFunc,
+	batchSize int,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMIPhoneIPadRefetcher)
-	logger = kitlog.With(logger, "cron", name, "component", "iphone-ipad-refetcher")
+	logger = logger.With("cron", name, "component", "iphone-ipad-refetcher")
 	s := schedule.New(
 		ctx, name, instanceID, periodicity, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn)
+			return apple_mdm.IOSiPadOSRefetch(ctx, ds, commander, logger, newActivityFn, batchSize)
 		}),
 	)
 
@@ -1675,13 +2659,13 @@ func cronUninstallSoftwareMigration(
 	instanceID string,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUninstallSoftwareMigration)
 		defaultInterval = 24 * time.Hour
 	)
-	logger = kitlog.With(logger, "cron", name, "component", name)
+	logger = logger.With("cron", name, "component", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
@@ -1700,14 +2684,14 @@ func cronUpgradeCodeSoftwareMigration(
 	instanceID string,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUpgradeCodeSoftwareMigration)
 		defaultInterval = 24 * time.Hour
 		priorJobDiff    = -(defaultInterval - 30*time.Second)
 	)
-	logger = kitlog.With(logger, "cron", name, "component", name)
+	logger = logger.With("cron", name, "component", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
@@ -1725,7 +2709,7 @@ func newMaintainedAppSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMaintainedApps)
@@ -1733,14 +2717,85 @@ func newMaintainedAppSchedule(
 		priorJobDiff    = -(defaultInterval - 30*time.Second)
 	)
 
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		// ensures it runs a few seconds after Fleet is started
 		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
 		schedule.WithJob("refresh_maintained_apps", func(ctx context.Context) error {
-			return maintained_apps.Refresh(ctx, ds, logger)
+			return maintained_apps.SyncAppsList(ctx, ds)
+		}),
+		schedule.WithJob("reconcile_macos_maintained_app_names", func(ctx context.Context) error {
+			return ds.ReconcileMaintainedAppSoftwareNames(ctx)
+		}),
+	)
+
+	return s, nil
+}
+
+// newWindowsMaintainedAppTitlesSchedule merges Windows software titles whose
+// reported name embeds the version (e.g. "Granola 7.373.2") onto the title owned
+// by the Fleet-maintained app's installer ("Granola").
+//
+// This is deliberately not a job on the Fleet-maintained apps schedule: it reads
+// only local installer and software title state, so it must keep running even when
+// the catalog fetch fails or the instance is not Premium. It is also not a job on
+// cleanups_then_aggregation, so that back-dating the first run to shortly after
+// startup — which is what makes existing mismatched titles heal on upgrade without
+// manual action — does not change the startup behaviour of that schedule's other
+// jobs.
+func newWindowsMaintainedAppTitlesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronWindowsMaintainedAppTitles)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("reconcile_windows_maintained_app_titles", func(ctx context.Context) error {
+			return ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx)
+		}),
+	)
+
+	return s, nil
+}
+
+func newMaintainedAppsAutoUpdateSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	softwareInstallStore fleet.SoftwareInstallerStore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMaintainedAppsAutoUpdate)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 30*time.Second)
+		maxRunTime      = 55 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs a few seconds after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob("maintained_apps_auto_update", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+
+			return eeservice.AutoUpdateFleetMaintainedApps(workCtx, ds, softwareInstallStore, logger)
 		}),
 	)
 
@@ -1751,19 +2806,20 @@ func newRefreshVPPAppVersionsSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
+	vppAppsConfig apple_apps.Config,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronRefreshVPPAppVersions)
 		defaultInterval = 1 * time.Hour
 	)
 
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("refresh_vpp_app_version", func(ctx context.Context) error {
-			return vpp.RefreshVersions(ctx, ds)
+			return vpp.RefreshVersions(ctx, ds, vppAppsConfig)
 		}),
 	)
 
@@ -1779,10 +2835,10 @@ func newIPhoneIPadReviver(
 	instanceID string,
 	ds fleet.Datastore,
 	commander *apple_mdm.MDMAppleCommander,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronAppleMDMIPhoneIPadReviver)
-	logger = kitlog.With(logger, "cron", name, "component", "iphone-ipad-reviver")
+	logger = logger.With("cron", name, "component", "iphone-ipad-reviver")
 	s := schedule.New(
 		ctx, name, instanceID, 1*time.Hour, ds, ds,
 		schedule.WithLogger(logger),
@@ -1794,26 +2850,110 @@ func newIPhoneIPadReviver(
 	return s, nil
 }
 
+func unblockHostsUpcomingActivityQueueCronJob(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, maxHosts int, skipFleetInitiated bool) error {
+	unblocked, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxHosts, skipFleetInitiated)
+	// per-host isolation in the datastore means a partial failure still unblocks the
+	// healthy hosts, so report progress before returning the error
+	if unblocked > 0 {
+		logger.InfoContext(ctx, "unblocked hosts upcoming activity queue",
+			"hosts_unblocked", unblocked,
+			"max_hosts", maxHosts,
+			// unblocked == max means more hosts are likely still blocked
+			"cap_reached", unblocked == maxHosts,
+		)
+	}
+	return err
+}
+
 func newUpcomingActivitiesSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
+	installReapTimeout time.Duration,
+	verifyTimeout time.Duration,
+	newActivityFn fleet.NewActivityFunc,
+	fleetInitiatedReleaseEnabled bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronUpcomingActivitiesMaintenance)
 		defaultInterval = 10 * time.Minute
 	)
+	logger = logger.With("cron", name)
+
+	opts := []schedule.Option{schedule.WithLogger(logger)}
+	if installReapTimeout > 0 {
+		// Both timeouts age an acknowledged install from the same instant, its command
+		// result's updated_at, so a reap timeout under the verification budget would fail
+		// installs verification was still entitled to be working on. Raised rather than
+		// honoured, since it asks Fleet to give up before it has finished trying.
+		if installReapTimeout < verifyTimeout {
+			logger.WarnContext(ctx, "raising stuck app install reap timeout to the verification timeout",
+				"vpp_install_reap_timeout", installReapTimeout.String(),
+				"vpp_verify_timeout", verifyTimeout.String())
+			installReapTimeout = verifyTimeout
+		}
+		// Registered ahead of the unblock job so that if a reap frees a head but leaves
+		// nothing activated, the unblock job catches it in this run rather than the next.
+		opts = append(opts, schedule.WithJob("reap_stuck_activated_mdm_installs", func(ctx context.Context) error {
+			const maxReapHosts = 500
+			return service.ReapStuckMDMInstalls(ctx, ds, logger, newActivityFn, installReapTimeout, maxReapHosts)
+		}))
+	} else {
+		// Left unregistered rather than run with a non-positive timeout, which would fail
+		// every activated install on the fleet instead of none.
+		logger.InfoContext(ctx, "stuck app install reaper disabled by configuration",
+			"vpp_install_reap_timeout", installReapTimeout.String())
+	}
+	opts = append(opts, schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
+		const maxUnblockHosts = 500
+		// when the fleet-initiated release budget is enabled, hosts waiting
+		// solely on deferred fleet-initiated activities are not blocked — they
+		// belong to the release cron, and unblocking them here would bypass
+		// its budget
+		return unblockHostsUpcomingActivityQueueCronJob(ctx, ds, logger, maxUnblockHosts, fleetInitiatedReleaseEnabled)
+	}))
+
+	return schedule.New(ctx, name, instanceID, defaultInterval, ds, ds, opts...), nil
+}
+
+// newFleetInitiatedActivitiesReleaseSchedule activates deferred
+// fleet-initiated upcoming activities (policy-automation installs and
+// scripts) at the configured hosts-per-minute budget, pacing the downstream
+// execution and result-ingestion load. Only registered when
+// activity.fleet_initiated_release_per_minute > 0.
+func newFleetInitiatedActivitiesReleaseSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	hostsPerMinute int,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronFleetInitiatedActivitiesRelease)
+		defaultInterval = 1 * time.Minute
+	)
+	logger = logger.With("cron", name)
+
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
-		schedule.WithLogger(kitlog.With(logger, "cron", name)),
-		schedule.WithJob("unblock_hosts_upcoming_activity_queue", func(ctx context.Context) error {
-			const maxUnblockHosts = 500
-			_, err := ds.UnblockHostsUpcomingActivityQueue(ctx, maxUnblockHosts)
+		schedule.WithLogger(logger),
+		schedule.WithJob("release_fleet_initiated_activities", func(ctx context.Context) error {
+			// a partial failure still releases the healthy hosts (per-host
+			// isolation in the datastore), so log progress before returning
+			// any per-host activation errors
+			released, err := ds.ReleaseFleetInitiatedUpcomingActivities(ctx, hostsPerMinute)
+			if released > 0 {
+				logger.InfoContext(ctx, "released fleet-initiated upcoming activities",
+					"hosts_released", released,
+					"budget_per_minute", hostsPerMinute,
+					// released == budget means more hosts are likely still waiting
+					"budget_exhausted", released == hostsPerMinute,
+				)
+			}
 			return err
 		}),
 	)
-
 	return s, nil
 }
 
@@ -1821,14 +2961,14 @@ func newBatchActivitiesSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronScheduledBatchActivities)
 		defaultInterval = 2 * time.Minute
 	)
 
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 
 	w := worker.NewWorker(ds, logger)
 
@@ -1860,20 +3000,51 @@ func newAndroidMDMDeviceReconcilerSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	licenseKey string,
+	newActivityFn fleet.NewActivityFunc,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronMDMAndroidDeviceReconciler)
 		defaultInterval = 1 * time.Hour
 	)
 
-	logger = kitlog.With(logger, "cron", name)
+	logger = logger.With("cron", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
 		schedule.WithJob("reconcile_android_devices", func(ctx context.Context) error {
-			return android_svc.ReconcileAndroidDevices(ctx, ds, logger, licenseKey)
+			return android_svc.ReconcileAndroidDevices(ctx, ds, logger, licenseKey, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
+// newAndroidMDMCommandReconcilerSchedule periodically polls AMAPI for the outcome of Android MDM
+// commands (Lock, Wipe, Clear passcode) that are still pending because their Pub/Sub COMMAND
+// notification never arrived, so hosts don't stay stuck in a pending state.
+func newAndroidMDMCommandReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	licenseKey string,
+	newActivityFn fleet.NewActivityFunc,
+) (*schedule.Schedule, error) {
+	const (
+		name = string(fleet.CronMDMAndroidCommandReconciler)
+		// Daily is enough: a dropped notification is rare, and a day of reconciliation lag is invisible
+		// next to the indefinite wait an affected host has otherwise.
+		defaultInterval = 24 * time.Hour
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_android_commands", func(ctx context.Context) error {
+			return android_svc.ReconcileAndroidCommands(ctx, ds, logger, licenseKey, newActivityFn)
 		}),
 	)
 
@@ -1884,7 +3055,7 @@ func cronEnableAndroidAppReportsOnDefaultPolicy(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	androidSvc android.Service,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1892,7 +3063,7 @@ func cronEnableAndroidAppReportsOnDefaultPolicy(
 		defaultInterval = 24 * time.Hour
 		priorJobDiff    = -(defaultInterval - 45*time.Second)
 	)
-	logger = kitlog.With(logger, "cron", name, "component", name)
+	logger = logger.With("cron", name, "component", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
@@ -1910,7 +3081,7 @@ func cronMigrateToPerHostPolicy(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	androidSvc android.Service,
 ) (*schedule.Schedule, error) {
 	const (
@@ -1918,7 +3089,7 @@ func cronMigrateToPerHostPolicy(
 		defaultInterval = 24 * time.Hour
 		priorJobDiff    = -(defaultInterval - 30*time.Second)
 	)
-	logger = kitlog.With(logger, "cron", name, "component", name)
+	logger = logger.With("cron", name, "component", name)
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
@@ -1929,5 +3100,204 @@ func cronMigrateToPerHostPolicy(
 			return androidSvc.MigrateToPerDevicePolicy(ctx)
 		}),
 	)
+	return s, nil
+}
+
+// newReencryptWindowsDiskEncryptionKeysSchedule moves legacy Windows recovery keys, encrypted to the WSTEP certificate
+// by older releases, onto the server private key. It is an online migration: the first run starts ten minutes after
+// startup, once the agents that were waiting for the server have checked in, and runs hourly from then on. It is not
+// run-once because customers upgrade from any version, so legacy rows can appear at any upgrade; a run that finds
+// none costs one index probe.
+func newReencryptWindowsDiskEncryptionKeysSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronReencryptWindowsDiskEncryptionKeys)
+		defaultInterval = 1 * time.Hour
+		priorJobDiff    = -(defaultInterval - 10*time.Minute)
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		// ensures it runs ten minutes after Fleet is started
+		schedule.WithDefaultPrevRunCreatedAt(time.Now().Add(priorJobDiff)),
+		schedule.WithJob(name, func(ctx context.Context) error {
+			return service.ReencryptWSTEPDiskEncryptionKeys(ctx, logger, ds, config)
+		}),
+	)
+	return s, nil
+}
+
+func newRecoveryLockPasswordSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronSendRecoveryLockCommands)
+		defaultInterval = 30 * time.Second
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("send_recovery_lock_commands", func(ctx context.Context) error {
+			return apple_mdm.SendRecoveryLockCommands(ctx, ds, commander, logger, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
+func newManagedLocalAccountRotationSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger *slog.Logger,
+	newActivityFn fleet.NewActivityFunc,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronSendManagedLocalAccountRotationCommands)
+		defaultInterval = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("send_managed_local_account_rotation_commands", func(ctx context.Context) error {
+			return apple_mdm.SendManagedLocalAccountRotationCommands(ctx, ds, commander, logger, newActivityFn)
+		}),
+		// Registered separately so one platform failing does not stop the other.
+		schedule.WithJob("send_windows_managed_local_account_rotation_requests", func(ctx context.Context) error {
+			return microsoft_mdm.SendManagedLocalAccountRotationRequests(ctx, ds, logger, newActivityFn)
+		}),
+	)
+
+	return s, nil
+}
+
+func newCleanupExpiredADUEChallengesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronCleanupExpiredADUEChallenges)
+		defaultInterval = 24 * time.Hour
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("cleanup_expired_adue_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupExpiredADUEEnrollmentChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up expired ADUE challenges")
+			}
+			return nil
+		}),
+		schedule.WithJob("cleanup_expired_dep_enrollment_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupExpiredMDMAppleDEPEnrollmentChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up expired automatic enrollment challenges")
+			}
+			return nil
+		}),
+		schedule.WithJob("cleanup_apple_scep_challenges", func(ctx context.Context) error {
+			if err := ds.CleanupAppleSCEPChallenges(ctx); err != nil {
+				return ctxerr.Wrap(ctx, err, "cleaning up apple scep challenges")
+			}
+			return nil
+		}),
+	)
+
+	return s, nil
+}
+
+func newEndUserNotificationsSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	notificationsSvc notifications_api.Service,
+	patchNotificationKind service.PatchNotificationKind,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronEndUserNotifications)
+		defaultInterval = 1 * time.Minute
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("expire_and_queue_notifications", func(ctx context.Context) error {
+			return notificationsSvc.ExpireAndQueueNotifications(ctx)
+		}),
+		schedule.WithJob("remind_and_install_due_patches", func(ctx context.Context) error {
+			return patchNotificationKind.RemindAndInstallDuePatches(ctx)
+		}),
+	)
+
+	return s, nil
+}
+
+func newAppleMDMOSUpdatesSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronAppleMDMOSUpdatesSchedule)
+		defaultInterval = 1 * time.Hour
+	)
+	logger = logger.With("cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("apple_mdm_os_updates", func(ctx context.Context) error {
+			return apple_mdm.HandleAppleMDMOSUpdates(ctx, ds, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newAppStoreAppConfigurationReconcilerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	vppInstaller fleet.AppleMDMVPPInstaller,
+	redisPool fleet.RedisPool,
+	logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronAppStoreAppConfigurationReconciler)
+		defaultInterval = 1 * time.Minute
+		maxRunTime      = 5 * time.Minute
+	)
+
+	logger = logger.With("cron", name)
+	retryCounter := redis_install_attempts.New(redisPool, redis_install_attempts.AppStoreAppPrefix)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("reconcile_apple_app_store_app_configurations", func(ctx context.Context) error {
+			workCtx, cancel := context.WithTimeout(ctx, maxRunTime)
+			defer cancel()
+			return eeservice.ReconcileAppStoreAppConfigurations(workCtx, ds, vppInstaller, retryCounter, logger)
+		}),
+	)
+
 	return s, nil
 }

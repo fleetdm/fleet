@@ -1,8 +1,7 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import { snakeCase, reduce } from "lodash";
 
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
+import { QueryablePlatform } from "interfaces/platform";
 import {
   ILoadTeamPoliciesResponse,
   IPolicyFormData,
@@ -10,7 +9,20 @@ import {
   ILoadTeamPolicyResponse,
 } from "interfaces/policy";
 import { API_NO_TEAM_ID } from "interfaces/team";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
+
+import { GlobalPoliciesAutomationType } from "./global_policies";
+
+export type AutomationType =
+  | "software"
+  | "patch"
+  | "scripts"
+  | "profiles"
+  | "calendar"
+  | "conditional_access"
+  | "other";
 
 interface IPoliciesApiQueryParams {
   page?: number;
@@ -18,6 +30,9 @@ interface IPoliciesApiQueryParams {
   orderKey?: string;
   orderDirection?: "asc" | "desc";
   query?: string;
+  automationType?: AutomationType | GlobalPoliciesAutomationType;
+  /** Targeted platform to filter policies by. */
+  platform?: QueryablePlatform;
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
@@ -30,7 +45,10 @@ export interface ITeamPoliciesQueryKey extends IPoliciesApiParams {
 }
 
 export interface ITeamPoliciesCountQueryKey
-  extends Pick<IPoliciesApiParams, "query" | "teamId" | "mergeInherited"> {
+  extends Pick<
+    IPoliciesApiParams,
+    "query" | "teamId" | "mergeInherited" | "automationType" | "platform"
+  > {
   scope: "teamPoliciesCountMergeInherited" | "teamPoliciesCount";
 }
 
@@ -38,6 +56,8 @@ export interface IPoliciesCountApiParams {
   teamId: number;
   query?: string;
   mergeInherited?: boolean;
+  automationType?: AutomationType;
+  platform?: QueryablePlatform;
 }
 
 const ORDER_KEY = "name";
@@ -60,17 +80,25 @@ export default {
       name,
       description,
       query,
-      team_id,
+      fleet_id,
       resolution,
       platform,
       critical,
+      hidden,
       software_title_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
-      // note absence of automations-related fields, which are only set by the UI via update
+      labels_exclude_all,
+      type,
+      patch_software_title_id,
+      continuous_automations_enabled,
+      patch_when_closed,
+      notify_before_patching,
+      patch_deadline,
     } = data;
     const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${team_id}/policies`;
+    const path = `${TEAMS}/${fleet_id}/policies`;
 
     return sendRequest("POST", path, {
       name,
@@ -79,9 +107,18 @@ export default {
       resolution,
       platform,
       critical,
+      hidden,
       software_title_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
+      labels_exclude_all,
+      type,
+      patch_software_title_id,
+      continuous_automations_enabled,
+      patch_when_closed,
+      notify_before_patching,
+      patch_deadline,
     });
   },
   // TODO - response type Promise<IPolicy>
@@ -90,20 +127,29 @@ export default {
       name,
       description,
       query,
-      team_id,
+      fleet_id,
       resolution,
       platform,
       critical,
+      hidden,
       // automations-related fields
       calendar_events_enabled,
       conditional_access_enabled,
+      continuous_automations_enabled,
+      patch_when_closed,
+      notify_before_patching,
+      patch_deadline,
       software_title_id,
+      software_package_id,
       script_id,
+      profile_uuid,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
+      labels_exclude_all,
     } = data;
     const { TEAMS } = endpoints;
-    const path = `${TEAMS}/${team_id}/policies/${id}`;
+    const path = `${TEAMS}/${fleet_id}/policies/${id}`;
 
     return sendRequest("PATCH", path, {
       name,
@@ -112,19 +158,28 @@ export default {
       resolution,
       platform,
       critical,
+      hidden,
       calendar_events_enabled,
       conditional_access_enabled,
+      continuous_automations_enabled,
+      patch_when_closed,
+      notify_before_patching,
+      patch_deadline,
       software_title_id,
+      software_package_id,
       script_id,
+      profile_uuid,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
+      labels_exclude_all,
     });
   },
   destroy: (teamId: number | undefined, ids: number[]) => {
     if (teamId === undefined || teamId < API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid fleet id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
         )
       );
     }
@@ -151,6 +206,8 @@ export default {
     orderDirection: orderDir = ORDER_DIRECTION,
     query,
     mergeInherited,
+    automationType,
+    platform,
   }: IPoliciesApiParams): Promise<ILoadTeamPoliciesResponse> => {
     const { TEAMS } = endpoints;
 
@@ -161,6 +218,8 @@ export default {
       orderDirection: orderDir,
       query,
       mergeInherited,
+      automationType,
+      platform,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -172,15 +231,19 @@ export default {
     query,
     teamId,
     mergeInherited = true,
+    automationType,
+    platform,
   }: Pick<
     IPoliciesCountApiParams,
-    "query" | "teamId" | "mergeInherited"
+    "query" | "teamId" | "mergeInherited" | "automationType" | "platform"
   >): Promise<IPoliciesCountResponse> => {
     const { TEAM_POLICIES } = endpoints;
     const path = `${TEAM_POLICIES(teamId)}/count`;
     const queryParams = {
       query,
       mergeInherited,
+      automationType,
+      platform,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

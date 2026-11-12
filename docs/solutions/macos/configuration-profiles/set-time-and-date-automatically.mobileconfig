@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadType</key>
+      <string>com.apple.MCX</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.timeserver</string>
+      <key>PayloadUUID</key>
+      <string>0E6CD857-2B26-4B38-BF20-61DD08372CF3</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>timeServer</key>
+      <string>time.apple.com</string>
+    </dict>
+  </array>
+  <key>PayloadDisplayName</key>
+  <string>Time Server Configuration</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.timeserver.profile</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>AEE78D8D-2A1E-4BE9-B133-32FE56C5F0E3</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

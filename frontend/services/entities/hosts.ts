@@ -1,20 +1,9 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
-import { IHost, HostStatus } from "interfaces/host";
-import {
-  QueryParams,
-  buildQueryStringFromParams,
-  getLabelParam,
-  reconcileMutuallyExclusiveHostParams,
-  reconcileMutuallyInclusiveHostParams,
-} from "utilities/url";
-import {
-  IHostSoftware,
-  ISoftware,
-  SoftwareAggregateStatus,
-  SoftwareSource,
-} from "interfaces/software";
+
+import { IHostCertificate } from "interfaces/certificates";
+import { IHost, HostStatus, IHostEncrpytionKeyResponse } from "interfaces/host";
+import { IListOptions } from "interfaces/list_options";
+import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -22,10 +11,22 @@ import {
   MdmProfileStatus,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
-import { IMunkiIssuesAggregate } from "interfaces/macadmins";
+import {
+  IHostSoftware,
+  ISoftware,
+  SoftwareAggregateStatus,
+  SoftwareSource,
+} from "interfaces/software";
+import sendRequest from "services";
 import { PlatformValueOptions, PolicyResponse } from "utilities/constants";
-import { IHostCertificate } from "interfaces/certificates";
-import { IListOptions } from "interfaces/list_options";
+import endpoints from "utilities/endpoints";
+import {
+  QueryParams,
+  buildQueryStringFromParams,
+  getLabelParam,
+  reconcileMutuallyExclusiveHostParams,
+  reconcileMutuallyInclusiveHostParams,
+} from "utilities/url";
 
 import { ScriptBatchHostCountV1 } from "./scripts";
 
@@ -46,6 +47,43 @@ export interface ILoadHostsResponse {
   mobile_device_management_solution: IMdmSolution;
 }
 
+export type DEPDeviceStatus =
+  | "SUCCESS"
+  | "FAILED"
+  | "THROTTLED"
+  | "NOT_ACCESSIBLE";
+
+export interface IDepAssignmentHostResponse {
+  id: number;
+  dep_device: {
+    asset_tag: string;
+    color: string;
+    description: string;
+    device_assigned_by: string;
+    device_assigned_date: string;
+    device_family: string;
+    os: string;
+    profile_status: string;
+    profile_assign_time: string;
+    profile_push_time: string;
+    profile_uuid: string;
+    mdm_migration_deadline: string | null;
+    serial_number: string;
+    response_status: DEPDeviceStatus;
+  } | null;
+  dep_device_error: string | null;
+  host_dep_assignment: {
+    assign_profile_response: DEPDeviceStatus;
+    profile_uuid: string;
+    response_updated_at: string;
+    added_at: string;
+    deleted_at: string | null;
+    abm_token_id: number;
+    mdm_migration_deadline: string;
+    mdm_migration_completed: string;
+  } | null;
+}
+
 export type IUnlockHostResponse =
   | {
       host_id: number;
@@ -60,9 +98,23 @@ export const HOSTS_QUERY_PARAMS = {
   OS_SETTINGS: "os_settings",
   DISK_ENCRYPTION: "os_settings_disk_encryption",
   SOFTWARE_STATUS: "software_status",
+  APP_STORE_APP_VERSION_ID: "app_store_app_version_id",
   SCRIPT_BATCH_EXECUTION_STATUS: "script_batch_execution_status",
   SCRIPT_BATCH_EXECUTION_ID: "script_batch_execution_id",
 } as const;
+
+// Host filters that only apply within one fleet or "No fleet": without a fleet
+// the API narrows them to "No fleet" (or rejects software_status), so they're
+// cleared on any switch to All fleets.
+export const FLEET_SCOPED_HOST_FILTER_PARAMS = [
+  HOSTS_QUERY_PARAMS.OS_SETTINGS,
+  "apple_settings",
+  "macos_settings",
+  HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
+  "macos_bootstrap_package",
+  "bootstrap_package",
+  HOSTS_QUERY_PARAMS.SOFTWARE_STATUS,
+];
 
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
   scope: "hosts";
@@ -80,10 +132,10 @@ export interface ILoadHostsOptions {
   policyId?: number;
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
-  softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: SoftwareAggregateStatus;
+  appStoreAppVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -103,6 +155,8 @@ export interface ILoadHostsOptions {
   configProfileUUID?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IExportHostsOptions {
@@ -115,10 +169,10 @@ export interface IExportHostsOptions {
   policyId?: number;
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
-  softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
   softwareStatus?: SoftwareAggregateStatus;
+  appStoreAppVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
@@ -139,6 +193,8 @@ export interface IExportHostsOptions {
   configProfileStatus?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IActionByFilter {
@@ -149,7 +205,6 @@ export interface IActionByFilter {
   currentTeam?: number | null;
   policyId?: number | null;
   policyResponse?: PolicyResponse;
-  softwareId?: number | null;
   softwareTitleId?: number | null;
   softwareVersionId?: number | null;
   softwareStatus?: SoftwareAggregateStatus;
@@ -167,6 +222,8 @@ export interface IActionByFilter {
   vulnerability?: string;
   scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
   scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
+  depAssignProfileResponse?: DEPDeviceStatus;
 }
 
 export interface IGetHostSoftwareResponse {
@@ -203,6 +260,10 @@ export interface IHostSoftwareQueryParams extends QueryParams {
   min_cvss_score?: number;
   max_cvss_score?: number;
   exploit?: boolean;
+  macos_applications?: boolean;
+  source?: string;
+  extension_for?: string;
+  ai_tool?: boolean;
 }
 
 export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
@@ -211,8 +272,13 @@ export interface IHostSoftwareQueryKey extends IHostSoftwareQueryParams {
   softwareUpdatedAt?: string;
 }
 
-export interface IGetHostCertsRequestParams extends IListOptions {
+export interface IGetHostCertsApiParams extends IListOptions {
   host_id: number;
+}
+
+export interface IGetHostDeviceURLResponse {
+  host_id: number;
+  device_url: string;
 }
 
 export interface IGetHostCertificatesResponse {
@@ -260,10 +326,10 @@ const getSortParams = (sortOptions?: ISortOption[]) => {
 
 const createMdmParams = (platform?: PlatformValueOptions, teamId?: number) => {
   if (platform === "all") {
-    return buildQueryStringFromParams({ team_id: teamId });
+    return buildQueryStringFromParams({ fleet_id: teamId });
   }
 
-  return buildQueryStringFromParams({ platform, team_id: teamId });
+  return buildQueryStringFromParams({ platform, fleet_id: teamId });
 };
 
 export default {
@@ -285,7 +351,6 @@ export default {
     labelId,
     policyId,
     policyResponse,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     softwareStatus,
@@ -308,18 +373,17 @@ export default {
         query: query || undefined, // Prevents empty string passed to API which as of 4.47 will return an error
         status,
         label_id: labelId,
-        team_id: teamId,
+        fleet_id: teamId,
         policy_id: policyId,
         policy_response: policyResponse,
-        software_id: softwareId,
         software_title_id: softwareTitleId,
         software_version_id: softwareVersionId,
         [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
-        macos_settings: macSettingsStatus,
-        bootstrap_package: bootstrapPackageStatus,
+        apple_settings: macSettingsStatus,
+        macos_bootstrap_package: bootstrapPackageStatus,
         mdm_id: mdmId,
         mdm_enrollment_status: mdmEnrollmentStatus,
         munki_issue_id: munkiIssueId,
@@ -337,10 +401,10 @@ export default {
     const teamId = options?.teamId;
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
-    const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
     const softwareStatus = options?.softwareStatus;
+    const appStoreAppVersionId = options?.appStoreAppVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
     const osName = options?.osName;
     const osVersionId = options?.osVersionId;
@@ -360,11 +424,12 @@ export default {
     const configProfileStatus = options?.configProfileStatus;
     const scriptBatchExecutionStatus = options?.scriptBatchExecutionStatus;
     const scriptBatchExecutionId = options?.scriptBatchExecutionId;
+    const depProfileError = options?.depProfileError;
+    const depAssignProfileResponse = options?.depAssignProfileResponse;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
     }
-
     const queryParams = {
       order_key: sortBy[0].key,
       order_direction: sortBy[0].direction,
@@ -383,10 +448,10 @@ export default {
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         osName,
         osVersionId,
         osVersion,
@@ -399,6 +464,8 @@ export default {
         configProfileStatus,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError,
+        depAssignProfileResponse,
       }),
       status,
       label_id: label,
@@ -421,10 +488,10 @@ export default {
     policyId,
     policyResponse = "passing",
     macSettingsStatus,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     softwareStatus,
+    appStoreAppVersionId,
     status,
     mdmId,
     mdmEnrollmentStatus,
@@ -444,6 +511,8 @@ export default {
     configProfileUUID,
     scriptBatchExecutionStatus,
     scriptBatchExecutionId,
+    depProfileError,
+    depAssignProfileResponse,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
@@ -470,10 +539,10 @@ export default {
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
-        softwareId,
         softwareTitleId,
         softwareVersionId,
         softwareStatus,
+        appStoreAppVersionId,
         lowDiskSpaceHosts,
         osVersionId,
         osName,
@@ -486,6 +555,8 @@ export default {
         configProfileUUID,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        depProfileError,
+        depAssignProfileResponse,
       }),
     };
 
@@ -516,6 +587,12 @@ export default {
 
     return sendRequest("POST", path);
   },
+  apnsPing: (hostID: number) => {
+    const { HOST_APNS_PING } = endpoints;
+    const path = `${HOST_APNS_PING(hostID)}`;
+
+    return sendRequest("POST", path);
+  },
   search: (searchText: string) => {
     const { HOSTS } = endpoints;
     const path = `${HOSTS}?query=${searchText}`;
@@ -526,7 +603,7 @@ export default {
     const { HOSTS_TRANSFER } = endpoints;
 
     return sendRequest("POST", HOSTS_TRANSFER, {
-      team_id: teamId,
+      fleet_id: teamId,
       hosts: hostIds,
     });
   },
@@ -540,7 +617,6 @@ export default {
     currentTeam,
     policyId,
     policyResponse,
-    softwareId,
     softwareTitleId,
     softwareVersionId,
     softwareStatus,
@@ -556,26 +632,27 @@ export default {
     osSettings,
     diskEncryptionStatus,
     vulnerability,
+    depProfileError,
+    depAssignProfileResponse,
   }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
-      team_id: teamId,
+      fleet_id: teamId,
       filters: {
         query: query || undefined, // Prevents empty string passed to API which as of 4.47 will return an error
         status,
         label_id: labelId,
-        team_id: currentTeam,
+        fleet_id: currentTeam,
         policy_id: policyId,
         policy_response: policyResponse,
-        software_id: softwareId,
         software_title_id: softwareTitleId,
         software_version_id: softwareVersionId,
         [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
-        macos_settings: macSettingsStatus,
-        bootstrap_package: bootstrapPackageStatus,
+        apple_settings: macSettingsStatus,
+        macos_bootstrap_package: bootstrapPackageStatus,
         mdm_id: mdmId,
         mdm_enrollment_status: mdmEnrollmentStatus,
         munki_issue_id: munkiIssueId,
@@ -583,6 +660,8 @@ export default {
         os_settings: osSettings,
         os_settings_disk_encryption: diskEncryptionStatus,
         vulnerability,
+        dep_profile_error: depProfileError,
+        dep_assign_profile_response: depAssignProfileResponse,
       },
     });
   },
@@ -604,9 +683,39 @@ export default {
     return sendRequest("GET", fullPath);
   },
 
-  getEncryptionKey: (id: number) => {
+  getEncryptionKey: (id: number): Promise<IHostEncrpytionKeyResponse> => {
     const { HOST_ENCRYPTION_KEY } = endpoints;
     return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
+  },
+
+  rotateDiskEncryptionKey: (id: number): Promise<void> => {
+    const { HOST_ENCRYPTION_KEY_ROTATE } = endpoints;
+    return sendRequest("POST", HOST_ENCRYPTION_KEY_ROTATE(id));
+  },
+
+  getRecoveryLockPassword: (id: number) => {
+    const { HOST_RECOVERY_LOCK_PASSWORD } = endpoints;
+    return sendRequest("GET", HOST_RECOVERY_LOCK_PASSWORD(id));
+  },
+
+  rotateRecoveryLockPassword: (id: number): Promise<void> => {
+    const { HOST_RECOVERY_LOCK_PASSWORD_ROTATE } = endpoints;
+    return sendRequest("POST", HOST_RECOVERY_LOCK_PASSWORD_ROTATE(id));
+  },
+
+  getDeviceURL: (id: number): Promise<IGetHostDeviceURLResponse> => {
+    const { HOST_DEVICE_URL } = endpoints;
+    return sendRequest("GET", HOST_DEVICE_URL(id));
+  },
+
+  getManagedAccountPassword: (id: number) => {
+    const { HOST_MANAGED_ACCOUNT_PASSWORD } = endpoints;
+    return sendRequest("GET", HOST_MANAGED_ACCOUNT_PASSWORD(id));
+  },
+
+  rotateManagedLocalAccountPassword: (id: number): Promise<void> => {
+    const { HOST_MANAGED_LOCAL_ACCOUNT_ROTATE } = endpoints;
+    return sendRequest("POST", HOST_MANAGED_LOCAL_ACCOUNT_ROTATE(id));
   },
 
   lockHost: (id: number) => {
@@ -624,10 +733,43 @@ export default {
     return sendRequest("POST", HOST_WIPE(id));
   },
 
+  clearPasscode: (id: number) => {
+    const { HOST_CLEAR_PASSCODE } = endpoints;
+    return sendRequest("POST", HOST_CLEAR_PASSCODE(id));
+  },
+
   resendProfile: (hostId: number, profileUUID: string): Promise<void> => {
     const { HOST_RESEND_PROFILE } = endpoints;
 
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));
+  },
+
+  installProfile: (hostId: number, profileUUID: string): Promise<void> => {
+    const { HOST_INSTALL_PROFILE } = endpoints;
+    return sendRequest("POST", HOST_INSTALL_PROFILE(hostId, profileUUID));
+  },
+
+  uninstallProfile: (hostId: number, profileUUID: string): Promise<void> => {
+    const { HOST_UNINSTALL_PROFILE } = endpoints;
+    return sendRequest("POST", HOST_UNINSTALL_PROFILE(hostId, profileUUID));
+  },
+
+  resendCertificate: (
+    hostId: number,
+    certificateTemplateId: number
+  ): Promise<void> => {
+    const { HOST_RESEND_CERTIFICATE } = endpoints;
+
+    return sendRequest(
+      "POST",
+      HOST_RESEND_CERTIFICATE(hostId, certificateTemplateId)
+    );
+  },
+
+  resendNameTemplate: (hostId: number): Promise<void> => {
+    const { HOST_RESEND_NAME_TEMPLATE } = endpoints;
+
+    return sendRequest("POST", HOST_RESEND_NAME_TEMPLATE(hostId));
   },
 
   getHostSoftware: (
@@ -663,7 +805,7 @@ export default {
     per_page,
     order_key,
     order_direction,
-  }: IGetHostCertsRequestParams): Promise<IGetHostCertificatesResponse> => {
+  }: IGetHostCertsApiParams): Promise<IGetHostCertificatesResponse> => {
     const { HOST_CERTIFICATES } = endpoints;
     const path = `${HOST_CERTIFICATES(host_id)}?${buildQueryStringFromParams({
       page,
@@ -681,5 +823,9 @@ export default {
   deleteHostIdp(hostId: number) {
     const path = endpoints.HOST_DEVICE_MAPPING_IDP(hostId);
     return sendRequest("DELETE", path);
+  },
+  getDepAssignment: (id: number) => {
+    const { HOST_DEP_ASSIGNMENT } = endpoints;
+    return sendRequest("GET", HOST_DEP_ASSIGNMENT(id));
   },
 };

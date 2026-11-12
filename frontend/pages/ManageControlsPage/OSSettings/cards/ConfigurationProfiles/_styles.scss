@@ -1,0 +1,29 @@
+.configuration-profiles {
+  @include vertical-card-layout;
+
+  .upload-list {
+    &__list {
+      .list-item__label-count {
+        align-self: center;
+      }
+      .list-item__actions {
+        gap: $pad-small;
+      }
+    }
+  }
+
+  &__header {
+    @include tab-header;
+  }
+
+  &__header-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: $pad-small;
+  }
+}
+
+// this is used to format the long error message when uploading invalid keys
+.upload-profile-invalid-keys-error {
+  display: flex;
+}

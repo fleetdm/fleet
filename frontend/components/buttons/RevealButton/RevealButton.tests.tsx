@@ -1,11 +1,12 @@
-import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
+import React from "react";
+
 import { renderWithSetup } from "test/test-utils";
 
 import RevealButton from "./RevealButton";
 
-const SHOW_TEXT = "Show advanced options";
-const HIDE_TEXT = "Hide advanced options";
+const SHOW_TEXT = "Advanced options";
+const HIDE_TEXT = "Advanced options";
 const TOOLTIP_CONTENT = "Customize logging type and platforms";
 
 describe("Reveal button", () => {

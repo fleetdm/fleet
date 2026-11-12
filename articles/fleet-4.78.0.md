@@ -27,8 +27,7 @@ You can now install managed work apps like Slack, Gmail, Zoom, and GlobalProtect
 
 You can now install certificates from any [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) certificate authority to the user scope on Windows hosts. This helps you connect your end users to Wi-Fi, VPN, and other tools.
 
-
-This means you can now install certificates on macOS, Windows, Linux, iOS/iPadOS, and Android hosts. See all certificate authorities supported by Fleet in [the guide](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate).
+This means you can now install certificates on macOS, Windows, Linux, and iOS/iPadOS hosts. See all certificate authorities supported by Fleet in [the guide](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate).
 
 ### Okta conditional access
 

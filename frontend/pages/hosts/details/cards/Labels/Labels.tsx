@@ -1,13 +1,11 @@
-import React from "react";
-
-import Button from "components/buttons/Button";
-import { ILabel } from "interfaces/label";
 import classnames from "classnames";
+import React from "react";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
-import { LABEL_DISPLAY_MAP } from "utilities/constants";
+import Tag from "components/Tag";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import { ILabel } from "interfaces/label";
 
 const baseClass = "host-labels-card";
 
@@ -28,31 +26,27 @@ const Labels = ({
     .filter((label: ILabel) => label.label_type !== "builtin")
     .map((label: ILabel) => {
       return (
-        <li className="list__item" key={label.id}>
-          <Button
+        <li className={`${baseClass}__list-item`} key={label.id}>
+          <Tag
+            type="clickable"
             onClick={() => onLabelClick(label)}
-            variant="pill"
-            className="list__button"
+            className={`${baseClass}__list-button`}
           >
             <TooltipTruncatedText value={label.name} />
-          </Button>
+          </Tag>
         </li>
       );
     });
 
   return (
-    <Card
-      borderRadiusSize="xxlarge"
-      paddingSize="xlarge"
-      className={classNames}
-    >
+    <Card paddingSize="xlarge" className={classNames}>
       <CardHeader header="Labels" />
       {labelItems.length === 0 ? (
         <p className="info-flex__item">
           No labels are associated with this host.
         </p>
       ) : (
-        <ul className="list">{labelItems}</ul>
+        <ul className={`${baseClass}__list`}>{labelItems}</ul>
       )}
     </Card>
   );

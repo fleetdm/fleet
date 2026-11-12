@@ -1,13 +1,11 @@
-import React from "react";
-
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
-
-import getTeamScriptsHandler from "test/handlers/script-handlers";
+import React from "react";
 
 import { createMockScript } from "__mocks__/scriptMock";
+import getTeamScriptsHandler from "test/handlers/script-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import RunScriptBatchPaginatedList from "./RunScriptBatchPaginatedList";
 
@@ -18,8 +16,8 @@ const waitForLoadingToFinish = async (container: HTMLElement) => {
 };
 
 const team1ScriptOverrides = [
-  createMockScript({ id: 1, team_id: 1, name: "Team script 1" }),
-  createMockScript({ id: 2, team_id: 1, name: "Team script 2" }),
+  createMockScript({ id: 1, fleet_id: 1, name: "Team script 1" }),
+  createMockScript({ id: 2, fleet_id: 1, name: "Team script 2" }),
 ];
 
 const team1ScriptsHandler = getTeamScriptsHandler(1, team1ScriptOverrides);

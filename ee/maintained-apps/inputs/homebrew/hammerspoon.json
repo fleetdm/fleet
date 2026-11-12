@@ -1,0 +1,10 @@
+{
+  "name": "Hammerspoon",
+  "unique_identifier": "org.hammerspoon.Hammerspoon",
+  "token": "hammerspoon",
+  "installer_format": "zip",
+  "slug": "hammerspoon/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

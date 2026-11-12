@@ -1,6 +1,6 @@
 import React from "react";
-import PATHS from "router/paths";
 
+import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
 import HostCountCard from "../HostCountCard";
@@ -26,7 +26,7 @@ const TotalHosts = ({
     ? PATHS.MANAGE_HOSTS_LABEL(selectedPlatformLabelId)
     : PATHS.MANAGE_HOSTS;
   const path = getPathWithQueryParams(endpoint, {
-    team_id: currentTeamId,
+    fleet_id: currentTeamId,
   });
 
   return (

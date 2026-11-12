@@ -1,0 +1,10 @@
+{
+  "name": "DuckDuckGo",
+  "unique_identifier": "com.duckduckgo.macos.browser",
+  "token": "duckduckgo",
+  "installer_format": "dmg",
+  "slug": "duckduckgo/darwin",
+  "default_categories": [
+    "Browsers"
+  ]
+}

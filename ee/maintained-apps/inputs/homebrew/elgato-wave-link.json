@@ -1,0 +1,11 @@
+{
+  "name": "Elgato Wave Link",
+  "unique_identifier": "com.elgato.WaveLink3",
+  "token": "elgato-wave-link",
+  "installer_format": "dmg",
+  "slug": "elgato-wave-link/darwin",
+  "default_categories": [
+    "Productivity"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/elgato-wave-link-install.sh"
+}

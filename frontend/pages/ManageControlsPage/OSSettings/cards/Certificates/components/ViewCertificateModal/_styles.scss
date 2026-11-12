@@ -1,0 +1,14 @@
+.view-certificate-modal {
+  &__content {
+    @include vertical-modal-layout;
+  }
+
+  &__summary {
+    display: flex;
+    gap: $pad-xxlarge;
+  }
+
+  textarea {
+    font-family: "SourceCodePro", $monospace;
+  }
+}

@@ -1,13 +1,10 @@
-import React from "react";
-import PATHS from "router/paths";
-import { browserHistory } from "react-router";
 import classnames from "classnames";
+import React from "react";
+import { browserHistory } from "react-router";
 
-import { IDropdownOption } from "interfaces/dropdownOption";
-
-import Button from "components/buttons/Button";
-import ActionsDropdown from "components/ActionsDropdown";
+import Button, { ButtonVariant } from "components/buttons/Button";
 import Icon from "components/Icon";
+import PATHS from "router/paths";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 interface IHostLinkProps {
@@ -19,14 +16,14 @@ interface IHostLinkProps {
   condensed?: boolean;
   excludeChevron?: boolean;
   responsive?: boolean;
-  /** Custom text replaces "View all hosts" in button or "Actions" in dropdown */
+  /** Custom text replaces "View all hosts" */
   customText?: string;
   /** Table links shows on row hover and tab focus only */
   rowHover?: boolean;
   /** Don't actually create a button, useful when click is handled by an ancestor */
   noLink?: boolean;
-  /** When provided, replaces View all hosts button with ActionDropdown */
-  dropdown?: { options: IDropdownOption[]; onChange: (value: string) => void };
+  /** Default: "subdued" */
+  variant?: ButtonVariant;
 }
 
 const baseClass = "view-all-hosts-button";
@@ -41,7 +38,7 @@ const ViewAllHostsButton = ({
   customText,
   rowHover = false,
   noLink = false,
-  dropdown,
+  variant = "subdued",
 }: IHostLinkProps): JSX.Element => {
   const viewAllHostsButtonClass = classnames(baseClass, className, {
     [`${baseClass}__condensed`]: condensed,
@@ -64,24 +61,11 @@ const ViewAllHostsButton = ({
     }
   };
 
-  if (dropdown) {
-    return (
-      <ActionsDropdown
-        className={viewAllHostsButtonClass}
-        options={dropdown.options}
-        onChange={dropdown.onChange}
-        placeholder={customText || "Actions"}
-        variant="small-button"
-        menuAlign="right"
-      />
-    );
-  }
-
   return (
     <Button
       className={viewAllHostsButtonClass}
       onClick={onClick}
-      variant="inverse"
+      variant={variant}
       size="small"
     >
       {!condensed && (

@@ -1,0 +1,10 @@
+{
+  "name": "Hidden Bar",
+  "unique_identifier": "com.dwarvesv.minimalbar",
+  "token": "hiddenbar",
+  "installer_format": "zip",
+  "slug": "hiddenbar/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

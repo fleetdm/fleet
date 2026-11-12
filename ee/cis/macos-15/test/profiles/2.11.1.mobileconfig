@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 2.11.1</string>
+      <key>PayloadType</key>
+      <string>com.apple.screensaver</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-2.11.1.check</string>
+      <key>PayloadUUID</key>
+      <string>21418A51-A2BB-4899-ADDF-3FB682EE4F0F</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>idleTime</key>
+      <integer>900</integer>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 2.11.1 - Ensure an Inactivity Interval of 15 Minutes Or Less for the Screen Saver Is Enabled</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure Screen Saver Inactivity Interval Is 15 Minutes Or Less</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-2.11.1</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>D2EE6C61-22C6-4D18-81AC-3A550B92FBFC</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

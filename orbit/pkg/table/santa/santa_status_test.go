@@ -19,12 +19,14 @@ func TestGenerateStatus_HappyPath(t *testing.T) {
 	t.Cleanup(func() { execCommandContext = exec.CommandContext })
 	execCommandContext = fakeExecCommandContext(t, sampleStatusJSON())
 
-	rows, err := GenerateStatus(context.Background(), table.QueryContext{})
+	rows, err := GenerateStatus(t.Context(), table.QueryContext{})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	row := rows[0]
 
 	// spot check a few fields and types
+	require.Equal(t, "1", row["daemon_reachable"])
+	require.Equal(t, "", row["error"])
 	require.Equal(t, "Monitor", row["mode"])
 	require.Equal(t, "0", row["watchdog_cpu_events"])
 	require.Equal(t, "3", row["watchdog_ram_events"])
@@ -42,20 +44,42 @@ func TestGenerateStatus_HappyPath(t *testing.T) {
 	require.True(t, strings.Contains(row["watchdog_cpu_peak"], "4.759"))
 }
 
-func TestGenerateStatus_CommandErrorReturnsEmptyNoError(t *testing.T) {
+// TestGenerateStatus_RunsBundleBinary guards against running santactl from a
+// possibly user-writable directory such as /usr/local/bin, since osquery runs
+// it as root.
+func TestGenerateStatus_RunsBundleBinary(t *testing.T) {
 	t.Cleanup(func() { execCommandContext = exec.CommandContext })
-	execCommandContext = fakeExecCommandContext(t, "ERROR: nope", withExitCode(1))
+	fake := fakeExecCommandContext(t, sampleStatusJSON())
+	var gotName string
+	var gotArgs []string
+	execCommandContext = func(ctx context.Context, name string, args ...string) *exec.Cmd {
+		gotName, gotArgs = name, args
+		return fake(ctx, name, args...)
+	}
 
-	rows, err := GenerateStatus(context.Background(), table.QueryContext{})
+	_, err := GenerateStatus(t.Context(), table.QueryContext{})
 	require.NoError(t, err)
-	require.Empty(t, rows)
+	require.Equal(t, "/Applications/Santa.app/Contents/MacOS/santactl", gotName)
+	require.Equal(t, []string{"status", "--json"}, gotArgs)
+}
+
+func TestGenerateStatus_DaemonUnreachableReturnsRowWithError(t *testing.T) {
+	t.Cleanup(func() { execCommandContext = exec.CommandContext })
+	const daemonErr = "An error occurred communicating with the Santa daemon"
+	execCommandContext = fakeExecCommandContext(t, "", withExitCode(1), withStderr(daemonErr))
+
+	rows, err := GenerateStatus(t.Context(), table.QueryContext{})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "0", rows[0]["daemon_reachable"])
+	require.Equal(t, daemonErr, rows[0]["error"])
 }
 
 func TestGenerateStatus_BadJSONReturnsError(t *testing.T) {
 	t.Cleanup(func() { execCommandContext = exec.CommandContext })
 	execCommandContext = fakeExecCommandContext(t, "{not-json}")
 
-	rows, err := GenerateStatus(context.Background(), table.QueryContext{})
+	rows, err := GenerateStatus(t.Context(), table.QueryContext{})
 	require.Error(t, err)
 	require.Nil(t, rows)
 }
@@ -65,12 +89,13 @@ func TestGenerateStatus_ContextCancelBehavesLikeCmdError(t *testing.T) {
 	// Simulate a slow command; we'll cancel the context before it returns
 	execCommandContext = fakeExecCommandContext(t, sampleStatusJSON(), withSleep(200*time.Millisecond))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	ctx, cancel := context.WithTimeout(t.Context(), 1*time.Millisecond)
 	defer cancel()
 
 	rows, err := GenerateStatus(ctx, table.QueryContext{})
-	require.NoError(t, err) // your code treats cmd failure gracefully
-	require.Empty(t, rows)
+	require.NoError(t, err) // GenerateStatus treats cmd failure gracefully
+	require.Len(t, rows, 1)
+	require.Equal(t, "0", rows[0]["daemon_reachable"])
 }
 
 func TestStatusColumns_Contract(t *testing.T) {
@@ -82,7 +107,7 @@ func TestStatusColumns_Contract(t *testing.T) {
 	}
 	// a few key columns to lock contract
 	for _, name := range []string{
-		"file_logging", "mode", "watchdog_cpu_events", "watch_items_enabled",
+		"daemon_reachable", "error", "file_logging", "mode", "watchdog_cpu_events", "watch_items_enabled",
 		"sync_enabled", "metrics_enabled", "events_pending_upload",
 	} {
 		if _, ok := names[name]; !ok {
@@ -110,10 +135,15 @@ type fakeOpt func(*fakeCfg)
 type fakeCfg struct {
 	exitCode int
 	sleep    time.Duration
+	stderr   string
 }
 
 func withExitCode(code int) fakeOpt {
 	return func(c *fakeCfg) { c.exitCode = code }
+}
+
+func withStderr(s string) fakeOpt {
+	return func(c *fakeCfg) { c.stderr = s }
 }
 
 func withSleep(d time.Duration) fakeOpt {
@@ -131,6 +161,7 @@ func fakeExecCommandContext(t *testing.T, payload string, opts ...fakeOpt) func(
 		cmd.Env = append(os.Environ(),
 			"GO_WANT_HELPER_PROCESS=1",
 			"FAKE_PAYLOAD="+payload,
+			"FAKE_STDERR="+cfg.stderr,
 			"FAKE_EXIT_CODE="+strconv.Itoa(cfg.exitCode),
 			"FAKE_SLEEP_MS="+strconv.Itoa(int(cfg.sleep.Milliseconds())),
 		)
@@ -154,6 +185,7 @@ func TestHelperProcess(t *testing.T) {
 		exit = 1
 	}
 	_, _ = os.Stdout.WriteString(os.Getenv("FAKE_PAYLOAD"))
+	_, _ = os.Stderr.WriteString(os.Getenv("FAKE_STDERR"))
 	if exit != 0 {
 		os.Exit(exit)
 	}

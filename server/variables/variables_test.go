@@ -1,9 +1,12 @@
 package variables
 
 import (
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFind(t *testing.T) {
@@ -172,6 +175,53 @@ func TestReplace(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := Replace(tt.content, tt.variableName, tt.value)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestPythonEscape(t *testing.T) {
+	require.Equal(t, `\U00000041\U00000042`, PythonEscape("AB"))
+	require.Empty(t, PythonEscape(""))
+
+	for name, value := range payloadCorpus() {
+		t.Run(name, func(t *testing.T) {
+			got := PythonEscape(value)
+
+			// nothing is left that could close a literal or start an expression
+			for _, r := range got {
+				require.Contains(t, `\U0123456789abcdef`, string(r),
+					"unexpected character %q in %q", r, got)
+			}
+
+			var decoded strings.Builder
+			for field := range strings.SplitSeq(got, `\U`) {
+				if field == "" {
+					continue
+				}
+				cp, err := strconv.ParseInt(field, 16, 32)
+				require.NoError(t, err)
+				decoded.WriteRune(rune(cp))
+			}
+			require.Equal(t, value, decoded.String())
+		})
+	}
+}
+
+func TestSecretRegex(t *testing.T) {
+	cases := []struct {
+		in   string
+		want []string
+	}{
+		{in: "$FLEET_SECRET_X", want: []string{"$FLEET_SECRET_X"}},
+		{in: "${FLEET_SECRET_X}", want: []string{"${FLEET_SECRET_X}"}},
+		{in: "pre$FLEET_SECRET_A-${FLEET_SECRET_B}post", want: []string{"$FLEET_SECRET_A", "${FLEET_SECRET_B}"}},
+		{in: "$FLEET_VAR_X"},
+		{in: "${FLEET_SECRET_}"},
+		{in: "FLEET_SECRET_X"},
+	}
+	for _, c := range cases {
+		t.Run(c.in, func(t *testing.T) {
+			assert.Equal(t, c.want, SecretRegex.FindAllString(c.in, -1))
 		})
 	}
 }

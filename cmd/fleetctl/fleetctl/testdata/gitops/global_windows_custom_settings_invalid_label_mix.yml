@@ -4,7 +4,7 @@ controls:
       - path: ./lib/windows-screenlock.xml
         labels_include_all:
           - B
-        labels_exclude_any:
+        labels_include_any:
           - C
   scripts:
   enable_disk_encryption: false
@@ -19,7 +19,7 @@ controls:
   macos_updates:
     deadline: null
     minimum_version: null
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
   windows_updates:
     deadline_days: null
     grace_period_days: null
@@ -43,7 +43,6 @@ org_settings:
     live_query_disabled: false
     query_report_cap: 2000
     query_reports_disabled: false
-    scripts_disabled: false
     server_url: $FLEET_SERVER_URL
     ai_features_disabled: true
   org_info:

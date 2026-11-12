@@ -1,0 +1,10 @@
+{
+  "name": "Cog",
+  "unique_identifier": "org.cogx.cog",
+  "token": "cog-app",
+  "installer_format": "zip",
+  "slug": "cog-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

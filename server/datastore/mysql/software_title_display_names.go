@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -31,31 +34,41 @@ func (ds *Datastore) getDisplayNamesByTeamAndTitleIds(ctx context.Context, teamI
 		return map[uint]string{}, nil
 	}
 
-	var args []any
-	query := `
-		SELECT software_title_id, display_name
-		FROM software_title_display_names
-		WHERE software_title_id IN (?) AND team_id = ?
-	`
-	query, args, err := sqlx.In(query, titleIDs, teamID)
+	namesBySoftwareTitleID := make(map[uint]string, len(titleIDs))
+
+	// Process in batches to avoid exceeding MySQL's 65,535 prepared statement
+	// placeholder limit when the caller passes a large number of title IDs
+	// (e.g., when per_page is not specified and defaults to 1,000,000).
+	const batchSize = 32000
+	err := common_mysql.BatchProcessSimple(titleIDs, batchSize, func(batch []uint) error {
+		query := `
+			SELECT software_title_id, display_name
+			FROM software_title_display_names
+			WHERE software_title_id IN (?) AND team_id = ?
+		`
+		query, args, err := sqlx.In(query, batch, teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building query for get software title display names")
+		}
+
+		var results []struct {
+			SoftwareTitleID uint   `db:"software_title_id"`
+			DisplayName     string `db:"display_name"`
+		}
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "get software title display names")
+		}
+
+		for _, r := range results {
+			namesBySoftwareTitleID[r.SoftwareTitleID] = r.DisplayName
+		}
+		return nil
+	})
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query for get software title display names")
+		return nil, err
 	}
 
-	var results []struct {
-		SoftwareTitleID uint   `db:"software_title_id"`
-		DisplayName     string `db:"display_name"`
-	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get software title display names")
-	}
-
-	iconsBySoftwareTitleID := make(map[uint]string, len(results))
-	for _, r := range results {
-		iconsBySoftwareTitleID[r.SoftwareTitleID] = r.DisplayName
-	}
-
-	return iconsBySoftwareTitleID, nil
+	return namesBySoftwareTitleID, nil
 }
 
 func (ds *Datastore) getSoftwareTitleDisplayName(ctx context.Context, teamID uint, titleID uint) (string, error) {
@@ -75,4 +88,33 @@ func (ds *Datastore) getSoftwareTitleDisplayName(ctx context.Context, teamID uin
 	}
 
 	return displayName, nil
+}
+
+// GetSoftwareTitleDisplayName returns the per-team "Software name" override
+// for a software title. Returns nil (not an error) when no override exists,
+// so callers can pass the result straight through to an activity struct.
+//
+// Reads from the primary: this is called at activity-write time to snapshot
+// the override into the activity JSON blob. A replica read could miss an
+// override committed to the primary moments earlier (e.g. admin renames a
+// title, then immediately triggers an install) and record the raw title
+// instead — defeating the write-time freeze the ticket relies on.
+func (ds *Datastore) GetSoftwareTitleDisplayName(ctx context.Context, teamID *uint, titleID uint) (*string, error) {
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	// Overrides are stored with team_id=0 for no-team, matching updateSoftwareTitleDisplayName.
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+	displayName, err := ds.getSoftwareTitleDisplayName(ctx, tmID, titleID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if displayName == "" {
+		return nil, nil
+	}
+	return &displayName, nil
 }

@@ -1,0 +1,11 @@
+{
+  "name": "Dymo Connect",
+  "unique_identifier": "com.dymo.DYMO-WebApi-Mac-Host",
+  "token": "dymo-connect",
+  "installer_format": "pkg",
+  "slug": "dymo-connect/darwin",
+  "default_categories": [
+    "Productivity"
+  ],
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/dymo-connect-uninstall.sh"
+}

@@ -8,10 +8,22 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
 var inviteSearchColumns = []string{"name", "email"}
+
+// inviteAllowedOrderKeys defines the allowed order keys for ListInvites.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+// Sensitive columns like 'token' are intentionally excluded.
+var inviteAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":       "name",
+	"email":      "email",
+	"created_at": "created_at",
+	"updated_at": "updated_at",
+	"id":         "id",
+}
 
 // NewInvite generates a new invitation.
 func (ds *Datastore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Invite, error) {
@@ -67,9 +79,12 @@ func (ds *Datastore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]
 	invites := []*fleet.Invite{}
 	query := "SELECT * FROM invites WHERE true"
 	query, params := searchLike(query, nil, opt.MatchQuery, inviteSearchColumns...)
-	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
+	query, params, err := appendListOptionsWithCursorToSQLSecure(query, params, &opt, inviteAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &invites, query, params...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &invites, query, params...)
 	if err == sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, notFound("Invite"))
 	} else if err != nil {

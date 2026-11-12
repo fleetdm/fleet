@@ -1,5 +1,9 @@
 import React from "react";
+
+import CustomLink from "components/CustomLink";
 import { isMacOS, isIPadOrIPhone } from "interfaces/platform";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
 import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 interface IDeviceStatusTag {
@@ -13,7 +17,7 @@ type HostMdmDeviceStatusUIStateNoUnlock = Exclude<
   "unlocked"
 >;
 
-// We exclude "unlocked" as we dont display any device status tag for it
+// We exclude "unlocked" as we dont display any device status tag for it.
 type DeviceStatusTagConfig = Record<
   HostMdmDeviceStatusUIStateNoUnlock,
   IDeviceStatusTag
@@ -21,7 +25,40 @@ type DeviceStatusTagConfig = Record<
 
 export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   locked: {
-    title: "LOCKED",
+    title: "Locked",
+    tagType: "warning",
+    generateTooltip: (platform) => {
+      if (isIPadOrIPhone(platform)) {
+        return (
+          <>
+            Host is locked. The end user can&apos;t use the host until
+            <br />
+            unlocked. To unlock select <b>Actions &gt; Unlock</b>.
+          </>
+        );
+      } else if (isMacOS(platform)) {
+        return (
+          <>
+            Host is locked. The end user can&apos;t use the host until
+            <br />
+            the six-digit PIN has been entered. To view pin select
+            <br />
+            <b>Actions &gt; Unlock</b>.
+          </>
+        );
+      }
+      return (
+        <>
+          Host is locked. The end user can&apos;t use the host until
+          <br />
+          unlocked. To unlock select <b>Actions &gt; Unlock</b>.
+        </>
+      );
+    },
+  },
+  /** When device_status is "locked" and pending_action is "location", still show "Locked" tag */
+  locating: {
+    title: "Locked",
     tagType: "warning",
     generateTooltip: (platform) => {
       if (isIPadOrIPhone(platform)) {
@@ -53,35 +90,44 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
     },
   },
   unlocking: {
-    title: "UNLOCK PENDING",
+    title: "Unlock pending",
     tagType: "warning",
     generateTooltip: () =>
       "Host will unlock when it comes online.  If the host is online, it will unlock the next time it checks in to Fleet.",
   },
+  /** "locking" also includes device_status is "unlocked" and pending_action is "location" as
+   * that combination is a part of the locking process */
   locking: {
-    title: "LOCK PENDING",
+    title: "Lock pending",
     tagType: "warning",
     generateTooltip: () => (
-      <>
-        Host will lock when it comes online. If the host is
-        <br />
-        online, it will lock the next time it checks in to Fleet.
-      </>
+      <>Host will lock the next time it checks in to Fleet.</>
     ),
   },
   wiped: {
-    title: "WIPED",
+    title: "Wiped",
     tagType: "error",
-    generateTooltip: (platform) =>
-      isMacOS(platform)
-        ? "Host is wiped. To prevent the host from automatically reenrolling to Fleet, first release the host from Apple Business Manager and then delete the host in Fleet."
-        : "Host is wiped.",
+    generateTooltip: () =>
+      "Host is wiped. If you re-enrolled the host, delete it to clear the wiped badge. The host will automatically re-appear in Fleet.",
   },
   wiping: {
-    title: "WIPE PENDING",
+    title: "Wipe pending",
     tagType: "error",
     generateTooltip: () =>
       "Host will wipe when it comes online. If the host is online, it will wipe the next time it checks in to Fleet.",
+  },
+  clearing_passcode: {
+    title: "Clear passcode pending",
+    tagType: "warning",
+    generateTooltip: () =>
+      "Passcode will clear when the host comes online. If the host is online, it will clear the next time it checks in to Fleet.",
+  },
+  /** Android BYOD only: Unenroll and Wipe both remove the work profile. */
+  unenrolling: {
+    title: "Unenroll pending",
+    tagType: "warning",
+    generateTooltip: () =>
+      "Host will unenroll when it comes online. If the host is online, it will unenroll the next time it checks in to Fleet.",
   },
 };
 
@@ -110,6 +156,12 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
       You can&apos;t fetch data from <br /> a locked host.
     </>
   ),
+  // Same as locked
+  locating: (
+    <>
+      You can&apos;t fetch data from <br /> a locked host.
+    </>
+  ),
   wiping: (
     <>
       You can&apos;t fetch data from <br /> a wiping host.
@@ -120,4 +172,27 @@ export const REFETCH_TOOLTIP_MESSAGES: Record<
       You can&apos;t fetch data from <br /> a wiped host.
     </>
   ),
+  clearing_passcode: (
+    <>
+      You can&apos;t fetch data from <br /> a host that is clearing passcode.
+    </>
+  ),
+  unenrolling: (
+    <>
+      You can&apos;t fetch data from <br /> an unenrolling host.
+    </>
+  ),
 } as const;
+
+export const ANDROID_NO_REFETCH_TOOLTIP_MESSAGE = (
+  <>
+    Refetch is disabled because Android hosts sync data automatically when they
+    change. If changes aren&apos;t appearing,{" "}
+    <CustomLink
+      url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-manual-sync`}
+      text="learn how to sync manually."
+      newTab
+      variant="tooltip-link"
+    />
+  </>
+);

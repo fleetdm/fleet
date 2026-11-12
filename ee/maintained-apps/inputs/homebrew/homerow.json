@@ -1,0 +1,10 @@
+{
+  "name": "Homerow",
+  "unique_identifier": "com.superultra.Homerow",
+  "token": "homerow",
+  "installer_format": "zip",
+  "slug": "homerow/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

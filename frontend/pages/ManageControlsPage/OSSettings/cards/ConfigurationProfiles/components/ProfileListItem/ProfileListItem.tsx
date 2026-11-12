@@ -1,0 +1,279 @@
+import { format } from "date-fns";
+import FileSaver from "file-saver";
+import React, { useRef } from "react";
+
+import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Icon from "components/Icon";
+import ListItem from "components/ListItem";
+import Tag from "components/Tag";
+import TooltipWrapper from "components/TooltipWrapper";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
+import { IMdmProfile, ProfilePlatform } from "interfaces/mdm";
+import { isAppleDevice, isIPadOrIPhone } from "interfaces/platform";
+import mdmAPI, { isDDMProfile } from "services/entities/mdm";
+import { timeAgo } from "utilities/date_format";
+import strUtils from "utilities/strings";
+
+const baseClass = "profile-list-item";
+
+const LabelCount = ({
+  className,
+  count,
+}: {
+  className: string;
+  count: number;
+}) => (
+  <div className={`${className}__labels--count`}>
+    <Icon name="tag" color="ui-fleet-black-75" />
+    {`${count} ${strUtils.pluralize(count, "label")}`}
+  </div>
+);
+
+interface IProfileDetailsProps {
+  platform: ProfilePlatform;
+  uploadedAt: string;
+  isDDM?: boolean;
+}
+
+const ProfileDetails = ({
+  platform,
+  uploadedAt,
+  isDDM,
+}: IProfileDetailsProps) => {
+  const getPlatformName = () => {
+    switch (platform) {
+      case "windows":
+        return "Windows";
+      case "android":
+        return "Android";
+      case "linux":
+        return "Linux";
+      default:
+        return isDDM
+          ? "macOS, iOS, iPadOS (declaration)"
+          : "macOS, iOS, iPadOS";
+    }
+  };
+
+  return (
+    <div className={`${baseClass}__profile-details`}>
+      <span className={`${baseClass}__platform`}>{getPlatformName()}</span>
+      <span>&bull;</span>
+      <span className={`${baseClass}__list-item-uploaded`}>
+        {`Uploaded ${timeAgo(new Date(uploadedAt), { addSuffix: true })}`}
+      </span>
+    </div>
+  );
+};
+
+const createProfileExtension = (profile: IMdmProfile) => {
+  if (isDDMProfile(profile)) {
+    return "json";
+  }
+  if (profile.platform === "android") {
+    return "json";
+  }
+  return isAppleDevice(profile.platform) ? "mobileconfig" : "xml";
+};
+
+const createFileContent = async (profile: IMdmProfile) => {
+  const content = await mdmAPI.downloadProfile(profile.profile_uuid);
+  if (isDDMProfile(profile)) {
+    return JSON.stringify(content, null, 2);
+  }
+  if (profile.platform === "android") {
+    return JSON.stringify(content, null, 2);
+  }
+  return content;
+};
+
+interface IProfileListItemProps {
+  isPremium: boolean;
+  profile: IMdmProfile;
+  onClickInfo: (profile: IMdmProfile) => void;
+  onClickEdit: (profile: IMdmProfile) => void;
+  onClickDelete: (profile: IMdmProfile) => void;
+  isTechnician?: boolean;
+}
+
+const ProfileListItem = ({
+  isPremium,
+  profile,
+  onClickInfo,
+  onClickEdit,
+  onClickDelete,
+  isTechnician,
+}: IProfileListItemProps) => {
+  const {
+    updated_at,
+    labels_include_all,
+    labels_include_any,
+    labels_exclude_any,
+    name,
+    platform,
+    scope,
+    hidden,
+  } = profile;
+  const subClass = "list-item";
+
+  const nameRef = useRef<HTMLSpanElement>(null);
+  const isNameTruncated = useCheckTruncatedElement(nameRef);
+
+  // iOS/iPadOS don't support user channels, so never show the user-scope icon
+  // for them (matches the host details OS settings table).
+  const isUserScoped = scope === "User" && !isIPadOrIPhone(platform);
+
+  const onClickDownload = async () => {
+    const fileContent = await createFileContent(profile);
+    const formatDate = format(new Date(), "yyyy-MM-dd");
+    const extension = createProfileExtension(profile);
+    const filename = `${formatDate}_${name}.${extension}`;
+    const file = new File([fileContent], filename);
+    FileSaver.saveAs(file);
+  };
+
+  const labels = [
+    ...(labels_include_all ?? []),
+    ...(labels_include_any ?? []),
+    ...(labels_exclude_any ?? []),
+  ];
+
+  const renderLabelInfo = () => {
+    if (!isPremium || labels.length === 0) {
+      return null;
+    }
+
+    return (
+      <div className={`${subClass}__labels`}>
+        {labels.some((label) => label.broken) && <Icon name="warning" />}
+        <LabelCount className={subClass} count={labels.length} />
+      </div>
+    );
+  };
+
+  const actions = (
+    // keep action clicks from also opening the details modal
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+    <div
+      className={`${baseClass}__actions-wrap`}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {renderLabelInfo()}
+      <div className={`${baseClass}__actions`}>
+        {!isTechnician && (
+          // stays enabled in GitOps mode -- the modal is the only place to
+          // see a profile's label targeting; it blocks saving instead
+          <TooltipWrapper
+            tipContent="Edit"
+            underline={false}
+            position="top"
+            showArrow
+            tipOffset={8}
+          >
+            <Button
+              className={`${subClass}__action-button`}
+              variant="secondary"
+              onClick={() => onClickEdit(profile)}
+              ariaLabel={`Edit ${profile.name}`}
+              icon="pencil"
+            />
+          </TooltipWrapper>
+        )}
+        <TooltipWrapper
+          tipContent="Download"
+          underline={false}
+          position="top"
+          showArrow
+          tipOffset={8}
+        >
+          <Button
+            className={`${subClass}__action-button`}
+            variant="secondary"
+            onClick={onClickDownload}
+            icon="download"
+            ariaLabel={`Download ${profile.name}`}
+          />
+        </TooltipWrapper>
+        {!isTechnician && (
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <TooltipWrapper
+                tipContent="Delete"
+                underline={false}
+                position="top"
+                showArrow
+                tipOffset={8}
+                disableTooltip={disableChildren}
+              >
+                <Button
+                  disabled={disableChildren}
+                  className={`${subClass}__action-button`}
+                  variant="secondary"
+                  onClick={() => onClickDelete(profile)}
+                  icon="trash"
+                  ariaLabel={`Delete ${profile.name}`}
+                />
+              </TooltipWrapper>
+            )}
+          />
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <ListItem
+      className={baseClass}
+      graphic="file-configuration-profile"
+      title={
+        <div className={`${baseClass}__title-row`}>
+          <TooltipWrapper
+            tipContent={
+              <>
+                Name: <b className={`${baseClass}__full-name`}>{name}</b>
+              </>
+            }
+            tooltipClass={`${baseClass}__name-tooltip`}
+            disableTooltip={!isNameTruncated}
+            underline={false}
+            position="top"
+            showArrow
+          >
+            <span className={`${baseClass}__name`} ref={nameRef}>
+              {name}
+            </span>
+          </TooltipWrapper>
+          {isUserScoped && (
+            <Tag size="xsmall" tooltip="Scoped to the user channel">
+              User-scoped
+            </Tag>
+          )}
+          {hidden && (
+            <TooltipWrapper
+              tipContent="Hidden from end user"
+              position="top"
+              underline={false}
+              showArrow
+            >
+              <Icon name="eye-slash" color="ui-fleet-black-33" />
+            </TooltipWrapper>
+          )}
+        </div>
+      }
+      details={
+        <ProfileDetails
+          platform={platform}
+          uploadedAt={updated_at}
+          isDDM={isDDMProfile(profile)}
+        />
+      }
+      actions={actions}
+      onClick={() => onClickInfo(profile)}
+      // no action button opens the details modal, so the row must be focusable
+      isInteractiveRow
+    />
+  );
+};
+
+export default ProfileListItem;

@@ -1,0 +1,489 @@
+import { screen, waitFor } from "@testing-library/react";
+import { noop } from "lodash";
+import React from "react";
+
+import {
+  createMockFleetMaintainedAppDetails,
+  createMockSoftwarePackage,
+  createMockSoftwareTitle,
+} from "__mocks__/softwareMock";
+import { notify } from "components/ToastNotification";
+import softwareAPI from "services/entities/software";
+import teamPoliciesAPI from "services/entities/team_policies";
+import { createCustomRenderer } from "test/test-utils";
+
+import DeployModal from "./DeployModal";
+
+const renderModal = ({
+  softwarePackage = createMockSoftwarePackage({ fleet_maintained_app_id: 1 }),
+  gitOpsModeEnabled = false,
+  onExit = noop,
+  onSuccess = noop,
+}: {
+  softwarePackage?: ReturnType<typeof createMockSoftwarePackage>;
+  gitOpsModeEnabled?: boolean;
+  onExit?: () => void;
+  onSuccess?: () => void;
+} = {}) => {
+  const render = createCustomRenderer({
+    withBackendMock: true,
+    context: {
+      app: {
+        config: {
+          gitops: { gitops_mode_enabled: gitOpsModeEnabled },
+        },
+      },
+    },
+  });
+  return render(
+    <DeployModal
+      softwareTitle={createMockSoftwareTitle({
+        id: 10,
+        name: "Firefox",
+        software_package: softwarePackage,
+      })}
+      teamId={1}
+      onExit={onExit}
+      onSuccess={onSuccess}
+    />
+  );
+};
+
+describe("DeployModal", () => {
+  beforeEach(() => {
+    jest.spyOn(softwareAPI, "getFleetMaintainedApp").mockResolvedValue({
+      fleet_maintained_app: createMockFleetMaintainedAppDetails(),
+    });
+    jest.spyOn(teamPoliciesAPI, "create").mockResolvedValue({} as never);
+    jest.spyOn(teamPoliciesAPI, "update").mockResolvedValue({} as never);
+    jest.spyOn(teamPoliciesAPI, "destroy").mockResolvedValue({} as never);
+  });
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it("reflects an externally-created manual patch policy", () => {
+    renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+        },
+        automatic_install_policies: [],
+      }),
+    });
+
+    expect(screen.getByRole("checkbox", { name: "patch" })).toBeChecked();
+    expect(
+      screen.getByRole("radio", { name: "End user initiated (manual)" })
+    ).toBeChecked();
+  });
+
+  it("defaults a newly-checked patch to the top option (Patch when app is closed)", async () => {
+    const { user } = renderModal();
+
+    await user.click(screen.getByRole("checkbox", { name: "patch" }));
+
+    expect(
+      screen.getByRole("radio", { name: "Patch when app is closed" })
+    ).toBeChecked();
+  });
+
+  it("creates a Force patch + Deadline policy by default on macOS", async () => {
+    const { user } = renderModal();
+
+    await user.click(screen.getByRole("checkbox", { name: "patch" }));
+    await user.click(screen.getByRole("radio", { name: "Force patch" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // Deadline is the preselected end-user experience when Force patch is
+    // chosen on a macOS title (Figma dev note), so a user who clicks Save
+    // without touching the dropdown gets patch_deadline: true and continuous
+    // automations locked on.
+    await waitFor(() =>
+      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
+        fleet_id: 1,
+        type: "patch",
+        patch_software_title_id: 10,
+        software_title_id: 10,
+        patch_when_closed: false,
+        notify_before_patching: false,
+        patch_deadline: true,
+        continuous_automations_enabled: true,
+      })
+    );
+  });
+
+  it("creates a Notify before patching policy when the dropdown is set on macOS", async () => {
+    const { user } = renderModal();
+
+    // Wait for the FMA app query to settle — the selector is disabled while
+    // it loads, which blocks pointer events on the dropdown.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled()
+    );
+
+    await user.click(screen.getByRole("checkbox", { name: "patch" }));
+    await user.click(screen.getByRole("radio", { name: "Force patch" }));
+    // The dropdown renders once Force patch is selected on a macOS title.
+    // react-select-5 opens the menu on the wrapper's mouseDown, not a
+    // plain click on the hidden input; using findByText waits for the
+    // option to portal in.
+    await user.click(screen.getByRole("combobox"));
+    const notifyOption = await screen.findByText("Notify before patching");
+    await user.click(notifyOption);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
+        fleet_id: 1,
+        type: "patch",
+        patch_software_title_id: 10,
+        software_title_id: 10,
+        patch_when_closed: false,
+        notify_before_patching: true,
+        patch_deadline: false,
+        continuous_automations_enabled: true,
+      })
+    );
+  });
+
+  it("updates an existing Force patch policy from immediate to Notify before patching", async () => {
+    const { user } = renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+          notify_before_patching: false,
+        },
+        automatic_install_policies: [
+          { id: 22, name: "Firefox up to date", type: "patch" },
+        ],
+      }),
+    });
+
+    // Wait for the FMA app query to settle before touching the dropdown.
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled()
+    );
+
+    // Existing policy loads as Force patch + Patch immediately; switch to Notify.
+    // react-select-5 opens the menu on the wrapper's mouseDown, not a
+    // plain click on the hidden input; using findByText waits for the
+    // option to portal in.
+    await user.click(screen.getByRole("combobox"));
+    const notifyOption = await screen.findByText("Notify before patching");
+    await user.click(notifyOption);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
+        fleet_id: 1,
+        software_title_id: 10,
+        patch_when_closed: false,
+        notify_before_patching: true,
+        patch_deadline: false,
+        continuous_automations_enabled: true,
+      })
+    );
+  });
+
+  it("loads a legacy Force + Immediate policy with Patch immediately selected", async () => {
+    // Regression guard: when deadline shipped, the default for new Force
+    // selections flipped to Deadline. A pre-existing Force + no-flags policy
+    // (every policy saved before this PR) must still load as Patch
+    // immediately — not be silently rewritten to Deadline on open.
+    renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+          notify_before_patching: false,
+          // patch_deadline deliberately omitted — legacy shape.
+        },
+        automatic_install_policies: [
+          { id: 22, name: "Firefox up to date", type: "patch" },
+        ],
+      }),
+    });
+
+    expect(screen.getByRole("radio", { name: "Force patch" })).toBeChecked();
+    expect(await screen.findByText("Patch immediately")).toBeInTheDocument();
+    expect(screen.queryByText("Deadline")).not.toBeInTheDocument();
+  });
+
+  it("loads an existing deadline policy with Deadline selected", async () => {
+    renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: true,
+          notify_before_patching: false,
+          patch_deadline: true,
+        },
+        automatic_install_policies: [
+          { id: 22, name: "Firefox up to date", type: "patch" },
+        ],
+      }),
+    });
+
+    expect(screen.getByRole("radio", { name: "Force patch" })).toBeChecked();
+    // react-select-5 renders the current value inside the combobox; the
+    // visible text is enough to confirm the hydrated choice.
+    expect(await screen.findByText("Deadline")).toBeInTheDocument();
+  });
+
+  it("creates Force install with the current FMA query and platform", async () => {
+    const { user } = renderModal();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled()
+    );
+    await user.click(screen.getByRole("checkbox", { name: "force-install" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(teamPoliciesAPI.create).toHaveBeenCalledWith({
+        fleet_id: 1,
+        name: "[Install software] Firefox",
+        description:
+          "Policy triggers automatic install of Firefox on each host that's missing this software.",
+        query:
+          "SELECT 1 FROM apps WHERE bundle_identifier = 'com.example.test-app';",
+        platform: "darwin",
+        software_title_id: 10,
+      })
+    );
+  });
+
+  it("shows a specific error and skips the create when the FMA install query is missing", async () => {
+    jest.spyOn(softwareAPI, "getFleetMaintainedApp").mockResolvedValue({
+      fleet_maintained_app: createMockFleetMaintainedAppDetails({
+        automatic_install_query: "",
+      }),
+    });
+    const errorSpy = jest.spyOn(notify, "error");
+    const onExit = jest.fn();
+    const { user } = renderModal({ onExit });
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled()
+    );
+    await user.click(screen.getByRole("checkbox", { name: "force-install" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Couldn't create the Force install policy. Try again."
+      )
+    );
+    expect(teamPoliciesAPI.create).not.toHaveBeenCalled();
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("shows the server's message and skips the create when Fleet can't fetch the FMA manifest on save", async () => {
+    const reason =
+      "Fleet couldn't fetch the manifest for Firefox. Please try again.";
+    const manifestError = {
+      status: 502,
+      data: { message: reason, errors: [{ name: "base", reason }] },
+    };
+    jest
+      .spyOn(softwareAPI, "getFleetMaintainedApp")
+      .mockRejectedValue(manifestError);
+    const errorSpy = jest.spyOn(notify, "error");
+    const onExit = jest.fn();
+    const { user } = renderModal({ onExit });
+
+    await user.click(screen.getByRole("checkbox", { name: "force-install" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(errorSpy).toHaveBeenCalledWith(reason, {
+        response: manifestError,
+      })
+    );
+    expect(teamPoliciesAPI.create).not.toHaveBeenCalled();
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it("attaches install automation when a manual patch policy changes to Force patch", async () => {
+    const { user } = renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: false,
+        },
+        automatic_install_policies: [],
+      }),
+    });
+
+    await user.click(screen.getByRole("radio", { name: "Force patch" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // Clicking Force patch (re)defaults the end-user experience to Deadline
+    // per the Figma dev note, so a user who flips Manual → Force patch and
+    // hits Save gets patch_deadline: true + continuous automations locked on.
+    await waitFor(() =>
+      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
+        fleet_id: 1,
+        software_title_id: 10,
+        patch_when_closed: false,
+        notify_before_patching: false,
+        patch_deadline: true,
+        continuous_automations_enabled: true,
+      })
+    );
+  });
+
+  it("removes install automation when Force patch changes to manual", async () => {
+    const { user } = renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: true,
+        },
+        automatic_install_policies: [
+          { id: 22, name: "Firefox up to date", type: "patch" },
+        ],
+      }),
+    });
+
+    await user.click(
+      screen.getByRole("radio", { name: "End user initiated (manual)" })
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
+        fleet_id: 1,
+        software_title_id: null,
+        patch_when_closed: false,
+        notify_before_patching: false,
+        patch_deadline: false,
+        continuous_automations_enabled: false,
+      })
+    );
+  });
+
+  it("clears stale continuous_automations_enabled when saving a Force + Immediate policy that still has it on", async () => {
+    const { user } = renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: false,
+          continuous_automations_enabled: true,
+        },
+        automatic_install_policies: [
+          { id: 22, name: "Firefox up to date", type: "patch" },
+        ],
+      }),
+    });
+
+    expect(screen.getByRole("radio", { name: "Force patch" })).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    // Stored Force + continuous_automations_enabled policy carries no deadline
+    // or notify flag, so it loads as Patch immediately and clears continuous
+    // automations when saved untouched. Preselect-on-click doesn't fire
+    // because the user never re-clicks the radio.
+    await waitFor(() =>
+      expect(teamPoliciesAPI.update).toHaveBeenCalledWith(22, {
+        fleet_id: 1,
+        software_title_id: 10,
+        patch_when_closed: false,
+        notify_before_patching: false,
+        patch_deadline: false,
+        continuous_automations_enabled: false,
+      })
+    );
+  });
+
+  it("deletes Force install and Patch policies independently", async () => {
+    const { user } = renderModal({
+      softwarePackage: createMockSoftwarePackage({
+        fleet_maintained_app_id: 1,
+        automatic_install_policies: [
+          { id: 11, name: "[Install software] Firefox", type: "dynamic" },
+        ],
+        patch_policy: {
+          id: 22,
+          name: "Firefox up to date",
+          patch_when_closed: true,
+          continuous_automations_enabled: true,
+        },
+      }),
+    });
+
+    await user.click(screen.getByRole("checkbox", { name: "force-install" }));
+    await user.click(screen.getByRole("checkbox", { name: "patch" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(teamPoliciesAPI.destroy).toHaveBeenNthCalledWith(1, 1, [11]);
+      expect(teamPoliciesAPI.destroy).toHaveBeenNthCalledWith(2, 1, [22]);
+    });
+  });
+
+  it("warns about a partial save, then closes and refreshes so retry uses fresh policy state", async () => {
+    const onExit = jest.fn();
+    const onSuccess = jest.fn();
+    const errorSpy = jest.spyOn(notify, "error");
+    (teamPoliciesAPI.create as jest.Mock)
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce(new Error("Patch failed"));
+    const { user } = renderModal({ onExit, onSuccess });
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Save" })).toBeEnabled()
+    );
+    await user.click(screen.getByRole("checkbox", { name: "force-install" }));
+    await user.click(screen.getByRole("checkbox", { name: "patch" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => {
+      expect(teamPoliciesAPI.create).toHaveBeenCalledTimes(2);
+      expect(onSuccess).toHaveBeenCalledTimes(1);
+      expect(onExit).toHaveBeenCalledTimes(1);
+    });
+    // Partial success must be surfaced, not swallowed behind the raw error.
+    expect(
+      errorSpy
+    ).toHaveBeenCalledWith(
+      "Some changes were saved, but others couldn't be. Try again.",
+      { response: expect.anything() }
+    );
+  });
+
+  it("disables the Deploy control and Save in GitOps mode", () => {
+    renderModal({ gitOpsModeEnabled: true });
+
+    expect(
+      screen.getByRole("checkbox", { name: "force-install" })
+    ).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByRole("checkbox", { name: "patch" })).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  });
+});

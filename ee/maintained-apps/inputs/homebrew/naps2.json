@@ -1,0 +1,10 @@
+{
+  "name": "NAPS2",
+  "unique_identifier": "com.naps2.desktop",
+  "token": "naps2",
+  "installer_format": "pkg",
+  "slug": "naps2/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

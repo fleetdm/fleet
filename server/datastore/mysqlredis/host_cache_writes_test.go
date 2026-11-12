@@ -1,0 +1,720 @@
+package mysqlredis
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	redigo "github.com/gomodule/redigo/redis"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// primeCachedHost populates the cache with a fleet.Host for nk/id and asserts
+// the cache is hot before returning. Tests use this to set up a known-good
+// state, then invoke a write method and verify the cache is cleared.
+func primeCachedHost(t *testing.T, d *Datastore, id uint, nk string) {
+	t.Helper()
+	ctx := t.Context()
+	d.hostCachePutByNodeKey(ctx, &fleet.Host{ID: id, NodeKey: &nk, Hostname: "primed-" + nk})
+	_, result := d.hostCacheGetByNodeKey(ctx, nk)
+	require.Equal(t, hostCacheLookupHit, result, "primeCachedHost failed to prime %q", nk)
+}
+
+// hostCacheTTLOf returns the remaining TTL in seconds for key (-1 = no expiry,
+// -2 = missing), used to assert that the in-place team patch keeps the entry's
+// original expiry rather than resetting it.
+func hostCacheTTLOf(t *testing.T, pool fleet.RedisPool, key string) int {
+	t.Helper()
+	conn := pool.Get()
+	defer conn.Close()
+	ttl, err := redigo.Int(conn.Do("TTL", key))
+	require.NoError(t, err)
+	return ttl
+}
+
+func requireCacheMiss(t *testing.T, d *Datastore, nk string) {
+	t.Helper()
+	_, result := d.hostCacheGetByNodeKey(t.Context(), nk)
+	require.Equal(t, hostCacheLookupMiss, result, "expected miss for %q, got %v", nk, result)
+}
+
+// failAfterPool delegates to a real pool but breaks specific connections: every
+// Get past healthyGets fails, or — when failOnlyNth is set — just that one Get
+// fails and the rest succeed. The team patch reads the reverse index and the
+// payloads in separate passes, each of which can span several round trips, so
+// tests need to choose exactly which read breaks.
+type failAfterPool struct {
+	fleet.RedisPool
+	healthyGets *int32
+	failOnlyNth int32 // 1-based Get to fail; 0 means "use healthyGets instead"
+	gets        *int32
+}
+
+func (p failAfterPool) Get() redigo.Conn {
+	if p.failOnlyNth > 0 {
+		if atomic.AddInt32(p.gets, 1) == p.failOnlyNth {
+			return failingConn{}
+		}
+		return p.RedisPool.Get()
+	}
+	if atomic.AddInt32(p.healthyGets, -1) < 0 {
+		return failingConn{}
+	}
+	return p.RedisPool.Get()
+}
+
+type failingConn struct{}
+
+func (failingConn) Close() error                   { return nil }
+func (failingConn) Err() error                     { return errors.New("redis is down") }
+func (failingConn) Do(string, ...any) (any, error) { return nil, errors.New("redis is down") }
+func (failingConn) Send(string, ...any) error      { return errors.New("redis is down") }
+func (failingConn) Flush() error                   { return errors.New("redis is down") }
+func (failingConn) Receive() (any, error)          { return nil, errors.New("redis is down") }
+
+func TestWritePathInvalidation(t *testing.T) {
+	runTest := func(t *testing.T, pool fleet.RedisPool) {
+		ctx := t.Context()
+
+		// Single-host wrapper invalidation cases. Each case verifies that the wrapper invalidates the
+		// cache for the affected host after a successful inner call. Methods with materially different
+		// invalidation paths (enrollment, batch, regression) get their own subtests below.
+		singleHostWrappers := []struct {
+			name      string
+			id        uint
+			setupMock func(*mock.Store)
+			invoke    func(context.Context, *Datastore, uint, string) error
+			invoked   func(*mock.Store) bool
+		}{
+			{
+				name: "UpdateHost",
+				id:   1,
+				setupMock: func(ds *mock.Store) {
+					ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, nk string) error {
+					return d.UpdateHost(ctx, &fleet.Host{ID: id, NodeKey: &nk})
+				},
+				invoked: func(ds *mock.Store) bool { return ds.UpdateHostFuncInvoked },
+			},
+			{
+				name: "SerialUpdateHost",
+				id:   2,
+				setupMock: func(ds *mock.Store) {
+					ds.SerialUpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, nk string) error {
+					return d.SerialUpdateHost(ctx, &fleet.Host{ID: id, NodeKey: &nk})
+				},
+				invoked: func(ds *mock.Store) bool { return ds.SerialUpdateHostFuncInvoked },
+			},
+			{
+				name: "UpdateHostOsqueryIntervals",
+				id:   3,
+				setupMock: func(ds *mock.Store) {
+					ds.UpdateHostOsqueryIntervalsFunc = func(_ context.Context, _ uint, _ fleet.HostOsqueryIntervals) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.UpdateHostOsqueryIntervals(ctx, id, fleet.HostOsqueryIntervals{})
+				},
+				invoked: func(ds *mock.Store) bool { return ds.UpdateHostOsqueryIntervalsFuncInvoked },
+			},
+			{
+				name: "UpdateHostRefetchRequested",
+				id:   4,
+				setupMock: func(ds *mock.Store) {
+					ds.UpdateHostRefetchRequestedFunc = func(_ context.Context, _ uint, _ bool) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.UpdateHostRefetchRequested(ctx, id, true)
+				},
+				invoked: func(ds *mock.Store) bool { return ds.UpdateHostRefetchRequestedFuncInvoked },
+			},
+			{
+				name: "UpdateHostRefetchCriticalQueriesUntil",
+				id:   5,
+				setupMock: func(ds *mock.Store) {
+					ds.UpdateHostRefetchCriticalQueriesUntilFunc = func(_ context.Context, _ uint, _ *time.Time) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.UpdateHostRefetchCriticalQueriesUntil(ctx, id, new(time.Unix(1, 0)))
+				},
+				invoked: func(ds *mock.Store) bool { return ds.UpdateHostRefetchCriticalQueriesUntilFuncInvoked },
+			},
+			{
+				// Carries disk_encryption_enabled and bitlocker_protection_status, both of which Orbit reads to
+				// decide whether to ask the host to restore BitLocker protection.
+				name: "SetOrUpdateHostDisksEncryption",
+				id:   8,
+				setupMock: func(ds *mock.Store) {
+					ds.SetOrUpdateHostDisksEncryptionFunc = func(_ context.Context, _ uint, _ bool, _ *int) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.SetOrUpdateHostDisksEncryption(ctx, id, true, new(fleet.BitLockerProtectionStatusOn))
+				},
+				invoked: func(ds *mock.Store) bool { return ds.SetOrUpdateHostDisksEncryptionFuncInvoked },
+			},
+			{
+				// Carries tpm_pin_set, which decides whether Fleet asks the end user to create a BitLocker PIN, and
+				// bitlocker_boot_protector_set, which decides whether Fleet asks the agent to repair the volume.
+				name: "SetOrUpdateHostDiskBitLockerProtectors",
+				id:   9,
+				setupMock: func(ds *mock.Store) {
+					ds.SetOrUpdateHostDiskBitLockerProtectorsFunc = func(_ context.Context, _ uint, _, _ bool) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.SetOrUpdateHostDiskBitLockerProtectors(ctx, id, false, true)
+				},
+				invoked: func(ds *mock.Store) bool { return ds.SetOrUpdateHostDiskBitLockerProtectorsFuncInvoked },
+			},
+			{
+				name: "UpdateHostIdentityCertHostIDBySerial",
+				id:   6,
+				setupMock: func(ds *mock.Store) {
+					ds.UpdateHostIdentityCertHostIDBySerialFunc = func(_ context.Context, _ uint64, _ uint) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.UpdateHostIdentityCertHostIDBySerial(ctx, 12345, id)
+				},
+				invoked: func(ds *mock.Store) bool { return ds.UpdateHostIdentityCertHostIDBySerialFuncInvoked },
+			},
+			{
+				name: "DeleteHost",
+				id:   7,
+				setupMock: func(ds *mock.Store) {
+					ds.DeleteHostFunc = func(_ context.Context, _ uint) error { return nil }
+				},
+				invoke: func(ctx context.Context, d *Datastore, id uint, _ string) error {
+					return d.DeleteHost(ctx, id)
+				},
+				invoked: func(ds *mock.Store) bool { return ds.DeleteHostFuncInvoked },
+			},
+		}
+
+		for _, tc := range singleHostWrappers {
+			t.Run(tc.name+" invalidates cache", func(t *testing.T) {
+				t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+				ds := new(mock.Store)
+				tc.setupMock(ds)
+				d := New(ds, pool, WithHostCache(30*time.Second))
+
+				nk := "nk-" + tc.name
+				primeCachedHost(t, d, tc.id, nk)
+				require.NoError(t, tc.invoke(ctx, d, tc.id, nk))
+				require.True(t, tc.invoked(ds), "inner mock not invoked")
+				requireCacheMiss(t, d, nk)
+			})
+		}
+
+		t.Run("EnrollOrbit invalidates for returned host", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			// The mock returns a Host with ONLY ID populated, mirroring the
+			// production mysql.EnrollOrbit, which doesn't set NodeKey or
+			// OrbitNodeKey on its returned struct. This exercises the ID-based
+			// reverse-index invalidation path that production actually takes.
+			ds := new(mock.DataStore)
+			ds.EnrollOrbitFunc = func(_ context.Context, _ ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+				return &fleet.Host{ID: 6}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			// Prime the cache under a node_key and verify EnrollOrbit clears
+			// it via the reverse index (id2nk → nk), even though the returned
+			// Host struct doesn't carry the NodeKey field.
+			nk := "nk-orbit"
+			primeCachedHost(t, d, 6, nk)
+			h, err := d.EnrollOrbit(ctx)
+			require.NoError(t, err)
+			require.NotNil(t, h)
+			requireCacheMiss(t, d, nk)
+		})
+
+		t.Run("EnrollOrbit clears stale negative cache for new orbit_node_key", func(t *testing.T) {
+			// mysql.EnrollOrbit does NOT populate host.OrbitNodeKey on the returned struct
+			// (unlike EnrollOsquery, which does a SELECT-back). The wrapper must extract orbit_node_key
+			// from opts to fire the direct-keys clear; otherwise the helper short-circuits on empty key
+			// and a pre-enrollment onk_miss:<K> entry survives, returning NotFound from the negative
+			// cache for the freshly-enrolled host's first /orbit/* requests.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			onk := "onk-pre-enroll-race"
+			ds := new(mock.DataStore)
+			ds.EnrollOrbitFunc = func(_ context.Context, _ ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {
+				// Mirror mysql.EnrollOrbit's return: ID set, OrbitNodeKey nil.
+				return &fleet.Host{ID: 99}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			// A probe arrived before enrollment committed and cached NotFound under the new key.
+			d.hostCachePutNotFoundFamily(ctx, orbitCacheFamily, onk)
+			_, before := d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			require.Equal(t, hostCacheLookupNegative, before, "precondition: negative cache must be primed")
+
+			h, err := d.EnrollOrbit(ctx, fleet.WithEnrollOrbitNodeKey(onk))
+			require.NoError(t, err)
+			require.NotNil(t, h)
+
+			// After EnrollOrbit, the negative entry must be gone so the agent's first /orbit/config
+			// falls through to the DB instead of getting a stale NotFound.
+			_, after := d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			require.Equal(t, hostCacheLookupMiss, after, "EnrollOrbit must clear the pre-enrollment negative cache")
+		})
+
+		t.Run("AddHostsToTeam patches team_id in place and keeps the entry's expiry", func(t *testing.T) {
+			// The whole point of patching rather than DELing: no transferred host
+			// misses on its next check-in, so a bulk transfer can't stampede the
+			// reader, and each entry keeps its staggered expiry instead of
+			// collapsing the batch into one synchronized TTL wave.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true, WindowsEnabled: true, LinuxEscrowEnabled: true}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nks := []string{"nk-team-a", "nk-team-b", "nk-team-c"}
+			ids := []uint{10, 11, 12}
+			for i, nk := range nks {
+				primeCachedHost(t, d, ids[i], nk)
+			}
+			ttlBefore := hostCacheTTLOf(t, pool, hostCacheKeyByNodeKey(nks[0]))
+
+			params := fleet.NewAddHostsToTeamParams(new(uint(7)), ids)
+			require.NoError(t, d.AddHostsToTeam(ctx, params))
+			require.True(t, ds.AddHostsToTeamFuncInvoked)
+
+			for _, nk := range nks {
+				h, result := d.hostCacheGetByNodeKey(ctx, nk)
+				require.Equal(t, hostCacheLookupHit, result, "entry for %q must survive the transfer", nk)
+				require.NotNil(t, h.TeamID)
+				require.Equal(t, uint(7), *h.TeamID, "cached team_id must reflect the transfer")
+				require.Equal(t, "primed-"+nk, h.Hostname, "the rest of the snapshot must be preserved")
+			}
+
+			ttlAfter := hostCacheTTLOf(t, pool, hostCacheKeyByNodeKey(nks[0]))
+			require.NotEqual(t, -1, ttlAfter, "entry must keep an expiry, not become persistent")
+			require.LessOrEqual(t, ttlAfter, ttlBefore, "KEEPTTL must not extend the entry's life")
+			require.Greater(t, ttlAfter, ttlBefore-5, "expiry must be preserved, not reset")
+		})
+
+		t.Run("the team patch never resurrects an entry that expired since it was read", func(t *testing.T) {
+			// The payload is read and written back as two separate Redis round
+			// trips. If the entry expires in between, writing it back without XX
+			// recreates it with no expiry at all — and its reverse index expired
+			// with it, so no later invalidation could reach it: the host would
+			// authenticate from a frozen snapshot forever.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			d := New(new(mock.Store), pool, WithHostCache(30*time.Second))
+
+			gone := hostCacheKeyByNodeKey("nk-expired-mid-rewrite")
+			applied, failed := d.pipelinedSETKeepTTL(ctx, []hostCacheKV{{key: gone, val: []byte(`{"id":42}`), id: 42}})
+
+			require.Empty(t, applied, "a key that no longer exists must not count as patched")
+			require.Empty(t, failed, "an expired entry is not a failure: there is nothing stale to invalidate")
+			conn := pool.Get()
+			defer conn.Close()
+			exists, err := redigo.Int(conn.Do("EXISTS", gone))
+			require.NoError(t, err)
+			require.Equal(t, 0, exists, "the write must not recreate the expired key")
+		})
+
+		t.Run("the team patch keeps the expiry of entries that are still alive", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			d := New(new(mock.Store), pool, WithHostCache(30*time.Second))
+
+			nk := "nk-still-alive"
+			primeCachedHost(t, d, 43, nk)
+			key := hostCacheKeyByNodeKey(nk)
+			ttlBefore := hostCacheTTLOf(t, pool, key)
+
+			applied, failed := d.pipelinedSETKeepTTL(ctx, []hostCacheKV{{key: key, val: []byte(`{"id":43}`), id: 43}})
+
+			require.Len(t, applied, 1)
+			require.Empty(t, failed)
+			ttlAfter := hostCacheTTLOf(t, pool, key)
+			require.NotEqual(t, -1, ttlAfter, "entry must keep an expiry")
+			require.LessOrEqual(t, ttlAfter, ttlBefore)
+		})
+
+		t.Run("one expired family does not invalidate the host's other family", func(t *testing.T) {
+			// An expired entry needs no fallback, so the sibling entry that was
+			// patched successfully must survive: treating expiry as a failure
+			// would drop it and put the host back on the reload path.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk, onk := "nk-two-families", "onk-two-families"
+			d.hostCachePutByNodeKey(ctx, &fleet.Host{ID: 44, NodeKey: &nk, Hostname: "primed"})
+			d.hostCachePutByOrbitNodeKey(ctx, &fleet.Host{ID: 44, OrbitNodeKey: &onk, Hostname: "primed"})
+
+			// Stand in for the orbit payload expiring between the read and the write.
+			conn := pool.Get()
+			_, err := conn.Do("DEL", hostCacheKeyByOrbitNodeKey(onk))
+			require.NoError(t, err)
+			conn.Close()
+
+			require.NoError(t, d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(new(uint(7)), []uint{44})))
+
+			h, result := d.hostCacheGetByNodeKey(ctx, nk)
+			require.Equal(t, hostCacheLookupHit, result, "the surviving family must stay cached")
+			require.NotNil(t, h.TeamID)
+			require.Equal(t, uint(7), *h.TeamID)
+		})
+
+		t.Run("AddHostsToTeam patches a batch larger than one chunk", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{MacOSEscrowEnabled: true}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			// Shrink the chunk instead of priming hundreds of hosts: the point is
+			// crossing the boundary, and a large prime storms the pool with short-
+			// lived connections that later tests then trip over.
+			defer func(orig int) { hostCacheRewriteHostBatchSize = orig }(hostCacheRewriteHostBatchSize)
+			hostCacheRewriteHostBatchSize = 4
+
+			const total = 10
+			ids := make([]uint, 0, total)
+			nks := make([]string, 0, total)
+			for i := range total {
+				id := uint(5000 + i)
+				nk := fmt.Sprintf("nk-chunked-%d", id)
+				primeCachedHost(t, d, id, nk)
+				ids = append(ids, id)
+				nks = append(nks, nk)
+			}
+
+			require.NoError(t, d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(new(uint(7)), ids)))
+
+			for i, nk := range nks {
+				h, result := d.hostCacheGetByNodeKey(ctx, nk)
+				require.Equal(t, hostCacheLookupHit, result, "host %d (index %d) must stay cached", ids[i], i)
+				require.NotNil(t, h.TeamID)
+				require.Equal(t, uint(7), *h.TeamID, "host %d (index %d) must be patched", ids[i], i)
+			}
+		})
+
+		t.Run("AddHostsToTeam falls back to invalidation when the destination config is unavailable", func(t *testing.T) {
+			// A transfer can drop escrowed disk encryption keys, which is cached
+			// in the orbit family. If we can't tell whether it did, dropping the
+			// entry is the only safe move.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.AddHostsToTeamFunc = func(_ context.Context, _ *fleet.AddHostsToTeamParams) error { return nil }
+			ds.GetConfigEnableDiskEncryptionFunc = func(_ context.Context, _ *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{}, errors.New("boom")
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk := "nk-team-fallback"
+			primeCachedHost(t, d, 13, nk)
+			require.NoError(t, d.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(new(uint(7)), []uint{13})))
+			requireCacheMiss(t, d, nk)
+		})
+
+		t.Run("DeleteTeam invalidates every host in the batch", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ids := []uint{20, 21, 22}
+			ds.HostIDsByTeamIDFunc = func(_ context.Context, _ uint) ([]uint, error) {
+				return ids, nil
+			}
+			ds.DeleteTeamFunc = func(_ context.Context, _ uint) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nks := []string{"nk-flush-a", "nk-flush-b", "nk-flush-c"}
+			for i, nk := range nks {
+				primeCachedHost(t, d, ids[i], nk)
+			}
+
+			require.NoError(t, d.DeleteTeam(ctx, 99))
+			require.True(t, ds.DeleteTeamFuncInvoked)
+			for _, nk := range nks {
+				requireCacheMiss(t, d, nk)
+			}
+		})
+
+		t.Run("NewHost clears stale negative cache for new node_key", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			nk := "nk-new-with-neg"
+			ds := new(mock.Store)
+			ds.NewHostFunc = func(_ context.Context, h *fleet.Host) (*fleet.Host, error) {
+				h.ID = 30
+				return h, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			// Someone probed this node_key before enrollment and we cached notFound.
+			d.hostCachePutNotFoundByNodeKey(ctx, nk)
+
+			h, err := d.NewHost(ctx, &fleet.Host{NodeKey: &nk})
+			require.NoError(t, err)
+			require.NotNil(t, h)
+			requireCacheMiss(t, d, nk) // negative cache must be gone
+		})
+
+		t.Run("EnrollOsquery invalidates for returned host on re-enroll", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			nk := "nk-osq-reenroll"
+			ds := new(mock.Store)
+			ds.EnrollOsqueryFunc = func(_ context.Context, _ ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+				return &fleet.Host{ID: 40, NodeKey: &nk}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			primeCachedHost(t, d, 40, nk)
+			h, err := d.EnrollOsquery(ctx)
+			require.NoError(t, err)
+			require.NotNil(t, h)
+			requireCacheMiss(t, d, nk)
+		})
+
+		t.Run("DeleteHosts clears each cache entry", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.DeleteHostsFunc = func(_ context.Context, _ []uint) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nks := []string{"nk-del-1", "nk-del-2"}
+			ids := []uint{60, 61}
+			for i, nk := range nks {
+				primeCachedHost(t, d, ids[i], nk)
+			}
+			require.NoError(t, d.DeleteHosts(ctx, ids))
+			for _, nk := range nks {
+				requireCacheMiss(t, d, nk)
+			}
+		})
+
+		t.Run("CleanupExpiredHostsBatch clears cache for each removed host", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.CleanupExpiredHostsBatchFunc = func(_ context.Context, _ int) ([]fleet.DeletedHostDetails, error) {
+				return []fleet.DeletedHostDetails{{ID: 70}, {ID: 71}}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nks := []string{"nk-exp-1", "nk-exp-2"}
+			for i, nk := range nks {
+				primeCachedHost(t, d, uint(70+i), nk)
+			}
+			_, err := d.CleanupExpiredHostsBatch(ctx, 100)
+			require.NoError(t, err)
+			for _, nk := range nks {
+				requireCacheMiss(t, d, nk)
+			}
+		})
+
+		t.Run("CleanupIncomingHosts clears cache for each removed host", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.CleanupIncomingHostsFunc = func(_ context.Context, _ time.Time) ([]uint, error) {
+				return []uint{80, 81}, nil
+			}
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nks := []string{"nk-in-1", "nk-in-2"}
+			for i, nk := range nks {
+				primeCachedHost(t, d, uint(80+i), nk)
+			}
+			_, err := d.CleanupIncomingHosts(ctx, time.Now())
+			require.NoError(t, err)
+			for _, nk := range nks {
+				requireCacheMiss(t, d, nk)
+			}
+		})
+
+		t.Run("UpdateHost with both keys clears both osquery and orbit caches", func(t *testing.T) {
+			// Regression test for the dual-invalidation design: a host
+			// running both agents has both nk and onk entries in the cache.
+			// UpdateHost should clear both.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk := "nk-dual"
+			onk := "onk-dual"
+			host := &fleet.Host{ID: 101, NodeKey: &nk, OrbitNodeKey: &onk, Hostname: "dual"}
+			d.hostCachePutByNodeKey(ctx, host)
+			d.hostCachePutByOrbitNodeKey(ctx, host)
+
+			_, res := d.hostCacheGetByNodeKey(ctx, nk)
+			require.Equal(t, hostCacheLookupHit, res)
+			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			require.Equal(t, hostCacheLookupHit, res)
+
+			require.NoError(t, d.UpdateHost(ctx, host))
+
+			_, res = d.hostCacheGetByNodeKey(ctx, nk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+		})
+
+		t.Run("UpdateHost with NodeKey only clears osquery cache (osquery-only host)", func(t *testing.T) {
+			// Run osquery without Orbit: NodeKey is set, OrbitNodeKey is nil because the DB row truthfully has no orbit_node_key.
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk := "nk-osquery-only"
+			host := &fleet.Host{ID: 110, NodeKey: &nk, Hostname: "osquery-only"}
+			d.hostCachePutByNodeKey(ctx, host)
+			_, res := d.hostCacheGetByNodeKey(ctx, nk)
+			require.Equal(t, hostCacheLookupHit, res)
+
+			require.NoError(t, d.UpdateHost(ctx, host))
+
+			_, res = d.hostCacheGetByNodeKey(ctx, nk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+		})
+
+		t.Run("UpdateHost with NodeKey missing falls back to by-ID invalidation", func(t *testing.T) {
+			// NodeKey absent on the struct is anomalous
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return nil }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk := "nk-sparse"
+			onk := "onk-sparse"
+			d.hostCachePutByNodeKey(ctx, &fleet.Host{ID: 120, NodeKey: &nk})
+			d.hostCachePutByOrbitNodeKey(ctx, &fleet.Host{ID: 120, OrbitNodeKey: &onk})
+			_, res := d.hostCacheGetByNodeKey(ctx, nk)
+			require.Equal(t, hostCacheLookupHit, res)
+			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			require.Equal(t, hostCacheLookupHit, res)
+
+			require.NoError(t, d.UpdateHost(ctx, &fleet.Host{ID: 120}))
+
+			_, res = d.hostCacheGetByNodeKey(ctx, nk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+			_, res = d.hostCacheGetByOrbitNodeKey(ctx, onk)
+			assert.Equal(t, hostCacheLookupMiss, res)
+		})
+
+		t.Run("inner error preserves cache", func(t *testing.T) {
+			t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+			ds := new(mock.Store)
+			boom := errors.New("boom")
+			ds.UpdateHostFunc = func(_ context.Context, _ *fleet.Host) error { return boom }
+			d := New(ds, pool, WithHostCache(30*time.Second))
+
+			nk := "nk-preserve-on-err"
+			primeCachedHost(t, d, 90, nk)
+			err := d.UpdateHost(ctx, &fleet.Host{ID: 90, NodeKey: &nk})
+			require.ErrorIs(t, err, boom)
+
+			// Cache must still hold the pre-written value. A failed write operation must not evict valid cached data.
+			_, result := d.hostCacheGetByNodeKey(ctx, nk)
+			assert.Equal(t, hostCacheLookupHit, result)
+		})
+	}
+
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, hostCacheTestCleanupPrefix, false, false, false)
+		runTest(t, pool)
+	})
+	t.Run("cluster", func(t *testing.T) {
+		pool := redistest.SetupRedis(t, hostCacheTestCleanupPrefix, true, true, false)
+		runTest(t, pool)
+	})
+}
+
+// TestHostCacheReadFailureFallback runs on its own Redis database: it wraps the
+// pool with a fault-injecting double, and the shared pool is in use by the rest
+// of the package's tests.
+func TestHostCacheReadFailureFallback(t *testing.T) {
+	pool := redistest.SetupRedis(t, hostCacheKeyPrefix, false, false, false)
+	ctx := t.Context()
+
+	t.Cleanup(func() { cleanupHostCacheKeys(t, pool) })
+	// Every Get fails, standing in for Redis being unreachable. Wrapping the
+	// shared pool rather than building a second one: a pool of our own would
+	// have to be closed, and closing it disturbs the pool the rest of this
+	// package's tests are using.
+	noHealthyGets := int32(0)
+	d := New(new(mock.Store), failAfterPool{RedisPool: pool, healthyGets: &noHealthyGets}, WithHostCache(30*time.Second))
+
+	values, ok := d.pipelinedMGET(ctx, []string{"any-key"})
+	require.False(t, ok, "an unreachable Redis must report the read as failed")
+	require.Equal(t, []string{""}, values, "which is otherwise indistinguishable from a miss")
+
+	patched, fallback := d.rewriteTeamChunk(ctx, []uint{60}, new(uint(7)), fleet.DiskEncryptionConfig{})
+	require.Empty(t, patched)
+	require.Equal(t, []uint{60}, fallback, "the host must be routed to invalidation")
+
+	// The index read succeeds and the payload read fails: the entries are
+	// still there holding the old team, so skipping them would strand them.
+	live := New(new(mock.Store), pool, WithHostCache(30*time.Second))
+	nk := "nk-payload-read-fails"
+	primeCachedHost(t, live, 61, nk)
+
+	budget := int32(1) // one healthy Get: the index MGET, not the payload MGET
+	flaky := New(new(mock.Store), failAfterPool{RedisPool: pool, healthyGets: &budget}, WithHostCache(30*time.Second))
+	patched, fallback = flaky.rewriteTeamChunk(ctx, []uint{61}, new(uint(7)), fleet.DiskEncryptionConfig{})
+	require.Empty(t, patched, "an unread payload must not count as patched")
+	require.Equal(t, []uint{61}, fallback, "it must fall back to invalidation instead of being skipped")
+
+	// Partial index read: enough hosts that the index MGET spans two Redis
+	// round trips, with only the first succeeding. The hosts behind the
+	// failed half resolve to nothing, which is indistinguishable from being
+	// uncached, so without the check they would be silently skipped while
+	// the rest got patched.
+	// Shrink the Redis chunk so the index MGET spans two round trips.
+	defer func(orig int) { hostCacheInvalidateBatchSize = orig }(hostCacheInvalidateBatchSize)
+	hostCacheInvalidateBatchSize = 4
+
+	const spansTwoChunks = 6
+	ids := make([]uint, 0, spansTwoChunks)
+	for i := range spansTwoChunks {
+		id := uint(7000 + i)
+		primeCachedHost(t, live, id, fmt.Sprintf("nk-partial-%d", id))
+		ids = append(ids, id)
+	}
+
+	// Fail only the second Get — the index MGET's second round trip — so the
+	// payload reads still succeed and cannot mask the gap.
+	gets := int32(0)
+	flaky = New(new(mock.Store), failAfterPool{RedisPool: pool, failOnlyNth: 2, gets: &gets}, WithHostCache(30*time.Second))
+	patched, fallback = flaky.rewriteTeamChunk(ctx, ids, new(uint(7)), fleet.DiskEncryptionConfig{})
+	require.Empty(t, patched, "a partially-read index must not patch the half that resolved")
+	require.Equal(t, ids, fallback, "every host in the chunk must fall back")
+}
+
+func TestUniqueHostIDs(t *testing.T) {
+	// A host has an entry per cache family, so a failure that hits both would
+	// otherwise name it twice: duplicate Redis deletes and a doubled count.
+	for _, tc := range []struct {
+		name string
+		in   []uint
+		want []uint
+	}{
+		{"empty", nil, nil},
+		{"single", []uint{7}, []uint{7}},
+		{"both families of one host", []uint{7, 7}, []uint{7}},
+		{"keeps first-seen order", []uint{9, 7, 9, 8, 7}, []uint{9, 7, 8}},
+		{"already unique", []uint{1, 2, 3}, []uint{1, 2, 3}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, uniqueHostIDs(tc.in))
+		})
+	}
+}

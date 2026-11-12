@@ -1,0 +1,10 @@
+{
+  "name": "MagicQuit",
+  "unique_identifier": "com.MagicQuit",
+  "token": "magicquit",
+  "installer_format": "dmg",
+  "slug": "magicquit/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

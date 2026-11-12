@@ -1,0 +1,10 @@
+{
+  "name": "Dockside",
+  "unique_identifier": "com.hachipoo.Dockside",
+  "token": "dockside",
+  "installer_format": "dmg",
+  "slug": "dockside/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

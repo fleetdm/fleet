@@ -1,0 +1,49 @@
+.team-users {
+  @include vertical-page-tab-panel-layout;
+
+  .data-table-block {
+    .data-table__table {
+      thead {
+        .name__header {
+          width: initial; // Allows name to take up as much space on table as it can before truncating
+        }
+
+        .permissions__header {
+          width: $col-md;
+        }
+      }
+
+      tbody {
+        // Wide enough for the role plus the API endpoint count tag on one line
+        .permissions__cell {
+          max-width: $col-md;
+          white-space: nowrap;
+        }
+
+        .email__cell {
+          max-width: 171px;
+        }
+
+        @media (min-width: $break-md) {
+          .email__cell {
+            max-width: $col-md;
+          }
+        }
+
+        .actions__cell {
+          width: auto;
+        }
+      }
+    }
+  }
+
+  &__permissions-content {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+
+    .permissions-text {
+      min-width: auto;
+    }
+  }
+}

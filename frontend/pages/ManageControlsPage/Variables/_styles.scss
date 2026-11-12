@@ -1,0 +1,51 @@
+.variables {
+  @include vertical-page-tab-panel-layout;
+  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
+}
+
+.global-variables {
+  @include vertical-card-layout;
+
+  &__tab-header {
+    @include tab-header;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $pad-xsmall;
+  }
+
+  .loading-spinner.centered {
+    margin: auto;
+  }
+}
+
+.custom-host-vitals-tab {
+  @include vertical-card-layout;
+
+  &__tab-header {
+    @include tab-header;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $pad-xsmall;
+  }
+
+  .loading-spinner.centered {
+    margin: auto;
+  }
+}
+
+.add-custom-variable-modal {
+  &__add-variable-form {
+    .form-field__help-text {
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+  }
+}

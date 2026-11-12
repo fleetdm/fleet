@@ -1,0 +1,12 @@
+{
+  "name": "Zettlr",
+  "slug": "zettlr/windows",
+  "package_identifier": "Zettlr.Zettlr",
+  "unique_identifier": "Zettlr",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/zettlr_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/zettlr_uninstall.ps1"
+}

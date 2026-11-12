@@ -1,0 +1,10 @@
+{
+  "name": "BlurScreen",
+  "unique_identifier": "com.sanskar.blurscreen",
+  "token": "blurscreen",
+  "installer_format": "pkg",
+  "slug": "blurscreen/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

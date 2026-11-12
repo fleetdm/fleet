@@ -1,4 +1,4 @@
-- name: Windows - Antivirus signatures up to date
+- name: Antivirus signatures up to date
   query: SELECT 1 FROM windows_security_products WHERE name LIKE '%Microsoft Defender Antivirus%' AND signatures_up_to_date = 1;
   critical: false
   description: Checks the status of antivirus and signature updates from the Windows Security Center.

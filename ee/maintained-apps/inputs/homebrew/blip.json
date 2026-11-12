@@ -1,0 +1,10 @@
+{
+  "name": "Blip",
+  "unique_identifier": "net.blip.macos",
+  "token": "blip",
+  "installer_format": "zip",
+  "slug": "blip/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

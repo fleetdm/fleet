@@ -1,38 +1,32 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import classnames from "classnames";
+import React, { useCallback, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 
-import PATHS from "router/paths";
-
-import classnames from "classnames";
-
-import { Link } from "react-router";
-import Radio from "components/forms/fields/Radio";
-// @ts-ignore
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import InputField from "components/forms/fields/InputField";
-import TooltipWrapper from "components/TooltipWrapper";
-
-import { NotificationContext } from "context/notification";
-
-import { addTeamIdCriteria, IScript } from "interfaces/script";
-import { getErrorReason } from "interfaces/errors";
-
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-
+import Radio from "components/forms/fields/Radio";
 import Modal from "components/Modal";
-
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { getErrorReason } from "interfaces/errors";
+import { addTeamIdCriteria, IScript } from "interfaces/script";
+import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
+import PATHS from "router/paths";
 import scriptsAPI, {
   IListScriptsQueryKey,
   IScriptBatchSupportedFilters,
   IScriptsResponse,
-  IRunScriptBatchRequest,
+  IRunScriptBatchFormData,
 } from "services/entities/scripts";
-import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
-import Spinner from "components/Spinner";
-import EmptyTable from "components/EmptyTable";
-import Button from "components/buttons/Button";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 import RunScriptBatchPaginatedList from "../RunScriptBatchPaginatedList";
 import { IPaginatedListScript } from "../RunScriptBatchPaginatedList/RunScriptBatchPaginatedList";
+
 import {
   validateFormData,
   IRunScriptBatchModalFormValidation,
@@ -66,8 +60,6 @@ const RunScriptBatchModal = ({
   isFreeTier,
   onCancel,
 }: IRunScriptBatchModal) => {
-  const { renderFlash } = useContext(NotificationContext);
-
   const [currentTimeUTC, setCurrentTimeUTC] = useState<string>("");
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -150,7 +142,7 @@ const RunScriptBatchModal = ({
       setIsUpdating(true);
 
       // Create the base request.
-      let body: IRunScriptBatchRequest;
+      let body: IRunScriptBatchFormData;
 
       if (runByFilters) {
         body = {
@@ -172,27 +164,35 @@ const RunScriptBatchModal = ({
       try {
         await scriptsAPI.runScriptBatch(body);
         if (runMode === "schedule") {
-          renderFlash(
-            "success",
+          notify.success(
             <>
               Successfully scheduled script.{" "}
-              <Link
-                to={`${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}?status=scheduled&team_id=${teamId})`}
-              >
-                Show schedule
-              </Link>
+              <CustomLink
+                url={getPathWithQueryParams(
+                  PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS,
+                  {
+                    status: "scheduled",
+                    fleet_id: teamId,
+                  }
+                )}
+                text="Show schedule"
+              />
             </>
           );
         } else {
-          renderFlash(
-            "success",
+          notify.success(
             <>
               Successfully ran script.{" "}
-              <Link
-                to={`${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}?status=started&team_id=${teamId})`}
-              >
-                Show script activity
-              </Link>
+              <CustomLink
+                url={getPathWithQueryParams(
+                  PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS,
+                  {
+                    status: "started",
+                    fleet_id: teamId,
+                  }
+                )}
+                text="Show script activity"
+              />
             </>
           );
         }
@@ -204,13 +204,13 @@ const RunScriptBatchModal = ({
           errorMessage =
             "Could not run script: too many hosts targeted. Please try again with fewer hosts.";
         }
-        renderFlash("error", errorMessage);
+        notify.error(errorMessage, { response: error });
         // can determine more specific error case with additional call to upcoming summary endpoint
       } finally {
         setIsUpdating(false);
       }
     },
-    [renderFlash, selectedHostIds, runMode, batchRunDate, batchRunTime]
+    [selectedHostIds, runMode, batchRunDate, batchRunTime]
   );
 
   const renderModalContent = () => {
@@ -218,22 +218,23 @@ const RunScriptBatchModal = ({
       return <Spinner />;
     }
     if (!scripts.length) {
+      // No permission gate needed on the "Add a script" link — only
+      // admin/maintainer roles can open this modal (canRunScriptBatch),
+      // and those roles also have permission to add scripts.
       return (
-        <EmptyTable
-          header="No scripts available for this team"
+        <EmptyState
+          variant="header-list"
+          header="No scripts available"
           info={
             <>
-              You can add saved scripts{" "}
-              <a
-                href={
-                  isFreeTier
-                    ? "/controls/scripts"
-                    : `/controls/scripts?team_id=${teamId}`
-                }
-              >
-                here
-              </a>
-              .
+              <CustomLink
+                url={getPathWithQueryParams(
+                  PATHS.CONTROLS_SCRIPTS,
+                  !isFreeTier ? { fleet_id: teamId } : undefined
+                )}
+                text="Add a script"
+              />{" "}
+              to this fleet.
             </>
           }
         />
@@ -336,44 +337,42 @@ const RunScriptBatchModal = ({
         className={classes}
         disableClosingModal={isUpdating}
       >
-        <>
-          {renderModalContent()}
-          {!selectedScript && !scriptForDetails && (
-            <div className="modal-cta-wrap">
-              <Button disabled={isUpdating} onClick={onCancel}>
-                Done
-              </Button>
-            </div>
-          )}
-          {selectedScript && (
-            <div className="modal-cta-wrap">
-              <TooltipWrapper
-                tipContent="Enter a date and time to schedule this script."
-                underline={false}
-                position="top"
-                disableTooltip={formValidation.isValid}
-                showArrow
-              >
-                <Button
-                  disabled={isUpdating || !formValidation.isValid}
-                  onClick={() => onRunScriptBatch(selectedScript)}
-                  isLoading={isUpdating}
-                >
-                  Run
-                </Button>
-              </TooltipWrapper>
+        {renderModalContent()}
+        {!selectedScript && !scriptForDetails && (
+          <div className="modal-cta-wrap">
+            <Button disabled={isUpdating} onClick={onCancel}>
+              Close
+            </Button>
+          </div>
+        )}
+        {selectedScript && (
+          <div className="modal-cta-wrap">
+            <TooltipWrapper
+              tipContent="Enter a date and time to schedule this script."
+              underline={false}
+              position="top"
+              disableTooltip={formValidation.isValid}
+              showArrow
+            >
               <Button
-                disabled={isUpdating}
-                variant="inverse"
-                onClick={() => {
-                  setSelectedScript(undefined);
-                }}
+                disabled={isUpdating || !formValidation.isValid}
+                onClick={() => onRunScriptBatch(selectedScript)}
+                isLoading={isUpdating}
               >
-                Cancel
+                Run
               </Button>
-            </div>
-          )}
-        </>
+            </TooltipWrapper>
+            <Button
+              disabled={isUpdating}
+              variant="secondary"
+              onClick={() => {
+                setSelectedScript(undefined);
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
       </Modal>
       {!!scriptForDetails && !selectedScript && (
         <ScriptDetailsModal
@@ -393,7 +392,7 @@ const RunScriptBatchModal = ({
               </Button>
               <Button
                 onClick={() => setScriptForDetails(undefined)}
-                variant="inverse"
+                variant="subdued"
               >
                 Go back
               </Button>

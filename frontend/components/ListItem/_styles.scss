@@ -28,5 +28,6 @@
     display: flex;
     justify-content: flex-end;
     gap: $pad-xsmall; // Padding on buttons
+    min-width: max-content; // Prevent wrapping on low screen widths
   }
 }

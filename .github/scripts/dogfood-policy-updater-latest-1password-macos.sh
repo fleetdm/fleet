@@ -54,7 +54,7 @@ if [ "$policy_version_number" != "$latest_1password_macos_version" ]; then
     echo "Updating query line with the new version..."
 
     # Prepare the new query line
-    new_query_line="query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE name = '1Password.app') OR EXISTS (SELECT 1 FROM apps WHERE name = '1Password.app' AND version_compare(bundle_short_version, '$latest_1password_macos_version') >= 0);"
+    new_query_line="query: SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE name = '1Password.app' AND version_compare(bundle_short_version, '$latest_1password_macos_version') < 0);"
 
     # Update the response
     updated_response=$(echo "$response" | sed "s/query: .*/$new_query_line/")

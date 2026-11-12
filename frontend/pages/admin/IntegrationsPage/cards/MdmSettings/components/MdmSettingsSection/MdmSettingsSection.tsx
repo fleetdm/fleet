@@ -1,18 +1,16 @@
-import React, { useContext } from "react";
-import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
+import React from "react";
+import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
-import { IMdmApple } from "interfaces/mdm";
-import { AppContext } from "context/app";
-
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import Spinner from "components/Spinner";
+import { IMdmApple } from "interfaces/mdm";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import PATHS from "router/paths";
 
+import AndroidMdmCard from "./AndroidMdmCard";
 import AppleMdmCard from "./AppleMdmCard";
 import WindowsMdmCard from "./WindowsMdmCard";
-import AndroidMdmCard from "./AndroidMdmCard";
 
 const baseClass = "mdm-settings-section";
 
@@ -31,9 +29,6 @@ const MdmSettingsSection = ({
   router,
   appleAPNSInfo,
 }: IMdmSectionProps) => {
-  // TODO: feature flag check, remove when feature releases
-  const { config } = useContext(AppContext);
-
   const navigateToAppleMdm = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM_APPLE);
   };

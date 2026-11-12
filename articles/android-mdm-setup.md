@@ -1,7 +1,5 @@
 # Android MDM setup
 
-> Experimental feature. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 This guide provides instructions to turn on Android MDM features by connecting Fleet to Android Enterprise.
 
 Fleet supports Android devices that are [Play Protect certified](https://support.google.com/googleplay/answer/7165974?hl=en) (previously known as GMS).
@@ -10,17 +8,20 @@ Fleet supports Android devices that are [Play Protect certified](https://support
 
 To turn on Android MDM, connect Android Enterprise on **Settings > Integrations > Mobile device management (MDM)** page.
 
-When you select **Connect Android Enterprise**, Fleet will open the Google signup page. The signup process varies depending on whether your organization uses [Google Workspace](#google-workspace), [Microsoft 365](#microsoft-365), or [another provider](#other). Organizations using Google Workspace and Microsoft don't need to verify domain ownership.
+When you select **Connect**, Fleet will open the Google signup page. The signup process varies depending on whether your organization uses [Google Workspace](#google-workspace), [Microsoft 365](#microsoft-365), or [another provider](#other). Organizations using Google Workspace and Microsoft don't need to verify domain ownership.
 
 ### Google Workspace
 
-1. If your organization already uses Google Workspace, use your admin account to signup for Android Enterprise. If you don't know your admin account credentials, ask your Google Workspace admin.
+> You must use a Google Workspace account with super administrator privileges. Privileges can be reduced after MDM is turned on. The account is only used for the initial Enterprise binding to Fleet. Enterprise binding remains in place even if the account has reduced permissions afterwards.
+
+1. If your organization already uses Google Workspace, use your admin account to sign up for Android Enterprise. If you don't know your admin account credentials, ask your Google Workspace admin.
 2. Follow the steps in Google's signup flow.
-3. After successful signup, a free Android Enterprise subscription is added to your Google Workspace. In Fleet, you can confirm Android MDM is turned on in **Settings > Integrations > MDM**.
+3. Check your **Subscriptions** in Google Workspace to validate that the free plan of **Android Enterprise** has been added.
+4. After successful signup, a free Android Enterprise subscription is added to your Google Workspace. In Fleet, you can confirm Android MDM is turned on in **Settings > Integrations > MDM**.
 
 ### Microsoft 365
 
-1. If your organization uses Microsoft 365, you can sign up for Android Enterprise with your Microsoft email. First, select **Connect Android Enterprise**. Then, enter your Microsoft email, click **Next**, and choose **Sign in with Microsoft**.
+1. If your organization uses Microsoft 365, you can sign up for Android Enterprise with your Microsoft email. First, select **Connect**. Then, enter your Microsoft email, click **Next**, and choose **Sign in with Microsoft**.
 2. After signing in with your Microsoft account, follow the steps in Google's signup process.
 3. After successful signup, a free Android Enterprise subscription is added to your Google Workspace. In Fleet, you can confirm Android MDM is turned on in **Settings > Integrations > MDM**.
 4. Go to your [Google Admin console](https://admin.google.com).
@@ -46,9 +47,26 @@ Now you have managed Google domain with an Android Enterprise subscription. Opti
 
 Learn how to enroll Android hosts in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
 
+### Re-enrolling Android hosts
+
+An Android host re-enrolls after a wipe, or after an end user removes and re-adds the work profile. When it does, Fleet automatically:
+  - Cancels pending MDM commands
+  - Marks pending software installs as failed
+  - Clears dynamic label membership
+
+Manual, built-in, and host vitals labels stay in place, because they aren't tied to the previous enrollment. The re-enrollment reports the host's disk and operating system vitals again, so Fleet doesn't clear those either.
+
+This means you don't need to delete an Android host from Fleet before re-enrolling it.
+
+Fleet also clears the host's past activities. To keep them, turn on **Preserve host activities on re-enrollment** in **Settings > Organization settings > Advanced options**.
+
 ## Migration
 
-To migrate hosts from other MDM solution, you must first unenroll hosts from your old solution and share a link with your end users so they can enroll to Fleet. Learn how to find your enrollment link in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
+To migrate personal (BYOD) Android hosts from another MDM solution, follow the [Android BYOD MDM migration guide](https://fleetdm.com/guides/android-byod-mdm-migration).
+
+To migrate company-owned (fully-managed) hosts, first wipe them and then, on another device, open the enrollment page. To enroll the Android host to Fleet, you'll scan a QR code on this page.
+
+Learn how to find your enrollment page in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
 
 ## Turn off
 

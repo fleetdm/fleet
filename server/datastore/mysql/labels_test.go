@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -89,21 +88,31 @@ func TestLabels(t *testing.T) {
 		{"ByName", testLabelsByName},
 		{"SingleByName", testLabelByName},
 		{"Save", testLabelsSave},
-		{"QueriesForCentOSHost", testLabelsQueriesForCentOSHost},
+		{"QueriesForLinuxPlatformLabel", testLabelsQueriesForLinuxPlatformLabel},
 		{"RecordNonExistentQueryLabelExecution", testLabelsRecordNonexistentQueryLabelExecution},
+		{"RecordLabelQueryExecutionsQueryErrorKeepsMembership", testRecordLabelQueryExecutionsQueryErrorKeepsMembership},
 		{"DeleteLabel", testDeleteLabel},
 		{"LabelsSummaryAndListTeamFiltering", testLabelsSummaryAndListTeamFiltering},
 		{"ListHostsInLabelIssues", testListHostsInLabelIssues},
 		{"ListHostsInLabelDiskEncryptionStatus", testListHostsInLabelDiskEncryptionStatus},
-		{"HostMemberOfAllLabels", testHostMemberOfAllLabels},
+		{"HostMembershipForLabels", testHostMembershipForLabels},
 		{"ListHostsInLabelOSSettings", testLabelsListHostsInLabelOSSettings},
 		{"AddDeleteLabelsToFromHost", testAddDeleteLabelsToFromHost},
 		{"ApplyLabelSpecSerialUUID", testApplyLabelSpecsForSerialUUID},
 		{"ApplyLabelSpecsWithPlatformChange", testApplyLabelSpecsWithPlatformChange},
 		{"UpdateLabelMembershipByHostCriteria", testUpdateLabelMembershipByHostCriteria},
+		{"UpdateLabelMembershipByHostCriteriaIDP", testUpdateLabelMembershipByHostCriteriaIDP},
+		{"UpdateLabelMembershipByHostCriteriaCustomHostVital", testUpdateLabelMembershipByHostCriteriaCustomHostVital},
 		{"TeamLabels", testTeamLabels},
 		{"UpdateLabelMembershipForTransferredHost", testUpdateLabelMembershipForTransferredHost},
 		{"SetAsideLabels", testSetAsideLabels},
+		{"ApplyLabelSpecsWithManualTeamLabels", testApplyLabelSpecsWithManualTeamLabels},
+		{"ApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam", testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam},
+		{"ApplyLabelSpecsCannotModifyBuiltInLabel", testApplyLabelSpecsCannotModifyBuiltInLabel},
+		{"ApplyLabelSpecsManualNilHosts", testApplyLabelSpecsManualNilHosts},
+		{"ListLabelsOrderKeys", testListLabelsOrderKeys},
+		{"LabelMembershipHostIDs", testLabelMembershipHostIDs},
+		{"GetSpecHostsTeamFiltered", testLabelsGetSpecHostsTeamFiltered},
 	}
 	// call TruncateTables first to remove migration-created labels
 	TruncateTables(t, ds)
@@ -128,6 +137,7 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 		require.Nil(t, err, "enrollment should succeed")
 		hosts = append(hosts, *host)
 	}
+	require.NotNil(t, host)
 
 	host.Platform = "darwin"
 	err = db.UpdateHost(context.Background(), host)
@@ -233,8 +243,6 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 }
 
 func testLabelsSearch(t *testing.T, db *Datastore) {
-	// TODO test team filtering
-
 	specs := []*fleet.LabelSpec{
 		{ID: 1, Name: "foo"},
 		{ID: 2, Name: "bar"},
@@ -247,21 +255,21 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 		{ID: 9, Name: "bar7"},
 		{ID: 10, Name: "bar8"},
 		{ID: 11, Name: "bar9"},
-		{
-			ID:        12,
-			Name:      "All Hosts",
-			LabelType: fleet.LabelTypeBuiltIn,
-		},
 	}
 	err := db.ApplyLabelSpecs(context.Background(), specs)
 	require.Nil(t, err)
 
-	// TODO add team checking
+	// built-in labels are created by migrations; ApplyLabelSpecs refuses them, so create it here.
+	allHosts, err := db.NewLabel(context.Background(), &fleet.Label{
+		Name:      "All Hosts",
+		LabelType: fleet.LabelTypeBuiltIn,
+	})
+	require.NoError(t, err)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
-	all, _, err := db.Label(context.Background(), specs[len(specs)-1].ID, filter)
+	all, _, err := db.Label(context.Background(), allHosts.ID, filter)
 	require.Nil(t, err)
 	l3, _, err := db.Label(context.Background(), specs[2].ID, filter)
 	require.Nil(t, err)
@@ -287,11 +295,81 @@ func testLabelsSearch(t *testing.T, db *Datastore) {
 	require.Nil(t, err)
 	assert.Len(t, labels, 1)
 	assert.Contains(t, labels, &all.Label)
+
+	// Test team filtering
+	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	// Create team labels
+	team1Label, err := db.NewLabel(context.Background(), &fleet.Label{
+		Name:                "team1-foo",
+		Query:               "SELECT 1",
+		TeamID:              &team1.ID,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	team2Label, err := db.NewLabel(context.Background(), &fleet.Label{
+		Name:                "team2-foo",
+		Query:               "SELECT 2",
+		TeamID:              &team2.ID,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	// Global admin should see all labels (global + team labels), including the All Hosts label
+	labels, err = db.SearchLabels(context.Background(), filter, "foo")
+	require.NoError(t, err)
+	assert.Len(t, labels, 5) // foo, foo-bar, All Hosts, team1-foo, team2-foo
+
+	// Filter to team1 only - should see global labels + team1 labels
+	team1Filter := fleet.TeamFilter{User: user, TeamID: &team1.ID}
+	labels, err = db.SearchLabels(context.Background(), team1Filter, "foo")
+	require.NoError(t, err)
+	assert.Len(t, labels, 4) // foo, foo-bar, All Hosts, team1-foo
+	foundTeam1Label := false
+	foundTeam2Label := false
+	for _, l := range labels {
+		if l.ID == team1Label.ID {
+			foundTeam1Label = true
+		}
+		if l.ID == team2Label.ID {
+			foundTeam2Label = true
+		}
+	}
+	assert.True(t, foundTeam1Label, "team1 label should be found")
+	assert.False(t, foundTeam2Label, "team2 label should not be found")
+
+	// Filter to global only (team_id = 0)
+	globalOnlyFilter := fleet.TeamFilter{User: user, TeamID: ptr.Uint(0)}
+	labels, err = db.SearchLabels(context.Background(), globalOnlyFilter, "foo")
+	require.NoError(t, err)
+	assert.Len(t, labels, 3) // foo, foo-bar, All Hosts
+	for _, l := range labels {
+		assert.Nil(t, l.TeamID, "should only have global labels")
+	}
+
+	// Team user can only see their team's labels + global labels
+	team1User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}}
+	team1UserFilter := fleet.TeamFilter{User: team1User}
+	labels, err = db.SearchLabels(context.Background(), team1UserFilter, "foo")
+	require.NoError(t, err)
+	assert.Len(t, labels, 4) // foo, foo-bar, All Hosts, team1-foo
+	for _, l := range labels {
+		if l.TeamID != nil {
+			assert.Equal(t, team1.ID, *l.TeamID, "team user should only see their team's labels")
+		}
+	}
+
+	// Team user trying to access another team's labels should fail
+	team1UserTeam2Filter := fleet.TeamFilter{User: team1User, TeamID: &team2.ID}
+	_, err = db.SearchLabels(context.Background(), team1UserTeam2Filter, "foo")
+	require.ErrorContains(t, err, errInaccessibleTeam.Error()) // not ErrorIs due to UserError wrapping
 }
 
 func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
-	// TODO test label filtering
-
 	h1, err := db.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -336,11 +414,11 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 
 	ctx := context.Background()
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
-	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone) // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMKandji, "", false) // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMIru, "", fleet.PersonalEnrollmentTypeNone) // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM, "", false) // enrollment: unenrolled
+	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM, "", fleet.PersonalEnrollmentTypeNone) // enrollment: unenrolled
 	require.NoError(t, err)
 
 	var simpleMDMID uint
@@ -349,7 +427,7 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	})
 	var kandjiID uint
 	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &kandjiID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMKandji, kandji)
+		return sqlx.GetContext(ctx, q, &kandjiID, `SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMIru, kandji)
 	})
 
 	l1 := &fleet.LabelSpec{
@@ -385,6 +463,97 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMIDFilter: ptr.Uint(kandjiID)}, 1)
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMSimpleMDM)}, 2)
 	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMSimpleMDM), MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}, 1)
+
+	// check that searching hosts in a label matches both the private and public IP address
+	h2.PrimaryIP = "99.100.101.102"
+	h2.PublicIP = "203.0.113.42"
+	err = db.UpdateHost(ctx, h2)
+	require.NoError(t, err)
+
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "99.100.101.102"}}, 1)
+	require.Len(t, hosts, 1)
+	require.Equal(t, h2.ID, hosts[0].ID)
+
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.42"}}, 1)
+	require.Len(t, hosts, 1)
+	require.Equal(t, h2.ID, hosts[0].ID)
+
+	listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{ListOptions: fleet.ListOptions{MatchQuery: "203.0.113.99"}}, 0)
+
+	// agent sorts by orbit version, falling back to osquery version (same as ListHosts):
+	// h1 9.0.0 (no orbit row), h2 1.0.0 (orbit), h3 5.0.0 (empty orbit version)
+	for id, v := range map[uint]string{h1.ID: "9.0.0", h2.ID: "9.9.9", h3.ID: "5.0.0"} {
+		_, err = db.writer(ctx).Exec(`UPDATE hosts SET osquery_version = ? WHERE id = ?`, v, id)
+		require.NoError(t, err)
+	}
+	_, err = db.writer(ctx).Exec(`INSERT INTO host_orbit_info (host_id, version, desktop_version) VALUES (?, '1.0.0', '1.0.1'), (?, '', NULL)`, h2.ID, h3.ID)
+	require.NoError(t, err)
+
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{}, 3)
+	versions := make(map[uint][2]*string, len(hosts))
+	for _, h := range hosts {
+		versions[h.ID] = [2]*string{h.OrbitVersion, h.DesktopVersion}
+	}
+	require.Equal(t, map[uint][2]*string{
+		h1.ID: {nil, nil},
+		h2.ID: {new("1.0.0"), new("1.0.1")},
+		h3.ID: {new(""), nil},
+	}, versions)
+
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent"}, 3)
+	require.Equal(t, []uint{h2.ID, h3.ID, h1.ID}, hostIDs(hosts))
+	hosts = listHostsInLabelCheckCount(t, db, filter, l1.ID, fleet.HostListOptions{OrderKey: "agent", OrderDirection: fleet.OrderDescending}, 3)
+	require.Equal(t, []uint{h1.ID, h3.ID, h2.ID}, hostIDs(hosts))
+
+	// Test team label filtering
+	team1, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team1_listhosts"})
+	require.NoError(t, err)
+
+	// Create a team label
+	teamLabel, err := db.NewLabel(context.Background(), &fleet.Label{
+		Name:                "team1-label",
+		Query:               "SELECT 1",
+		TeamID:              &team1.ID,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	// Create a host on team1
+	h4, err := db.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("4"),
+		NodeKey:         ptr.String("4"),
+		UUID:            "4",
+		Hostname:        "team1host.local",
+		Platform:        "darwin",
+		TeamID:          &team1.ID,
+	})
+	require.NoError(t, err)
+
+	// Add host to team label
+	err = db.RecordLabelQueryExecutions(context.Background(), h4, map[uint]*bool{teamLabel.ID: ptr.Bool(true)}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Global admin can list hosts in team label
+	listHostsInLabelCheckCount(t, db, filter, teamLabel.ID, fleet.HostListOptions{}, 1)
+
+	// Team user can list hosts in their team's label
+	team1User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}}
+	team1Filter := fleet.TeamFilter{User: team1User, IncludeObserver: true}
+	listHostsInLabelCheckCount(t, db, team1Filter, teamLabel.ID, fleet.HostListOptions{}, 1)
+
+	// Trying to list a team label that the user doesn't have access to returns empty
+	team2, err := db.NewTeam(context.Background(), &fleet.Team{Name: "team2_listhosts"})
+	require.NoError(t, err)
+	team2User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleObserver}}}
+	team2Filter := fleet.TeamFilter{User: team2User, IncludeObserver: true}
+	// Team2 user cannot see team1's label, so they get no results
+	team2Hosts, err := db.ListHostsInLabel(context.Background(), team2Filter, teamLabel.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Nil(t, team2Hosts) // Returns nil when label is not accessible
 }
 
 func listHostsInLabelCheckCount(
@@ -581,17 +750,18 @@ func testLabelsListHostsInLabelAndTeamFilter(deferred bool, t *testing.T, db *Da
 }
 
 func testLabelsBuiltIn(t *testing.T, db *Datastore) {
-	require.Nil(t, db.MigrateData(context.Background()))
+	test.AddBuiltinLabels(t, db)
 
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	filter := fleet.TeamFilter{User: user}
 
 	hits, err := db.SearchLabels(context.Background(), filter, "macOS")
 	require.Nil(t, err)
-	// Should get Mac OS X and All Hosts
-	assert.Equal(t, 2, len(hits))
-	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[0].LabelType)
-	assert.Equal(t, fleet.LabelTypeBuiltIn, hits[1].LabelType)
+	// Should get macOS, macOS 14+ (Sonoma+) and All Hosts
+	assert.Len(t, hits, 3)
+	for _, hit := range hits {
+		assert.Equal(t, fleet.LabelTypeBuiltIn, hit.LabelType)
+	}
 }
 
 func testLabelsChangeDetails(t *testing.T, db *Datastore) {
@@ -627,7 +797,7 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 	label.Name = "changed name"
 	// ApplyLabelSpecs can't update the name -- it simply creates a new label, so we need to call SaveLabel.
 	saved.Name = label.Name
-	saved2, _, err := db.SaveLabel(context.Background(), &saved.Label, filter)
+	saved2, _, err := db.SaveLabel(context.Background(), &saved.Label, nil, filter)
 	require.NoError(t, err)
 	assert.Equal(t, label.Name, saved2.Name)
 	assert.Equal(t, label.Description, saved2.Description)
@@ -684,18 +854,44 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 			},
 		},
 	}
-	err := ds.ApplyLabelSpecs(context.Background(), expectedSpecs)
+	// built-in labels are created by migrations; ApplyLabelSpecs refuses them, so create it here.
+	err := ds.ApplyLabelSpecs(context.Background(), regularLabelSpecs(expectedSpecs))
 	require.Nil(t, err)
+	for _, s := range expectedSpecs {
+		if s.LabelType != fleet.LabelTypeBuiltIn {
+			continue
+		}
+		_, err := ds.NewLabel(context.Background(), &fleet.Label{
+			Name:                s.Name,
+			Description:         s.Description,
+			Query:               s.Query,
+			Platform:            s.Platform,
+			LabelType:           s.LabelType,
+			LabelMembershipType: s.LabelMembershipType,
+		})
+		require.NoError(t, err)
+	}
 
-	expectedSpecs[4].Hosts = []string{"1", "2", "3", "4"}
+	expectedSpecs[4].Hosts = []string{"1", "2", "3", "4"} //nolint:gosec // dismiss G602
 	return expectedSpecs
+}
+
+func regularLabelSpecs(specs []*fleet.LabelSpec) []*fleet.LabelSpec {
+	regular := make([]*fleet.LabelSpec, 0, len(specs))
+	for _, s := range specs {
+		if s.LabelType != fleet.LabelTypeBuiltIn {
+			regular = append(regular, s)
+		}
+	}
+	return regular
 }
 
 func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 	expectedSpecs := setupLabelSpecsTest(t, ds)
 
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
 	for _, s := range expectedSpecs {
-		spec, err := ds.GetLabelSpec(context.Background(), fleet.TeamFilter{}, s.Name)
+		spec, err := ds.GetLabelSpec(context.Background(), adminFilter, s.Name)
 		require.Nil(t, err)
 
 		require.True(t, cmp.Equal(s, spec, cmp.FilterPath(func(p cmp.Path) bool {
@@ -704,38 +900,228 @@ func testLabelsGetSpec(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
-	// TODO test team labels
+func testLabelsGetSpecHostsTeamFiltered(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
-	expectedSpecs := setupLabelSpecsTest(t, ds)
-	globalOnlyFilter := fleet.TeamFilter{}
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "spec-hosts-team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "spec-hosts-team2"})
+	require.NoError(t, err)
+
+	newHost := func(i int, teamID *uint) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(fmt.Sprintf("spec-hosts-%d", i)),
+			NodeKey:         new(fmt.Sprintf("spec-hosts-%d", i)),
+			UUID:            fmt.Sprintf("spec-hosts-uuid-%d", i),
+			Hostname:        fmt.Sprintf("spec-hosts-host-%d", i),
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	team1Host := newHost(1, &team1.ID)
+	team2Host := newHost(2, &team2.ID)
+	noTeamHost := newHost(3, nil)
+
+	globalLabel := &fleet.LabelSpec{
+		Name:                "spec-hosts-global-manual",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		Hosts: []string{
+			fmt.Sprint(team1Host.ID), fmt.Sprint(team2Host.ID), fmt.Sprint(noTeamHost.ID),
+		},
+	}
+	require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{globalLabel}))
+
+	globalAdmin := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	globalGitOps := &fleet.User{GlobalRole: new(fleet.RoleGitOps)}
+	team1Observer := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}}
+	team2Maintainer := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleMaintainer}}}
+
+	testCases := []struct {
+		name          string
+		filter        fleet.TeamFilter
+		expectedHosts []string
+	}{
+		{
+			name:          "global admin sees every member",
+			filter:        fleet.TeamFilter{User: globalAdmin, IncludeObserver: true},
+			expectedHosts: []string{fmt.Sprint(team1Host.ID), fmt.Sprint(team2Host.ID), fmt.Sprint(noTeamHost.ID)},
+		},
+		{
+			name:          "global gitops sees every member",
+			filter:        fleet.TeamFilter{User: globalGitOps, IncludeObserver: true},
+			expectedHosts: []string{fmt.Sprint(team1Host.ID), fmt.Sprint(team2Host.ID), fmt.Sprint(noTeamHost.ID)},
+		},
+		{
+			name:          "team observer only sees their team's members",
+			filter:        fleet.TeamFilter{User: team1Observer, IncludeObserver: true},
+			expectedHosts: []string{fmt.Sprint(team1Host.ID)},
+		},
+		{
+			name:          "team maintainer only sees their team's members",
+			filter:        fleet.TeamFilter{User: team2Maintainer, IncludeObserver: true},
+			expectedHosts: []string{fmt.Sprint(team2Host.ID)},
+		},
+		{
+			name:          "team observer sees no members when observers are excluded",
+			filter:        fleet.TeamFilter{User: team1Observer},
+			expectedHosts: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			spec, err := ds.GetLabelSpec(ctx, tc.filter, globalLabel.Name)
+			require.NoError(t, err)
+			require.ElementsMatch(t, tc.expectedHosts, []string(spec.Hosts))
+
+			specs, err := ds.GetLabelSpecs(ctx, tc.filter)
+			require.NoError(t, err)
+			var found bool
+			for _, s := range specs {
+				if s.Name == globalLabel.Name {
+					found = true
+					require.ElementsMatch(t, tc.expectedHosts, []string(s.Hosts))
+				}
+			}
+			require.True(t, found, "global manual label should be listed")
+		})
+	}
+}
+
+func testLabelsApplySpecsRoundtrip(t *testing.T, ds *Datastore) {
+	globalSpecs := setupLabelSpecsTest(t, ds)
+	user := &fleet.User{GlobalRole: new(fleet.RoleAdmin)}
+	globalOnlyFilter := fleet.TeamFilter{User: user, TeamID: new(uint(0))}
 
 	specs, err := ds.GetLabelSpecs(context.Background(), globalOnlyFilter)
 	require.Nil(t, err)
-	test.ElementsMatchSkipTimestampsID(t, expectedSpecs, specs)
+	test.ElementsMatchSkipTimestampsID(t, globalSpecs, specs)
 
-	// Should be idempotent
-	err = ds.ApplyLabelSpecs(context.Background(), expectedSpecs)
+	// Should be idempotent for the regular specs; built-in ones are refused
+	err = ds.ApplyLabelSpecs(context.Background(), regularLabelSpecs(globalSpecs))
 	require.Nil(t, err)
 	specs, err = ds.GetLabelSpecs(context.Background(), globalOnlyFilter)
 	require.Nil(t, err)
-	test.ElementsMatchSkipTimestampsID(t, expectedSpecs, specs)
+	test.ElementsMatchSkipTimestampsID(t, globalSpecs, specs)
+
+	// Test team labels
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1_roundtrip"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2_roundtrip"})
+	require.NoError(t, err)
+
+	// Create team label specs; these wouldn't normally coexist in the same call but that gets handled upstream;
+	// it doesn't hurt anything to set labels cross-team at the data store level (which assumes auth has already
+	// happened).
+	teamSpecs := []*fleet.LabelSpec{
+		{Name: "team1-label", Query: "SELECT 1", TeamID: &team1.ID},
+		{Name: "team2-label", Query: "SELECT 2", TeamID: &team2.ID},
+	}
+	err = ds.ApplyLabelSpecs(context.Background(), teamSpecs)
+	require.NoError(t, err)
+
+	// Global filter should still only return global labels
+	specs, err = ds.GetLabelSpecs(context.Background(), globalOnlyFilter)
+	require.NoError(t, err)
+	test.ElementsMatchSkipTimestampsID(t, globalSpecs, specs)
+
+	// Admin user filter should return all labels (global + team)
+	adminFilter := fleet.TeamFilter{User: user}
+	specs, err = ds.GetLabelSpecs(context.Background(), adminFilter)
+	require.NoError(t, err)
+	require.Len(t, specs, len(globalSpecs)+2)
+
+	// Team1 filter should return only the team1 label
+	team1Filter := fleet.TeamFilter{User: user, TeamID: &team1.ID}
+	specs, err = ds.GetLabelSpecs(context.Background(), team1Filter)
+	require.NoError(t, err)
+	require.Len(t, specs, 1)
+	require.Equal(t, "team1-label", specs[0].Name)
+	require.Equal(t, team1.ID, *specs[0].TeamID)
+
+	// Team user can only see their team's labels + global labels with no filter applied
+	team1User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}}
+	team1UserFilter := fleet.TeamFilter{User: team1User}
+	specs, err = ds.GetLabelSpecs(context.Background(), team1UserFilter)
+	require.NoError(t, err)
+	require.Len(t, specs, len(globalSpecs)+1)
+	foundTeam1Label := false
+	for _, s := range specs {
+		if s.Name == "team1-label" {
+			foundTeam1Label = true
+			require.Equal(t, team1.ID, *s.TeamID)
+		}
+		if s.Name == "team2-label" {
+			t.Fatal("team2 label should not be in team1 filter results")
+		}
+	}
+	require.True(t, foundTeam1Label, "team1 label should be found")
 }
 
 func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 	setupLabelSpecsTest(t, ds)
 
-	// TODO test team labels
-
 	labels, err := ds.LabelIDsByName(context.Background(), []string{"foo", "bar", "bing"}, fleet.TeamFilter{})
 	require.Nil(t, err)
 	assert.Equal(t, map[string]uint{"foo": 1, "bar": 2, "bing": 3}, labels)
+
+	// Test team labels
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1_idsbyname"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2_idsbyname"})
+	require.NoError(t, err)
+
+	// Create team labels
+	team1Label, err := ds.NewLabel(context.Background(), &fleet.Label{
+		Name:                "team1-idsbyname",
+		Query:               "SELECT 1",
+		TeamID:              &team1.ID,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	team2Label, err := ds.NewLabel(context.Background(), &fleet.Label{
+		Name:                "team2-idsbyname",
+		Query:               "SELECT 2",
+		TeamID:              &team2.ID,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	// Global admin can see all labels
+	adminUser := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	adminFilter := fleet.TeamFilter{User: adminUser}
+	labels, err = ds.LabelIDsByName(context.Background(), []string{"foo", "team1-idsbyname", "team2-idsbyname"}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, labels, 3)
+	assert.Equal(t, team1Label.ID, labels["team1-idsbyname"])
+	assert.Equal(t, team2Label.ID, labels["team2-idsbyname"])
+
+	// Team1 filter should only return global + team1 labels
+	team1Filter := fleet.TeamFilter{User: adminUser, TeamID: &team1.ID}
+	labels, err = ds.LabelIDsByName(context.Background(), []string{"foo", "team1-idsbyname", "team2-idsbyname"}, team1Filter)
+	require.NoError(t, err)
+	require.Len(t, labels, 2) // foo and team1-idsbyname
+	assert.Equal(t, team1Label.ID, labels["team1-idsbyname"])
+	_, hasTeam2 := labels["team2-idsbyname"]
+	assert.False(t, hasTeam2, "team2 label should not be visible with team1 filter")
+
+	// Team user can only see their team's labels + global labels
+	team1User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}}
+	team1UserFilter := fleet.TeamFilter{User: team1User}
+	labels, err = ds.LabelIDsByName(context.Background(), []string{"foo", "team1-idsbyname", "team2-idsbyname"}, team1UserFilter)
+	require.NoError(t, err)
+	require.Len(t, labels, 2) // foo and team1-idsbyname
+	assert.Equal(t, team1Label.ID, labels["team1-idsbyname"])
 }
 
 func testLabelsByName(t *testing.T, ds *Datastore) {
 	setupLabelSpecsTest(t, ds)
-
-	// TODO test team labels
 
 	names := []string{"foo", "bar", "bing"}
 	labels, err := ds.LabelsByName(context.Background(), names, fleet.TeamFilter{})
@@ -756,10 +1142,146 @@ func testLabelsByName(t *testing.T, ds *Datastore) {
 			assert.Empty(t, labels[name].Description)
 		}
 	}
+
+	// Test team labels
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1_byname"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2_byname"})
+	require.NoError(t, err)
+
+	// Create team labels
+	team1Label, err := ds.NewLabel(context.Background(), &fleet.Label{
+		Name:                "team1-byname",
+		Query:               "SELECT 1",
+		TeamID:              &team1.ID,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	team2Label, err := ds.NewLabel(context.Background(), &fleet.Label{
+		Name:                "team2-byname",
+		Query:               "SELECT 2",
+		TeamID:              &team2.ID,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	// Global admin can see all labels
+	adminUser := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	adminFilter := fleet.TeamFilter{User: adminUser}
+	labelNames := []string{"foo", "team1-byname", "team2-byname"}
+	labels, err = ds.LabelsByName(context.Background(), labelNames, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, labels, 3)
+	assert.Equal(t, team1Label.ID, labels["team1-byname"].ID)
+	assert.Equal(t, team2Label.ID, labels["team2-byname"].ID)
+
+	// Team1 filter should only return global + team1 labels
+	team1Filter := fleet.TeamFilter{User: adminUser, TeamID: &team1.ID}
+	labels, err = ds.LabelsByName(context.Background(), labelNames, team1Filter)
+	require.NoError(t, err)
+	require.Len(t, labels, 2) // foo and team1-byname
+	assert.Equal(t, team1Label.ID, labels["team1-byname"].ID)
+	_, hasTeam2 := labels["team2-byname"]
+	assert.False(t, hasTeam2, "team2 label should not be visible with team1 filter")
+
+	// Team user can only see their team's labels + global labels
+	team1User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}}
+	team1UserFilter := fleet.TeamFilter{User: team1User}
+	labels, err = ds.LabelsByName(context.Background(), labelNames, team1UserFilter)
+	require.NoError(t, err)
+	require.Len(t, labels, 2) // foo and team1-byname
+	assert.Equal(t, team1Label.ID, labels["team1-byname"].ID)
+	_, hasTeam2 = labels["team2-byname"]
+	assert.False(t, hasTeam2, "team2 label should not be visible to team1 user")
 }
 
 func testLabelByName(t *testing.T, ds *Datastore) {
-	// TODO implement, including team filtering
+	ctx := context.Background()
+
+	// Setup: create global labels
+	globalLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "global-label",
+		Query:               "SELECT 1",
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	// Create teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_labelbyname"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2_labelbyname"})
+	require.NoError(t, err)
+
+	// Create team labels
+	team1Label, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "team1-labelbyname",
+		Query:               "SELECT 1",
+		TeamID:              &team1.ID,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	_, err = ds.NewLabel(ctx, &fleet.Label{ // should never be retrieved
+		Name:                "team2-labelbyname",
+		Query:               "SELECT 2",
+		TeamID:              &team2.ID,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	adminUser := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	team1User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}}
+
+	// Global admin can get global label
+	label, err := ds.LabelByName(ctx, "global-label", fleet.TeamFilter{User: adminUser})
+	require.NoError(t, err)
+	assert.Equal(t, globalLabel.ID, label.ID)
+
+	// Global admin can get team label
+	label, err = ds.LabelByName(ctx, "team1-labelbyname", fleet.TeamFilter{User: adminUser})
+	require.NoError(t, err)
+	assert.Equal(t, team1Label.ID, label.ID)
+
+	// Team1 user can get global label
+	label, err = ds.LabelByName(ctx, "global-label", fleet.TeamFilter{User: team1User})
+	require.NoError(t, err)
+	assert.Equal(t, globalLabel.ID, label.ID)
+
+	// Team1 user can get team1 label
+	label, err = ds.LabelByName(ctx, "team1-labelbyname", fleet.TeamFilter{User: team1User})
+	require.NoError(t, err)
+	assert.Equal(t, team1Label.ID, label.ID)
+
+	// Team1 user cannot get team2 label
+	_, err = ds.LabelByName(ctx, "team2-labelbyname", fleet.TeamFilter{User: team1User})
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err), "expected not found error for inaccessible team label")
+
+	// Filter to team - team1 filter can see team1 label
+	team1Filter := fleet.TeamFilter{User: adminUser, TeamID: &team1.ID}
+	label, err = ds.LabelByName(ctx, "team1-labelbyname", team1Filter)
+	require.NoError(t, err)
+	assert.Equal(t, team1Label.ID, label.ID)
+
+	// Filter to team - team1 filter cannot see team2 label
+	_, err = ds.LabelByName(ctx, "team2-labelbyname", team1Filter)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Global-only filter (team_id = 0) can see global label
+	globalOnlyFilter := fleet.TeamFilter{User: adminUser, TeamID: ptr.Uint(0)}
+	label, err = ds.LabelByName(ctx, "global-label", globalOnlyFilter)
+	require.NoError(t, err)
+	assert.Equal(t, globalLabel.ID, label.ID)
+
+	// Global-only filter cannot see team label
+	_, err = ds.LabelByName(ctx, "team1-labelbyname", globalOnlyFilter)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Non-existent label returns not found
+	_, err = ds.LabelByName(ctx, "nonexistent-label", fleet.TeamFilter{User: adminUser})
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
 }
 
 func testLabelsSave(t *testing.T, db *Datastore) {
@@ -820,7 +1342,7 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-	_, _, err = db.SaveLabel(context.Background(), label, filter)
+	_, _, err = db.SaveLabel(context.Background(), label, nil, filter)
 	require.NoError(t, err)
 	saved, _, err := db.Label(context.Background(), label.ID, filter)
 	require.NoError(t, err)
@@ -836,36 +1358,138 @@ func testLabelsSave(t *testing.T, db *Datastore) {
 	assert.Equal(t, label.Name, configProfileLabelName)
 }
 
-func testLabelsQueriesForCentOSHost(t *testing.T, db *Datastore) {
-	host, err := db.EnrollOsquery(context.Background(),
-		fleet.WithEnrollOsqueryHostID("0"),
-		fleet.WithEnrollOsqueryNodeKey("0"),
-	)
-	require.NoError(t, err, "enrollment should succeed")
+func testLabelsQueriesForLinuxPlatformLabel(t *testing.T, db *Datastore) {
+	ctx := t.Context()
 
-	host.Platform = "rhel"
-	host.OSVersion = "CentOS 6"
-	err = db.UpdateHost(context.Background(), host)
-	require.NoError(t, err)
+	newDynamicLabel := func(name, platform string) *fleet.Label {
+		label, err := db.NewLabel(ctx, &fleet.Label{
+			Name:                name,
+			Query:               "select 1;",
+			Platform:            platform,
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		})
+		require.NoError(t, err)
+		return label
+	}
+	allLabel := newDynamicLabel("all platforms label", "")
+	linuxLabel := newDynamicLabel("linux label", "linux")
+	darwinLabel := newDynamicLabel("darwin label", "darwin")
+	windowsLabel := newDynamicLabel("windows label", "windows")
 
-	label, err := db.NewLabel(context.Background(), &fleet.Label{
-		UpdateCreateTimestamps: fleet.UpdateCreateTimestamps{
-			CreateTimestamp: fleet.CreateTimestamp{CreatedAt: time.Now()},
-			UpdateTimestamp: fleet.UpdateTimestamp{UpdatedAt: time.Now()},
-		},
-		ID:                  42,
-		Name:                "centos labe",
-		Query:               "select 1;",
-		Platform:            "centos",
-		LabelType:           fleet.LabelTypeRegular,
-		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	cases := []struct {
+		name      string
+		platform  string
+		osVersion string
+		want      *fleet.Label
+	}{
+		{"ubuntu host", "ubuntu", "Ubuntu 22.04", linuxLabel},
+		{"debian host", "debian", "Debian GNU/Linux 12", linuxLabel},
+		{"rhel host", "rhel", "Red Hat Enterprise Linux 9", linuxLabel},
+		{"centos host", "rhel", "CentOS 7", linuxLabel},
+		{"generic linux host", "linux", "Linux 6.1", linuxLabel},
+		{"darwin host", "darwin", "macOS 14.0", darwinLabel},
+		{"windows host", "windows", "Windows 11", windowsLabel},
+	}
+
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			host, err := db.EnrollOsquery(ctx,
+				fleet.WithEnrollOsqueryHostID(fmt.Sprint(i)),
+				fleet.WithEnrollOsqueryNodeKey(fmt.Sprint(i)),
+			)
+			require.NoError(t, err, "enrollment should succeed")
+
+			host.Platform = tc.platform
+			host.OSVersion = tc.osVersion
+			err = db.UpdateHost(ctx, host)
+			require.NoError(t, err)
+
+			queries, err := db.LabelQueriesForHost(ctx, host)
+			require.NoError(t, err)
+
+			got := make([]string, 0, len(queries))
+			for id := range queries {
+				got = append(got, id)
+			}
+			assert.ElementsMatch(t, []string{fmt.Sprint(allLabel.ID), fmt.Sprint(tc.want.ID)}, got)
+		})
+	}
+}
+
+func TestBuiltinLinuxLabelQueries(t *testing.T) {
+	// Uses a migrated database rather than schema.sql, which omits these labels.
+	db := createMySQLDSForMigrationTests(t, t.Name())
+	t.Cleanup(func() { db.Close() })
+	ctx := t.Context()
+	require.NoError(t, db.MigrateTables(ctx))
+
+	type storedLabel struct {
+		Name     string `db:"name"`
+		Platform string `db:"platform"`
+		Query    string `db:"query"`
+	}
+	var stored []storedLabel
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &stored,
+			"SELECT name, platform, query FROM labels WHERE label_type = ?", fleet.LabelTypeBuiltIn)
 	})
-	require.NoError(t, err)
+	require.NotEmpty(t, stored)
 
-	queries, err := db.LabelQueriesForHost(context.Background(), host)
-	require.NoError(t, err)
-	require.Len(t, queries, 1)
-	assert.Equal(t, "select 1;", queries[fmt.Sprint(label.ID)])
+	byName := make(map[string]storedLabel, len(stored))
+	for _, l := range stored {
+		byName[l.Name] = l
+		assert.Empty(t, l.Platform, "built-in label %q must not be scoped to a platform", l.Name)
+	}
+
+	sources := map[string]string{"database": byName[fleet.BuiltinLabelNameUbuntuLinux].Query}
+	for _, l := range test.BuiltinLabels() {
+		if l.Name == fleet.BuiltinLabelNameUbuntuLinux {
+			sources["test.BuiltinLabels"] = l.Query
+		}
+	}
+	require.Len(t, sources, 2)
+	for name, query := range sources {
+		require.NotEmpty(t, query, "%s has no %s query", name, fleet.BuiltinLabelNameUbuntuLinux)
+		assert.Equal(t, sources["database"], query,
+			"the %s query in %q disagrees with the migrated database; every copy of it must be updated together",
+			fleet.BuiltinLabelNameUbuntuLinux, name)
+	}
+
+	for i, platform := range []string{
+		"ubuntu", "pop", "linuxmint", "zorin", "debian", "kali",
+		"rhel", "amzn", "opensuse-leap",
+	} {
+		t.Run(platform, func(t *testing.T) {
+			host, err := db.EnrollOsquery(ctx,
+				fleet.WithEnrollOsqueryHostID(fmt.Sprint(i)),
+				fleet.WithEnrollOsqueryNodeKey(fmt.Sprint(i)),
+			)
+			require.NoError(t, err)
+
+			host.Platform = platform
+			require.NoError(t, db.UpdateHost(ctx, host))
+
+			queries, err := db.LabelQueriesForHost(ctx, host)
+			require.NoError(t, err)
+
+			gotQueries := make(map[string]struct{}, len(queries))
+			for _, q := range queries {
+				gotQueries[q] = struct{}{}
+			}
+			for _, name := range []string{
+				fleet.BuiltinLabelNameUbuntuLinux,
+				fleet.BuiltinLabelNameCentOSLinux,
+				fleet.BuiltinLabelNameRedHatLinux,
+				fleet.BuiltinLabelFedoraLinux,
+				fleet.BuiltinLabelNameAllLinux,
+			} {
+				require.Contains(t, byName, name)
+				assert.Contains(t, gotQueries, byName[name].Query,
+					"expected built-in label %q to be distributed to a %q host", name, platform)
+			}
+		})
+	}
 }
 
 func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore) {
@@ -892,9 +1516,45 @@ func testLabelsRecordNonexistentQueryLabelExecution(t *testing.T, db *Datastore)
 	require.NoError(t, db.RecordLabelQueryExecutions(context.Background(), h1, map[uint]*bool{99999: ptr.Bool(true)}, time.Now(), false))
 }
 
-func testDeleteLabel(t *testing.T, db *Datastore) {
-	// TODO test team label filtering
+func testRecordLabelQueryExecutionsQueryErrorKeepsMembership(t *testing.T, db *Datastore) {
+	ctx := t.Context()
+	h1, err := db.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new("1"),
+		NodeKey:         new("1"),
+		UUID:            "1",
+		Hostname:        "foo.local",
+	})
+	require.NoError(t, err)
 
+	l1 := &fleet.LabelSpec{
+		ID:    1,
+		Name:  "label foo",
+		Query: "query1",
+	}
+	require.NoError(t, db.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{l1}))
+
+	// Host matches the label.
+	require.NoError(t, db.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{l1.ID: new(true)}, time.Now(), false))
+
+	labels, err := db.ListLabelsForHost(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1)
+
+	// The label query errors out on a later run (e.g. "extension socket not
+	// available"), reported as a nil result rather than an explicit non-match.
+	// This must not remove the host's existing label membership.
+	require.NoError(t, db.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{l1.ID: nil}, time.Now(), false))
+
+	labels, err = db.ListLabelsForHost(ctx, h1.ID)
+	require.NoError(t, err)
+	require.Len(t, labels, 1, "label membership should be unchanged when the label query errors")
+}
+
+func testDeleteLabel(t *testing.T, db *Datastore) {
 	ctx := context.Background()
 	l, err := db.NewLabel(ctx, &fleet.Label{
 		Name:  t.Name(),
@@ -952,6 +1612,100 @@ func testDeleteLabel(t *testing.T, db *Datastore) {
 
 	// try to delete that label referenced by software installer
 	err = db.DeleteLabel(ctx, l2.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.Error(t, err)
+	require.True(t, fleet.IsForeignKey(err))
+
+	// Test team label filtering
+	team1, err := db.NewTeam(ctx, &fleet.Team{Name: "team1_delete"})
+	require.NoError(t, err)
+	team2, err := db.NewTeam(ctx, &fleet.Team{Name: "team2_delete"})
+	require.NoError(t, err)
+
+	// Create team labels
+	team1Label, err := db.NewLabel(ctx, &fleet.Label{
+		Name:                "team1-delete-label",
+		Query:               "SELECT 1",
+		TeamID:              &team1.ID,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+	team2Label, err := db.NewLabel(ctx, &fleet.Label{
+		Name:                "team2-delete-label",
+		Query:               "SELECT 2",
+		TeamID:              &team2.ID,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	adminUser := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	team1User := &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}}
+
+	// Global admin can delete team labels
+	err = db.DeleteLabel(ctx, team1Label.Name, fleet.TeamFilter{User: adminUser})
+	require.NoError(t, err)
+
+	// Verify it's deleted
+	_, err = db.LabelByName(ctx, team1Label.Name, fleet.TeamFilter{User: adminUser})
+	require.True(t, fleet.IsNotFound(err))
+
+	// Team user cannot delete label from another team (not found because not visible)
+	err = db.DeleteLabel(ctx, team2Label.Name, fleet.TeamFilter{User: team1User})
+	require.True(t, fleet.IsNotFound(err))
+
+	// Verify team2 label still exists
+	label, err := db.LabelByName(ctx, team2Label.Name, fleet.TeamFilter{User: adminUser})
+	require.NoError(t, err)
+	require.Equal(t, team2Label.ID, label.ID)
+
+	// Admin with team filter can delete
+	err = db.DeleteLabel(ctx, team2Label.Name, fleet.TeamFilter{User: adminUser, TeamID: &team2.ID})
+	require.NoError(t, err)
+
+	// create a label referenced by a configuration profile — deletion must be blocked
+	l3, err := db.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name() + "3",
+		Query: "query3",
+	})
+	require.NoError(t, err)
+
+	prof, err := db.NewMDMAppleConfigProfile(ctx, *generateAppleCP("test-prof", "com.example.test", 0), nil)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id) VALUES (?, ?, ?)`,
+			prof.ProfileUUID, l3.Name, l3.ID,
+		)
+		return err
+	})
+
+	err = db.DeleteLabel(ctx, l3.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	require.Error(t, err)
+	require.True(t, fleet.IsForeignKey(err))
+
+	// create a label referenced only by a declaration — deletion must also be blocked
+	l4, err := db.NewLabel(ctx, &fleet.Label{
+		Name:  t.Name() + "4",
+		Query: "query4",
+	})
+	require.NoError(t, err)
+
+	decl, err := db.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "com.example.decl-test",
+		Name:       "test-decl",
+		RawJSON:    json.RawMessage(`{"Identifier": "com.example.decl-test"}`),
+	}, nil)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, db, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO mdm_declaration_labels (apple_declaration_uuid, label_name, label_id) VALUES (?, ?, ?)`,
+			decl.DeclarationUUID, l4.Name, l4.ID,
+		)
+		return err
+	})
+
+	err = db.DeleteLabel(ctx, l4.Name, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.Error(t, err)
 	require.True(t, fleet.IsForeignKey(err))
 }
@@ -1209,9 +1963,9 @@ func testListHostsInLabelIssues(t *testing.T, ds *Datastore) {
 	assert.Zero(t, *h2.HostIssues.CriticalVulnerabilitiesCount)
 	assert.Zero(t, h2.HostIssues.TotalIssuesCount)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(true)}, time.Now(), false, nil)))
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(false), p2.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(false), p2.ID: new(false)}, time.Now(), false, nil)))
 	checkLabelHostIssues(t, ds, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 2, 0)
 
 	// Add a critical vulnerability
@@ -1281,13 +2035,13 @@ func testListHostsInLabelIssues(t *testing.T, ds *Datastore) {
 	assert.NoError(t, ds.UpdateHostIssuesVulnerabilities(ctx))
 	checkLabelHostIssues(t, ds, l1.ID, filter, hosts[6].ID, fleet.HostListOptions{}, 0, 4)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(false)}, time.Now(), false, nil)))
 	checkLabelHostIssues(t, ds, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 1, 1)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: ptr.Bool(true), p2.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h2, map[uint]*bool{p.ID: new(true), p2.ID: new(true)}, time.Now(), false, nil)))
 	checkLabelHostIssues(t, ds, l1.ID, filter, h2.ID, fleet.HostListOptions{}, 0, 1)
 
-	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, errOnly(ds.RecordPolicyQueryExecutions(context.Background(), h1, map[uint]*bool{p.ID: new(false)}, time.Now(), false, nil)))
 	checkLabelHostIssues(t, ds, l1.ID, filter, h1.ID, fleet.HostListOptions{}, 1, 1)
 
 	checkLabelHostIssues(t, ds, l1.ID, filter, h1.ID, fleet.HostListOptions{DisableIssues: true}, 0, 0)
@@ -1328,6 +2082,7 @@ func checkLabelHostIssues(
 
 func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	enableMacOSDiskEncryptionForTest(t, ds, nil)
 
 	// seed hosts
 	var hosts []*fleet.Host
@@ -1462,16 +2217,14 @@ func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionRemovingEnforcement}, 1)
 }
 
-func testHostMemberOfAllLabels(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
+func testHostMembershipForLabels(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
 	//
 	// Setup test
 	// - h1 member of 'All hosts', 'Foobar' and 'Zoobar'
 	// - h2 member of 'All hosts' and 'Foobar'
-	// - h3 member of 'All hosts' and 'Zoobar'
-	// - h4 member of 'All hosts'
-	// - h5 member of no labels
+	// - h3 member of no labels
 	//
 
 	allHostsLabel, err := ds.NewLabel(ctx,
@@ -1504,8 +2257,8 @@ func testHostMemberOfAllLabels(t *testing.T, ds *Datastore) {
 			LabelUpdatedAt:  time.Now(),
 			PolicyUpdatedAt: time.Now(),
 			SeenTime:        time.Now(),
-			OsqueryHostID:   ptr.String(name),
-			NodeKey:         ptr.String(name),
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
 			UUID:            name,
 			Hostname:        "foo.local" + name,
 		})
@@ -1516,130 +2269,76 @@ func testHostMemberOfAllLabels(t *testing.T, ds *Datastore) {
 	h1 := newHostFunc("h1")
 	h2 := newHostFunc("h2")
 	h3 := newHostFunc("h3")
-	h4 := newHostFunc("h4")
-	h5 := newHostFunc("h5")
-	_ = h5
 
 	err = ds.RecordLabelQueryExecutions(ctx, h1, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		foobarLabel.ID:   ptr.Bool(true),
-		zoobarLabel.ID:   ptr.Bool(true),
+		allHostsLabel.ID: new(true),
+		foobarLabel.ID:   new(true),
+		zoobarLabel.ID:   new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
 	err = ds.RecordLabelQueryExecutions(ctx, h2, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		foobarLabel.ID:   ptr.Bool(true),
+		allHostsLabel.ID: new(true),
+		foobarLabel.ID:   new(true),
 	}, time.Now(), false)
 	require.NoError(t, err)
-	err = ds.RecordLabelQueryExecutions(ctx, h3, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-		zoobarLabel.ID:   ptr.Bool(true),
-	}, time.Now(), false)
-	require.NoError(t, err)
-	err = ds.RecordLabelQueryExecutions(ctx, h4, map[uint]*bool{
-		allHostsLabel.ID: ptr.Bool(true),
-	}, time.Now(), false)
-	require.NoError(t, err)
-
-	//
-	// Run tests for HostMemberOfAllLabels
-	//
 
 	for _, tc := range []struct {
 		name           string
 		hostID         uint
 		labelNames     []string
-		expectedResult bool
+		expectedResult map[string]struct{}
 	}{
 		{
-			name:           "nonexistent host",
+			name:           "h1 is member of all three labels",
+			hostID:         h1.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}, foobarLabel.Name: {}, zoobarLabel.Name: {}},
+		},
+		{
+			name:           "h1 is member of a subset of labels",
+			hostID:         h1.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}, foobarLabel.Name: {}},
+		},
+		{
+			name:           "h2 is member of some but not all labels",
+			hostID:         h2.ID,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}, foobarLabel.Name: {}},
+		},
+		{
+			name:           "nonexistent labels are not included",
+			hostID:         h1.ID,
+			labelNames:     []string{allHostsLabel.Name, "nonexistent-label"},
+			expectedResult: map[string]struct{}{allHostsLabel.Name: {}},
+		},
+		{
+			name:           "case-insensitive match preserves requested casing",
+			hostID:         h1.ID,
+			labelNames:     []string{"foobar", "ZOOBAR"},
+			expectedResult: map[string]struct{}{"foobar": {}, "ZOOBAR": {}},
+		},
+		{
+			name:           "nonexistent host returns empty result",
 			hostID:         999,
 			labelNames:     []string{allHostsLabel.Name},
-			expectedResult: false,
+			expectedResult: map[string]struct{}{},
 		},
 		{
-			name:           "h1 does not belong to nonexistent label",
-			hostID:         h1.ID,
-			labelNames:     []string{"Non existent label"},
-			expectedResult: false,
-		},
-		{
-			name:           "h1 does not belong to All hosts + nonexistent label",
-			hostID:         h1.ID,
-			labelNames:     []string{allHostsLabel.Name, "Non existent label"},
-			expectedResult: false,
-		},
-		{
-			name:           "h1 belongs to the given subset of labels",
-			hostID:         h1.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h1 belongs to all the given labels",
-			hostID:         h1.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h1 member of empty label set",
-			hostID:         h1.ID,
-			labelNames:     []string{},
-			expectedResult: true,
-		},
-		{
-			name:           "h2 belongs to all the given labels",
-			hostID:         h2.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h2 does not belongs to all the given labels",
-			hostID:         h2.ID,
-			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name, zoobarLabel.Name},
-			expectedResult: false,
-		},
-		{
-			name:           "h2 belongs to the given label",
-			hostID:         h2.ID,
-			labelNames:     []string{foobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h2 does not belong to the given label",
-			hostID:         h2.ID,
-			labelNames:     []string{zoobarLabel.Name},
-			expectedResult: false,
-		},
-		{
-			name:           "h3 belongs to all the given labels",
+			name:           "h3 is member of no labels",
 			hostID:         h3.ID,
-			labelNames:     []string{allHostsLabel.Name, zoobarLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h4 belongs to all the given labels",
-			hostID:         h4.ID,
-			labelNames:     []string{allHostsLabel.Name},
-			expectedResult: true,
-		},
-		{
-			name:           "h4 does not belong to the given labels",
-			hostID:         h4.ID,
-			labelNames:     []string{foobarLabel.Name},
-			expectedResult: false,
-		},
-		{
-			name:           "h5 does not belong to the given labels",
-			hostID:         h5.ID,
-			labelNames:     []string{allHostsLabel.Name},
-			expectedResult: false,
+			labelNames:     []string{allHostsLabel.Name, foobarLabel.Name},
+			expectedResult: map[string]struct{}{},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			v, err := ds.HostMemberOfAllLabels(ctx, tc.hostID, tc.labelNames)
+			result, err := ds.HostMembershipForLabels(ctx, tc.hostID, tc.labelNames)
 			require.NoError(t, err)
-			require.Equal(t, tc.expectedResult, v)
+			if tc.expectedResult == nil {
+				require.Nil(t, result)
+			} else {
+				require.Equal(t, tc.expectedResult, result)
+			}
 		})
 	}
 }
@@ -1700,19 +2399,19 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 	// turn on disk encryption
 	ac, err := db.AppConfig(context.Background())
 	require.NoError(t, err)
-	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+	setAppConfigDiskEncryptionForTest(ac, true)
 	require.NoError(t, db.SaveAppConfig(context.Background(), ac))
 
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included
 	for _, h := range []*fleet.Host{h1, h2} {
 		windowsEnroll(t, db, h)
-		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", false))
+		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, "", fleet.PersonalEnrollmentTypeNone))
 	}
 	// add disk encryption key for h1
 	_, err = db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1, "test-key", "", ptr.Bool(true))
 	require.NoError(t, err)
 	// add disk encryption for h1
-	require.NoError(t, db.SetOrUpdateHostDisksEncryption(context.Background(), h1.ID, true))
+	require.NoError(t, db.SetOrUpdateHostDisksEncryption(context.Background(), h1.ID, true, nil))
 
 	checkHosts := func(t *testing.T, gotHosts []*fleet.Host, expectedIDs []uint) {
 		require.Len(t, gotHosts, len(expectedIDs))
@@ -1861,8 +2560,6 @@ func labelIDFromName(t *testing.T, ds fleet.Datastore, name string) uint {
 }
 
 func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
-	// TODO validate team label host validation behavior
-
 	ctx := context.Background()
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
@@ -1913,7 +2610,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, host1.ID, hostIDs[0])
 	require.Equal(t, host2.ID, hostIDs[1])
 
-	labelSpec, err := ds.GetLabelSpec(ctx, fleet.TeamFilter{}, label1.Name) // only need global labels, so this works
+	labelSpec, err := ds.GetLabelSpec(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}, label1.Name)
 	require.NoError(t, err)
 	// label.Hosts contains hostnames
 	require.Len(t, labelSpec.Hosts, 2)
@@ -2019,7 +2716,7 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, host2.ID, hostIDs[1])
 	require.Equal(t, host3.ID, hostIDs[2])
 
-	labelSpec, err = ds.GetLabelSpec(ctx, fleet.TeamFilter{}, label1.Name) // only need global labels, so this works
+	labelSpec, err = ds.GetLabelSpec(ctx, fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}, label1.Name)
 	require.NoError(t, err)
 
 	// label.Hosts contains hostnames
@@ -2027,6 +2724,86 @@ func testUpdateLabelMembershipByHostIDs(t *testing.T, ds *Datastore) {
 	require.Equal(t, strconv.Itoa(int(host1.ID)), labelSpec.Hosts[0]) //nolint:gosec // dismiss G115
 	require.Equal(t, strconv.Itoa(int(host2.ID)), labelSpec.Hosts[1]) //nolint:gosec // dismiss G115
 	require.Equal(t, strconv.Itoa(int(host3.ID)), labelSpec.Hosts[2]) //nolint:gosec // dismiss G115
+
+	// Test team label host validation behavior
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_membership"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2_membership"})
+	require.NoError(t, err)
+
+	// Create hosts on different teams
+	hostTeam1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("team1host"),
+		NodeKey:       ptr.String("team1host"),
+		UUID:          "team1host",
+		Hostname:      "team1host.local",
+		Platform:      "darwin",
+		TeamID:        &team1.ID,
+	})
+	require.NoError(t, err)
+	hostTeam2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("team2host"),
+		NodeKey:       ptr.String("team2host"),
+		UUID:          "team2host",
+		Hostname:      "team2host.local",
+		Platform:      "darwin",
+		TeamID:        &team2.ID,
+	})
+	require.NoError(t, err)
+	hostNoTeam, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID: ptr.String("noteamhost"),
+		NodeKey:       ptr.String("noteamhost"),
+		UUID:          "noteamhost",
+		Hostname:      "noteamhost.local",
+		Platform:      "darwin",
+		TeamID:        nil,
+	})
+	require.NoError(t, err)
+
+	// Create a team label
+	teamLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "team1-membership-label",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		TeamID:              &team1.ID,
+	})
+	require.NoError(t, err)
+
+	// Adding a team1 host to a team1 label should succeed
+	teamLabelResult, teamHostIDs, err := ds.UpdateLabelMembershipByHostIDs(ctx, *teamLabel, []uint{hostTeam1.ID}, filter)
+	require.NoError(t, err)
+	require.Equal(t, 1, teamLabelResult.HostCount)
+	require.Len(t, teamHostIDs, 1)
+	require.Equal(t, hostTeam1.ID, teamHostIDs[0])
+
+	// Adding a team2 host to a team1 label should fail
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *teamLabel, []uint{hostTeam2.ID}, filter)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "supplied hosts are on a different team than the label")
+
+	// Adding a no-team host to a team1 label should fail
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *teamLabel, []uint{hostNoTeam.ID}, filter)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "supplied hosts are on a different team than the label")
+
+	// Adding mixed hosts (team1 + team2) to a team1 label should fail
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *teamLabel, []uint{hostTeam1.ID, hostTeam2.ID}, filter)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "supplied hosts are on a different team than the label")
+
+	// Global label can have hosts from any team
+	globalMembershipLabel, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "global-membership-label",
+		LabelType:           fleet.LabelTypeRegular,
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+		TeamID:              nil,
+	})
+	require.NoError(t, err)
+
+	globalLabelResult, globalHostIDs, err := ds.UpdateLabelMembershipByHostIDs(ctx, *globalMembershipLabel, []uint{hostTeam1.ID, hostTeam2.ID, hostNoTeam.ID}, filter)
+	require.NoError(t, err)
+	require.Equal(t, 3, globalLabelResult.HostCount)
+	require.Len(t, globalHostIDs, 3)
 }
 
 func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
@@ -2074,7 +2851,7 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 			Name:                "label1",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 			Hosts: []string{
-				"foo.local",
+				"foo.local", // host1's hostname, which isn't a label host identifier
 				"hwd2",
 				"uuid3",
 				strconv.Itoa(int(host4.ID)), //nolint:gosec // dismiss G115
@@ -2085,11 +2862,23 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 
 	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hosts, 4)
+	require.Len(t, hosts, 3)
+	require.Equal(t, host2.ID, hosts[0].ID)
+	require.Equal(t, host3.ID, hosts[1].ID)
+	require.Equal(t, host4.ID, hosts[2].ID)
+
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "label1",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{"hwd1"},
+		},
+	})
+	require.NoError(t, err)
+	hosts, err = ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
 	require.Equal(t, host1.ID, hosts[0].ID)
-	require.Equal(t, host2.ID, hosts[1].ID)
-	require.Equal(t, host3.ID, hosts[2].ID)
-	require.Equal(t, host4.ID, hosts[3].ID)
 }
 
 func testApplyLabelSpecsWithPlatformChange(t *testing.T, ds *Datastore) {
@@ -2294,7 +3083,7 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 		for _, teamID := range []*uint{nil, &team1.ID, &team2.ID} {
 			result, err := q.ExecContext(context.Background(),
 				"INSERT INTO labels (name, description, platform, label_type, label_membership_type, query, team_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-				fmt.Sprintf("test host vitals label %d", teamID), "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals, "", teamID)
+				fmt.Sprintf("test host vitals label %d", ptr.ValOrZero(teamID)), "test", "", fleet.LabelTypeRegular, fleet.LabelMembershipTypeHostVitals, "", teamID)
 			if err != nil {
 				return err
 			}
@@ -2332,7 +3121,7 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 			Label: fleet.Label{
 				ID:                  id,
 				TeamID:              teamID,
-				Name:                fmt.Sprintf("Test Host Vitals Label %d", teamID),
+				Name:                fmt.Sprintf("Test Host Vitals Label %d", ptr.ValOrZero(teamID)),
 				LabelType:           fleet.LabelTypeRegular,
 				LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
 				HostVitalsCriteria:  ptr.RawMessage(criteria),
@@ -2343,9 +3132,11 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
 	for _, tt := range testCases {
-		updatedLabel, err := ds.UpdateLabelMembershipByHostCriteria(ctx, makeLabel(tt.LabelID, tt.TeamID))
+		updatedLabel, changedHostIDs, err := ds.UpdateLabelMembershipByHostCriteria(ctx, makeLabel(tt.LabelID, tt.TeamID))
 		require.NoError(t, err)
 		require.Equal(t, len(tt.BeforeHostIDs), updatedLabel.HostCount)
+		// fresh label: every member is newly added, so all report as changed
+		require.ElementsMatch(t, tt.BeforeHostIDs, changedHostIDs)
 
 		// Check that the label has the correct hosts
 		hostsInLabel, err := ds.ListHostsInLabel(ctx, filter, tt.LabelID, fleet.HostListOptions{})
@@ -2378,9 +3169,12 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 	})
 
 	for _, tt := range testCases {
-		updatedLabel, err := ds.UpdateLabelMembershipByHostCriteria(ctx, makeLabel(tt.LabelID, tt.TeamID))
+		updatedLabel, changedHostIDs, err := ds.UpdateLabelMembershipByHostCriteria(ctx, makeLabel(tt.LabelID, tt.TeamID))
 		require.NoError(t, err)
 		require.Equal(t, len(tt.AfterHostIDs), updatedLabel.HostCount)
+		// hosts whose membership value changed = symmetric difference
+		require.ElementsMatch(t, symmetricDiff(tt.BeforeHostIDs, tt.AfterHostIDs), changedHostIDs,
+			"changed host IDs must be exactly the added and removed hosts")
 
 		// Check that the label has the correct hosts
 		hostsInLabel, err := ds.ListHostsInLabel(ctx, filter, tt.LabelID, fleet.HostListOptions{})
@@ -2392,6 +3186,209 @@ func testUpdateLabelMembershipByHostCriteria(t *testing.T, ds *Datastore) {
 		}
 		require.ElementsMatch(t, tt.AfterHostIDs, labelHostIDs)
 	}
+}
+
+// testUpdateLabelMembershipByHostCriteriaIDP exercises the real IdP foreign
+// vital query (end_user_idp_group) for both global and fleet/team-scoped host
+// vitals labels. This is the path that broke in #46869: fleet-scoped IdP labels
+// never got any hosts.
+func testUpdateLabelMembershipByHostCriteriaIDP(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "idp-team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "idp-team2"})
+	require.NoError(t, err)
+
+	// host1 -> team1, host2 -> team2, host3 -> no team (global).
+	hosts := make([]*fleet.Host, 3)
+	teamIDs := []*uint{&team1.ID, &team2.ID, nil}
+	for i := range 3 {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  new(fmt.Sprintf("idp-%d", i)),
+			NodeKey:        new(fmt.Sprintf("idp-%d", i)),
+			UUID:           fmt.Sprintf("idp-uuid%d", i),
+			Hostname:       fmt.Sprintf("idp-host%d.local", i),
+			HardwareSerial: fmt.Sprintf("idp-hwd%d", i),
+			Platform:       "darwin",
+			TeamID:         teamIDs[i],
+		})
+		require.NoError(t, err)
+		hosts[i] = host
+	}
+
+	// Create a SCIM user per host, all in the "Engineering" IdP group.
+	scimUserIDs := make([]uint, 3)
+	for i := range 3 {
+		id, err := ds.CreateScimUser(ctx, &fleet.ScimUser{
+			UserName: fmt.Sprintf("idp-user%d", i),
+			Active:   new(true),
+		})
+		require.NoError(t, err)
+		scimUserIDs[i] = id
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				"INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)",
+				hosts[i].ID, id)
+			return err
+		})
+	}
+	_, err = ds.CreateScimGroup(ctx, &fleet.ScimGroup{
+		DisplayName: "Engineering",
+		ScimUsers:   scimUserIDs,
+	})
+	require.NoError(t, err)
+
+	criteria, err := json.Marshal(&fleet.HostVitalCriteria{
+		Vital: new("end_user_idp_group"),
+		Value: new("Engineering"),
+	})
+	require.NoError(t, err)
+	raw := json.RawMessage(criteria)
+
+	newIDPLabel := func(name string, teamID *uint) *fleet.Label {
+		lbl, err := ds.NewLabel(ctx, &fleet.Label{
+			Name:                name,
+			TeamID:              teamID,
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  &raw,
+		})
+		require.NoError(t, err)
+		return lbl
+	}
+
+	globalLabel := newIDPLabel("idp-global", nil)
+	team1Label := newIDPLabel("idp-team1-label", &team1.ID)
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Global label: all three hosts (all SCIM users are in "Engineering").
+	updated, _, err := ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
+	require.NoError(t, err)
+	require.Equal(t, 3, updated.HostCount)
+	globalHosts, err := ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}, hostIDs(globalHosts))
+
+	// Team1 label: only host1 (in team1) despite host2/host3 also being in the
+	// "Engineering" IdP group. Before the fix this returned an error / zero hosts.
+	updated, _, err = ds.UpdateLabelMembershipByHostCriteria(ctx, team1Label)
+	require.NoError(t, err)
+	require.Equal(t, 1, updated.HostCount)
+	team1Hosts, err := ds.ListHostsInLabel(ctx, filter, team1Label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID}, hostIDs(team1Hosts))
+
+	_ = team2 // team2 is used only to give host2 an out-of-team membership.
+}
+
+// testUpdateLabelMembershipByHostCriteriaCustomHostVital exercises the real
+// custom-host-vital query path: membership is a host's stored value for a
+// specific custom_host_vital_id matching the criterion value. It verifies
+// multi-host isolation (one host's value doesn't leak to another), that the
+// criterion is scoped to its vital id (a matching value on a different vital
+// does not count), and that team-scoped labels only include in-team hosts.
+func testUpdateLabelMembershipByHostCriteriaCustomHostVital(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "chv-team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "chv-team2"})
+	require.NoError(t, err)
+
+	// host1 -> team1, host2 -> team2, host3 -> global, host4 -> global.
+	hosts := make([]*fleet.Host, 4)
+	teamIDs := []*uint{&team1.ID, &team2.ID, nil, nil}
+	for i := range 4 {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  new(fmt.Sprintf("chv-%d", i)),
+			NodeKey:        new(fmt.Sprintf("chv-%d", i)),
+			UUID:           fmt.Sprintf("chv-uuid%d", i),
+			Hostname:       fmt.Sprintf("chv-host%d.local", i),
+			HardwareSerial: fmt.Sprintf("chv-hwd%d", i),
+			Platform:       "darwin",
+			TeamID:         teamIDs[i],
+		})
+		require.NoError(t, err)
+		hosts[i] = host
+	}
+
+	vitalA, err := ds.CreateCustomHostVital(ctx, "Department")
+	require.NoError(t, err)
+	vitalB, err := ds.CreateCustomHostVital(ctx, "Function")
+	require.NoError(t, err)
+
+	// host1 & host4: vitalA = "Engineering" (should match).
+	// host2: vitalA = "Sales" (wrong value -> excluded).
+	// host3: vitalB = "Engineering" (right value but wrong vital -> excluded),
+	//        and vitalA = "Sales" so it also has a value for the target vital.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[0].ID, vitalA.ID, "Engineering"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[3].ID, vitalA.ID, "Engineering"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[1].ID, vitalA.ID, "Sales"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[2].ID, vitalA.ID, "Sales"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[2].ID, vitalB.ID, "Engineering"))
+
+	criteria, err := json.Marshal(&fleet.HostVitalCriteria{
+		Vital:             new("custom_host_vital"),
+		Value:             new("Engineering"),
+		CustomHostVitalID: &vitalA.ID,
+	})
+	require.NoError(t, err)
+	raw := json.RawMessage(criteria)
+
+	newCHVLabel := func(name string, teamID *uint) *fleet.Label {
+		lbl, err := ds.NewLabel(ctx, &fleet.Label{
+			Name:                name,
+			TeamID:              teamID,
+			LabelType:           fleet.LabelTypeRegular,
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  &raw,
+		})
+		require.NoError(t, err)
+		return lbl
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Global label: host1 and host4 (vitalA = "Engineering"). host2 has the
+	// wrong value, host3 matches the value only on vitalB.
+	globalLabel := newCHVLabel("chv-global", nil)
+	updated, _, err := ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
+	require.NoError(t, err)
+	require.Equal(t, 2, updated.HostCount)
+	globalHosts, err := ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[3].ID}, hostIDs(globalHosts))
+
+	// Team1 label: only host1, even though host4 also matches (it's global).
+	team1Label := newCHVLabel("chv-team1-label", &team1.ID)
+	updated, _, err = ds.UpdateLabelMembershipByHostCriteria(ctx, team1Label)
+	require.NoError(t, err)
+	require.Equal(t, 1, updated.HostCount)
+	team1Hosts, err := ds.ListHostsInLabel(ctx, filter, team1Label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID}, hostIDs(team1Hosts))
+
+	// Changing a host's value re-computes membership: host4 leaves, host2 joins.
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[3].ID, vitalA.ID, "Sales"))
+	require.NoError(t, ds.SetHostCustomHostVitalValue(ctx, hosts[1].ID, vitalA.ID, "Engineering"))
+	updated, _, err = ds.UpdateLabelMembershipByHostCriteria(ctx, globalLabel)
+	require.NoError(t, err)
+	require.Equal(t, 2, updated.HostCount)
+	globalHosts, err = ds.ListHostsInLabel(ctx, filter, globalLabel.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID}, hostIDs(globalHosts))
+
+	_ = team2 // team2 only gives host2 an out-of-team membership.
+}
+
+func hostIDs(hosts []*fleet.Host) []uint {
+	ids := make([]uint, 0, len(hosts))
+	for _, h := range hosts {
+		ids = append(ids, h.ID)
+	}
+	return ids
 }
 
 func testTeamLabels(t *testing.T, ds *Datastore) {
@@ -2585,5 +3582,751 @@ func testUpdateLabelMembershipForTransferredHost(t *testing.T, ds *Datastore) {
 }
 
 func testSetAsideLabels(t *testing.T, ds *Datastore) {
-	// TODO
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_setaside"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2_setaside"})
+	require.NoError(t, err)
+
+	i := 0
+	newUser := func(u fleet.User) *fleet.User {
+		i++
+		u.Name = fmt.Sprintf("SetAsideUser%d", i)
+		u.Email = fmt.Sprintf("%s@example.com", u.Name)
+		u.Password = []byte("foobar")
+		persisted, err := ds.NewUser(ctx, &u)
+		require.NoError(t, err)
+		return persisted
+	}
+
+	// Create users that are reused across tests
+	globalAdmin := newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)})
+	team1Admin := newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleAdmin}}})
+	team1Maintainer := newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer}}})
+	team1Technician := newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleTechnician}}})
+	multiTeamAdmin := newUser(fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleAdmin},
+		{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleAdmin},
+	}})
+	multiTeamMaintainer := newUser(fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
+		{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleMaintainer},
+	}})
+	multiTeamTechnician := newUser(fleet.User{Teams: []fleet.UserTeam{
+		{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleTechnician},
+		{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleTechnician},
+	}})
+
+	type labelSpec struct {
+		name     string
+		teamID   *uint
+		authorID *uint
+	}
+
+	type testCase struct {
+		name        string
+		labels      []labelSpec // labels to create for this test
+		notOnTeamID *uint       // team ID being applied to
+		labelNames  []string    // names to pass to SetAsideLabels (if nil, uses labels[*].name)
+		user        *fleet.User
+		expectError bool
+	}
+
+	cases := []testCase{
+		{
+			name:        "empty names list is a no-op",
+			labels:      nil,
+			notOnTeamID: nil,
+			labelNames:  []string{},
+			user:        globalAdmin,
+			expectError: false,
+		},
+		{
+			name:        "global admin can set aside global labels when applying to a team",
+			labels:      []labelSpec{{name: "global-setaside-1", teamID: nil, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        globalAdmin,
+			expectError: false,
+		},
+		{
+			name:        "global maintainer can set aside global labels",
+			labels:      []labelSpec{{name: "global-setaside-2", teamID: nil, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)}),
+			expectError: false,
+		},
+		{
+			name:        "global gitops can set aside global labels",
+			labels:      []labelSpec{{name: "global-setaside-3", teamID: nil, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)}),
+			expectError: false,
+		},
+		{
+			name:        "global observer cannot set aside global labels",
+			labels:      []labelSpec{{name: "global-setaside-4", teamID: nil, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)}),
+			expectError: true,
+		},
+		{
+			name:        "global technician can set aside global labels",
+			labels:      []labelSpec{{name: "global-setaside-5", teamID: nil, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        newUser(fleet.User{GlobalRole: ptr.String(fleet.RoleTechnician)}),
+			expectError: false,
+		},
+		{
+			name:        "team admin can't set aside their own team's labels if they can't edit the not-on team",
+			labels:      []labelSpec{{name: "team1-setaside-1", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user:        team1Admin,
+			expectError: true,
+		},
+		{
+			name:        "team admin can set aside their own team's labels if they can also edit the not-on team",
+			labels:      []labelSpec{{name: "team1-setaside-admin", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user:        multiTeamAdmin,
+			expectError: false,
+		},
+		{
+			name:        "team maintainer can set aside their own team's labels if they can also edit the not-on team",
+			labels:      []labelSpec{{name: "team1-setaside-maintain", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user:        multiTeamMaintainer,
+			expectError: false,
+		},
+		{
+			name:        "team technician can set aside their own team's labels if they can also edit the not-on team",
+			labels:      []labelSpec{{name: "team1-setaside-technician", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user:        multiTeamTechnician,
+			expectError: false,
+		},
+		{
+			name:        "team gitops can set aside their own team's labels if they can also edit the not-on team",
+			labels:      []labelSpec{{name: "team1-setaside-gitops", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user: newUser(fleet.User{Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleGitOps},
+				{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleGitOps},
+			}}),
+			expectError: false,
+		},
+		{
+			name:        "team observer cannot set aside team labels",
+			labels:      []labelSpec{{name: "team1-setaside-4", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team2.ID,
+			user:        newUser(fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleObserver}}}),
+			expectError: true,
+		},
+		{
+			name:        "cannot set aside labels from the same team we're applying to",
+			labels:      []labelSpec{{name: "team1-setaside-5", teamID: &team1.ID, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user:        team1Admin,
+			expectError: true,
+		},
+		{
+			name:        "team admin cannot set aside labels when applying to the same team, even if that user authored",
+			labels:      []labelSpec{{name: "team1-setaside-6", teamID: &team1.ID, authorID: &team1Admin.ID}},
+			notOnTeamID: &team1.ID,
+			user:        team1Admin,
+			expectError: true,
+		},
+		{
+			name:        "cannot set aside global labels when applying to global",
+			labels:      []labelSpec{{name: "global-setaside-5", teamID: nil, authorID: nil}},
+			notOnTeamID: nil,
+			user:        globalAdmin,
+			expectError: true,
+		},
+		{
+			name:        "team user with write role can set aside their authored global labels",
+			labels:      []labelSpec{{name: "global-authored-setaside", teamID: nil, authorID: &team1Maintainer.ID}},
+			notOnTeamID: &team1.ID,
+			user:        team1Maintainer,
+			expectError: false,
+		},
+		{
+			name:        "team user with write role can set aside their authored global labels",
+			labels:      []labelSpec{{name: "global-authored-setaside-2", teamID: nil, authorID: &team1Technician.ID}},
+			notOnTeamID: &team1.ID,
+			user:        team1Technician,
+			expectError: false,
+		},
+		{
+			name:        "team user cannot set aside non-authored global labels",
+			labels:      []labelSpec{{name: "global-nonauthored-setaside", teamID: nil, authorID: &globalAdmin.ID}},
+			notOnTeamID: &team1.ID,
+			user:        team1Maintainer,
+			expectError: true,
+		},
+		{
+			name:        "multi-team user can set aside labels from teams they have write access to",
+			labels:      []labelSpec{{name: "team2-setaside-1", teamID: &team2.ID, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user: newUser(fleet.User{Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
+				{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleAdmin},
+			}}),
+			expectError: false,
+		},
+		{
+			name:        "multi-team user cannot set aside labels from teams they don't have write access to",
+			labels:      []labelSpec{{name: "team2-setaside-2", teamID: &team2.ID, authorID: nil}},
+			notOnTeamID: &team1.ID,
+			user: newUser(fleet.User{Teams: []fleet.UserTeam{
+				{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleMaintainer},
+				{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleObserver},
+			}}),
+			expectError: true,
+		},
+		{
+			name:        "non-existent label should fail",
+			labels:      nil,
+			notOnTeamID: &team1.ID,
+			labelNames:  []string{"nonexistent-label"},
+			user:        globalAdmin,
+			expectError: true,
+		},
+		{
+			name: "multiple labels can be set aside at once",
+			labels: []labelSpec{
+				{name: "multi-setaside-1", teamID: nil, authorID: &multiTeamMaintainer.ID},
+				{name: "multi-setaside-2", teamID: &team2.ID, authorID: nil},
+			},
+			notOnTeamID: &team1.ID,
+			user:        multiTeamMaintainer,
+			expectError: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create labels for this test case
+			var expectedLabelNames []string
+			for _, spec := range tc.labels {
+				// Build expected renamed name based on label's team ID
+				var expectedSuffix string
+				if spec.teamID == nil {
+					expectedSuffix = "__team_0"
+				} else {
+					expectedSuffix = fmt.Sprintf("__team_%d", *spec.teamID)
+				}
+				expectedLabelNames = append(expectedLabelNames, spec.name+expectedSuffix)
+
+				_, err := ds.NewLabel(ctx, &fleet.Label{
+					Name:                spec.name,
+					Query:               "SELECT 1",
+					TeamID:              spec.teamID,
+					AuthorID:            spec.authorID,
+					LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+				})
+				require.NoError(t, err)
+			}
+
+			// Determine label names to use, and which to expect
+			labelNames := tc.labelNames
+			if labelNames == nil {
+				for _, spec := range tc.labels {
+					labelNames = append(labelNames, spec.name)
+				}
+			}
+
+			err := ds.SetAsideLabels(ctx, tc.notOnTeamID, labelNames, *tc.user)
+
+			if tc.expectError {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			// Original name should not exist
+			oldLabels, _ := ds.LabelsByName(ctx, labelNames, fleet.TeamFilter{User: globalAdmin})
+			require.Empty(t, oldLabels)
+
+			// All renamed labels should exist
+			renamedLabels, _ := ds.LabelsByName(ctx, expectedLabelNames, fleet.TeamFilter{User: globalAdmin})
+			require.Len(t, renamedLabels, len(expectedLabelNames))
+			for _, expected := range expectedLabelNames {
+				_, ok := renamedLabels[expected]
+				require.Truef(t, ok, "Missing renamed label %s", expected)
+			}
+		})
+	}
+}
+
+func testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create two teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1_label_conflict"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2_label_conflict"})
+	require.NoError(t, err)
+
+	// Create a label on team1
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "conflicting-label", Query: "SELECT 1", TeamID: &team1.ID},
+	})
+	require.NoError(t, err)
+
+	// Try to create a label with the same name on team2 - should error
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "conflicting-label", Query: "SELECT 2", TeamID: &team2.ID},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one or more specified labels exists on another team")
+
+	// Try to create a label with the same name globally (no team) - should error
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "conflicting-label", Query: "SELECT 3"},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one or more specified labels exists on another team")
+
+	// Create a global label
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "global-label", Query: "SELECT 4"},
+	})
+	require.NoError(t, err)
+
+	// Try to create a label with the same name on a team - should error
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "global-label", Query: "SELECT 5", TeamID: &team2.ID},
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "one or more specified labels exists on another team")
+
+	// Updating the original label on the same team should still work
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{Name: "conflicting-label", Query: "SELECT 1 updated", TeamID: &team1.ID},
+	})
+	require.NoError(t, err)
+}
+
+func testApplyLabelSpecsCannotModifyBuiltInLabel(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	builtIn, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "All Hosts",
+		Description:         "All hosts enrolled in Fleet",
+		Query:               "select 1;",
+		LabelType:           fleet.LabelTypeBuiltIn,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	})
+	require.NoError(t, err)
+
+	exact := fleet.LabelSpec{
+		Name:                "All Hosts",
+		Description:         "All hosts enrolled in Fleet",
+		Query:               "select 1;",
+		LabelType:           fleet.LabelTypeBuiltIn,
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+	}
+
+	for _, tc := range []struct {
+		name    string
+		spec    fleet.LabelSpec
+		wantErr string
+	}{
+		// a built-in spec is refused outright, so not even an unchanged one can reach
+		// the upsert
+		{
+			name:    "exact reapplication",
+			spec:    exact,
+			wantErr: "cannot modify or add built-in label 'All Hosts'",
+		},
+		{
+			name:    "changed query",
+			spec:    func() fleet.LabelSpec { s := exact; s.Query = "select 'BYPASSED';"; return s }(),
+			wantErr: "cannot modify or add built-in label 'All Hosts'",
+		},
+		{
+			name:    "built-in label that does not exist yet",
+			spec:    fleet.LabelSpec{Name: "Brand New Built In", Query: "select 1;", LabelType: fleet.LabelTypeBuiltIn},
+			wantErr: "cannot modify or add built-in label 'Brand New Built In'",
+		},
+		// a regular spec still resolves to the built-in row, by exact name or by a
+		// case variant the collation treats as equal
+		{
+			name:    "regular label with a built-in name",
+			spec:    fleet.LabelSpec{Name: "All Hosts", Query: "select 'BYPASSED';", LabelType: fleet.LabelTypeRegular},
+			wantErr: "cannot modify built-in label 'All Hosts'",
+		},
+		{
+			name:    "regular label with a case variant of a built-in name",
+			spec:    fleet.LabelSpec{Name: "all hosts", Query: "select 'BYPASSED';", LabelType: fleet.LabelTypeRegular},
+			wantErr: "cannot modify built-in label 'All Hosts'",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{&tc.spec})
+			require.ErrorContains(t, err, tc.wantErr)
+
+			stored, _, err := ds.Label(ctx, builtIn.ID, fleet.TeamFilter{User: test.UserAdmin})
+			require.NoError(t, err)
+			require.Equal(t, "All Hosts", stored.Name)
+			require.Equal(t, "All hosts enrolled in Fleet", stored.Description)
+			require.Equal(t, "select 1;", stored.Query)
+			require.Empty(t, stored.Platform)
+			require.Equal(t, fleet.LabelTypeBuiltIn, stored.LabelType)
+			require.Equal(t, fleet.LabelMembershipTypeDynamic, stored.LabelMembershipType)
+		})
+	}
+
+	_, err = ds.LabelByName(ctx, "Brand New Built In", fleet.TeamFilter{User: test.UserAdmin})
+	require.True(t, fleet.IsNotFound(err), "rejected built-in spec must not create a label")
+}
+
+func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Create teams.
+	t1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	t2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	t3, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+	t4, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team4"})
+	require.NoError(t, err)
+
+	// Create hosts on the teams.
+	h1t1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("h1t1"),
+		NodeKey:        ptr.String("h1t1"),
+		Hostname:       "hostname-h1t1",
+		HardwareSerial: "serial-h1t1",
+		UUID:           "uuid-h1t1",
+		Platform:       "darwin",
+		TeamID:         &t1.ID,
+	})
+	require.NoError(t, err)
+	h2t2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("h2t2"),
+		NodeKey:        ptr.String("h2t2"),
+		Hostname:       "hostname-h2t2",
+		HardwareSerial: "serial-h2t2",
+		UUID:           "uuid-h2t2",
+		Platform:       "darwin",
+		TeamID:         &t2.ID,
+	})
+	require.NoError(t, err)
+	h3t3, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("h3t3"),
+		NodeKey:        ptr.String("h3t3"),
+		Hostname:       "hostname-h3t3",
+		HardwareSerial: "serial-h3t3",
+		UUID:           "uuid-h3t3",
+		Platform:       "darwin",
+		TeamID:         &t3.ID,
+	})
+	require.NoError(t, err)
+	h4t4, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("h4t4"),
+		NodeKey:        ptr.String("h4t4"),
+		Hostname:       "hostname-h4t4",
+		HardwareSerial: "serial-h4t4",
+		UUID:           "uuid-h4t4",
+		Platform:       "darwin",
+		TeamID:         &t4.ID,
+	})
+	require.NoError(t, err)
+	h5Global, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("h5Global"),
+		NodeKey:        ptr.String("h5Global"),
+		Hostname:       "hostname-h5Global",
+		HardwareSerial: "serial-h5Global",
+		UUID:           "uuid-h5Global",
+		Platform:       "darwin",
+		TeamID:         nil,
+	})
+	require.NoError(t, err)
+
+	// Create a global manual label, make sure you can add all.
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "global1",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts: fleet.HostsSlice{
+				h1t1.UUID,
+				h2t2.HardwareSerial,
+				h3t3.UUID,
+				fmt.Sprint(h4t4.ID),
+				h5Global.HardwareSerial,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	global1, err := ds.LabelByName(ctx, "global1", teamFilter)
+	require.NoError(t, err)
+	hosts, err := ds.ListHostsInLabel(ctx, teamFilter, global1.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 5)
+
+	// Attempt to create team label, make sure we can only add hosts on that team.
+	for _, hostIdentifier := range []string{
+		h2t2.UUID,
+		h3t3.UUID,
+		h4t4.HardwareSerial,
+		fmt.Sprint(h5Global.ID),
+	} {
+		err := ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+			{
+				Name:                "l1t1",
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+				Hosts: fleet.HostsSlice{
+					h1t1.UUID,
+					hostIdentifier, // conflicting host identifier.
+				},
+				TeamID: &t1.ID,
+			},
+		})
+		require.Error(t, err)
+		require.ErrorIs(t, err, errLabelMismatchHostTeam)
+	}
+	// Create team label with team host identifiers should work.
+	for _, hostIdentifier := range []string{
+		h1t1.UUID,
+		h1t1.HardwareSerial,
+		fmt.Sprint(h1t1.ID),
+	} {
+		err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+			{
+				Name:                "l1t1",
+				LabelMembershipType: fleet.LabelMembershipTypeManual,
+				Hosts: fleet.HostsSlice{
+					hostIdentifier,
+				},
+				TeamID: &t1.ID,
+			},
+		})
+		require.NoError(t, err)
+		l1t1, err := ds.LabelByName(ctx, "l1t1", teamFilter)
+		require.NoError(t, err)
+		hosts, err := ds.ListHostsInLabel(ctx, teamFilter, l1t1.ID, fleet.HostListOptions{})
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		require.Equal(t, h1t1.ID, hosts[0].ID)
+	}
+}
+
+func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	teamFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Create hosts.
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("nilhosts-1"), //nolint:modernize
+		NodeKey:        ptr.String("nilhosts-1"), //nolint:modernize
+		UUID:           "nilhosts-1",
+		Hostname:       "nilhosts1.local",
+		HardwareSerial: "nilhosts-serial-1",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("nilhosts-2"), //nolint:modernize
+		NodeKey:        ptr.String("nilhosts-2"), //nolint:modernize
+		UUID:           "nilhosts-2",
+		Hostname:       "nilhosts2.local",
+		HardwareSerial: "nilhosts-serial-2",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	// Apply a manual label with hosts.
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "nilhosts-label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{"nilhosts-serial-1", "nilhosts-serial-2"},
+		},
+	})
+	require.NoError(t, err)
+
+	lbl, err := ds.LabelByName(ctx, "nilhosts-label", teamFilter)
+	require.NoError(t, err)
+	hosts, err := ds.ListHostsInLabel(ctx, teamFilter, lbl.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+
+	// Re-apply the same label with nil hosts — membership should be preserved.
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "nilhosts-label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               nil,
+		},
+	})
+	require.NoError(t, err)
+
+	hosts, err = ds.ListHostsInLabel(ctx, teamFilter, lbl.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+	hostIDs := []uint{hosts[0].ID, hosts[1].ID}
+	assert.Contains(t, hostIDs, h1.ID)
+	assert.Contains(t, hostIDs, h2.ID)
+
+	// Re-apply with empty hosts — membership should be cleared.
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "nilhosts-label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{},
+		},
+	})
+	require.NoError(t, err)
+
+	hosts, err = ds.ListHostsInLabel(ctx, teamFilter, lbl.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	// Re-apply with specific hosts — membership should be set.
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "nilhosts-label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{"nilhosts-serial-1"},
+		},
+	})
+	require.NoError(t, err)
+
+	hosts, err = ds.ListHostsInLabel(ctx, teamFilter, lbl.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, h1.ID, hosts[0].ID)
+}
+
+func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	for _, name := range []string{"alpha", "beta", "gamma"} {
+		err := ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: name, Query: "select 1"}})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	for _, key := range []string{
+		"id",
+		"created_at",
+		"updated_at",
+		"name",
+		"description",
+		"query",
+		"platform",
+		"label_type",
+		"label_membership_type",
+		"author_id",
+		"criteria",
+		"team_id",
+		"host_count",
+	} {
+		t.Run("order_"+key, func(t *testing.T) {
+			labels, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key, PerPage: 100}, true)
+			require.NoError(t, err)
+			require.GreaterOrEqual(t, len(labels), 3)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "l.id; SELECT 1"}, false)
+		require.Error(t, err)
+	})
+
+	t.Run("page_pagination_with_allowed_key", func(t *testing.T) {
+		page0, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 0}, false)
+		require.NoError(t, err)
+		require.NotEmpty(t, page0)
+		page1, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 1}, false)
+		require.NoError(t, err)
+		require.NotEmpty(t, page1)
+		require.NotEqual(t, page0[0].Name, page1[0].Name)
+	})
+}
+
+func testLabelMembershipHostIDs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Make a team and a global label, then place a host on the team into the
+	// global label's membership. A team-scoped reader of the label may not
+	// "see" the host via team-filtered counts, but LabelMembershipHostIDs must
+	// always return the unfiltered membership for activity tracking.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "membership-team"})
+	require.NoError(t, err)
+	teamHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("memb-team-host"), //nolint:modernize
+		NodeKey:        ptr.String("memb-team-host"), //nolint:modernize
+		UUID:           "memb-team-host",
+		Hostname:       "memb-team-host.local",
+		HardwareSerial: "memb-serial-team",
+		Platform:       "darwin",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+	globalHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("memb-global-host"), //nolint:modernize
+		NodeKey:        ptr.String("memb-global-host"), //nolint:modernize
+		UUID:           "memb-global-host",
+		Hostname:       "memb-global-host.local",
+		HardwareSerial: "memb-serial-global",
+		Platform:       "darwin",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "memb-label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{"memb-serial-team", "memb-serial-global"},
+		},
+	}))
+
+	lbl, err := ds.LabelByName(ctx, "memb-label", fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+
+	// LabelMembershipHostIDs must return both hosts, regardless of team.
+	gotIDs, err := ds.LabelMembershipHostIDs(ctx, lbl.ID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{teamHost.ID, globalHost.ID}, gotIDs)
+
+	// Empty membership returns no IDs and no error.
+	emptyLbl, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:                "memb-label-empty",
+		LabelMembershipType: fleet.LabelMembershipTypeManual,
+	})
+	require.NoError(t, err)
+	gotIDs, err = ds.LabelMembershipHostIDs(ctx, emptyLbl.ID)
+	require.NoError(t, err)
+	require.Empty(t, gotIDs)
+}
+
+// symmetricDiff returns the elements present in exactly one of a and b.
+func symmetricDiff(a, b []uint) []uint {
+	inA := make(map[uint]struct{}, len(a))
+	for _, v := range a {
+		inA[v] = struct{}{}
+	}
+	inB := make(map[uint]struct{}, len(b))
+	for _, v := range b {
+		inB[v] = struct{}{}
+	}
+	var out []uint
+	for _, v := range a {
+		if _, ok := inB[v]; !ok {
+			out = append(out, v)
+		}
+	}
+	for _, v := range b {
+		if _, ok := inA[v]; !ok {
+			out = append(out, v)
+		}
+	}
+	return out
 }

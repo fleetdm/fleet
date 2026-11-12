@@ -1,0 +1,10 @@
+{
+  "name": "Last Window Quits",
+  "unique_identifier": "io.lawand.last-window-quits",
+  "token": "last-window-quits",
+  "installer_format": "zip",
+  "slug": "last-window-quits/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

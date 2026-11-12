@@ -1,9 +1,9 @@
-import React, { useEffect } from "react";
 import classnames from "classnames";
+import React, { useEffect } from "react";
 
 import Button from "components/buttons/Button";
-import { IRegistrationFormData } from "interfaces/registration_form_data";
 import Checkbox from "components/forms/fields/Checkbox";
+import { IRegistrationFormData } from "interfaces/registration_form_data";
 
 const baseClass = "confirm-user-reg";
 
@@ -104,12 +104,13 @@ const ConfirmationPage = ({
         your instance. Sending usage statistics from your Fleet instance is
         optional and can be disabled in settings.
       </p>
-      <div className="button-wrap">
+      <div className="button-wrap--center">
         <Button
           type="submit"
           tabIndex={tabIndex}
           disabled={!currentPage}
           isLoading={isLoading}
+          size="wide"
         >
           Confirm
         </Button>

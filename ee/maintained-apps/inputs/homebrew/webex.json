@@ -4,5 +4,6 @@
   "token": "webex",
   "installer_format": "dmg",
   "slug": "webex/darwin",
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/webex_install.sh",
   "default_categories": ["Communication"]
 }

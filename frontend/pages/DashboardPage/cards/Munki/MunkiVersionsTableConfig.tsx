@@ -1,8 +1,7 @@
 import React from "react";
 
-import { IMacadminsResponse } from "interfaces/host";
-
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import { IMacadminsResponse } from "interfaces/host";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -12,13 +11,6 @@ interface ICellProps {
   };
   row: {
     original: IMacadminsResponse;
-  };
-}
-
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
   };
 }
 

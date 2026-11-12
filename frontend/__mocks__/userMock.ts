@@ -12,7 +12,9 @@ const DEFAULT_USER_MOCK: IUser = {
   sso_enabled: false,
   global_role: "admin",
   api_only: false,
-  teams: [],
+  last_login_at: null,
+  last_activity_at: null,
+  fleets: [],
 };
 
 const createMockUser = (overrides?: Partial<IUser>): IUser => {

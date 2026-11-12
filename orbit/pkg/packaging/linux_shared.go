@@ -39,7 +39,8 @@ const postInstallSafeRestart = `
   fi
 `
 
-func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
+// buildNFPM builds a Linux package with pkger. ext is the file extension of the package type, without the dot.
+func buildNFPM(opt Options, pkger nfpm.Packager, ext string) (string, error) {
 	// Initialize directories
 	tmpDir, err := initializeTempDir()
 	if err != nil {
@@ -185,7 +186,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	contents := files.Contents{
 		&files.Content{
 			Source:      filepath.Join(rootDir, "**"),
-			Destination: "/",
+			Destination: "",
 		},
 		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
@@ -209,10 +210,10 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	// Add empty folders to be created.
 	for _, emptyFolder := range []string{"/var/log/osquery", "/var/log/orbit"} {
-		contents = append(contents, (&files.Content{
+		contents = append(contents, &files.Content{
 			Destination: emptyFolder,
 			Type:        "dir",
-		}).WithFileInfoDefaults())
+		})
 	}
 
 	if varLibSymlink {
@@ -228,10 +229,6 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			})
 	}
 
-	contents, err = files.ExpandContentGlobs(contents, false)
-	if err != nil {
-		return "", fmt.Errorf("glob contents: %w", err)
-	}
 	for _, c := range contents {
 		log.Debug().Interface("file", c).Msg("added file")
 	}
@@ -256,6 +253,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
 		Version:     opt.Version,
+		Platform:    "linux",
 		Description: "Fleet osquery -- runtime and autoupdater",
 		Arch:        opt.Architecture,
 		Maintainer:  "Fleet Device Management",
@@ -273,7 +271,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			ArchLinux: archLinuxInfo,
 		},
 	}
-	filename := pkger.ConventionalFileName(info)
+	filename := outputFilename("linux", opt.Architecture, ext, opt)
 	if opt.CustomOutfile != "" {
 		filename = opt.CustomOutfile
 	}
@@ -308,14 +306,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	return filename, nil
 }
 
-func writeSystemdUnit(opt Options, rootPath string) error {
-	systemdRoot := filepath.Join(rootPath, "usr", "lib", "systemd", "system")
-	if err := secure.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
-		return fmt.Errorf("create systemd dir: %w", err)
-	}
-	if err := os.WriteFile(
-		filepath.Join(systemdRoot, "orbit.service"),
-		[]byte(`
+// defaultCPUQuota is the systemd CPUQuota percentage applied to the orbit
+// service when none is specified.
+const defaultCPUQuota uint = 20
+
+var systemdUnitTemplate = template.Must(template.New("systemd").Parse(`
 [Unit]
 Description=Orbit osquery
 After=network.service syslog.service
@@ -329,11 +324,30 @@ Restart=always
 RestartSec=1
 KillMode=control-group
 KillSignal=SIGTERM
-CPUQuota=20%
+CPUQuota={{ .CPUQuota }}%
 
 [Install]
 WantedBy=multi-user.target
-`),
+`))
+
+func writeSystemdUnit(opt Options, rootPath string) error {
+	systemdRoot := filepath.Join(rootPath, "usr", "lib", "systemd", "system")
+	if err := secure.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("create systemd dir: %w", err)
+	}
+
+	cpuQuota := opt.CPUQuota
+	if cpuQuota == 0 {
+		cpuQuota = defaultCPUQuota
+	}
+	var contents bytes.Buffer
+	if err := systemdUnitTemplate.Execute(&contents, struct{ CPUQuota uint }{CPUQuota: cpuQuota}); err != nil {
+		return fmt.Errorf("execute template: %w", err)
+	}
+
+	if err := os.WriteFile(
+		filepath.Join(systemdRoot, "orbit.service"),
+		contents.Bytes(),
 		constant.DefaultSystemdUnitMode,
 	); err != nil {
 		return fmt.Errorf("write file: %w", err)
@@ -367,6 +381,7 @@ ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST={{ .FleetDesktopAlternativeBrowserH
 {{ if .EndUserEmail }}ORBIT_END_USER_EMAIL={{.EndUserEmail}}{{ end }}
 {{ if .FleetManagedHostIdentityCertificate }}ORBIT_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE=true{{ end }}
 {{ if .DisableSetupExperience }}ORBIT_DISABLE_SETUP_EXPERIENCE=true{{ end }}
+{{ if .BypassEndUserAuth }}ORBIT_BYPASS_END_USER_AUTH=true{{ end }}
 `))
 
 func writeEnvFile(opt Options, rootPath string) error {

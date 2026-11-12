@@ -6,13 +6,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
+	"strings"
 	"time"
 
-	"github.com/go-kit/log/level"
-
 	"github.com/fleetdm/fleet/v4/server"
+	apiendpoints "github.com/fleetdm/fleet/v4/server/api_endpoints"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -43,6 +42,17 @@ func (r createUserResponse) Error() error { return r.Err }
 
 func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createUserRequest)
+
+	if req.APIEndpoints != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: fleet.NewInvalidArgumentError(
+				"api_endpoints",
+				"This endpoint does not accept API endpoint values",
+			),
+		}, nil
+	}
+
 	user, sessionKey, err := svc.CreateUser(ctx, req.UserPayload)
 	if err != nil {
 		return createUserResponse{Err: err}, nil
@@ -55,6 +65,67 @@ func createUserEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 
 var errMailerRequiredForMFA = badRequest("Email must be set up to enable Fleet MFA")
 
+func validateAPIEndpointRefs(ctx context.Context, refs *[]fleet.APIEndpointRef) error {
+	if refs == nil {
+		// Absent (nil pointer): no change.
+		return nil
+	}
+	if *refs == nil {
+		// Null (non-nil pointer to nil slice): clear all entries — full access.
+		return nil
+	}
+	if len(*refs) == 0 {
+		// Explicit empty array: not valid; send null to grant full access.
+		return ctxerr.Wrap(
+			ctx,
+			fleet.NewInvalidArgumentError(
+				"api_endpoints",
+				"at least one API endpoint must be specified",
+			),
+		)
+	}
+
+	allEndpoints := apiendpoints.GetAPIEndpoints()
+	entries := *refs
+
+	if len(entries) > len(allEndpoints) {
+		return ctxerr.Wrap(
+			ctx,
+			fleet.NewInvalidArgumentError("api_endpoints", "maximum number of API endpoints reached"),
+		)
+	}
+
+	fpMap := make(map[string]struct{}, len(allEndpoints))
+	for _, ep := range allEndpoints {
+		fpMap[ep.Fingerprint()] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(entries))
+	hasDuplicates := false
+	var unknownFps []string
+	for _, ref := range entries {
+		fp := fleet.NewAPIEndpointFromTpl(ref.Method, ref.Path).Fingerprint()
+		if _, dup := seen[fp]; dup {
+			hasDuplicates = true
+			continue
+		}
+		seen[fp] = struct{}{}
+		if _, ok := fpMap[fp]; !ok {
+			unknownFps = append(unknownFps, fp)
+		}
+	}
+	invalid := &fleet.InvalidArgumentError{}
+	if hasDuplicates {
+		invalid.Append("api_endpoints", "one or more api_endpoints entries are duplicated")
+	}
+	if len(unknownFps) > 0 {
+		invalid.Append("api_endpoints", fmt.Sprintf("one or more api_endpoints entries are invalid: %s", strings.Join(unknownFps, ", ")))
+	}
+	if invalid.HasErrors() {
+		return ctxerr.Wrap(ctx, invalid, "validate api_endpoints")
+	}
+	return nil
+}
+
 func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet.User, *string, error) {
 	var teams []fleet.UserTeam
 	if p.Teams != nil {
@@ -66,6 +137,23 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 
 	if err := p.VerifyAdminCreate(); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
+	// Do not allow creating a user with any Premium-only features on Fleet Free.
+	if !license.IsPremium(ctx) {
+		var teamRoles []fleet.UserTeam
+		if p.Teams != nil {
+			teamRoles = *p.Teams
+		}
+		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
+			return nil, nil, fleet.ErrMissingLicense
+		}
+		if p.APIOnly != nil && *p.APIOnly && p.APIEndpoints != nil && *p.APIEndpoints != nil {
+			return nil, nil, fleet.ErrMissingLicense
+		}
+		if p.APIOnly != nil && *p.APIOnly && len(teamRoles) > 0 {
+			return nil, nil, fleet.ErrMissingLicense
+		}
 	}
 
 	if teams != nil {
@@ -82,7 +170,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 			_, ok := teamIDs[userTeam.Team.ID]
 			if !ok {
 				return nil, nil, ctxerr.Wrap(
-					ctx, fleet.NewInvalidArgumentError("teams.id", fmt.Sprintf("team with id %d does not exist", userTeam.Team.ID)),
+					ctx, fleet.NewInvalidArgumentError("fleets.id", fmt.Sprintf("fleet with id %d does not exist", userTeam.Team.ID)),
 				)
 			}
 		}
@@ -114,6 +202,15 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		}
 	}
 
+	if p.APIEndpoints != nil && (p.APIOnly == nil || !*p.APIOnly) {
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_endpoints", "API endpoints can only be specified for API only users"))
+	}
+	if p.APIOnly != nil && *p.APIOnly {
+		if err := validateAPIEndpointRefs(ctx, p.APIEndpoints); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "create user")
@@ -124,7 +221,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 	if user.APIOnly && !user.SSOEnabled {
 		if p.Password == nil {
 			// Should not happen but let's log just in case.
-			level.Error(svc.logger).Log("err", err, "msg", "password not set during admin user creation")
+			svc.logger.ErrorContext(ctx, "password not set during admin user creation")
 		} else {
 			// Create a session for the API-only user by logging in.
 			_, session, err := svc.Login(ctx, user.Email, *p.Password, false)
@@ -139,11 +236,169 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Create API-Only user
+////////////////////////////////////////////////////////////////////////////////
+
+type fleetsPayload struct {
+	ID   uint   `json:"id" db:"id"`
+	Role string `json:"role" db:"role"`
+}
+
+type createAPIOnlyUserRequest struct {
+	Name         *string                 `json:"name,omitempty"`
+	GlobalRole   *string                 `json:"global_role,omitempty"`
+	Fleets       *[]fleetsPayload        `json:"fleets,omitempty"`
+	APIEndpoints *[]fleet.APIEndpointRef `json:"api_endpoints,omitempty"`
+}
+
+func createAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*createAPIOnlyUserRequest)
+
+	pwd, err := server.GenerateRandomPwd()
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: ctxerr.Wrap(ctx, err, "generate user password"),
+		}, nil
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: ctxerr.New(ctx, "failed to get logged user"),
+		}, nil
+	}
+	email, err := server.GenerateRandomEmail(vc.Email())
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: ctxerr.Wrap(ctx, err, "generate user email"),
+		}, nil
+	}
+
+	var fleets []fleet.UserTeam
+	if req.Fleets != nil {
+		for _, t := range *req.Fleets {
+			val := fleet.UserTeam{}
+			val.ID = t.ID
+			val.Role = t.Role
+			fleets = append(fleets, val)
+		}
+	}
+
+	user, token, err := svc.CreateUser(ctx, fleet.UserPayload{
+		Name:                     req.Name,
+		Email:                    &email,
+		Password:                 &pwd,
+		APIOnly:                  new(true),
+		AdminForcedPasswordReset: new(false),
+		GlobalRole:               req.GlobalRole,
+		Teams:                    &fleets,
+		APIEndpoints:             req.APIEndpoints,
+	})
+	if err != nil {
+		return createUserResponse{Err: err}, nil
+	}
+
+	return createUserResponse{
+		User:  user,
+		Token: token,
+	}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Patch API-Only User
+////////////////////////////////////////////////////////////////////////////////
+
+type modifyAPIOnlyUserRequest struct {
+	ID           uint                       `json:"-" url:"id"`
+	Name         *string                    `json:"name,omitempty"`
+	GlobalRole   *string                    `json:"global_role,omitempty"`
+	Teams        *[]fleet.UserTeam          `json:"fleets,omitempty"`
+	APIEndpoints fleet.OptionalAPIEndpoints `json:"api_endpoints"`
+}
+
+type modifyAPIOnlyUserResponse struct {
+	User *fleet.User `json:"user,omitempty"`
+	Err  error       `json:"error,omitempty"`
+}
+
+func (r modifyAPIOnlyUserResponse) Error() error { return r.Err }
+
+func modifyAPIOnlyUserEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*modifyAPIOnlyUserRequest)
+
+	payload := fleet.UserPayload{
+		Name:       req.Name,
+		GlobalRole: req.GlobalRole,
+		Teams:      req.Teams,
+	}
+	if req.APIEndpoints.Present {
+		if req.APIEndpoints.Value == nil {
+			// null → clear all entries; signal via non-nil pointer to nil slice.
+			var emptyEndpoints []fleet.APIEndpointRef
+			payload.APIEndpoints = &emptyEndpoints
+		} else {
+			payload.APIEndpoints = &req.APIEndpoints.Value
+		}
+	}
+
+	user, err := svc.ModifyAPIOnlyUser(ctx, req.ID, payload)
+	if err != nil {
+		return modifyAPIOnlyUserResponse{Err: err}, nil
+	}
+	return modifyAPIOnlyUserResponse{User: user}, nil
+}
+
+func (svc *Service) ModifyAPIOnlyUser(ctx context.Context, userID uint, p fleet.UserPayload) (*fleet.User, error) {
+	target, err := svc.ds.UserByID(ctx, userID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	if err := svc.authz.Authorize(ctx, target, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	if !target.APIOnly {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("id", "target user is not an API-only user"))
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.New(ctx, "viewer not present")
+	}
+	if vc.UserID() == userID {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("id", "cannot modify your own API-only user"))
+	}
+
+	return svc.ModifyUser(ctx, userID, fleet.UserPayload{
+		Name:         p.Name,
+		GlobalRole:   p.GlobalRole,
+		Teams:        p.Teams,
+		APIOnly:      new(true),
+		APIEndpoints: p.APIEndpoints,
+	})
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Create User From Invite
 ////////////////////////////////////////////////////////////////////////////////
 
 func createUserFromInviteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createUserRequest)
+
+	if req.APIOnly != nil || req.APIEndpoints != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return createUserResponse{
+			Err: fleet.NewInvalidArgumentError(
+				"api_endpoints",
+				"This endpoint does not accept API endpoint values",
+			),
+		}, nil
+	}
+
 	user, err := svc.CreateUserFromInvite(ctx, req.UserPayload)
 	if err != nil {
 		return createUserResponse{Err: err}, nil
@@ -165,12 +420,37 @@ func (svc *Service) CreateUserFromInvite(ctx context.Context, p fleet.UserPayloa
 		return nil, err
 	}
 
+	var payloadEmail string
+	if p.Email != nil {
+		payloadEmail = *p.Email
+	}
+	if invite.Email != payloadEmail {
+		return nil, fleet.NewInvalidArgumentError("invite_token", "Invite Token does not match Email Address.")
+	}
+
 	// set the payload role property based on an existing invite.
 	p.GlobalRole = invite.GlobalRole.Ptr()
 	p.Teams = &invite.Teams
-	p.MFAEnabled = ptr.Bool(invite.MFAEnabled)
+	p.MFAEnabled = new(invite.MFAEnabled)
 	// Invite ID is only used as a uniq index to prevent a double invite acceptance race condition
 	p.InviteID = &invite.ID
+	p.SSOEnabled = new(invite.SSOEnabled)
+	p.SSOInvite = new(invite.SSOEnabled)
+	if invite.SSOEnabled {
+		// SSO invites must not create local password credentials. Reject the
+		// payload if it carries a password field at all, even an empty one.
+		if p.Password != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "not allowed for SSO invitations"))
+		}
+	} else {
+		// Non-SSO invites require a valid password.
+		if p.Password == nil || *p.Password == "" {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", "Password missing required argument"))
+		}
+		if err := fleet.ValidatePasswordRequirements(*p.Password); err != nil {
+			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("password", err.Error()))
+		}
+	}
 
 	user, err := svc.NewUser(ctx, p)
 	if err != nil {
@@ -213,6 +493,22 @@ func listUsersEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	return resp, nil
 }
 
+// filterUserTeamsToRequesterScope returns the subset of teams that the
+// requester is permitted to see. A requester with any global role sees all
+// teams unchanged; a team-scoped requester sees only teams they have a role in.
+func filterUserTeamsToRequesterScope(teams []fleet.UserTeam, requester *fleet.User) []fleet.UserTeam {
+	if requester.HasAnyGlobalRole() {
+		return teams
+	}
+	filtered := make([]fleet.UserTeam, 0, len(teams))
+	for _, t := range teams {
+		if requester.HasAnyRoleInTeam(t.ID) {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered
+}
+
 func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
 	user := &fleet.User{}
 	if opt.TeamID != 0 {
@@ -222,7 +518,39 @@ func (svc *Service) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([
 		return nil, err
 	}
 
-	return svc.ds.ListUsers(ctx, opt)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	users, err := svc.ds.ListUsers(ctx, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	// The datastore loads each user's full team membership. A team-scoped
+	// requester is only authorized to list users of a team they administer, so
+	// strip any team memberships (IDs/names/roles) for teams the requester has
+	// no role in before returning them. Global roles are authorized to see all
+	// teams and are left untouched.
+	// Status is computed before stripping so a user isn't misreported as
+	// having no access when their teams are outside the requester's scope.
+	now := time.Now()
+	for _, user := range users {
+		user.Status = user.ComputeStatus(now)
+		user.Teams = filterUserTeamsToRequesterScope(user.Teams, vc.User)
+	}
+
+	return users, nil
+}
+
+func (svc *Service) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
+	// Authorize read access to users (no specific team context)
+	if err := svc.authz.Authorize(ctx, &fleet.User{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.UsersByIDs(ctx, ids)
 }
 
 // //////////////////////////////////////////////////////////////////////////////
@@ -283,7 +611,7 @@ type getUserRequest struct {
 
 type getUserResponse struct {
 	User           *fleet.User          `json:"user,omitempty"`
-	AvailableTeams []*fleet.TeamSummary `json:"available_teams"`
+	AvailableTeams []*fleet.TeamSummary `json:"available_fleets"`
 	Settings       *fleet.UserSettings  `json:"settings,omitempty"`
 	Err            error                `json:"error,omitempty"`
 }
@@ -342,6 +670,7 @@ func (svc *Service) User(ctx context.Context, id uint) (*fleet.User, error) {
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionRead); err != nil {
 		return nil, err
 	}
+	user.Status = user.ComputeStatus(time.Now())
 	return user, nil
 }
 
@@ -363,6 +692,17 @@ func (r modifyUserResponse) Error() error { return r.Err }
 
 func modifyUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyUserRequest)
+
+	if req.APIOnly != nil || req.APIEndpoints != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return modifyUserResponse{
+			Err: fleet.NewInvalidArgumentError(
+				"api_endpoints",
+				"This endpoint does not accept API endpoint values",
+			),
+		}, nil
+	}
+
 	user, err := svc.ModifyUser(ctx, req.ID, req.UserPayload)
 	if err != nil {
 		return modifyUserResponse{Err: err}, nil
@@ -385,6 +725,23 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 
+	// Do not allow setting any Premium-only features on Fleet Free.
+	if !license.IsPremium(ctx) {
+		var teamRoles []fleet.UserTeam
+		if p.Teams != nil {
+			teamRoles = *p.Teams
+		}
+		if fleet.PremiumRolesPresent(p.GlobalRole, teamRoles) {
+			return nil, fleet.ErrMissingLicense
+		}
+		if user.APIOnly && p.APIEndpoints != nil && *p.APIEndpoints != nil {
+			return nil, fleet.ErrMissingLicense
+		}
+		if p.APIOnly != nil && *p.APIOnly && len(teamRoles) > 0 {
+			return nil, fleet.ErrMissingLicense
+		}
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, ctxerr.New(ctx, "viewer not present") // should never happen, authorize would've failed
@@ -392,6 +749,23 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 	ownUser := vc.UserID() == userID
 	if err := p.VerifyModify(ownUser); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
+	if p.APIOnly != nil && *p.APIOnly != user.APIOnly {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_only", "cannot change api_only status of a user"))
+	}
+	if p.APIEndpoints != nil && !user.APIOnly {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("api_endpoints", "API endpoints can only be specified for API only users"))
+	}
+	if p.APIEndpoints != nil {
+		// Changing endpoint permissions is a privileged operation — same level as
+		// changing roles. This prevents an API-only user from expanding their own access.
+		if err := svc.authz.Authorize(ctx, user, fleet.ActionWriteRole); err != nil {
+			return nil, err
+		}
+	}
+	if err := validateAPIEndpointRefs(ctx, p.APIEndpoints); err != nil {
+		return nil, err
 	}
 
 	if p.MFAEnabled != nil {
@@ -433,11 +807,16 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		if err := svc.authz.Authorize(ctx, user, fleet.ActionWriteRole); err != nil {
 			return nil, err
 		}
-		license, _ := license.FromContext(ctx)
-		if license == nil {
+		licChecker, _ := license.FromContext(ctx)
+		lic, _ := licChecker.(*fleet.LicenseInfo)
+		if lic == nil {
 			return nil, ctxerr.New(ctx, "license not found")
 		}
-		if err := fleet.ValidateUserRoles(false, p, *license); err != nil {
+		// The endpoint rejects api_only, so validate against the stored value to
+		// enforce API-only roles (GitOps).
+		rolesPayload := p
+		rolesPayload.APIOnly = new(user.APIOnly)
+		if err := fleet.ValidateUserRoles(false, rolesPayload, *lic); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validate role")
 		}
 	}
@@ -492,10 +871,17 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		user.Settings = p.Settings
 	}
 
-	currentUser := authz.UserFromContext(ctx)
+	if p.APIEndpoints != nil {
+		user.APIEndpoints = *p.APIEndpoints
+	}
 
-	if p.GlobalRole != nil && *p.GlobalRole != "" {
-		if currentUser.GlobalRole == nil {
+	currentUser := authz.UserFromContext(ctx)
+	callerIsGlobalAdmin := currentUser != nil && currentUser.GlobalRole != nil && *currentUser.GlobalRole == fleet.RoleAdmin
+
+	var isGlobalAdminDemotion bool
+
+	if p.GlobalRole != nil {
+		if !callerIsGlobalAdmin {
 			return nil, authz.ForbiddenWithInternal(
 				"cannot edit global role as a team member",
 				currentUser, user, fleet.ActionWriteRole,
@@ -503,11 +889,25 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		}
 
 		if p.Teams != nil && len(*p.Teams) > 0 {
-			return nil, fleet.NewInvalidArgumentError("teams", "may not be specified with global_role")
+			return nil, fleet.NewInvalidArgumentError("fleets", "may not be specified with global_role")
 		}
+
+		// Track whether this is a demotion from global admin so we can
+		// use an atomic check+save later to prevent TOCTOU races.
+		isGlobalAdminDemotion = user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin && *p.GlobalRole != fleet.RoleAdmin
+
 		user.GlobalRole = p.GlobalRole
 		user.Teams = []fleet.UserTeam{}
 	} else if p.Teams != nil {
+		// Track whether this is a demotion from global admin by assigning teams.
+		isGlobalAdminDemotion = user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin
+
+		if user.HasAnyGlobalRole() && !callerIsGlobalAdmin {
+			return nil, authz.ForbiddenWithInternal(
+				"cannot move a global user to teams as a team member",
+				currentUser, user, fleet.ActionWriteRole,
+			)
+		}
 		if !isAdminOfTheModifiedTeams(currentUser, user.Teams, *p.Teams) {
 			return nil, authz.ForbiddenWithInternal(
 				"cannot modify teams in that way",
@@ -518,10 +918,35 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		user.GlobalRole = nil
 	}
 
-	if p.NewPassword != nil {
+	switch {
+	case isGlobalAdminDemotion:
+		// Use atomic check+save to prevent TOCTOU race when demoting the last admin.
+		// We must set the password before saving if a new password was also provided.
+		if p.NewPassword != nil {
+			if err = user.SetPassword(*p.NewPassword, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "setting new password")
+			}
+		}
+		err = svc.ds.SaveUserIfNotLastAdmin(ctx, user)
+		if errors.Is(err, fleet.ErrLastGlobalAdmin) {
+			if p.GlobalRole != nil {
+				return nil, fleet.NewInvalidArgumentError("global_role", "cannot demote the last global admin")
+			}
+			return nil, fleet.NewInvalidArgumentError("fleets", "cannot demote the last global admin")
+		}
+		if err == nil && p.NewPassword != nil {
+			// Clean up password reset requests and sessions like setNewPassword does.
+			if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
+			}
+			if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "destroying sessions after password change")
+			}
+		}
+	case p.NewPassword != nil:
 		// setNewPassword takes care of calling saveUser
-		err = svc.setNewPassword(ctx, user, *p.NewPassword)
-	} else {
+		err = svc.setNewPassword(ctx, user, *p.NewPassword, true)
+	default:
 		err = svc.saveUser(ctx, user)
 	}
 	if err != nil {
@@ -537,7 +962,7 @@ func (svc *Service) ModifyUser(ctx context.Context, userID uint, p fleet.UserPay
 		return nil, err
 	}
 	adminUser := authz.UserFromContext(ctx)
-	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, oldGlobalRole, oldTeams, user); err != nil {
+	if err := fleet.LogRoleChangeActivities(ctx, svc, adminUser, oldGlobalRole, oldTeams, user, false); err != nil {
 		return nil, err
 	}
 
@@ -560,24 +985,32 @@ func (r deleteUserResponse) Error() error { return r.Err }
 
 func deleteUserEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteUserRequest)
-	err := svc.DeleteUser(ctx, req.ID)
-	if err != nil {
+	if _, err := svc.DeleteUser(ctx, req.ID); err != nil {
 		return deleteUserResponse{Err: err}, nil
 	}
 	return deleteUserResponse{}, nil
 }
 
-func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
+func (svc *Service) DeleteUser(ctx context.Context, id uint) (*fleet.User, error) {
 	user, err := svc.ds.UserByID(ctx, id)
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
-		return ctxerr.Wrap(ctx, err)
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 	if err := svc.authz.Authorize(ctx, user, fleet.ActionWrite); err != nil {
-		return err
+		return nil, err
 	}
-	if err := svc.ds.DeleteUser(ctx, id); err != nil {
-		return err
+
+	// Atomically check that we're not deleting the last global admin before deleting.
+	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleAdmin {
+		if err := svc.ds.DeleteUserIfNotLastAdmin(ctx, id); err != nil {
+			if errors.Is(err, fleet.ErrLastGlobalAdmin) {
+				return nil, fleet.NewInvalidArgumentError("id", "cannot delete the last global admin")
+			}
+			return nil, err
+		}
+	} else if err := svc.ds.DeleteUser(ctx, id); err != nil {
+		return nil, err
 	}
 
 	adminUser := authz.UserFromContext(ctx)
@@ -590,10 +1023,10 @@ func (svc *Service) DeleteUser(ctx context.Context, id uint) error {
 			UserEmail: user.Email,
 		},
 	); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return user, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -643,6 +1076,10 @@ func (svc *Service) RequirePasswordReset(ctx context.Context, uid uint, require 
 		// Clear all of the existing sessions
 		if err := svc.DeleteSessionsForUser(ctx, user.ID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "deleting user sessions")
+		}
+		// Clear all password reset tokens for good measure.
+		if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
 		}
 	}
 
@@ -699,7 +1136,7 @@ func (svc *Service) ChangePassword(ctx context.Context, oldPass, newPass string)
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("old_password", "old password does not match"))
 	}
 
-	if err := svc.setNewPassword(ctx, vc.User, newPass); err != nil {
+	if err := svc.setNewPassword(ctx, vc.User, newPass, true); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting new password")
 	}
 	return nil
@@ -933,7 +1370,7 @@ func (svc *Service) modifyEmailAddress(ctx context.Context, user *fleet.User, em
 		ServerURL:    config.ServerSettings.ServerURL,
 		Mailer: &mail.ChangeEmailMailer{
 			Token:    token,
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 		},
 	}
@@ -1012,13 +1449,24 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	}
 
 	user.AdminForcedPasswordReset = false
-	err := svc.setNewPassword(ctx, user, password)
+	err := svc.setNewPassword(ctx, user, password, false)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "setting new password")
 	}
 
-	// Sessions should already have been cleared when the reset was
-	// required
+	// Destroy all other sessions but keep the current one so the user
+	// completing the reset is not logged out.
+	sessions, err := svc.ds.ListSessionsForUser(ctx, user.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing user sessions")
+	}
+	for _, s := range sessions {
+		if s.ID != vc.Session.ID {
+			if err := svc.ds.DestroySession(ctx, s); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "destroying session")
+			}
+		}
+	}
 
 	return user, nil
 }
@@ -1026,17 +1474,26 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 // setNewPassword is a helper for changing a user's password. It should be
 // called to set the new password after proper authorization has been
 // performed.
-func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string) error {
+func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string, clearSessions bool) error {
 	err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "setting new password")
 	}
-	if user.SSOEnabled {
-		return ctxerr.New(ctx, "set password for single sign on user not allowed")
-	}
 	err = svc.saveUser(ctx, user)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "saving changed password")
+	}
+
+	// Ensure that any existing links for password resets will no longer work.
+	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting password reset requests after password change")
+	}
+
+	// Force the user to log in again with new password unless explicitly told not to.
+	if clearSessions {
+		if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting sessions after password change")
+		}
 	}
 
 	return nil
@@ -1097,21 +1554,25 @@ func (svc *Service) ResetPassword(ctx context.Context, token, password string) e
 		return fleet.NewInvalidArgumentError("new_password", "Cannot reuse old password")
 	}
 
-	// password requirements are validated as part of `setNewPassword``
-	err = svc.setNewPassword(ctx, user, password)
-	if err != nil {
-		return fleet.NewInvalidArgumentError("new_password", err.Error())
+	// Hash the new password before touching the database. Hashing is the only step that
+	// can reject the password (bcrypt rejects passwords longer than its limit), and it is
+	// CPU-bound, so it must run before — and outside of — the reset transaction. Doing it
+	// here also guarantees a rejected password never consumes the token.
+	if err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("new_password", err.Error()))
 	}
 
-	// delete password reset tokens for user
-	if err := svc.ds.DeletePasswordResetRequestsForUser(ctx, user.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete password reset requests")
-	}
-
-	// Clear sessions so that any other browsers will have to log in with
-	// the new password
-	if err := svc.ds.DestroyAllSessionsForUser(ctx, user.ID); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete user sessions")
+	// Consume the token and apply the password change atomically. Within a single
+	// transaction this consumes the token, saves the new password, and invalidates the
+	// user's other reset links and sessions. It enforces one-time-use semantics (exactly
+	// one concurrent request can consume a given token) and, because it is transactional,
+	// a failure in any step rolls back the token consumption so the reset link stays
+	// usable.
+	if err := svc.ds.ResetPassword(ctx, token, user); err != nil {
+		if fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, fleet.NewAuthFailedError("invalid password reset token"), "password reset token already used")
+		}
+		return ctxerr.Wrap(ctx, err, "resetting password")
 	}
 
 	return nil
@@ -1196,7 +1657,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 		SMTPSettings: smtpSettings,
 		ServerURL:    config.ServerSettings.ServerURL,
 		Mailer: &mail.PasswordResetMailer{
-			BaseURL:  template.URL(config.ServerSettings.ServerURL + svc.config.Server.URLPrefix),
+			BaseURL:  emailLinkBaseURL(config.ServerSettings.ServerURL, svc.config.Server.URLPrefix),
 			AssetURL: getAssetURL(),
 			Token:    token,
 		},
@@ -1204,7 +1665,7 @@ func (svc *Service) RequestPasswordReset(ctx context.Context, email string) erro
 
 	err = svc.mailService.SendEmail(ctx, resetEmail)
 	if err != nil {
-		level.Error(svc.logger).Log("err", err, "msg", "failed to send password reset request email")
+		svc.logger.ErrorContext(ctx, "failed to send password reset request email", "err", err)
 	}
 	return err
 }

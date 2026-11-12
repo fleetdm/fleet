@@ -2,26 +2,21 @@ package digicert
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/json/v2"
 	"encoding/pem"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/ee/server/service/certissue"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-json-experiment/json"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
-	"software.sslmate.com/src/go-pkcs12"
 )
 
 // REST client for https://one.digicert.com/mpki/docs/swagger-ui/index.html
@@ -36,7 +31,7 @@ const (
 )
 
 type Service struct {
-	logger  kitlog.Logger
+	logger  *slog.Logger
 	timeout time.Duration
 }
 
@@ -60,7 +55,7 @@ func WithTimeout(t time.Duration) Opt {
 }
 
 // WithLogger sets the logger to use for the service.
-func WithLogger(logger kitlog.Logger) Opt {
+func WithLogger(logger *slog.Logger) Opt {
 	return func(s *Service) {
 		s.logger = logger
 	}
@@ -107,7 +102,7 @@ func (s *Service) VerifyProfileID(ctx context.Context, config fleet.DigiCertCA) 
 	if p.Status != "Active" {
 		return ctxerr.Errorf(ctx, "DigiCert profile status is not Active: %s", p.Status)
 	}
-	level.Debug(s.logger).Log("msg", "DigiCert profile verified", "id", p.ID, "name", p.Name, "status", p.Status)
+	s.logger.DebugContext(ctx, "DigiCert profile verified", "id", p.ID, "name", p.Name, "status", p.Status)
 	return nil
 }
 
@@ -119,34 +114,18 @@ func (s *Service) populateOpts(opts []Opt) {
 		s.timeout = defaultTimeout
 	}
 	if s.logger == nil {
-		s.logger = kitlog.NewLogfmtLogger(kitlog.NewSyncWriter(os.Stdout))
+		s.logger = slog.New(slog.NewTextHandler(os.Stderr, nil))
 	}
 }
 
 func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
 	client := fleethttp.NewClient(fleethttp.WithTimeout(s.timeout))
 
-	// Generate a CSR (Certificate Signing Request).
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	// Generate a CSR (Certificate Signing Request). DigiCert takes the UPNs in the request body, not in the CSR.
+	privateKey, csr, err := certissue.NewCSR(ctx, config.CertificateCommonName, nil)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generating RSA private key")
+		return nil, err
 	}
-
-	csrTemplate := &x509.CertificateRequest{
-		Subject: pkix.Name{
-			CommonName: config.CertificateCommonName,
-		},
-	}
-
-	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, csrTemplate, privateKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating CSR")
-	}
-
-	csr := strings.TrimSpace(string(pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE REQUEST",
-		Bytes: csrBytes,
-	})))
 
 	reqBody := map[string]interface{}{
 		"profile": map[string]string{
@@ -195,7 +174,7 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sending DigiCert POST request")
+		return nil, ctxerr.Wrap(ctx, certissue.Transient(ctx, err), "sending DigiCert POST request")
 	}
 	defer resp.Body.Close()
 
@@ -216,7 +195,8 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 			case http.StatusForbidden:
 				return nil, ctxerr.Errorf(ctx, errMessageInvalidProfile, config.Name, resp.StatusCode)
 			}
-			return nil, ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d", resp.StatusCode)
+			return nil, certissue.TransientStatus(
+				ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d", resp.StatusCode), resp.StatusCode)
 		}
 
 		combinedErrorMessages := make([]string, len(errResp.Errors))
@@ -231,8 +211,8 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 			return nil, ctxerr.Errorf(ctx, errMessageInvalidProfile+", errors: %s", config.Name, resp.StatusCode,
 				strings.Join(combinedErrorMessages, "; "))
 		}
-		return nil, ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d, errors: %s", resp.StatusCode,
-			strings.Join(combinedErrorMessages, "; "))
+		return nil, certissue.TransientStatus(ctxerr.Errorf(ctx, "unexpected DigiCert status code for POST request: %d, errors: %s",
+			resp.StatusCode, strings.Join(combinedErrorMessages, "; ")), resp.StatusCode)
 	}
 
 	type certificateResponse struct {
@@ -254,7 +234,7 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 	// Serial number is an up to 20-byte(40 char) hex string
 	_, err = hex.DecodeString(certResp.SerialNumber)
 	if err != nil || certResp.SerialNumber == "" || len(certResp.SerialNumber) > 40 {
-		level.Error(s.logger).Log("msg", "DigiCert certificate returned with invalid serial number", "serial_number", certResp.SerialNumber, "decode_err", err)
+		s.logger.ErrorContext(ctx, "DigiCert certificate returned with invalid serial number", "serial_number", certResp.SerialNumber, "decode_err", err)
 		return nil, ctxerr.Errorf(ctx, "invalid DigiCert serial number: %s", certResp.SerialNumber)
 	}
 
@@ -262,7 +242,7 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 		return nil, ctxerr.Errorf(ctx, "did not receive DigiCert certificate")
 	}
 
-	level.Debug(s.logger).Log("msg", "DigiCert certificate created", "serial_number", certResp.SerialNumber)
+	s.logger.DebugContext(ctx, "DigiCert certificate created", "serial_number", certResp.SerialNumber)
 
 	// Decode the certificate from PEM format
 	certBlock, _ := pem.Decode([]byte(certResp.Certificate))
@@ -276,13 +256,9 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (
 	}
 
 	// Encode the private key and certificate into PKCS12
-	password, err := server.GenerateRandomText(10)
+	pkcs12Data, password, err := certissue.EncodePKCS12(ctx, privateKey, cert)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "generating password for PKCS12 bundle")
-	}
-	pkcs12Data, err := pkcs12.Legacy.Encode(privateKey, cert, nil, password)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating PKCS12 bundle")
+		return nil, err
 	}
 
 	return &fleet.DigiCertCertificate{

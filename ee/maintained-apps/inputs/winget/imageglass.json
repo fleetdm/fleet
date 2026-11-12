@@ -1,0 +1,14 @@
+{
+  "name": "ImageGlass",
+  "slug": "imageglass/windows",
+  "package_identifier": "DuongDieuPhap.ImageGlass",
+  "unique_identifier": "ImageGlass",
+  "installer_arch": "x64",
+  "installer_type": "msix",
+  "installer_scope": "user",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/imageglass_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/imageglass_uninstall.ps1",
+  "default_categories": [
+    "Productivity"
+  ]
+}

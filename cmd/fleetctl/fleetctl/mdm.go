@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/service"
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/urfave/cli/v2"
@@ -28,6 +29,7 @@ func mdmCommand() *cli.Command {
 			mdmLockCommand(),
 			mdmUnlockCommand(),
 			mdmWipeCommand(),
+			mdmClearPasscodeCommand(),
 		},
 	}
 }
@@ -36,7 +38,7 @@ func mdmRunCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "run-command",
 		Aliases: []string{"run_command"},
-		Usage:   "Run a custom MDM command on macOS and Windows hosts.",
+		Usage:   "Run a custom MDM command on Apple (macOS, iOS, iPadOS), Windows, and Android hosts.",
 		Flags: []cli.Flag{
 			contextFlag(),
 			debugFlag(),
@@ -47,7 +49,7 @@ func mdmRunCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:     "payload",
-				Usage:    "A path to an XML file containing the raw MDM request payload.",
+				Usage:    "A path to a file containing the raw MDM request payload (XML for Apple/Windows, JSON for Android).",
 				Required: true,
 			},
 		},
@@ -90,7 +92,7 @@ func mdmRunCommand() *cli.Command {
 			var (
 				hostUUIDs     []string
 				notFoundCount int
-				mdmPlatform   string // "darwin" or "windows"
+				mdmPlatform   string // "darwin", "windows", or "android"
 			)
 			for _, ident := range hostIdents {
 				host, err := client.HostByIdentifier(ident)
@@ -104,15 +106,22 @@ func mdmRunCommand() *cli.Command {
 					var sce kithttp.StatusCoder
 					if errors.As(err, &sce) {
 						if sce.StatusCode() == http.StatusForbidden {
+							// GitOps users can't read hosts, so the lookup is where they are denied.
+							if me, meErr := client.Me(); meErr == nil && isGitOpsUser(me) {
+								return errors.New(fleet.GitOpsMDMCommandErrorMessage)
+							}
 							return fmt.Errorf("You don't have permission to run an MDM command on one or more specified hosts: %w", err)
 						}
 					}
 					return err
 				}
 
-				mdmHostPlatform := fleet.MDMPlatform(host.Platform)
+				mdmHostPlatform := fleet.ClassicMDMPlatform(host.Platform)
+				if mdmHostPlatform == "" && fleet.IsAndroidPlatform(host.Platform) {
+					mdmHostPlatform = "android"
+				}
 				if mdmHostPlatform != mdmPlatform && mdmPlatform != "" {
-					return errors.New(`Command can't run on hosts with different platforms. Make sure the hosts specified in the "hosts" flag are either all macOS or all Windows hosts.`)
+					return errors.New(`Command can't run on hosts with different platforms. Make sure the hosts specified in the "hosts" flag are either all Apple, all Windows, or all Android hosts.`)
 				}
 				mdmPlatform = mdmHostPlatform
 
@@ -132,6 +141,9 @@ func mdmRunCommand() *cli.Command {
 			if err != nil {
 				if errors.Is(err, service.ErrMissingLicense) && mdmPlatform == "windows" {
 					return errors.New(fleet.WindowsMDMRequiresPremiumCmdMessage)
+				}
+				if errors.Is(err, service.ErrMissingLicense) && mdmPlatform == "android" {
+					return errors.New(android.AndroidMDMRequiresPremiumCmdMessage)
 				}
 
 				var sce kithttp.StatusCoder
@@ -183,6 +195,20 @@ func mdmLockCommand() *cli.Command {
 				return fmt.Errorf("Failed to lock host: %w", err)
 			}
 
+			// Android has no Fleet-side unlock: the user unlocks via their device PIN/passcode,
+			// not a Fleet command. Tailor the help text to platform.
+			if fleet.IsAndroidPlatform(host.Platform) {
+				fmt.Fprintf(c.App.Writer, `
+The host will lock when it comes online. The end user can unlock by entering their device PIN.
+
+Copy and run this command to see lock status:
+
+fleetctl get host %s
+
+`, hostIdent)
+				return nil
+			}
+
 			fmt.Fprintf(c.App.Writer, `
 The host will lock when it comes online.
 
@@ -223,7 +249,7 @@ func mdmUnlockCommand() *cli.Command {
 				return fmt.Errorf("Failed to unlock host: %w", err)
 			}
 
-			if fleet.MDMPlatform(host.Platform) == "darwin" {
+			if fleet.ClassicMDMPlatform(host.Platform) == "darwin" {
 				fmt.Fprintf(c.App.Writer, `
 Use this 6 digit PIN to unlock the host:
 
@@ -243,6 +269,46 @@ fleetctl get host %s
 
 `, hostIdent)
 
+			return nil
+		},
+	}
+}
+
+// mdmClearPasscodeCommand issues an MDM clear-passcode request. Supported on iOS/iPadOS hosts
+// (clears the device passcode) and Android hosts (clears the work-profile passcode on BYO; the
+// device passcode on COBO). Other platforms are rejected by the server.
+func mdmClearPasscodeCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "clear-passcode",
+		Aliases: []string{"clear_passcode"},
+		Usage:   "Clear the passcode on a host. Supported on iOS, iPadOS, and Android.",
+		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
+			Name:     "host",
+			Usage:    "The host, specified by hostname, UUID, or serial number.",
+			Required: true,
+		}},
+		Action: func(c *cli.Context) error {
+			hostIdent := c.String("host")
+
+			client, host, err := hostMdmActionSetup(c, hostIdent, "clear passcode for")
+			if err != nil {
+				return err
+			}
+
+			res, err := client.MDMClearPasscodeHost(host.ID)
+			if err != nil {
+				return fmt.Errorf("Failed to clear passcode on host: %w", err)
+			}
+
+			// Clear-passcode deliberately does not populate host_mdm_actions, so `fleetctl get host`
+			// shows no clear-passcode-specific state (unlike lock/wipe). Completion surfaces only as
+			// the "cleared_passcode" activity. The CommandUUID is the persisted command identifier:
+			// for Apple it queries against nano_commands via `fleetctl get mdm-command-results`; for
+			// Android it identifies the mdm_android_commands row.
+			fmt.Fprintf(c.App.Writer, "\nThe host's passcode will be cleared when it comes online.\n")
+			if res != nil && res.CommandUUID != "" {
+				fmt.Fprintf(c.App.Writer, "Command UUID: %s\n", res.CommandUUID)
+			}
 			return nil
 		},
 	}
@@ -285,7 +351,7 @@ fleetctl get host %s`, hostIdent)
 // Does some common setup for the host mdm actions such as validating the host,
 // creating the client, getting the desired host, checking permissions, and
 // ensuring MDM is turned on for the host.
-func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (client *service.Client, host *service.HostDetailResponse, err error) {
+func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (client *service.Client, host *fleet.HostDetailResponse, err error) {
 	if len(hostIdent) == 0 {
 		return nil, nil, errors.New("No host targeted. Please provide --host.")
 	}
@@ -305,6 +371,9 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 		var sce kithttp.StatusCoder
 		if errors.As(err, &sce) {
 			if sce.StatusCode() == http.StatusForbidden {
+				if me, meErr := client.Me(); meErr == nil && isGitOpsUser(me) {
+					return nil, nil, errors.New(fleet.GitOpsMDMCommandErrorMessage)
+				}
 				return nil, nil, fmt.Errorf("Permission denied. You don't have permission to %s this host.", actionType)
 			}
 		}
@@ -312,11 +381,23 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 	}
 
 	// check mdm is on for the host
-	if fleet.MDMSupported(host.Platform) {
+	if fleet.MDMTurnedOnSupported(host.Platform) {
 		if host.MDM.ConnectedToFleet == nil || !*host.MDM.ConnectedToFleet {
 			return nil, nil, fmt.Errorf("Can't %s the host because it doesn't have MDM turned on.", actionType)
 		}
 	}
 
 	return client, host, nil
+}
+
+// isGitOpsUser reports whether every role the user holds is GitOps. A 403 on the host lookup doesn't say which fleet was denied, so a
+// user with other roles too can't be told apart from one denied ordinary cross-fleet access.
+func isGitOpsUser(user *fleet.User) bool {
+	if user == nil {
+		return false
+	}
+	if user.GlobalRole != nil {
+		return *user.GlobalRole == fleet.RoleGitOps
+	}
+	return len(user.Teams) > 0 && !slices.ContainsFunc(user.Teams, func(t fleet.UserTeam) bool { return t.Role != fleet.RoleGitOps })
 }

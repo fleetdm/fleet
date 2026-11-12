@@ -1,0 +1,10 @@
+{
+  "name": "IsThereNet",
+  "unique_identifier": "com.lowtechguys.IsThereNet",
+  "token": "istherenet",
+  "installer_format": "dmg",
+  "slug": "istherenet/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

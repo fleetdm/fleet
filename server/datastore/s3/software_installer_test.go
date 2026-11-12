@@ -20,7 +20,7 @@ import (
 
 func TestSoftwareInstaller(t *testing.T) {
 	ctx := t.Context()
-	store := SetupTestSoftwareInstallerStore(t, "software-installers-unit-test", "prefix")
+	store := setupTestSoftwareInstallerStore(t, "software-installers-unit-test", "prefix")
 
 	// get a non-existing installer
 	blob, length, err := store.Get(ctx, "no-such-installer")
@@ -87,7 +87,7 @@ func TestSoftwareInstaller(t *testing.T) {
 
 func TestSoftwareInstallerCleanup(t *testing.T) {
 	ctx := context.Background()
-	store := SetupTestSoftwareInstallerStore(t, "software-installers-unit-test", "prefix")
+	store := setupTestSoftwareInstallerStore(t, "software-installers-unit-test", "prefix")
 
 	assertExisting := func(want []string) {
 		prefix := path.Join(store.prefix, softwareInstallersPrefix)

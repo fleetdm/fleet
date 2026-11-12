@@ -6,39 +6,41 @@ import (
 )
 
 type StatisticsPayload struct {
-	AnonymousIdentifier           string `json:"anonymousIdentifier"`
-	FleetVersion                  string `json:"fleetVersion"`
-	LicenseTier                   string `json:"licenseTier"`
-	Organization                  string `json:"organization"`
-	NumHostsEnrolled              int    `json:"numHostsEnrolled"`
-	NumHostsABMPending            int    `json:"numHostsABMPending"`
-	NumUsers                      int    `json:"numUsers"`
-	NumSoftwareVersions           int    `json:"numSoftwareVersions"`
-	NumHostSoftwares              int    `json:"numHostSoftwares"`
-	NumSoftwareTitles             int    `json:"numSoftwareTitles"`
-	NumHostSoftwareInstalledPaths int    `json:"numHostSoftwareInstalledPaths"`
-	NumSoftwareCPEs               int    `json:"numSoftwareCPEs"`
-	NumSoftwareCVEs               int    `json:"numSoftwareCVEs"`
-	NumTeams                      int    `json:"numTeams"`
-	NumPolicies                   int    `json:"numPolicies"`
-	NumQueries                    int    `json:"numQueries"`
-	NumLabels                     int    `json:"numLabels"`
-	SoftwareInventoryEnabled      bool   `json:"softwareInventoryEnabled"`
-	VulnDetectionEnabled          bool   `json:"vulnDetectionEnabled"`
-	SystemUsersEnabled            bool   `json:"systemUsersEnabled"`
-	HostsStatusWebHookEnabled     bool   `json:"hostsStatusWebHookEnabled"`
-	MDMMacOsEnabled               bool   `json:"mdmMacOsEnabled"`
-	HostExpiryEnabled             bool   `json:"hostExpiryEnabled"`
-	MDMWindowsEnabled             bool   `json:"mdmWindowsEnabled"`
-	LiveQueryDisabled             bool   `json:"liveQueryDisabled"`
-	NumWeeklyActiveUsers          int    `json:"numWeeklyActiveUsers"`
+	AnonymousIdentifier            string `json:"anonymousIdentifier"`
+	FleetVersion                   string `json:"fleetVersion"`
+	LicenseTier                    string `json:"licenseTier"`
+	Organization                   string `json:"organization"`
+	NumHostsEnrolled               int    `json:"numHostsEnrolled"`
+	NumHostsABMPending             int    `json:"numHostsABMPending"`
+	NumUsers                       int    `json:"numUsers"`
+	NumSoftwareVersions            int    `json:"numSoftwareVersions"`
+	NumHostSoftwares               int    `json:"numHostSoftwares"`
+	NumSoftwareTitles              int    `json:"numSoftwareTitles"`
+	NumHostSoftwareInstalledPaths  int    `json:"numHostSoftwareInstalledPaths"`
+	NumSoftwareCPEs                int    `json:"numSoftwareCPEs"`
+	NumSoftwareCVEs                int    `json:"numSoftwareCVEs"`
+	NumTeams                       int    `json:"numTeams"` //nolint:apiparamcheck // don't want to break analytics ingestion
+	NumPolicies                    int    `json:"numPolicies"`
+	NumQueries                     int    `json:"numQueries"` //nolint:apiparamcheck // don't want to break analytics ingestion
+	NumLabels                      int    `json:"numLabels"`
+	SoftwareInventoryEnabled       bool   `json:"softwareInventoryEnabled"`
+	VulnDetectionEnabled           bool   `json:"vulnDetectionEnabled"`
+	SystemUsersEnabled             bool   `json:"systemUsersEnabled"`
+	HostsStatusWebHookEnabled      bool   `json:"hostsStatusWebHookEnabled"`
+	MDMMacOsEnabled                bool   `json:"mdmMacOsEnabled"`
+	HostExpiryEnabled              bool   `json:"hostExpiryEnabled"`
+	MDMWindowsEnabled              bool   `json:"mdmWindowsEnabled"`
+	MDMAndroidEnabled              bool   `json:"mdmAndroidEnabled"`
+	MDMRecoveryLockPasswordEnabled bool   `json:"mdmRecoveryLockPasswordEnabled"`
+	LiveQueryDisabled              bool   `json:"liveQueryDisabled"` //nolint:apiparamcheck // osquery live-query feature
+	NumWeeklyActiveUsers           int    `json:"numWeeklyActiveUsers"`
 	// NumWeeklyPolicyViolationDaysActual is an aggregate count of actual policy violation days. One
 	// policy violation day is added for each policy that a host is failing as of the time the count
 	// is incremented. The count increments once per 24-hour interval and resets each week.
 	NumWeeklyPolicyViolationDaysActual int `json:"numWeeklyPolicyViolationDaysActual"`
 	// NumWeeklyPolicyViolationDaysActual is an aggregate count of possible policy violation
 	// days. The count is incremented by the organization's total number of policies
-	// mulitplied by the total number of hosts as of the time the count is incremented. The count
+	// multiplied by the total number of hosts as of the time the count is incremented. The count
 	// increments once per 24-hour interval and resets each week.
 	NumWeeklyPolicyViolationDaysPossible int                                `json:"numWeeklyPolicyViolationDaysPossible"`
 	HostsEnrolledByOperatingSystem       map[string][]HostsCountByOSVersion `json:"hostsEnrolledByOperatingSystem"`
@@ -57,8 +59,100 @@ type StatisticsPayload struct {
 	// configuration has value set for integrations.google_calendar[0].domain
 	// configuration has value set for integrations.google_calendar[0].api_key_json
 	MaintenanceWindowsConfigured bool `json:"maintenanceWindowsConfigured"`
+	// IDPGoogleWorkspaceConfigured is true when a Google Workspace IdP integration is
+	// configured (integrations.google_workspace[0] has a domain and service account).
+	IDPGoogleWorkspaceConfigured bool `json:"idpGoogleWorkspaceConfigured"`
 	// The number of hosts with Fleet desktop installed.
 	NumHostsFleetDesktopEnabled int `json:"numHostsFleetDesktopEnabled"`
+	// FleetMaintainedAppsMacOS is the set of Fleet-maintained apps being used on macOS
+	FleetMaintainedAppsMacOS []FleetMaintainedAppUsage `json:"fleetMaintainedAppsMacOS,omitempty"`
+	// FleetMaintainedAppsWindows is the set of Fleet-maintained apps being used on Windows
+	FleetMaintainedAppsWindows []FleetMaintainedAppUsage `json:"fleetMaintainedAppsWindows,omitempty"`
+
+	// ConditionalAccessEnabled indicates whether any team has conditional access enabled.
+	ConditionalAccessEnabled bool `json:"conditionalAccessEnabled"`
+	// OktaConditionalAccessConfigured indicates if the Okta conditional access integration is configured.
+	OktaConditionalAccessConfigured bool `json:"oktaConditionalAccessConfigured"`
+	// ConditionalAccessBypassDisabled indicates if bypass is disabled for Okta.
+	ConditionalAccessBypassDisabled bool `json:"conditionalAccessBypassDisabled"`
+	// EntraConditionalAccessConfigured indicates if the Entra conditional access integration is configured.
+	EntraConditionalAccessConfigured bool `json:"entraConditionalAccessConfigured"`
+
+	// GitOpsModeEnabled indicates whether GitOps mode is enabled in the app config.
+	GitOpsModeEnabled bool `json:"gitOpsModeEnabled"`
+	// GitOpsModeExceptions lists the configured GitOps mode exceptions (e.g. "labels", "software", "secrets").
+	// Exceptions are persisted independently of GitOpsModeEnabled.
+	GitOpsModeExceptions []string `json:"gitOpsModeExceptions"`
+
+	// FleetDesktopSSOEnabled is true when SSO is required in front of Fleet Desktop (fleet_desktop.sso_enabled).
+	FleetDesktopSSOEnabled bool `json:"fleetDesktopSSOEnabled"`
+
+	// NumHostsFleetMDMEnrolledMacOS is the number of macOS hosts actually enrolled in Fleet's own MDM
+	NumHostsFleetMDMEnrolledMacOS int `json:"numHostsFleetMDMEnrolledMacOS"`
+	// NumHostsFleetMDMEnrolledWindows is the number of Windows hosts actually enrolled in Fleet's own MDM
+	NumHostsFleetMDMEnrolledWindows int `json:"numHostsFleetMDMEnrolledWindows"`
+	// NumMDMAppleProfiles is the number of Apple (macOS/iOS) configuration profiles defined across all teams
+	NumMDMAppleProfiles int `json:"numMDMAppleProfiles"`
+	// NumMDMWindowsProfiles is the number of Windows configuration profiles defined across all teams
+	NumMDMWindowsProfiles int `json:"numMDMWindowsProfiles"`
+	// NumMDMAppleDeclarations is the number of Apple DDM declarations defined across all teams
+	NumMDMAppleDeclarations int `json:"numMDMAppleDeclarations"`
+	// NumMDMAndroidProfiles is the number of Android configuration profiles defined across all teams
+	NumMDMAndroidProfiles int `json:"numMDMAndroidProfiles"`
+
+	// Num*AiGeneratedProfiles are cumulative counts of configuration profiles generated with AI on this
+	// server. Android profiles can't be generated yet, so NumAndroidAiGeneratedProfiles is always 0.
+	NumAppleAiGeneratedProfiles   int `json:"numAppleAiGeneratedProfiles"`
+	NumWindowsAiGeneratedProfiles int `json:"numWindowsAiGeneratedProfiles"`
+	NumAndroidAiGeneratedProfiles int `json:"numAndroidAiGeneratedProfiles"`
+
+	// The *LogDestination fields are the configured server-side log plugins
+	// (osquery.result_log_plugin, osquery.status_log_plugin, activity.audit_log_plugin),
+	// e.g. "filesystem" or "firehose". They come from the server config, not the app config.
+	ResultLogDestination string `json:"resultLogDestination"`
+	StatusLogDestination string `json:"statusLogDestination"`
+	AuditLogDestination  string `json:"auditLogDestination"`
+
+	// Vulnerabilities webhooks are a global-only setting, so despite the "any" prefix this tracks
+	// just the one global flag.
+	AnyVulnerabilitiesWebhookEnabled bool `json:"anyVulnerabilitiesWebhookEnabled"`
+	// AnyFailingPoliciesWebhookEnabled and AnyHostActivitiesWebhookEnabled are true when the
+	// webhook is enabled globally or on any fleet, including "No team".
+	AnyFailingPoliciesWebhookEnabled bool `json:"anyFailingPoliciesWebhookEnabled"`
+	AnyHostActivitiesWebhookEnabled  bool `json:"anyHostActivitiesWebhookEnabled"`
+	GlobalActivityWebhookEnabled     bool `json:"globalActivityWebhookEnabled"`
+
+	// A ticket destination is "configured" when a Jira or Zendesk integration exists in the global
+	// config; fleet-level entries only toggle an already-configured destination.
+	TicketDestinationConfigured bool `json:"ticketDestinationConfigured"`
+	// SSOConfiguredFleetUsers covers logging in to Fleet; SSOConfiguredEndUsers covers end user
+	// authentication during MDM enrollment.
+	SSOConfiguredFleetUsers bool `json:"ssoConfiguredFleetUsers"`
+	SSOConfiguredEndUsers   bool `json:"ssoConfiguredEndUsers"`
+	// Apple account provisioning (Platform SSO).
+	AccountProvisioningConfigured bool `json:"accountProvisioningConfigured"`
+	// IDPSCIMConfigured is true once Fleet has received a SCIM request, the same signal the IdP
+	// settings page uses to report the connection.
+	IDPSCIMConfigured              bool `json:"idpSCIMConfigured"`
+	CertificateAuthorityConfigured bool `json:"certificateAuthorityConfigured"`
+
+	// NumPoliciesAutomationEnabledSoftware is the number of policies with a software
+	// automation, using the same definition as the automation_type=software filter:
+	// the policy installs a package or a VPP app. Kept in sync with
+	// policiesSoftwareAutomationClause in server/datastore/mysql/policies.go.
+	NumPoliciesAutomationEnabledSoftware int `json:"numPoliciesAutomationEnabledSoftware"`
+}
+
+// FleetMaintainedAppUsage reports a Fleet-maintained app in use, whether a patch policy
+// covers it, and whether that patch policy carries a software automation.
+//
+// The patch policy is matched on the app's software title, so two slugs that share a title
+// (Firefox GA and ESR) report the same patch policy.
+type FleetMaintainedAppUsage struct {
+	// Name is the Fleet-maintained app slug, e.g. "1password/darwin".
+	Name               string `json:"name" db:"name"`
+	PatchPolicy        bool   `json:"patchPolicy" db:"patch_policy"`
+	SoftwareAutomation bool   `json:"softwareAutomation" db:"software_automation"`
 }
 
 type HostsCountByOrbitVersion struct {

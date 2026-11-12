@@ -1,0 +1,12 @@
+{
+  "name": "i1Profiler",
+  "unique_identifier": "com.x-rite.i1Profiler",
+  "token": "i1profiler",
+  "installer_format": "zip",
+  "slug": "i1profiler/darwin",
+  "default_categories": [
+    "Productivity"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/i1profiler-install.sh",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/i1profiler-uninstall.sh"
+}

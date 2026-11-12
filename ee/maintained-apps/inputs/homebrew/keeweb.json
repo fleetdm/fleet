@@ -1,0 +1,10 @@
+{
+  "name": "KeeWeb",
+  "unique_identifier": "net.antelle.keeweb",
+  "token": "keeweb",
+  "installer_format": "dmg",
+  "slug": "keeweb/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

@@ -1,33 +1,45 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+
+import { EULA_PLATFORM_CONFIG, EulaPlatform } from "../../helpers";
 
 const baseClass = "delete-eula-modal";
 
 interface IDeleteEulaModalProps {
+  platform: EulaPlatform;
+  isDeleting: boolean;
   onDelete: () => void;
   onCancel: () => void;
 }
 
-const DeleteEulaModal = ({ onDelete, onCancel }: IDeleteEulaModalProps) => {
+const DeleteEulaModal = ({
+  platform,
+  isDeleting,
+  onDelete,
+  onCancel,
+}: IDeleteEulaModalProps) => {
   return (
     <Modal
       className={baseClass}
       title="Delete EULA"
       onExit={onCancel}
-      onEnter={() => onDelete()}
+      onEnter={onDelete}
+      isContentDisabled={isDeleting}
     >
       <>
-        <p>
-          End users won’t be required to agree to this EULA on macOS hosts that
-          automatically enroll.
-        </p>
+        <p>{EULA_PLATFORM_CONFIG[platform].deleteMessage}</p>
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={() => onDelete()} variant="alert">
+          <Button
+            type="button"
+            onClick={onDelete}
+            variant="alert"
+            isLoading={isDeleting}
+          >
             Delete
           </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

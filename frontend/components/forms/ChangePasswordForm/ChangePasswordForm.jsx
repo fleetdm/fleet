@@ -1,11 +1,11 @@
-import React, { Component } from "react";
 import PropTypes from "prop-types";
+import React, { Component } from "react";
 
 import Button from "components/buttons/Button";
+import validate from "components/forms/ChangePasswordForm/validate";
+import InputField from "components/forms/fields/InputField";
 import Form from "components/forms/Form";
 import formFieldInterface from "interfaces/form_field";
-import InputField from "components/forms/fields/InputField";
-import validate from "components/forms/ChangePasswordForm/validate";
 
 const formFields = [
   "old_password",
@@ -35,21 +35,24 @@ class ChangePasswordForm extends Component {
           autofocus
           label="Original password"
           type="password"
+          ignore1password={false}
         />
         <InputField
           {...fields.new_password}
           label="New password"
           type="password"
           helpText="Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
+          ignore1password={false}
         />
         <InputField
           {...fields.new_password_confirmation}
           label="New password confirmation"
           type="password"
+          ignore1password={false}
         />
         <div className="modal-cta-wrap">
           <Button type="submit">Change password</Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

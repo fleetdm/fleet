@@ -1,5 +1,6 @@
-import StatusIndicator from "components/StatusIndicator";
 import React from "react";
+
+import StatusIndicator from "components/StatusIndicator";
 
 interface IQueryAutomationsStatusIndicator {
   automationsEnabled: boolean;
@@ -26,7 +27,7 @@ const QueryAutomationsStatusIndicator = ({
       ? {
           tooltipText: (
             <>
-              <strong>Automations</strong> will resume for this query when an
+              <strong>Automations</strong> will resume for this report when an
               interval is set.
             </>
           ),

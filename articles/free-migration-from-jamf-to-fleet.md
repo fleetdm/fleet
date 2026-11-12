@@ -28,7 +28,7 @@ Fleet’s Jamf migration is free for qualified enterprise customers. The Fleet t
 
 GitOps by default keeps every configuration version-controlled and repeatable. Canary testing ensures safe rollout windows, and Fleet’s open-source foundation keeps your migration and operations future-proof.
 
-\*For qualified enterprise organizations with >500 devices. [Get in touch to submit a request](https://fleetdm.com/contact).
+\*For qualified enterprise organizations with >500 devices through the end of 2025. [Get in touch to submit a request](https://fleetdm.com/contact).
 
 <meta name="articleTitle" value="Free migration from Jamf to Fleet">
 <meta name="authorFullName" value="Alex Mitchell">

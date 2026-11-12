@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 
-import { IQueryTableColumn } from "interfaces/osquery_table";
 import { QueryContext } from "context/query";
+import { IQueryTableColumn } from "interfaces/osquery_table";
 
 import ColumnListItem from "./ColumnListItem";
 

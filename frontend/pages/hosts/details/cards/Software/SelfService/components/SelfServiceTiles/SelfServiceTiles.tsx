@@ -1,14 +1,17 @@
 import React from "react";
+
+import Card from "components/Card";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
+import Spinner from "components/Spinner";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import {
   IDeviceSoftwareWithUiStatus,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import Card from "components/Card";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Spinner from "components/Spinner";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+
 import TileActionStatus from "../TileActionStatus";
 
 const baseClass = "self-service-tiles-list";
@@ -21,8 +24,10 @@ interface SelfServiceTilesProps {
   onClickInstallAction: (
     softwareId: number,
     isSoftwarePackage?: boolean
-  ) => void;
+  ) => Promise<boolean> | void;
   isEmptySearch?: boolean;
+  /** Category filter produced no results; takes precedence under isEmptySearch */
+  isEmptyCategory?: boolean;
   isFetching?: boolean;
 }
 
@@ -31,6 +36,7 @@ const SelfServiceTiles = ({
   contactUrl,
   onClickInstallAction,
   isEmptySearch,
+  isEmptyCategory,
   isFetching,
 }: SelfServiceTilesProps) => {
   if (isFetching) {
@@ -39,8 +45,8 @@ const SelfServiceTiles = ({
 
   if (isEmptySearch) {
     return (
-      <EmptyTable
-        graphicName="empty-search-question"
+      <EmptyState
+        variant="list"
         header="No items match your search"
         info={
           <>
@@ -50,6 +56,10 @@ const SelfServiceTiles = ({
         }
       />
     );
+  }
+
+  if (isEmptyCategory) {
+    return <EmptyState variant="list" header="No items in this category" />;
   }
 
   return (
@@ -69,7 +79,10 @@ const SelfServiceTiles = ({
               <div className={`${tileBaseClass}__item-name`}>
                 <TooltipTruncatedText
                   isMobileView
-                  value={software.display_name || software.name}
+                  value={getDisplayedSoftwareName(
+                    software.name,
+                    software.display_name
+                  )}
                 />
               </div>
               <div className={`${tileBaseClass}__item-version`}>

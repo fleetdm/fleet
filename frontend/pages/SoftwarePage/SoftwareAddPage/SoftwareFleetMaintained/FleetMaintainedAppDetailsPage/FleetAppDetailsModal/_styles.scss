@@ -13,26 +13,10 @@
   // Used for gap between slug and copy icon
   dd {
     gap: $pad-xsmall;
-  }
-
-  &__copy-message {
-    @include copy-message;
-  }
-
-  &__action-overlay {
-    display: flex;
-    justify-content: flex-end;
     align-items: center;
-    position: relative;
-    width: 0;
-    height: 16px;
-
-    span {
-      font-weight: $regular;
-    }
   }
 
-  .react-tooltip {
+  dt .react-tooltip {
     min-width: 120px;
   }
 

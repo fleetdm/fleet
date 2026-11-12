@@ -5,18 +5,21 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"text/template"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/google/uuid"
 )
 
@@ -31,7 +34,7 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
             <key>PayloadCertificateFileName</key>
             <string>conditional_access_ca.der</string>
             <key>PayloadContent</key>
-            <data>{{.CACertBase64}}</data>
+            <data>{{ xml .CACertBase64 }}</data>
             <key>PayloadDescription</key>
             <string>Fleet conditional access CA certificate</string>
             <key>PayloadDisplayName</key>
@@ -41,7 +44,7 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
             <key>PayloadType</key>
             <string>com.apple.security.root</string>
             <key>PayloadUUID</key>
-            <string>{{.CACertUUID}}</string>
+            <string>{{ xml .CACertUUID }}</string>
             <key>PayloadVersion</key>
             <integer>1</integer>
         </dict>
@@ -50,9 +53,9 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 			<key>PayloadContent</key>
 			<dict>
 				<key>URL</key>
-				<string>{{.SCEPURL}}</string>
+				<string>{{ xml .SCEPURL }}</string>
 				<key>Challenge</key>
-				<string>{{.Challenge}}</string>
+				<string>{{ xml .Challenge }}</string>
 				<key>Keysize</key>
 				<integer>2048</integer>
 				<key>Key Type</key>
@@ -68,7 +71,13 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 					<array>
 						<array>
 							<string>CN</string>
-							<string>{{.CertificateCN}}</string>
+							<string>{{ xml .CertificateCN }}</string>
+						</array>
+					</array>
+					<array>
+						<array>
+							<string>OU</string>
+							<string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string>
 						</array>
 					</array>
 				</array>
@@ -98,16 +107,16 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 			<key>PayloadType</key>
 			<string>com.apple.security.scep</string>
 			<key>PayloadUUID</key>
-			<string>{{.SCEPPayloadUUID}}</string>
+			<string>{{ xml .SCEPPayloadUUID }}</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 		</dict>
         <!-- Identity preference for mTLS endpoint -->
         <dict>
             <key>Name</key>
-            <string>{{.MTLSURL}}</string>
+            <string>{{ xml .MTLSURL }}</string>
             <key>PayloadCertificateUUID</key>
-            <string>{{.SCEPPayloadUUID}}</string>
+            <string>{{ xml .SCEPPayloadUUID }}</string>
             <key>PayloadDescription</key>
             <string>Identity preference for mTLS endpoints</string>
             <key>PayloadDisplayName</key>
@@ -117,7 +126,7 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
             <key>PayloadType</key>
             <string>com.apple.security.identitypreference</string>
             <key>PayloadUUID</key>
-            <string>{{.IdentityPrefUUID}}</string>
+            <string>{{ xml .IdentityPrefUUID }}</string>
             <key>PayloadVersion</key>
             <integer>1</integer>
         </dict>
@@ -130,7 +139,7 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
             <key>PayloadIdentifier</key>
             <string>com.fleetdm.chrome.certs</string>
             <key>PayloadUUID</key>
-            <string>{{.ChromeConfigUUID}}</string>
+            <string>{{ xml .ChromeConfigUUID }}</string>
             <key>PayloadDisplayName</key>
             <string>Chrome mTLS auto-select</string>
             <key>PayloadContent</key>
@@ -147,7 +156,7 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
                                 <key>AutoSelectCertificateForUrls</key>
                                 <array>
                                     <!-- MUST be stringified JSON -->
-                                    <string>{"pattern":"{{.MTLSURL}}","filter":{"SUBJECT":{"CN":"{{.CertificateCN}}"}}}</string>
+                                    <string>{"pattern":"{{ jsonString .MTLSURL }}","filter":{"SUBJECT":{"CN":"{{ jsonString .CertificateCN }}"}}}</string>
                                 </array>
                             </dict>
                         </dict>
@@ -171,15 +180,38 @@ const conditionalAccessAppleProfileTemplate = `<?xml version="1.0" encoding="UTF
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>{{.RootPayloadUUID}}</string>
+	<string>{{ xml .RootPayloadUUID }}</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>
 </plist>
 `
 
-var conditionalAccessAppleProfileTemplateParsed = template.Must(template.New("conditionalAccessAppleProfile").Parse(
-	conditionalAccessAppleProfileTemplate))
+// jsonString renders s as the contents of a JSON string, without the
+// surrounding quotes. The Chrome payload above carries stringified JSON inside
+// an XML text node, where XML escaping is the wrong layer: a quote escaped as
+// &#34; is decoded back to " before Chrome parses the value as JSON, so it has
+// to be escaped as JSON instead. encoding/json also escapes <, > and & as
+// \uXXXX, which keeps the result safe in the XML text node it sits in.
+func jsonString(s string) (string, error) {
+	b, err := json.Marshal(s)
+	if err != nil {
+		return "", err
+	}
+	return string(b[1 : len(b)-1]), nil
+}
+
+// Every interpolation in the template above must go through one of these, or a
+// value carrying markup becomes structure rather than text.
+var conditionalAccessProfileFuncMap = map[string]any{
+	"xml":        mobileconfig.XMLEscapeString,
+	"jsonString": jsonString,
+}
+
+var conditionalAccessAppleProfileTemplateParsed = template.Must(
+	template.New("conditionalAccessAppleProfile").
+		Funcs(conditionalAccessProfileFuncMap).
+		Parse(conditionalAccessAppleProfileTemplate))
 
 // fleetConditionalAccessNamespace is a custom UUID namespace for Fleet Okta conditional access profiles.
 // Generated using: uuid.NewSHA1(uuid.NameSpaceURL, []byte("https://fleetdm.com/learn-more-about/okta-conditional-access"))
@@ -299,10 +331,21 @@ func conditionalAccessGetIdPAppleProfileEndpoint(ctx context.Context, _ interfac
 	}, nil
 }
 
-func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error) {
-	// Check user is authorized to read conditional access Apple profile
-	if err := svc.authz.Authorize(ctx, &fleet.ConditionalAccessIDPAssets{}, fleet.ActionRead); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
+// conditionalAccessProfileInputs are the values every conditional access profile is rendered from.
+type conditionalAccessProfileInputs struct {
+	caCert        *x509.Certificate
+	serverURL     string
+	scepURL       string
+	enrollSecrets []*fleet.EnrollSecret
+	mtlsURL       string
+}
+
+// loadConditionalAccessProfileInputs checks the preconditions shared by the Apple and Windows profiles and loads their
+// inputs, so the platforms can't drift on either.
+func (svc *Service) loadConditionalAccessProfileInputs(ctx context.Context) (*conditionalAccessProfileInputs, error) {
+	// The CA outlives a downgrade, but the SCEP server and IdP are only served on Premium.
+	if !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
 	}
 
 	// Check that server private key is configured
@@ -330,13 +373,10 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 	}
 
 	// Parse DER certificate
-	_, err = x509.ParseCertificate(block.Bytes)
+	caCert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse CA certificate")
 	}
-
-	// Base64 encode the DER certificate for the profile
-	caCertBase64 := base64.StdEncoding.EncodeToString(block.Bytes)
 
 	// Get app config for server URL
 	appConfig, err := svc.ds.AppConfig(ctx)
@@ -352,7 +392,7 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to parse server URL")
 	}
-	scepURL := parsedServerURL.JoinPath("/api/fleet/conditional_access/scep").String()
+	scepURL := parsedServerURL.JoinPath(fleet.ConditionalAccessSCEPPath).String()
 
 	// Get global enroll secrets
 	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
@@ -363,17 +403,34 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "global enroll secret is not configured"})
 	}
 
-	// Use the first global enroll secret as the challenge
-	challenge := secrets[0].Secret
-
 	// Get mTLS URL using ConditionalAccessIdPSSOURL
-	mtlsURL, err := appConfig.ConditionalAccessIdPSSOURL(os.Getenv)
+	mtlsURL, err := appConfig.ConditionalAccessIdPSSOURL(dev_mode.Env)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to get mTLS URL")
 	}
 
+	return &conditionalAccessProfileInputs{
+		caCert:        caCert,
+		serverURL:     appConfig.ServerSettings.ServerURL,
+		scepURL:       scepURL,
+		enrollSecrets: secrets,
+		mtlsURL:       mtlsURL,
+	}, nil
+}
+
+func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (profileData []byte, err error) {
+	// Check user is authorized to read conditional access Apple profile
+	if err := svc.authz.Authorize(ctx, &fleet.ConditionalAccessIDPAssets{}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to authorize")
+	}
+
+	in, err := svc.loadConditionalAccessProfileInputs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// Generate deterministic UUIDs based on server URL
-	serverURL := appConfig.ServerSettings.ServerURL
+	serverURL := in.serverURL
 	caCertUUID := generateDeterministicUUID(serverURL, "conditional-access-ca-cert")
 	scepPayloadUUID := generateDeterministicUUID(serverURL, "conditional-access-scep")
 	identityPrefUUID := generateDeterministicUUID(serverURL, "conditional-access-identity-pref")
@@ -383,11 +440,12 @@ func (svc *Service) ConditionalAccessGetIdPAppleProfile(ctx context.Context) (pr
 	// Execute template
 	var buf bytes.Buffer
 	if err := conditionalAccessAppleProfileTemplateParsed.Execute(&buf, appleProfileTemplateData{
-		CACertBase64:     caCertBase64,
-		SCEPURL:          scepURL,
-		Challenge:        challenge,
-		CertificateCN:    "Fleet conditional access for Okta",
-		MTLSURL:          mtlsURL,
+		// Base64 encode the DER certificate for the profile
+		CACertBase64:     base64.StdEncoding.EncodeToString(in.caCert.Raw),
+		SCEPURL:          in.scepURL,
+		Challenge:        in.enrollSecrets[0].Secret, // the first global enroll secret
+		CertificateCN:    fleet.ConditionalAccessOktaCertificateCN,
+		MTLSURL:          in.mtlsURL,
 		CACertUUID:       caCertUUID,
 		SCEPPayloadUUID:  scepPayloadUUID,
 		IdentityPrefUUID: identityPrefUUID,

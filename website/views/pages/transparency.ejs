@@ -10,16 +10,16 @@
         </div>
       </div>
       <div purpose="hero-text">
-        <h1 class="text-center">Why is Fleet on my computer?</h1>
-        <p class="text-center"><span v-if="showSecureframeBanner">Secureframe Agent is built on Fleet. </span>Fleet makes it a little easier for your IT team to keep your computer healthy without interfering with your work.</p>
+        <h1 class="text-center">Why is Fleet on my device?</h1>
+        <p class="text-center"><span v-if="showSecureframeBanner">Secureframe Agent is built on Fleet. </span>Fleet makes it a little easier for your IT team to keep your device healthy without interfering with your work.</p>
       </div>
       <div purpose="feature" class="d-flex flex-lg-row flex-column-reverse justify-content-between mx-auto align-items-center">
       <div purpose="feature-text" class="d-flex flex-column">
         <h3>How does it affect me?</h3>
         <p v-if="showSecureframeBanner">Secureframe Agent has to monitor compliance with a bunch of security requirements. But we also realize you have a job to do. So we want to be as un-intrusive as possible.</p>
-        <p v-else>Your IT team has to maintain your computer and keep it compliant with a bunch of security requirements. But they also realize you have a job to do. So they want to be as un-intrusive as possible.</p>
-        <p>That’s why they chose Fleet. It’s compatible with everything, including Linux, so it doesn’t limit what operating system you use. And it’s open source, meaning if you want to, you can <a href="https://github.com/fleetdm/fleet" target="_blank" no-icon>take it apart</a> and see what it’s doing to your computer.</p>
-        <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">Why is Fleet on my computer?</a>
+        <p v-else>Your IT team has to maintain your device and keep it compliant with a bunch of security requirements. But they also realize you have a job to do. So they want to be as un-intrusive as possible.</p>
+        <p>That’s why they chose Fleet. It’s compatible with everything, including Linux, so it doesn’t limit what operating system you use. And it’s open source, meaning if you want to, you can <a href="https://github.com/fleetdm/fleet" target="_blank" no-icon>take it apart</a> and see what it’s doing to your device.</p>
+        <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">Why is Fleet on my device?</a>
         <!-- <div purpose="swag-cta" v-if="showSwagForm">
           <a purpose="swag-link" style="text-decoration: none;" class="d-inline" href="https://kqphpqst851.typeform.com/to/Whm2imZc">
             <div class="d-flex flex-row justify-content-center align-items-center">
@@ -80,7 +80,6 @@
           </p>
         </div>
       </div>
-      <p purpose="agents-note">Fleet can't guarantee that other personal data isn't being captured by user activity monitoring or cybersecurity tools like Veriato, CrowdStrike, etc.</p>
       <h2>FAQ</h2>
       <div purpose="accordion-body" class="mx-auto">
         <div purpose="accordion-item">
@@ -126,7 +125,7 @@
       </div>
 
     </div>
-    <div purpose="accordion" class="container-fluid d-flex flex-column justify-content-center align-items-center px-0" v-else>
+    <div purpose="accordion" class="container-fluid d-flex flex-column justify-content-center align-items-center px-0" v-else-if="isDesktopUser">
       <h2 class="text-center">What personal information can Fleet see?</h2>
       <p class="mb-0">Here’s what Fleet can manage on your computer:</p>
       <div purpose="accordion-body" class="mx-auto">
@@ -145,7 +144,7 @@
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body2" class="collapse" aria-labelledby="accordion__header2">
-            Fleet can see browser history to protect you in the rare event of bad actors gaining access to you device and personal information.
+            By default, Fleet doesn’t collect your browser history. (See <a href="/tables" target="_blank">what Fleet can see</a>) Your IT admin can choose to add it, to protect you in the rare event that bad actors gain access to your device and personal information.
           </p>
         </div>
         <div purpose="accordion-item">
@@ -172,7 +171,7 @@
             <span class="fa fa-angle-down"></span>
           </p>
           <p id="accordion__body5" class="collapse" aria-labelledby="accordion__header5">
-            Device actions are helpful for IT teams to troubleshoot your device remotely if you run into any issues. If your IT team uses Fleet's device management (MDM) features, your computer can be restarted, locked or even wiped remotely by your administrator.
+            Device actions are helpful for IT teams to troubleshoot your device remotely if you run into any issues. If your IT team uses Fleet's device management (MDM) features, your computer can be restarted remotely by your administrator. For company-owned devices, your administrator can also lock, wipe, and take other actions your device. For personal (BYOD) devices, your organization can disable remote wipe and lock.
           </p>
         </div>
         <div purpose="accordion-item">
@@ -262,14 +261,77 @@
       </div>
       <p purpose="agents-note">Fleet can't guarantee that other personal data isn't being captured by user activity monitoring or cybersecurity tools like Veriato, CrowdStrike, etc.</p>
     </div>
+
+    <div purpose="accordion" class="container-fluid d-flex flex-column justify-content-center align-items-center px-0" v-else>
+      <h2 class="text-center">What can Fleet see?</h2>
+      <p class="mb-0">Here’s what Fleet can manage on your {{guessedPlatformName}}:</p>
+      <div purpose="accordion-body" class="mx-auto">
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body1" aria-controls="mobile__accordion__body1">
+            On/off status
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body1" class="collapse" aria-labelledby="mobile__accordion__header1">
+            Fleet knows when your device is on or off. This is useful for understanding the state of your device and for troubleshooting should a problem ever arise.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header2" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body2" aria-controls="mobile__accordion__body2">
+            System settings
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body2" class="collapse" aria-labelledby="mobile__accordion__header2">
+            Fleet can enforce settings like password length on your device. This is useful for IT teams to keep your device up to date so you don’t have to.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header3" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body3" aria-controls="mobile__accordion__body3">
+            Wi-Fi settings
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body3" class="collapse" aria-labelledby="mobile__accordion__header3">
+            To help connect you to your corporate Wi-Fi or VPN, Fleet can configure Wi-Fi settings and install certificates on your device.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header4" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body4" aria-controls="mobile__accordion__body4">
+            Remote actions
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body4" class="collapse" aria-labelledby="mobile__accordion__header4">
+            Device actions are helpful for IT teams to troubleshoot your device remotely if you run into any issues. If your IT team uses Fleet's device management (MDM) features, your computer can be restarted remotely by your administrator. For company-owned devices, your administrator can also lock, wipe, and take other actions your device. For personal (BYOD) devices, your organization can disable remote wipe and lock.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header5" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body5" aria-controls="mobile__accordion__body5">
+            Device health & performance
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body5" class="collapse" aria-labelledby="mobile__accordion__header5">
+            Fleet can see details about your device’s hardware. E.g., what processor is used, how much memory is installed, storage capacity, battery health, etc. This allows IT teams to preemptively address device health problems, which can mitigate data loss and reduce disruption to your workflow caused by IT related issues.
+          </p>
+        </div>
+        <div purpose="accordion-item">
+          <p purpose="accordion-header" id="mobile__accordion__header6" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#mobile__accordion__body6" aria-controls="mobile__accordion__body6">
+            Software
+            <span class="fa fa-angle-down"></span>
+          </p>
+          <p id="mobile__accordion__body6" class="collapse" aria-labelledby="mobile__accordion__header6">
+            Fleet can add apps and update software. This enables IT teams to better manage software update schedules, and reduce disruption to your workflow.
+          </p>
+        </div>
+      </div>
+    </div>
+
+
+
     </div>
   </div>
   <div purpose="bottom-gradient">
-    <parallax-city></parallax-city>
+    <cloud-city></cloud-city>
   </div>
-  <signup-modal></signup-modal>
   <modal purpose="video-modal" v-if="modal === 'fleet-in-three-minutes'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/mHFr-tBy3h8?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/mHFr-tBy3h8?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

@@ -1,0 +1,10 @@
+{
+  "name": "Hot",
+  "unique_identifier": "com.xs-labs.Hot",
+  "token": "hot",
+  "installer_format": "zip",
+  "slug": "hot/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

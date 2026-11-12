@@ -1,17 +1,25 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
+	"log/slog"
+	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -97,11 +105,15 @@ func TestSessionAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
+			ds.MarkSessionAccessedFuncInvoked = false
 			_, err := svc.GetInfoAboutSessionsForUser(ctx, 999)
 			checkAuthErr(t, tt.shouldFailRead, err)
+			assert.False(t, ds.MarkSessionAccessedFuncInvoked, "listing sessions must not refresh them")
 
+			ds.MarkSessionAccessedFuncInvoked = false
 			_, err = svc.GetInfoAboutSession(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
+			assert.False(t, ds.MarkSessionAccessedFuncInvoked, "inspecting a session must not refresh it")
 
 			err = svc.DeleteSession(ctx, 1)
 			checkAuthErr(t, tt.shouldFailWrite, err)
@@ -110,7 +122,7 @@ func TestSessionAuth(t *testing.T) {
 }
 
 func TestAuthenticate(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	defer ds.Close()
 
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -154,15 +166,26 @@ func TestAuthenticate(t *testing.T) {
 
 func TestMFA(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 
 	user := &fleet.User{MFAEnabled: true, Name: "Bob Smith", Email: "foo@example.com"}
 	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
 	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 		return user, nil
 	}
+	var failedLoginActivity bool
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		if activity.ActivityName() == (fleet.ActivityTypeUserFailedLogin{}).ActivityName() {
+			failedLoginActivity = true
+		}
+		return nil
+	}
 	_, _, err := svc.Login(ctx, "foo@example.com", test.GoodPassword, false)
-	require.Equal(t, err, mfaNotSupportedForClient)
+	var authErr *fleet.AuthFailedError
+	require.ErrorAs(t, err, &authErr)
+	require.Equal(t, "Authentication failed", err.Error())
+	require.True(t, failedLoginActivity)
 
 	var sentMail fleet.Email
 	mailer := &mockMailService{SendEmailFn: func(e fleet.Email) error {
@@ -176,15 +199,26 @@ func TestMFA(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	svcForMailing := validationMiddleware{&Service{
+	innerSvc := &Service{
 		ds:          ds,
 		config:      config.TestConfig(),
 		mailService: mailer,
-	}, ds, nil}
+	}
+	var mfaRequestedActivity bool
+	innerSvc.SetActivityService(&mock.MockActivityService{
+		NewActivityFunc: func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			if activity.ActivityName() == (fleet.ActivityTypeUserMFARequested{}).ActivityName() {
+				mfaRequestedActivity = true
+			}
+			return nil
+		},
+	})
+	svcForMailing := validationMiddleware{innerSvc, ds, nil}
 	_, _, err = svcForMailing.Login(ctx, "foo@example.com", test.GoodPassword, true)
 	require.Equal(t, err, sendingMFAEmail)
 	require.Equal(t, "foo@example.com", sentMail.To[0])
 	require.Equal(t, "Log in to Fleet", sentMail.Subject)
+	require.True(t, mfaRequestedActivity)
 
 	var session *fleet.Session
 	var mfaUser *fleet.User
@@ -192,7 +226,7 @@ func TestMFA(t *testing.T) {
 		if token == mfaToken {
 			return session, mfaUser, nil
 		}
-		return nil, nil, notFoundErr{}
+		return nil, nil, &notFoundErr{}
 	}
 	resp, err := sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: "foo"}, svc)
 	require.NoError(t, err)
@@ -200,15 +234,15 @@ func TestMFA(t *testing.T) {
 
 	session = &fleet.Session{}
 	mfaUser = user
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		require.Equal(t, mfaUser, user)
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, activity activity_api.ActivityDetails) error {
+		require.Equal(t, mfaUser.Email, user.Email)
 		require.Equal(t, fleet.ActivityTypeUserLoggedIn{}.ActivityName(), activity.ActivityName())
 		return nil
 	}
 	resp, err = sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: mfaToken}, svc)
 	require.NoError(t, err)
 	require.Nil(t, resp.Error())
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 }
 
 func TestGetSessionByKey(t *testing.T) {
@@ -292,17 +326,26 @@ func (a *testAuth) RawResponse() []byte {
 	return nil
 }
 
+func (a *testAuth) AssertionID() string { return "" }
+
+func (a *testAuth) AssertionNotOnOrAfter() time.Time { return time.Time{} }
+
 func TestGetSSOUser(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
+	var logs bytes.Buffer
+	opts := &TestServerOpts{
+		Logger: slog.New(slog.NewTextHandler(&logs, nil)),
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierPremium,
 		},
-	})
+	}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
+	var roleActivities []activity_api.ActivityDetails
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		if isRoleChangeActivity(activity) {
+			roleActivities = append(roleActivities, activity)
+		}
 		return nil
 	}
 
@@ -337,17 +380,33 @@ func TestGetSSOUser(t *testing.T) {
 					{Value: "admin"},
 				},
 			},
+			{
+				Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+				Values: []fleet.SAMLAttributeValue{
+					{Value: "observer"},
+				},
+			},
 		},
 	}
 
 	// Test SSO login with a non-existent user.
 	_, err := svc.GetSSOUser(ctx, auth)
 	require.NoError(t, err)
+	require.Contains(t, logs.String(), "FLEET_JIT_USER_ROLE_TEAM_1") // warning for the removed attribute
 
 	require.NotNil(t, newUser)
 	require.NotNil(t, newUser.GlobalRole)
 	require.Equal(t, "admin", *newUser.GlobalRole)
 	require.Empty(t, newUser.Teams)
+	require.Equal(t, []activity_api.ActivityDetails{
+		fleet.ActivityTypeChangedUserGlobalRole{
+			UserID:    newUser.ID,
+			UserName:  "foo@example.com",
+			UserEmail: "foo@example.com",
+			Role:      "admin",
+			JIT:       true,
+		},
+	}, roleActivities)
 
 	// Test SSO login with the same (now existing) user (should update roles).
 
@@ -361,13 +420,16 @@ func TestGetSSOUser(t *testing.T) {
 		return newUser, nil
 	}
 
+	logs.Reset()
 	_, err = svc.GetSSOUser(ctx, auth)
 	require.NoError(t, err)
 
 	require.False(t, ds.SaveUserFuncInvoked)
+	require.Contains(t, logs.String(), "FLEET_JIT_USER_ROLE_TEAM_1")
 
 	// (2) Test SSO login with the same user with roles updated in its attributes.
 
+	roleActivities = nil
 	var savedUser *fleet.User
 	ds.SaveUserFunc = func(ctx context.Context, user *fleet.User) error {
 		savedUser = user
@@ -380,7 +442,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_2",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_2",
 			Values: []fleet.SAMLAttributeValue{
 				{Value: "maintainer"},
 			},
@@ -397,6 +459,23 @@ func TestGetSSOUser(t *testing.T) {
 	require.Equal(t, "maintainer", savedUser.Teams[0].Role)
 
 	require.True(t, ds.SaveUserFuncInvoked)
+	require.Equal(t, []activity_api.ActivityDetails{
+		fleet.ActivityTypeDeletedUserGlobalRole{
+			UserID:    savedUser.ID,
+			UserName:  "foo@example.com",
+			UserEmail: "foo@example.com",
+			OldRole:   "admin",
+			JIT:       true,
+		},
+		fleet.ActivityTypeChangedUserTeamRole{
+			UserID:    savedUser.ID,
+			UserName:  "foo@example.com",
+			UserEmail: "foo@example.com",
+			Role:      "maintainer",
+			TeamID:    2,
+			JIT:       true,
+		},
+	}, roleActivities)
 
 	// (3) Test existing user's role is not changed after a new login if EnableJITProvisioning is false.
 
@@ -414,7 +493,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_2",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_2",
 			Values: []fleet.SAMLAttributeValue{
 				{Value: "admin"},
 			},
@@ -444,7 +523,7 @@ func TestGetSSOUser(t *testing.T) {
 
 	auth.assertionAttributes = []fleet.SAMLAttribute{
 		{
-			Name: "FLEET_JIT_USER_ROLE_TEAM_3",
+			Name: "FLEET_JIT_USER_ROLE_FLEET_3",
 			Values: []fleet.SAMLAttributeValue{
 				{Value: "maintainer"},
 			},
@@ -453,6 +532,71 @@ func TestGetSSOUser(t *testing.T) {
 
 	_, err = svc.GetSSOUser(ctx, auth)
 	require.Error(t, err)
+
+	// (5) Test JIT provisioning with global technician role.
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO:             true,
+				EnableSSOIdPLogin:     true,
+				EnableJITProvisioning: true,
+			},
+		}, nil
+	}
+
+	newUser = nil
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, newNotFoundError()
+	}
+	ds.NewUserFuncInvoked = false
+
+	auth.assertionAttributes = []fleet.SAMLAttribute{
+		{
+			Name: "FLEET_JIT_USER_ROLE_GLOBAL",
+			Values: []fleet.SAMLAttributeValue{
+				{Value: "technician"},
+			},
+		},
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.NotNil(t, newUser)
+	require.NotNil(t, newUser.GlobalRole)
+	require.Equal(t, fleet.RoleTechnician, *newUser.GlobalRole)
+	require.Empty(t, newUser.Teams)
+
+	// (6) Test JIT provisioning with team technician role.
+
+	newUser = nil
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, newNotFoundError()
+	}
+	ds.NewUserFuncInvoked = false
+
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid}, nil
+	}
+
+	auth.assertionAttributes = []fleet.SAMLAttribute{
+		{
+			Name: "FLEET_JIT_USER_ROLE_FLEET_1",
+			Values: []fleet.SAMLAttributeValue{
+				{Value: "technician"},
+			},
+		},
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.NotNil(t, newUser)
+	require.Nil(t, newUser.GlobalRole)
+	require.Len(t, newUser.Teams, 1)
+	require.Equal(t, uint(1), newUser.Teams[0].ID)
+	require.Equal(t, fleet.RoleTechnician, newUser.Teams[0].Role)
 }
 
 func TestInitiateSSOWithSSOServerURL(t *testing.T) {
@@ -492,6 +636,72 @@ func TestInitiateSSOWithSSOServerURL(t *testing.T) {
 	// The ACS URL should use the SSO server URL
 	// We can't directly test the ACS URL in the SAML request here since it's embedded in the XML,
 	// but the integration test verifies this works correctly
+}
+
+func TestInitiateSSOACSURLWithURLPrefix(t *testing.T) {
+	// With url_prefix set, the ACS callback URL must carry the subpath exactly
+	// once, regardless of whether server_url was configured with or without the
+	// subpath. The latter is the configuration older deployments may have used.
+	testCases := []struct {
+		name      string
+		serverURL string
+	}{
+		{
+			name:      "server_url includes the subpath",
+			serverURL: "https://fleet.example.com/apps/fleet",
+		},
+		{
+			name:      "server_url omits the subpath",
+			serverURL: "https://fleet.example.com",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			pool := redistest.NopRedis()
+
+			cfg := config.TestConfig()
+			cfg.Server.URLPrefix = "/apps/fleet"
+
+			svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{
+				Pool: pool,
+			})
+
+			appConfig := &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: tc.serverURL,
+				},
+				SSOSettings: &fleet.SSOSettings{
+					EnableSSO: true,
+					SSOProviderSettings: fleet.SSOProviderSettings{
+						EntityID: "fleet",
+						IDPName:  "TestIDP",
+						Metadata: testSSOMetadata(),
+					},
+				},
+			}
+			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+				return appConfig, nil
+			}
+
+			_, _, idpURL, err := svc.InitiateSSO(ctx, "/dashboard")
+			require.NoError(t, err)
+			require.NotEmpty(t, idpURL)
+
+			parsed, err := url.Parse(idpURL)
+			require.NoError(t, err)
+			encoded := parsed.Query().Get("SAMLRequest")
+			require.NotEmpty(t, encoded)
+
+			authReq := inflate(t, encoded)
+			require.NotNil(t, authReq.AssertionConsumerServiceURL)
+			require.Equal(t,
+				"https://fleet.example.com/apps/fleet/api/v1/fleet/sso/callback",
+				authReq.AssertionConsumerServiceURL,
+			)
+		})
+	}
 }
 
 func TestInitiateSSOWithTrailingSlash(t *testing.T) {
@@ -555,6 +765,81 @@ func TestInitiateSSOWithTrailingSlash(t *testing.T) {
 	}
 }
 
+// The relay URL is where the browser lands after the IdP callback, so only a
+// path on the Fleet origin is acceptable; anything carrying a host would turn
+// the login flow into a redirect off-site.
+func TestInitiateSSORelayURLMustBeRelativePath(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.NopRedis()
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{Pool: pool})
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO: true,
+				EntityID:  "fleet",
+				IDPName:   "TestIDP",
+				Metadata:  testSSOMetadata(),
+			},
+		}, nil
+	}
+
+	accepted := []string{"", "/", "/dashboard", "/hosts/manage?order_key=hostname#top"}
+	for _, relayURL := range accepted {
+		t.Run("accepts "+relayURL, func(t *testing.T) {
+			_, _, _, err := svc.InitiateSSO(ctx, relayURL)
+			require.NoError(t, err)
+		})
+	}
+
+	rejected := []string{
+		"https://evil.example/login",
+		"http://fleet.example.com/dashboard", // absolute even when same host: the API documents a relative URL
+		"//evil.example/login",
+		`/\evil.example/login`,
+		"javascript:alert(1)",
+		"dashboard",
+		"\\\\evil.example",
+	}
+	for _, relayURL := range rejected {
+		t.Run("rejects "+relayURL, func(t *testing.T) {
+			_, _, _, err := svc.InitiateSSO(ctx, relayURL)
+			require.Error(t, err)
+			var badReq *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReq)
+		})
+	}
+}
+
+// An accepted relay URL must survive into the stored SSO session unchanged,
+// since that is the value the callback redirects to.
+func TestInitiateSSOStoresRelayURL(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.SetupRedis(t, t.Name(), false, false, false)
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{Pool: pool})
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO: true,
+				EntityID:  "fleet",
+				IDPName:   "TestIDP",
+				Metadata:  testSSOMetadata(),
+			},
+		}, nil
+	}
+
+	const relayURL = "/hosts/manage?order_key=hostname#top"
+	sessionID, _, _, err := svc.InitiateSSO(ctx, relayURL)
+	require.NoError(t, err)
+
+	// Read the session back through a store on the same pool, which is what the
+	// test service was built with (see newTestServiceWithConfig).
+	session, err := sso.NewSessionStore(pool).Fullfill(sessionID)
+	require.NoError(t, err)
+	require.Equal(t, relayURL, session.OriginalURL)
+}
+
 func TestInitiateSSOWithInvalidURL(t *testing.T) {
 	ds := new(mock.Store)
 	pool := redistest.NopRedis()
@@ -590,4 +875,54 @@ func TestInitiateSSOWithInvalidURL(t *testing.T) {
 	var badReqErr *fleet.BadRequestError
 	require.ErrorAs(t, err, &badReqErr)
 	require.Contains(t, badReqErr.Message, "invalid SSO URL")
+}
+
+func TestDecodeCallbackRequestSAMLResponseSizeCap(t *testing.T) {
+	// The SSO callbacks read SAMLResponse from FormValue, which covers both the
+	// POST body and the URL query string. WithRequestBodySizeLimit only bounds
+	// the body, so the value-level cap must reject an oversized query argument.
+	t.Run("oversized SAMLResponse in query string is rejected", func(t *testing.T) {
+		oversized := strings.Repeat("A", int(fleet.MaxSSOCallbackSize)+1)
+		r := httptest.NewRequest("POST", "/api/v1/fleet/sso/callback?SAMLResponse="+oversized, nil)
+
+		_, _, _, err := decodeCallbackRequest(t.Context(), r)
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, "too large")
+	})
+
+	t.Run("normally-sized SAMLResponse passes the size check", func(t *testing.T) {
+		small := base64.StdEncoding.EncodeToString([]byte("<x/>"))
+		form := url.Values{"SAMLResponse": {small}}
+		r := httptest.NewRequest("POST", "/api/v1/fleet/sso/callback", strings.NewReader(form.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		_, decoded, _, err := decodeCallbackRequest(t.Context(), r)
+		require.NoError(t, err)
+		require.Equal(t, "<x/>", string(decoded))
+	})
+}
+
+func TestDecodeCallbackRequestRelayState(t *testing.T) {
+	postWith := func(t *testing.T, form url.Values) fleet.SSORelayState {
+		t.Helper()
+		form.Set("SAMLResponse", base64.StdEncoding.EncodeToString([]byte("<x/>")))
+		r := httptest.NewRequest("POST", "/api/v1/fleet/mdm/sso/callback", strings.NewReader(form.Encode()))
+		r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		_, _, relayState, err := decodeCallbackRequest(t.Context(), r)
+		require.NoError(t, err)
+		return relayState
+	}
+
+	t.Run("a recognized value survives the form round trip", func(t *testing.T) {
+		require.Equal(t,
+			fleet.SSORelayState(fleet.SSOInitiatorFleetDesktop),
+			postWith(t, url.Values{"RelayState": {fleet.SSOInitiatorFleetDesktop}}))
+	})
+
+	t.Run("an absent RelayState decodes to empty", func(t *testing.T) {
+		require.Empty(t, postWith(t, url.Values{}))
+	})
 }

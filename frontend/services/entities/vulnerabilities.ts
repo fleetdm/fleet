@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
-import endpoints from "utilities/endpoints";
-import { IVulnerability } from "interfaces/vulnerability";
-import { buildQueryStringFromParams } from "utilities/url";
+
 import { IVulnerabilityOSVersion } from "interfaces/operating_system";
 import { IVulnerabilitySoftware } from "interfaces/software";
+import { IVulnerability } from "interfaces/vulnerability";
+import sendRequest from "services";
+import endpoints from "utilities/endpoints";
+import { buildQueryStringFromParams } from "utilities/url";
 
 export interface IGetVulnerabilitiesQueryParams {
   teamId?: number;
@@ -59,7 +60,7 @@ export const getVulnerabilities = ({
   let path = VULNERABILITIES;
 
   const queryString = buildQueryStringFromParams({
-    team_id: teamId,
+    fleet_id: teamId,
     order_key,
     order_direction,
     page,
@@ -78,7 +79,7 @@ const getVulnerability = ({
   teamId,
 }: IGetVulnerabilityOptions): Promise<IVulnerabilityResponse> => {
   const endpoint = endpoints.VULNERABILITY(vulnerability);
-  const queryString = buildQueryStringFromParams({ team_id: teamId });
+  const queryString = buildQueryStringFromParams({ fleet_id: teamId });
   const path =
     typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
 

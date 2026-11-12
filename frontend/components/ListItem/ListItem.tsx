@@ -1,5 +1,5 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
 import Graphic from "components/Graphic";
 import { GraphicNames } from "components/graphics";
@@ -17,6 +17,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-pkg"
   | "file-p7m"
   | "file-pem"
+  | "file-json"
   | "file-certificate"
 >;
 
@@ -29,13 +30,18 @@ interface IListItemProps {
   /** The graphic you want to display for this list item. */
   graphic?: ISupportedGraphicNames;
   title: string | JSX.Element;
-  details: React.ReactNode;
+  details?: React.ReactNode;
   /** A collection of React Nodes that will render as list item actions. Can be
    * used to render buttons, links, etc.
    */
   actions?: React.ReactNode;
   /** An optional function to call when the user clicks anywhere in the ListItem */
   onClick?: () => void;
+  /** When true (and `onClick` is set), make the row itself keyboard-focusable
+   * so Enter/Space triggers `onClick`. Use for rows where no action button
+   * provides keyboard access to the row's primary intent (e.g. technician view
+   * with no actions, or GitOps mode where the Edit button is disabled). */
+  isInteractiveRow?: boolean;
   className?: string;
 }
 
@@ -45,16 +51,39 @@ const ListItem = ({
   details,
   actions,
   onClick,
+  isInteractiveRow,
   className,
 }: IListItemProps) => {
   const classNames = classnames(baseClass, className);
+  const interactive = isInteractiveRow && onClick;
+  const onKeyDown = interactive
+    ? (e: React.KeyboardEvent<HTMLDivElement>) => {
+        // Only trigger the row's onClick when the row itself has keyboard
+        // focus — not when the event bubbles up from a focused child button
+        // (e.g. Download), which has its own handler.
+        if (
+          e.target === e.currentTarget &&
+          (e.key === "Enter" || e.key === " ")
+        ) {
+          e.preventDefault();
+          onClick();
+        }
+      }
+    : undefined;
   return (
-    <div className={classNames} onClick={onClick}>
+    <div
+      className={classNames}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      role={interactive ? "button" : undefined}
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+      tabIndex={interactive ? 0 : undefined}
+    >
       <div className={`${baseClass}__main-content`}>
         {graphic && <Graphic name={graphic} />}
         <div className={`${baseClass}__info`}>
           <span className={`${baseClass}__title`}>{title}</span>
-          <div className={`${baseClass}__details`}>{details}</div>
+          {details && <div className={`${baseClass}__details`}>{details}</div>}
         </div>
       </div>
       {actions && <div className={`${baseClass}__actions`}>{actions}</div>}

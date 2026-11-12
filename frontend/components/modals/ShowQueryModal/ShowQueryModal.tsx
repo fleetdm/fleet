@@ -1,16 +1,18 @@
 import React from "react";
 
-import SQLEditor from "components/SQLEditor";
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import SQLEditor from "components/SQLEditor";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 
 const baseClass = "show-query-modal";
 
 interface IShowQueryModalProps {
   onCancel: () => void;
   query?: string;
-  impact?: string;
+  impact?: PerformanceImpactIndicator;
 }
 
 const ShowQueryModal = ({
@@ -35,12 +37,14 @@ const ShowQueryModal = ({
         />
         {impact && (
           <div className={`${baseClass}__performance-impact`}>
-            Performance impact:{" "}
-            <PerformanceImpactCell value={{ indicator: impact }} />
+            <TooltipWrapper tipContent="The average performance impact across all hosts.">
+              <strong>Performance impact</strong>
+            </TooltipWrapper>
+            : <PerformanceImpactCell value={{ indicator: impact }} />
           </div>
         )}
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
+          <Button onClick={onCancel}>Close</Button>
         </div>
       </div>
     </Modal>

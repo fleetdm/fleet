@@ -149,17 +149,32 @@ module.exports = {
           submittersLastName: 'Williamson',
           submittersEmailAddress: 'jane@example.com',
           submittersOrganization: 'Fake organization',
-          customersFirstName: 'Sage',
-          customersLastName: 'Scorpion',
+          customersName: 'Sage Scorpion',
           customersEmailAddress: 'sage@example.com',
-          linkedinUrl: 'https://www.linkedin.com/in/sage-scorpion/',
           customersOrganization: 'Fake organization 2',
-          customersCurrentMdm: 'Omnissa',
-          otherMdmEvaluated: 'Jamf protect',
-          preferredHosting: 'Managed cloud',
-          expectedDealSize: '$30,000',
-          expectedCloseDate: '09/28/2024',
+          dealStage: 'Identified',
+          submitterIsExistingPartner: 'yes',
+          expectedClose: '1 - 3 months',
+          numberOfHosts: '1000 - 5000',
+          platforms: `<br> Apple (macOS, iOS/iPadOS) <br> Linux`,
+          useCase: `<br> Device management <br> Security / compliance`,
           notes: 'Fake organization 2 is looking for a managed cloud MDM solution with a name that ends with "eet"',
+        };
+        break;
+      case 'email-partner-registration':
+        layout = 'layout-email';
+        fakeData = {
+          submittersFirstName: 'Jane',
+          submittersLastName: 'Williamson',
+          submittersEmailAddress: 'jane@example.com',
+          submittersOrganization: 'Fake organization',
+          partnerType: 'reseller',
+          partnerWebsite: 'example.com',
+          partnerCountry: 'US',
+          goal: 'Resell or manage devices for customers',
+          notes: 'My organization is looking to resell an MDM solution to our cloud customers',
+          numberOfHosts: '100 - 1000',
+          servicesOffered: '<br> IT services / MSP<br> MDM / endpoint management'
         };
         break;
       case 'email-contact-form':
@@ -198,6 +213,12 @@ module.exports = {
           emailAddress: 'sage@example.com',
         };
         break;
+      case 'email-application-submitted':
+        layout = 'layout-email';
+        fakeData = {
+          firstName: 'Sage',
+        };
+        break;
       default:
         layout = 'layout-email-newsletter';
         fakeData = {
@@ -227,15 +248,43 @@ module.exports = {
       return err;
     });
 
+
     if (raw) {
       // Respond with raw, rendered HTML for this email:
       throw {sendRawHtmlInstead: sampleHtml};
     } else {
+
+      let isTemplateANewsletter = false;
+      let isTemplateLatestNewsletter = false;
+      if(_.startsWith(template, 'newsletter/')){
+        // If we're veiwing a newsletter email template, set the isTemplateANewsletter flag to true (To show the admin a button that sends them a test email)
+        isTemplateANewsletter = true;
+        // We'll also check to see if this is the latest newsletter email template to determine whether or not to show the admin a "Send newsletter to subscribers" button.
+
+        let markdownEmailPaths = await sails.helpers.fs.ls.with({
+          dir: path.join(sails.config.paths.views, 'emails/newsletter'),
+          depth: 99,
+          includeDirs: false,
+          includeSymlinks: false,
+        });
+        markdownEmailPaths = markdownEmailPaths.map((templatePath)=>{
+          let relativePath = path.relative(path.join(sails.config.paths.views, 'emails/'), templatePath);
+          let extension = path.extname(relativePath);
+          return relativePath.split(extension)[0];
+        });
+        markdownEmailPaths = markdownEmailPaths.sort();
+        if(markdownEmailPaths[markdownEmailPaths.length - 1] === template) {
+          isTemplateLatestNewsletter = true;
+        }
+      }
+
       // Respond with the previewer page for this email:
       return {
         sampleHtml,
         template,
         fakeData,
+        isTemplateANewsletter,
+        isTemplateLatestNewsletter,
       };
     }
 

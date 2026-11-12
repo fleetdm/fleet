@@ -23,6 +23,8 @@ module.exports = {
     lastName: { type: 'string', defaultsTo: '', },
     organization: { type: 'string', defaultsTo: '', },
 
+
+    includeEmployerHeadquartersInformation: {type: 'boolean', defaultsTo: false}
   },
 
 
@@ -51,10 +53,11 @@ module.exports = {
   },
 
 
-  fn: async function ({emailAddress,linkedinUrl,firstName,lastName,organization}) {
+  fn: async function ({emailAddress,linkedinUrl,firstName,lastName,organization, includeEmployerHeadquartersInformation}) {
 
     require('assert')(sails.config.custom.iqSecret);// FUTURE: Rename this config
     require('assert')(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS);
+    require('assert')(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions);
 
     sails.log.verbose('Enriching from…', emailAddress,linkedinUrl,firstName,lastName,organization);
 
@@ -75,6 +78,11 @@ module.exports = {
       }
     }//ﬁ
 
+
+    // If this helper is running for a user who signed up wth a personal email address before we added the work email requirement, Set emailDomain to undefined to remove it from the search criteria.
+    if(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions.includes(emailDomain)){
+      emailDomain = undefined;
+    }
 
     // If no linkedin URL was provided for the person, then also do a website+name+orgName search
     // vs contacts to try and locate the person's linkedin URL.
@@ -283,15 +291,57 @@ module.exports = {
         return undefined;
       });
       if (matchingCompanyPageInfo) {
-        let parsedCompanyEmailDomain = require('url').parse(matchingCompanyPageInfo.website);
-        // If a company's website does not include the protocol (https://), url.parse will return null as the hostname, if this happens, we'll use the href value returned instead.
-        let emailDomain = parsedCompanyEmailDomain.hostname ? parsedCompanyEmailDomain.hostname.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'') : parsedCompanyEmailDomain.href.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'');
+
+        let emailDomain;
+        if(matchingCompanyPageInfo.website) {
+          let parsedCompanyEmailDomain = require('url').parse(matchingCompanyPageInfo.website);
+          // If a company's website does not include the protocol (https://), url.parse will return null as the hostname, if this happens, we'll use the href value returned instead.
+          emailDomain = parsedCompanyEmailDomain.hostname ? parsedCompanyEmailDomain.hostname.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'') : parsedCompanyEmailDomain.href.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,'');
+        }
         employer = {
           organization: matchingCompanyPageInfo.name,
           numberOfEmployees: matchingCompanyPageInfo.employees_count,
           emailDomain: emailDomain,
           linkedinCompanyPageUrl: matchingCompanyPageInfo.canonical_url.replace(sails.config.custom.RX_PROTOCOL_AND_COMMON_SUBDOMAINS,''),
         };
+
+        // If we're including location information, use the prompt helper to transform the location information returned by Coresignal into a JSON object.
+        if(includeEmployerHeadquartersInformation) {
+          let primaryLocation = _.find(matchingCompanyPageInfo.company_locations_collection, (location)=>{
+            return location.is_primary === 1 && location.deleted === 0;
+          });
+          let locationInfo = {};
+          if(primaryLocation && primaryLocation.location_address) {
+            let systemPromptForAddressInformation = 'You are a precise data-extraction function. Respond with a single raw JSON object and nothing else.';
+            let locationPrompt =
+  `Extract the location from the following company headquarters address.
+
+  Address: "${primaryLocation.location_address}"
+
+  Respond with a JSON object using these keys:
+  - "city": the city name.
+  - "country": the full country name in English (for example, "United States").
+  - "state": the full state name. Only include this key when the country is the United States.
+
+  Only include a key when its value is present in the address. Omit any key whose value you cannot determine; do not guess, and do not use null or empty strings.`;
+
+            locationInfo = await sails.helpers.ai.prompt.with({
+              prompt: locationPrompt,
+              baseModel: 'claude-haiku-4-5',
+              expectJson: true,
+              systemPrompt: systemPromptForAddressInformation,
+            }).tolerate((err)=>{
+              sails.log.warn(`When parsing a company's headquarters address ("${primaryLocation.location_address}") into structured location data, the prompt helper responded with an error: `, err);
+              return {};
+            });
+          }
+          employer.state = locationInfo.state;
+          employer.country = locationInfo.country;
+          employer.city = locationInfo.city;
+        }
+
+
+
         if (organization && employer.organization && employer.organization !== organization) {
           sails.log.info(`Unexpected result when enriching: Matched organization name (${employer.organization}) does not equal the provided "organization" (${organization})`);
         }//ﬁ
@@ -299,10 +349,10 @@ module.exports = {
           sails.log.info(`Unexpected result when enriching: Email domain inferred from matched organization website (${employer.emailDomain}) does not equal the parsed email domain (${emailDomain}) that was derived from the provided "emailAddress" (${emailAddress})`);
         }//ﬁ
 
-        // Use OpenAI to try and enrich some additional data, if it's missing.
+        // Use an LLM to try and enrich some additional data, if it's missing.
         if (!employer.numberOfEmployees) {
-          if (!sails.config.custom.openAiSecret) {
-            throw new Error('sails.config.custom.openAiSecret not set.');
+          if (!sails.config.custom.anthropicSecret) {
+            throw new Error('sails.config.custom.anthropicSecret not set.');
           }//•
 
           let prompt = `How many employees does the organization who owns ${emailDomain} have?
@@ -311,21 +361,12 @@ module.exports = {
     {
       "employees": 0
     }`;
-          let BASE_MODEL = 'gpt-4o';// The base model to use.  https://platform.openai.com/docs/models/gpt-4
-          // [?] API: https://platform.openai.com/docs/api-reference/chat/create
-          let openAiResponse = await sails.helpers.http.post('https://api.openai.com/v1/chat/completions', {
-            model: BASE_MODEL,
-            messages: [ { role: 'user', content: prompt } ],// // https://platform.openai.com/docs/guides/chat/introduction
-            temperature: 0.7,
-            max_tokens: 256//eslint-disable-line camelcase
-          }, {
-            Authorization: `Bearer ${sails.config.custom.openAiSecret}`
-          })
+          let llmResponse = await sails.helpers.ai.prompt.with({prompt, expectJson: true, baseModel: 'claude-haiku-4-5'})
           .tolerate((unusedErr)=>{});
 
-          if (openAiResponse) {
+          if (llmResponse) {
             try {
-              employer.numberOfEmployees = JSON.parse(openAiResponse.choices[0].message.content).employees;
+              employer.numberOfEmployees = llmResponse.employees;
             } catch (unusedErr) {
               employer.numberOfEmployees = 1;
             }

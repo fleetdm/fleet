@@ -1,5 +1,7 @@
 import React from "react";
 
+import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   DisplayPlatform,
   QueryableDisplayPlatform,
@@ -7,11 +9,8 @@ import {
 } from "interfaces/platform";
 import { PLATFORM_DISPLAY_NAMES } from "utilities/constants";
 
-import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon";
-
 interface IPlatformCompatibilityProps {
-  compatiblePlatforms: any[] | null;
+  compatiblePlatforms: QueryablePlatform[] | null;
   error: Error | null;
 }
 
@@ -48,28 +47,11 @@ const displayIncompatibilityText = (err: Error) => {
   }
 };
 
-// const tipContent = (
-//   <>
-//     Estimated compatibility based on the <br />
-//     tables used in the query. Querying <br />
-//     iPhones, iPads, and Android hosts is not <br />
-//     supported.
-//   </>
-// );
-
-// TODO(android): replace with the above tipContent when Android feature flag is removed
 const tipContent = (
   <>
-    Estimated compatibility based on the <br />
-    tables used in the query. Check the <br />
-    table documentation (schema) to verify <br />
-    compatibility of individual columns.
-    <br />
-    <br />
-    Only live queries are supported on ChromeOS.
-    <br />
-    <br />
-    Querying iPhones & iPads is not supported.
+    Estimated compatibility based on the tables <br />
+    used in the query. Reports are not supported <br />
+    on iPhones, iPads, and Android hosts.
   </>
 );
 
@@ -90,6 +72,15 @@ const PlatformCompatibility = ({
 
     return DISPLAY_ORDER.map((platform) => {
       const isCompatible = displayPlatforms.includes(platform);
+
+      const liveQueryOnlyPlatform = (
+        <TooltipWrapper
+          tipContent={`Only live reports are supported on ${platform}.`}
+        >
+          {platform}
+        </TooltipWrapper>
+      );
+
       return (
         <span key={`platform-compatibility__${platform}`} className="platform">
           <Icon
@@ -98,9 +89,8 @@ const PlatformCompatibility = ({
               isCompatible ? "compatible-platform" : "incompatible-platform"
             }
             color={isCompatible ? "status-success" : "status-error"}
-            size="small"
           />
-          {platform}
+          {platform === "ChromeOS" ? liveQueryOnlyPlatform : platform}
         </span>
       );
     });
@@ -109,7 +99,7 @@ const PlatformCompatibility = ({
   return (
     <div className={baseClass}>
       <b>
-        <TooltipWrapper tipContent={tipContent}>
+        <TooltipWrapper tipContent={tipContent} clickable={false}>
           Compatible with:
         </TooltipWrapper>
       </b>

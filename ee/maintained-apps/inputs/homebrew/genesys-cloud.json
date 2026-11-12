@@ -1,0 +1,8 @@
+{
+  "name": "Genesys Cloud",
+  "unique_identifier": "com.inin.purecloud.directory",
+  "token": "genesys-cloud",
+  "installer_format": "dmg",
+  "slug": "genesys-cloud/darwin",
+  "default_categories": ["Communication"]
+}

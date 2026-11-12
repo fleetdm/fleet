@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 
 const baseClass = "delete-query-modal";
 
@@ -18,13 +18,13 @@ const DeleteQueryModal = ({
 }: IDeleteQueryModalProps): JSX.Element => {
   return (
     <Modal
-      title="Delete query"
+      title="Delete reports"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}
     >
       <div className={baseClass}>
-        Are you sure you want to delete the selected queries?
+        Are you sure you want to delete the selected reports?
         <div className="modal-cta-wrap">
           <Button
             type="button"
@@ -35,7 +35,7 @@ const DeleteQueryModal = ({
           >
             Delete
           </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

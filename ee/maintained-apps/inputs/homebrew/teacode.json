@@ -1,0 +1,10 @@
+{
+  "name": "TeaCode",
+  "unique_identifier": "com.apptorium.TeaCode-dm",
+  "token": "teacode",
+  "installer_format": "zip",
+  "slug": "teacode/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

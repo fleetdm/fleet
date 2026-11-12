@@ -1,12 +1,13 @@
-import { startCase } from "lodash";
+import { uniq } from "lodash";
 import PropTypes from "prop-types";
 
 import { IconNames } from "components/icons";
 
-import { HOST_APPLE_PLATFORMS, Platform } from "./platform";
-import vulnerabilityInterface from "./vulnerability";
-import { ILabelSoftwareTitle } from "./label";
 import { ICommandResult } from "./command";
+import { ILabelSoftwareTitle } from "./label";
+import { IVppTokenSummary } from "./mdm";
+import { HOST_APPLE_PLATFORMS, isLinuxLike, Platform } from "./platform";
+import vulnerabilityInterface from "./vulnerability";
 
 export default PropTypes.shape({
   type: PropTypes.string,
@@ -17,15 +18,6 @@ export default PropTypes.shape({
   vulnerabilities: PropTypes.arrayOf(vulnerabilityInterface),
 });
 
-export interface ISoftwareResponse {
-  counts_updated_at: string;
-  software: ISoftware[];
-}
-
-export interface ISoftwareCountResponse {
-  count: number;
-}
-
 export interface IGetSoftwareByIdResponse {
   software: ISoftware;
 }
@@ -34,6 +26,7 @@ export interface IGetSoftwareByIdResponse {
 // check to see if we still need this.
 export interface ISoftware {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "Figma.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
@@ -48,7 +41,10 @@ export interface ISoftware {
   installed_paths?: string[];
   extension_for?: string;
   vendor?: string;
+  release?: string;
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
 }
 
 export type IVulnerabilitySoftware = Omit<
@@ -61,21 +57,49 @@ export type IVulnerabilitySoftware = Omit<
 export interface ISoftwareTitleVersion {
   id: number;
   version: string;
+  release?: string;
   vulnerabilities: string[] | null; // TODO: does this return null or is it omitted?
   hosts_count?: number;
 }
 
+export interface ISoftwarePatchPolicy {
+  id: number;
+  name: string;
+  patch_when_closed: boolean;
+  continuous_automations_enabled: boolean;
+  notify_before_patching?: boolean;
+  patch_deadline?: boolean;
+}
+
+export type SoftwareInstallPolicyType = "dynamic" | "patch";
+export type SoftwareInstallPolicyTypeSet = Set<SoftwareInstallPolicyType>;
+
+// A policy type returned from the API is set to:
+// 1. dynamic if only auto install, and
+// 2.patch if it's both auto install and patch policy
+// This doesn't include patch alone, as policies set to patch only are under ISoftwarePackage.patch_policy
 export interface ISoftwareInstallPolicy {
   id: number;
   name: string;
+  type: SoftwareInstallPolicyType;
 }
 
+// A policy type in the UI uses a Set because a policy in
+// Software Details > Policy can be both dynamic AND/OR patch
+export interface ISoftwareInstallPolicyUI {
+  id: number;
+  name: string;
+  type: SoftwareInstallPolicyTypeSet;
+}
+
+// Match allowedCategories in cmd/maintained-apps/main.go
 export type SoftwareCategory =
   | "Browsers"
   | "Communication"
   | "Developer tools"
   | "Productivity"
   | "Security"
+  | "Support"
   | "Utilities";
 
 export interface ISoftwarePackageStatus {
@@ -92,7 +116,18 @@ export interface ISoftwareAppStoreAppStatus {
   failed: number;
 }
 
+export interface IFleetMaintainedVersion {
+  id: number;
+  version: string;
+  filename: string;
+  uploaded_at: string;
+}
+
 export interface ISoftwarePackage {
+  /** Per-installer id — distinct from `title_id`. Used by per-package edit
+   * and delete endpoints so the request targets one specific package on a
+   * title that may have several. */
+  installer_id: number;
   name: string;
   /** Not included in SoftwareTitle software.software_package response, hoisted up one level
    * Custom name set per team by admin
@@ -110,13 +145,22 @@ export interface ISoftwarePackage {
   self_service: boolean;
   icon_url: string | null;
   status: ISoftwarePackageStatus;
+  patch_policy?: ISoftwarePatchPolicy | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
+  fleet_maintained_app_slug?: string;
+  fleet_maintained_versions?: IFleetMaintainedVersion[] | null;
+  /** Version pin: null/absent = Latest, exact version = exact pin, caret
+   * ("^149") = major-version pin. */
+  pinned_version?: string | null;
   hash_sha256?: string | null;
+  /** XML plist string for iOS/iPadOS in-house .ipa managed app configuration. */
+  configuration?: string;
 }
 
 export interface IAppStoreApp {
@@ -142,9 +186,50 @@ export interface IAppStoreApp {
   } | null;
   version?: string;
   labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
-  configuration?: string;
+  /** iOS/iPadOS: XML plist string. Android: parsed JSON object (BE sends
+   * json.RawMessage which Axios auto-parses). */
+  configuration?: string | Record<string, unknown>;
+  /** The token the app was added from on this fleet. Null for Google Play
+   * apps and when the title isn't fetched for a fleet. */
+  vpp_token?: IVppTokenSummary | null;
+}
+
+/** One App Store app version on a software title. iOS/iPadOS/Android titles
+ * can have multiple versions in creation order; each carries its own name,
+ * configuration, labels, auto-update window, and status counts. macOS VPP
+ * and in-house .ipa titles have a single entry. See title_detail
+ * `app_store_apps` in rest-api.md.
+ *
+ * `name` here is the admin-provided version name (e.g. "Production"), not the
+ * title name — a semantic distinction from `IAppStoreApp.name`. */
+export interface IAppStoreAppVersion {
+  /** Version id. Used to target this version in PATCH/DELETE requests. */
+  id: number;
+  /** Admin-provided version name, unique per title per fleet. */
+  name: string;
+  app_store_id: string;
+  platform: typeof HOST_APPLE_PLATFORMS[number] | "android";
+  /** Latest Store version. All versions on a title share this value. */
+  version: string;
+  status: ISoftwareAppStoreAppStatus;
+  self_service: boolean;
+  automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_include_all: ILabelSoftwareTitle[] | null;
+  labels_exclude_any: ILabelSoftwareTitle[] | null;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string | null;
+  auto_update_window_end?: string | null;
+  /** Determines first-added precedence when a host is in scope for more than one version. */
+  created_at: string;
+  categories?: SoftwareCategory[] | null;
+  display_name?: string;
+  /** iOS/iPadOS: XML plist string. Android: parsed JSON object (BE sends
+   * json.RawMessage which Axios auto-parses). */
+  configuration?: string | Record<string, unknown>;
 }
 
 /**
@@ -160,29 +245,57 @@ export const isSoftwarePackage = (
 
 export interface ISoftwareTitle {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
+  bundle_identifier?: string;
   icon_url: string | null;
   versions_count: number;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
+  /** First-added; mirrors packages[0]. Retained for back-compat. */
   software_package: ISoftwarePackage | null;
+  /** All custom packages on this title (trimmed shape on list responses).
+   * `null` when the title has no custom packages. */
+  packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
+  /** All App Store app versions on this title, in `created_at` order.
+   * `null` when the title has no App Store app. See
+   * [[ISoftwareTitleDetails.app_store_apps]]. */
+  app_store_apps: IAppStoreAppVersion[] | null;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
 
 export interface ISoftwareTitleDetails {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string;
   /** Custom name set per team by admin */
   display_name?: string;
   icon_url: string | null;
+  /** First-added; mirrors packages[0]. Retained for back-compat. */
   software_package: ISoftwarePackage | null;
+  /** All custom packages on this title, in first-added order (smallest
+   * `installer_id` first). `null` when the title has no custom packages.
+   * When present, treat as the source of truth; `software_package` is a
+   * convenience alias to `packages[0]`. */
+  packages: ISoftwarePackage[] | null;
   app_store_app: IAppStoreApp | null;
+  /** All App Store app versions on this title, in `created_at` order
+   * (first-added precedence). `null` when the title has no App Store app.
+   * iOS/iPadOS/Android titles may have up to 10 versions; macOS VPP has at
+   * most one entry. When present, treat as the source of truth;
+   * `app_store_app` is a convenience alias to `app_store_apps[0]`. */
+  app_store_apps: IAppStoreAppVersion[] | null;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
   hosts_count: number;
@@ -190,6 +303,11 @@ export interface ISoftwareTitleDetails {
   counts_updated_at?: string;
   bundle_identifier?: string;
   versions_count?: number;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
@@ -208,6 +326,7 @@ export interface ISoftwareVulnerability {
 
 export interface ISoftwareVersion {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "Figma.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Figma for Desktop"
@@ -215,46 +334,526 @@ export interface ISoftwareVersion {
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: SoftwareSource;
   extension_for: SoftwareExtensionFor;
-  release: string; // TODO: on software/verions/:id?
+  /** OS release ("30.el7") or, for go_binaries, the Go toolchain version ("go1.26.1"). */
+  release: string;
   vendor: string;
   arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
   generated_cpe: string;
   vulnerabilities: ISoftwareVulnerability[] | null;
   hosts_count?: number;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
   /** @deprecated Use extension_for instead */
   browser?: string;
 }
 
-export const SOURCE_TYPE_CONVERSION = {
+export type SoftwareTypePlatform =
+  | "darwin"
+  | "windows"
+  | "linux"
+  | "chrome"
+  | "ios"
+  | "ipados"
+  | "android";
+
+const DESKTOP = ["darwin", "windows", "linux"] as const;
+
+export const MACOS_APP_SOFTWARE_TYPE = "macos_app";
+
+// Keys are used in the page URLs (`?types=`), so never rename them.
+// IMPORTANT: Keep sources and extension_for values in sync with
+// softwareTypeFilterSources in server/fleet/software.go.
+const SOFTWARE_TYPE_VARIANTS = [
+  {
+    key: "adobe_plugin",
+    displayName: "Plugin (Adobe)",
+    source: "adobe_plugins",
+    platforms: ["darwin", "windows"],
+  },
+  {
+    key: "ai_cli_tool",
+    displayName: "AI CLI tool",
+    source: "ai_clis",
+    platforms: DESKTOP,
+    premiumOnly: true,
+  },
+  {
+    key: "ai_skill",
+    displayName: "AI skill",
+    source: "ai_skills",
+    platforms: DESKTOP,
+    premiumOnly: true,
+  },
+  {
+    key: "android_app",
+    displayName: "App (Android)",
+    source: "android_apps",
+    platforms: ["android"],
+  },
+  {
+    key: "brave_extension",
+    displayName: "Browser extension (Brave)",
+    source: "chrome_extensions",
+    extensionFor: "brave",
+    platforms: DESKTOP,
+  },
+  {
+    key: "chocolatey_package",
+    displayName: "Package (Chocolatey)",
+    source: "chocolatey_packages",
+    platforms: ["windows"],
+  },
+  {
+    key: "chrome_extension",
+    displayName: "Browser extension (Chrome)",
+    source: "chrome_extensions",
+    extensionFor: "chrome",
+    platforms: [...DESKTOP, "chrome"],
+  },
+  {
+    key: "chromium_extension",
+    displayName: "Browser extension (Chromium)",
+    source: "chrome_extensions",
+    extensionFor: "chromium",
+    platforms: DESKTOP,
+  },
+  {
+    key: "clion_extension",
+    displayName: "IDE extension (CLion)",
+    source: "jetbrains_plugins",
+    extensionFor: "clion",
+    platforms: DESKTOP,
+  },
+  {
+    key: "cursor_extension",
+    displayName: "IDE extension (Cursor)",
+    source: "vscode_extensions",
+    extensionFor: "cursor",
+    platforms: DESKTOP,
+  },
+  {
+    key: "datagrip_extension",
+    displayName: "IDE extension (DataGrip)",
+    source: "jetbrains_plugins",
+    extensionFor: "datagrip",
+    platforms: DESKTOP,
+  },
+  {
+    key: "deb_package",
+    displayName: "Package (deb)",
+    source: "deb_packages",
+    platforms: ["linux"],
+  },
+  {
+    key: "edge_beta_extension",
+    displayName: "Browser extension (Edge Beta)",
+    source: "chrome_extensions",
+    extensionFor: "edge_beta",
+    platforms: DESKTOP,
+  },
+  {
+    key: "edge_extension",
+    displayName: "Browser extension (Edge)",
+    source: "chrome_extensions",
+    extensionFor: "edge",
+    platforms: DESKTOP,
+  },
+  {
+    key: "firefox_extension",
+    displayName: "Browser extension (Firefox)",
+    source: "firefox_addons",
+    extensionFor: "firefox",
+    platforms: DESKTOP,
+  },
+  {
+    key: "go_binary",
+    displayName: "Binary (Go)",
+    source: "go_binaries",
+    platforms: DESKTOP,
+  },
+  {
+    key: "goland_extension",
+    displayName: "IDE extension (GoLand)",
+    source: "jetbrains_plugins",
+    extensionFor: "goland",
+    platforms: DESKTOP,
+  },
+  {
+    key: "homebrew_package",
+    displayName: "Package (Homebrew)",
+    source: "homebrew_packages",
+    platforms: ["darwin"],
+  },
+  {
+    key: "intellij_idea_community_edition_extension",
+    displayName: "IDE extension (IntelliJ IDEA Community Edition)",
+    source: "jetbrains_plugins",
+    extensionFor: "intellij_idea_community_edition",
+    platforms: DESKTOP,
+  },
+  {
+    key: "intellij_idea_extension",
+    displayName: "IDE extension (IntelliJ IDEA)",
+    source: "jetbrains_plugins",
+    extensionFor: "intellij_idea",
+    platforms: DESKTOP,
+  },
+  {
+    key: "internet_explorer_extension",
+    displayName: "Browser extension (Internet Explorer)",
+    source: "ie_extensions",
+    platforms: ["windows"],
+  },
+  {
+    key: "ios_app",
+    displayName: "App (iOS)",
+    source: "ios_apps",
+    platforms: ["ios"],
+  },
+  {
+    key: "ipados_app",
+    displayName: "App (iPadOS)",
+    source: "ipados_apps",
+    platforms: ["ipados"],
+  },
+  {
+    key: MACOS_APP_SOFTWARE_TYPE,
+    displayName: "App (macOS)",
+    source: "apps",
+    platforms: ["darwin"],
+  },
+  {
+    key: "macos_package_pkg",
+    displayName: "Package (.pkg)",
+    source: "pkg_packages",
+    platforms: ["darwin"],
+    installerOnly: true,
+  },
+  {
+    key: "mcp_server",
+    displayName: "MCP server",
+    source: "mcp_servers",
+    platforms: DESKTOP,
+    premiumOnly: true,
+  },
+  {
+    key: "nix_package",
+    displayName: "Package (Nix)",
+    source: "nix_packages",
+    platforms: ["linux"],
+  },
+  {
+    key: "npm_package",
+    displayName: "Package (npm)",
+    source: "npm_packages",
+    platforms: ["darwin", "linux"],
+  },
+  {
+    key: "opera_extension",
+    displayName: "Browser extension (Opera)",
+    source: "chrome_extensions",
+    extensionFor: "opera",
+    platforms: DESKTOP,
+  },
+  {
+    key: "pacman_package",
+    displayName: "Package (pacman)",
+    source: "pacman_packages",
+    platforms: ["linux"],
+  },
+  {
+    key: "phpstorm_extension",
+    displayName: "IDE extension (PhpStorm)",
+    source: "jetbrains_plugins",
+    extensionFor: "phpstorm",
+    platforms: DESKTOP,
+  },
+  {
+    key: "portage_package",
+    displayName: "Package (Portage)",
+    source: "portage_packages",
+    platforms: ["linux"],
+  },
+  {
+    key: "pycharm_extension",
+    displayName: "IDE extension (PyCharm)",
+    source: "jetbrains_plugins",
+    extensionFor: "pycharm",
+    platforms: DESKTOP,
+  },
+  {
+    key: "pycharm_community_edition_extension",
+    displayName: "IDE extension (PyCharm Community Edition)",
+    source: "jetbrains_plugins",
+    extensionFor: "pycharm_community_edition",
+    platforms: DESKTOP,
+  },
+  {
+    key: "python_package",
+    displayName: "Package (Python)",
+    source: "python_packages",
+    platforms: DESKTOP,
+  },
+  {
+    key: "resharper_extension",
+    displayName: "IDE extension (ReSharper)",
+    source: "jetbrains_plugins",
+    extensionFor: "resharper",
+    platforms: DESKTOP,
+  },
+  {
+    key: "rider_extension",
+    displayName: "IDE extension (Rider)",
+    source: "jetbrains_plugins",
+    extensionFor: "rider",
+    platforms: DESKTOP,
+  },
+  {
+    key: "rpm_package",
+    displayName: "Package (RPM)",
+    source: "rpm_packages",
+    platforms: ["linux"],
+  },
+  {
+    key: "rubymine_extension",
+    displayName: "IDE extension (RubyMine)",
+    source: "jetbrains_plugins",
+    extensionFor: "rubymine",
+    platforms: DESKTOP,
+  },
+  {
+    key: "rustrover_extension",
+    displayName: "IDE extension (RustRover)",
+    source: "jetbrains_plugins",
+    extensionFor: "rust_rov",
+    platforms: DESKTOP,
+  },
+  {
+    key: "safari_extension",
+    displayName: "Browser extension (Safari)",
+    source: "safari_extensions",
+    platforms: ["darwin"],
+  },
+  {
+    key: "script_only_package_ps1",
+    displayName: "Script-only package (.ps1)",
+    source: "ps1_packages",
+    platforms: ["windows"],
+    installerOnly: true,
+  },
+  {
+    key: "script_only_package_py",
+    displayName: "Script-only package (.py)",
+    source: "py_packages",
+    platforms: ["darwin", "linux"],
+    installerOnly: true,
+  },
+  {
+    key: "script_only_package_sh",
+    displayName: "Script-only package (.sh)",
+    source: "sh_packages",
+    platforms: ["darwin", "linux"],
+    installerOnly: true,
+  },
+  {
+    key: "tarball_tar_gz",
+    displayName: "Package (.tar.gz)",
+    source: "tgz_packages",
+    platforms: ["linux"],
+    installerOnly: true,
+  },
+  {
+    key: "trae_extension",
+    displayName: "IDE extension (Trae)",
+    source: "vscode_extensions",
+    extensionFor: "trae",
+    platforms: DESKTOP,
+  },
+  {
+    key: "vs_code_extension",
+    displayName: "IDE extension (VS Code)",
+    source: "vscode_extensions",
+    extensionFor: "vscode",
+    platforms: DESKTOP,
+  },
+  {
+    key: "vs_code_insiders_extension",
+    displayName: "IDE extension (VS Code Insiders)",
+    source: "vscode_extensions",
+    extensionFor: "vscode_insiders",
+    platforms: DESKTOP,
+  },
+  {
+    key: "vscodium_extension",
+    displayName: "IDE extension (VSCodium)",
+    source: "vscode_extensions",
+    extensionFor: "vscodium",
+    platforms: DESKTOP,
+  },
+  {
+    key: "vscodium_insiders_extension",
+    displayName: "IDE extension (VSCodium Insiders)",
+    source: "vscode_extensions",
+    extensionFor: "vscodium_insiders",
+    platforms: DESKTOP,
+  },
+  {
+    key: "webstorm_extension",
+    displayName: "IDE extension (WebStorm)",
+    source: "jetbrains_plugins",
+    extensionFor: "webstorm",
+    platforms: DESKTOP,
+  },
+  {
+    key: "windows_app",
+    displayName: "App (Windows)",
+    source: "programs",
+    platforms: ["windows"],
+  },
+  {
+    key: "windsurf_extension",
+    displayName: "IDE extension (Windsurf)",
+    source: "vscode_extensions",
+    extensionFor: "windsurf",
+    platforms: DESKTOP,
+  },
+  {
+    key: "yandex_extension",
+    displayName: "Browser extension (Yandex)",
+    source: "chrome_extensions",
+    extensionFor: "yandex",
+    platforms: DESKTOP,
+  },
+] as const;
+
+// Sources Fleet no longer collects; their labels are kept for historical rows.
+const LEGACY_SOURCE_TYPES = {
   apt_sources: "Package (APT)",
-  deb_packages: "Package (deb)",
-  portage_packages: "Package (Portage)",
-  rpm_packages: "Package (RPM)",
   yum_sources: "Package (YUM)",
-  npm_packages: "Package (npm)",
-  pacman_packages: "Package (pacman)",
-  atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
-  python_packages: "Package (Python)",
-  tgz_packages: "Package (tar)",
-  apps: "Application (macOS)",
-  ios_apps: "Application (iOS)",
-  ipados_apps: "Application (iPadOS)",
-  android_apps: "Application (Android)",
-  chrome_extensions: "Browser plugin", // chrome_extensions can include any chrome-based browser (e.g., edge), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
-  firefox_addons: "Browser plugin (Firefox)",
-  safari_extensions: "Browser plugin (Safari)",
-  homebrew_packages: "Package (Homebrew)",
-  programs: "Program (Windows)",
-  ie_extensions: "Browser plugin (IE)",
-  chocolatey_packages: "Package (Chocolatey)",
-  pkg_packages: "Package (pkg)",
-  vscode_extensions: "IDE extension", // vscode_extensions can include any vscode-based editor (e.g., Cursor, Trae, Windsurf), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
-  sh_packages: "Payload-free (Linux)",
-  ps1_packages: "Payload-free (Windows)",
-  jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
+  atom_packages: "Package (Atom)",
 } as const;
 
-export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
+export type SoftwareSource =
+  | typeof SOFTWARE_TYPE_VARIANTS[number]["source"]
+  | keyof typeof LEGACY_SOURCE_TYPES;
+
+export type SoftwareExtensionFor =
+  | Extract<
+      typeof SOFTWARE_TYPE_VARIANTS[number],
+      { extensionFor: string }
+    >["extensionFor"]
+  | "";
+
+export interface ISoftwareType {
+  /** Stable key stored in the page URL (`?types=`). */
+  key: string;
+  displayName: string;
+  source: SoftwareSource;
+  extensionFor?: SoftwareExtensionFor;
+  platforms: readonly SoftwareTypePlatform[];
+  /** Installer-only sources never appear in a host's inventory. */
+  installerOnly?: boolean;
+  /** Hidden on Fleet Free, where the API rejects the source. */
+  premiumOnly?: boolean;
+}
+
+const compareDisplayNames = (a: ISoftwareType, b: ISoftwareType) =>
+  a.displayName.localeCompare(b.displayName, undefined, {
+    sensitivity: "base",
+  });
+
+/** Every software type, sorted case-insensitively by display name. */
+export const SOFTWARE_TYPES: readonly ISoftwareType[] = [
+  ...SOFTWARE_TYPE_VARIANTS,
+].sort(compareDisplayNames);
+
+const SOFTWARE_TYPES_BY_KEY = new Map(SOFTWARE_TYPES.map((t) => [t.key, t]));
+
+const softwareTypeLookupKey = (source: string, extensionFor?: string | null) =>
+  `${source}/${extensionFor || ""}`;
+
+const SOFTWARE_TYPES_BY_SOURCE = new Map(
+  SOFTWARE_TYPES.map((t) => [
+    softwareTypeLookupKey(t.source, t.extensionFor),
+    t,
+  ])
+);
+
+/** Labels for extension rows the catalog can't match because extension_for is
+ * empty (ingested before Fleet recorded the browser). */
+const EXTENSION_SOURCE_FALLBACK: Partial<Record<SoftwareSource, string>> = {
+  chrome_extensions: "Browser extension",
+  firefox_addons: "Browser extension",
+  vscode_extensions: "IDE extension",
+  jetbrains_plugins: "IDE extension",
+};
+
+const getSoftwareTypePlatform = (
+  platform: string
+): SoftwareTypePlatform | undefined => {
+  switch (platform) {
+    case "darwin":
+    case "windows":
+    case "chrome":
+    case "ios":
+    case "ipados":
+    case "android":
+      return platform;
+    default:
+      return isLinuxLike(platform) ? "linux" : undefined;
+  }
+};
+
+/** Software types available on the license tier, sorted by display name. */
+export const getSoftwareTypes = (opts?: {
+  premium?: boolean;
+}): ISoftwareType[] =>
+  SOFTWARE_TYPES.filter((t) => opts?.premium || !t.premiumOnly);
+
+/** Software types that apply to a host platform, sorted by display name.
+ * Host pages hide installer-only types because hosts never report them. */
+export const getSoftwareTypesForPlatform = (
+  platform: string,
+  opts?: { hostPage?: boolean; premium?: boolean }
+): ISoftwareType[] => {
+  const typePlatform = getSoftwareTypePlatform(platform);
+  if (!typePlatform) return [];
+  return getSoftwareTypes(opts).filter(
+    (t) =>
+      t.platforms.includes(typePlatform) && !(opts?.hostPage && t.installerOnly)
+  );
+};
+
+/** Translates selected type keys into the software list endpoints' `source`
+ * and `extension_for` params. Unknown keys are ignored. */
+export const softwareTypesToApiParams = (
+  keys: readonly string[]
+): { source?: string; extension_for?: string } => {
+  const selected = new Set(keys);
+  const types = SOFTWARE_TYPES.filter((t) => selected.has(t.key));
+  const sources = uniq(types.map((t) => t.source)).sort();
+  const extensionFor = uniq(
+    types
+      .map((t) => t.extensionFor)
+      .filter((ext): ext is SoftwareExtensionFor => !!ext)
+  );
+  return {
+    ...(sources.length && { source: sources.join(",") }),
+    ...(extensionFor.length && { extension_for: extensionFor.join(",") }),
+  };
+};
+
+/** Parses the `types` URL param, dropping unknown keys. Returns undefined
+ * when the param is absent. A repeated param arrives as an array. */
+export const parseSoftwareTypesParam = (
+  raw: string | string[] | undefined
+): string[] | undefined => {
+  if (raw === undefined) return undefined;
+  const joined = Array.isArray(raw) ? raw.join(",") : raw;
+  return uniq(joined.split(",").map((key) => key.trim())).filter((key) =>
+    SOFTWARE_TYPES_BY_KEY.has(key)
+  );
+};
 
 /** Map installable software source to platform  */
 export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
@@ -264,6 +863,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   rpm_packages: "linux",
   yum_sources: "linux",
   pacman_packages: "linux",
+  nix_packages: "linux",
   tgz_packages: "linux",
   npm_packages: null,
   atom_packages: null,
@@ -283,56 +883,87 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   vscode_extensions: null,
   sh_packages: "linux", // 4.76 Added support for Linux hosts only
   ps1_packages: "windows",
+  py_packages: "linux", // stored as linux; also runs on macOS via the unix-like install exception
   jetbrains_plugins: null,
+  go_binaries: null,
+  adobe_plugins: null,
+  ai_clis: null,
+  ai_skills: null,
+  mcp_servers: null,
 } as const;
 
-export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
+/** Look up an installable source's platform, normalizing the mapping's
+ * `null` entries to `undefined` so callers can treat the return as an
+ * optional `string`. */
+export const getInstallablePlatform = (
+  source?: SoftwareSource
+): string | undefined => {
+  if (!source) return undefined;
+  return INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source] ?? undefined;
+};
 
+export const SCRIPT_PACKAGE_SOURCES = [
+  "sh_packages",
+  "ps1_packages",
+  "py_packages",
+];
+
+/** Mirrors `fleet.MaxPackagesPerTitle` in `server/fleet/software_installer.go`.
+ * The backend rejects the upload past this cap with the `SoftwarePackageLimitMessage`
+ * conflict error — the UI uses this constant to disable "+ Add version" and
+ * surface a matching tooltip before the user hits the API. Keep in sync if
+ * the backend limit changes. */
+export const MAX_PACKAGES_PER_TITLE = 10;
+
+/** Mirrors the backend cap on App Store app versions per title per fleet. */
+export const MAX_APP_STORE_APP_VERSIONS_PER_TITLE = 10;
+
+/** Sources that don't map cleanly to versions or hosts in software inventory.
+ * UI behavior for these sources:
+ * - Never shows “Update available” (no version to compare against the package version).
+ * - Skips showing recently updated and waiting for inventory  UI status/tooltip after successful install/uninstall (no inventory entry to await)
+ * - Skips showing a host count (hosts cannot be mapped to the package).
+ * - Skips showing a versions table (versions cannot be mapped to the package).
+ * - Skips linking to “View all hosts” (hosts cannot be mapped to the package). */
 export const NO_VERSION_OR_HOST_DATA_SOURCES = [
   "tgz_packages",
   ...SCRIPT_PACKAGE_SOURCES,
 ];
 
+/** Sources that never report a version, with the reason shown on the "---" cell. */
+export const NO_VERSION_TOOLTIP_BY_SOURCE: Partial<
+  Record<SoftwareSource, string>
+> = {
+  mcp_servers:
+    "Fleet doesn't detect MCP server versions yet. Most MCP servers run with npx or uvx, which pick the version at launch unless it's pinned.",
+  ai_skills: "AI skills are markdown files, so they don't have versions.",
+};
+
+/** Sources Fleet never scans for vulnerabilities, with the reason shown on the "---" cell. */
+export const NO_VULNERABILITIES_TOOLTIP_BY_SOURCE: Partial<
+  Record<SoftwareSource, string>
+> = {
+  mcp_servers:
+    "Currently, Fleet doesn't detect vulnerabilities for MCP servers.",
+  ai_skills:
+    "AI skills are markdown files, so they don't have vulnerabilities.",
+};
+
 export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
 
-const EXTENSION_FOR_TYPE_CONVERSION = {
-  // chrome versions
-  chrome: "Chrome",
-  chromium: "Chromium",
-  opera: "Opera",
-  yandex: "Yandex",
-  brave: "Brave",
-  edge: "Edge",
-  edge_beta: "Edge Beta",
-
-  // vscode versions
-  vscode: "VSCode",
-  vscode_insiders: "VSCode Insiders",
-  vscodium: "VSCodium",
-  vscodium_insiders: "VSCodium Insiders",
-  trae: "Trae",
-  windsurf: "Windsurf",
-  cursor: "Cursor",
-
-  // jebtbrains versions
-  clion: "CLion",
-  datagrip: "DataGrip",
-  goland: "GoLand",
-  intellij_idea: "IntelliJ IDEA",
-  intellij_idea_community_edition: "IntelliJ IDEA Community Edition",
-  phpstorm: "PhpStorm",
-  pycharm: "PyCharm",
-  pycharm_community_edition: "PyCharm Community Edition",
-  resharper: "ReSharper",
-  rider: "Rider",
-  rubymine: "RubyMine",
-  rust_rov: "RustRover",
-  webstorm: "WebStorm",
-} as const;
-
-export type SoftwareExtensionFor =
-  | keyof typeof EXTENSION_FOR_TYPE_CONVERSION
-  | "";
+/** For go_binaries the toolchain version is part of the row's identity, so it's shown
+ * alongside the version. rpm_packages also populates `release` and must not be.
+ * Version entries carry no source of their own; spread the entry and add the row's. */
+export const formatSoftwareVersion = ({
+  version,
+  release,
+  source,
+}: {
+  version: string;
+  release?: string;
+  source?: string;
+}) =>
+  source === "go_binaries" && release ? `${version} (${release})` : version;
 
 export const formatSoftwareType = ({
   source,
@@ -341,13 +972,20 @@ export const formatSoftwareType = ({
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
 }) => {
-  let type: string = SOURCE_TYPE_CONVERSION[source] || "Unknown";
-  if (extension_for) {
-    type += ` (${
-      EXTENSION_FOR_TYPE_CONVERSION[extension_for] || startCase(extension_for)
-    })`;
+  const extensionFallback = EXTENSION_SOURCE_FALLBACK[source];
+  // Only extension sources are split by extension_for; ignore stray values on others.
+  const match = SOFTWARE_TYPES_BY_SOURCE.get(
+    softwareTypeLookupKey(source, extensionFallback ? extension_for : "")
+  );
+  if (match) return match.displayName;
+  if (extensionFallback) {
+    return extension_for
+      ? `${extensionFallback} (${extension_for})`
+      : extensionFallback;
   }
-  return type;
+  return (
+    LEGACY_SOURCE_TYPES[source as keyof typeof LEGACY_SOURCE_TYPES] ?? "Unknown"
+  );
 };
 
 /**
@@ -367,7 +1005,7 @@ export const SOFTWARE_INSTALL_STATUSES = [
   "failed_install",
 ] as const;
 
-// Payload-free (script) software statuses
+// Script-only software statuses
 export const SOFTWARE_SCRIPT_STATUSES = [
   "ran_script",
   "pending_script",
@@ -379,7 +1017,7 @@ export type SoftwareInstallStatus = typeof SOFTWARE_INSTALL_STATUSES[number];
 export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
   ...SOFTWARE_INSTALL_STATUSES,
   ...SOFTWARE_UNINSTALL_STATUSES,
-  // Payload-free (script) software statuses use API's SOFTWARE_INSTALL_STATUSES
+  // Script-only software statuses use API's SOFTWARE_INSTALL_STATUSES
 ] as const;
 
 /*
@@ -387,15 +1025,21 @@ export const SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
  */
 export type SoftwareInstallUninstallStatus = typeof SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
 
-/** Include payload-free statuses */
+/** Activity-backed install details can display a skipped state while the
+ * persisted install result remains failed_install. */
+export type SoftwareInstallDetailsStatus =
+  | SoftwareInstallUninstallStatus
+  | "skipped_install";
+
+/** Include script-only software statuses */
 export const ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES = [
   ...SOFTWARE_INSTALL_STATUSES,
   ...SOFTWARE_UNINSTALL_STATUSES,
-  ...SOFTWARE_SCRIPT_STATUSES, // Payload-free (script) software
+  ...SOFTWARE_SCRIPT_STATUSES, // Script-only software
 ] as const;
 
 /*
- * EnhancedSoftwareInstallUninstallStatus represents the possible states of software install operations including payload-free used in the UI.
+ * EnhancedSoftwareInstallUninstallStatus represents the possible states of software install operations including script-only software used in the UI.
  */
 export type EnhancedSoftwareInstallUninstallStatus = typeof ENAHNCED_SOFTWARE_INSTALL_UNINSTALL_STATUSES[number];
 
@@ -456,6 +1100,7 @@ export interface ISoftwareInstallResult {
   host_display_name?: string;
   install_uuid: string;
   software_title: string;
+  software_display_name?: string | null;
   software_title_id: number;
   software_package: string;
   host_id: number;
@@ -467,6 +1112,10 @@ export interface ISoftwareInstallResult {
   created_at: string;
   updated_at: string | null;
   self_service: boolean;
+  /** SHA-256 of the installer package. Present when the payload was
+   * hydrated from a package-backed install; absent for VPP / older results
+   * whose backend join hasn't been extended. */
+  hash_sha256?: string;
 }
 
 // Script results are only install results, never uninstall
@@ -509,8 +1158,9 @@ export interface ISoftwareLastUninstall {
 
 export interface ISoftwareInstallVersion {
   version: string;
+  release?: string;
   bundle_identifier: string;
-  last_opened_at: string | null;
+  last_opened_at?: string;
   vulnerabilities: string[] | null;
   installed_paths: string[];
   signature_information?: SignatureInformation[];
@@ -526,6 +1176,12 @@ export interface IHostSoftwarePackage {
   categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   platform?: Platform;
+  /** True when the installer has a non-empty uninstall script. Absent (not
+   * `false`) for VPP and in-house apps, and absent on /software/titles
+   * responses; only host software responses set it. Used to gate the
+   * Uninstall action for script-only (.ps1/.sh/.py) and .tgz packages,
+   * where the uninstall script is optional. */
+  has_uninstall_script?: boolean;
 }
 
 export interface IHostAppStoreApp {
@@ -537,10 +1193,15 @@ export interface IHostAppStoreApp {
   last_install: IAppLastInstall | null;
   categories?: SoftwareCategory[] | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
+  /** Id of the admin version this host received; null when none delivered. Backend emits as `version_id` on `SoftwarePackageOrApp`. */
+  version_id?: number | null;
+  /** Admin version label (e.g. "Production"). */
+  version_name?: string | null;
 }
 
 export interface IHostSoftware {
   id: number;
+  /** All software names displayed by UI is ran through getDisplayedSoftwareName */
   name: string; // e.g., "mock software.app"
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Mock Software"
@@ -551,7 +1212,18 @@ export interface IHostSoftware {
   extension_for?: SoftwareExtensionFor;
   bundle_identifier?: string;
   status: Exclude<SoftwareInstallUninstallStatus, "uninstalled"> | null;
+  /**
+   * True when the most recent install was a patch-when-closed skip (the target
+   * app was open); `status` is then `failed_install`. Rendered as "Patch
+   * skipped" rather than "Failed".
+   */
+  skipped_install?: boolean;
   installed_versions: ISoftwareInstallVersion[] | null;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
+  /** Fleet marked this software as an AI tool (Premium; always false on Free). */
+  ai_tool?: boolean;
 }
 
 /**
@@ -567,7 +1239,9 @@ export interface IHostSoftware {
 // Error UI statuses
 export const HOST_SOFTWARE_UI_ERROR_STATUSES = [
   "failed_install", // Install attempt failed
+  "failed_install_installed", // Install attempt failed but version still present
   "failed_install_update_available", // Install/update failed; newer installer version available
+  "failed_uninstall_installed", // Uninstall attempt failed but version still present
   "failed_uninstall", // Uninstall attempt failed
   "failed_uninstall_update_available", // Uninstall/update failed; newer installer version available
   "failed_script", // Script package failed to run
@@ -612,6 +1286,7 @@ export const isSoftwareInProgressStatus = (
 export const HOST_SOFTWARE_UI_SUCCESS_STATUSES = [
   "installed", // Present in inventory; no newer fleet installer version (tarballs: successful install only)
   "uninstalled", // Not present in inventory (tarballs: successful uninstall or never installed)
+  // NOTE: Recently statuses cannot apply to tarballs as we cannot detect inventory
   "recently_updated", // Update applied (installer newer than inventory), but inventory not yet refreshed
   "recently_installed", // Install applied (installer NOT newer than inventory), but inventory not yet refreshed
   "recently_uninstalled", // Uninstall applied, but inventory not yet refreshed
@@ -629,6 +1304,7 @@ export const isSoftwareSuccessStatus = (
 // Update-available UI status
 export const HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES = [
   "update_available", // In inventory, but newer fleet installer version is available
+  "skipped_install", // Patch-when-closed skip; renders as a deferred update
 ] as const;
 export type HostSoftwareUiUpdateAvailableStatus = typeof HOST_SOFTWARE_UI_UPDATE_AVAILABLE_STATUSES[number];
 export const isSoftwareUpdateAvailableStatus = (
@@ -684,9 +1360,9 @@ const INSTALL_STATUS_PREDICATES: Record<
   failed_install: "failed to install",
   pending_uninstall: "told Fleet to uninstall",
   failed_uninstall: "failed to uninstall",
-  ran_script: "ran", // Payload-free (script) software
-  failed_script: "failed to run", // Payload-free (script) software
-  pending_script: "told Fleet to run", // Payload-free (script) software
+  ran_script: "ran", // Script-only software
+  failed_script: "failed to run", // Script-only software
+  pending_script: "told Fleet to run", // Script-only software
 } as const;
 
 export const getInstallUninstallStatusPredicate = (
@@ -719,6 +1395,53 @@ export const getInstallUninstallStatusPredicate = (
   );
 };
 
+// Passive-voice variants used for self-service activity rendering, where the
+// activity reads "<software> was installed on this host (self-service)." with
+// no actor.
+const INSTALL_STATUS_PREDICATES_PASSIVE: Record<
+  EnhancedSoftwareInstallUninstallStatus | "pending",
+  string
+> = {
+  pending: "is pending",
+  installed: "was installed",
+  uninstalled: "was uninstalled",
+  pending_install: "is pending install",
+  failed_install: "installation failed",
+  pending_uninstall: "is pending uninstall",
+  failed_uninstall: "uninstallation failed",
+  ran_script: "was run",
+  failed_script: "run failed",
+  pending_script: "is pending run",
+} as const;
+
+export const getInstallUninstallStatusPredicatePassive = (
+  status: string | undefined,
+  isScriptPackage = false
+) => {
+  if (!status) {
+    return INSTALL_STATUS_PREDICATES_PASSIVE.pending;
+  }
+
+  if (isScriptPackage) {
+    switch (status.toLowerCase()) {
+      case "installed":
+        return INSTALL_STATUS_PREDICATES_PASSIVE.ran_script;
+      case "pending_install":
+        return INSTALL_STATUS_PREDICATES_PASSIVE.pending_script;
+      case "failed_install":
+        return INSTALL_STATUS_PREDICATES_PASSIVE.failed_script;
+      default:
+        break;
+    }
+  }
+
+  return (
+    INSTALL_STATUS_PREDICATES_PASSIVE[
+      status.toLowerCase() as keyof typeof INSTALL_STATUS_PREDICATES_PASSIVE
+    ] || INSTALL_STATUS_PREDICATES_PASSIVE.pending
+  );
+};
+
 export const aggregateInstallStatusCounts = (
   packageStatuses: ISoftwarePackage["status"]
 ) => ({
@@ -731,17 +1454,17 @@ export const INSTALL_STATUS_ICONS: Record<
   EnhancedSoftwareInstallUninstallStatus | "pending" | "failed",
   IconNames
 > = {
-  pending: "pending-outline",
-  pending_install: "pending-outline",
-  installed: "success-outline",
-  uninstalled: "success-outline",
-  failed: "error-outline",
-  failed_install: "error-outline",
-  pending_uninstall: "pending-outline",
-  failed_uninstall: "error-outline",
-  ran_script: "success-outline", // Payload-free (script) software
-  failed_script: "error-outline", // Payload-free (script) software
-  pending_script: "pending-outline", // Payload-free (script) software
+  pending: "pending",
+  pending_install: "pending",
+  installed: "success",
+  uninstalled: "success",
+  failed: "error",
+  failed_install: "error",
+  pending_uninstall: "pending",
+  failed_uninstall: "error",
+  ran_script: "success", // Script-only software
+  failed_script: "error", // Script-only software
+  pending_script: "pending", // Script-only software
 } as const;
 
 type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
@@ -771,6 +1494,9 @@ export const hasHostSoftwareAppLastInstall = (
 export const isIpadOrIphoneSoftwareSource = (source: string) =>
   ["ios_apps", "ipados_apps"].includes(source);
 
+export const isIpadOrIphoneSoftware = (platform: string) =>
+  ["ios", "ipados"].includes(platform);
+
 export const isAndroidSoftwareSource = (source: string) =>
   source === "android_apps";
 
@@ -779,6 +1505,7 @@ export interface IFleetMaintainedApp {
   name: string;
   version: string;
   platform: FleetMaintainedAppPlatform;
+  slug: string; // "<app-token>/<platform>", e.g. "figma/darwin"; the token uniquely identifies an app across its platform entries
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
 }
 
@@ -788,7 +1515,10 @@ export type FleetMaintainedAppPlatform = Extract<
 >;
 
 export interface ICombinedFMA {
+  /** Raw name, used to match the app's icon */
   name: string;
+  /** Name shown in the table, without a platform suffix like " for macOS" */
+  displayName: string;
   macos: Omit<IFleetMaintainedApp, "name"> | null;
   windows: Omit<IFleetMaintainedApp, "name"> | null;
 }
@@ -801,6 +1531,7 @@ export interface IFleetMaintainedAppDetails {
   install_script: string;
   post_install_script: string;
   uninstall_script: string;
+  automatic_install_query: string;
   url: string;
   slug: string;
   software_title_id?: number; // null unless the team already has the software added (as a Fleet-maintained app, App Store (app), or custom package)
@@ -813,6 +1544,7 @@ export const ROLLING_ARCH_LINUX_NAMES = [
   "Manjaro Linux",
   "Manjaro Linux ARM",
   "Manjaro ARM Linux",
+  "CachyOS Linux",
 ];
 
 export const ROLLING_ARCH_LINUX_VERSIONS = ROLLING_ARCH_LINUX_NAMES.map(

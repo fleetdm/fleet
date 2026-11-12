@@ -1,15 +1,15 @@
-import { IHost, IHostEndUser } from "interfaces/host";
-import { IHostMdmProfile } from "interfaces/mdm";
 import { pick } from "lodash";
 
-import { normalizeEmptyValues } from "utilities/helpers";
-import { HOST_SUMMARY_DATA } from "utilities/constants";
-import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { IHost, IHostEndUser, IGeoLocation } from "interfaces/host";
+import { IHostMdmProfile } from "interfaces/mdm";
 import {
   IHostAppStoreApp,
   IHostSoftware,
   IHostSoftwarePackage,
 } from "interfaces/software";
+import { IGetHostSoftwareResponse } from "services/entities/hosts";
+import { HOST_SUMMARY_DATA } from "utilities/constants";
+import { normalizeEmptyValues } from "utilities/helpers";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   profile_uuid: "123-abc",
@@ -20,6 +20,8 @@ const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   detail: "This is verified",
   scope: "device",
   managed_local_account: "",
+  hidden: false,
+  self_service: false,
 };
 
 export const createMockHostMdmProfile = (
@@ -39,6 +41,8 @@ const DEFAULT_HOST_MOCK: IHost = {
   label_updated_at: "2022-01-02T12:00:00Z",
   policy_updated_at: "2022-01-02T12:00:00Z",
   last_enrolled_at: "2022-01-02T12:00:00Z",
+  last_mdm_enrolled_at: "2022-01-02T12:00:00Z",
+  last_mdm_checked_in_at: "",
   seen_time: "2022-04-06T02:11:41Z",
   refetch_requested: false,
   refetch_critical_queries_until: null,
@@ -50,7 +54,8 @@ const DEFAULT_HOST_MOCK: IHost = {
   osquery_version: "4.9.0",
   orbit_version: "1.22.0",
   fleet_desktop_version: "1.22.1",
-  os_version: "Ubuntu 18.4.0",
+  os_name: "Ubuntu",
+  os_version: "18.4.0",
   build: "",
   platform_like: "debian",
   code_name: "",
@@ -63,6 +68,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   cpu_logical_cores: 8,
   hardware_vendor: "",
   hardware_model: "",
+  hardware_marketing_name: "",
   hardware_version: "",
   hardware_serial: "",
   computer_name: "9b20fc72a247",
@@ -78,11 +84,11 @@ const DEFAULT_HOST_MOCK: IHost = {
       },
       certificates: [],
     },
-    macos_settings: {
+    apple_settings: {
       disk_encryption: null,
       action_required: null,
     },
-    macos_setup: {
+    setup_experience: {
       bootstrap_package_status: "",
       details: "",
       bootstrap_package_name: "",
@@ -96,9 +102,9 @@ const DEFAULT_HOST_MOCK: IHost = {
   distributed_interval: 10,
   config_tls_refresh: 10,
   logger_tls_period: 10,
-  team_id: null,
+  fleet_id: null,
   pack_stats: null,
-  team_name: null,
+  fleet_name: null,
   gigs_disk_space_available: 100.0,
   percent_disk_space_available: 50,
   issues: {
@@ -115,10 +121,27 @@ const DEFAULT_HOST_MOCK: IHost = {
   policies: [],
   device_mapping: [],
   end_users: [],
+  conditional_access_bypassed: false,
+  dep_assigned_to_fleet: false,
+  timezone: null,
 };
 
 const createMockHost = (overrides?: Partial<IHost>): IHost => {
   return { ...DEFAULT_HOST_MOCK, ...overrides };
+};
+
+export const createMockHostGeolocation = (
+  overrides: Partial<IGeoLocation> = {}
+): IGeoLocation => {
+  return {
+    country_iso: "US",
+    city_name: "Minneapolis",
+    geometry: {
+      type: "Point",
+      coordinates: [-93.2602, 44.9844], // [lng, lat]
+    },
+    ...overrides,
+  };
 };
 
 export const createMockHostResponse = { host: createMockHost() };
@@ -137,10 +160,11 @@ export const createMockIosHostResponse = {
   host: createMockHost({
     hostname: "Test device (iPhone)",
     display_name: "Test device (iPhone)",
-    team_id: 2,
-    team_name: "Mobile",
+    fleet_id: 2,
+    fleet_name: "Mobile",
     platform: "ios",
-    os_version: "iOS 14.7.1",
+    os_name: "iOS",
+    os_version: "14.7.1",
     hardware_serial: "C8QH6T96DPNA",
     created_at: "2024-01-01T12:00:00Z",
     updated_at: "2024-05-02T12:00:00Z",
@@ -166,6 +190,7 @@ const DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK: IHostSoftwarePackage = {
     installed_at: "2022-01-01T12:00:00Z",
   },
   last_uninstall: null,
+  has_uninstall_script: true,
 };
 
 export const createMockHostSoftwarePackage = (

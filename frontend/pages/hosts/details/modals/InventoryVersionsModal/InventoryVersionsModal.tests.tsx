@@ -1,9 +1,9 @@
-import React from "react";
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import { createMockHostSoftware } from "__mocks__/hostMock";
+
 import InventoryVersionsModal from "./InventoryVersionsModal";
-import { SoftwareSource } from "../../../../../interfaces/software";
 
 // Mock current time for time stamp test
 beforeAll(() => {
@@ -18,18 +18,19 @@ describe("SoftwareDetailsModal", () => {
       <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
 
-    // Modal title
-    expect(screen.getByText(mockSoftware.name)).toBeVisible();
+    // Modal title is display_name and not name
+    expect(screen.getByText("Mock Software")).toBeVisible();
 
     // Version, Type, Bundle identifier, Last opened
     expect(screen.getByText("Version")).toBeVisible();
     expect(screen.getByText("1.0.0")).toBeVisible();
     expect(screen.getByText("Type")).toBeVisible();
-    expect(screen.getByText("Application (macOS)")).toBeVisible();
+    expect(screen.getByText("App (macOS)")).toBeVisible();
     expect(screen.getByText("Bundle identifier")).toBeVisible();
     expect(screen.getByText("com.test.mock")).toBeVisible();
     expect(screen.getByText("Last opened")).toBeVisible();
     expect(screen.getByText("4 months ago")).toBeVisible();
+    expect(screen.queryByText("Not supported")).not.toBeInTheDocument();
 
     // File path
     expect(screen.getByText("Path:")).toBeVisible();
@@ -39,11 +40,12 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("Hash:")).toBeVisible();
     expect(screen.getByText("mockhashhere")).toBeVisible();
 
-    // Vulnerabilities
-    expect(screen.getByText(/CVE-2020-0001/)).toBeVisible();
+    // Vulnerabilities — TruncatedTextList renders items in both a hidden
+    // measure layer and the visible row, so match all occurrences.
+    expect(screen.getAllByText(/CVE-2020-0001/).length).toBeGreaterThan(0);
 
-    // Done button
-    expect(screen.getByRole("button", { name: "Done" })).toBeVisible();
+    // Close button
+    expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
   });
 
   it("does not render hash if signature_information is missing", () => {
@@ -73,7 +75,7 @@ describe("SoftwareDetailsModal", () => {
       <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
     );
     expect(screen.getByText("Type")).toBeVisible();
-    expect(screen.getByText("Application (macOS)")).toBeVisible();
+    expect(screen.getByText("App (macOS)")).toBeVisible();
     expect(screen.queryByText("Version")).not.toBeInTheDocument();
     expect(screen.queryByText("Path:")).not.toBeInTheDocument();
   });
@@ -116,13 +118,12 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("hashbar456")).toBeVisible();
   });
 
-  it("renders 'Never' for last opened when last_opened_at is null and source is apps", () => {
+  it("renders 'Never' for last opened when last_opened_at is an empty string", () => {
     const mockSoftware = createMockHostSoftware({
-      source: "apps",
       installed_versions: [
         {
           version: "1.0.0",
-          last_opened_at: null,
+          last_opened_at: "",
           vulnerabilities: ["CVE-2020-0001"],
           installed_paths: ["/Applications/mock.app"],
           bundle_identifier: "com.mock.software",
@@ -145,52 +146,12 @@ describe("SoftwareDetailsModal", () => {
     expect(screen.getByText("Never")).toBeVisible();
   });
 
-  ([
-    "apps",
-    "programs",
-    "deb_packages",
-    "rpm_packages",
-  ] as SoftwareSource[]).forEach((source) => {
-    it(`renders 'Never' for last opened when last_opened_at is null and source is ${source}`, () => {
-      const mockSoftware = createMockHostSoftware({
-        source,
-        installed_versions: [
-          {
-            version: "1.0.0",
-            last_opened_at: null,
-            vulnerabilities: ["CVE-2020-0001"],
-            installed_paths: ["C:\\Program Files\\mock.exe"],
-            bundle_identifier: "",
-            signature_information: [
-              {
-                installed_path: "C:\\Program Files\\mock.exe",
-                team_identifier: "",
-                hash_sha256: "mockhashhere",
-              },
-            ],
-          },
-        ],
-      });
-
-      render(
-        <InventoryVersionsModal
-          hostSoftware={mockSoftware}
-          onExit={jest.fn()}
-        />
-      );
-
-      expect(screen.getByText("Last opened")).toBeVisible();
-      expect(screen.getByText("Never")).toBeVisible();
-    });
-  });
-
-  it("does not render last opened field when last_opened_at is null and source is not supported", () => {
+  it("does not render last opened field when last_opened_at is undefined", () => {
     const mockSoftware = createMockHostSoftware({
-      source: "vscode_extensions",
       installed_versions: [
         {
           version: "1.0.0",
-          last_opened_at: null,
+          last_opened_at: undefined,
           vulnerabilities: ["CVE-2020-0001"],
           installed_paths: ["/usr/lib/package"],
           bundle_identifier: "",
@@ -205,5 +166,28 @@ describe("SoftwareDetailsModal", () => {
 
     expect(screen.queryByText("Last opened")).not.toBeInTheDocument();
     expect(screen.queryByText("Never")).not.toBeInTheDocument();
+  });
+
+  it("renders the date ago when last_opened_at is a valid date", () => {
+    const mockSoftware = createMockHostSoftware({
+      installed_versions: [
+        {
+          version: "1.0.0",
+          last_opened_at: new Date().toISOString(),
+          vulnerabilities: [],
+          installed_paths: ["/Applications/mock.app"],
+          bundle_identifier: "",
+          signature_information: undefined,
+        },
+      ],
+    });
+    render(
+      <InventoryVersionsModal hostSoftware={mockSoftware} onExit={jest.fn()} />
+    );
+    // dateAgo(now) should return something like "just now" or "1 minute ago"
+    // but definitely not "Never" or "Not supported"
+    expect(screen.getByText("Last opened")).toBeInTheDocument();
+    expect(screen.queryByText("Never")).not.toBeInTheDocument();
+    expect(screen.queryByText("Not supported")).not.toBeInTheDocument();
   });
 });

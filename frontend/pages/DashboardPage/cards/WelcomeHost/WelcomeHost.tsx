@@ -1,20 +1,20 @@
-import React, { useContext, useState } from "react";
-import PATHS from "router/paths";
-import { Link } from "react-router";
+import React, { useRef, useState } from "react";
 import { useQuery } from "react-query";
-import { formatDistanceToNow } from "date-fns";
 
-import { NotificationContext } from "context/notification";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Icon from "components/Icon/Icon";
+import Modal from "components/Modal";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
 import { IHost, IHostResponse } from "interfaces/host";
 import { IHostPolicy } from "interfaces/policy";
+import PATHS from "router/paths";
 import hostAPI from "services/entities/hosts";
+import { SUPPORT_LINK } from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
 
-import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import Icon from "components/Icon/Icon";
-import LaptopMac from "../../../../../assets/images/laptop-mac.png";
-import SlackButton from "../../../../../assets/images/slack-button-get-help.png";
+import LaptopMac from "../../../../assets/images/laptop-mac.png";
 
 interface IWelcomeHostCardProps {
   totalsHostsCount: number;
@@ -30,7 +30,6 @@ const WelcomeHost = ({
   totalsHostsCount,
   toggleAddHostsModal,
 }: IWelcomeHostCardProps): JSX.Element => {
-  const { renderFlash } = useContext(NotificationContext);
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [currentPolicyShown, setCurrentPolicyShown] = useState<IHostPolicy>();
   const [showPolicyModal, setShowPolicyModal] = useState(false);
@@ -38,6 +37,35 @@ const WelcomeHost = ({
   const [showRefetchLoadingSpinner, setShowRefetchLoadingSpinner] = useState(
     false
   );
+  // Pending next-poll timer; cleared before scheduling a new one so a focus-triggered
+  // onSuccess re-entry replaces the pending poll instead of stacking.
+  const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // True once the current refetch cycle has given up; blocks the restart path in
+  // onSuccess when the server still reports refetch_requested: true.
+  const didTimeOutRef = useRef(false);
+
+  /**
+   * Hides refetch spinner and resets refetch timer,
+   * ensuring no stale timeout triggers on new requests.
+   */
+  const resetHostRefetchStates = () => {
+    setShowRefetchLoadingSpinner(false);
+    setRefetchStartTime(null);
+    if (pollingTimerRef.current) {
+      clearTimeout(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
+  };
+
+  const scheduleNextPoll = (fn: () => void) => {
+    if (pollingTimerRef.current) {
+      clearTimeout(pollingTimerRef.current);
+    }
+    pollingTimerRef.current = setTimeout(() => {
+      pollingTimerRef.current = null;
+      fn();
+    }, 1000);
+  };
 
   const {
     isLoading: isLoadingHost,
@@ -51,45 +79,51 @@ const WelcomeHost = ({
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
-        setShowRefetchLoadingSpinner(returnedHost.refetch_requested);
-
         const anyPassingOrFailingPolicy = returnedHost?.policies?.find(
           (p) => p.response === POLICY_PASS || p.response === POLICY_FAIL
         );
         setIsPoliciesEmpty(typeof anyPassingOrFailingPolicy === "undefined");
 
-        if (returnedHost.refetch_requested) {
-          // Code duplicated from HostDetailsPage. See comments there.
-          if (!refetchStartTime) {
+        if (!returnedHost.refetch_requested) {
+          didTimeOutRef.current = false;
+          resetHostRefetchStates();
+          return;
+        }
+
+        // Previous cycle gave up and server still reports refetch_requested: true.
+        // Skip the restart path so a focus-triggered re-entry doesn't open a fresh
+        // 60s window + repeat toast.
+        if (didTimeOutRef.current && !refetchStartTime) {
+          return;
+        }
+
+        setShowRefetchLoadingSpinner(true);
+
+        // Code duplicated from HostDetailsPage. See comments there.
+        if (!refetchStartTime) {
+          if (returnedHost.status === "online") {
+            setRefetchStartTime(Date.now());
+            scheduleNextPoll(fullyReloadHost);
+          } else {
+            resetHostRefetchStates();
+          }
+        } else {
+          const totalElapsedTime = Date.now() - refetchStartTime;
+          if (totalElapsedTime < 60000) {
             if (returnedHost.status === "online") {
-              setRefetchStartTime(Date.now());
-              setTimeout(() => {
-                fullyReloadHost();
-              }, 1000);
+              scheduleNextPoll(fullyReloadHost);
             } else {
-              setShowRefetchLoadingSpinner(false);
+              notify.error(
+                `This host is offline. Please try refetching host vitals later.`
+              );
+              resetHostRefetchStates();
             }
           } else {
-            const totalElapsedTime = Date.now() - refetchStartTime;
-            if (totalElapsedTime < 60000) {
-              if (returnedHost.status === "online") {
-                setTimeout(() => {
-                  fullyReloadHost();
-                }, 1000);
-              } else {
-                renderFlash(
-                  "error",
-                  `This host is offline. Please try refetching host vitals later.`
-                );
-                setShowRefetchLoadingSpinner(false);
-              }
-            } else {
-              renderFlash(
-                "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
-              );
-              setShowRefetchLoadingSpinner(false);
-            }
+            notify.error(
+              `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
+            );
+            didTimeOutRef.current = true;
+            resetHostRefetchStates();
           }
         }
       },
@@ -105,13 +139,16 @@ const WelcomeHost = ({
 
       try {
         await hostAPI.refetch(host).then(() => {
+          didTimeOutRef.current = false;
           setRefetchStartTime(Date.now());
-          setTimeout(() => fullyReloadHost(), 1000);
+          scheduleNextPoll(fullyReloadHost);
         });
       } catch (error) {
         console.error(error);
-        renderFlash("error", `Host "${host.display_name}" refetch error`);
-        setShowRefetchLoadingSpinner(false);
+        notify.error(`Host "${host.display_name}" refetch error`, {
+          response: error,
+        });
+        resetHostRefetchStates();
       }
     }
   };
@@ -142,7 +179,7 @@ const WelcomeHost = ({
           <p>Add your personal device to assess the security of your device.</p>
           <p>
             In Fleet, laptops, workstations, and servers are referred to as
-            &quot;hosts.&quot;
+            &quot;hosts&quot;.
           </p>
           <Button
             onClick={toggleAddHostsModal}
@@ -163,18 +200,8 @@ const WelcomeHost = ({
             <Icon name="disable" color="status-error" />
             Your device is not communicating with Fleet.
           </p>
-          <p>Join the #fleet Slack channel for help troubleshooting.</p>
-          <a
-            target="_blank"
-            rel="noreferrer"
-            href="https://osquery.slack.com/archives/C01DXJL16D8"
-          >
-            <img
-              alt="Get help on Slack"
-              className="button-slack"
-              src={SlackButton}
-            />
-          </a>
+          <p>Contact Fleet support for help troubleshooting.</p>
+          <CustomLink url={SUPPORT_LINK} text="Get help" newTab />
         </div>
       </div>
     );
@@ -188,18 +215,8 @@ const WelcomeHost = ({
             <Icon name="disable" color="status-error" />
             No policies apply to your device.
           </p>
-          <p>Join the #fleet Slack channel for help troubleshooting.</p>
-          <a
-            target="_blank"
-            rel="noreferrer"
-            href="https://osquery.slack.com/archives/C01DXJL16D8"
-          >
-            <img
-              alt="Get help on Slack"
-              className="button-slack"
-              src={SlackButton}
-            />
-          </a>
+          <p>Contact Fleet support for help troubleshooting.</p>
+          <CustomLink url={SUPPORT_LINK} text="Get help" newTab />
         </div>
       </div>
     );
@@ -211,10 +228,10 @@ const WelcomeHost = ({
         <div className={`${baseClass}__intro`}>
           <img alt="" src={LaptopMac} />
           <div className="info">
-            <Link to={PATHS.HOST_DETAILS(host.id)} className="external-link">
-              {host.display_name}
-              <Icon name="arrow-internal-link" />
-            </Link>
+            <CustomLink
+              url={PATHS.HOST_DETAILS(host.id)}
+              text={host.display_name}
+            />
             <p>Your host is successfully connected to Fleet.</p>
           </div>
         </div>
@@ -234,9 +251,7 @@ const WelcomeHost = ({
                 >
                   <div className="policy-block">
                     <Icon
-                      name={
-                        p.response === POLICY_PASS ? "success" : "error-outline"
-                      }
+                      name={p.response === POLICY_PASS ? "success" : "error"}
                     />
                     <span className="info">{p.name}</span>
                     <Icon
@@ -251,12 +266,14 @@ const WelcomeHost = ({
 
             return null;
           })}
-          {host.policies?.length > 3 && (
-            <Link to={PATHS.HOST_POLICIES(host.id)} className="external-link">
-              Go to Host details to see all policies
-              <Icon name="arrow-internal-link" />
-            </Link>
-          )}
+          <div className={`${baseClass}__view-all-policies`}>
+            {host.policies?.length > 3 && (
+              <CustomLink
+                url={PATHS.HOST_POLICIES(host.id)}
+                text="View all host's policies"
+              />
+            )}
+          </div>
         </div>
         <div className={`${baseClass}__blurb`}>
           <p>Resolved a failing policy? Refetch your host vitals to verify.</p>
@@ -273,7 +290,7 @@ const WelcomeHost = ({
           </Button>
           <span>
             Last updated{" "}
-            {formatDistanceToNow(new Date(host.detail_updated_at), {
+            {timeAgo(new Date(host.detail_updated_at), {
               addSuffix: true,
             })}
           </span>
@@ -293,7 +310,7 @@ const WelcomeHost = ({
                 </p>
               )}
               <div className="modal-cta-wrap">
-                <Button onClick={() => setShowPolicyModal(false)}>Done</Button>
+                <Button onClick={() => setShowPolicyModal(false)}>Close</Button>
               </div>
             </>
           </Modal>

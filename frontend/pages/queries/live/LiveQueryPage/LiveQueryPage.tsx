@@ -1,35 +1,33 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
-import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import PATHS from "router/paths";
-import useTeamIdParam from "hooks/useTeamIdParam";
 
+import SelectTargets from "components/LiveQuery/SelectTargets";
+import MainContent from "components/MainContent";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
-import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
-import queryAPI from "services/entities/queries";
-import hostAPI from "services/entities/hosts";
+import useTeamIdParam from "hooks/useTeamIdParam";
 import { IHost, IHostResponse } from "interfaces/host";
 import { ILabel } from "interfaces/label";
-import { ITeam } from "interfaces/team";
 import {
   IGetQueryResponse,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-
-import MainContent from "components/MainContent";
-import SelectTargets from "components/LiveQuery/SelectTargets";
-
+import { ITeam } from "interfaces/team";
 import RunQuery from "pages/queries/live/screens/RunQuery";
+import PATHS from "router/paths";
+import hostAPI from "services/entities/hosts";
+import queryAPI from "services/entities/queries";
+import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 
 interface IRunQueryPageProps {
   router: InjectedRouter;
   params: Params;
   location: {
     pathname: string;
-    query: { host_id: string; team_id?: string };
+    query: { host_id?: string; fleet_id?: string; from?: string };
     search: string;
   };
 }
@@ -43,7 +41,7 @@ const RunQueryPage = ({
 }: IRunQueryPageProps): JSX.Element => {
   const queryId = paramsQueryId ? parseInt(paramsQueryId, 10) : null;
 
-  const { currentTeamId } = useTeamIdParam({
+  const { teamIdForApi } = useTeamIdParam({
     location,
     router,
     includeAllTeams: true,
@@ -78,7 +76,7 @@ const RunQueryPage = ({
     selectedQueryTargetsByType.labels
   );
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>(
-    selectedQueryTargetsByType.teams
+    selectedQueryTargetsByType.fleets
   );
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
 
@@ -86,11 +84,11 @@ const RunQueryPage = ({
 
   // Reroute users out of live flow when live queries are globally disabled
   if (disabledLiveQuery) {
-    const path = queryId ? PATHS.QUERY_DETAILS(queryId) : PATHS.NEW_QUERY;
+    const path = queryId ? PATHS.REPORT_DETAILS(queryId) : PATHS.NEW_REPORT;
 
     router.push(
       getPathWithQueryParams(path, {
-        team_id: currentTeamId,
+        fleet_id: teamIdForApi,
       })
     );
   }
@@ -137,7 +135,12 @@ const RunQueryPage = ({
         if (!queryParamHostsAdded) {
           setQueryParamHostsAdded(true);
         }
-        router.replace(location.pathname);
+        router.replace(
+          getPathWithQueryParams(location.pathname, {
+            ...location.query,
+            host_id: undefined,
+          })
+        );
       },
     }
   );
@@ -146,25 +149,31 @@ const RunQueryPage = ({
     setSelectedQueryTargetsByType({
       hosts: targetedHosts,
       labels: targetedLabels,
-      teams: targetedTeams,
+      fleets: targetedTeams,
     });
   }, [targetedLabels, targetedHosts, targetedTeams]);
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Run Discover TLS certificates | Queries | Fleet
+    // e.g., Run Discover TLS certificates | Reports | Fleet
     if (storedQuery?.name) {
-      document.title = `Run ${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `Run ${storedQuery.name} | Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     } else {
-      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(() => {
-    const path = queryId ? PATHS.EDIT_QUERY(queryId) : PATHS.NEW_QUERY;
+    let path = PATHS.NEW_REPORT;
+    if (queryId) {
+      path =
+        location.query.from === "edit"
+          ? PATHS.EDIT_REPORT(queryId)
+          : PATHS.REPORT_DETAILS(queryId);
+    }
 
-    router.push(getPathWithQueryParams(path, { team_id: currentTeamId }));
-  }, []);
+    router.push(getPathWithQueryParams(path, { fleet_id: teamIdForApi }));
+  }, [queryId, location.query.from, router, teamIdForApi]);
 
   const renderScreen = () => {
     const step1Props = {
@@ -183,6 +192,7 @@ const RunQueryPage = ({
       setTargetedTeams,
       setTargetsTotalCount,
       isObserverCanRunQuery: storedQuery?.observer_can_run,
+      queryTeamId: storedQuery?.fleet_id ?? null,
     };
 
     const step2Props = {

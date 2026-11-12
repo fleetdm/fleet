@@ -41,8 +41,6 @@
     "$": true,
     "_": true,
     "bowser": true,
-    "StripeCheckout": true,
-    "Stripe": true,
     "Vue": true,
     "VueRouter": true,
     "moment": true,
@@ -50,6 +48,7 @@
     "Chart": true,
     "gtag": true,
     "ace": true,
+    'qualified': true,
     // ...etc.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -67,7 +66,7 @@
     "Platform": false,
     "AdCampaign": false,
     "MicrosoftComplianceTenant": false,
-    "AndroidEnterprise": false
+    "AndroidEnterprise": false,
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   }

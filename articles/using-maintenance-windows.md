@@ -6,28 +6,29 @@ When a host fails a policy (e.g. MDM enrollment profile expired, disk encryption
 
 * What’s wrong (based on policy description)
 * What to do (from the policy resolution field)
-* A scheduled time (next available slot on Tuesday, 9–5 local time)
+* A scheduled time (next available slot on the next business day, 9–5 local time)
 
 The user can reschedule if needed—Fleet will respect the new time and run the remediation then.
 
 You can customize these flows with a webhook (e.g. Tines) to run scripts, use the Fleet API, or call MDM commands.
 
-> 🔜 Auto-remediation for patching (OS updates, software) is coming soon.
-
 ### Setup
 
-1. Connect a Google Workspace service account to Fleet under **Settings > Integrations > Calendars**.
+1. Connect a Google Workspace service account to Fleet under **Settings > Integrations > Calendar events**.
 2. Create a webhook to handle the remediation (see [Fleet + Tines guide](https://fleetdm.com/guides/building-webhook-flows-with-fleet-and-tines)).
 3. In the **Policies** tab, click **Manage automations > Calendar events**, enable the feature, and paste your webhook URL.
 
 ### End user experience
 
-* If a host has multiple users listed in host vitals, such as an IdP user and one or more Google Chrome profiles, Fleet schedules the calendar event for the first user in alphabetical order. 
-> **Example:** if the CEO's Executive Assistant (EA) is logged into Google Chrome with two profiles—their own (assistant@example.com) and the CEO's (ceo@example.com)—Fleet schedules the calendar event for the first profile in alphabetical order. In this case, the CEO would receive the calendar event for the EA's maintenance window.
-* If a user is associated with multiple failing hosts, Fleet schedules only one calendar event at a time. After the first host is fixed, Fleet schedules the next event.
+* If a user owns multiple failing hosts, only one host is scheduled at a time. Once it's fixed, Fleet schedules the next.
+* If a host has multiple users, Fleet chooses one user to receive the event based on email priority:
+  * First priority: **IdP Username** email address (from MDM IdP accounts or manually set IdP email)
+  * Second priority: Google Chrome profile email address
+  * If multiple Google Chrome profile emails exist, Fleet selects the first one alphabetically
+  * Third priority: other email sources
 * Users can reschedule the event on their calendar—Fleet will run remediation at the new time.
-* If a user moves the event to before the current time, Fleet shifts it to the next day.
-* If a user deletes the event, Fleet automatically reschedules it for the next day.
+* If a user moves the event to before the current time, Fleet shifts it to the next business day.
+* If a user deletes the event, Fleet automatically reschedules it for the next business day.
 * Fleet monitors calendar changes in real time (reschedules within ~30 seconds), but only for events in the upcoming week. Events further out are updated within 30 minutes.
 
 ### What happens when a policy fails?
@@ -47,5 +48,5 @@ For more info:
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-05-15">
-<meta name="articleImageUrl" value="../website/assets/images/articles/configuring-maintenance-windows-in-fleet-1600x900@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/configuring-maintenance-windows-in-fleet-533x300@2x.jpg">
 <meta name="description" value="How to schedule time for self-remediation when your end users are free using Fleet's maintenance windows.">

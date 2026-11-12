@@ -1,0 +1,10 @@
+{
+  "name": "BetterMouse",
+  "unique_identifier": "com.naotanhaocan.BetterMouse",
+  "token": "bettermouse",
+  "installer_format": "zip",
+  "slug": "bettermouse/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

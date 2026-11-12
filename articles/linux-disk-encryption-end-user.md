@@ -34,7 +34,7 @@ Follow the steps below to get set up.
 
   - Once installation is complete, verify that your disk is encrypted by running:
     ```bash
-      lsblk -o NAME,MOUNTPOINT,TYPE,SIZE,FSUSED,FSTYPE,ENCRYPTED
+      lsblk -o NAME,MOUNTPOINT,TYPE,SIZE,FSUSED,FSTYPE | grep -E 'crypt|LUKS'
     ```
   - **Ubuntu Linux**: Look for the root (`/`) partition, and confirm it is marked as encrypted.
   - **Fedora Linux**: Ensure the `/` (root) and `/home` partitions are encrypted.
@@ -44,10 +44,11 @@ Follow the steps below to get set up.
 > LUKS allows multiple passphrases for decrypting the volume. The original passphrase remains active along with the escrowed passphrase created by Fleet.
 
   - Open Fleet Desktop. If your device is encrypted, you'll see a banner prompting you to escrow the key.
-  - Click **Create key**. Enter your existing encryption passphrase when prompted. 
+  - Click **Create key**. Enter your existing encryption passphrase when prompted. Your passphrase is only used locally for authentication purposes during the next step and is not stored or sent to Fleet. 
+  - Keep your computer unlocked with the desktop visible until the passphrase prompt appears. The prompt closes after about a minute. If it closes before you enter your passphrase, wait a few minutes before you select **Create key** again.
   - Fleet will generate and securely store a new passphrase for recovery. This may take several minutes. A popup will appear when Fleet is done.
 
-Now, your encryption status will update to "verified" in Fleet Desktop, meaning that your recovery key has been successfully stored.
+Now, your encryption status will update to "verified" in Fleet Desktop, meaning that the newly created recovery key has been successfully stored.
 
 
 

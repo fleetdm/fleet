@@ -1,0 +1,10 @@
+{
+  "name": "Vivid",
+  "unique_identifier": "com.goodsnooze.vivid",
+  "token": "vivid-app",
+  "installer_format": "zip",
+  "slug": "vivid-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

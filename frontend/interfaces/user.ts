@@ -1,6 +1,8 @@
 import PropTypes from "prop-types";
-import teamInterface, { ITeam } from "./team";
+
+import { IApiEndpointRef } from "./api_endpoint";
 import { IUserSettings } from "./config";
+import teamInterface, { ITeam } from "./team";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -15,7 +17,7 @@ export default PropTypes.shape({
   mfa_enabled: PropTypes.bool,
   global_role: PropTypes.string,
   api_only: PropTypes.bool,
-  teams: PropTypes.arrayOf(teamInterface),
+  fleets: PropTypes.arrayOf(teamInterface),
 });
 
 export const USERS_ROLES = [
@@ -23,6 +25,7 @@ export const USERS_ROLES = [
   "maintainer",
   "observer",
   "observer_plus",
+  "technician",
 ] as const;
 export type IUserRole = typeof USERS_ROLES[number];
 export type UserRole =
@@ -30,15 +33,19 @@ export type UserRole =
   | "maintainer"
   | "observer"
   | "observer_plus"
+  | "technician"
   | "gitops"
   | "Admin"
   | "Maintainer"
   | "Observer"
   | "Observer+"
+  | "Technician"
   | "GitOps"
   | "Unassigned"
   | ""
   | "Various";
+
+export type UserStatus = "active" | "inactive" | "no_access";
 
 export interface IUser {
   created_at?: string;
@@ -46,7 +53,7 @@ export interface IUser {
   id: number;
   name: string;
   email: string;
-  role: UserRole;
+  role?: UserRole;
   force_password_reset: boolean;
   gravatar_url?: string;
   gravatar_url_dark?: string;
@@ -54,32 +61,29 @@ export interface IUser {
   mfa_enabled?: boolean;
   global_role: UserRole | null;
   api_only: boolean;
-  teams: ITeam[];
+  /** Last time the user logged in. `null` if the user has never logged in. */
+  last_login_at: string | null;
+  /** Last time the user made an authenticated request with a live session.
+   * This is the inactivity signal for API-only users. `null` if the user has
+   * no live session. */
+  last_activity_at: string | null;
+  status?: UserStatus;
+  fleets: ITeam[];
+  api_endpoints?: IApiEndpointRef[];
 }
 
 /**
  * The shape of the request body when updating a user.
  */
-export interface IUserUpdateBody {
+export interface IUserUpdateFormData {
   global_role?: UserRole | null;
-  teams?: ITeam[];
+  fleets?: ITeam[];
   name: string;
   email?: string;
   sso_enabled?: boolean;
   mfa_enabled?: boolean;
   role?: UserRole;
   id: number;
-}
-
-export interface IUserFormErrors {
-  email?: string | null;
-  name?: string | null;
-  password?: string | null;
-  sso_enabled?: boolean | null;
-}
-export interface IResetPasswordFormErrors {
-  new_password?: string | null;
-  new_password_confirmation?: string | null;
 }
 
 export interface IResetPasswordForm {
@@ -93,13 +97,13 @@ export interface ILoginUserData {
 }
 
 export interface ICreateUserFormData {
-  email: string;
+  email?: string;
   global_role: UserRole | null;
   name: string;
   password?: string | null;
   sso_enabled?: boolean;
   mfa_enabled?: boolean;
-  teams: ITeam[];
+  fleets: ITeam[];
 }
 
 export interface IUpdateUserFormData {
@@ -110,7 +114,7 @@ export interface IUpdateUserFormData {
   password?: string | null;
   sso_enabled?: boolean;
   mfa_enabled?: boolean;
-  teams?: ITeam[];
+  fleets?: ITeam[];
   settings?: IUserSettings;
 }
 
@@ -118,6 +122,7 @@ export interface ICreateUserWithInvitationFormData {
   email: string;
   invite_token: string;
   name: string;
-  password: string;
-  password_confirmation: string;
+  password?: string;
+  password_confirmation?: string;
+  sso_invite?: boolean;
 }

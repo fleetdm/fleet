@@ -133,11 +133,16 @@ func ReadOnlyConn(pool fleet.RedisPool, conn redis.Conn) redis.Conn {
 	return conn
 }
 
+// Simplified interface for the ConfigureDoer function.
+type getPool interface {
+	Get() redis.Conn
+}
+
 // ConfigureDoer configures conn to follow redirections if the redis
 // configuration requested it and the pool is a Redis Cluster pool. If the conn
 // is already in error, or if it is not a redisc cluster connection, it is
 // returned unaltered.
-func ConfigureDoer(pool fleet.RedisPool, conn redis.Conn) redis.Conn {
+func ConfigureDoer(pool getPool, conn redis.Conn) redis.Conn {
 	if p, isCluster := pool.(*clusterPool); isCluster {
 		if err := conn.Err(); err == nil && p.followRedirs {
 			rc, err := redisc.RetryConn(conn, 3, 300*time.Millisecond)
@@ -187,6 +192,12 @@ func EachNode(pool fleet.RedisPool, replicas bool, fn func(conn redis.Conn) erro
 	conn := pool.Get()
 	defer conn.Close()
 	return fn(conn)
+}
+
+// IsRedirect reports whether err, possibly wrapped, is a Redis Cluster MOVED or ASK redirection.
+func IsRedirect(err error) bool {
+	var redisErr redis.Error
+	return errors.As(err, &redisErr) && redisc.ParseRedir(redisErr) != nil
 }
 
 // BindConn binds the connection to the redis node that serves those keys.

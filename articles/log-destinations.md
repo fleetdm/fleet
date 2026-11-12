@@ -1,7 +1,7 @@
 # Log destinations
 
 Log destinations can be used in Fleet to log:
-- Schedule query result logs
+- Schedule report result logs
 - Fleet [audit logs](https://fleetdm.com/docs/using-fleet/audit-logs)
 - Status logs from [osquery](https://osquery.readthedocs.io/en/stable/deployment/logging/#status-logs)
 
@@ -36,9 +36,34 @@ Snowflake provides instructions on setting up the destination tables and IAM rol
 
 ## Splunk
 
-How to send logs to Splunk:
+Logs are sent directly to [Splunk](https://www.splunk.com/) via the [HTTP Event Collector (HEC)](https://docs.splunk.com/Documentation/Splunk/latest/Data/UsetheHTTPEventCollector) endpoint.
 
-1. Follow [Splunk's instructions](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose) to prepare the Splunk for Firehose data.
+- Plugin name: `splunk`
+- Flag namespace: [splunk](https://fleetdm.com/docs/deploying/configuration#splunk)
+
+Events are batched up to 1MB before sending. Events over 1MB are dropped, with a notification sent to the Fleet server logs. Fleet retries on transient errors (HTTP 503) with exponential backoff.
+
+Fleet doesn't check the connection to Splunk when it starts. If the HEC URL or token is wrong, Fleet still starts, and the errors appear in the Fleet server logs each time Fleet tries to send logs to Splunk.
+
+To use this destination, enable HEC on your Splunk instance and create an HEC token. Then configure Fleet with the HEC URL and token:
+
+```yaml
+osquery:
+  status_log_plugin: splunk
+  result_log_plugin: splunk
+splunk:
+  url: https://splunk.example.com:8088
+  token: your-hec-token
+  index: main
+  source: fleet
+  source_type: fleet:json
+```
+
+### Splunk via Firehose (alternative)
+
+You can also send logs to Splunk indirectly through Amazon Kinesis Data Firehose:
+
+1. Follow [Splunk's instructions](https://docs.splunk.com/Documentation/AddOns/latest/Firehose/ConfigureFirehose) to prepare Splunk for Firehose data.
 
 2. Follow these [AWS instructions](https://docs.aws.amazon.com/firehose/latest/dev/create-destination.html#create-destination-splunk) on how to enable Firehose to forward directly to Splunk.
 

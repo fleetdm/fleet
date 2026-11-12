@@ -1,0 +1,10 @@
+{
+  "name": "Plex HTPC",
+  "unique_identifier": "tv.plex.htpc",
+  "token": "plex-htpc",
+  "installer_format": "zip",
+  "slug": "plex-htpc/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

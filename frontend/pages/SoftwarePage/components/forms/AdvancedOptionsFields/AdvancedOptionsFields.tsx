@@ -1,10 +1,9 @@
-import React, { ReactNode } from "react";
 import classnames from "classnames";
+import React, { ReactNode } from "react";
 
+import Button from "components/buttons/Button";
 import Editor from "components/Editor";
 import SQLEditor from "components/SQLEditor";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 
 const baseClass = "advanced-options-fields";
 
@@ -12,6 +11,8 @@ interface IAdvancedOptionsFieldsProps {
   showSchemaButton: boolean;
   installScriptTooltip?: string;
   installScriptHelpText: ReactNode;
+  /** Script-only packages show install script read-only — the file is the install script. */
+  installScriptReadOnly?: boolean;
   postInstallScriptHelpText: ReactNode;
   uninstallScriptTooltip?: string;
   uninstallScriptHelpText: ReactNode;
@@ -23,15 +24,20 @@ interface IAdvancedOptionsFieldsProps {
   className?: string;
   onClickShowSchema: () => void;
   onChangePreInstallQuery: (value?: string) => void;
+  onBlurPreInstallQuery?: () => void;
   onChangeInstallScript: (value: string) => void;
   onChangePostInstallScript: (value?: string) => void;
   onChangeUninstallScript: (value?: string) => void;
+  gitopsCompatible?: boolean;
+  gitOpsModeEnabled?: boolean;
+  preInstallQueryLocked?: boolean;
 }
 
 const AdvancedOptionsFields = ({
   showSchemaButton,
   installScriptTooltip,
   installScriptHelpText,
+  installScriptReadOnly = false,
   postInstallScriptHelpText,
   uninstallScriptTooltip,
   uninstallScriptHelpText,
@@ -43,11 +49,17 @@ const AdvancedOptionsFields = ({
   className,
   onClickShowSchema,
   onChangePreInstallQuery,
+  onBlurPreInstallQuery,
   onChangeInstallScript,
   onChangePostInstallScript,
   onChangeUninstallScript,
+  gitopsCompatible = false,
+  gitOpsModeEnabled = false,
+  preInstallQueryLocked = false,
 }: IAdvancedOptionsFieldsProps) => {
   const classNames = classnames(baseClass, className);
+
+  const disableFields = gitopsCompatible && gitOpsModeEnabled;
 
   const renderLabelComponent = (): JSX.Element | null => {
     if (!showSchemaButton) {
@@ -55,9 +67,13 @@ const AdvancedOptionsFields = ({
     }
 
     return (
-      <Button variant="inverse" onClick={onClickShowSchema}>
+      <Button
+        variant="subdued"
+        onClick={onClickShowSchema}
+        icon="info"
+        iconPosition="right"
+      >
         Schema
-        <Icon name="info" size="small" />
       </Button>
     );
   };
@@ -74,8 +90,22 @@ const AdvancedOptionsFields = ({
         name="preInstallQuery"
         maxLines={10}
         onChange={onChangePreInstallQuery}
+        onBlur={onBlurPreInstallQuery}
         labelActionComponent={renderLabelComponent()}
-        helpText="Software will be installed only if the query returns results."
+        helpText={
+          <>
+            Software will be installed only if the query returns results.
+            {preInstallQueryLocked && (
+              <>
+                {" "}
+                Pre-install query won&apos;t run when install is triggered via
+                self-service, manually on the host, or during the setup
+                experience.
+              </>
+            )}
+          </>
+        }
+        readOnly={disableFields || preInstallQueryLocked}
       />
       <Editor
         wrapEnabled
@@ -86,6 +116,7 @@ const AdvancedOptionsFields = ({
         helpText={installScriptHelpText}
         label="Install script"
         labelTooltip={installScriptTooltip}
+        readOnly={disableFields || installScriptReadOnly}
       />
       <Editor
         label="Post-install script"
@@ -97,6 +128,7 @@ const AdvancedOptionsFields = ({
         onChange={onChangePostInstallScript}
         value={postInstallScript}
         helpText={postInstallScriptHelpText}
+        readOnly={disableFields}
       />
       <Editor
         label="Uninstall script"
@@ -108,9 +140,11 @@ const AdvancedOptionsFields = ({
         onChange={onChangeUninstallScript}
         value={uninstallScript}
         helpText={uninstallScriptHelpText}
+        readOnly={disableFields}
       />
     </div>
   );
 };
 
-export default AdvancedOptionsFields;
+// Memoize to avoid unnecessary re-renders of heavy editor components
+export default React.memo(AdvancedOptionsFields);

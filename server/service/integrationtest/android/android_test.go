@@ -5,16 +5,17 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/WatchBeam/clock"
 	"io"
 	"net/http"
 	"testing"
 
 	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -32,7 +33,7 @@ func TestAndroid(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, s.DS)
+			defer mysqltest.TruncateTables(t, s.DS)
 			c.fn(t, s)
 		})
 	}
@@ -129,7 +130,9 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 		})
 
 		t.Run("if android MDM is not configured", func(t *testing.T) {
-			s.Do(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusConflict, "enroll_secret", "secret")
+			err := s.DS.ApplyEnrollSecrets(t.Context(), nil, []*fleet.EnrollSecret{{Secret: "valid-secret"}})
+			require.NoError(t, err)
+			s.Do(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusConflict, "enroll_secret", "valid-secret")
 		})
 
 		t.Run("if enroll secret is invalid", func(t *testing.T) {
@@ -145,7 +148,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			je := decodeJsonError(t, resp)
 
 			require.Contains(t, "Android enterprise", je.Errors[0]["base"])
-			mysql.TruncateTables(t, s.DS)
+			mysqltest.TruncateTables(t, s.DS)
 		})
 
 		t.Run("if idp account does not exist", func(t *testing.T) {
@@ -153,12 +156,12 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			secret := "global-no-idp-account" // nolint: gosec
 			createTeamAndSecret(secret, secret, false)
 			resp := s.DoRawWithHeaders(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusUnprocessableEntity, map[string]string{
-				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, "test-uuid"),
+				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, mustBYODIdPSession(t, s, "test-uuid")),
 			}, "enroll_secret", secret)
 			je := decodeJsonError(t, resp)
 
 			require.Contains(t, "validating idp account existence", je.Errors[0]["base"])
-			mysql.TruncateTables(t, s.DS)
+			mysqltest.TruncateTables(t, s.DS)
 		})
 
 		t.Run("if idp is required but not set", func(t *testing.T) {
@@ -169,7 +172,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 		})
 
 		t.Cleanup(func() {
-			mysql.TruncateTables(t, s.DS)
+			mysqltest.TruncateTables(t, s.DS)
 		})
 	})
 
@@ -190,6 +193,8 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			err = json.Unmarshal(decoded, &et)
 			require.NoError(t, err)
 
+			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
+
 			var enrollmentRequest enrollmentTokenRequest
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
@@ -198,7 +203,7 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			require.Equal(t, "", enrollmentRequest.IdpUUID)
 
 			t.Cleanup(func() {
-				mysql.TruncateTables(t, s.DS)
+				mysqltest.TruncateTables(t, s.DS)
 			})
 		})
 
@@ -216,8 +221,127 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			require.NoError(t, err)
 
 			resp := s.DoRawWithHeaders(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token", nil, http.StatusOK, map[string]string{
-				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, idpAccount.UUID),
+				"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, mustBYODIdPSession(t, s, idpAccount.UUID)),
 			}, "enroll_secret", globalSecret)
+
+			bodyBytes, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			var etr android.EnrollmentTokenResponse
+			err = json.Unmarshal(bodyBytes, &etr)
+			require.NoError(t, err)
+
+			decoded, err := base64.StdEncoding.DecodeString(etr.EnrollmentToken.EnrollmentToken)
+			require.NoError(t, err)
+			var et androidmanagement.EnrollmentToken
+			err = json.Unmarshal(decoded, &et)
+			require.NoError(t, err)
+
+			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
+
+			var enrollmentRequest enrollmentTokenRequest
+			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
+			require.NoError(t, err)
+
+			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
+
+			t.Cleanup(func() {
+				mysqltest.TruncateTables(t, s.DS)
+			})
+		})
+
+		t.Run("when the session cookie is set", func(t *testing.T) {
+			var sessionID string
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, true)
+			setupAndroidEnterprise()
+			idpEmail := "queryparam@local.com"
+			err := s.DS.InsertMDMIdPAccount(t.Context(), &fleet.MDMIdPAccount{
+				Username: "queryparam",
+				Email:    idpEmail,
+			})
+			require.NoError(t, err)
+			idpAccount, err := s.DS.GetMDMIdPAccountByEmail(t.Context(), idpEmail)
+			require.NoError(t, err)
+
+			sessionID = mustBYODIdPSession(t, s, idpAccount.UUID)
+			resp := s.DoRawWithHeaders(t, "GET",
+				fmt.Sprintf("/api/v1/fleet/android_enterprise/enrollment_token?enroll_secret=%s&fully_managed=true", globalSecret),
+				nil, http.StatusOK, map[string]string{
+					"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, sessionID),
+				},
+			)
+			defer resp.Body.Close()
+
+			// a fully managed enrollment ends the browser session with the token
+			var cleared bool
+			for _, c := range resp.Cookies() {
+				if c.Name == shared_mdm.BYODIdpCookieName && c.MaxAge < 0 {
+					cleared = true
+				}
+			}
+			require.True(t, cleared, "expected %s to be cleared", shared_mdm.BYODIdpCookieName)
+
+			bodyBytes, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			var etr android.EnrollmentTokenResponse
+			err = json.Unmarshal(bodyBytes, &etr)
+			require.NoError(t, err)
+
+			decoded, err := base64.StdEncoding.DecodeString(etr.EnrollmentToken.EnrollmentToken)
+			require.NoError(t, err)
+			var et androidmanagement.EnrollmentToken
+			err = json.Unmarshal(decoded, &et)
+			require.NoError(t, err)
+
+			require.Equal(t, "PERSONAL_USAGE_DISALLOWED", et.AllowPersonalUsage)
+
+			var enrollmentRequest enrollmentTokenRequest
+			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
+			require.NoError(t, err)
+
+			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
+
+			// the session is single-use: minting the token burned it
+			_, err = shared_mdm.ValidateBYODIdPSession(t.Context(), s.KeyValueStore, clock.C, sessionID)
+			require.ErrorAs(t, err, new(*fleet.AuthRequiredError))
+
+			t.Cleanup(func() {
+				mysqltest.TruncateTables(t, s.DS)
+			})
+		})
+
+		t.Run("when idp_uuid query param is ignored in favor of the cookie", func(t *testing.T) {
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, true)
+			setupAndroidEnterprise()
+
+			// Create two IdP accounts
+			err := s.DS.InsertMDMIdPAccount(t.Context(), &fleet.MDMIdPAccount{
+				Username: "cookie-user",
+				Email:    "cookie@local.com",
+			})
+			require.NoError(t, err)
+			cookieAccount, err := s.DS.GetMDMIdPAccountByEmail(t.Context(), "cookie@local.com")
+			require.NoError(t, err)
+
+			err = s.DS.InsertMDMIdPAccount(t.Context(), &fleet.MDMIdPAccount{
+				Username: "param-user",
+				Email:    "param@local.com",
+			})
+			require.NoError(t, err)
+			paramAccount, err := s.DS.GetMDMIdPAccountByEmail(t.Context(), "param@local.com")
+			require.NoError(t, err)
+
+			// the query parameter is not an input; only the session counts
+			resp := s.DoRawWithHeaders(t, "GET",
+				fmt.Sprintf("/api/v1/fleet/android_enterprise/enrollment_token?enroll_secret=%s&fully_managed=true&idp_uuid=%s", globalSecret, paramAccount.UUID),
+				nil, http.StatusOK, map[string]string{
+					"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, mustBYODIdPSession(t, s, cookieAccount.UUID)),
+				},
+			)
+			defer resp.Body.Close()
 
 			bodyBytes, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
@@ -235,11 +359,67 @@ func testCreateEnrollmentToken(t *testing.T, s *Suite) {
 			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
 			require.NoError(t, err)
 
-			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
-			require.Equal(t, idpAccount.UUID, enrollmentRequest.IdpUUID)
+			// Query param UUID should win over cookie UUID
+			require.Equal(t, cookieAccount.UUID, enrollmentRequest.IdpUUID)
 
 			t.Cleanup(func() {
-				mysql.TruncateTables(t, s.DS)
+				mysqltest.TruncateTables(t, s.DS)
+			})
+		})
+
+		t.Run("when fully_managed is true", func(t *testing.T) {
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, false)
+			setupAndroidEnterprise()
+
+			var resp android.EnrollmentTokenResponse
+			s.DoJSON(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token?fully_managed=true", nil, http.StatusOK, &resp, "enroll_secret", globalSecret)
+
+			decoded, err := base64.StdEncoding.DecodeString(resp.EnrollmentToken.EnrollmentToken)
+			require.NoError(t, err)
+			var et androidmanagement.EnrollmentToken
+			err = json.Unmarshal(decoded, &et)
+			require.NoError(t, err)
+
+			require.Equal(t, "PERSONAL_USAGE_DISALLOWED", et.AllowPersonalUsage)
+
+			var enrollmentRequest enrollmentTokenRequest
+			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
+			require.NoError(t, err)
+
+			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.Equal(t, "", enrollmentRequest.IdpUUID)
+
+			t.Cleanup(func() {
+				mysqltest.TruncateTables(t, s.DS)
+			})
+		})
+
+		t.Run("when fully_managed is false", func(t *testing.T) {
+			enableAndroidMDM()
+			createTeamAndSecret(globalSecret, globalSecret, false)
+			setupAndroidEnterprise()
+
+			var resp android.EnrollmentTokenResponse
+			s.DoJSON(t, "GET", "/api/v1/fleet/android_enterprise/enrollment_token?fully_managed=false", nil, http.StatusOK, &resp, "enroll_secret", globalSecret)
+
+			decoded, err := base64.StdEncoding.DecodeString(resp.EnrollmentToken.EnrollmentToken)
+			require.NoError(t, err)
+			var et androidmanagement.EnrollmentToken
+			err = json.Unmarshal(decoded, &et)
+			require.NoError(t, err)
+
+			require.Equal(t, "PERSONAL_USAGE_ALLOWED", et.AllowPersonalUsage)
+
+			var enrollmentRequest enrollmentTokenRequest
+			err = json.Unmarshal([]byte(et.AdditionalData), &enrollmentRequest)
+			require.NoError(t, err)
+
+			require.Equal(t, globalSecret, enrollmentRequest.EnrollSecret)
+			require.Equal(t, "", enrollmentRequest.IdpUUID)
+
+			t.Cleanup(func() {
+				mysqltest.TruncateTables(t, s.DS)
 			})
 		})
 	})
@@ -259,13 +439,21 @@ func expectSignupDetails(t *testing.T, s *Suite) *android.SignupDetails {
 	return signupDetails
 }
 
-func decodeJsonError(t *testing.T, response *http.Response) endpoint_utils.JsonError {
+func decodeJsonError(t *testing.T, response *http.Response) endpointer.JsonError {
 	bodyBytes, err := io.ReadAll(response.Body)
 	require.NoError(t, err)
 
-	var je endpoint_utils.JsonError
+	var je endpointer.JsonError
 	err = json.Unmarshal(bodyBytes, &je)
 	require.NoError(t, err)
 
 	return je
+}
+
+// mustBYODIdPSession mints the session the IdP callback would have, so a test can
+// present a valid BYOD cookie without driving the SAML flow.
+func mustBYODIdPSession(t *testing.T, s *Suite, idpAccountUUID string) string {
+	sessionID, err := shared_mdm.CreateBYODIdPSession(t.Context(), s.KeyValueStore, clock.C, idpAccountUUID)
+	require.NoError(t, err)
+	return sessionID
 }

@@ -44,6 +44,9 @@ spec:
             sql_proxy_pid=$(pgrep cloud_sql_proxy) && kill -INT $sql_proxy_pid;
             {{- end }}
         image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
+        {{- with .Values.imagePullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
         resources:
           limits:
             cpu: {{ .Values.resources.limits.cpu }}

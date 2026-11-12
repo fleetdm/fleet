@@ -1,10 +1,11 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import mockServer from "test/mock-server";
-import { getMdmCommandResultHandler } from "test/handlers/software-handlers";
-import { getDeviceVppCommandResultHandler } from "test/handlers/device-handler";
+import React from "react";
+
 import { createMockHostSoftware } from "__mocks__/hostMock";
+import { getDeviceVppCommandResultHandler } from "test/handlers/device-handler";
+import { getMdmCommandResultHandler } from "test/handlers/software-handlers";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import SoftwareIpaInstallDetailsModal from "./SoftwareIpaInstallDetailsModal";
 
@@ -99,6 +100,24 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
     });
     expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
     expect(screen.getByText(/Marko's MacBook Pro/i)).toBeInTheDocument();
+    expect(screen.getByTestId("success-icon")).toBeInTheDocument();
+  });
+
+  it("on activity feed, renders installed message with the activity's timestamp instead of the command's", async () => {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    renderModal({
+      details: {
+        commandUuid: "uuid-installed",
+        fleetInstallStatus: "installed",
+        hostDisplayName: "Marko's MacBook Pro",
+        appName: "Logic Pro",
+        activityCreatedAt: fiveMinutesAgo,
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
+    });
   });
 
   it("renders manual install message when installed not through Fleet", async () => {
@@ -114,6 +133,7 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
     await waitFor(() => {
       expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
       expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
+      expect(screen.getByTestId("success-icon")).toBeInTheDocument();
     });
   });
 
@@ -130,10 +150,73 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
     await waitFor(() => {
       expect(screen.getByText(/Fleet installed/i)).toBeInTheDocument();
       expect(screen.getByText(/the host/i)).toBeInTheDocument();
+      expect(screen.getByTestId("success-icon")).toBeInTheDocument();
     });
   });
 
-  it("renders Done button by default", async () => {
+  it("treats failed_install as installed when app is already installed", async () => {
+    renderModal({
+      details: {
+        commandUuid: "uuid-failed-installed",
+        fleetInstallStatus: "failed_install",
+        hostDisplayName: "Marko's MacBook Pro",
+        appName: "Logic Pro",
+      },
+      hostSoftware: createMockHostSoftware({
+        id: 42,
+        name: "Logic Pro",
+        installed_versions: [
+          {
+            version: "1.0.0",
+            bundle_identifier: "com.example.logicpro",
+            installed_paths: ["/Applications/Logic Pro.app"],
+            vulnerabilities: [],
+          },
+        ],
+      }),
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
+      expect(screen.getByText(/Current version/i)).toBeInTheDocument();
+      expect(screen.getByTestId("success-icon")).toBeInTheDocument();
+    });
+
+    // No failure wording when treated as installed
+    expect(screen.queryByText(/failed to install/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("error-icon")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Please re-attempt this installation/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders install failed message when app is not installed", async () => {
+    renderModal({
+      details: {
+        commandUuid: "uuid-failed",
+        fleetInstallStatus: "failed_install",
+        hostDisplayName: "Marko's MacBook Pro",
+        appName: "Logic Pro",
+      },
+      hostSoftware: createMockHostSoftware({
+        id: 99,
+        name: "Logic Pro",
+        installed_versions: [],
+      }),
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/The MDM command \(request\) to install/i)
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(/Please re-attempt this installation/i)
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("error-icon")).toBeInTheDocument();
+  });
+
+  it("renders Close button by default", async () => {
     const onCancel = jest.fn();
 
     renderModal({
@@ -146,8 +229,8 @@ describe("SoftwareIpaInstallDetailsModal component", () => {
       },
     });
 
-    const doneBtn = await screen.findByRole("button", { name: /done/i });
-    doneBtn.click();
+    const closeBtn = await screen.findByRole("button", { name: /close/i });
+    closeBtn.click();
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 

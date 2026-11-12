@@ -1,19 +1,18 @@
-import React, { useState, useEffect } from "react";
 import yaml from "js-yaml";
-import paths from "router/paths";
-import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
-import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
+import React, { useState, useEffect } from "react";
 
-import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
-// @ts-ignore
-import validateYaml from "components/forms/validators/validate_yaml";
+import CustomLink from "components/CustomLink";
+import { validateYaml } from "components/forms/validators";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import InfoBanner from "components/InfoBanner/InfoBanner";
+import PageDescription from "components/PageDescription";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
-import CustomLink from "components/CustomLink";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import paths from "router/paths";
+import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
+import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 
 import { IAppConfigFormProps } from "../constants";
 
@@ -35,7 +34,7 @@ const Agents = ({
 }: IAppConfigFormProps): JSX.Element => {
   const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
 
-  const { ADMIN_TEAMS } = paths;
+  const { ADMIN_FLEETS } = paths;
 
   const [formData, setFormData] = useState<IAgentOptionsFormData>({
     agentOptions: agentOptionsToYaml(appConfig.agent_options),
@@ -52,7 +51,9 @@ const Agents = ({
     const errors: IAgentOptionsFormErrors = {};
 
     if (agentOptions) {
-      const { error: yamlError, valid: yamlValid } = validateYaml(agentOptions);
+      const { error: yamlError, isValid: yamlValid } = validateYaml(
+        agentOptions
+      );
       if (!yamlValid) {
         errors.agent_options = constructErrorString(yamlError);
       }
@@ -101,10 +102,9 @@ const Agents = ({
         {isPremiumTier ? (
           <InfoBanner>
             <div>
-              These options are not applied to hosts on a team. To update agent
-              options for hosts on a team, head to the&nbsp;
-              <CustomLink url={ADMIN_TEAMS} text="Teams page" />
-              &nbsp;and select a team.
+              These options are not applied to hosts in a fleet. To update agent
+              options for hosts in a fleet, head to the&nbsp;
+              <CustomLink url={ADMIN_FLEETS} text="Fleets page" />.
             </div>
           </InfoBanner>
         ) : (
@@ -112,7 +112,7 @@ const Agents = ({
             Want some hosts to have different options?&nbsp;
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/teams"
-              text="Learn more about teams"
+              text="Learn more about fleets"
               newTab
               variant="banner-link"
             />
@@ -128,7 +128,6 @@ const Agents = ({
           disabled={gitOpsModeEnabled}
         />
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

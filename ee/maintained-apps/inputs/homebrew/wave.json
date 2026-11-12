@@ -1,0 +1,10 @@
+{
+  "name": "Wave Terminal",
+  "unique_identifier": "dev.commandline.waveterm",
+  "token": "wave",
+  "installer_format": "dmg",
+  "slug": "wave/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

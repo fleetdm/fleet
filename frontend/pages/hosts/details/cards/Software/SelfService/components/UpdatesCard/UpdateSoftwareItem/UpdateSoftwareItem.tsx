@@ -1,6 +1,11 @@
 import React, { useEffect, useRef } from "react";
-import ReactTooltip from "react-tooltip";
 
+import Button from "components/buttons/Button";
+import Card from "components/Card";
+import Icon from "components/Icon";
+import Spinner from "components/Spinner";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   IAppLastInstall,
   IDeviceSoftware,
@@ -10,17 +15,12 @@ import {
   ISoftwareLastInstall,
   SoftwareInstallStatus,
 } from "interfaces/software";
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import { dateAgo } from "utilities/date_format";
 
-import Card from "components/Card";
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
-import Spinner from "components/Spinner";
-import TooltipWrapper from "components/TooltipWrapper";
-
 import { HostInstallerActionButton } from "../../../../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
+import { getInstallerActionButtonConfig } from "../../../../helpers";
 import {
   InstallOrCommandUuid,
   IStatusDisplayConfig,
@@ -37,7 +37,7 @@ const STATUS_CONFIG: Record<SoftwareInstallStatus, IStatusDisplayConfig> = {
       `Software is installed (${dateAgo(lastInstalledAt as string)}).`,
   },
   pending_install: {
-    iconName: "pending-outline",
+    iconName: "pending",
     displayText: "Installing...",
     tooltip: () => "Fleet is installing software.",
   },
@@ -75,7 +75,10 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
       <div className={`${baseClass}__item-name-version`}>
         <div className={`${baseClass}__item-name`}>
           <TooltipTruncatedText
-            value={display_name || name || installerPackage?.name}
+            value={
+              getDisplayedSoftwareName(name, display_name) ||
+              installerPackage?.name
+            }
           />
         </div>
         <div className={`${baseClass}__item-version`}>
@@ -86,13 +89,12 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
   );
 };
 
-type IInstallerStatusProps = Pick<IHostSoftware, "id" | "status"> & {
+type IInstallerStatusProps = Pick<IHostSoftware, "status"> & {
   last_install: ISoftwareLastInstall | IAppLastInstall | null;
   onShowInstallerDetails: (uuid?: InstallOrCommandUuid) => void;
 };
 
 const InstallerStatus = ({
-  id,
   status,
   last_install,
   onShowInstallerDetails,
@@ -105,43 +107,37 @@ const InstallerStatus = ({
 
   return (
     <div className={`${baseClass}__status-content`}>
-      <div
-        className={`${baseClass}__status-with-tooltip`}
-        data-tip
-        data-for={`install-tooltip__${id}`}
+      <TooltipWrapper
+        tipContent={displayConfig.tooltip({
+          lastInstalledAt: last_install?.installed_at,
+        })}
+        underline={false}
+        showArrow
+        position="top"
+        tipOffset={8}
       >
-        {displayConfig.iconName === "pending-outline" ? (
-          <Spinner size="x-small" includeContainer={false} centered={false} />
-        ) : (
-          <Icon name={displayConfig.iconName || "install"} />
-        )}
-        {last_install && displayConfig.displayText === "Failed" && (
-          <span data-testid={`${baseClass}__status--test`}>
-            <Button
-              className={`${baseClass}__item-status-button`}
-              variant="inverse"
-              onClick={() => {
-                onShowInstallerDetails();
-              }}
-            >
-              {displayConfig.displayText}
-            </Button>
-          </span>
-        )}
-      </div>
-      <ReactTooltip
-        className={`${baseClass}__status-tooltip`}
-        effect="solid"
-        backgroundColor="#3e4771"
-        id={`install-tooltip__${id}`}
-        data-html
-      >
-        <span className={`${baseClass}__status-tooltip-text`}>
-          {displayConfig.tooltip({
-            lastInstalledAt: last_install?.installed_at,
-          })}
-        </span>
-      </ReactTooltip>
+        <div className={`${baseClass}__status-with-tooltip`}>
+          {displayConfig.iconName === "pending" && (
+            <Spinner size="x-small" centered={false} delay={0} />
+          )}
+          {last_install && displayConfig.displayText === "Failed" && (
+            <>
+              <Icon name="error" />
+              <span data-testid={`${baseClass}__status--test`}>
+                <Button
+                  className={`${baseClass}__item-status-button`}
+                  variant="link"
+                  onClick={() => {
+                    onShowInstallerDetails();
+                  }}
+                >
+                  {displayConfig.displayText}
+                </Button>
+              </span>
+            </>
+          )}
+        </div>
+      </TooltipWrapper>
     </div>
   );
 };
@@ -153,7 +149,7 @@ interface IInstallerStatusActionProps {
 }
 
 const InstallerStatusAction = ({
-  software: { id, status, software_package, app_store_app, ui_status },
+  software: { status, software_package, app_store_app, ui_status },
   onInstall,
   onShowInstallerDetails,
 }: IInstallerStatusActionProps) => {
@@ -176,8 +172,7 @@ const InstallerStatusAction = ({
     if (ui_status === "updating") {
       return (
         <>
-          <Spinner size="x-small" includeContainer={false} centered={false} />{" "}
-          Updating...{" "}
+          <Spinner size="x-small" centered={false} delay={0} /> Updating...{" "}
         </>
       );
     }
@@ -196,13 +191,14 @@ const InstallerStatusAction = ({
         </>
       );
     }
+    const { text, icon } = getInstallerActionButtonConfig("install", ui_status);
     return (
       <HostInstallerActionButton
         baseClass={baseClass}
         disabled={false}
         onClick={onInstall}
-        text="Update"
-        icon="refresh"
+        text={text}
+        icon={icon}
         testId={`${baseClass}__install-button--test`}
       />
     );
@@ -216,7 +212,6 @@ const InstallerStatusAction = ({
       {showFailedInstallStatus && (
         <div className={`${baseClass}__item-status`}>
           <InstallerStatus
-            id={id}
             status={status}
             last_install={lastInstall}
             onShowInstallerDetails={onShowInstallerDetails}
@@ -239,11 +234,7 @@ const UpdateSoftwareItem = ({
   onShowInstallerDetails,
 }: IUpdateSoftwareItemProps) => {
   return (
-    <Card
-      borderRadiusSize="large"
-      paddingSize="medium"
-      className={`${baseClass}__item`}
-    >
+    <Card paddingSize="medium" className={`${baseClass}__item`}>
       <div className={`${baseClass}__item-content`}>
         <InstallerInfo software={software} />
         <InstallerStatusAction

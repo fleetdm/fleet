@@ -1,13 +1,16 @@
+import classnames from "classnames";
 import React, { ReactNode, useCallback, useRef } from "react";
 import AceEditor from "react-ace";
 import ReactAce from "react-ace/lib/ace";
-import { IAceEditor } from "react-ace/lib/types";
-import classnames from "classnames";
+
 import "ace-builds/src-noconflict/mode-sql";
 import "ace-builds/src-noconflict/ext-linking";
 import "ace-builds/src-noconflict/ext-language_tools";
-import { noop } from "lodash";
+
 import ace, { Ace } from "ace-builds";
+import { noop } from "lodash";
+
+import { releaseStuckSelectionOnScroll } from "utilities/ace_editor";
 import {
   osqueryTableNames,
   selectedTableColumns,
@@ -19,8 +22,12 @@ import {
   sqlKeyWords,
 } from "utilities/sql_tools";
 
+import "utilities/ace_theme";
+
+import CopyButton from "components/buttons/CopyButton";
+import Icon from "components/Icon";
+
 import "./mode";
-import "./theme";
 
 export interface ISQLEditorProps {
   focus?: boolean;
@@ -40,11 +47,12 @@ export interface ISQLEditorProps {
   helpText?: ReactNode;
   labelActionComponent?: React.ReactNode;
   style?: React.CSSProperties;
-  onBlur?: (editor?: IAceEditor) => void;
-  onLoad?: (editor: IAceEditor) => void;
+  onBlur?: (editor?: Ace.Editor) => void;
+  onLoad?: (editor: Ace.Editor) => void;
   onChange?: (value: string) => void;
   handleSubmit?: () => void;
   disabled?: boolean;
+  enableCopy?: boolean;
 }
 
 const baseClass = "sql-editor";
@@ -71,14 +79,22 @@ const SQLEditor = ({
   onChange,
   handleSubmit = noop,
   disabled = false,
+  /** Combine with readOnly to remove ability to select text */
+  enableCopy = false,
 }: ISQLEditorProps): JSX.Element => {
   const editorRef = useRef<ReactAce>(null);
+
+  /** Keeps label actions clickable and removes all mouse/keyboard access/hover states of editor */
+  const isReadonlyCopy = _readOnly && enableCopy && !disabled;
+
   const wrapperClass = classnames(className, wrapperClassName, baseClass, {
     [`${baseClass}__wrapper--error`]: !!error,
     [`${baseClass}__wrapper--disabled`]: disabled,
+    // This is for read only that has a copy button so we disallow selecting the text
+    [`${baseClass}__wrapper--readonly-copy`]: !!isReadonlyCopy,
   });
 
-  const fixHotkeys = (editor: IAceEditor) => {
+  const fixHotkeys = (editor: Ace.Editor) => {
     editor.commands.removeCommand("gotoline");
     editor.commands.removeCommand("find");
   };
@@ -93,14 +109,8 @@ const SQLEditor = ({
     // Takes SQL and returns what table(s) are being used
     const checkTableValues = checkTable(value);
 
-    // Update completers if no sql errors or the errors include syntax near table name
-    const updateCompleters =
-      !checkTableValues.error ||
-      checkTableValues.error
-        .toString()
-        .includes("Syntax error found near Identifier (FROM Clause)");
-
-    if (updateCompleters) {
+    // Update completers only when the query parses cleanly.
+    if (!checkTableValues.error) {
       langTools.setCompleters([]); // Reset completers as modifications are additive
 
       // Autocomplete sql keywords, builtin functions, and datatypes
@@ -205,7 +215,7 @@ const SQLEditor = ({
     }
   }
 
-  const onLoadHandler = (editor: IAceEditor) => {
+  const onLoadHandler = (editor: Ace.Editor) => {
     fixHotkeys(editor);
 
     // Lose focus using the Escape key so you can Tab forward (or Shift+Tab backwards) through app
@@ -219,10 +229,32 @@ const SQLEditor = ({
       readOnly: true,
     });
 
+    // Prevent scrolling from selecting text after a stationary click (#48490).
+    releaseStuckSelectionOnScroll(editor);
+
+    if (isReadonlyCopy) {
+      // keep Ace read-only and remove any selection
+      editor.setOption("readOnly", true);
+      editor.selection.on("changeSelection", () => {
+        editor.clearSelection();
+      });
+
+      // make the internal textarea unfocusable via keyboard
+      const textarea = editor.textInput?.getElement?.();
+      if (textarea) {
+        textarea.setAttribute("tabindex", "-1");
+      }
+
+      // if something still manages to focus it, immediately blur
+      editor.on("focus", () => {
+        editor.blur();
+      });
+    }
+
     onLoad && onLoad(editor);
   };
 
-  const onBlurHandler = (event: any, editor?: IAceEditor): void => {
+  const onBlurHandler = (event: any, editor?: Ace.Editor): void => {
     onBlur && onBlur(editor);
   };
 
@@ -237,23 +269,32 @@ const SQLEditor = ({
   };
 
   const renderLabel = useCallback(() => {
-    const labelText = error || label;
-    const labelClassName = classnames(`${baseClass}__label`, {
-      [`${baseClass}__label--error`]: !!error,
-      [`${baseClass}__label--with-action`]: !!labelActionComponent,
-    });
-
     if (!label) {
       return <></>;
     }
 
+    const labelText = error || label;
+
+    const labelClassName = classnames(`${baseClass}__label`, {
+      [`${baseClass}__label--error`]: !!error,
+      [`${baseClass}__label--with-action`]:
+        !!labelActionComponent || enableCopy,
+    });
+
     return (
       <div className={labelClassName}>
-        {labelText}
-        {labelActionComponent}
+        <span className={`${baseClass}__label-text`}>{labelText}</span>
+        <div className={`${baseClass}__label-actions`}>
+          {labelActionComponent}
+          {enableCopy && (
+            <CopyButton copyText={value || ""} variant="subdued" size="small">
+              Copy <Icon name="copy" />
+            </CopyButton>
+          )}
+        </div>
       </div>
     );
-  }, [error, label, labelActionComponent]);
+  }, [error, label, labelActionComponent, enableCopy, value]);
 
   const renderHelpText = () => {
     if (helpText) {

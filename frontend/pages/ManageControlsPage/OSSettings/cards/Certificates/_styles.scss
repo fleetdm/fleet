@@ -1,9 +1,12 @@
 .certificates {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  @include vertical-card-layout;
 
-  &__mdm-disabled-message {
-    border: 1px solid $ui-fleet-black-10;
+  &__tab-header {
+    @include tab-header;
+  }
+
+  .list-item__title {
+    max-width: px-to-rem(900);
+    width: 36vw;
   }
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
@@ -13,10 +14,10 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
@@ -53,7 +54,7 @@ var (
 type GoogleCalendarConfig struct {
 	Context           context.Context
 	IntegrationConfig *fleet.GoogleCalendarIntegration
-	Logger            kitlog.Logger
+	Logger            *slog.Logger
 	ServerURL         string
 	// Should be nil for production
 	API GoogleCalendarAPI
@@ -72,9 +73,9 @@ func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
 	switch {
 	case config.API != nil:
 		// Use the provided API.
-	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == loadEmail:
+	case config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarEmail] == loadEmail:
 		config.API = &GoogleCalendarLoadAPI{Logger: config.Logger}
-	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == MockEmail:
+	case config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarEmail] == MockEmail:
 		config.API = &GoogleCalendarMockAPI{config.Logger}
 	default:
 		config.API = &GoogleCalendarLowLevelAPI{logger: config.Logger}
@@ -108,7 +109,7 @@ type eventDetails struct {
 
 type GoogleCalendarLowLevelAPI struct {
 	service   *calendar.Service
-	logger    kitlog.Logger
+	logger    *slog.Logger
 	serverURL string
 }
 
@@ -124,7 +125,7 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) Configure(
 		TokenURL:   google.JWTTokenURL,
 		Subject:    userToImpersonateEmail,
 	}
-	client := conf.Client(ctx)
+	client := conf.Client(fleethttp.WithOAuth2Client(ctx))
 	service, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return err
@@ -197,7 +198,7 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) ListEvents(timeMin, timeMax string
 			}
 			// Default maximum number of events returned is 250, which should be sufficient for most calendars.
 			return lowLevelAPI.service.Events.List(calendarID).
-				EventTypes("default").
+				EventTypes("default", "focusTime", "outOfOffice").
 				OrderBy("startTime").
 				SingleEvents(true).
 				TimeMin(timeMin).
@@ -269,7 +270,7 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) withRetry(fn func() (any, error)) 
 			result, err = fn()
 			if err != nil {
 				if isRateLimited(err) {
-					level.Debug(lowLevelAPI.logger).Log("msg", "rate limited by Google calendar API", "err", err)
+					lowLevelAPI.logger.DebugContext(context.TODO(), "rate limited by Google calendar API", "err", err)
 					return err
 				}
 				return backoff.Permanent(err)
@@ -283,8 +284,8 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) withRetry(fn func() (any, error)) 
 func (c *GoogleCalendar) Configure(userEmail string) error {
 	adjustedUserEmail := adjustEmail(userEmail)
 	err := c.config.API.Configure(
-		c.config.Context, c.config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail],
-		c.config.IntegrationConfig.ApiKey[fleet.GoogleCalendarPrivateKey], adjustedUserEmail,
+		c.config.Context, c.config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarEmail],
+		c.config.IntegrationConfig.ApiKey.Values[fleet.GoogleCalendarPrivateKey], adjustedUserEmail,
 		c.config.ServerURL,
 	)
 	if err != nil {
@@ -393,7 +394,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 			// We won't handle all-day events at this time, and treat the event as deleted.
 			err = c.DeleteEvent(event)
 			if err != nil {
-				level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which was changed to all-day event", "err", err)
+				c.config.Logger.WarnContext(c.config.Context, "deleting Google calendar event which was changed to all-day event", "err", err)
 			}
 			deleted = true
 		}
@@ -409,7 +410,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 				// Delete this event to prevent confusion. This operation should be rare.
 				err = c.DeleteEvent(event)
 				if err != nil {
-					level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which is in the past", "err", err)
+					c.config.Logger.WarnContext(c.config.Context, "deleting Google calendar event which is in the past", "err", err)
 				}
 				deleted = true
 			}
@@ -424,7 +425,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 				// We won't handle all-day events at this time, and treat the event as deleted.
 				err = c.DeleteEvent(event)
 				if err != nil {
-					level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which was changed to all-day event", "err", err)
+					c.config.Logger.WarnContext(c.config.Context, "deleting Google calendar event which was changed to all-day event", "err", err)
 				}
 				deleted = true
 			}
@@ -521,6 +522,30 @@ func isInvalidGrant(err error) bool {
 		return false
 	}
 	return strings.Contains(err.Error(), `"error": "invalid_grant"`)
+}
+
+// RemoteError classifies err as a failure returned by the remote calendar
+// provider (as opposed to an internal Fleet error such as a database or lock
+// failure). When it is a remote failure it returns the HTTP status code (0 if
+// none, e.g. for OAuth token errors) and the response body.
+func RemoteError(err error) (isRemote bool, statusCode int, body string) {
+	if err == nil {
+		return false, 0, ""
+	}
+	if ae, ok := errors.AsType[*googleapi.Error](err); ok {
+		body := ae.Body
+		if body == "" {
+			body = ae.Message
+		}
+		return true, ae.Code, str.TruncateErrorResponse(body)
+	}
+	if isInvalidGrant(err) {
+		// invalid_grant is an OAuth error returned by Google when the service
+		// account cannot impersonate the host's email (e.g. the user is not in
+		// the Workspace domain or domain-wide delegation is misconfigured).
+		return true, 0, str.TruncateErrorResponse(err.Error())
+	}
+	return false, 0, ""
 }
 
 func isRateLimited(err error) bool {
@@ -693,8 +718,8 @@ func (c *GoogleCalendar) createEvent(
 	if err != nil {
 		return nil, err
 	}
-	level.Debug(c.config.Logger).Log(
-		"msg", "created Google calendar event", "user", c.adjustedUserEmail, "startTime", eventStart, "timezone", c.location.String(),
+	c.config.Logger.DebugContext(c.config.Context,
+		"created Google calendar event", "user", c.adjustedUserEmail, "startTime", eventStart, "timezone", c.location.String(),
 	)
 
 	return fleetEvent, nil
@@ -733,7 +758,7 @@ func getLocation(tz string, config *GoogleCalendarConfig) *time.Location {
 	loc, err := time.LoadLocation(tz)
 	if err != nil {
 		// Could not load location, use EST
-		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", tz, "err", err)
+		config.Logger.WarnContext(config.Context, "parsing Google calendar timezone", "timezone", tz, "err", err)
 		loc, _ = time.LoadLocation("America/New_York")
 	}
 	return loc
@@ -776,7 +801,7 @@ func (c *GoogleCalendar) DeleteEvent(event *fleet.CalendarEvent) error {
 	case isAlreadyDeleted(err):
 		return nil
 	case isInvalidGrant(err):
-		level.Warn(c.config.Logger).Log("msg", "could not delete calendar event due to invalid_grant", "user", c.adjustedUserEmail, "err", err)
+		c.config.Logger.WarnContext(c.config.Context, "could not delete calendar event due to invalid_grant", "user", c.adjustedUserEmail, "err", err)
 		return nil
 	case err != nil:
 		return ctxerr.Wrap(c.config.Context, err, "deleting Google calendar event")
@@ -792,7 +817,7 @@ func (c *GoogleCalendar) StopEventChannel(event *fleet.CalendarEvent) error {
 	if details.ChannelID != "" && details.ResourceID != "" {
 		stopErr := c.config.API.Stop(details.ChannelID, details.ResourceID)
 		if stopErr != nil {
-			level.Info(c.config.Logger).Log("msg", "stopping Google calendar event watch", "err", stopErr)
+			c.config.Logger.InfoContext(c.config.Context, "stopping Google calendar event watch", "err", stopErr)
 		}
 	}
 	return nil

@@ -1,0 +1,10 @@
+{
+  "name": "OpenRefine",
+  "unique_identifier": "com.google.refine.Refine",
+  "token": "openrefine",
+  "installer_format": "dmg",
+  "slug": "openrefine/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

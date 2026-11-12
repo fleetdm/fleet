@@ -3,8 +3,22 @@ import axios, {
   ResponseType as AxiosResponseType,
   AxiosProgressEvent,
 } from "axios";
+
 import URL_PREFIX from "router/url_prefix";
-import { authToken } from "utilities/local";
+import authToken from "utilities/auth_token";
+import endpoints from "utilities/endpoints";
+
+let onUnauthorized: (() => void) | undefined;
+
+export const setUnauthorizedHandler = (handler?: () => void) => {
+  onUnauthorized = handler;
+};
+
+const handleUnauthorized = (error: unknown) => {
+  if (isAxiosError(error) && error.response?.status === 401) {
+    onUnauthorized?.();
+  }
+};
 
 export const sendRequestWithProgress = async ({
   method,
@@ -32,7 +46,6 @@ export const sendRequestWithProgress = async ({
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
-  const token = authToken();
 
   try {
     const response = await axios({
@@ -42,7 +55,7 @@ export const sendRequestWithProgress = async ({
       responseType,
       timeout,
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${authToken.get()}`,
       },
       onDownloadProgress,
       onUploadProgress,
@@ -54,6 +67,7 @@ export const sendRequestWithProgress = async ({
     }
     return response.data;
   } catch (error) {
+    handleUnauthorized(error);
     if (skipParseError) {
       return Promise.reject(error);
     }
@@ -79,7 +93,6 @@ export const sendRequest = async (
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
-  const token = authToken();
 
   try {
     const response = await axios({
@@ -89,7 +102,7 @@ export const sendRequest = async (
       responseType,
       timeout,
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${authToken.get()}`,
       },
     });
 
@@ -98,6 +111,7 @@ export const sendRequest = async (
     }
     return response.data;
   } catch (error) {
+    handleUnauthorized(error);
     if (skipParseError) {
       return Promise.reject(error);
     }
@@ -128,7 +142,6 @@ export const sendRequestWithHeaders = async (
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
-  const token = authToken();
 
   try {
     const response = await axios({
@@ -138,7 +151,7 @@ export const sendRequestWithHeaders = async (
       responseType,
       timeout,
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${authToken.get()}`,
         ...customHeaders,
       },
     });
@@ -148,6 +161,7 @@ export const sendRequestWithHeaders = async (
     }
     return response.data;
   } catch (error) {
+    handleUnauthorized(error);
     if (skipParseError) {
       return Promise.reject(error);
     }
@@ -193,7 +207,6 @@ export const sendRequestWithProgressAndHeaders = async ({
   const { origin } = global.window.location;
 
   const url = `${origin}${URL_PREFIX}/api${path}`;
-  const token = authToken();
 
   try {
     const response = await axios({
@@ -203,7 +216,7 @@ export const sendRequestWithProgressAndHeaders = async ({
       responseType,
       timeout,
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${authToken.get()}`,
         ...customHeaders,
       },
       onDownloadProgress,
@@ -216,6 +229,7 @@ export const sendRequestWithProgressAndHeaders = async ({
     }
     return response.data;
   } catch (error) {
+    handleUnauthorized(error);
     if (skipParseError) {
       return Promise.reject(error);
     }
@@ -227,6 +241,38 @@ export const sendRequestWithProgressAndHeaders = async ({
       reason || `send request: parse server error: ${error}`
     );
   }
+};
+
+/**
+ * Uploads a file straight to object storage through a presigned URL and returns
+ * the upload id to register it with. The PUT uses bare axios so Fleet
+ * credentials never reach the storage host; don't route it through the helpers
+ * above.
+ */
+export const uploadToStorage = async ({
+  target,
+  file,
+  teamId,
+  onUploadProgress,
+  signal,
+}: {
+  target: "software_package" | "bootstrap_package";
+  file: File;
+  teamId?: number;
+  onUploadProgress?: (progressEvent: AxiosProgressEvent) => void;
+  signal?: AbortSignal;
+}): Promise<string> => {
+  const { upload_id, url } = await sendRequest(
+    "POST",
+    endpoints.STAGED_UPLOAD,
+    {
+      target,
+      fleet_id: teamId ?? 0,
+      size: file.size,
+    }
+  );
+  await axios.put(url, file, { onUploadProgress, signal });
+  return upload_id;
 };
 
 export default sendRequest;

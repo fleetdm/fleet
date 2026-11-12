@@ -1,0 +1,10 @@
+{
+  "name": "DbVisualizer",
+  "unique_identifier": "com.dbvis.DbVisualizer",
+  "token": "dbvisualizer",
+  "installer_format": "dmg",
+  "slug": "dbvisualizer/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

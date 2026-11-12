@@ -1,6 +1,25 @@
+/** Button universal styling:
+- Border radius: 4px
+- Darken on hover
+- Darker on active
+- Outline on focus with no offset or "jump"
+- Lighten on disabled
+*/
+
 $base-class: "button";
 
-@mixin button-focus-outline($offset: 2px) {
+@mixin button-focus-outline() {
+  &::after {
+    content: "";
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    border: 1px solid $core-focused-outline;
+    border-radius: $border-radius;
+  }
+}
+
+@mixin unstyled-button-focus-outline($offset: 1px) {
   outline-color: $core-focused-outline;
   outline-offset: $offset;
   outline-style: solid;
@@ -22,10 +41,16 @@ $base-class: "button";
 // Size small buttons (with and without background colors)
 @mixin button-pad-4px-8px {
   padding: $pad-xsmall $pad-small;
-  height: 24px;
+  height: 28px;
 }
 
-@mixin button-variant($color, $hover: null, $active: null, $inverse: false) {
+@mixin button-variant(
+  $color,
+  $hover: null,
+  $active: null,
+  $inverse: false,
+  $unstyled: false
+) {
   background-color: $color;
 
   @if $inverse {
@@ -36,27 +61,27 @@ $base-class: "button";
     }
 
     &:hover {
-      background-color: rgba($core-fleet-black, 0.05);
+      background-color: $ui-fleet-black-5;
 
       &:active {
-        background-color: $ui-fleet-black-5;
+        background-color: $ui-fleet-black-5-down;
       }
     }
 
     &:focus-visible {
-      // need a slightly larger focus outline to accomodate the :after content box
-      // that correctly displays the border. We chose this approach as adding a
-      // border to the button caused the button to jump around on the screen
-      // when it was added and removed.
-      @include button-focus-outline($offset: 3px);
-      &::after {
-        content: "";
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        border: 1px solid $core-focused-outline;
-        border-radius: 6px;
+      @include button-focus-outline();
+    }
+  } @else if $unstyled {
+    &:hover:not(.button--disabled) {
+      background-color: $hover;
+
+      &:active {
+        background-color: $active;
       }
+    }
+
+    &:focus-visible {
+      @include unstyled-button-focus-outline();
     }
   } @else {
     &:hover:not(.button--disabled) {
@@ -74,8 +99,8 @@ $base-class: "button";
 }
 
 .#{$base-class} {
-  @include button-variant($core-fleet-green);
   @include button-pad-8px-16px;
+  box-sizing: border-box;
   transition: color 150ms ease-in-out, background 150ms ease-in-out,
     top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;
@@ -84,7 +109,7 @@ $base-class: "button";
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  border-radius: 6px;
+  border-radius: $border-radius;
   font-size: $x-small;
   font-family: "Inter", sans-serif;
   font-weight: $bold;
@@ -93,6 +118,7 @@ $base-class: "button";
   border: 0;
   position: relative;
   cursor: pointer;
+  white-space: nowrap;
 
   &:focus {
     outline: none;
@@ -102,10 +128,30 @@ $base-class: "button";
     opacity: 0;
   }
 
+  // Wraps children so the loading spinner can swap in without a layout shift.
+  // Do NOT hide-then-reveal buttons by fading `.children-wrapper` alone —
+  // bordered/filled variants (`secondary` etc.) will leave an empty button
+  // box behind. Fade the whole button, or use `.row-hover-button`
+  // (see PaginatedList / TableContainer styles).
   .children-wrapper {
     display: flex;
     flex-direction: row;
     align-items: center;
+  }
+
+  // `loadingText` puts the spinner beside a visible label, so this spinner is inline and takes the variant's own text color.
+  .children-wrapper--loading-text {
+    gap: $pad-xsmall;
+
+    .loading-spinner {
+      .background {
+        display: none;
+      }
+
+      .path {
+        stroke: currentColor;
+      }
+    }
   }
 
   &--default {
@@ -115,13 +161,10 @@ $base-class: "button";
       $core-fleet-green-down
     );
     display: flex;
-    text-wrap: nowrap;
-  }
 
-  &--success {
-    @include button-variant($ui-success, $ui-success-over, $ui-success-down);
-    display: flex;
-    text-wrap: nowrap;
+    &__small {
+      @include button-pad-4px-8px;
+    }
   }
 
   &--alert {
@@ -131,6 +174,10 @@ $base-class: "button";
       $core-vibrant-red-down
     );
     display: flex;
+
+    &__small {
+      @include button-pad-4px-8px;
+    }
 
     .loading-spinner {
       &__ring {
@@ -154,7 +201,6 @@ $base-class: "button";
     font-size: $xx-small;
     padding: $pad-xsmall 10px;
     height: 24px;
-    white-space: nowrap;
 
     &:active {
       box-shadow: inset 2px 2px 2px rgba(0, 0, 0, 0.25);
@@ -166,93 +212,28 @@ $base-class: "button";
     }
   }
 
-  &--text-link {
-    @include button-variant(transparent);
+  // Looks exactly like a CustomLink but is a <button>
+  &--link {
+    @include link;
+    font-weight: $regular;
+    text-decoration: underline;
+    text-decoration-color: $ui-fleet-black-75;
+    text-underline-offset: 3px;
+    background: transparent;
     border: 0;
     box-shadow: none;
-    color: $ui-fleet-black-75;
-    font-size: $x-small;
     cursor: pointer;
     margin: 0;
     padding: 0;
     height: auto;
-    line-height: normal;
-    text-align: left;
+    line-height: $line-height;
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
+    white-space: normal;
 
-    &:focus {
-      outline: none;
-    }
-
-    &:hover,
-    &:focus {
-      color: $ui-fleet-black-75-over;
-      background-color: transparent;
-      box-shadow: none;
-      text-decoration: underline;
-    }
-
-    &:active {
-      color: $ui-fleet-black-75-down;
-      box-shadow: none;
-      top: 0;
-    }
-
-    &.light-text {
-      font-weight: $regular;
-    }
-  }
-
-  &--text-link-dark {
-    @include button-variant(transparent);
-    border: 0;
-    box-shadow: none;
-    color: $core-fleet-black;
-    font-size: $x-small;
-    cursor: pointer;
-    margin: 0;
-    padding: 0;
-    height: auto;
-    line-height: normal;
-    text-align: left;
-
-    &:focus {
-      outline: none;
-    }
-
-    &:hover,
-    &:focus {
-      background-color: transparent;
-      box-shadow: none;
-      text-decoration: underline;
-    }
-
-    &:active {
-      box-shadow: none;
-      top: 0;
-    }
-  }
-
-  // &--icon is used for svg icon buttons without text
-  &--text-icon,
-  &--icon {
-    @include button-variant(
-      $core-fleet-white,
-      $core-fleet-green-over,
-      $core-fleet-green-down,
-      $inverse: true
-    );
-    background-color: transparent;
-    padding: 0;
-    border: 0;
-    box-shadow: none;
-    color: $ui-fleet-black-75;
-    font-size: $x-small;
-    font-weight: $bold;
-    cursor: pointer;
-    white-space: nowrap;
-
-    img {
-      transform: scale(0.5);
+    &:hover {
+      text-decoration-color: $core-fleet-black;
     }
 
     &:focus {
@@ -260,166 +241,47 @@ $base-class: "button";
     }
 
     &:focus-visible {
-      @include button-focus-outline();
-
-      &::after {
-        content: "";
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        border: 1px solid $ui-fleet-black-75;
-        border-radius: 6px;
-      }
+      @include unstyled-button-focus-outline(3px);
     }
 
-    &:hover,
-    &:focus {
-      color: $ui-fleet-black-75-over;
-
-      svg {
-        path {
-          fill: $ui-fleet-black-75-over;
-        }
-      }
-
-      &:active {
-        color: $ui-fleet-black-75-down;
-
-        svg {
-          path {
-            fill: $ui-fleet-black-75-down;
-          }
-        }
-      }
-
-      // If .button--icon-stroke is present, use stroke instead of fill
-      // Some SVG icons in these buttons contain a `stroke` instead of a `fill`,
-      // so we need to modify that property instead. Adding a custom `fill`
-      // could make these icons render incorrectly.
-      &.button--icon-stroke {
-        &:hover,
-        &:focus {
-          svg {
-            path {
-              fill: none; // Prevent fill from interfering
-              stroke: $ui-fleet-black-75-over;
-            }
-          }
-          &:active {
-            svg {
-              path {
-                stroke: $ui-fleet-black-75-down;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    // globally styled gap between text and icon
-    .children-wrapper {
-      gap: $pad-small;
+    &:active {
+      box-shadow: none;
+      top: 0;
     }
   }
 
-  // Used for primary buttons with green icon and green text, no underline on hover
-  &--brand-inverse-icon {
-    @include button-variant(transparent);
-    @include button-pad-8px-8px;
-    border: 0;
-    box-shadow: none;
-    color: $core-fleet-green;
-    font-size: $x-small;
-    font-weight: $bold;
-    cursor: pointer;
-    white-space: nowrap;
+  // Bordered secondary button (off-white fill + gray border). The new preferred
+  // secondary — see #35329. Options: default, icon before/after, icon only.
+  &--secondary {
+    @include button-variant($ui-off-white, null, null, $inverse: true);
+    @include button-pad-8px-16px; // full-size padding (override the $inverse 8/8)
+    color: $ui-fleet-black-75;
+    border: 1px solid $ui-fleet-black-25;
+    box-sizing: border-box;
 
     &__small {
       @include button-pad-4px-8px;
     }
 
-    img {
-      transform: scale(0.5);
-    }
-
-    &:focus {
-      outline: none;
-    }
-
-    &:focus-visible {
-      @include button-focus-outline();
-
-      &::after {
-        content: "";
-        width: 100%;
-        height: 100%;
-        position: absolute;
-        border: 1px solid $ui-fleet-black-75;
-        border-radius: 6px;
-      }
-    }
-
-    &:hover,
-    &:focus {
-      background-color: rgba($core-fleet-black, 0.05);
-      color: $core-fleet-green-over;
-
-      svg {
-        path {
-          fill: $core-fleet-green-over;
-        }
-      }
+    &:hover:not(.button--disabled) {
+      background-color: $ui-fleet-black-5;
 
       &:active {
-        color: $core-fleet-green-down;
-
-        svg {
-          path {
-            fill: $core-fleet-green-down;
-          }
-        }
-      }
-    }
-    // If .button--icon-stroke is present, use stroke instead of fill
-    // Some SVG icons in these buttons contain a `stroke` instead of a `fill`,
-    // so we need to modify that property instead. Adding a custom `fill`
-    // could make these icons render incorrectly.
-    &.button--icon-stroke {
-      &:hover,
-      &:focus {
-        svg {
-          path {
-            fill: none; // Prevent fill from interfering
-            stroke: $core-fleet-green-over;
-          }
-        }
-        &:active {
-          svg {
-            path {
-              stroke: $core-fleet-green-over;
-            }
-          }
-        }
+        background-color: $ui-fleet-black-10;
       }
     }
 
-    // globally styled gap between text and icon
+    // Spacing between an icon and the label (icon before/after)
     .children-wrapper {
       gap: $pad-small;
     }
   }
 
-  &--icon {
-    @include button-variant(
-      $core-fleet-white,
-      $core-fleet-green-over,
-      $core-fleet-green-down,
-      $inverse: true
-    );
-    background-color: transparent;
-  }
-
-  &--inverse {
+  // Low-emphasis borderless text + icon button. Not to be confused with a link.
+  // Options: icon before/after, icon only. Transparent fill, light-gray hover,
+  // and deliberately does NOT recolor the SVG on hover, so it works with both
+  // fill- and stroke-based icons (e.g. chevrons) without artifacts — see #35329.
+  &--subdued {
     @include button-variant(
       $core-fleet-white,
       $core-fleet-green-over,
@@ -430,20 +292,45 @@ $base-class: "button";
     color: $ui-fleet-black-75;
     box-sizing: border-box;
 
+    // Spacing between an icon and the label (icon before/after)
     .children-wrapper {
-      gap: $pad-small; // For icons next to text like Pagination buttons
+      gap: $pad-small;
     }
   }
 
-  &--inverse-alert {
-    @include button-variant(
-      $core-fleet-white,
-      $core-vibrant-red-over,
-      $core-vibrant-red-down,
-      $inverse: true
-    );
-    color: $core-vibrant-red;
-    box-sizing: border-box;
+  // Icon-only secondary/subdued buttons render as a square so a lone icon is
+  // centered (mirrors &--icon). The isIconOnly flag in Button.tsx adds this class.
+  &--secondary.button--icon-only,
+  &--subdued.button--icon-only {
+    width: 36px;
+    padding: 0;
+  }
+
+  &--secondary__small.button--icon-only,
+  &--subdued__small.button--icon-only {
+    width: 28px;
+  }
+
+  // Buttons with an icon + label get an 8px gap between them (4px on small).
+  // Only default, alert, secondary, and subdued carry icons — scoped so the
+  // `icon` prop is a no-op on link, pill, unstyled, etc. Horizontal padding
+  // is left to the base variant/size.
+  &--default.button--with-icon,
+  &--alert.button--with-icon,
+  &--secondary.button--with-icon,
+  &--subdued.button--with-icon {
+    .children-wrapper {
+      gap: $pad-small;
+    }
+  }
+
+  &--default__small.button--with-icon,
+  &--alert__small.button--with-icon,
+  &--secondary__small.button--with-icon,
+  &--subdued__small.button--with-icon {
+    .children-wrapper {
+      gap: $pad-xsmall;
+    }
   }
 
   &--disabled {
@@ -451,7 +338,7 @@ $base-class: "button";
   }
 
   &--unstyled {
-    @include button-variant(transparent);
+    @include button-variant(transparent, null, null, false, $unstyled: true);
     border: 0;
     box-shadow: none;
     color: $core-fleet-black;
@@ -461,6 +348,7 @@ $base-class: "button";
     height: auto;
     line-height: normal;
     font-weight: normal;
+    white-space: normal;
 
     &:active {
       box-shadow: none;
@@ -469,7 +357,7 @@ $base-class: "button";
   }
 
   &--unstyled-modal-query {
-    @include button-variant(transparent);
+    @include button-variant(transparent, null, null, false, $unstyled: true);
     border: 0;
     box-shadow: none;
     color: $core-fleet-black;
@@ -482,6 +370,7 @@ $base-class: "button";
     width: 100%;
     border-radius: 0px;
     border-bottom: 1px solid $ui-fleet-black-10;
+    white-space: normal;
 
     &:active {
       box-shadow: none;
@@ -527,15 +416,8 @@ $base-class: "button";
     width: 100%;
   }
 
-  // Designed to offset padding for text to justify left of parent component
-  &.button--justify-left {
-    left: -$pad-small;
-    margin-right: -$pad-small;
-  }
-
-  // Designed to offset padding for text to justify right of parent component
-  &.button--justify-right {
-    right: -$pad-small;
-    margin-left: -$pad-small;
+  // Used in registration/auth pages
+  &__wide {
+    width: 200px;
   }
 }

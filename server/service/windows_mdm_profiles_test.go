@@ -1,9 +1,24 @@
 package service
 
 import (
+	"bytes"
+	"cmp"
+	"context"
+	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -112,6 +127,13 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 			errContains: "Fleet variable $FLEET_VAR_HOST_FAKE is not supported in Windows profiles",
 		},
 		{
+			name: "EJBCA variable",
+			profileXML: `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/System/AllowLocation</LocURI></Target>` +
+				`<Data>$FLEET_VAR_EJBCA_DATA_myCA</Data></Item></Replace>`,
+			wantErr:     true,
+			errContains: "Fleet variable $FLEET_VAR_EJBCA_DATA_myCA is not supported in Windows profiles",
+		},
+		{
 			name: "HOST_UUID with another unsupported variable",
 			profileXML: `<Replace>
 				<Item>
@@ -154,4 +176,1159 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 			}
 		})
 	}
+}
+
+// syncMLAddItem builds a SyncML Add item with a LocURI target and Data content.
+func syncMLAddItem(locURI, data string) string {
+	return fmt.Sprintf(`<Add><Item><Target><LocURI>%s</LocURI></Target><Data>%s</Data></Item></Add>`, locURI, data)
+}
+
+// TestValidateWindowsProfileConditionalAccessVariables covers what is specific to the conditional access group on
+// Windows: the URL variable marks the profile and must sit in the ServerURL node, and the challenge is a global enroll
+// secret the admin writes in (directly or through a secret variable, expanded before validation) that Windows can send.
+// The required-variable rules are in TestValidateProfileCertificateAuthorityVariables.
+func TestValidateWindowsProfileConditionalAccessVariables(t *testing.T) {
+	const scepPrefix = "./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID/Install/"
+	challengeItem := syncMLAddItem(scepPrefix+"Challenge", "aB3+/= secret")
+	urlItem := syncMLAddItem(scepPrefix+"ServerURL", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL")
+	subjectItem := syncMLAddItem(scepPrefix+"SubjectName", "CN=Fleet conditional access for Okta,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
+	sanItem := syncMLAddItem(scepPrefix+"SubjectAlternativeNames", "7+urn:device:fleet:uuid:$FLEET_VAR_HOST_UUID")
+	const challengeMsg = `The SCEP certificate's "Challenge" field must contain a global enroll secret`
+
+	cases := []struct {
+		name        string
+		contents    string
+		errContains string
+	}{
+		{
+			name:     "valid profile",
+			contents: urlItem + challengeItem + subjectItem + sanItem,
+		},
+		{
+			name:     "valid profile with braces syntax",
+			contents: syncMLAddItem(scepPrefix+"ServerURL", "${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL}") + challengeItem + subjectItem + sanItem,
+		},
+		{
+			name:        "challenge with characters windows rejects",
+			contents:    urlItem + syncMLAddItem(scepPrefix+"Challenge", "bad_secret") + subjectItem + sanItem,
+			errContains: challengeMsg,
+		},
+		{
+			name:        "empty challenge",
+			contents:    urlItem + syncMLAddItem(scepPrefix+"Challenge", "") + subjectItem + sanItem,
+			errContains: challengeMsg,
+		},
+		{
+			name:        "no challenge item",
+			contents:    urlItem + subjectItem + sanItem,
+			errContains: challengeMsg,
+		},
+		{
+			name:        "url variable in the Challenge node",
+			contents:    syncMLAddItem(scepPrefix+"Challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL") + subjectItem,
+			errContains: `Variable "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL" must only be in the SCEP certificate's "ServerURL" field.`,
+		},
+		{
+			name: "variable in a LocURI",
+			contents: challengeItem + subjectItem +
+				syncMLAddItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL/Install/KeyProtection", "2"),
+			errContains: "Conditional access Fleet variables must not appear in LocURI target paths.",
+		},
+		{
+			name:        "subject name without the renewal ID",
+			contents:    urlItem + challengeItem + syncMLAddItem(scepPrefix+"SubjectName", "CN=x,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID") + syncMLAddItem(scepPrefix+"SubjectName", "CN=y"),
+			errContains: "SubjectName item must contain the",
+		},
+		{
+			name:        "url variable only in an XML comment",
+			contents:    "<!-- $FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL -->" + challengeItem + subjectItem + sanItem,
+			errContains: `Variable "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL" must be in the SCEP certificate's "ServerURL" field.`,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := validateWindowsProfileFleetVariables(c.contents, &fleet.LicenseInfo{Tier: fleet.TierPremium}, &fleet.GroupedCertificateAuthorities{})
+			if c.errContains == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, c.errContains)
+		})
+	}
+}
+
+func TestAdditionalNDESValidationForWindowsProfiles(t *testing.T) {
+	ndesVars := &NDESVarsFound{}
+	ndesVars, _ = ndesVars.SetChallenge()
+	ndesVars, _ = ndesVars.SetURL()
+
+	// A valid NDES profile with all required fields.
+	validProfile := syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+		syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+		syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=$FLEET_VAR_SCEP_RENEWAL_ID")
+
+	tests := []struct {
+		name        string
+		contents    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:     "valid NDES profile",
+			contents: validProfile,
+		},
+		{
+			name: "valid NDES profile with braces syntax",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "${FLEET_VAR_NDES_SCEP_CHALLENGE}") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "${FLEET_VAR_NDES_SCEP_PROXY_URL}") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=${FLEET_VAR_SCEP_RENEWAL_ID}"),
+		},
+		{
+			name: "valid NDES profile wrapped in atomic",
+			contents: `<Atomic>` +
+				`<Add><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_CHALLENGE</Data></Item></Add>` +
+				`<Add><CmdID>2</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL</LocURI></Target>` +
+				`<Data>$FLEET_VAR_NDES_SCEP_PROXY_URL</Data></Item></Add>` +
+				`<Add><CmdID>3</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName</LocURI></Target>` +
+				`<Data>CN=test,OU=$FLEET_VAR_SCEP_RENEWAL_ID</Data></Item></Add>` +
+				`</Atomic>`,
+		},
+		{
+			name: "challenge var in wrong field",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE"),
+			wantErr:     true,
+			errContains: `must only be in the SCEP certificate's "Challenge" field`,
+		},
+		{
+			name: "challenge var in arbitrary data field",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/Something/Else", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE"),
+			wantErr:     true,
+			errContains: `must only be in the SCEP certificate's "Challenge" field`,
+		},
+		{
+			name: "proxy url var in wrong field",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			wantErr:     true,
+			errContains: `must only be in the SCEP certificate's "ServerURL" field`,
+		},
+		{
+			name: "proxy url var in arbitrary data field",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/Something/Else", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			wantErr:     true,
+			errContains: `must only be in the SCEP certificate's "ServerURL" field`,
+		},
+		{
+			name: "challenge var in LocURI target",
+			contents: syncMLAddItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_NDES_SCEP_CHALLENGE/Install/Challenge",
+				"$FLEET_VAR_NDES_SCEP_CHALLENGE",
+			),
+			wantErr:     true,
+			errContains: "must not appear in LocURI target paths",
+		},
+		{
+			name: "proxy url var in LocURI target",
+			contents: syncMLAddItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/$FLEET_VAR_NDES_SCEP_PROXY_URL/Install/ServerURL",
+				"$FLEET_VAR_NDES_SCEP_PROXY_URL",
+			),
+			wantErr:     true,
+			errContains: "must not appear in LocURI target paths",
+		},
+		{
+			name: "challenge field has wrong value",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "hardcoded-password") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			wantErr:     true,
+			errContains: `must be in the SCEP certificate's "Challenge" field`,
+		},
+		{
+			name: "server url field has wrong value",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "https://hardcoded.example.com"),
+			wantErr:     true,
+			errContains: `must be in the SCEP certificate's "ServerURL" field`,
+		},
+		{
+			name: "subject name missing renewal id",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test"),
+			wantErr:     true,
+			errContains: subjectNameMissingRenewalIDMsg,
+		},
+		{
+			name: "valid NDES profile with preferred CERTIFICATE_RENEWAL_ID",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID"),
+		},
+		{
+			name: "valid NDES profile with preferred CERTIFICATE_RENEWAL_ID (braces syntax)",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "${FLEET_VAR_NDES_SCEP_CHALLENGE}") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "${FLEET_VAR_NDES_SCEP_PROXY_URL}") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", "CN=test,OU=${FLEET_VAR_CERTIFICATE_RENEWAL_ID}"),
+		},
+		{
+			// CDATA reaches the validator undecoded, and the raw "&" in it would fail a plain XML parse.
+			name: "valid NDES profile with renewal ID in a CDATA CN",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+					"<![CDATA[CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID]]>"),
+		},
+		{
+			name:     "nil ndes vars returns nil",
+			contents: validProfile,
+		},
+		{
+			name: "subject name with trailing whitespace in LocURI is still validated for renewal id",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ", "CN=test"),
+			wantErr:     true,
+			errContains: subjectNameMissingRenewalIDMsg,
+		},
+		{
+			name: "challenge with trailing whitespace in LocURI still validates correctly",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge ", "hardcoded-password") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL"),
+			wantErr:     true,
+			errContains: `must be in the SCEP certificate's "Challenge" field`,
+		},
+		{
+			name: "server url with trailing whitespace in LocURI still validates correctly",
+			contents: syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+				syncMLAddItem("./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL ", "https://hardcoded.example.com"),
+			wantErr:     true,
+			errContains: `must be in the SCEP certificate's "ServerURL" field`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			vars := ndesVars
+			if tt.name == "nil ndes vars returns nil" {
+				vars = nil
+			}
+			err := additionalNDESValidationForWindowsProfiles(tt.contents, vars)
+			if tt.wantErr {
+				require.Error(t, err)
+				var badReqErr *fleet.BadRequestError
+				require.ErrorAs(t, err, &badReqErr, "expected BadRequestError for: %s", tt.name)
+				require.Contains(t, err.Error(), tt.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestAdditionalCustomSCEPValidationForWindowsProfiles(t *testing.T) {
+	t.Parallel()
+
+	customSCEPVars := &CustomSCEPVarsFound{}
+	customSCEPVars, _ = customSCEPVars.SetURL("ca1")
+	customSCEPVars, _ = customSCEPVars.SetChallenge("ca1")
+	customSCEPVars, _ = customSCEPVars.SetRenewalID()
+
+	tests := []struct {
+		name        string
+		contents    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "valid custom SCEP profile",
+			contents: syncMLAddItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+				"CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID",
+			),
+		},
+		{
+			name: "valid custom SCEP profile with renewal ID in an entity-quoted CN",
+			contents: syncMLAddItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+				"CN=&quot;Doe, Jane $FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;",
+			),
+		},
+		{
+			name: "subject name missing renewal id",
+			contents: syncMLAddItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName",
+				"CN=test",
+			),
+			wantErr:     true,
+			errContains: subjectNameMissingRenewalIDMsg,
+		},
+		{
+			name: "subject name with trailing whitespace in LocURI is still validated for renewal id",
+			contents: syncMLAddItem(
+				"./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName ",
+				"CN=test",
+			),
+			wantErr:     true,
+			errContains: subjectNameMissingRenewalIDMsg,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := additionalCustomSCEPValidationForWindowsProfiles(tt.contents, customSCEPVars)
+			if tt.wantErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.errContains)
+				_, isBadRequest := errors.AsType[*fleet.BadRequestError](err)
+				require.True(t, isBadRequest, "expected a BadRequestError, got %T", err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateWindowsProfileFleetVariablesRenewalIDPlacement(t *testing.T) {
+	t.Parallel()
+
+	ndesProfile := func(subjectName string) string {
+		return syncMLAddItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/Challenge", "$FLEET_VAR_NDES_SCEP_CHALLENGE") +
+			syncMLAddItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/ServerURL", "$FLEET_VAR_NDES_SCEP_PROXY_URL") +
+			syncMLAddItem("./User/Vendor/MSFT/ClientCertificateInstall/SCEP/cert1/Install/SubjectName", subjectName)
+	}
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	groupedCAs := &fleet.GroupedCertificateAuthorities{NDESSCEP: &fleet.NDESSCEPProxyCA{}}
+
+	tests := []struct {
+		name        string
+		subjectName string
+		errContains string
+	}{
+		{name: "CN", subjectName: "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation"},
+		{
+			name:        "both CN and OU",
+			subjectName: "CN=$FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID",
+			errContains: renewalIDDuplicateMsg,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := validateWindowsProfileFleetVariables(ndesProfile(tt.subjectName), premiumLic, groupedCAs)
+			if tt.errContains == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorContains(t, err, tt.errContains)
+		})
+	}
+}
+
+func TestValidateSubjectNameRenewalID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		subjectName string
+		want        bool
+		errMsg      string // when want is false; defaults to subjectNameMissingRenewalIDMsg
+	}{
+		{name: "OU", subjectName: "CN=test,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "OU legacy SCEP_RENEWAL_ID", subjectName: "CN=test,OU=$FLEET_VAR_SCEP_RENEWAL_ID", want: true},
+		{name: "OU among other values", subjectName: "CN=test,OU=team $FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{
+			name:        "CN among other values",
+			subjectName: "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL $FLEET_VAR_CERTIFICATE_RENEWAL_ID managementAttestation",
+			want:        true,
+		},
+		{name: "CN quoted", subjectName: `CN="$FLEET_VAR_CERTIFICATE_RENEWAL_ID, device",O=Fleet`, want: true},
+		{name: "lowercase keys", subjectName: "cn=test,ou=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "space after separator", subjectName: "CN=test, OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "renewal ID in O", subjectName: "CN=test,O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
+		{name: "renewal ID in O after an ampersand", subjectName: "CN=AT&amp;T;O=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
+		{name: "OU in CDATA", subjectName: "<![CDATA[OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID,CN=test]]>", want: true},
+		{name: "CN in CDATA with an ampersand", subjectName: "<![CDATA[CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID]]>", want: true},
+		{name: "CN quoted with entities", subjectName: "CN=&quot;a, $FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;,O=Fleet", want: true},
+		{name: "OU after an encoded separator", subjectName: "CN=test&#44;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{
+			name:        "OU text inside an entity-quoted O value",
+			subjectName: "CN=test,O=&quot;OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID&quot;",
+			errMsg:      subjectNameEntityQuotedVariableMsg,
+		},
+		{name: "OU with several CNs", subjectName: "CN=a,CN=b,OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: true},
+		{name: "second CN", subjectName: "CN=a,CN=$FLEET_VAR_CERTIFICATE_RENEWAL_ID", errMsg: subjectNameRenewalIDInOneOfManyCNsMsg},
+		{name: "malformed XML", subjectName: "CN=AT&T $FLEET_VAR_CERTIFICATE_RENEWAL_ID", want: false},
+		{name: "OU text inside a quoted O value", subjectName: `CN=test,O="OU=$FLEET_VAR_CERTIFICATE_RENEWAL_ID"`, want: false},
+		{name: "different variable", subjectName: "CN=$FLEET_VAR_HOST_UUID,OU=$FLEET_VAR_HOST_HARDWARE_SERIAL", want: false},
+		{name: "empty", subjectName: "", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSubjectNameRenewalID(tt.subjectName)
+			if tt.want {
+				require.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, cmp.Or(tt.errMsg, subjectNameMissingRenewalIDMsg))
+		})
+	}
+}
+
+func TestNewMDMWindowsConfigProfileSoftwareUpdate(t *testing.T) {
+	// osUpdateSyncML contains the Windows Update install policy LocURI, marking it
+	// as a software update profile. otherSyncML is an unrelated policy.
+	osUpdateSyncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Update/Install")
+	otherSyncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera")
+
+	// configuredSettings returns a WindowsUpdates that reports Configured() == true.
+	configuredSettings := func() fleet.WindowsUpdates {
+		return fleet.WindowsUpdates{
+			DeadlineDays:    optjson.SetInt(7),
+			GracePeriodDays: optjson.SetInt(2),
+		}
+	}
+
+	// setup wires the common mocks required for NewMDMWindowsConfigProfile to reach
+	// the software-update handling code.
+	setup := func(t *testing.T, premium bool) (fleet.Service, context.Context, *mock.Store) {
+		lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		if !premium {
+			lic = &fleet.LicenseInfo{Tier: fleet.TierFree}
+		}
+		svc, ctx, ds, _ := setupAppleMDMService(t, lic)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+			return nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		// The existing-profile check and tracking insert now happen inside this
+		// datastore call's transaction; the unit test only verifies that the
+		// service passes the correct isSoftwareUpdate flag and surfaces errors.
+		ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			cp.ProfileUUID = "w-profile-uuid"
+			return &cp, nil
+		}
+		ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
+		) (updates fleet.MDMProfilesUpdates, err error) {
+			return fleet.MDMProfilesUpdates{}, nil
+		}
+		// Team lookup used by the enterprise overrides for teamID > 0 cases.
+		ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: tid, Name: "team1"}, nil
+		}
+		return svc, ctx, ds
+	}
+
+	// appConfigWith builds an AppConfig with Windows MDM enabled (so
+	// VerifyMDMWindowsConfigured passes) plus the provided mutation applied for OS
+	// update settings.
+	appConfigWith := func(apply func(*fleet.AppConfig)) func(context.Context) (*fleet.AppConfig, error) {
+		return func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.WindowsEnabledAndConfigured = true
+			if apply != nil {
+				apply(ac)
+			}
+			return ac, nil
+		}
+	}
+
+	t.Run("non software-update profile skips OS update checks", func(t *testing.T) {
+		svc, ctx, ds := setup(t, true)
+		ds.AppConfigFunc = appConfigWith(nil)
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", otherSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.NoError(t, err)
+		assert.NotNil(t, p)
+		assert.False(t, ds.TeamMDMConfigFuncInvoked)
+	})
+
+	t.Run("software-update profile requires premium license", func(t *testing.T) {
+		svc, ctx, ds := setup(t, false)
+		ds.AppConfigFunc = appConfigWith(nil)
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "other", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		// The gate fails before the profile is inserted.
+		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+		assert.False(t, ds.TeamMDMConfigFuncInvoked)
+	})
+
+	t.Run("no team - app config has no OS updates configured", func(t *testing.T) {
+		svc, ctx, ds := setup(t, true)
+		ds.AppConfigFunc = appConfigWith(nil)
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.NoError(t, err)
+		assert.NotNil(t, p)
+		assert.False(t, ds.TeamMDMConfigFuncInvoked)
+		assert.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("team - team config has no OS updates configured", func(t *testing.T) {
+		svc, ctx, ds := setup(t, true)
+		ds.AppConfigFunc = appConfigWith(nil)
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			assert.EqualValues(t, 5, teamID)
+			return &fleet.TeamMDM{}, nil
+		}
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.NoError(t, err)
+		assert.NotNil(t, p)
+		assert.True(t, ds.TeamMDMConfigFuncInvoked)
+		assert.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("no team - app config has OS updates configured is rejected", func(t *testing.T) {
+		svc, ctx, ds := setup(t, true)
+		ds.AppConfigFunc = appConfigWith(func(ac *fleet.AppConfig) {
+			ac.MDM.WindowsUpdates = configuredSettings()
+		})
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+		// The gate fails before the profile is inserted.
+		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("team - team config has OS updates configured is rejected", func(t *testing.T) {
+		svc, ctx, ds := setup(t, true)
+		ds.AppConfigFunc = appConfigWith(nil)
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			return &fleet.TeamMDM{WindowsUpdates: configuredSettings()}, nil
+		}
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 5, "os-update", osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+}
+
+func TestNewMDMWindowsConfigProfileLicense(t *testing.T) {
+	// For now this only verifies if labels are blocked on free tier
+	syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera")
+
+	setup := func(t *testing.T, premium bool) (fleet.Service, context.Context, *mock.Store) {
+		lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		if !premium {
+			lic = &fleet.LicenseInfo{Tier: fleet.TierFree}
+		}
+		svc, ctx, ds, _ := setupAppleMDMService(t, lic)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.WindowsEnabledAndConfigured = true
+			return ac, nil
+		}
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+			return nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			cp.ProfileUUID = "w-profile-uuid"
+			return &cp, nil
+		}
+		ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string, filter fleet.TeamFilter) (map[string]uint, error) {
+			m := make(map[string]uint)
+			for i, label := range labels {
+				m[label] = uint(i + 1)
+			}
+			return m, nil
+		}
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+			m := make(map[string]*fleet.Label)
+			for i, name := range names {
+				m[name] = &fleet.Label{ID: uint(i + 1), Name: name}
+			}
+			return m, nil
+		}
+		return svc, ctx, ds
+	}
+
+	t.Run("labels not allowed on free tier", func(t *testing.T) {
+		svc, ctx, ds := setup(t, false)
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"}, "", false, false)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.ErrorContains(t, err, "Scoping configuration profile")
+		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+
+		_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, []string{"label1"}, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.ErrorContains(t, err, "Scoping configuration profile")
+		assert.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("profile without labels allowed on free tier", func(t *testing.T) {
+		svc, ctx, ds := setup(t, false)
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "without-labels", syncML, nil, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.NoError(t, err)
+		assert.NotNil(t, p)
+		assert.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("labels allowed on premium tier", func(t *testing.T) {
+		svc, ctx, ds := setup(t, true)
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "with-labels", syncML, nil, fleet.LabelsIncludeAll, []string{"label1"}, "", false, false)
+		require.NoError(t, err)
+		assert.NotNil(t, p)
+		assert.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+}
+
+// TestNewMDMWindowsConfigProfileSecretVariableChallenge covers a conditional access SCEP profile uploaded on its own
+// with its challenge in a secret variable: the challenge check must run on the expanded value, as the batch path does,
+// while the stored profile keeps the variable.
+func TestNewMDMWindowsConfigProfileSecretVariableChallenge(t *testing.T) {
+	const secretVar = "$FLEET_SECRET_OKTA_SCEP_CHALLENGE"
+	// The rendered profile, as an admin copies it, with the placeholder replaced by the variable.
+	var rendered bytes.Buffer
+	require.NoError(t, conditionalAccessWindowsSCEPProfileTemplateParsed.Execute(&rendered, struct {
+		CAThumbprintSHA1 string
+		CertificateCN    string
+	}{CAThumbprintSHA1: strings.Repeat("A", 40), CertificateCN: fleet.ConditionalAccessOktaCertificateCN}))
+	profile := bytes.Replace(rendered.Bytes(), []byte(conditionalAccessWindowsChallengePlaceholder), []byte(secretVar), 1)
+
+	setup := func(t *testing.T, secretValue string) (fleet.Service, context.Context, *mock.Store) {
+		svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.WindowsEnabledAndConfigured = true
+			return ac, nil
+		}
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error { return nil }
+		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, document string) (string, error) {
+			return strings.ReplaceAll(document, secretVar, secretValue), nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.NewMDMWindowsConfigProfileFunc = func(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			cp.ProfileUUID = "w-profile-uuid"
+			return &cp, nil
+		}
+		return svc, ctx, ds
+	}
+
+	t.Run("secret expands to a challenge windows can send", func(t *testing.T) {
+		svc, ctx, ds := setup(t, "aB3+/= secret")
+
+		p, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "okta-scep", profile, nil, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.NoError(t, err)
+		require.True(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+		require.Contains(t, string(p.SyncML), secretVar, "stored profile keeps the variable")
+		require.NotContains(t, string(p.SyncML), "aB3+/= secret")
+	})
+
+	t.Run("secret expands to a challenge windows rejects", func(t *testing.T) {
+		svc, ctx, ds := setup(t, "bad_secret")
+
+		_, err := svc.NewMDMWindowsConfigProfile(ctx, 0, "okta-scep", profile, nil, fleet.LabelsIncludeAll, nil, "", false, false)
+		require.ErrorContains(t, err, `"Challenge" field must contain a global enroll secret`)
+		require.False(t, ds.NewMDMWindowsConfigProfileFuncInvoked)
+	})
+}
+
+func TestUpdateMDMWindowsConfigProfile(t *testing.T) {
+	newExistingProfile := func(name string, teamID uint) *fleet.MDMWindowsConfigProfile {
+		return &fleet.MDMWindowsConfigProfile{
+			ProfileUUID: "w" + uuid.NewString(),
+			Name:        name,
+			TeamID:      ptr.UintOrNilIfZero(teamID),
+		}
+	}
+
+	setup := func(t *testing.T, lic *fleet.LicenseInfo) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
+		svc, ctx, ds, opts := setupAppleMDMService(t, lic)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.WindowsEnabledAndConfigured = true
+			return ac, nil
+		}
+		ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+			return nil
+		}
+		ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+			return &fleet.GroupedCertificateAuthorities{}, nil
+		}
+		ds.TeamWithExtrasFunc = func(ctx context.Context, teamID uint) (*fleet.Team, error) {
+			return &fleet.Team{ID: teamID, Name: fmt.Sprintf("team-%d", teamID)}, nil
+		}
+		ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string, filter fleet.TeamFilter) (map[string]uint, error) {
+			m := make(map[string]uint)
+			for i, label := range labels {
+				m[label] = uint(i + 1) //nolint:gosec // dismiss G115
+			}
+			return m, nil
+		}
+		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+			m := make(map[string]*fleet.Label)
+			for i, name := range names {
+				m[name] = &fleet.Label{ID: uint(i + 1), Name: name} //nolint:gosec // dismiss G115
+			}
+			return m, nil
+		}
+
+		return svc, ctx, ds, opts
+	}
+
+	t.Run("labels-only update, happy path", func(t *testing.T) {
+		svc, ctx, ds, opts := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("Test Profile", 0)
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			require.Equal(t, existing.ProfileUUID, puid)
+			return existing, nil
+		}
+		var updated fleet.MDMWindowsConfigProfile
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			updated = p
+			return &p, nil
+		}
+		var firedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			firedActivity = activity
+			return nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.NoError(t, err)
+
+		assert.Empty(t, updated.SyncML)
+		assert.Equal(t, existing.Name, updated.Name)
+		require.Len(t, updated.LabelsIncludeAny, 1)
+		assert.Equal(t, "label1", updated.LabelsIncludeAny[0].LabelName)
+
+		require.NotNil(t, firedActivity)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedWindowsProfile)
+		require.True(t, ok)
+		assert.Equal(t, existing.Name, act.ProfileName)
+	})
+
+	// No "different name is rejected" test here: there's no request field a
+	// client could use to submit a new name, so nothing to reject at this
+	// layer -- that check only has meaning in the datastore integration test.
+	t.Run("profile content update, matching name", func(t *testing.T) {
+		svc, ctx, ds, opts := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("Test Profile", 0)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		var updated fleet.MDMWindowsConfigProfile
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			updated = p
+			return &p, nil
+		}
+		var firedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			firedActivity = activity
+			return nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.NoError(t, err)
+		assert.Equal(t, syncML, updated.SyncML)
+		assert.Equal(t, existing.Name, updated.Name)
+
+		require.NotNil(t, firedActivity)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedWindowsProfile)
+		require.True(t, ok)
+		assert.Equal(t, existing.Name, act.ProfileName)
+	})
+
+	t.Run("uploading a differently named file renames the profile", func(t *testing.T) {
+		svc, ctx, ds, opts := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("disable-onedrive", 0)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Firewall/MdmStore/DomainProfile/EnableFirewall")
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		var updated fleet.MDMWindowsConfigProfile
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			updated = p
+			return &p, nil
+		}
+		var firedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			firedActivity = activity
+			return nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "enable-firewall", syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.NoError(t, err)
+		assert.Equal(t, syncML, updated.SyncML)
+		assert.Equal(t, "enable-firewall", updated.Name)
+		// the profile keeps its identity: a rename is not a delete + recreate
+		assert.Equal(t, existing.ProfileUUID, updated.ProfileUUID)
+
+		// the activity has to name the profile as it is now, not as it was
+		require.NotNil(t, firedActivity)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedWindowsProfile)
+		require.True(t, ok)
+		assert.Equal(t, "enable-firewall", act.ProfileName)
+	})
+
+	t.Run("a labels-only edit keeps the stored name", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("disable-onedrive", 0)
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		var updated fleet.MDMWindowsConfigProfile
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			updated = p
+			return &p, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.NoError(t, err)
+		assert.Equal(t, "disable-onedrive", updated.Name)
+	})
+
+	t.Run("renaming onto a Fleet-reserved name is rejected", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("disable-onedrive", 0)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			return &p, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, mdm.FleetWindowsOSUpdatesProfileName, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "is not allowed")
+		require.False(t, ds.UpdateMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("a file name longer than the name column is rejected", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("disable-onedrive", 0)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			return &p, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, strings.Repeat("a", fleet.MaxProfileNameLength+1), syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.Error(t, err)
+		require.ErrorContains(t, err, fleet.MaxProfileNameLengthErrMsg)
+		require.False(t, ds.UpdateMDMWindowsConfigProfileFuncInvoked)
+	})
+
+	t.Run("profile content update for a team-scoped profile", func(t *testing.T) {
+		svc, ctx, ds, opts := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("Test Profile", 5)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		var updated fleet.MDMWindowsConfigProfile
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			updated = p
+			return &p, nil
+		}
+		var firedActivity activity_api.ActivityDetails
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			firedActivity = activity
+			return nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.NoError(t, err)
+		assert.Equal(t, syncML, updated.SyncML)
+		require.NotNil(t, updated.TeamID)
+		assert.EqualValues(t, 5, *updated.TeamID)
+
+		require.NotNil(t, firedActivity)
+		act, ok := firedActivity.(*fleet.ActivityTypeEditedWindowsProfile)
+		require.True(t, ok)
+		require.NotNil(t, act.TeamID)
+		assert.EqualValues(t, 5, *act.TeamID)
+		require.NotNil(t, act.TeamName)
+		assert.Equal(t, "team-5", *act.TeamName)
+	})
+
+	t.Run("profile content and labels update atomically in one call", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("Test Profile", 0)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		var updated fleet.MDMWindowsConfigProfile
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			updated = p
+			return &p, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, syncML, []string{"label1"}, fleet.LabelsIncludeAny, []string{"label2"}, optjson.Slice[byte]{}, nil, nil, nil)
+		require.NoError(t, err)
+		assert.Equal(t, syncML, updated.SyncML)
+		require.Len(t, updated.LabelsIncludeAny, 1)
+		assert.Equal(t, "label1", updated.LabelsIncludeAny[0].LabelName)
+		require.Len(t, updated.LabelsExcludeAny, 1)
+		assert.Equal(t, "label2", updated.LabelsExcludeAny[0].LabelName)
+	})
+
+	t.Run("editing a Fleet-managed profile is rejected", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile(mdm.FleetWindowsOSUpdatesProfileName, 0)
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			t.Fatal("should not reach the datastore update")
+			return nil, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "managed by Fleet")
+	})
+
+	t.Run("nonexistent profile propagates the not-found error", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		wantErr := errors.New("simulated profile lookup error")
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return nil, wantErr
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, "w"+uuid.NewString(), "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, wantErr)
+	})
+
+	t.Run("labels require a premium license, content-only edits do not", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		existing := newExistingProfile("Test Profile", 0)
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			t.Fatal("should not reach the datastore update")
+			return nil, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		require.ErrorContains(t, err, "Scoping configuration profiles with labels requires Fleet Premium license")
+
+		// content-only edit (no labels) still succeeds on a free license
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			return &p, nil
+		}
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.NoError(t, err)
+	})
+
+	t.Run("team-scoped update on a free license returns a license error", func(t *testing.T) {
+		// team profiles can survive a premium-to-free downgrade; the update
+		// must fail with a license error, not panic on the nil
+		// EnterpriseOverrides that free servers never populate.
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		existing := newExistingProfile("Test Profile", 5)
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			t.Fatal("should not reach the datastore update")
+			return nil, nil
+		}
+
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode")
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+		err = svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", nil, []string{"label1"}, fleet.LabelsIncludeAny, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("Fleet variables used in the upload are threaded through to the datastore call", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+		existing := newExistingProfile("Test Profile", 0)
+		syncML := syncMLForTest("./Device/Vendor/MSFT/Accounts/DomainName")
+		syncML = append(syncML, []byte("$FLEET_VAR_HOST_UUID")...)
+
+		ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+			return existing, nil
+		}
+		var capturedVars []fleet.FleetVarName
+		ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+			capturedVars = usesFleetVars
+			return &p, nil
+		}
+
+		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, syncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.NoError(t, err)
+		assert.Contains(t, capturedVars, fleet.FleetVarName("HOST_UUID"))
+	})
+
+	t.Run("OS-update profile restrictions apply on update the same as on create", func(t *testing.T) {
+		osUpdateSyncML := syncMLForTest("./Device/Vendor/MSFT/Policy/Config/Update/Install")
+
+		t.Run("update succeeds when OS updates are not already configured", func(t *testing.T) {
+			svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+			existing := newExistingProfile("Test Profile", 0)
+
+			ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+				return existing, nil
+			}
+			var updated fleet.MDMWindowsConfigProfile
+			ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+				updated = p
+				return &p, nil
+			}
+
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+			require.NoError(t, err)
+			assert.Equal(t, osUpdateSyncML, updated.SyncML)
+		})
+
+		t.Run("update is rejected when OS updates are already configured", func(t *testing.T) {
+			svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+			existing := newExistingProfile("Test Profile", 0)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				ac := &fleet.AppConfig{}
+				ac.MDM.WindowsEnabledAndConfigured = true
+				ac.MDM.WindowsUpdates = fleet.WindowsUpdates{
+					DeadlineDays:    optjson.SetInt(7),
+					GracePeriodDays: optjson.SetInt(2),
+				}
+				return ac, nil
+			}
+			ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+				return existing, nil
+			}
+			ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+				t.Fatal("should not reach the datastore update")
+				return nil, nil
+			}
+
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+			require.Error(t, err)
+			assert.ErrorContains(t, err, fleet.OSUpdatesAlreadyConfiguredErrorMessage)
+		})
+
+		t.Run("update requires a premium license", func(t *testing.T) {
+			svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+			existing := newExistingProfile("Test Profile", 0)
+
+			ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+				return existing, nil
+			}
+			ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+				t.Fatal("should not reach the datastore update")
+				return nil, nil
+			}
+
+			err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, existing.Name, osUpdateSyncML, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+			require.ErrorIs(t, err, fleet.ErrMissingLicense)
+		})
+	})
+
+	t.Run("fails if Windows MDM is not configured", func(t *testing.T) {
+		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierFree})
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.WindowsEnabledAndConfigured = false
+			return ac, nil
+		}
+		err := svc.UpdateMDMConfigProfile(ctx, "wsome-uuid", "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Windows MDM isn't turned on.")
+	})
+
+	t.Run("authorization outcome matches user role and team membership", func(t *testing.T) {
+		testCases := []struct {
+			name             string
+			user             *fleet.User
+			shouldFailGlobal bool
+			shouldFailTeam   bool
+		}{
+			{"global admin", &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, false, false},
+			{"global maintainer", &fleet.User{GlobalRole: new(fleet.RoleMaintainer)}, false, false},
+			{"global observer", &fleet.User{GlobalRole: new(fleet.RoleObserver)}, true, true},
+			{"team admin, belongs to team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}}, true, false},
+			{"team admin, DOES NOT belong to team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}}, true, true},
+			{"team maintainer, belongs to team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}}, true, false},
+			{"team maintainer, DOES NOT belong to team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}}, true, true},
+			{"team observer, belongs to team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}}, true, true},
+			{"team observer, DOES NOT belong to team", &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}}, true, true},
+			{"user no roles", &fleet.User{ID: 1337}, true, true},
+		}
+
+		checkShouldFail := func(t *testing.T, err error, shouldFail bool) {
+			t.Helper()
+			if !shouldFail {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), authz.ForbiddenErrorMessage)
+			}
+		}
+
+		for _, tt := range testCases {
+			t.Run(tt.name, func(t *testing.T) {
+				svc, baseCtx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+				ctx := viewer.NewContext(baseCtx, viewer.Viewer{User: tt.user})
+
+				noTeamProfile := newExistingProfile("No Team Profile", 0)
+				teamProfile := newExistingProfile("Team Profile", 1)
+
+				ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, puid string) (*fleet.MDMWindowsConfigProfile, error) {
+					if puid == noTeamProfile.ProfileUUID {
+						return noTeamProfile, nil
+					}
+					return teamProfile, nil
+				}
+				ds.UpdateMDMWindowsConfigProfileFunc = func(ctx context.Context, p fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
+					return &p, nil
+				}
+
+				// profile content and labels are deliberately nil/empty here --
+				// this isolates the authz checks from content/label validation.
+				err := svc.UpdateMDMConfigProfile(ctx, noTeamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+				checkShouldFail(t, err, tt.shouldFailGlobal)
+
+				err = svc.UpdateMDMConfigProfile(ctx, teamProfile.ProfileUUID, "", nil, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
+				checkShouldFail(t, err, tt.shouldFailTeam)
+			})
+		}
+	})
 }

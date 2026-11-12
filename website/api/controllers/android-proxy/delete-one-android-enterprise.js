@@ -50,30 +50,27 @@ module.exports = {
       throw 'unauthorized';
     }
 
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+
     // Delete the Android enterprise from Google (if it still exists)
     // Note: If the enterprise is already deleted in Google, we still want to clean up proxy database
     try {
       await sails.helpers.flow.build(async ()=>{
         let { google } = require('googleapis');
-        let androidmanagement = google.androidmanagement('v1');
-        let googleAuth = new google.auth.GoogleAuth({
-          scopes: [
-            'https://www.googleapis.com/auth/androidmanagement',
-            'https://www.googleapis.com/auth/pubsub'
-          ],
-          credentials: {
-            client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-            private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-          },
-        });
-        // Acquire the google auth client, and bind it to all future calls
-        let authClient = await googleAuth.getClient();
-        google.options({auth: authClient});
+        let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
         // Delete the android enterprise.
-        await androidmanagement.enterprises.delete({
+        sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+        if (!sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId]) { sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] = {count: 0, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl}; }
+        sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId].count++;
+        let _rtKey = androidEnterpriseId + ':delete_enterprise';
+        if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'delete_enterprise'}; }
+        sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
+        await androidManagementConnection.enterprises.delete({
           name: `enterprises/${androidEnterpriseId}`,
         });
-        let pubsub = google.pubsub('v1');
+        let pubsub = google.pubsub({version: 'v1', auth: androidManagementAuthClient});
         // Delete the enterprise's pubsub topic
         await pubsub.projects.topics.delete({
           topic: thisAndroidEnterprise.pubsubTopicName,
@@ -88,7 +85,7 @@ module.exports = {
         sails.log.warn(`p1: Android management API rate limit exceeded! Error: ${require('util').inspect(err)}`);
         return new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${err}`);
       }).intercept((err)=>{
-        return new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+        return new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
       });
     } catch (unusedErr) {
       // If Google API deletion fails (e.g., enterprise already deleted), continue with proxy cleanup

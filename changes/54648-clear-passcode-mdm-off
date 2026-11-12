@@ -1,0 +1,1 @@
+- Fixed `POST /api/v1/fleet/hosts/:id/clear_passcode` accepting requests for iOS/iPadOS hosts whose MDM is turned off, which queued a command that never reached the device and logged a `cleared_passcode` activity. It now returns a 400 error.

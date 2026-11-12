@@ -2,36 +2,28 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 import { CellProps, Column } from "react-table";
 
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import {
   formatSoftwareType,
   IHostSoftware,
   isIpadOrIphoneSoftwareSource,
+  NO_VULNERABILITIES_TOOLTIP_BY_SOURCE,
 } from "interfaces/software";
-import {
-  HostPlatform,
-  isIPadOrIPhone,
-  isLinuxLike,
-  isMacOS,
-  isWindows,
-} from "interfaces/platform";
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-
+import EmptyCellWithTooltip from "pages/SoftwarePage/components/tables/EmptyCellWithTooltip";
+import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
+import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
+import { VersionsColumnCell } from "pages/SoftwarePage/components/tables/VersionCell";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
+import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
+import { getVulnerabilities } from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
-
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
-import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
-import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
-import TooltipWrapper from "components/TooltipWrapper";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-
-import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
-import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
-import { getAutomaticInstallPoliciesCount } from "pages/SoftwarePage/helpers";
-import { sourcesWithLastOpenedTime } from "pages/hosts/details/components/InventoryVersions/InventoryVersions";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
 type ITableHeaderProps = IHeaderProps<IHostSoftware>;
@@ -47,7 +39,6 @@ interface ISoftwareTableHeadersProps {
   router: InjectedRouter;
   teamId: number;
   onShowInventoryVersions: (software: IHostSoftware) => void;
-  platform: HostPlatform;
 }
 
 // NOTE: cellProps come from react-table
@@ -56,7 +47,6 @@ export const generateSoftwareTableHeaders = ({
   router,
   teamId,
   onShowInventoryVersions,
-  platform,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -70,15 +60,19 @@ export const generateSoftwareTableHeaders = ({
           id,
           name,
           display_name,
+          bundle_identifier,
           source,
           app_store_app,
           software_package,
           icon_url,
+          auto_update_enabled,
+          auto_update_window_start,
+          auto_update_window_end,
         } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(id.toString()),
-          { team_id: teamId }
+          { fleet_id: teamId }
         );
 
         const hasInstaller = !!app_store_app || !!software_package;
@@ -89,11 +83,20 @@ export const generateSoftwareTableHeaders = ({
         );
         const isAndroidPlayStoreApp =
           !!app_store_app && source === "android_apps";
+        const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(source);
+
+        // Same gating as HostSoftwareLibraryTableConfig.
+        const deliveredVersionName =
+          (isIosOrIpadosApp || isAndroidPlayStoreApp) &&
+          app_store_app?.version_name
+            ? app_store_app.version_name
+            : undefined;
 
         return (
           <SoftwareNameCell
             name={name}
             display_name={display_name}
+            bundle_identifier={bundle_identifier}
             source={source}
             iconUrl={icon_url}
             path={softwareTitleDetailsPath}
@@ -102,8 +105,13 @@ export const generateSoftwareTableHeaders = ({
             isSelfService={isSelfService}
             automaticInstallPoliciesCount={automaticInstallPoliciesCount}
             pageContext="hostDetails"
-            isIosOrIpadosApp={isIpadOrIphoneSoftwareSource(source)}
+            isIosOrIpadosApp={isIosOrIpadosApp}
             isAndroidPlayStoreApp={isAndroidPlayStoreApp}
+            isAppStoreApp={!!app_store_app}
+            autoUpdateEnabled={auto_update_enabled}
+            autoUpdateWindowStart={auto_update_window_start}
+            autoUpdateWindowEnd={auto_update_window_end}
+            deliveredVersionName={deliveredVersionName}
           />
         );
       },
@@ -116,9 +124,7 @@ export const generateSoftwareTableHeaders = ({
       // need to access the same data. This is not supported with a string
       // accessor.
       accessor: (originalRow) => originalRow.installed_versions,
-      Cell: (cellProps: IInstalledVersionsCellProps) => {
-        return <VersionCell versions={cellProps.cell.value} />;
-      },
+      Cell: VersionsColumnCell,
     },
     {
       Header: "Type",
@@ -127,65 +133,77 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: ITableStringCellProps) => {
         const { source, extension_for } = cellProps.row.original;
         const value = formatSoftwareType({ source, extension_for });
-        return <TextCell value={value} />;
+        return <TooltipTruncatedTextCell value={value} />;
       },
     },
     {
       Header: (): JSX.Element => {
-        let tooltipContent = <></>;
-
-        if (isMacOS(platform)) {
-          tooltipContent = (
-            <>When the version installed most recently was last opened.</>
-          );
-        } else if (isLinuxLike(platform) || isWindows(platform)) {
-          tooltipContent = <>When any version was last opened.</>;
-        } else if (isIPadOrIPhone(platform)) {
-          tooltipContent = <>Date and time of last open.</>;
-        }
-
-        const lastOpenedHeader = tooltipContent ? (
-          <TooltipWrapper tipContent={tooltipContent}>
+        const lastOpenedHeader = (
+          <TooltipWrapper
+            tipContent={
+              <>
+                Only supported for macOS, Windows, and Linux native apps and
+                packages. Browser extensions, other package managers, and mobile
+                apps don&apos;t report this information.
+              </>
+            }
+            fixedPositionStrategy
+          >
             Last opened
           </TooltipWrapper>
-        ) : (
-          "Last opened"
         );
         return <HeaderCell value={lastOpenedHeader} disableSortBy />;
       },
       id: "Last opened",
       disableSortBy: true,
       accessor: (originalRow) => {
-        // Extract all last_opened_at values, filter out null/undefined, and ensure valid dates
-        const dateStrings = (originalRow.installed_versions || [])
+        const versions = originalRow.installed_versions || [];
+
+        const isSupported = versions.some(
+          (v) => v.last_opened_at !== undefined
+        );
+
+        // Extract all last_opened_at values that are actual dates (not empty strings)
+        const dateStrings = versions
           .map((v) => v.last_opened_at)
           .filter(
-            (date): date is string => !!date && !isNaN(new Date(date).getTime())
+            (date): date is string =>
+              date !== undefined &&
+              date !== "" &&
+              !isNaN(new Date(date).getTime())
           );
 
-        if (dateStrings.length === 0) return null;
+        // If we have actual dates, return the most recent one
+        if (dateStrings.length > 0) {
+          return dateStrings.reduce((a, b) =>
+            new Date(a).getTime() > new Date(b).getTime() ? a : b
+          );
+        }
 
-        // Find the most recent date string by comparing their Date values
-        return dateStrings.reduce((a, b) =>
-          new Date(a).getTime() > new Date(b).getTime() ? a : b
-        ); // cellProps.cell.value = mostRecent;
+        // If source supports last_opened_at, return empty string to indicate "Never"
+        // Otherwise return undefined to indicate "Not supported"
+        return isSupported ? "" : undefined;
       },
       Cell: (cellProps: ITableStringCellProps) => {
-        if (cellProps.cell.value) {
+        const lastOpenedAt = cellProps.cell.value;
+
+        // If we have a non-empty string value, display it
+        if (lastOpenedAt && lastOpenedAt !== "") {
           return (
             <TextCell
-              value={
-                <HumanTimeDiffWithDateTip timeString={cellProps.cell.value} />
-              }
+              value={<HumanTimeDiffWithDateTip timeString={lastOpenedAt} />}
             />
           );
         }
 
-        return sourcesWithLastOpenedTime.has(cellProps.row.original.source) ? (
-          <TextCell value="Never" />
-        ) : (
-          <TextCell value="Not supported" grey />
-        );
+        // If last_opened_at is an empty string, it means the software supports
+        // the field but hasn't been opened
+        if (lastOpenedAt === "") {
+          return <TextCell value="Never" />;
+        }
+
+        // If last_opened_at is undefined/missing, it's not supported
+        return <TextCell value="Not supported" grey />;
       },
     },
     {
@@ -195,6 +213,11 @@ export const generateSoftwareTableHeaders = ({
       Cell: (cellProps: IVulnerabilitiesCellProps) => {
         if (isIpadOrIphoneSoftwareSource(cellProps.row.original.source)) {
           return <TextCell value="Not supported" grey />;
+        }
+        const noVulnerabilitiesTip =
+          NO_VULNERABILITIES_TOOLTIP_BY_SOURCE[cellProps.row.original.source];
+        if (noVulnerabilitiesTip) {
+          return <EmptyCellWithTooltip tipContent={noVulnerabilitiesTip} />;
         }
         const vulnerabilities = getVulnerabilities(cellProps.cell.value ?? []);
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;

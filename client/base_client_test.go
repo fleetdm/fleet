@@ -1,0 +1,463 @@
+package client
+
+import (
+	"bytes"
+	"crypto/tls"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestUrlGeneration(t *testing.T) {
+	t.Run("without prefix", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/test/path", bc.URL("test/path", "").String())
+		require.Equal(t, "https://test.com/test/path?raw=query", bc.URL("test/path", "raw=query").String())
+	})
+
+	t.Run("with prefix", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com", true, "", "prefix/", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/prefix/test/path", bc.URL("test/path", "").String())
+		require.Equal(t, "https://test.com/prefix/test/path?raw=query", bc.URL("test/path", "raw=query").String())
+	})
+
+	t.Run("with subpath in base URL", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/api/fleet/orbit/enroll", bc.URL("/api/fleet/orbit/enroll", "").String())
+		require.Equal(t, "https://test.com/subpath/api/fleet/orbit/enroll?raw=query", bc.URL("/api/fleet/orbit/enroll", "raw=query").String())
+	})
+
+	t.Run("with subpath and trailing slash in base URL", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath/", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/api/fleet/orbit/enroll", bc.URL("/api/fleet/orbit/enroll", "").String())
+	})
+
+	t.Run("with subpath and path without leading slash", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/test/path", bc.URL("test/path", "").String())
+	})
+
+	t.Run("with subpath in base URL and a prefix", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com/subpath", true, "", "prefix/", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		require.Equal(t, "https://test.com/subpath/prefix/test/path", bc.URL("test/path", "").String())
+		require.Equal(t, "https://test.com/subpath/prefix/test/path?raw=query", bc.URL("test/path", "raw=query").String())
+	})
+}
+
+func TestParseResponseKnownErrors(t *testing.T) {
+	cases := []struct {
+		message string
+		code    int
+		out     error
+	}{
+		{"not found errors", http.StatusNotFound, &NotFoundErr{}},
+		{"unauthenticated errors", http.StatusUnauthorized, ErrUnauthenticated},
+		{"license errors", http.StatusPaymentRequired, ErrMissingLicense},
+	}
+
+	for _, c := range cases {
+		t.Run(c.message, func(t *testing.T) {
+			bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+			require.NoError(t, err)
+			response := &http.Response{
+				StatusCode: c.code,
+				Body:       io.NopCloser(bytes.NewBufferString(`{"test": "ok"}`)),
+			}
+			err = bc.ParseResponse("GET", "", response, &struct{}{})
+			require.ErrorIs(t, err, c.out)
+		})
+	}
+}
+
+func TestParseResponseOK(t *testing.T) {
+	bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+	require.NoError(t, err)
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewBufferString(`{"test": "ok"}`)),
+	}
+
+	var resDest struct{ Test string }
+	err = bc.ParseResponse("", "", response, &resDest)
+	require.NoError(t, err)
+	require.Equal(t, "ok", resDest.Test)
+}
+
+func TestParseResponseOKNoContent(t *testing.T) {
+	bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+	require.NoError(t, err)
+	response := &http.Response{
+		StatusCode: http.StatusNoContent,
+		Body:       io.NopCloser(bytes.NewBufferString("")),
+	}
+
+	var resDest struct{ Err error }
+	err = bc.ParseResponse("", "", response, &resDest)
+	require.NoError(t, err)
+	require.Nil(t, resDest.Err)
+}
+
+func TestParseResponseGeneralErrors(t *testing.T) {
+	t.Run("general HTTP errors", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		response := &http.Response{
+			StatusCode: http.StatusBadRequest,
+			Body:       io.NopCloser(bytes.NewBufferString(`{"test": "ok"}`)),
+		}
+		err = bc.ParseResponse("GET", "", response, &struct{}{})
+		require.Error(t, err)
+	})
+
+	t.Run("parse errors", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		response := &http.Response{
+			StatusCode: http.StatusBadRequest,
+			Body:       io.NopCloser(bytes.NewBufferString(`invalid json`)),
+		}
+		err = bc.ParseResponse("GET", "", response, &struct{}{})
+		require.Error(t, err)
+	})
+
+	t.Run("server-provided error name is kept", func(t *testing.T) {
+		bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.NoError(t, err)
+		response := &http.Response{
+			StatusCode: http.StatusUnprocessableEntity,
+			Body:       io.NopCloser(bytes.NewBufferString(`{"message": "Validation Failed", "errors": [{"name": "scripts[1]", "reason": "boom"}]}`)),
+		}
+		err = bc.ParseResponse("POST", "/api/latest/fleet/scripts/batch", response, &struct{}{})
+		var scErr *StatusCodeErr
+		require.ErrorAs(t, err, &scErr)
+		require.Equal(t, "scripts[1]", scErr.Name)
+		require.Equal(t, "Validation Failed: boom", scErr.Body)
+		require.Equal(t, http.StatusUnprocessableEntity, scErr.Code)
+		// the name must not leak into the printed message
+		require.NotContains(t, err.Error(), "scripts[1]")
+	})
+}
+
+func TestNewBaseClient(t *testing.T) {
+	t.Run("invalid addresses are an error", func(t *testing.T) {
+		_, err := NewBaseClient("http://foo\x7f.com/", true, "", "", nil, fleet.CapabilityMap{}, nil)
+		require.Error(t, err)
+	})
+
+	t.Run("http is only valid in development", func(t *testing.T) {
+		cases := []struct {
+			name               string
+			address            string
+			insecureSkipVerify bool
+			expectedErr        error
+		}{
+			{"http non-local URL without insecureSkipVerify", "http://test.com", false, ErrInvalidScheme},
+			{"http non-local URL with insecureSkipVerify", "http://test.com", true, nil},
+			{"https", "https://test.com", false, nil},
+			{"http localhost with insecureSkipVerify", "http://localhost:8080", true, nil},
+			{"http localhost without insecureSkipVerify", "http://localhost:8080", false, nil},
+			{"http local ip with insecureSkipVerify", "http://127.0.0.1:8080", true, nil},
+			{"http local ip without insecureSkipVerify", "http://127.0.0.1:8080", false, nil},
+		}
+
+		for _, c := range cases {
+			_, err := NewBaseClient(c.address, c.insecureSkipVerify, "", "", nil, fleet.CapabilityMap{}, nil)
+			require.Equal(t, c.expectedErr, err, c.name)
+		}
+	})
+}
+
+func TestClientCapabilities(t *testing.T) {
+	cases := []struct {
+		name         string
+		capabilities fleet.CapabilityMap
+		expected     string
+	}{
+		{"no capabilities", fleet.CapabilityMap{}, ""},
+		{"one capability", fleet.CapabilityMap{fleet.Capability("test_capability"): {}}, "test_capability"},
+		{
+			"multiple capabilities",
+			fleet.CapabilityMap{
+				fleet.Capability("test_capability"):   {},
+				fleet.Capability("test_capability_2"): {},
+			},
+			"test_capability,test_capability_2",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			bc, err := NewBaseClient("https://test.com", true, "", "", nil, c.capabilities, nil)
+			require.NoError(t, err)
+
+			var req http.Request
+			bc.SetClientCapabilitiesHeader(&req)
+			require.ElementsMatch(t, strings.Split(c.expected, ","), strings.Split(req.Header.Get(fleet.CapabilitiesHeader), ","))
+		})
+	}
+}
+
+func TestServerCapabilities(t *testing.T) {
+	// initial response has a single capability
+	response := &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
+		Header:     http.Header{fleet.CapabilitiesHeader: []string{"test_capability"}},
+	}
+	bc, err := NewBaseClient("https://test.com", true, "", "", nil, fleet.CapabilityMap{}, nil)
+	require.NoError(t, err)
+	testCapability := fleet.Capability("test_capability")
+
+	err = bc.ParseResponse("", "", response, &struct{}{})
+	require.NoError(t, err)
+	require.True(t, bc.GetServerCapabilities().Has(testCapability))
+
+	// later on, the server is downgraded and no longer has the capability
+	response = &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
+		Header:     http.Header{},
+	}
+	err = bc.ParseResponse("", "", response, &struct{}{})
+	require.NoError(t, err)
+	require.Equal(t, fleet.CapabilityMap{}, bc.ServerCapabilities)
+	require.False(t, bc.GetServerCapabilities().Has(testCapability))
+
+	// after an upgrade, the server has many capabilities
+	response = &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
+		Header:     http.Header{fleet.CapabilitiesHeader: []string{"test_capability,test_capability_2"}},
+	}
+	err = bc.ParseResponse("", "", response, &struct{}{})
+	require.NoError(t, err)
+	require.Equal(t, fleet.CapabilityMap{
+		testCapability:                        {},
+		fleet.Capability("test_capability_2"): {},
+	}, bc.ServerCapabilities)
+	require.True(t, bc.GetServerCapabilities().Has(testCapability))
+	require.True(t, bc.GetServerCapabilities().Has(fleet.Capability("test_capability")))
+}
+
+func TestFileResponseHandlePathTraversal(t *testing.T) {
+	t.Run("unix path traversal is stripped to base filename", func(t *testing.T) {
+		destDir := t.TempDir()
+		fr := &FileResponse{DestPath: destDir}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header: http.Header{
+				"Content-Disposition": []string{`attachment;filename="../../../etc/cron.d/backdoor"`},
+			},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.Equal(t, "backdoor", filepath.Base(fr.DestFilePath))
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
+	})
+
+	t.Run("normal filename is unchanged", func(t *testing.T) {
+		destDir := t.TempDir()
+		fr := &FileResponse{DestPath: destDir}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header: http.Header{
+				"Content-Disposition": []string{`attachment;filename="installer.pkg"`},
+			},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.Equal(t, "installer.pkg", filepath.Base(fr.DestFilePath))
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
+	})
+
+	t.Run("dot filename falls back to DestFile", func(t *testing.T) {
+		destDir := t.TempDir()
+		fr := &FileResponse{DestPath: destDir, DestFile: "fallback.txt"}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header: http.Header{
+				"Content-Disposition": []string{`attachment;filename="."`},
+			},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.Equal(t, "fallback.txt", filepath.Base(fr.DestFilePath))
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
+	})
+
+	t.Run("dotdot filename falls back to UUID", func(t *testing.T) {
+		destDir := t.TempDir()
+		fr := &FileResponse{DestPath: destDir}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header: http.Header{
+				"Content-Disposition": []string{`attachment;filename=".."`},
+			},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)))
+	})
+
+	// SkipMediaType is set on the Orbit signed-URL installer download path, where
+	// DestFile carries the server-supplied installer filename. A name that walks
+	// out of DestPath must not reach a file outside the download directory: plant
+	// a canary at the target and confirm the download cannot overwrite it.
+	t.Run("SkipMediaType DestFile cannot escape DestPath", func(t *testing.T) {
+		root := t.TempDir()
+		destDir := filepath.Join(root, "downloads")
+		require.NoError(t, os.Mkdir(destDir, 0o700))
+
+		canary := filepath.Join(root, "target.txt")
+		require.NoError(t, os.WriteFile(canary, []byte("original"), 0o600))
+
+		// "../target.txt" from destDir resolves to the canary one level up.
+		fr := &FileResponse{DestPath: destDir, DestFile: "../target.txt", SkipMediaType: true}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("attacker-controlled")),
+			Header:     http.Header{},
+		}
+
+		require.NoError(t, fr.Handle(resp))
+
+		got, err := os.ReadFile(canary)
+		require.NoError(t, err)
+		require.Equal(t, "original", string(got),
+			"download escaped DestPath and overwrote %q", canary)
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)),
+			"download must stay within DestPath, got %q", fr.DestFilePath)
+	})
+
+	// Windows treats both "/" and "\" as path separators, so a name using either
+	// must reduce to its base there. On Unix "\" is an ordinary filename
+	// character, so the join simply stays inside DestPath. Either way the write
+	// must land within DestPath; this runs on the Windows CI runner too.
+	t.Run("backslash-separated DestFile stays within DestPath", func(t *testing.T) {
+		root := t.TempDir()
+		destDir := filepath.Join(root, "downloads")
+		require.NoError(t, os.Mkdir(destDir, 0o700))
+
+		fr := &FileResponse{DestPath: destDir, DestFile: `..\installer.pkg`, SkipMediaType: true}
+		resp := &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("content")),
+			Header:     http.Header{},
+		}
+
+		err := fr.Handle(resp)
+		require.NoError(t, err)
+		require.True(t, strings.HasPrefix(fr.DestFilePath, destDir+string(filepath.Separator)),
+			"download must stay within DestPath, got %q", fr.DestFilePath)
+		if runtime.GOOS == "windows" {
+			require.Equal(t, "installer.pkg", filepath.Base(fr.DestFilePath))
+		}
+	})
+}
+
+func TestClientCertificateAuth(t *testing.T) {
+	httpRequestReceived := false
+
+	clientCAs, err := certificate.LoadPEM(filepath.Join("testdata", "client-ca.crt"))
+	require.NoError(t, err)
+
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		httpRequestReceived = true
+	}))
+	ts.TLS = &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		ClientAuth: tls.RequireAndVerifyClientCert,
+		ClientCAs:  clientCAs,
+	}
+
+	ts.StartTLS()
+	t.Cleanup(func() {
+		ts.Close()
+	})
+
+	// Try connecting without setting TLS client certificates.
+	bc, err := NewBaseClient(ts.URL, true, "", "", nil, fleet.CapabilityMap{}, nil)
+	require.NoError(t, err)
+	request, err := http.NewRequest("GET", ts.URL, nil)
+	require.NoError(t, err)
+	_, err = bc.HTTP.Do(request)
+	require.Error(t, err)
+	require.False(t, httpRequestReceived)
+
+	// Now try connecting by setting the correct TLS client certificates.
+	clientCrt, err := certificate.LoadClientCertificateFromFiles(filepath.Join("testdata", "client.crt"), filepath.Join("testdata", "client.key"))
+	require.NoError(t, err)
+	require.NotNil(t, clientCrt)
+	bc, err = NewBaseClient(ts.URL, true, "", "", &clientCrt.Crt, fleet.CapabilityMap{}, nil)
+	require.NoError(t, err)
+	request, err = http.NewRequest("GET", ts.URL, nil)
+	require.NoError(t, err)
+	_, err = bc.HTTP.Do(request)
+	require.NoError(t, err)
+	require.True(t, httpRequestReceived)
+}
+
+// roundTripperFunc wraps a transport without forwarding CloseIdleConnections,
+// like orbit's HTTP signature wrapper.
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestBaseClientCloseIdleConnections(t *testing.T) {
+	var closed atomic.Int64
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	srv.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateClosed {
+			closed.Add(1)
+		}
+	}
+	srv.Start()
+	t.Cleanup(srv.Close)
+
+	signerWrapper := func(c *http.Client) *http.Client {
+		inner := c.Transport
+		c.Transport = roundTripperFunc(func(r *http.Request) (*http.Response, error) { return inner.RoundTrip(r) })
+		return c
+	}
+	bc, err := NewBaseClient(srv.URL, true, "", "", nil, fleet.CapabilityMap{}, signerWrapper)
+	require.NoError(t, err)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL, nil)
+	require.NoError(t, err)
+	resp, err := bc.HTTP.Do(req)
+	require.NoError(t, err)
+	_, _ = io.Copy(io.Discard, resp.Body)
+	require.NoError(t, resp.Body.Close())
+
+	// The connection is now idle in the pool; closing it must reach the
+	// *http.Transport through the signer and otelhttp wrappers.
+	bc.CloseIdleConnections()
+	assert.Eventually(t, func() bool { return closed.Load() == 1 }, 5*time.Second, 10*time.Millisecond)
+}

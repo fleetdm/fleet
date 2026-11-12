@@ -1,12 +1,14 @@
-import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
-import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import { noop } from "lodash";
+import React from "react";
+
+import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import {
   IDeviceSoftwareWithUiStatus,
   IHostSoftwareUiStatus,
 } from "interfaces/software";
+import { createCustomRenderer } from "test/test-utils";
+
 import UpdatesCard from "./UpdatesCard";
 
 describe("UpdatesCard", () => {
@@ -109,7 +111,7 @@ describe("UpdatesCard", () => {
     expect(button).toBeDisabled();
   });
 
-  it("shows Spinner while loading", () => {
+  it("shows Spinner while loading", async () => {
     // Non-empty enhancedSoftware, isLoading
     const updates = createEnhancedSoftware(1);
     render(
@@ -122,7 +124,8 @@ describe("UpdatesCard", () => {
         isError={false}
       />
     );
-    expect(screen.getByTestId("spinner")).toBeInTheDocument();
+    // Spinner has a built-in anti-flash delay, so wait for it to appear.
+    expect(await screen.findByTestId("spinner")).toBeInTheDocument();
   });
 
   it("shows error view when isError is set", () => {

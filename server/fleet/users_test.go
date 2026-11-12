@@ -3,6 +3,7 @@ package fleet
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
@@ -234,7 +235,7 @@ func TestAdminCreateValidate(t *testing.T) {
 				ierr := err.(*InvalidArgumentError)
 				require.Equal(t, len(tc.errContains), len(ierr.Errors))
 				for _, expected := range tc.errContains {
-					assertContainsErrorName(t, *ierr, expected)
+					assertContainsErrorName(t, ierr, expected)
 				}
 			}
 		})
@@ -282,7 +283,7 @@ func TestInviteCreateValidate(t *testing.T) {
 				ierr := err.(*InvalidArgumentError)
 				for _, expected := range tc.errContains {
 					require.Equal(t, len(tc.errContains), len(ierr.Errors))
-					assertContainsErrorName(t, *ierr, expected)
+					assertContainsErrorName(t, ierr, expected)
 				}
 			}
 		})
@@ -314,11 +315,130 @@ func TestValidateEmail(t *testing.T) {
 	}
 }
 
-func assertContainsErrorName(t *testing.T, invalid InvalidArgumentError, name string) {
+func assertContainsErrorName(t *testing.T, invalid *InvalidArgumentError, name string) {
 	for _, argErr := range invalid.Errors {
 		if argErr.name == name {
 			return
 		}
 	}
 	t.Errorf("%v does not contain error %s", invalid, name)
+}
+
+func TestUserComputeStatus(t *testing.T) {
+	now := time.Date(2026, 8, 15, 12, 0, 0, 0, time.UTC)
+	daysAgo := func(days int) time.Time {
+		return now.Add(-time.Duration(days) * 24 * time.Hour)
+	}
+	admin := new("admin")
+
+	for _, tc := range []struct {
+		name     string
+		user     User
+		expected UserStatus
+	}{
+		{
+			name: "active when logged in recently",
+			user: User{
+				GlobalRole:  admin,
+				LastLoginAt: new(daysAgo(1)),
+			},
+			expected: UserStatusActive,
+		},
+		{
+			name: "inactive when last login is 30+ days old",
+			user: User{
+				GlobalRole:  admin,
+				LastLoginAt: new(daysAgo(31)),
+			},
+			expected: UserStatusInactive,
+		},
+		{
+			name: "inactive exactly at the 30-day boundary",
+			user: User{
+				GlobalRole:  admin,
+				LastLoginAt: new(daysAgo(30)),
+			},
+			expected: UserStatusInactive,
+		},
+		{
+			name: "falls back to created_at when never logged in, stale",
+			user: User{
+				UpdateCreateTimestamps: UpdateCreateTimestamps{
+					CreateTimestamp: CreateTimestamp{CreatedAt: daysAgo(31)},
+				},
+				GlobalRole: admin,
+			},
+			expected: UserStatusInactive,
+		},
+		{
+			name: "falls back to created_at when never logged in, fresh",
+			user: User{
+				UpdateCreateTimestamps: UpdateCreateTimestamps{
+					CreateTimestamp: CreateTimestamp{CreatedAt: daysAgo(1)},
+				},
+				GlobalRole: admin,
+			},
+			expected: UserStatusActive,
+		},
+		{
+			name: "active for API-only user with recent activity on an old token session",
+			user: User{
+				UpdateCreateTimestamps: UpdateCreateTimestamps{
+					CreateTimestamp: CreateTimestamp{CreatedAt: daysAgo(100)},
+				},
+				GlobalRole:     admin,
+				APIOnly:        true,
+				LastLoginAt:    new(daysAgo(100)),
+				LastActivityAt: new(daysAgo(1)),
+			},
+			expected: UserStatusActive,
+		},
+		{
+			name: "inactive for API-only user with no recent activity",
+			user: User{
+				UpdateCreateTimestamps: UpdateCreateTimestamps{
+					CreateTimestamp: CreateTimestamp{CreatedAt: daysAgo(100)},
+				},
+				GlobalRole:     admin,
+				APIOnly:        true,
+				LastLoginAt:    new(daysAgo(100)),
+				LastActivityAt: new(daysAgo(45)),
+			},
+			expected: UserStatusInactive,
+		},
+		{
+			name: "prefers most recent of last activity and last login",
+			user: User{
+				GlobalRole:     admin,
+				LastLoginAt:    new(daysAgo(40)),
+				LastActivityAt: new(daysAgo(2)),
+			},
+			expected: UserStatusActive,
+		},
+		{
+			name: "no access when user has no roles, regardless of last login",
+			user: User{
+				LastLoginAt: new(daysAgo(1)),
+			},
+			expected: UserStatusNoAccess,
+		},
+		{
+			name: "team role counts as access",
+			user: User{
+				Teams:       []UserTeam{{Team: Team{ID: 1}, Role: RoleObserver}},
+				LastLoginAt: new(daysAgo(31)),
+			},
+			expected: UserStatusInactive,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.expected, tc.user.ComputeStatus(now))
+		})
+	}
+}
+
+func TestHasAnyGlobalRole(t *testing.T) {
+	require.False(t, (&User{}).HasAnyGlobalRole())
+	require.False(t, (&User{GlobalRole: new("")}).HasAnyGlobalRole())
+	require.True(t, (&User{GlobalRole: new(RoleObserver)}).HasAnyGlobalRole())
 }

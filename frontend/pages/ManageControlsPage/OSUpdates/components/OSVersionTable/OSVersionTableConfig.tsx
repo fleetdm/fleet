@@ -1,13 +1,12 @@
 import React from "react";
 
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-
-import OSTypeCell from "../OSTypeCell";
 import { IFilteredOperatingSystemVersion } from "../CurrentVersionSection/CurrentVersionSection";
+import OSTypeCell from "../OSTypeCell";
 
 interface IOSTypeCellProps {
   row: {
@@ -77,7 +76,7 @@ export const generateTableHeaders = (teamId: number) => {
                 queryParams={{
                   os_name: cellProps.row.original.name_only,
                   os_version: cellProps.row.original.version,
-                  team_id: teamId,
+                  fleet_id: teamId,
                 }}
                 className="os-hosts-link"
                 rowHover

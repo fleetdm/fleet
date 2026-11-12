@@ -38,18 +38,31 @@ module.exports = {
     contactSource: {
       type: 'string',
       isIn: [
-        'Website - Contact forms',
-        'Website - Sign up',
-        'Website - Newsletter',
+        'Attended a call with Fleet',
+        'Event',
+        'Event - 2026-07 PSU MacAdmins',
+        'Event - Webinar',
+        'Event - Workshop - GitOps',
+        'GitHub - Contributed to fleetdm/fleet',
+        'GitHub - Forked fleetdm/fleet',
+        'GitHub - Stared fleetdm/fleet',
         'LinkedIn - Comment',
+        'LinkedIn - Liked the LinkedIn company page',
         'LinkedIn - Reaction',
         'LinkedIn - Share',
-        'LinkedIn - Liked the LinkedIn company page',
-        'Event - Marketing-led event',
-        'Event - Sales-led event',
-        'GitHub - Stared fleetdm/fleet',
-        'GitHub - Forked fleetdm/fleet',
-        'GitHub - Contributed to fleetdm/fleet',
+        'Prospecting - AE',
+        'Prospecting - Meeting service',
+        'Prospecting - Specialist',
+        'Website - Chat',
+        'Website - Contact forms',
+        'Website - Contact forms - Demo',
+        'Website - Contact forms - Demo - ICP',
+        'Website - Gated document',
+        'Website - Gated video',
+        'Website - Newsletter',
+        'Website - Sign up',
+        'Website - Swag request',
+        'Website - Workshop request'
       ],
     },
     getStartedResponses: {
@@ -59,11 +72,41 @@ module.exports = {
       type: 'string',
       isIn: [
         'Subscribed to the Fleet newsletter',
+        'Registered for a conference',
         // 'Signed up for a fleetdm.com account',//
         // 'Submitted the "Talk to us" form',
         // 'Submitted the "Send a message" form',
       ],
-    }
+    },
+
+    marketingAttributionCookie: {
+      type: {},
+      description: 'The contents of the marketingAttribution cookie set in the requesting user\'s browser',
+    },
+
+    trialInstanceUsageDetails: {
+      type: {
+        status: 'string',
+        lastUpdatedOn: 'string',
+        trialStartedOn: 'string',
+        trialEndsOn: 'string',
+        numUsers: 'number',
+        numHostsEnrolled: 'number',
+      }
+    },
+
+    numberOfHostsDetails: {
+      type: {
+        macosHosts: 'number',
+        windowsHosts: 'number',
+        linuxHosts: 'number',
+        iosHosts: 'number',
+        androidHosts: 'number',
+        otherHosts: 'number',
+      },
+      description: 'Details about the contacts\'s number of hosts. Will be added to their account.',
+      extendedDescription: 'Currently only sent when a user creates a quote on the self-service license dispenser.'
+    },
 
   },
 
@@ -73,7 +116,8 @@ module.exports = {
     success: {
       outputType: {
         salesforceAccountId: 'string',
-        salesforceContactId: 'string'
+        salesforceContactId: 'string',
+        mostRecentCampaign: 'string'
       }
     },
 
@@ -83,13 +127,15 @@ module.exports = {
 
   },
 
-  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal}) {
+  fn: async function ({emailAddress, linkedinUrl, firstName, lastName, organization, jobTitle, primaryBuyingSituation, psychologicalStage, psychologicalStageChangeReason, contactSource, description, getStartedResponses, intentSignal, marketingAttributionCookie, trialInstanceUsageDetails, numberOfHostsDetails}) {
+
     // Return undefined if we're not running in a production environment.
     if(sails.config.environment !== 'production') {
       sails.log.verbose('Skipping Salesforce integration...');
       return {
         salesforceAccountId: undefined,
-        salesforceContactId: undefined
+        salesforceContactId: undefined,
+        mostRecentCampaign: undefined
       };
     }
 
@@ -122,27 +168,219 @@ module.exports = {
     //  ╠╩╗║ ║║║   ║║  ╚╗╔╝╠═╣║  ║ ║║╣ ╚═╗   ║ ║ ║  ╚═╗║╣  ║
     //  ╚═╝╚═╝╩╩═╝═╩╝   ╚╝ ╩ ╩╩═╝╚═╝╚═╝╚═╝   ╩ ╚═╝  ╚═╝╚═╝ ╩
     // Build a dictionary of values we'll update/create a contact record with.
-    let valuesToSet = {};
+    let contactValuesToSet = {};
     if(emailAddress){
-      valuesToSet.Email = emailAddress;
+      contactValuesToSet.Email = emailAddress;
     }
     if(linkedinUrl){
-      valuesToSet.LinkedIn_profile__c = linkedinUrl;// eslint-disable-line camelcase
+      contactValuesToSet.LinkedIn_profile__c = linkedinUrl;// eslint-disable-line camelcase
     }
     if(primaryBuyingSituation) {
-      valuesToSet.Primary_buying_situation__c = primaryBuyingSituation;// eslint-disable-line camelcase
+      contactValuesToSet.Primary_buying_situation__c = primaryBuyingSituation;// eslint-disable-line camelcase
     }
     if(getStartedResponses) {
-      valuesToSet.Website_questionnaire_answers__c = getStartedResponses;// eslint-disable-line camelcase
+      contactValuesToSet.Website_questionnaire_answers__c = getStartedResponses;// eslint-disable-line camelcase
     }
     if(description) {
-      valuesToSet.Description = description;
+      // Create a ISO date timestamp to add to the description.
+      let isoTimeStringForThisDescriptionUpdate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+      contactValuesToSet.Description = isoTimeStringForThisDescriptionUpdate+': '+description;
     }
     if(intentSignal) {
-      valuesToSet.Intent_signals__c = intentSignal;// eslint-disable-line camelcase
+      contactValuesToSet.Intent_signals__c = intentSignal;// eslint-disable-line camelcase
     }
     if(jobTitle) {
-      valuesToSet.Title = jobTitle;
+      contactValuesToSet.Title = jobTitle;
+    }
+
+
+    if(trialInstanceUsageDetails) {
+      contactValuesToSet.Trial_status__c = trialInstanceUsageDetails.status;// eslint-disable-line camelcase
+      contactValuesToSet.Last_trial_sync__c = trialInstanceUsageDetails.lastUpdatedOn;// eslint-disable-line camelcase
+      contactValuesToSet.Trial_start_date__c = trialInstanceUsageDetails.trialStartedOn;// eslint-disable-line camelcase
+      contactValuesToSet.Trial_end_date__c = trialInstanceUsageDetails.trialEndsOn;// eslint-disable-line camelcase
+      contactValuesToSet.Trial_user_count__c = trialInstanceUsageDetails.numUsers;// eslint-disable-line camelcase
+      contactValuesToSet.Trial_hosts_enrolled__c = trialInstanceUsageDetails.numHostsEnrolled;// eslint-disable-line camelcase
+    }
+
+    let accountValuesToSet = {};
+
+    let formBasedContactSources = [
+      'Website - Contact forms',
+      'Website - Contact forms - Demo - ICP',
+      'Website - Contact forms - Demo',
+      'Website - Workshop request',
+      'Website - Gated document',
+      'Website - Gated video',
+    ];
+    if(contactSource && formBasedContactSources.includes(contactSource)) {
+      contactValuesToSet.Most_recent_campaign_member_status__c = 'Registered';// eslint-disable-line camelcase
+    }
+
+    if(numberOfHostsDetails){
+      accountValuesToSet.Total_macOS_hosts__c = numberOfHostsDetails.macosHosts;// eslint-disable-line camelcase
+      accountValuesToSet.Total_Windows_hosts__c = numberOfHostsDetails.windowsHosts;// eslint-disable-line camelcase
+      accountValuesToSet.Total_Linux_hosts__c = numberOfHostsDetails.linuxHosts;// eslint-disable-line camelcase
+      accountValuesToSet.Total_iOS_hosts__c = numberOfHostsDetails.iosHosts;// eslint-disable-line camelcase
+      accountValuesToSet.Total_Android_hosts__c = numberOfHostsDetails.androidHosts;// eslint-disable-line camelcase
+    }
+
+    //  ╔═╗╦═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗  ╔╦╗╔═╗╦═╗╦╔═╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╔╦╗╔╦╗╦═╗╦╔╗ ╦ ╦╔╦╗╦╔═╗╔╗╔
+    //  ╠═╝╠╦╝║ ║║  ║╣ ║╣ ╚═╗╚═╗  ║║║╠═╣╠╦╝╠╩╗║╣  ║ ║║║║║ ╦  ╠═╣ ║  ║ ╠╦╝║╠╩╗║ ║ ║ ║║ ║║║║
+    //  ╩  ╩╚═╚═╝╚═╝╚═╝╚═╝╚═╝╚═╝  ╩ ╩╩ ╩╩╚═╩ ╩╚═╝ ╩ ╩╝╚╝╚═╝  ╩ ╩ ╩  ╩ ╩╚═╩╚═╝╚═╝ ╩ ╩╚═╝╝╚╝
+    //  ╔═╗╔═╗╔═╗╦╔═╦╔═╗
+    //  ║  ║ ║║ ║╠╩╗║║╣
+    //  ╚═╝╚═╝╚═╝╩ ╩╩╚═╝
+    let attributionDetails = undefined;// We'll do a simple falsy check of this value when we determine what variables we'll need to set (e.g., Source channel or Most recent channel)
+
+    if(marketingAttributionCookie) {
+      attributionDetails = {};
+      // Determine if this user is "Digital" or "Organic"
+      let lowerCaseMediumValue = marketingAttributionCookie.medium ? marketingAttributionCookie.medium.toLowerCase() : '';
+      let sourceFriendlyNameByCodeName = {
+        // "Organic" sources:
+        // os: 'Search (ORGSRC)',
+        // dt: 'Direct traffic (DIRTRF)',
+        // wr: 'Web referral (WEBREF)',
+        // soc: 'Social (ORGSOC)',
+        // ai: '  AI (ORGAI)'
+        // "Digital" sources:
+        cpc: 'Paid search (PAYSRC)', //note: either cpc or ps both map to Paid Search
+        ps: 'Paid search (PAYSRC)',
+        so: 'Paid social (PAYSOC)',
+        pm: 'Paid media (PAYMED)',
+        cs: 'Content syndication (CONSYD)',
+        em: 'Email marketing (EMLMRK)',
+        // "Event" sources:
+        mc: 'Conference (CONF)',
+        rc: 'Conference (CONF)',
+        pe: 'Partner event (PTREVT)',
+        wh: 'Webinar (WBINR)',
+      };
+
+      attributionDetails.gclid = marketingAttributionCookie.gclid;
+
+      attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName[lowerCaseMediumValue] ? sourceFriendlyNameByCodeName[lowerCaseMediumValue] : undefined;
+
+      attributionDetails.initialUrl = marketingAttributionCookie.initialUrl;
+
+      attributionDetails.referrer = marketingAttributionCookie.referrer;
+
+      if(['cpc','ps', 'so', 'pm', 'cs', 'em'].includes(lowerCaseMediumValue)) {
+        // If the medium is set to a "Digital" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
+        attributionDetails.campaign = marketingAttributionCookie.campaign;
+        attributionDetails.sourceChannel = 'Digital';
+      } else if(['mc', 'rc', 'le', 'ec', 'fe', 'pe', 'se', 'wh', 'ws'].includes(lowerCaseMediumValue)) {
+        // If the medium is set to an "Event" source, we'll set the (most recent/source) campaign to the utm_campaign value the user visited the website with.
+        attributionDetails.campaign = marketingAttributionCookie.campaign;
+        attributionDetails.sourceChannel = 'Event';
+      } else if(marketingAttributionCookie.gclid) {
+        // If no recognized medium was provided, but the user arrived with a Google click ID (gclid), they came from a Google Ads click (auto-tagged ads don't include utm parameters).
+        attributionDetails.sourceChannel = 'Digital';
+        attributionDetails.sourceChannelDetails = sourceFriendlyNameByCodeName['ps'];
+        attributionDetails.campaign = marketingAttributionCookie.campaign ? marketingAttributionCookie.campaign : `${attributionDetails.sourceChannel} - ${attributionDetails.sourceChannelDetails}`;
+      } else {
+        // If no medium was provided via utm parameter, set the source channel to "Organic".
+        attributionDetails.sourceChannel = 'Organic';
+
+        if(!marketingAttributionCookie.referrer || marketingAttributionCookie.referrer === 'https://fleetdm.com/') {
+          // If no referrer is set, or the referrer is set to the Fleet website, we'll assume this user came to the website directly
+          attributionDetails.sourceChannelDetails = 'Direct traffic (DIRTRF)';
+        } else {
+          // Otherwise, we'll check the referer value and attempt to categorize the referer.
+          let REFERRER_DOMAINS_FOR_ORGANIC_SEARCH = [
+            'https://www.google.',      // covers all ~190 country variants (google.com, google.co.uk, google.de, etc.)
+            'https://www.bing.com/search',
+            'https://search.yahoo.com/',
+            'https://duckduckgo.com/',
+            'https://www.baidu.com/',
+            'https://www.ecosia.org/',
+            'https://www.startpage.com/',
+            'https://search.brave.com/',
+            'https://kagi.com/',
+            'https://www.ask.com/',
+            'https://www.aol.com/',
+            'https://yandex.com/',
+            'https://yandex.ru/',
+          ];
+
+          let REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL = [
+            'https://www.linkedin.com/',
+            'https://linkedin.com/',
+            'https://lnkd.in/',
+            'https://www.reddit.com/',
+            'https://old.reddit.com/',
+            'https://news.ycombinator.com/',
+            'https://x.com/',
+            'https://twitter.com/',
+            'https://www.twitter.com/',
+            'https://t.co/',
+            'https://www.facebook.com/',
+            'https://l.facebook.com/',
+            'https://m.facebook.com/',
+            'https://www.instagram.com/',
+            'https://www.threads.net/',
+            'https://bsky.app/',
+            'https://mastodon.social/',
+            'https://fosstodon.org/',
+            'https://www.youtube.com/',
+            'https://www.pinterest.com/',
+            'https://www.quora.com/',
+          ];
+
+          let REFERRER_DOMAINS_FOR_ORGANIC_AI = [
+            // === MAJOR GLOBAL AI CHATBOTS ===
+            'https://chat.openai.com/',
+            'https://chatgpt.com/',
+            'https://claude.ai/',
+            'https://claude.com/',
+            'https://gemini.google.com/',
+            'https://bard.google.com/',
+            'https://copilot.microsoft.com/',
+            'https://copilot.cloud.microsoft/',
+            'https://www.bing.com/chat',
+            // === QWEN / ALIBABA ECOSYSTEM ===
+            'https://chat.qwen.ai/',
+            'https://chat.qwenlm.ai/',
+            'https://qwen.ai/',
+            // === AI SEARCH ENGINES ===
+            'https://www.perplexity.ai/',
+            'https://perplexity.ai/',
+            // === META / X / SOCIAL AI ===
+            'https://www.meta.ai/',
+            'https://ai.meta.com/',
+            'https://grok.com/',
+            'https://grok.x.ai/',
+            'https://x.ai/',
+            // === AGGREGATORS & MULTI-MODEL PLATFORMS ===
+            'https://poe.com/',
+            'https://www.poe.com/',
+            'https://huggingface.co/chat/',
+            'https://together.ai/',
+            'https://platform.mistral.ai/chat',
+          ];
+
+          let referrer = typeof marketingAttributionCookie.referrer === 'string'
+            ? marketingAttributionCookie.referrer
+            : '';
+
+          if(REFERRER_DOMAINS_FOR_ORGANIC_SEARCH.some((domain) => referrer.startsWith(domain))) {
+            // If search engine » Organic search
+            attributionDetails.sourceChannelDetails = 'Search (ORGSRC)';
+          } else if(REFERRER_DOMAINS_FOR_ORGANIC_SOCIAL.some((domain) => referrer.startsWith(domain))) {
+            // If social media » Organic social
+            attributionDetails.sourceChannelDetails = 'Social (ORGSOC)';
+          } else if(REFERRER_DOMAINS_FOR_ORGANIC_AI.some((domain) => referrer.startsWith(domain))) {
+            // If AI/LLM » Organic AI
+            attributionDetails.sourceChannelDetails = 'AI (ORGAI)';
+          } else {
+            // If not either of those » Web referral
+            attributionDetails.sourceChannelDetails = 'Web referral (WEBREF)';
+          }
+        }
+        // Build the campaign value using the sourceChannel and sourceChannelDetails values
+        attributionDetails.campaign = `${attributionDetails.sourceChannel} - ${attributionDetails.sourceChannelDetails}`;
+      }
     }
 
     //  ╦  ╔═╗╔═╗╦╔═  ╔═╗╔═╗╦═╗  ╔═╗═╗ ╦╦╔═╗╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔╗╔╔╦╗╔═╗╔═╗╔╦╗
@@ -163,7 +401,7 @@ module.exports = {
         });
         // If we matched a contact record by searchign last email associated by fleetdm.com, remove the email address from the update criteria.
         if(existingContactRecord){
-          delete valuesToSet.Email;
+          delete contactValuesToSet.Email;
         }
       }
     } else if(linkedinUrl) {
@@ -192,10 +430,17 @@ module.exports = {
       let enrichmentData = await sails.helpers.iq.getEnriched(emailAddress, linkedinUrl, firstName, lastName, organization);
       // Add information from the enrichmentData to the values to set on the new Contact record.
       if(enrichmentData.person && enrichmentData.person.linkedinUrl){
-        valuesToSet.LinkedIn_profile__c = enrichmentData.person.linkedinUrl;// eslint-disable-line camelcase
+        contactValuesToSet.LinkedIn_profile__c = enrichmentData.person.linkedinUrl;// eslint-disable-line camelcase
       }
       if(enrichmentData.person && enrichmentData.person.title){
-        valuesToSet.Title = enrichmentData.person.title;
+        contactValuesToSet.Title = enrichmentData.person.title;
+      }
+      // If no firstName/lastName was provided but enrichment matched a name, use it for the new contact record.
+      if(enrichmentData.person && enrichmentData.person.firstName && !firstName) {
+        firstName = enrichmentData.person.firstName;
+      }
+      if(enrichmentData.person && enrichmentData.person.lastName && !lastName) {
+        lastName = enrichmentData.person.lastName;
       }
       let salesforceAccountOwnerId;
       if(!enrichmentData.employer || !enrichmentData.employer.emailDomain || !enrichmentData.employer.organization) {
@@ -225,9 +470,9 @@ module.exports = {
         // If we didn't find an existing account by name or website, try to get the global domain of the user's organization and look for a matching account record.
         if(!existingAccountRecord) {
           let glboalDomainPrompt = `Given this domain "${enrichmentData.employer.emailDomain}", assuming we want a global customer account entry in our CRM, what might be the equivalent global domain? If the website is already the global domain, respond with that. (Respond only with the domain, as a JSON string.)`;
-          let globalDomain = await sails.helpers.ai.prompt.with({prompt: glboalDomainPrompt, baseModel:'gpt-5-nano-2025-08-07', expectJson: true})
+          let globalDomain = await sails.helpers.ai.prompt.with({prompt: glboalDomainPrompt, baseModel:'claude-haiku-4-5', expectJson: true})
           .tolerate((err)=>{
-            sails.log.warn(`When trying to ask ChatGPT about the global domain of an organization for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
+            sails.log.warn(`When trying to ask an LLM about the global domain of an organization for a user, an error occurred. Full error: ${require('util').inspect(err, {depth: 2})}`);
             // If an error occurs getting the global domain, return the emailDomain from the get-enriched helper.
             return enrichmentData.employer.emailDomain;// Note: This will make the account search below
           });
@@ -278,15 +523,43 @@ module.exports = {
         // console.log('New account created!', salesforceAccountId);
       }//ﬁ
 
-      // Only add contactSource to valuesToSet if we're creating a new contact record.
+      // Only add contactSource to contactValuesToSet if we're creating a new contact record.
       if(contactSource) {
-        valuesToSet.Contact_source__c = contactSource;// eslint-disable-line camelcase
+        contactValuesToSet.Contact_source__c = contactSource;// eslint-disable-line camelcase
       }
 
       // console.log(`creating new Contact record.`)
       //  ╔═╗╦═╗╔═╗╔═╗╔╦╗╔═╗  ╔╗╔╔═╗╦ ╦  ╔═╗╔═╗╔╗╔╔╦╗╔═╗╔═╗╔╦╗
       //  ║  ╠╦╝║╣ ╠═╣ ║ ║╣   ║║║║╣ ║║║  ║  ║ ║║║║ ║ ╠═╣║   ║
       //  ╚═╝╩╚═╚═╝╩ ╩ ╩ ╚═╝  ╝╚╝╚═╝╚╩╝  ╚═╝╚═╝╝╚╝ ╩ ╩ ╩╚═╝ ╩
+
+      // If we're creating a new contact, and this user has a marketing attribution cookie, update the contactValuesToSet to include information from the cookie.
+      if(attributionDetails) {
+        contactValuesToSet.Source_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
+        contactValuesToSet.Source_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
+        contactValuesToSet.Source_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
+        contactValuesToSet.Source_campaign_initial_url__c = attributionDetails.initialUrl; // eslint-disable-line camelcase
+        contactValuesToSet.Most_recent_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
+        contactValuesToSet.Most_recent_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
+        contactValuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
+        contactValuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
+        contactValuesToSet.GCLID__c = attributionDetails.gclid;// eslint-disable-line camelcase
+        contactValuesToSet.Source_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
+        contactValuesToSet.Most_recent_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
+      }
+
+
+
+      // If we don't have a firstName or lastName (from inputs or enrichment), tell Salesforce to save the
+      // record even if its duplicate rules match — otherwise we'd silently update an unrelated "? ?"
+      // contact instead of creating a new one for this person.
+      let createOptions;
+      if(!firstName && !lastName) {
+        createOptions = {
+          headers: { 'Sforce-Duplicate-Rule-Header': 'allowSave=true' }
+        };
+      }
+
       let duplicateContactWasFound = false;
       let newContactRecord = await sails.helpers.flow.build(async ()=>{
         return await salesforceConnection.sobject('Contact')
@@ -295,12 +568,12 @@ module.exports = {
           OwnerId: salesforceAccountOwnerId,
           FirstName: firstName ? firstName : '?',
           LastName: lastName ? lastName : '?',
-          ...valuesToSet,
-        });
+          ...contactValuesToSet,
+        }, createOptions);
       })// If Salesforce returns a duplicates_detected error message, use the first duplicate record returned in the error.
       .tolerate({errorCode: 'DUPLICATES_DETECTED'}, (err)=>{
         // Get the first matched duplicate record returned in the error returned by Salesforce.
-        let firstContactRecordMatchedByDuplicateRule = _.get(err, 'duplicateResult.matchResults[0].matchRecords[0].record.Id');
+        let firstContactRecordMatchedByDuplicateRule = _.get(err.data, 'duplicateResult.matchResults[0].matchRecords[0].record.Id');
         if(firstContactRecordMatchedByDuplicateRule) {
           duplicateContactWasFound = true;
           return {id: firstContactRecordMatchedByDuplicateRule};
@@ -334,14 +607,21 @@ module.exports = {
         .findOne({
           Id: salesforceContactId,
         });
-        // If an email address was provided, and the existing contact has an email address set, remove it from the ValuesToSet dictionairy and set it as the "last email associated by fleetdm.com"
+        // If an email address was provided, and the existing contact has an email address set, remove it from the contactValuesToSet dictionairy and set it as the "last email associated by fleetdm.com"
         if(emailAddress && existingContactRecord.Email){
-          delete valuesToSet.Email;
-          valuesToSet.Last_email_associated_by_fleetdm_com__c =  emailAddress;// eslint-disable-line camelcase
+          delete contactValuesToSet.Email;
+          contactValuesToSet.Last_email_associated_by_fleetdm_com__c =  emailAddress;// eslint-disable-line camelcase
         }
-        // If a contact souce was provided, since we found an existing contact when trying to create one, remove it from the valuesToSet.
+        if(attributionDetails) {
+          // If we found an existing record after attempting to create a new record, remove the source details and campaign, these will be set as different values if we are updating a record.
+          delete contactValuesToSet.Source_channel__c;
+          delete contactValuesToSet.Source_channel_detail__c;
+          delete contactValuesToSet.Source_campaign__c;
+          delete contactValuesToSet.Source_campaign_initial_url__c;
+        }
+        // If a contact souce was provided, since we found an existing contact when trying to create one, remove it from the contactValuesToSet.
         if(contactSource) {
-          delete valuesToSet.Contact_source__c;
+          delete contactValuesToSet.Contact_source__c;
         }
 
       }
@@ -351,16 +631,24 @@ module.exports = {
     //  ║ ║╠═╝ ║║╠═╣ ║ ║╣   ║╣ ╔╩╦╝║╚═╗ ║ ║║║║║ ╦  ║  ║ ║║║║ ║ ╠═╣║   ║
     //  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝  ╚═╝╩ ╚═╩╚═╝ ╩ ╩╝╚╝╚═╝  ╚═╝╚═╝╝╚╝ ╩ ╩ ╩╚═╝ ╩
     if(existingContactRecord) {
-      // If a description was provided and the contact has a description, append the new description to it.
-      if(description && existingContactRecord.Description) {
-        valuesToSet.Description = existingContactRecord.Description + '\n' + description;
+      // If the existing contact has a placeholder name and we now have
+      // a real firstName/lastName, overwrite the placeholder. Otherwise leave the existing name alone.
+      if(firstName && existingContactRecord.FirstName === '?') {
+        contactValuesToSet.FirstName = firstName;
       }
-      // If we're updating a contact, add psychologicalStage and psychologicalStageChangeReason to the dictionary of valuesToSet.
+      if(lastName && existingContactRecord.LastName === '?') {
+        contactValuesToSet.LastName = lastName;
+      }
+      // If a description was provided and the contact has a description, prepend the new description to it.
+      if(description && existingContactRecord.Description) {
+        contactValuesToSet.Description += '\n' + existingContactRecord.Description;
+      }
+      // If we're updating a contact, add psychologicalStage and psychologicalStageChangeReason to the dictionary of contactValuesToSet.
       if(psychologicalStage) {
-        valuesToSet.Stage__c = psychologicalStage;// eslint-disable-line camelcase
+        contactValuesToSet.Stage__c = psychologicalStage;// eslint-disable-line camelcase
       }
       if(psychologicalStageChangeReason) {
-        valuesToSet.Psystage_change_reason__c = psychologicalStageChangeReason;// eslint-disable-line camelcase
+        contactValuesToSet.Psystage_change_reason__c = psychologicalStageChangeReason;// eslint-disable-line camelcase
       }
       // If an intent signal was specified, add it to the list of intent signals on the exisitng contact.
       // Note: intent signals values are stored as a single string in salesforce, separated by a semicolon.
@@ -371,12 +659,25 @@ module.exports = {
         if(!existingContactIntentSignalsAsAnArray.includes(intentSignal)) {
           existingContactIntentSignalsAsAnArray.push(intentSignal);
           // Convert the array back into a string to send it to Salesforce.
-          valuesToSet.Intent_signals__c = existingContactIntentSignalsAsAnArray.join(';');// eslint-disable-line camelcase
+          contactValuesToSet.Intent_signals__c = existingContactIntentSignalsAsAnArray.join(';');// eslint-disable-line camelcase
         } else {
-          // Otherwise, if the existing contact already has this intent signal tracked, remove it from the valuesToSet
-          delete valuesToSet.Intent_signals__c;
+          // Otherwise, if the existing contact already has this intent signal tracked, remove it from the contactValuesToSet
+          delete contactValuesToSet.Intent_signals__c;
         }
       }
+
+      // Set the most recent source, source details, and campaign.
+      if(attributionDetails) {
+        // IF attribution details were set, check to see if this contact has a source campaign set to the current campaign.
+        if(existingContactRecord.Source_campaign__c !== attributionDetails.campaign) {
+          contactValuesToSet.Most_recent_channel_detail__c = attributionDetails.sourceChannelDetails;// eslint-disable-line camelcase
+          contactValuesToSet.Most_recent_channel__c = attributionDetails.sourceChannel;// eslint-disable-line camelcase
+          contactValuesToSet.Most_recent_campaign__c = attributionDetails.campaign;// eslint-disable-line camelcase
+          contactValuesToSet.Most_recent_campaign_initial_url__c = attributionDetails.initialUrl;// eslint-disable-line camelcase
+        }
+        contactValuesToSet.Most_recent_referrer_url__c = attributionDetails.referrer;// eslint-disable-line camelcase
+      }
+
 
       // Check the existing contact record's psychologicalStage (If it is set).
       if(psychologicalStage && existingContactRecord.Stage__c !== null) {
@@ -388,26 +689,39 @@ module.exports = {
           // If a psychological stage regression is caused by anything other than the start flow, remove the updated value.
           // This is done to prevent automated psyStage regressions caused by users taking other action on the website. (e.g, Booking a meeting or requesting Fleet swag.)
           if(psychologicalStageChangeReason && psychologicalStageChangeReason !== 'Website - Organic start flow') {
-            delete valuesToSet.Stage__c;
-            delete valuesToSet.Psystage_change_reason__c;
+            delete contactValuesToSet.Stage__c;
+            delete contactValuesToSet.Psystage_change_reason__c;
           }
         }
       }
+
       // console.log(`Exisitng contact found! ${existingContactRecord.Id}`);
       // If we found an existing contact, we'll update it with the information provided.
       salesforceContactId = existingContactRecord.Id;
       await salesforceConnection.sobject('Contact')
       .update({
         Id: salesforceContactId,
-        ...valuesToSet,
+        ...contactValuesToSet,
       });
       salesforceAccountId = existingContactRecord.AccountId;
       // console.log(`${salesforceContactId} updated!`);
+
+      //  ╦ ╦╔═╗╔╦╗╔═╗╔╦╗╔═╗  ╔═╗╔═╗╔═╗╔═╗╦ ╦╔╗╔╔╦╗
+      //  ║ ║╠═╝ ║║╠═╣ ║ ║╣   ╠═╣║  ║  ║ ║║ ║║║║ ║
+      //  ╚═╝╩  ═╩╝╩ ╩ ╩ ╚═╝  ╩ ╩╚═╝╚═╝╚═╝╚═╝╝╚╝ ╩
+      if(_.keysIn(accountValuesToSet).length > 0 && salesforceAccountId !== '0014x000025JC8DAAW'){
+        await salesforceConnection.sobject('Account')
+        .update({
+          Id: salesforceAccountId,
+          ...accountValuesToSet,
+        });
+      }
     }
 
     return {
       salesforceAccountId,
-      salesforceContactId
+      salesforceContactId,
+      mostRecentCampaign: attributionDetails ? attributionDetails.campaign : undefined
     };
 
   }

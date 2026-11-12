@@ -2,17 +2,23 @@
   @include vertical-page-tab-panel-layout;
   margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
-  &__description {
-    margin: 0;
-  }
-
   &__premium-feature-message {
     margin-top: $pad-xxxlarge;
   }
 
   .list-item {
     &__actions {
-      display: none;
+      // opacity/pointer-events (not display:none) so action buttons stay in
+      // the tab order in both directions. display:none would remove them from
+      // layout and tab order, breaking Shift+Tab reversal.
+      // Gap between the buttons is set in ScriptListItem's own styles — not
+      // duplicated here, since an equally-specific selector on both would make
+      // the winner depend on SCSS compile order.
+      display: flex;
+      justify-content: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 150ms ease-in-out;
     }
   }
   .upload-list__list-item {
@@ -20,15 +26,20 @@
     padding: 0;
     .script-list-item {
       padding: 1rem 1.5rem;
-      &:hover {
-        // currently this behavior has only been specified for Script list items
+      &:hover,
+      &:focus-within {
         background-color: $ui-off-white;
-        cursor: pointer;
         .list-item__actions {
-          display: flex;
-          justify-content: flex-end;
-          gap: $pad-medium;
+          opacity: 1;
+          pointer-events: auto;
         }
+      }
+      &:hover {
+        cursor: pointer;
+      }
+      // Keyboard focus ring for the role="button" row variant.
+      &:focus {
+        outline: 1px solid $core-fleet-black;
       }
     }
   }

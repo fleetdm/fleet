@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +29,11 @@ func (nopLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 	return map[string]string{}, nil
 }
 
-func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
+func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) (bool, error) {
+	return true, nil
+}
+
+func (nopLiveQuery) RestoreQueryTargetForHost(name string, hostID uint) error {
 	return nil
 }
 
@@ -37,6 +43,78 @@ func (nopLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaign
 
 func (q nopLiveQuery) LoadActiveQueryNames() ([]string, error) {
 	return nil, nil
+}
+
+func (q nopLiveQuery) GetQueryResultsCounts([]uint) (map[uint]int, error) {
+	return make(map[uint]int), nil
+}
+
+func (q nopLiveQuery) IncrQueryResultsCounts(map[uint]int) error {
+	return nil
+}
+
+func (q nopLiveQuery) SetQueryResultsCount(uint, int) error {
+	return nil
+}
+
+func (q nopLiveQuery) DeleteQueryResultsCount(uint) error {
+	return nil
+}
+
+func (q nopLiveQuery) SetQueryReportsHostCount(int) error {
+	return nil
+}
+
+func (q nopLiveQuery) GetQueryReportsHostCount() (int, bool, error) {
+	return 0, false, nil
+}
+
+func (q nopLiveQuery) SetQueryReportsHostCountIfAbsent(int) error {
+	return nil
+}
+
+func (q nopLiveQuery) SetQueryResultsCountsIfAbsent(map[uint]int) error {
+	return nil
+}
+
+func (q nopLiveQuery) IncrQueryReportsHostCount(int) error {
+	return nil
+}
+
+func (q nopLiveQuery) MarkQueryReportsClipped(map[uint]time.Duration) error {
+	return nil
+}
+
+func (q nopLiveQuery) QueryReportsClipped([]uint) (map[uint]bool, error) {
+	return map[uint]bool{}, nil
+}
+
+func (q nopLiveQuery) ClearQueryReportsClipped([]uint) error {
+	return nil
+}
+
+func (q nopLiveQuery) RecordQueryResultsLastFetched([]uint, time.Time) error {
+	return nil
+}
+
+func (q nopLiveQuery) LoadQueryResultsLastFetched() (map[uint]time.Time, error) {
+	return map[uint]time.Time{}, nil
+}
+
+func (q nopLiveQuery) ClearProcessedQueryResultsLastFetched() error {
+	return nil
+}
+
+func (q nopLiveQuery) AcquireQueryReportWriteSlot(string, int, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (q nopLiveQuery) ReleaseQueryReportWriteSlot(string) error {
+	return nil
+}
+
+func (q nopLiveQuery) LiveQueryStore() fleet.LiveQueryStore {
+	return q
 }
 
 func TestLiveQueryAuth(t *testing.T) {
@@ -316,4 +394,175 @@ func TestLiveQueryLabelValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestLiveQueryLabelBypassPrevented verifies that when a user is observer on team 1 and
+// maintainer on team 2, running a team-2 query via a label target:
+//   - observer_can_run=false: HostIDsInTargets sees IncludeObserver=false, so team-1 observer
+//     hosts are excluded (label bypass prevented).
+//   - observer_can_run=true: HostIDsInTargets sees IncludeObserver=true but ObserverTeamID=2,
+//     so team-1 observer hosts are still excluded — observer_can_run is scoped to the query's
+//     own team (team 2), not to all teams the user observes.
+func TestLiveQueryLabelBypassPrevented(t *testing.T) {
+	ds := new(mock.Store)
+	qr := pubsub.NewInmemQueryResults()
+	svc, ctx := newTestService(t, ds, qr, nopLiveQuery{})
+
+	user := &fleet.User{
+		ID: 99,
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer},
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{LiveQueryDisabled: false}}, nil
+	}
+	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+		return camp, nil
+	}
+	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+		return target, nil
+	}
+
+	testCases := []struct {
+		name                 string
+		observerCanRun       bool
+		expectIncludeObs     bool
+		expectObserverTeamID *uint
+	}{
+		{
+			name:                 "observer_can_run=false: label expansion excludes observer-only team hosts",
+			observerCanRun:       false,
+			expectIncludeObs:     false,
+			expectObserverTeamID: ptr.Uint(2), // always set to query's team; harmless no-op when IncludeObserver=false
+		},
+		{
+			name:                 "observer_can_run=true: label expansion scoped to query's team only",
+			observerCanRun:       true,
+			expectIncludeObs:     true,
+			expectObserverTeamID: ptr.Uint(2), // query's team — team-1 observer hosts remain excluded
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			query := &fleet.Query{
+				ID:             10,
+				AuthorID:       ptr.Uint(user.ID),
+				Name:           "q",
+				Query:          "SELECT 1",
+				ObserverCanRun: tt.observerCanRun,
+				TeamID:         ptr.Uint(2),
+			}
+			ds.QueryFunc = func(_ context.Context, _ uint) (*fleet.Query, error) {
+				return query, nil
+			}
+
+			var capturedFilter fleet.TeamFilter
+			ds.HostIDsInTargetsFunc = func(_ context.Context, filter fleet.TeamFilter, _ fleet.HostTargets) ([]uint, error) {
+				capturedFilter = filter
+				return []uint{20}, nil
+			}
+			ds.CountHostsInTargetsFunc = func(_ context.Context, _ fleet.TeamFilter, _ fleet.HostTargets, _ time.Time) (fleet.TargetMetrics, error) {
+				return fleet.TargetMetrics{TotalHosts: 1}, nil
+			}
+
+			userCtx := viewer.NewContext(ctx, viewer.Viewer{User: user})
+			_, err := svc.NewDistributedQueryCampaign(userCtx, query.Query, ptr.Uint(query.ID), fleet.HostTargets{LabelIDs: []uint{5}})
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectIncludeObs, capturedFilter.IncludeObserver, "IncludeObserver mismatch for observer_can_run=%v", tt.observerCanRun)
+			assert.Equal(t, tt.expectObserverTeamID, capturedFilter.ObserverTeamID, "ObserverTeamID mismatch for observer_can_run=%v", tt.observerCanRun)
+			assert.Equal(t, user, capturedFilter.User)
+		})
+	}
+}
+
+type captureAgentNotifier struct {
+	err        error
+	hostIDs    []uint
+	campaignID uint
+	invoked    bool
+}
+
+func (c *captureAgentNotifier) NotifyAgentsForLiveQuery(ctx context.Context, hostIDs []uint, campaignID uint) error {
+	c.invoked = true
+	c.hostIDs = hostIDs
+	c.campaignID = campaignID
+	return c.err
+}
+
+func (c *captureAgentNotifier) NotifyOrbitConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	return nil
+}
+
+func (c *captureAgentNotifier) NotifyOrbitConfigScope(ctx context.Context, scope fleet.AgentNotificationScope, reason string) error {
+	return nil
+}
+
+func (c *captureAgentNotifier) NotifyOsqueryConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	return nil
+}
+
+func (c *captureAgentNotifier) NotifyOsqueryConfigScope(ctx context.Context, scope fleet.AgentNotificationScope, reason string) error {
+	return nil
+}
+
+func TestNewDistributedQueryCampaignNotifiesAgents(t *testing.T) {
+	setup := func(t *testing.T) (fleet.Service, context.Context) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, pubsub.NewInmemQueryResults(), nopLiveQuery{})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		ds.QueryFunc = func(ctx context.Context, id uint) (*fleet.Query, error) {
+			return &fleet.Query{ID: id, Query: "SELECT 1", ObserverCanRun: true, Logging: fleet.LoggingSnapshot}, nil
+		}
+		ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+			camp.ID = 99
+			return camp, nil
+		}
+		ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+			return target, nil
+		}
+		ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
+			return []uint{10, 20}, nil
+		}
+		ds.CountHostsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
+			return fleet.TargetMetrics{TotalHosts: 2}, nil
+		}
+
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+		return svc, ctx
+	}
+
+	t.Run("notifier receives targeted hosts and campaign ID", func(t *testing.T) {
+		svc, ctx := setup(t)
+		notifier := &captureAgentNotifier{}
+		svc.SetAgentCheckInNotifier(notifier)
+
+		campaign, err := svc.NewDistributedQueryCampaign(ctx, "", new(uint(1)), fleet.HostTargets{HostIDs: []uint{10, 20}})
+		require.NoError(t, err)
+		require.True(t, notifier.invoked)
+		assert.Equal(t, []uint{10, 20}, notifier.hostIDs)
+		assert.Equal(t, campaign.ID, notifier.campaignID)
+	})
+
+	t.Run("notifier error does not fail the campaign", func(t *testing.T) {
+		svc, ctx := setup(t)
+		notifier := &captureAgentNotifier{err: errors.New("redis down")}
+		svc.SetAgentCheckInNotifier(notifier)
+
+		_, err := svc.NewDistributedQueryCampaign(ctx, "", new(uint(1)), fleet.HostTargets{HostIDs: []uint{10, 20}})
+		require.NoError(t, err)
+		require.True(t, notifier.invoked)
+	})
+
+	t.Run("no notifier set", func(t *testing.T) {
+		svc, ctx := setup(t)
+		_, err := svc.NewDistributedQueryCampaign(ctx, "", new(uint(1)), fleet.HostTargets{HostIDs: []uint{10, 20}})
+		require.NoError(t, err)
+	})
 }

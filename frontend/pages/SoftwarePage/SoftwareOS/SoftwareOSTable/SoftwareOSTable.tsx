@@ -2,28 +2,24 @@
 
 import React, { useCallback, useMemo } from "react";
 import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 import { Row } from "react-table";
 
-import PATHS from "router/paths";
-
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
-
 import CustomLink from "components/CustomLink";
-import TableContainer from "components/TableContainer";
-import LastUpdatedText from "components/LastUpdatedText";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
-import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
-import { IOSVersionsResponse } from "services/entities/operating_systems";
-
-import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OSTableConfig";
-import { getPathWithQueryParams } from "utilities/url";
-import { getNextLocationPath } from "utilities/helpers";
+import LastUpdatedText from "components/LastUpdatedText";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import { SelectedPlatform } from "interfaces/platform";
+import generateTableConfig from "pages/DashboardPage/cards/OperatingSystems/OSTableConfig";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
+import PATHS from "router/paths";
+import { IOSVersionsResponse } from "services/entities/operating_systems";
+import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
 const baseClass = "software-os-table";
 
@@ -82,6 +78,11 @@ const PLATFORM_FILTER_OPTIONS = [
     label: "iPadOS",
     value: "ipados",
   },
+  {
+    disabled: false,
+    label: "Android",
+    value: "android",
+  },
 ];
 
 const SoftwareOSTable = ({
@@ -94,7 +95,7 @@ const SoftwareOSTable = ({
   currentPage,
   teamId,
   isLoading,
-  platform,
+  platform = "all",
 }: ISoftwareOSTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -120,7 +121,7 @@ const SoftwareOSTable = ({
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
       return {
-        team_id: teamId,
+        fleet_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
@@ -156,23 +157,24 @@ const SoftwareOSTable = ({
       includeName: true,
       includeVulnerabilities: true,
       includeIcon: true,
+      disableVersionSort: platform === "all",
     });
-  }, [data, router, teamId]);
+  }, [data, router, teamId, platform]);
 
   const handleRowSelect = (row: IRowProps) => {
     const path = getPathWithQueryParams(
       PATHS.SOFTWARE_OS_DETAILS(Number(row.original.os_version_id)),
-      { team_id: teamId }
+      { fleet_id: teamId }
     );
 
     router.push(path);
   };
 
-  // Determines if a user should be able to filter the table
   const hasData = data?.os_versions && data?.os_versions.length > 0;
   const hasPlatformFilter = platform !== "all";
 
-  const showFilterHeaders = isSoftwareEnabled && (hasData || hasPlatformFilter);
+  const isTrulyEmpty = !hasData && !hasPlatformFilter;
+  const controlsDisabled = !isSoftwareEnabled || isTrulyEmpty;
 
   const renderSoftwareCount = () => {
     if (!data) return null;
@@ -180,7 +182,7 @@ const SoftwareOSTable = ({
     return (
       <>
         <TableCount name="items" count={data?.count} />
-        {showFilterHeaders && data?.counts_updated_at && (
+        {!controlsDisabled && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
             customTooltipText={
@@ -212,13 +214,15 @@ const SoftwareOSTable = ({
   const handlePlatformFilterDropdownChange = (
     platformSelected: SingleValue<CustomOptionType>
   ) => {
+    // Omit order_key/order_direction so SoftwarePage recomputes its
+    // platform-dependent default sort (version once a single platform is
+    // selected, host count for "all") instead of carrying over whatever was
+    // sorted before the filter changed.
     router?.replace(
       getNextLocationPath({
         pathPrefix: PATHS.SOFTWARE_OS,
         queryParams: {
-          team_id: teamId,
-          order_direction: orderDirection,
-          order_key: orderKey,
+          fleet_id: teamId,
           page: 0,
           platform: platformSelected?.value,
         },
@@ -229,12 +233,14 @@ const SoftwareOSTable = ({
   const renderPlatformDropdown = () => {
     return (
       <DropdownWrapper
+        ariaLabel="Filter by OS platform"
         name="os-platform-dropdown"
         value={platform || "all"}
         className={`${baseClass}__platform-dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
         variant="table-filter"
+        isDisabled={controlsDisabled}
       />
     );
   };
@@ -242,6 +248,12 @@ const SoftwareOSTable = ({
   return (
     <div className={baseClass}>
       <TableContainer
+        // Remounts on platform change so TableContainer/react-table re-reads
+        // defaultSortHeader/defaultSortDirection as fresh initial state
+        // (they're otherwise only read once, at mount) instead of leaving
+        // the sort indicator stuck on the previous platform's sort after
+        // SoftwarePage recomputes its platform-dependent default.
+        key={platform}
         columnConfigs={softwareTableHeaders}
         data={data?.os_versions ?? []}
         isLoading={isLoading}
@@ -260,7 +272,7 @@ const SoftwareOSTable = ({
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        customControl={showFilterHeaders ? renderPlatformDropdown : undefined}
+        customControl={renderPlatformDropdown}
         disableNextPage={!data?.meta.has_next_results}
         searchable={false}
         onQueryChange={onQueryChange}

@@ -1,20 +1,14 @@
+import classNames from "classnames";
 import React, { useContext } from "react";
 import { InjectedRouter } from "react-router";
 
-import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
-
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-import { TableContext } from "context/table";
-import { INotification } from "interfaces/notification";
-import classNames from "classnames";
-
-import paths from "router/paths";
-import useDeepEffect from "hooks/useDeepEffect";
-import FlashMessage from "components/FlashMessage";
+import CommandPalette from "components/CommandPalette";
 import SiteTopNav from "components/top_nav/SiteTopNav";
-import { QueryParams } from "utilities/url";
+import { AppContext } from "context/app";
+import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
+import paths from "router/paths";
+import { QueryParams } from "utilities/url";
 
 interface ICoreLayoutProps {
   children: React.ReactNode;
@@ -30,25 +24,6 @@ interface ICoreLayoutProps {
 
 const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
   const { config, currentUser } = useContext(AppContext);
-  const { notification, hideFlash } = useContext(NotificationContext);
-  const { setResetSelectedRows } = useContext(TableContext);
-
-  // on success of an action, the table will reset its checkboxes.
-  // setTimeout is to help with race conditions as table reloads
-  // in some instances (i.e. Manage Hosts)
-  useDeepEffect(() => {
-    if (
-      notification &&
-      (notification as INotification).alertType === "success"
-    ) {
-      setTimeout(() => {
-        setResetSelectedRows(true);
-        setTimeout(() => {
-          setResetSelectedRows(false);
-        }, 300);
-      }, 0);
-    }
-  }, [notification]);
 
   const onLogoutUser = async () => {
     const { LOGOUT } = paths;
@@ -58,8 +33,6 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
   const onUserMenuItemClick = (path: string) => {
     router.push(path);
   };
-
-  const fullWidthFlash = !currentUser;
 
   if (!currentUser || !config) {
     return null;
@@ -71,6 +44,7 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
 
   return (
     <div className="app-wrap">
+      <CommandPalette />
       {shouldShowUnsupportedScreen(location.pathname) && (
         <UnsupportedScreenSize />
       )}
@@ -83,16 +57,7 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
           onUserMenuItemClick={onUserMenuItemClick}
         />
       </nav>
-      <div className={coreWrapperClassnames}>
-        <FlashMessage
-          fullWidth={fullWidthFlash}
-          notification={notification}
-          onRemoveFlash={hideFlash}
-          pathname={location.pathname}
-        />
-
-        {children}
-      </div>
+      <div className={coreWrapperClassnames}>{children}</div>
     </div>
   );
 };

@@ -1,0 +1,10 @@
+{
+  "name": "Keyboard Maestro",
+  "unique_identifier": "com.stairways.keyboardmaestro.editor",
+  "token": "keyboard-maestro",
+  "installer_format": "zip",
+  "slug": "keyboard-maestro/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -6,6 +6,8 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Fleet Free and Fleet Premium
 - Windows/Mac/Linux, including supported Linux distros (at least one each of RPM-based and DEB-based)
 - If there's a new SwiftDialog version, test the new Mac setup and MDM migration flow and verify that there's no regressions.
+- Does the feature show up on, or change, the Fleet Desktop menu and the My device page?
+- Platform SSO (PSSO): registration state, token expiry and refresh, and what the host reports while registration is incomplete
 
 ## User
 
@@ -14,19 +16,21 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Update user permissions
 - API-only user
 
-## Team
+## Fleet
 
-- Create team
-- Remove team
-- No team
-- All teams
-- Transfer host into this team
-- Transfer host out of this team
+- Create fleet
+- Remove fleet
+- Unassigned
+- All fleets
+- Transfer host to this fleet
+- Transfer host from this fleet
 
 ## MDM
 
-- Turn MDM on
-- Turn MDM off
+- Turn Android, Windows or Apple MDM on
+- Turn multiple MDM on
+- Turn Android, Windows or Apple MDM off
+- Turn all MDM off
 - Enable disk encryption
 - Disable disk encryption
 - Add ABM token
@@ -46,20 +50,25 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Setup experience software / scripts
 - SSO enabled for DEP enrollment
 - EULA added for DEP enrollment
+- Re-enrollment of a host Fleet has already seen (wipe and re-enroll, migration vs. fresh ADE enrollment)
+- Failure part-way through setup experience (software install fails, script fails, times out)
+- Certificate renewal (SCEP, NDES, custom CA) while the feature is in use
+- Disk encryption key escrow: expired, rotated, or not yet escrowed
 
 ## Software
 
-- Add software to team
+- Add software to fleet
   - FMA
   - VPP
   - custom package
-- Remove software from team
+- Remove software from a fleet
 - Edit software (scripts / binary)
 - Add script
 - Run script
 - Edit script
 - Remove script
 - Vulnerability scans
+- Large uploads (installers, bootstrap packages): progress, timeouts, retry
 - Automatic software install
 - Label-scoped software install
 - Host software
@@ -74,13 +83,13 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Add install automation
 - Add Calendar automation
 
-## Query
+## Report
 
-- Add query
-- Remove query
-- Edit query
-- Live query
-- Saved query results
+- Add report
+- Remove report
+- Edit report
+- Live report
+- Saved report results
 
 ## Labels
 
@@ -110,6 +119,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Host with a failing policy
 - Online host
 - Offline host
+- Re-enrolled host (same hardware, new enrollment) — is host state kept or lost?
 
 ## Integrations
 
@@ -117,6 +127,15 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Jira
 - Zendesk
 - Webhooks
+
+## Identity provider (IdP)
+
+- End user deprovisioned or removed from the IdP
+- End user's group membership changes
+- Attribute casing and duplicates (emails, usernames, group names) — values that differ only by case should not create a second identity
+- IdP-sourced labels: membership populates, and keeps up when group membership changes
+- Host re-enrolled while an IdP identity is already attached
+- Certificate or token renewal while the feature is in use
 
 ## Config
 
@@ -144,9 +163,10 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Error states (conditions, clientside vs. server side, location of error message, trigger onBlur/onChange/onSubmit)
 - Disabled states (conditions, on button, on form fields)
 - Dynamic views (show/hide buttons, dynamic help text, edge case views)
+- Views that load data have an empty state defined.
 
 ## Responsiveness and low-width browsers
-- Long database names rendered in the UI e.g. team names, scripts, software titles...
+- Long database names rendered in the UI e.g. fleet names, scripts, software titles...
 - Wide tables with many columns or wide columns (horizontal scroll vs. old, bad pattern of hiding columns)
 - Page load expectations (how long should it take for a page to load with x number of items in the API response)
 - Cron run time expectations (what is an acceptable change in amount of time it takes for a scheduled cron to complete)
@@ -158,7 +178,10 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 ## User permissions
 - Premium vs. Free. Premium-only API endpoints and parameters return an easy to understand error message if you're using Fleet Free
 - Global user (Admin, Maintainer, Observer, Observer+, API only)
-- Team level user (Admin, Maintainer, Observer, Observer+, API only)
+- Fleet-level user (Admin, Maintainer, Observer, Observer+, API only)
+
+## Retries
+- Operations with retries have defined limits (time, number of attempts, etc.) to avoid infinite loops and unbounded retrying
 
 <meta name="pageOrderInSection" value="3300">
 <meta name="description" value="A helpful checklist of 'events' or 'transactions' to think about while designing or testing new features or bugs.">

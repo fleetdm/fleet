@@ -1,0 +1,10 @@
+{
+  "name": "Superkey",
+  "unique_identifier": "com.knollsoft.Superkey",
+  "token": "superkey",
+  "installer_format": "dmg",
+  "slug": "superkey/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import Textarea from "components/Textarea";
 import { IActivityDetails } from "interfaces/activity";
 
@@ -30,7 +30,7 @@ const ActivityAutomationDetailsModal = ({
           </Textarea>
         </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onCancel}>Done</Button>
+          <Button onClick={onCancel}>Close</Button>
         </div>
       </>
     );

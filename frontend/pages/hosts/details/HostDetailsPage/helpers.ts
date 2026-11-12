@@ -1,8 +1,12 @@
 import { getErrorReason } from "interfaces/errors";
+import { IHost } from "interfaces/host";
+import { isAndroid, isChrome, isIPadOrIPhone } from "interfaces/platform";
+import { INITIAL_FLEET_DATE } from "utilities/constants";
+
+import { getHostDeviceStatusUIState } from "../helpers";
 
 const DEFAULT_ERROR_MESSAGE = "refetch error.";
 
-// eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (e: unknown, hostName: string) => {
   let errorMessage = getErrorReason(e, {
     reasonIncludes: "Host does not have MDM turned on",
@@ -14,3 +18,72 @@ export const getErrorMessage = (e: unknown, hostName: string) => {
 
   return `Host "${hostName}" ${errorMessage}`;
 };
+
+// The "My device" link opens the end-user page. macOS/Windows/Linux reach it
+// with a device auth token minted by Fleet Desktop on orbit check-in, so a host
+// missing fleet_desktop_version has no live end-user surface. iOS/iPadOS don't
+// run Fleet Desktop and reach it by host UUID instead. Hide the button on wiped
+// hosts and on hosts with a wipe in flight — the device is about to have no
+// end-user session to review.
+export const canShowMyDeviceButton = (
+  // platform is a plain string rather than HostPlatform: legacy ChromeOS hosts
+  // report "CrOS", which predates the HostPlatform union.
+  host: Pick<IHost, "fleet_desktop_version" | "mdm" | "uuid"> & {
+    platform: string;
+  },
+  fleetDesktopSSOEnabled: boolean,
+  isPremiumTier: boolean
+) => {
+  // Android and ChromeOS have no My device page, so the link would only lead to
+  // an error. GET /hosts/:id/device_url rejects them for the same reason.
+  if (
+    isAndroid(host.platform) ||
+    isChrome(host.platform) ||
+    host.platform === "CrOS"
+  ) {
+    return false;
+  }
+  if (!isIPadOrIPhone(host.platform) && !host.fleet_desktop_version) {
+    return false;
+  }
+  if (isIPadOrIPhone(host.platform)) {
+    if (fleetDesktopSSOEnabled) {
+      return false;
+    }
+    // The iOS/iPadOS page is only the self-service list, a Premium feature.
+    if (!isPremiumTier) {
+      return false;
+    }
+    // The URL is built from the UUID, which a host assigned in Apple Business
+    // may not have yet; an unenrolled host can't use self-service.
+    const status = host.mdm.enrollment_status;
+    if (!host.uuid || !status || status === "Pending" || status === "Off") {
+      return false;
+    }
+  }
+  const uiState = getHostDeviceStatusUIState(
+    host.mdm.device_status,
+    host.mdm.pending_action
+  );
+  return uiState !== "wiped" && uiState !== "wiping";
+};
+
+// Hosts created in a pending state (Apple Business Manager, Windows Autopilot) are inserted with
+// refetch_requested already set, but there is nothing on the device yet to answer it, so the flag
+// stays on until the host actually enrolls. Their last_enrolled_at holds the "never" sentinel until
+// then, which is what separates them from hosts that can return vitals.
+export const hasEverEnrolled = (host: Pick<IHost, "last_enrolled_at">) =>
+  !!host.last_enrolled_at && host.last_enrolled_at >= INITIAL_FLEET_DATE;
+
+// A host that has never reported vitals is still coming up (e.g. orbit is enrolled and running setup experience but osquery
+// has not checked in yet).
+export const hasReportedVitals = (host: Pick<IHost, "detail_updated_at">) =>
+  !!host.detail_updated_at && host.detail_updated_at >= INITIAL_FLEET_DATE;
+
+// Kept out of HostDetailsPage: each &&/|| there adds to rules-of-hooks' path
+// count, which that component is already at the limit of.
+export const getCanManageSelfServiceProfiles = (
+  isPremiumTier: boolean | undefined,
+  isMacOSHost: boolean,
+  canResendProfiles: boolean
+) => !!isPremiumTier && isMacOSHost && canResendProfiles;

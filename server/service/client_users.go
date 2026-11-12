@@ -7,6 +7,21 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// CreateAPIOnlyUser creates a new API-only user, returning the API token for the new user.
+func (c *Client) CreateAPIOnlyUser(name string, globalRole *string, teams []fleet.UserTeam) (*string, error) {
+	verb, path := "POST", "/api/latest/fleet/users/api_only"
+	payload := fleet.UserPayload{
+		Name:       &name,
+		GlobalRole: globalRole,
+		Teams:      &teams,
+	}
+	var responseBody createUserResponse
+	if err := c.authenticatedRequest(payload, verb, path, &responseBody); err != nil {
+		return nil, err
+	}
+	return responseBody.Token, nil
+}
+
 // CreateUser creates a new user, skipping the invitation process.
 //
 // The session key (aka API token) is returned only when creating
@@ -30,14 +45,6 @@ func (c *Client) ListUsers() ([]fleet.User, error) {
 		return nil, err
 	}
 	return responseBody.Users, nil
-}
-
-// ApplyUsersRoleSecretSpec applies the global and team roles for users.
-func (c *Client) ApplyUsersRoleSecretSpec(spec *fleet.UsersRoleSpec) error {
-	req := applyUserRoleSpecsRequest{Spec: spec}
-	verb, path := "POST", "/api/latest/fleet/users/roles/spec"
-	var responseBody applyUserRoleSpecsResponse
-	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
 func (c *Client) userIdFromEmail(email string) (uint, error) {

@@ -1,12 +1,15 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import sendRequest from "services";
 
+import {
+  IEditScheduledQuery,
+  IPackQueryFormData,
+} from "interfaces/scheduled_query";
+import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { IEditScheduledQuery } from "interfaces/scheduled_query";
 import helpers from "utilities/helpers";
 
 export default {
-  create: (formData: any) => {
+  create: (formData: IPackQueryFormData) => {
     const { GLOBAL_SCHEDULE } = endpoints;
 
     const {
@@ -24,7 +27,7 @@ export default {
     const params = {
       interval: Number(interval),
       platform,
-      query_id: Number(queryID),
+      report_id: Number(queryID),
       removed,
       snapshot,
       shard: Number(shard),
@@ -47,7 +50,7 @@ export default {
   },
   update: (
     globalScheduledQuery: IEditScheduledQuery,
-    updatedAttributes: any
+    updatedAttributes: IPackQueryFormData
   ) => {
     const { GLOBAL_SCHEDULE } = endpoints;
     const path = `${GLOBAL_SCHEDULE}/${globalScheduledQuery.id}`;

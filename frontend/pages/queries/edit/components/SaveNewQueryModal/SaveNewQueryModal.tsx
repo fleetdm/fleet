@@ -1,53 +1,55 @@
-import React, { useState, useEffect, useContext } from "react";
+import { size } from "lodash";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 
-import { size } from "lodash";
-
+import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+import Checkbox from "components/forms/fields/Checkbox";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import InputField from "components/forms/fields/InputField";
+import Slider from "components/forms/fields/Slider";
+import Icon from "components/Icon";
+import LogDestinationIndicator from "components/LogDestinationIndicator";
+import Modal from "components/Modal";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
+import {
+  getCustomTargetOptions,
+  getLabelsRequiredError,
+  LabelScope,
+} from "components/TargetLabelSelector/labelScopes";
+import TooltipWrapper from "components/TooltipWrapper";
 import { AppContext } from "context/app";
-
 import useDeepEffect from "hooks/useDeepEffect";
 import { IPlatformSelector } from "hooks/usePlatformSelector";
-
+import { CommaSeparatedPlatformString } from "interfaces/platform";
+import {
+  ICreateQueryFormData,
+  ISchedulableQuery,
+  QueryLoggingOption,
+} from "interfaces/schedulable_query";
+import labelsAPI, {
+  getCustomLabels,
+  ILabelsSummaryResponse,
+} from "services/entities/labels";
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
   LOGGING_TYPE_OPTIONS,
   MIN_OSQUERY_VERSION_OPTIONS,
   DEFAULT_USE_QUERY_OPTIONS,
+  MAX_ENTITY_CHAR_LENGTH,
 } from "utilities/constants";
-
-import { CommaSeparatedPlatformString } from "interfaces/platform";
-import {
-  ICreateQueryRequestBody,
-  ISchedulableQuery,
-  QueryLoggingOption,
-} from "interfaces/schedulable_query";
-
-import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Slider from "components/forms/fields/Slider";
-import TooltipWrapper from "components/TooltipWrapper";
-import Icon from "components/Icon";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import RevealButton from "components/buttons/RevealButton";
-import LogDestinationIndicator from "components/LogDestinationIndicator";
-import TargetLabelSelector from "components/TargetLabelSelector";
-import labelsAPI, {
-  getCustomLabels,
-  ILabelsSummaryResponse,
-} from "services/entities/labels";
 
 import DiscardDataOption from "../DiscardDataOption";
 
 const baseClass = "save-query-modal";
+
 export interface ISaveNewQueryModalProps {
   queryValue: string;
   apiTeamIdForQuery?: number; // query will be global if omitted
   isLoading: boolean;
-  saveQuery: (formData: ICreateQueryRequestBody) => void;
+  saveQuery: (formData: ICreateQueryFormData) => void;
   toggleSaveNewQueryModal: () => void;
   backendValidators: { [key: string]: string };
   existingQuery?: ISchedulableQuery;
@@ -59,7 +61,7 @@ const validateQueryName = (name: string) => {
   const errors: { [key: string]: string } = {};
 
   if (!name) {
-    errors.name = "Query name must be present";
+    errors.name = "Enter a report name";
   }
 
   const valid = !size(errors);
@@ -77,7 +79,7 @@ const SaveNewQueryModal = ({
   queryReportsDisabled,
   platformSelector,
 }: ISaveNewQueryModalProps): JSX.Element => {
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier, currentTeam } = useContext(AppContext);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -95,22 +97,49 @@ const SaveNewQueryModal = ({
   const [observerCanRun, setObserverCanRun] = useState(false);
   const [automationsEnabled, setAutomationsEnabled] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("All hosts");
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
+    "labelsIncludeAny"
+  );
   const [selectedLabels, setSelectedLabels] = useState({});
   const [discardData, setDiscardData] = useState(false);
+  const customTargetOptions = useMemo(
+    () => getCustomTargetOptions({ entity: "report", isPremiumTier }),
+    [isPremiumTier]
+  );
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
   );
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [platformError, setPlatformError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
+
+  const hasSelectedLabel = Object.entries(selectedLabels).some(
+    ([, v]) => v === true
+  );
+  const labelsRequired = !!(
+    isPremiumTier &&
+    selectedTargetType === "Custom" &&
+    !hasSelectedLabel
+  );
+  const labelsError =
+    showLabelsError && labelsRequired
+      ? getLabelsRequiredError(selectedCustomTarget)
+      : null;
 
   const {
     data: { labels } = { labels: [] },
     isFetching: isFetchingLabels,
   } = useQuery<ILabelsSummaryResponse, Error>(
     ["custom_labels"],
-    () => labelsAPI.summary(apiTeamIdForQuery, true),
+    () => labelsAPI.summary(currentTeam?.id, true),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isPremiumTier,
+      // Wait for the current team to load from context before pulling labels, otherwise on a page load
+      // directly on the page this gets called with currentTeam not set, then again
+      // with the correct team value. If we don't trigger on currentTeam changes we'll just start with a
+      // null team ID here and never populate with the correct team unless we navigate from another page
+      // where team context is already set prior to navigation.
+      enabled: isPremiumTier && !!currentTeam,
       staleTime: 10000,
       select: (res) => ({ labels: getCustomLabels(res.labels) }),
     }
@@ -127,6 +156,9 @@ const SaveNewQueryModal = ({
       ...selectedLabels,
       [labelName]: value,
     });
+    if (value) {
+      setShowLabelsError(false);
+    }
   };
 
   const toggleAdvancedOptions = () => {
@@ -140,34 +172,53 @@ const SaveNewQueryModal = ({
   }, [name]);
 
   useEffect(() => {
+    if (platformSelector.isAnyPlatformSelected) {
+      setPlatformError(null);
+    }
+  }, [platformSelector.isAnyPlatformSelected]);
+
+  useEffect(() => {
     setErrors(backendValidators);
   }, [backendValidators]);
-
-  // Disable saving if "Custom" targeting is selected, but no labels are selected.
-  const canSave =
-    platformSelector.isAnyPlatformSelected &&
-    (selectedTargetType === "All hosts" ||
-      Object.entries(selectedLabels).some(([, value]) => {
-        return value;
-      }));
 
   const onClickSaveQuery = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
     const trimmedName = name.trim();
 
-    const { valid, errors: newErrors } = validateQueryName(trimmedName);
+    const { valid: validName, errors: newErrors } = validateQueryName(
+      trimmedName
+    );
     setErrors({
       ...errors,
       ...newErrors,
     });
     setName(trimmedName);
 
+    const hasPlatform = platformSelector.isAnyPlatformSelected;
+    setPlatformError(hasPlatform ? null : "Select at least one platform");
+    setShowLabelsError(labelsRequired);
+
     const newPlatformString = platformSelector
       .getSelectedPlatforms()
       .join(",") as CommaSeparatedPlatformString;
 
-    if (valid) {
+    if (validName && hasPlatform && !labelsRequired) {
+      const customLabelNames =
+        isPremiumTier && selectedTargetType === "Custom"
+          ? Object.entries(selectedLabels)
+              .filter(([, selected]) => selected)
+              .map(([labelName]) => labelName)
+          : [];
+      const labelsForScope = (scope: LabelScope) => {
+        if (!isPremiumTier) {
+          return undefined;
+        }
+        return selectedCustomTarget === scope ? customLabelNames : [];
+      };
+      const labelsIncludeAny = labelsForScope("labelsIncludeAny");
+      const labelsIncludeAll = labelsForScope("labelsIncludeAll");
+
       saveQuery({
         // from modal fields
         name: trimmedName,
@@ -182,21 +233,30 @@ const SaveNewQueryModal = ({
         // from previous New query page
         query: queryValue,
         // from doubly previous ManageQueriesPage
-        team_id: apiTeamIdForQuery,
-        labels_include_any:
-          selectedTargetType === "Custom"
-            ? Object.entries(selectedLabels)
-                .filter(([, selected]) => selected)
-                .map(([labelName]) => labelName)
-            : [],
+        fleet_id: apiTeamIdForQuery,
+        labels_include_any: labelsIncludeAny,
+        labels_include_all: labelsIncludeAll,
       });
     }
   };
 
+  // Saving is a deliberate Save click; Enter in a field must not submit.
+  const onFormKeyDown = (evt: React.KeyboardEvent<HTMLFormElement>) => {
+    if (
+      evt.key === "Enter" &&
+      (evt.target as HTMLElement).tagName === "INPUT"
+    ) {
+      evt.preventDefault();
+    }
+  };
+
   return (
-    <Modal title="Save query" onExit={toggleSaveNewQueryModal}>
+    <Modal title="Save report" onExit={toggleSaveNewQueryModal}>
+      {/* Only intercepts Enter bubbling from the form's own inputs. */}
+      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <form
         onSubmit={onClickSaveQuery}
+        onKeyDown={onFormKeyDown}
         className={baseClass}
         autoComplete="off"
       >
@@ -211,7 +271,7 @@ const SaveNewQueryModal = ({
           inputClassName={`${baseClass}__name`}
           label="Name"
           autofocus
-          ignore1password
+          inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
         />
         <InputField
           name="description"
@@ -220,7 +280,7 @@ const SaveNewQueryModal = ({
           inputClassName={`${baseClass}__description`}
           label="Description"
           type="textarea"
-          helpText="What information does your query reveal? (optional)"
+          helpText="What information does your report reveal? (optional)"
         />
         <Dropdown
           searchable={false}
@@ -232,14 +292,24 @@ const SaveNewQueryModal = ({
           value={selectedFrequency}
           label="Interval"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-          helpText="This is how often your query collects data."
+          helpText={
+            <>
+              Counts time the host is awake. Hosts that sleep will report after
+              longer intervals of calendar time.{" "}
+              <CustomLink
+                url="https://fleetdm.com/guides/reports#schedule-a-report"
+                text="Learn more"
+                newTab
+              />
+            </>
+          }
         />
         <Checkbox
           name="observerCanRun"
           onChange={setObserverCanRun}
           value={observerCanRun}
           wrapperClassName="observer-can-run-wrapper"
-          helpText="Users with the Observer role will be able to run this query as a live query."
+          helpText="Users with the Observer role will be able to run this report as a live report."
         >
           Observers can run
         </Checkbox>
@@ -253,8 +323,8 @@ const SaveNewQueryModal = ({
                 <TooltipWrapper
                   tipContent={
                     <>
-                      Automations and reporting will be paused <br />
-                      for this query until an interval is set.
+                      Automations and reporting will be paused for this report
+                      until an interval is set.
                     </>
                   }
                   position="right"
@@ -286,28 +356,32 @@ const SaveNewQueryModal = ({
             </>
           }
         />
-        {platformSelector.render()}
+        {platformSelector.render(platformError)}
         {isPremiumTier && (
-          <TargetLabelSelector
+          <DropdownTargetLabelSelector
             selectedTargetType={selectedTargetType}
+            selectedCustomTarget={selectedCustomTarget}
+            customTargetOptions={customTargetOptions}
+            onSelectCustomTarget={(val) =>
+              setSelectedCustomTarget(val as LabelScope)
+            }
             selectedLabels={selectedLabels}
             className={`${baseClass}__target`}
-            onSelectTargetType={setSelectedTargetType}
+            onSelectTargetType={(val) => {
+              setSelectedTargetType(val);
+              if (val === "All hosts") setShowLabelsError(false);
+            }}
             onSelectLabel={onSelectLabel}
             labels={labels || []}
-            customHelpText={
-              <span className="form-field__help-text">
-                Query will target hosts that <b>have any</b> of these labels:
-              </span>
-            }
+            labelsError={labelsError}
             suppressTitle
           />
         )}
         <RevealButton
           isShowing={showAdvancedOptions}
           className="advanced-options-toggle"
-          hideText="Hide advanced options"
-          showText="Show advanced options"
+          hideText="Advanced options"
+          showText="Advanced options"
           caretPosition="after"
           onClick={toggleAdvancedOptions}
         />
@@ -347,11 +421,10 @@ const SaveNewQueryModal = ({
             type="submit"
             className="save-query-loading"
             isLoading={isLoading || isFetchingLabels}
-            disabled={!canSave}
           >
             Save
           </Button>
-          <Button onClick={toggleSaveNewQueryModal} variant="inverse">
+          <Button onClick={toggleSaveNewQueryModal} variant="secondary">
             Cancel
           </Button>
         </div>

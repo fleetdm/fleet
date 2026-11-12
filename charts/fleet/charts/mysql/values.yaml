@@ -1,0 +1,28 @@
+## MySQL sub-chart configuration
+## This is a minimal MySQL deployment for dev/test use.
+## For production, use an external MySQL instance and set mysql.enabled=false.
+
+image:
+  repository: mysql
+  tag: "8.4"
+  pullPolicy: IfNotPresent
+
+auth:
+  rootPassword: ""
+  username: fleet
+  password: ""
+  database: fleet
+  existingSecret: ""
+
+primary:
+  persistence:
+    enabled: true
+    size: 8Gi
+    storageClass: ""
+  resources:
+    limits:
+      cpu: 1
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi

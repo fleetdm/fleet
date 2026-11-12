@@ -1,10 +1,12 @@
 /* eslint-disable no-alert */
-import React from "react";
-import { Meta, StoryObj } from "@storybook/react";
 
+import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
+
+import ActionsDropdown from "components/ActionsDropdown";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import ActionsDropdown from "components/ActionsDropdown";
+
 import ModalFooter from "./ModalFooter";
 
 const meta: Meta<typeof ModalFooter> = {
@@ -31,15 +33,15 @@ export const Default: Story = {
           ]}
           menuPlacement="top"
         />
-        <Button onClick={() => alert("Done clicked")}>Done</Button>
+        <Button onClick={() => alert("Close clicked")}>Close</Button>
       </>
     ),
     secondaryButtons: (
       <>
-        <Button variant="icon" onClick={() => alert("Download clicked")}>
+        <Button variant="secondary" onClick={() => alert("Download clicked")}>
           <Icon name="download" />
         </Button>
-        <Button variant="icon" onClick={() => alert("Delete clicked")}>
+        <Button variant="secondary" onClick={() => alert("Delete clicked")}>
           <Icon name="trash" color="ui-fleet-black-75" />
         </Button>
       </>

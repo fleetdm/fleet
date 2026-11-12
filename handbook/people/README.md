@@ -13,14 +13,14 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in the [#help-people](https://fleetdm.slack.com/archives/C02QG7P5571) Slack channel).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#help-people](https://fleetdm.slack.com/archives/C02QG7P5571) Slack channel.)
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/91) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 
 ## Responsibilities
 
-The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, and offboarding. For Executive Assistant responsibilities, see the [🔭 CEO](https://fleetdm.com/handbook/ceo#responsibilities) page. 
+The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, offboarding, remote work, the handbook, issue templates, Docusign templates, key spreadsheets, and project management tools. For Executive Assistant responsibilities, see the [🔭 CEO](https://fleetdm.com/handbook/ceo#responsibilities) page.
 
 > Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance).
 
@@ -28,16 +28,16 @@ The People department is directly responsible for Fleet's culture, human resourc
 ### Approve a new position
 
 When review is requested on a proposal to open a new position, the Head of People will complete the following steps when reviewing the pull request:
-1. In “Fleeties,” confirm the new row has manager, job title, department, COGS/OPEX, and CAC-inclusion filled in, that there are no broken formulas or formatting, and the start date is the first Monday of next month.
+1. In “Fleeties,” confirm the new row has manager, job title, department, that there are no broken formulas or formatting, and the start date is the first Monday of next month.
 2. Confirm the job description consists only of changes to "Responsibilities" and "Experience," with an appropriate filename, and that the content looks accurate, is grammatically correct, and is otherwise ready to post in a public job description on fleetdm.com.
 3. Ballpark and document compensation research for the role based on location, level, and company stage. 
    - _Add screenshot:_ Scroll to the very bottom of ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and add a new heading for the role, pattern-matching off of the names of other nearby role headings. Then create written documentation of your research for future reference.  The easiest way to do this is to take screenshots of the [relevant benchmarks in Pave](https://pave.com) and paste those screenshots under the new heading.
-4. Decide whether to approve this role or to consider it a different time.  If approving, then:
+4. Sync with the CEO to decide whether to approve this role or to consider it a different time.  If approving, then:
    - _Update financial model:_ Send the CFO a link to the position in ["¶¶ 💌 Compensation decisions (offer math)"](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit#heading=h.slomq4whmyas) and request approval for the spend. Once approved, the CFO will add the new position to the financial model. 
    - _Update team database:_ Update the row in ["¶¶ 🥧 Equity plan"](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0) using the benchmarked compensation and share count.
      - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
      - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
-   - _Create Slack channel:_ Create a private "#YYYY-hiring-xxxxxx" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager and Interim Head of People.
+   - _Create Slack channel:_ Create a private "#YYYY-hiring-xxxxxx" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager and Head of People.
    - _Publish opening:_ Approve and merge the pull request.  The job posting will go live within ≤10 minutes.
    - _Track as approved in "Fleeties":_ In the "Fleeties" spreadsheet, find the row for the new position and update the "Job description" column and replace the URL of the pull request that originally proposed this new position with the URL of the GitHub merge commit when that PR was merged.
    - _Reply to requestor:_ Post a comment on the pull request, being sure to include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`):
@@ -93,12 +93,13 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 ```
 
 1. Copy and paste the template to the "[# general](https://fleetdm.slack.com/archives/C019FNQPA23)" Slack channel.
-2. Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and click `Share call`, then click `Share with customers`, then `Copy link`.
+2. Open [Gong recording](https://us-65885.app.gong.io/home?workspace-id=9148397688380544352&r=m) and click `Share call`, then click `Share internally`, then `Copy link`.
 3. Paste the url `*[Watch the recording](`here-in-your-template-message`)*`.
 
 <img width="464" alt="image" src="https://github.com/Sampfluger88/fleet/assets/108141731/c2002cfa-a0f6-4349-bb06-71104f6cdce1">
 
-4. Schedule the Slack message to go out at 6pm CT (18:00).
+4. Convert the "All hands" Keynote file to a PDF and save in the [Drive](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY). 
+5. Schedule the Slack message to go out at 6pm CT (18:00).
 
 
 ### Update personnel details
@@ -134,8 +135,8 @@ When People receives [notification of a Fleetie's role changing](https://fleetdm
       - Under the "Compensation" heading, select edit and update the "Job title" and input the specific date the change happened. Save the changes.
     - For updating Remote (non-US Fleeties):
       - Log in to Remote and navigate to "Requests".
-      - Click "New Request" and select the employee from the dropdown box. Then, select "Employee Agreement Amendement". 
-      - Follow Remote's prompts to complete the amendement. 
+      - Click "New Request" and select the employee from the dropdown box. Then, select "Employee Agreement Amendment". 
+      - Follow Remote's prompts to complete the amendment. 
       - Take any relevant follow-up steps as directed by Remote in order to make the required changes to the Fleetie's profile. 
 
 
@@ -251,7 +252,7 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 4. Once compensation decisions have been finalized, the Head of People will send the teammate's manager a Slack DM to communicate the compensation decision and asking them to inform the teammate.
 5. Update the respective payroll platform (Gusto or Remote): 
    - In Gusto, navigate to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-   - In Remote, navigate to "Requests", start a new request, select the employee from the dropdown box, and begin the process for an employee agreement amendement. 
+   - In Remote, navigate to "Requests", start a new request, select the employee from the dropdown box, and begin the process for an employee agreement amendment. 
 7. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by adding to the "Notes" cell.
   - Update the "¶¶ Annual OTE ($)" column with the new compensation information.
   - Update the "Last compensation change" column with the effective date from payroll platform.
@@ -264,6 +265,14 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 
 1. In the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) sheet, find the consultant's column.
 2. Change the DRI documented there to the new DRI who will receive information about the consultant's hours.
+
+
+### Offboard a consultant
+
+When a consultant's engagement with Fleet is ending, the following steps are taken to offboard them:
+1. The Head of People gets notified by the [consultant's DRI](https://fleetdm.com/handbook/company/leadership#consultants) that a consultant's engagement is ending.
+2. [Retire the consultant's column](https://fleetdm.com/handbook/people#retire-a-kpi) in the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+3. Open an [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/offboarding.md) on the People board and work with IT to ensure the consultant's access to all Fleet systems is removed.
 
 
 ### Add an advisor
@@ -299,14 +308,89 @@ Once notified, People takes the following steps:
 6. Follow the offboarding issue for next steps, including communicating to teammates and updating equity plan.
 
 
+### Retire a KPI
+
+The ["🗓️ KPIs" (confidential)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) sheet feeds data into the ["🪴🌧️🦉 Investor updates" (confidential)](https://docs.google.com/spreadsheets/d/10T7Q9iuHA4vpfV7qZCm6oMd5U1bLftBSobYD0RR8RkM/edit?gid=0#gid=0) sheet. Because of this linkage, retiring a KPI requires updating both sheets to avoid broken references or incorrect reporting. To retire a KPI, the Head of People will:
+1. Move the KPI to the retired section of the "🗓️ KPIs" sheet.
+2. Validate that each column in "🪴🌧️🦉 Investor updates" still reflects the correct data.
+3. If retiring the KPI caused column positions to change:
+   - Locate the new column position in the "🗓️ KPIs". 
+   - Update the relevant cell in row 2 of the "🪴🌧️🦉 Investor updates" with the new column location.
+4. Scan "🪴🌧️🦉 Investor updates" to confirm all metrics are populating as expected and no data is missing or misaligned.
+
+
 ### Review Fleet's US company benefits
 
 Annually, around mid-year, Fleet will be prompted by Gusto to review company benefits. The goal is to keep changes minimal. Follow these steps:
 1. Log in to your [Gusto admin account](https://gusto.com/).
 2. Navigate to "Benefits" and select "Renewal survey".
 3. Complete the survey questions, aiming for minimal changes.
-4. Approximately 2-3 months after survery completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
+4. Approximately 2-3 months after survey completion, Gusto will suggest plans based on Fleet's responses. Choose plans with minimal changes.
 5. Gusto will offer these plans to employees during open enrollment, with new coverage starting 3-4 weeks afterward.
+
+
+### Purchase a SaaS tool
+
+When procuring SaaS tools and services, analyze the purchase of these subscription services and look for ways to help the company:
+- Get product demos whenever possible.  Does the product do what it's supposed to do in the way that it is supposed to do it?
+- Avoid extra features you don't need, and if they're there anyway, avoid using them.
+- Data portability: Is it possible for Fleet to export its data if we stop using it? Is it easy to pull that data in an understandable format?
+- Programmability: Does it have a publicly documented legible REST API that requires at most a single API token?
+- Intentionality: The product fits into other tools and processes that Fleet uses today. Avoid [unintended consequences](https://en.wikipedia.org/wiki/Midas). The tool will change to fit the company, or we won't use it. 
+
+
+### Downgrade an unused license seat
+
+- On the first Wednesday of every quarter, the Head of People will audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
+- During this time, as many seats will be downgraded as possible. When doubt exists, downgrade.
+- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a GitHub issue to the People department to have their access restored.
+- The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
+
+
+### Process a tool upgrade request from a team member
+
+- A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through GitHub.
+- The Head of People will upgrade or add the license seat as needed and let the requesting team member know they did it.
+
+
+### Send the weekly update
+
+Every Friday, e-group members [report their KPIs for the week](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) by 5:00pm U.S. CT. Every Friday at 6PM, the Apprentice will post a short update in [#general](https://fleetdm.slack.com/archives/C019FNQPA23). To send the weekly update follow these steps:  
+  
+1. Navigate to the current weeks row in the [KPIs Google Sheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+2. Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and the Head of People.
+3. Copy the entire formula in this weeks "Weekly update" update cell and paste without formatting (CMD+⇧+V) back into the same cell. The formula will now look like this:
+4. Paste the newly formatted message in the [#general Slack channel](https://fleetdm.slack.com/archives/C019FNQPA23) and delete the double quotes around the message and any links that unfurl from links in the weekly update message.
+5. Use the drop-down next to the send button and select "Custom time" and schedule the message to send "Today" at 18:00 or 6pm CT.
+
+
+### Cancel a vendor or subscription
+
+Once the decision has been made not to renew a tool or subscription on Fleet's behalf, use the following steps to churn/cancel a vendor or subscription:
+
+1. Cancel the subscription, including recurring billing. If invoiced, then send churn notice.
+2. Update ["¶ 🧮 The numbers" spreadsheet (confidential doc)](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit?gid=2112277278#gid=2112277278).
+  - Prepend the recurring expense title with "CANCELLED - ".
+  - Zero-out "Projected monthly burn" and "Projected invoice amount".
+3. Remove references from integrated systems and references (i.e. unplug the tool from any other integrations)
+4. Remove any shared access from 1Password vaults.
+5. Update any reference to the tool or subscription and afterwards communicate the change (e.g. by linking to your merged PR in Slack).
+
+
+### Review and update company DRIs
+
+Every quarter during [OKR planning](https://fleetdm.com/handbook/company/leadership#board-meeting-and-okr-planning), the Head of People reviews the DRI tables on the [Communications page](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) and the [Security page](https://fleetdm.com/handbook/it/security#security) to ensure they are current and accurate.
+
+
+### Monitor compliance tests
+
+1. Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks.    
+2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
+3. Click on a test, then click on "Tasks".  
+4. Click on "Create task." Then, "Create GitHub issue."
+5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-people" label). Vanta will auto-populate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
+6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
+
 
 
 ## Rituals

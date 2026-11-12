@@ -8,11 +8,24 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/google/uuid"
+)
+
+const (
+	// scepInstallLocURINode is the Windows SCEP ClientCertificateInstall node in scope-less form.
+	scepInstallLocURINode = "Vendor/MSFT/ClientCertificateInstall/SCEP"
+
+	// WindowsSCEPSubjectNameSuffix ends the LocURI of the SCEP node carrying the certificate's
+	// subject name as an X.500 string.
+	WindowsSCEPSubjectNameSuffix = "/Install/SubjectName"
+
+	WindowsMDMAuthNoncePrefix = "mwenonce:"
 )
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -26,12 +39,12 @@ import (
 // SoapResponse is the Soap Envelope Response type for MS-MDE2 responses from the server
 // This envelope XML message is composed by a mandatory SOAP envelope, a SOAP header, and a SOAP body
 type SoapResponse struct {
-	XMLName xml.Name       `xml:"s:Envelope"`
+	XMLName xml.Name       `xml:"http://schemas.xmlsoap.org/soap/envelope/ Envelope"`
 	XMLNSS  string         `xml:"xmlns:s,attr"`
 	XMLNSA  string         `xml:"xmlns:a,attr"`
 	XMLNSU  *string        `xml:"xmlns:u,attr,omitempty"`
-	Header  ResponseHeader `xml:"s:Header"`
-	Body    BodyResponse   `xml:"s:Body"`
+	Header  ResponseHeader `xml:"http://schemas.xmlsoap.org/soap/envelope/ Header"`
+	Body    BodyResponse   `xml:"http://schemas.xmlsoap.org/soap/envelope/ Body"`
 }
 
 // SoapRequest is the Soap Envelope Request type for MS-MDE2 responses to the server
@@ -129,6 +142,44 @@ func (req *SoapRequest) isValidBody() error {
 	return nil
 }
 
+// enrollmentVersionAtLeast reports whether the dotted MS-MDE2 version string v (e.g. "9.0") is
+// greater than or equal to minVersion (e.g. "4.0"). Components are compared numerically so that
+// "10.0" is correctly ordered above "9.0". It returns an error if v is empty or contains a
+// non-numeric component.
+func enrollmentVersionAtLeast(v, minVersion string) (bool, error) {
+	if v == "" {
+		return false, errors.New("version is empty")
+	}
+
+	vParts := strings.Split(v, ".")
+	minParts := strings.Split(minVersion, ".")
+
+	for i := 0; i < len(vParts) || i < len(minParts); i++ {
+		var vNum, minNum int
+		if i < len(vParts) {
+			n, err := strconv.Atoi(vParts[i])
+			if err != nil {
+				return false, fmt.Errorf("invalid version component %q", vParts[i])
+			}
+			vNum = n
+		}
+		if i < len(minParts) {
+			// minVersion is expected to be well-formed, but validate it so we don't silently accept bad values.
+			n, err := strconv.Atoi(minParts[i])
+			if err != nil {
+				return false, fmt.Errorf("invalid minVersion component %q", minParts[i])
+			}
+			minNum = n
+		}
+		if vNum != minNum {
+			return vNum > minNum, nil
+		}
+	}
+
+	// All compared components are equal.
+	return true, nil
+}
+
 // IsValidDiscoveryMsg checks for required fields in the Discover message
 func (req *SoapRequest) IsValidDiscoveryMsg() error {
 	if err := req.isValidHeader(); err != nil {
@@ -147,17 +198,17 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 		return errors.New("invalid discover message: XMLNS")
 	}
 
-	// Check if the request version is one of the defined enrollment versions
-	versionFound := false
-	for _, v := range syncml.SupportedEnrollmentVersions {
-		if req.Body.Discover.Request.RequestVersion == v {
-			versionFound = true
-			break
-		}
+	// Accept any RequestVersion >= the minimum supported version. The discovery response pins the
+	// protocol to EnrollmentVersionV4 and the client negotiates down, so newer Windows builds that
+	// advertise higher versions (e.g. "9.0") must not be rejected by an exact-match allow-list.
+	atLeastMin, err := enrollmentVersionAtLeast(req.Body.Discover.Request.RequestVersion, syncml.MinSupportedEnrollmentVersion)
+	if err != nil {
+		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q is not a valid version: %w",
+			req.Body.Discover.Request.RequestVersion, err)
 	}
-	if !versionFound {
-		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q not in supported versions %v",
-			req.Body.Discover.Request.RequestVersion, syncml.SupportedEnrollmentVersions)
+	if !atLeastMin {
+		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q is below the minimum supported version %q",
+			req.Body.Discover.Request.RequestVersion, syncml.MinSupportedEnrollmentVersion)
 	}
 
 	// Traverse the AuthPolicies slice and check for valid values
@@ -532,7 +583,7 @@ func (msg *RequestSecurityToken) GetContextItem(item string) (string, error) {
 		msg.MapContextItems = contextMap
 	}
 
-	itemVal, ok := (msg.MapContextItems)[item]
+	itemVal, ok := msg.MapContextItems[item]
 	if !ok {
 		return "", fmt.Errorf("ContextItem item %s is not present", item)
 	}
@@ -718,7 +769,6 @@ type WindowsMDMAccessTokenPayload struct {
 	Type    WindowsMDMEnrollmentType `json:"type"`
 	Payload struct {
 		OrbitNodeKey string `json:"orbit_node_key"`
-		AuthToken    string `json:"auth_token"`
 	} `json:"payload"`
 }
 
@@ -728,21 +778,16 @@ type WindowsMDMEnrollmentType int
 
 const (
 	WindowsMDMProgrammaticEnrollmentType WindowsMDMEnrollmentType = 1
-	WindowsMDMAutomaticEnrollmentType    WindowsMDMEnrollmentType = 2
 )
 
 func (t *WindowsMDMAccessTokenPayload) IsValidToken() error {
 	// Only BSProgrammaticEnrollment are supported for now
-	if t.Type != WindowsMDMProgrammaticEnrollmentType && t.Type != WindowsMDMAutomaticEnrollmentType {
+	if t.Type != WindowsMDMProgrammaticEnrollmentType {
 		return errors.New("invalid binary security payload type")
 	}
 
-	if t.Type == WindowsMDMProgrammaticEnrollmentType && len(t.Payload.OrbitNodeKey) == 0 {
+	if len(t.Payload.OrbitNodeKey) == 0 {
 		return errors.New("invalid binary security payload content")
-	}
-
-	if t.Type == WindowsMDMAutomaticEnrollmentType && len(t.Payload.AuthToken) == 0 {
-		return errors.New("invalid STS auth token payload content")
 	}
 
 	return nil
@@ -814,25 +859,158 @@ func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
 /// MDMWindowsEnrolledDevice type
 /// Contains the information of the enrolled Windows host
 
+// WindowsMDMEnrollType represents how a Windows device enrolled in MDM.
+type WindowsMDMEnrollType int
+
+const (
+	// WindowsMDMEnrollTypeProgrammatic is enrollment via fleetd/orbit using an orbit node key.
+	WindowsMDMEnrollTypeProgrammatic WindowsMDMEnrollType = iota
+	// WindowsMDMEnrollTypeAutomatic is enrollment via Azure JWT (Autopilot, Entra join, Settings app).
+	WindowsMDMEnrollTypeAutomatic
+)
+
+// WindowsMDMAwaitingConfiguration represents the state of a Windows device's setup experience.
+type WindowsMDMAwaitingConfiguration uint
+
+const (
+	// WindowsMDMAwaitingConfigurationNone means the device is not awaiting configuration (default, or setup complete/failed).
+	WindowsMDMAwaitingConfigurationNone WindowsMDMAwaitingConfiguration = 0
+	// WindowsMDMAwaitingConfigurationPending means the device enrolled via autopilot in OOBE and is waiting for orbit
+	// to register and setup experience items to be enqueued.
+	WindowsMDMAwaitingConfigurationPending WindowsMDMAwaitingConfiguration = 1
+	// WindowsMDMAwaitingConfigurationActive means ESP commands have been enqueued and setup progress is being tracked.
+	WindowsMDMAwaitingConfigurationActive WindowsMDMAwaitingConfiguration = 2
+)
+
+// MDMWindowsESPReleaseAckStatus summarizes the delivery state of the ESP release command that completes the
+// Windows Autopilot "Account setup" phase (the user-scope ServerHasFinishedProvisioning Replace).
+type MDMWindowsESPReleaseAckStatus struct {
+	// Attempted is true when at least one release command targeting the URI has been queued for the enrollment.
+	Attempted bool
+	// Acked200 is true when any attempt has a recorded 200 result.
+	Acked200 bool
+	// HasUnacked is true when an attempt is still queued without any response (in flight).
+	HasUnacked bool
+	// LatestStatus is the status code of the most recently acked attempt ("405", "200", ...), empty when no
+	// attempt has a recorded result yet.
+	LatestStatus string
+}
+
+// MDMWindowsHostConfigState is the per-host Windows MDM state read in a single query on each orbit config check-in for a connected Windows
+// host: the Autopilot ESP awaiting-configuration value and whether the host's most recent Windows MDM enrollment has queued, unacknowledged
+// MDM commands. Reading both in one query keeps the hot orbit config path to a single round trip.
+type MDMWindowsHostConfigState struct {
+	AwaitingConfiguration WindowsMDMAwaitingConfiguration
+	HasPendingCommands    bool
+	// FleetdSyncCapable is the last-observed value of the X-Fleet-Capabilities CapabilityWindowsMDMSync flag for this enrollment, persisted by
+	// the orbit-config endpoint. GetOrbitConfig reads it to write-on-change; the OMA-DM management session (which has no capability header)
+	// reads it to gate poll relaxation.
+	FleetdSyncCapable bool
+	// ManagedLocalAccountEscrowed is true once the device has escrowed a managed local account password for this enrollment.
+	ManagedLocalAccountEscrowed bool
+	// ManagedLocalAccountRotationRequested asks the device to re-provision the account even though a password is already
+	// escrowed. Cleared once it escrows the replacement.
+	ManagedLocalAccountRotationRequested bool
+	// FleetdBitLockerPINCapable is the last-observed value of the X-Fleet-Capabilities CapabilityWindowsBitLockerPIN
+	// flag for this enrollment, persisted by the orbit-config endpoint. The device and Fleet Desktop endpoints carry no
+	// capability header, so they read this column to decide whether to offer the end user the PIN form.
+	FleetdBitLockerPINCapable bool
+	// BitLockerPINRequestPending is true while the end user has submitted a startup PIN that the agent has not yet collected.
+	// It is denormalized from host_bitlocker_pin_requests so the orbit config poll can answer "is a PIN waiting?" from the
+	// enrollment row it already reads. That table is the source of truth; setBitLockerPINPendingFlag keeps this column in step.
+	BitLockerPINRequestPending bool
+}
+
 type MDMWindowsEnrolledDevice struct {
-	ID                     uint      `db:"id"`
-	HostUUID               string    `db:"host_uuid"`
-	MDMDeviceID            string    `db:"mdm_device_id"`
-	MDMHardwareID          string    `db:"mdm_hardware_id"`
-	MDMDeviceState         string    `db:"device_state"`
-	MDMDeviceType          string    `db:"device_type"`
-	MDMDeviceName          string    `db:"device_name"`
-	MDMEnrollType          string    `db:"enroll_type"`
-	MDMEnrollUserID        string    `db:"enroll_user_id"`
-	MDMEnrollProtoVersion  string    `db:"enroll_proto_version"`
-	MDMEnrollClientVersion string    `db:"enroll_client_version"`
-	MDMNotInOOBE           bool      `db:"not_in_oobe"`
-	CreatedAt              time.Time `db:"created_at"`
-	UpdatedAt              time.Time `db:"updated_at"`
+	ID                     uint   `db:"id"`
+	HostUUID               string `db:"host_uuid"`
+	MDMDeviceID            string `db:"mdm_device_id"`
+	MDMHardwareID          string `db:"mdm_hardware_id"`
+	MDMDeviceState         string `db:"device_state"`
+	MDMDeviceType          string `db:"device_type"`
+	MDMDeviceName          string `db:"device_name"`
+	MDMEnrollType          string `db:"enroll_type"`
+	MDMEnrollUserID        string `db:"enroll_user_id"`
+	MDMEnrollProtoVersion  string `db:"enroll_proto_version"`
+	MDMEnrollClientVersion string `db:"enroll_client_version"`
+	MDMNotInOOBE           bool   `db:"not_in_oobe"`
+	// ZTDRegistrationID is the Autopilot ZTDID the device supplied at enrollment
+	ZTDRegistrationID string `db:"ztd_registration_id"`
+	// EntraDeviceID is the Entra device ID signed into the access token of an Entra enrollment, empty for other enrollments.
+	EntraDeviceID           string                          `db:"entra_device_id"`
+	AwaitingConfiguration   WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
+	AwaitingConfigurationAt *time.Time                      `db:"awaiting_configuration_at"`
+	CredentialsHash         *[]byte                         `db:"credentials_hash"`
+	CredentialsAcknowledged bool                            `db:"credentials_acknowledged"`
+	// LastLoginStatus is the value of the com.microsoft/MDM/LoginStatus device alert the device last reported.
+	LastLoginStatus *WindowsMDMLoginStatus `db:"last_login_status"`
+	// LastLoginStatusAt is when LastLoginStatus last changed. It is written on change, not on every session.
+	LastLoginStatusAt *time.Time `db:"last_login_status_at"`
+	// PollScheduleRelaxed is the INTENDED DMClient poll schedule for this enrollment: true once we have enqueued a Replace to relax its poll
+	// (because its fleetd can be woken on demand), false for the aggressive default. Delivery and acknowledgment of that Replace are tracked
+	// by the standard Windows MDM command queue, so this only records what we last asked for; the management session re-enqueues only when
+	// desired differs from it.
+	PollScheduleRelaxed bool `db:"poll_schedule_relaxed"`
+	// FleetdSyncCapable is the last-observed CapabilityWindowsMDMSync value for this enrollment, persisted by the orbit-config endpoint. The
+	// management session has no capability header, so it gates poll relaxation on this persisted flag rather than re-deriving the capability.
+	FleetdSyncCapable bool `db:"fleetd_sync_capable"`
+	// HasPendingCommands is the denormalized pending-commands flag as loaded at session start. The management session uses it to gate the
+	// per-session refresh: when it is already false and the pending fetch is empty, the refresh is skipped so idle check-ins do zero
+	// writer-side statements.
+	HasPendingCommands bool `db:"has_pending_commands"`
+	// HardwareSerial is the SMBIOS serial the device reported over OMA-DM (DevDetail), persisted while the enrollment
+	// is still unlinked so the orbit enrollment path can reverse-link it.
+	HardwareSerial *string `db:"hardware_serial"`
+	// EnrolledActivityAt is when the mdm_enrolled activity was recorded for this enrollment, and nil until it has been.
+	EnrolledActivityAt *time.Time `db:"enrolled_activity_at"`
+	// DeletedHostTeamID is set when the enrollment's host was deleted. It is cleared when the host is linked again.
+	DeletedHostTeamID *uint `db:"deleted_host_team_id"`
+	// FleetdPresentAt is when fleetd was first seen present for this enrollment, and nil until it has been or after its host is deleted.
+	FleetdPresentAt *time.Time `db:"fleetd_present_at"`
+	CreatedAt       time.Time  `db:"created_at"`
+	UpdatedAt       time.Time  `db:"updated_at"`
+
+	// LinkedHostID is the host that has HostUUID
+	LinkedHostID *uint `db:"linked_host_id"`
+}
+
+// WindowsEnrollmentDefaultFleet is the cacheable shape of Datastore.GetWindowsEnrollmentDefaultFleet (see the cached_mysql
+// layer). Nil FleetID and empty FleetName mean no default is configured.
+type WindowsEnrollmentDefaultFleet struct {
+	FleetID   *uint
+	FleetName string
+}
+
+func (w *WindowsEnrollmentDefaultFleet) Clone() (Cloner, error) {
+	return w.Copy(), nil
+}
+
+func (w *WindowsEnrollmentDefaultFleet) Copy() *WindowsEnrollmentDefaultFleet {
+	clone := *w
+	if w.FleetID != nil {
+		clone.FleetID = new(*w.FleetID)
+	}
+	return &clone
 }
 
 func (e MDMWindowsEnrolledDevice) AuthzType() string {
 	return "mdm_windows"
+}
+
+// MDMWindowsSaveResponseResult contains information about significant events
+// detected while processing a Windows MDM response. The service layer uses
+// this to create activities and fire webhooks.
+type MDMWindowsSaveResponseResult struct {
+	// WipeFailed is non-nil when a wipe command was processed and the status
+	// code indicates failure (not 2xx).
+	WipeFailed *MDMWindowsWipeResult
+	// WipeSucceeded is non-nil when a wipe command was processed and the
+	// status code indicates success (2xx).
+	WipeSucceeded *MDMWindowsWipeResult
+}
+
+type MDMWindowsWipeResult struct {
+	HostUUID string
 }
 
 ///////////////////////////////////////////////////////////////
@@ -902,10 +1080,16 @@ type SyncHdr struct {
 	Target    *LocURI  `xml:"Target,omitempty"`
 	Source    *LocURI  `xml:"Source,omitempty"`
 	Meta      *MetaHdr `xml:"Meta,omitempty"`
+	Cred      *CredHdr `xml:"Cred,omitempty"`
 }
 
 type MetaHdr struct {
 	MaxMsgSize *string `xml:"MaxMsgSize,omitempty"`
+}
+
+type CredHdr struct {
+	Meta Meta   `xml:"Meta"`
+	Data string `xml:"Data"`
 }
 
 // ProtoCmds contains a slice of SyncML protocol commands
@@ -956,6 +1140,47 @@ const (
 	CmdStatus  = "Status"  // Protocol Command verb Status
 )
 
+// FleetInternalCmdIDPrefix marks Fleet-injected SyncML commands that are sent inline in a management response but never
+// persisted to windows_mdm_commands. The device's <Status>/<Results> for these commands will reference a CmdID that
+// won't match any row in windows_mdm_commands. MDMWindowsSaveResponse uses this prefix to skip them before warning
+// about "unmatched Windows MDM commands". Example: the DevDetail/SMBIOSSerialNumber Get used to link unlinked Windows
+// MDM enrollments (see server/service/microsoft_mdm.go).
+const FleetInternalCmdIDPrefix = "fleet-internal-"
+
+// IsFleetInternalCmdID reports whether a SyncML CmdID was injected by Fleet itself and is intentionally absent from
+// windows_mdm_commands.
+func IsFleetInternalCmdID(cmdID string) bool {
+	return strings.HasPrefix(cmdID, FleetInternalCmdIDPrefix)
+}
+
+// WindowsSCEPStatusProbeCmdUUIDPrefix marks the queued <Get> commands that read a proxied SCEP profile's
+// ClientCertificateInstall status after the host ACKs the install.
+const WindowsSCEPStatusProbeCmdUUIDPrefix = "scep-status-"
+
+// WindowsSCEPStatusProbeDelay is how long a SCEP status probe stays queued before it is sent, which gives the device's
+// SCEP enrollment time to finish and spaces consecutive probes.
+const WindowsSCEPStatusProbeDelay = 30 * time.Second
+
+// IsWindowsSCEPStatusProbeCmdUUID reports whether a Windows MDM command is a SCEP status probe.
+func IsWindowsSCEPStatusProbeCmdUUID(cmdUUID string) bool {
+	return strings.HasPrefix(cmdUUID, WindowsSCEPStatusProbeCmdUUIDPrefix)
+}
+
+// WindowsESPReleaseCmdIDPrefix marks the CmdID of every user-scope ESP release attempt Fleet sends (the initial finalize's
+// Replace and each retry).
+const WindowsESPReleaseCmdIDPrefix = "esp-release-"
+
+// ValidateWindowsMDMCommandID rejects a CmdID that starts with a prefix Fleet reserves for the commands it sends itself.
+// Fleet recognizes those commands by their CmdID, and a command an admin runs keeps the CmdID it was given.
+func ValidateWindowsMDMCommandID(cmdID string) error {
+	for _, prefix := range []string{FleetInternalCmdIDPrefix, WindowsSCEPStatusProbeCmdUUIDPrefix, WindowsESPReleaseCmdIDPrefix} {
+		if strings.HasPrefix(cmdID, prefix) {
+			return NewInvalidArgumentError("command", fmt.Sprintf("CmdID can't start with %q. This prefix is reserved for commands Fleet sends.", prefix))
+		}
+	}
+	return nil
+}
+
 // ProtoCmdOperation is the abstraction to represent a SyncML Protocol Command
 type ProtoCmdOperation struct {
 	Verb string    `db:"verb"`
@@ -994,13 +1219,14 @@ func (c *CmdID) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 
 // Protocol Command
 type SyncMLCmd struct {
-	XMLName xml.Name  `xml:",omitempty"`
-	CmdID   CmdID     `xml:"CmdID"`
-	MsgRef  *string   `xml:"MsgRef,omitempty"`
-	CmdRef  *string   `xml:"CmdRef,omitempty"`
-	Cmd     *string   `xml:"Cmd,omitempty"`
-	Data    *string   `xml:"Data,omitempty"`
-	Items   []CmdItem `xml:"Item,omitempty"`
+	XMLName xml.Name         `xml:",omitempty"`
+	CmdID   CmdID            `xml:"CmdID"`
+	MsgRef  *string          `xml:"MsgRef,omitempty"`
+	CmdRef  *string          `xml:"CmdRef,omitempty"`
+	Cmd     *string          `xml:"Cmd,omitempty"`
+	Data    *string          `xml:"Data,omitempty"`
+	Items   []CmdItem        `xml:"Item,omitempty"`
+	Chal    *SyncMLChallenge `xml:"Chal,omitempty"`
 
 	// ReplaceCommands is a catch-all for any nested <Replace> commands,
 	// which can be found under <Atomic> elements.
@@ -1016,6 +1242,19 @@ type SyncMLCmd struct {
 	// ExecCommands is a catch-all for any nested <Exec> commands,
 	// which can be found under <Atomic> elements.
 	ExecCommands []SyncMLCmd `xml:"Exec,omitempty"`
+
+	// DeleteCommands is a catch-all for any nested <Delete> commands,
+	// which can be found under <Atomic> elements.
+	DeleteCommands []SyncMLCmd `xml:"Delete,omitempty"`
+}
+
+type SyncMLChallenge struct {
+	Meta ChallengeMeta `xml:"Meta"`
+}
+
+type ChallengeMeta struct {
+	Meta
+	NextNonce MetaAttr `xml:"NextNonce,omitempty"`
 }
 
 // ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
@@ -1054,7 +1293,9 @@ const WindowsMDMRequiresPremiumCmdMessage = "Missing or invalid license. Wipe co
 func (cmd SyncMLCmd) IsPremium() bool {
 	// NOTE: if this implementation changes, make sure to also update the error
 	// message above - the WindowsMDMRequiresPremiumCmdMessage constant.
-	return strings.Contains(cmd.GetTargetURI(), "/Device/Vendor/MSFT/RemoteWipe/")
+	//
+	// LocURITargetsReservedNode canonicalizes the target so the premium gate matches every LocURI form Windows accepts.
+	return LocURITargetsReservedNode(cmd.GetTargetURI(), syncml.FleetRemoteWipeTargetLocURI)
 }
 
 // DataType returns the SyncMLDataType corresponding to the command's format.
@@ -1458,6 +1699,19 @@ type MDMWindowsCommand struct {
 	UpdatedAt    time.Time `db:"updated_at"`
 }
 
+// MDMWindowsCommandHistoryCleanupCounts reports what one retention sweep of the
+// Windows MDM command history tables deleted.
+type MDMWindowsCommandHistoryCleanupCounts struct {
+	Responses int64
+	Results   int64
+	Commands  int64
+}
+
+// Total returns the number of rows deleted across all three tables.
+func (c MDMWindowsCommandHistoryCleanupCounts) Total() int64 {
+	return c.Responses + c.Results + c.Commands
+}
+
 // GetEncodedBinarySecurityToken returns the base64 form of a input payload
 func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload string) (string, error) {
 	var pld WindowsMDMAccessTokenPayload
@@ -1466,8 +1720,6 @@ func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload stri
 	switch typeID {
 	case WindowsMDMProgrammaticEnrollmentType:
 		pld.Payload.OrbitNodeKey = payload
-	case WindowsMDMAutomaticEnrollmentType:
-		pld.Payload.AuthToken = payload
 	default:
 		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
 	}
@@ -1489,6 +1741,7 @@ type HostMDMWindowsProfile struct {
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
 	Detail        string             `db:"detail" json:"detail"`
+	Hidden        bool               `db:"hidden" json:"hidden"`
 }
 
 func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
@@ -1501,6 +1754,8 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 		OperationType: p.OperationType,
 		Detail:        p.Detail,
 		Platform:      "windows",
+		SelfService:   false,
+		Hidden:        p.Hidden,
 	}
 }
 
@@ -1508,13 +1763,14 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 // MDMWindowsProfilePayload for a command that was used to deliver a
 // configuration profile.
 //
-// Profiles are groups of `<Replace>` or `<Add>` commands wrapped in an `<Atomic>`, both
-// the top-level atomic and each replace have different CmdID values and Status
+// Profiles are either groups of `<Replace>` or `<Add>` commands at the top-level or wrapped in an `<Atomic>`,
+// all commands, whether nested or not has their own CmdID, and therefore their own status in the MDM server
 // responses. For example a profile might look like:
 //
 // <Atomic>
 //
 //	<CmdID>foo</CmdID>
+//
 //	<Replace>
 //	  <CmdID>bar</CmdID>
 //	  ...
@@ -1557,77 +1813,510 @@ func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
 // </SyncBody>
 //
 // As currently specified:
-//   - The status of the resulting command should be the status of the
-//     top-level `<Atomic>` operation
+//   - The status of the resulting command is:
+//   - If atomic: the status of the atomic command
+//   - If not atomic: then any failed commands will result in a failed profile delivery
+//   - If any command is pending, then the profile delivery is pending
+//   - Otherwise the profile delivery is verified
 //   - The detail of the resulting command should be an aggregate of all the
-//     status responses of every nested `Replace` operation
+//     status responses for that given command
 func BuildMDMWindowsProfilePayloadFromMDMResponse(
 	// IMPORTANT: The cmdWithSecret.RawCommand may contain a Fleet secret variable value, so it should never be exposed or saved.
 	cmdWithSecret MDMWindowsCommand,
 	statuses map[string]SyncMLCmd,
 	hostUUID string,
+	isRemoveOperation bool,
 ) (*MDMWindowsProfilePayload, error) {
-	status, ok := statuses[cmdWithSecret.CommandUUID]
-	if !ok {
-		return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
+	cmds, err := UnmarshallMultiTopLevelXMLProfile(cmdWithSecret.RawCommand)
+	if err != nil {
+		return nil, err
 	}
-	commandStatus := WindowsResponseToDeliveryStatus(*status.Data)
+
+	// Select the appropriate status mapper based on operation type.
+	// For remove operations, 404 (Not Found), 405 (Not Allowed), and
+	// 500 (Command Failed) are treated as success since the setting is
+	// effectively not on the device. Our remove operations are best-effort.
+	statusMapper := WindowsResponseToDeliveryStatus
+	if isRemoveOperation {
+		statusMapper = WindowsResponseToDeliveryStatusForRemove
+	}
+
+	var commandStatus MDMDeliveryStatus
+	if len(cmds) == 0 { // nolint: gocritic // Switch does not make sense for the else-if where we also check the Cmd name
+		commandStatus = MDMDeliveryPending
+	} else if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
+		status, ok := statuses[cmdWithSecret.CommandUUID]
+		if !ok {
+			return nil, fmt.Errorf("missing status for root command %s", cmdWithSecret.CommandUUID)
+		}
+		commandStatus = statusMapper(*status.Data)
+	} else {
+		// non atomic profile, loop over all commands to determine overall status
+		for _, cmd := range cmds {
+			status, ok := statuses[cmd.CmdID.Value]
+			if !ok {
+				return nil, fmt.Errorf("missing status for command %s", cmd.CmdID.Value)
+			}
+			cmdStatus := statusMapper(*status.Data)
+			if cmdStatus == MDMDeliveryFailed {
+				// Failed always take precedence
+				commandStatus = MDMDeliveryFailed
+				break
+			} else if cmdStatus == MDMDeliveryPending && commandStatus != MDMDeliveryFailed {
+				// If we get pending, we set to pending unless we already have failed
+				commandStatus = MDMDeliveryPending
+			}
+		}
+		if commandStatus == "" {
+			// Only if command status was not set by failed or pending do we mark it as verifying
+			commandStatus = MDMDeliveryVerified
+		}
+	}
+
 	var details []string
-	if status.Data != nil && commandStatus == MDMDeliveryFailed {
-		syncML := new(SyncMLCmd)
-		if err := xml.Unmarshal(cmdWithSecret.RawCommand, syncML); err != nil {
-			return nil, err
-		}
-		for _, nested := range syncML.ReplaceCommands {
-			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
-				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+	// userChannelRejected records whether a user-channel LocURI is among the ones that failed. It is the per-LocURI signal.
+	var userChannelRejected bool
+	// Only failures contribute to the admin-facing detail string.
+	if commandStatus == MDMDeliveryFailed || isRemoveOperation {
+		addDetail := func(cmd SyncMLCmd, status SyncMLCmd) {
+			locURI := cmd.GetTargetURI()
+			if commandStatus == MDMDeliveryFailed {
+				details = append(details, fmt.Sprintf("%s: status %s", locURI, *status.Data))
+			}
+			if isUserChannelLocURI(locURI) && isWindowsUserContextRejection(*status.Data) {
+				userChannelRejected = true
 			}
 		}
 
-		for _, nested := range syncML.AddCommands {
-			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
-				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+		if len(cmds) == 1 && cmds[0].XMLName.Local == CmdAtomic {
+			// atomic profile
+			for _, nested := range slices.Concat(cmds[0].ReplaceCommands, cmds[0].AddCommands, cmds[0].DeleteCommands, cmds[0].ExecCommands) {
+				if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
+					addDetail(nested, status)
+				}
 			}
-		}
-	}
-
-	if commandStatus == MDMDeliveryVerifying {
-		// Check a single LocURI for SCEP path, and move straight to verified.
-		if strings.Contains(string(cmdWithSecret.RawCommand), "/Vendor/MSFT/ClientCertificateInstall/SCEP") {
-			commandStatus = MDMDeliveryVerified
-		}
-
-		// Check if the command contains ./User, and no ./Device paths
-		if strings.Contains(string(cmdWithSecret.RawCommand), "./User/") &&
-			!strings.Contains(string(cmdWithSecret.RawCommand), "./Device/") &&
-			!strings.Contains(string(cmdWithSecret.RawCommand), "./Vendor/") {
-			commandStatus = MDMDeliveryVerified
+		} else {
+			// non atomic profile, loop over all commands
+			for _, cmd := range cmds {
+				if status, ok := statuses[cmd.CmdID.Value]; ok && status.Data != nil {
+					addDetail(cmd, status)
+				}
+			}
 		}
 	}
 
 	detail := strings.Join(details, ", ")
 	return &MDMWindowsProfilePayload{
-		HostUUID:      hostUUID,
-		Status:        &commandStatus,
-		OperationType: "",
-		Detail:        detail,
-		CommandUUID:   cmdWithSecret.CommandUUID,
+		HostUUID:            hostUUID,
+		Status:              &commandStatus,
+		OperationType:       "",
+		Detail:              detail,
+		CommandUUID:         cmdWithSecret.CommandUUID,
+		UserChannelRejected: userChannelRejected,
 	}, nil
+}
+
+// isUserChannelLocURI reports whether a LocURI targets a node on the OMA-DM user channel, using the same canonicalization
+// the scope classifier uses so the two cannot disagree.
+func isUserChannelLocURI(locURI string) bool {
+	return strings.HasPrefix(CanonicalLocURI(locURI), "User/")
+}
+
+// isWindowsUserContextRejection reports whether a SyncML status on a user-channel LocURI is one Windows returns when the
+// operation cannot be applied for want of a user context. This is an allow-list.
+//
+// The entries are the codes actually observed in testing: 500 on the SCEP root node of an enrollment with no bound user
+// identity, 405 on a user-scope write during OOBE, and 404 on a user-scope Replace on a device-bound enrollment with
+// nobody signed in. The caller holds only while the enrollment is awaiting a user context, and once one is present these
+// errors count as real failures.
+func isWindowsUserContextRejection(status string) bool {
+	switch status {
+	case syncml.CmdStatusCommandFailed, syncml.CmdStatusNotAllowed, syncml.CmdStatusNotFound:
+		return true
+	default:
+		return false
+	}
 }
 
 // WindowsResponseToDeliveryStatus converts a response string from Windows MDM
 // into an MDMDeliveryStatus.
 //
 // If the response starts with "2" (any 2xx response), it returns
-// MDMDeliveryVerifying, otherwise, it returns MDMDeliveryFailed.
+// MDMDeliveryVerified, otherwise, it returns MDMDeliveryFailed.
 func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
 	if len(resp) == 0 {
 		return MDMDeliveryPending
 	}
 
 	if strings.HasPrefix(resp, "2") {
-		return MDMDeliveryVerifying
+		return MDMDeliveryVerified
 	}
 
 	return MDMDeliveryFailed
+}
+
+// WindowsResponseToDeliveryStatusForRemove converts a SyncML response status to an
+// MDMDeliveryStatus for remove operations. Profile removal is best-effort: the admin
+// wants the profile gone from Fleet regardless of whether the device can undo it.
+//
+// Treated as success (verified):
+//   - 2xx: device confirmed removal
+//   - 404 (Not Found): setting was never on the device
+//   - 405 (Not Allowed): CSP node is read-only per OMA-DM spec
+//   - 500 (Command Failed): CSP doesn't support <Delete>; in manual testing Windows
+//     returns 500 (not 405) for nodes that can't be deleted, such as
+//     DeviceLock/AccountLockoutPolicy and some SystemServices CSP nodes
+func WindowsResponseToDeliveryStatusForRemove(resp string) MDMDeliveryStatus {
+	if len(resp) == 0 {
+		return MDMDeliveryPending
+	}
+	if strings.HasPrefix(resp, "2") ||
+		resp == syncml.CmdStatusNotFound ||
+		resp == syncml.CmdStatusNotAllowed ||
+		resp == syncml.CmdStatusCommandFailed {
+		return MDMDeliveryVerified
+	}
+	return MDMDeliveryFailed
+}
+
+// BuildDeleteCommandFromProfileBytes generates SyncML <Delete> commands that
+// reverse the settings applied by the given profile. It parses the profile's
+// SyncML to extract all OMA-URIs from <Replace> and <Add> commands,
+// then generates <Delete> commands targeting those same URIs.
+//
+// Delete commands are never wrapped in <Atomic>, even if the original profile
+// was atomic. Removal is best-effort: individual deletions may fail (e.g., the
+// CSP node doesn't support deletion).
+//
+// locURIsInUseByOtherProfiles is an optional set of LocURIs that are still targeted by other active profiles in the same team.
+// These LocURIs will be skipped when generating <Delete> commands, so that deleting one profile does not undo settings enforced
+// by a different profile. Both sides are compared in CanonicalLocURI form, so the set may hold any spelling and still protects a
+// node the deleted profile spells differently.
+func BuildDeleteCommandFromProfileBytes(profileBytes []byte, commandUUID string, profileUUID string, locURIsInUseByOtherProfiles ...map[string]struct{}) (*MDMWindowsCommand, error) {
+	// Substitute $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID with the profile UUID.
+	// This is the only Fleet variable that appears in LocURIs (enforced by
+	// upload validation). The install path replaces it with the profile UUID
+	// so the CSP node is created at e.g. .../SCEP/<profileUUID>/Install/ServerURL.
+	// The delete path must use the same UUID so the <Delete> targets the right node.
+	normalized := FleetVarSCEPWindowsCertificateIDRegexp.ReplaceAll(profileBytes, []byte(profileUUID))
+
+	// Mirror the install-side behavior: SCEP profiles are wrapped in <Atomic> if not already.
+	normalized = WrapSCEPProfileInAtomic(normalized)
+
+	allURIs := ExtractLocURIsFromProfileBytes(normalized)
+	if len(allURIs) == 0 {
+		return nil, nil
+	}
+
+	// Filter out LocURIs that are still targeted by other active profiles, comparing canonical forms.
+	inUse := make(map[string]struct{})
+	if len(locURIsInUseByOtherProfiles) > 0 {
+		for uri := range locURIsInUseByOtherProfiles[0] {
+			inUse[CanonicalLocURI(uri)] = struct{}{}
+		}
+	}
+
+	var safeURIs []string
+	for _, uri := range allURIs {
+		if _, ok := inUse[CanonicalLocURI(uri)]; !ok {
+			safeURIs = append(safeURIs, uri)
+		}
+	}
+
+	return BuildDeleteCommandFromLocURIs(safeURIs, commandUUID)
+}
+
+// BuildDeleteCommandFromLocURIs generates individual <Delete> commands for
+// the given LocURIs. Returns nil if locURIs is empty.
+func BuildDeleteCommandFromLocURIs(locURIs []string, commandUUID string) (*MDMWindowsCommand, error) {
+	if len(locURIs) == 0 {
+		return nil, nil
+	}
+
+	var deleteCmds []SyncMLCmd
+	for _, uri := range locURIs {
+		cmdID := uuid.NewString()
+		if len(deleteCmds) == 0 {
+			cmdID = commandUUID
+		}
+		target := uri
+		deleteCmds = append(deleteCmds, SyncMLCmd{
+			XMLName: xml.Name{Local: CmdDelete},
+			CmdID:   CmdID{Value: cmdID, IncludeFleetComment: true},
+			Items:   []CmdItem{{Target: &target}},
+		})
+	}
+
+	rawCommand, err := xml.Marshal(deleteCmds)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling delete commands: %w", err)
+	}
+
+	return &MDMWindowsCommand{
+		CommandUUID:  commandUUID,
+		RawCommand:   rawCommand,
+		TargetLocURI: "",
+	}, nil
+}
+
+// xml.Unmarshal expects a single top-level element, or all top-level elements to have the same <Tag>
+// We therefore wrap the incoming profile bytes with Root, and then parse the individual commands into an array for further processing.
+func UnmarshallMultiTopLevelXMLProfile(profileBytes []byte) ([]SyncMLCmd, error) {
+	// Wrap the profile bytes in a root element to handle multiple top-level commands
+	wrappedXML := "<root>" + string(profileBytes) + "</root>"
+
+	// Parse the XML to extract individual command elements
+	var root struct {
+		Commands []SyncMLCmd `xml:",any"`
+	}
+
+	if err := xml.Unmarshal([]byte(wrappedXML), &root); err != nil {
+		return nil, fmt.Errorf("unmarshalling wrapped profile: %w", err)
+	}
+
+	if len(root.Commands) == 0 {
+		return nil, errors.New("no commands found in profile")
+	}
+
+	return root.Commands, nil
+}
+
+// CanonicalLocURI returns the comparison form of an OMA-DM LocURI: surrounding whitespace trimmed, the optional "./" prefix
+// dropped, and an explicit leading "Device/" scope segment dropped. Windows treats "./Device/Vendor/X", "./Vendor/X",
+// "Device/Vendor/X" and "Vendor/X" as the same device-scoped node (see validateLocURIFormat's empirically-verified notes; user
+// scope must be explicit, so "./User/..." stays distinct).
+func CanonicalLocURI(locURI string) string {
+	s := strings.TrimSpace(locURI)
+	s = strings.TrimPrefix(s, "./")
+	s = strings.TrimPrefix(s, "Device/")
+	return s
+}
+
+// WrapSCEPProfileInAtomic wraps profileBytes in <Atomic> when the profile targets the Windows SCEP ClientCertificateInstall
+// node and isn't already wrapped.
+func WrapSCEPProfileInAtomic(profileBytes []byte) []byte {
+	if bytes.Contains(profileBytes, []byte(scepInstallLocURINode)) && !bytes.Contains(profileBytes, []byte("<Atomic>")) {
+		return fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", profileBytes)
+	}
+	return profileBytes
+}
+
+// WindowsMDMLoginStatus is the value of the com.microsoft/MDM/LoginStatus device alert (see syncml.AlertTypeLoginStatus).
+type WindowsMDMLoginStatus string
+
+const (
+	// WindowsMDMLoginStatusUser means a user with an MDM account is signed in, so the user channel is writable.
+	WindowsMDMLoginStatusUser WindowsMDMLoginStatus = "user"
+
+	// WindowsMDMLoginStatusOthers means someone is signed in but has no MDM account, so only device-wide configuration
+	// applies. This is the value Windows reports throughout OOBE, where the setup account (defaultuser0) holds the
+	// session.
+	WindowsMDMLoginStatusOthers WindowsMDMLoginStatus = "others"
+
+	// WindowsMDMLoginStatusNone means no user is signed in.
+	WindowsMDMLoginStatusNone WindowsMDMLoginStatus = "none"
+)
+
+// IsValid reports whether status is one of the three documented values. Anything else is ignored rather than persisted, so an
+// unrecognized value cannot silently release the user-scoped profile gate.
+func (s WindowsMDMLoginStatus) IsValid() bool {
+	switch s {
+	case WindowsMDMLoginStatusUser, WindowsMDMLoginStatusOthers, WindowsMDMLoginStatusNone:
+		return true
+	default:
+		return false
+	}
+}
+
+// WindowsUserScopeHoldDetail is shown while Fleet is waiting for a user context that can still arrive. The row stays pending
+// (NULL status), so the reconciler re-evaluates it every tick and delivers as soon as the device reports a signed-in MDM user.
+const WindowsUserScopeHoldDetail = "Waiting for an end user to sign in with a Microsoft Entra ID account. " +
+	"Fleet will deliver this profile automatically."
+
+// WindowsUserScopeRemoveHoldDetail is the removal counterpart of WindowsUserScopeHoldDetail: a <Delete> on a user-channel node
+// needs the same user context an install does, so a removal waits on the same signal.
+const WindowsUserScopeRemoveHoldDetail = "Waiting for an end user to sign in with a Microsoft Entra ID account. " +
+	"Fleet will remove this profile automatically."
+
+// WindowsUserScopeHoldDetailAnyUser is the hold detail for a device-bound enrollment (no Entra user attached, e.g. a
+// fleetd enrollment). Its user channel resolves to whoever is signed in, so the wait is for any user, not an Entra one.
+const WindowsUserScopeHoldDetailAnyUser = "Waiting for an end user to sign in. " +
+	"Fleet will deliver this profile automatically."
+
+// WindowsUserScopeRemoveHoldDetailAnyUser is the removal counterpart of WindowsUserScopeHoldDetailAnyUser.
+const WindowsUserScopeRemoveHoldDetailAnyUser = "Waiting for an end user to sign in. " +
+	"Fleet will remove this profile automatically."
+
+// IsWindowsUserScopeHoldDetail reports whether a host profile row's detail is one the user-scope gate wrote while
+// waiting for a user context, which is what distinguishes a deliberately-held row from an ordinary pending one.
+func IsWindowsUserScopeHoldDetail(detail string) bool {
+	return detail == WindowsUserScopeHoldDetail || detail == WindowsUserScopeRemoveHoldDetail ||
+		detail == WindowsUserScopeHoldDetailAnyUser || detail == WindowsUserScopeRemoveHoldDetailAnyUser
+}
+
+// IsWindowsUserScopeInstallHoldDetail reports whether a detail is one of the install-direction hold texts. A pending
+// removal whose install row still carries one of these never reached the device at all.
+func IsWindowsUserScopeInstallHoldDetail(detail string) bool {
+	return detail == WindowsUserScopeHoldDetail || detail == WindowsUserScopeHoldDetailAnyUser
+}
+
+// WindowsUserScopeHoldDetailFor returns the hold detail matching the operation being held and the kind of enrollment
+// doing the waiting: user-bound (Entra UPN) enrollments wait for their enrolled user, device-bound ones for any user.
+func WindowsUserScopeHoldDetailFor(op MDMOperationType, userBoundEnrollment bool) string {
+	switch {
+	case op == MDMOperationTypeRemove && userBoundEnrollment:
+		return WindowsUserScopeRemoveHoldDetail
+	case op == MDMOperationTypeRemove:
+		return WindowsUserScopeRemoveHoldDetailAnyUser
+	case userBoundEnrollment:
+		return WindowsUserScopeHoldDetail
+	default:
+		return WindowsUserScopeHoldDetailAnyUser
+	}
+}
+
+// WindowsEnrollmentUserContext is the slice of an enrollment the user-scoped profile gate reads: who the enrollment is bound
+// to, and the last user context the device reported.
+type WindowsEnrollmentUserContext struct {
+	HostUUID string `db:"host_uuid"`
+	// EnrollUserID is a UPN for user-driven (Entra) enrollments and the orbit node key for programmatic ones, which is
+	// what distinguishes an enrollment that can have a user context from one that never will.
+	EnrollUserID    string                 `db:"enroll_user_id"`
+	LastLoginStatus *WindowsMDMLoginStatus `db:"last_login_status"`
+}
+
+// WindowsUserContextState is whether an enrollment has, or could ever have, an MDM user context. It decides what happens to
+// user-scoped profiles: deliver, hold, or fail fast.
+type WindowsUserContextState string
+
+const (
+	// WindowsUserContextPresent means the enrollment reported LoginStatus "user": the user channel is writable.
+	WindowsUserContextPresent WindowsUserContextState = "present"
+
+	// WindowsUserContextCanArrive means the enrollment has no usable user context now but can gain one at a sign-in.
+	// For a user-bound (UPN) enrollment this covers "others", "none", and never-observed alike: the hold releases on a
+	// positive "user" report, not on the absence of a contrary one. For a device-bound enrollment it means a positively
+	// observed non-"user" status: the device itself said nobody usable is signed in.
+	WindowsUserContextCanArrive WindowsUserContextState = "can_arrive"
+
+	// WindowsUserContextUnknown means the enrollment binds no user identity AND has never reported a login status, so
+	// Fleet cannot tell whether the user channel is writable: on a device-bound enrollment it resolves to whoever is
+	// signed in, which the enrollment row alone cannot see.
+	//
+	// Fleet does not gate these enrollments. Delivery proceeds as it always has, and a genuine rejection surfaces through
+	// the normal failure path rather than being predicted from the enrollment type. Once the device reports a login
+	// status the enrollment leaves this state for good: "user" delivers, anything else holds until a sign-in.
+	WindowsUserContextUnknown WindowsUserContextState = "unknown"
+)
+
+// WindowsProfileScope is the OMA-DM channel a Windows profile writes to.
+type WindowsProfileScope string
+
+const (
+	// WindowsProfileScopeDevice targets the device channel ("./Device/..." or the equivalent scope-less spelling). It is
+	// deliverable whenever the device is enrolled.
+	WindowsProfileScopeDevice WindowsProfileScope = "device"
+
+	// WindowsProfileScopeUser targets the user channel ("./User/..."). Windows rejects these writes until the enrollment has
+	// an MDM user context, so delivery is gated on the enrollment's observed user context.
+	WindowsProfileScopeUser WindowsProfileScope = "user"
+)
+
+// WindowsProfileScopeFromBytes classifies a Windows profile by the channel its commands write to: user scope if ANY target
+// LocURI resolves under "./User/", device scope otherwise. A profile mixing both is user-scoped, because its user-channel
+// commands fail without a user context and the SCEP atomic wrapper makes delivery all-or-nothing anyway.
+//
+// Classification reads the LocURI as written, before Fleet variables and secrets are substituted per host. The scope segment is
+// therefore expected to be literal: a profile must spell out "./User/" or "User/" for user channel.
+func WindowsProfileScopeFromBytes(profileBytes []byte) WindowsProfileScope {
+	normalized := WrapSCEPProfileInAtomic(profileBytes)
+
+	cmds, err := UnmarshallMultiTopLevelXMLProfile(normalized)
+	if err != nil || len(cmds) == 0 {
+		// Unparseable content cannot be shown to target the user channel. Delivery fails on its own terms elsewhere; do
+		// not let a parse failure route a profile into the user-context gate.
+		return WindowsProfileScopeDevice
+	}
+
+	for _, cmd := range cmds {
+		if cmd.XMLName.Local == CmdAtomic {
+			for _, nested := range slices.Concat(cmd.ReplaceCommands, cmd.AddCommands, cmd.ExecCommands, cmd.DeleteCommands) {
+				if isUserChannelLocURI(nested.GetTargetURI()) {
+					return WindowsProfileScopeUser
+				}
+			}
+			continue
+		}
+		switch cmd.XMLName.Local {
+		case CmdReplace, CmdAdd, CmdExec, CmdDelete:
+			if isUserChannelLocURI(cmd.GetTargetURI()) {
+				return WindowsProfileScopeUser
+			}
+		}
+	}
+	return WindowsProfileScopeDevice
+}
+
+// ExtractLocURIsFromProfileBytes returns all Target LocURIs found in the
+// profile's Replace and Add commands. Exec commands are excluded (they
+// trigger one-time actions, not persistent settings). For Atomic profiles,
+// nested commands are inspected.
+func ExtractLocURIsFromProfileBytes(profileBytes []byte) []string {
+	// Mirror the install-side SCEP normalization.
+	normalized := WrapSCEPProfileInAtomic(profileBytes)
+
+	cmds, err := UnmarshallMultiTopLevelXMLProfile(normalized)
+	if err != nil || len(cmds) == 0 {
+		return nil
+	}
+
+	// The returned URIs are compared across profile versions and across profiles (edit-diffing, shared-LocURI protection) and become
+	// <Delete> targets. Trim surrounding whitespace so a formatting-only change to a LocURI's spelling is not treated as a different
+	// node, which would generate a <Delete> for a node the new version still enforces.
+	var uris []string
+	for _, cmd := range cmds {
+		if cmd.XMLName.Local == CmdAtomic {
+			for _, nested := range cmd.ReplaceCommands {
+				if uri := strings.TrimSpace(nested.GetTargetURI()); uri != "" {
+					uris = append(uris, uri)
+				}
+			}
+			for _, nested := range cmd.AddCommands {
+				if uri := strings.TrimSpace(nested.GetTargetURI()); uri != "" {
+					uris = append(uris, uri)
+				}
+			}
+		} else if cmd.XMLName.Local == CmdReplace || cmd.XMLName.Local == CmdAdd {
+			if uri := strings.TrimSpace(cmd.GetTargetURI()); uri != "" {
+				uris = append(uris, uri)
+			}
+		}
+	}
+	return uris
+}
+
+// LocURITargetsReservedNode reports whether locURI targets the given Fleet-reserved node, or any descendant of it, matching
+// at path-segment boundaries.
+func LocURITargetsReservedNode(locURI, reservedLocURI string) bool {
+	node := strings.Trim(reservedLocURI, "/")
+	// Frame both the canonicalized LocURI and the node with "/" so the substring match is boundary-safe on both ends.
+	return strings.Contains("/"+CanonicalLocURI(locURI)+"/", "/"+node+"/")
+}
+
+// ProfileTargetsReservedLocURI reports whether any Target LocURI in the profile targets the given Fleet-reserved node.
+func ProfileTargetsReservedLocURI(profileBytes []byte, reservedLocURI string) bool {
+	// Quick reject without parsing: the reserved node name (minus the "/" anchors) must appear literally somewhere for any
+	// LocURI form, scoped or scope-less, to target it. Most Windows profiles don't reference it, so this avoids the XML parse
+	// below for the common case (this helper runs in loops over every profile during profile set/update flows).
+	// XML references (e.g. "&#101;") only decode to the node name when parsed, so any "&" takes the slow path.
+	if !bytes.Contains(profileBytes, []byte(strings.Trim(reservedLocURI, "/"))) && !bytes.Contains(profileBytes, []byte("&")) {
+		return false
+	}
+	// Confirm a real Add/Replace Target LocURI targets the node
+	for _, uri := range ExtractLocURIsFromProfileBytes(profileBytes) {
+		if LocURITargetsReservedNode(uri, reservedLocURI) {
+			return true
+		}
+	}
+	return false
 }

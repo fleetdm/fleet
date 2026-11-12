@@ -1,0 +1,239 @@
+<div id="customers" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="page-hero">
+        <div purpose="hero-slides">
+          <div id="heroCarousel" class="carousel slide d-flex d-flex align-content-stretch" data-ride="carousel">
+            <div purpose="carousel-container" class="carousel-inner d-flex align-content-stretch">
+              <div class="carousel-item active">
+                <div purpose="carousel-body">
+                  <div purpose="carousel-text">
+                    <h2>Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually</h2>
+                    <div purpose="carousel-quote">
+                      <p purpose="quote">“The ability to get heard [with our previous MDM] was just impossible.”</p>
+                      <div purpose="quote-attribution">
+                        <div purpose="quote-image">
+                          <img alt="Wes Whetstone" src="/images/wes-whetstone-120x120@2x.png">
+                        </div>
+                        <div purpose="quote-author">
+                          <p purpose="name">Wes Whetstone</p>
+                          <p purpose="title">Staff Client Platform Engineer</p>
+                        </div>
+                      </div>
+                    </div>
+                    <animated-arrow-button href="/case-study/stripe">Read their story</animated-arrow-button>
+                  </div>
+                  <div purpose="carousel-image">
+                    <img alt="Stripe" src="/images/hero-slide-stripe-420x315@2x.png">
+                  </div>
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div purpose="carousel-body">
+                  <div purpose="carousel-text">
+                    <h2>Foursquare cut costs and gained 114% ROI with Fleet</h2>
+                    <div purpose="carousel-quote">
+                      <p purpose="quote">“One of the easiest, quickest, smoothest migrations I’ve ever done.”</p>
+                      <div purpose="quote-attribution">
+                        <div purpose="quote-image">
+                          <img alt="Mike Meyer" src="/images/mike-meyer-120x120@2x.png">
+                        </div>
+                        <div purpose="quote-author">
+                          <p purpose="name">Mike Meyer</p>
+                          <p purpose="title">Senior systems engineer & Technical lead</p>
+                        </div>
+                      </div>
+                    </div>
+                    <animated-arrow-button href="/case-study/foursquare">Read their story</animated-arrow-button>
+                  </div>
+                  <div purpose="carousel-image">
+                    <img alt="Foursquare" src="/images/hero-slide-foursquare-420x315@2x.png">
+                  </div>
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div purpose="carousel-body">
+                  <div purpose="carousel-text">
+                    <h2>Fastly unified endpoint and infrastructure visibility in under 60 days</h2>
+                    <div purpose="carousel-quote">
+                      <p purpose="quote">“We have much better visibility of our endpoints with Fleet compared to our previous MDM. The shift to GitOps has given us the agility and change control we needed.”</p>
+                      <div purpose="quote-attribution">
+                        <div purpose="quote-image">
+                          <img alt="Dan Jackson" src="/images/dan-jackson-120x120@2x.png">
+                        </div>
+                        <div purpose="quote-author">
+                          <p purpose="name">Dan Jackson</p>
+                          <p purpose="title">Sr Manager Systems Engineering</p>
+                        </div>
+                      </div>
+                    </div>
+                    <animated-arrow-button href="/case-study/fastly">Read their story</animated-arrow-button>
+                  </div>
+                  <div purpose="carousel-image">
+                    <img alt="Fastly" src="/images/hero-slide-fastly-420x315@2x.png">
+                  </div>
+                </div>
+              </div>
+              <div class="carousel-item">
+                <div purpose="carousel-body">
+                  <div purpose="carousel-text">
+                    <h2>Faire secures Macs with CIS benchmarks and Fleet</h2>
+                    <div purpose="carousel-quote">
+                      <p purpose="quote">“Fleet has opened a lot of opportunities for us. My team is loving managing devices via GitOps, and the built-in support for CIS benchmarks has made it easy to enforce these on our devices.”</p>
+                      <div purpose="quote-attribution">
+                        <div purpose="quote-image">
+                          <img alt="Jeremy Baker" src="/images/jeremy-baker-120x120@2x.png">
+                        </div>
+                        <div purpose="quote-author">
+                          <p purpose="name">Jeremy Baker</p>
+                          <p purpose="title">Engineering Manager</p>
+                        </div>
+                      </div>
+                    </div>
+                    <animated-arrow-button href="/case-study/faire">Read their story</animated-arrow-button>
+                  </div>
+                  <div purpose="carousel-image">
+                    <img alt="Faire" src="/images/hero-slide-faire-420x315@2x.png">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div purpose="controls-container">
+              <a data-target="#heroCarousel" role="button" data-slide="prev">
+                <img alt="A small chevron" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
+              </a>
+              <ol purpose="carousel-indicators" class="carousel-indicators">
+                <li data-target="#heroCarousel" data-slide-to="0" class="active"></li>
+                <li data-target="#heroCarousel" data-slide-to="1"></li>
+                <li data-target="#heroCarousel" data-slide-to="2"></li>
+                <li data-target="#heroCarousel" data-slide-to="3"></li>
+              </ol>
+              <a data-target="#heroCarousel" role="button" data-slide="next">
+                <img alt="A small chevron" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
+              </a>
+            </div>
+          </div>
+        </div><%/* End of [purpose="hero-slides"] */%>
+      </div>
+      <div purpose="page-body">
+      <div>
+        <div purpose="case-study-cards">
+
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/campus', $event)">
+            <img alt="Campus logo" src="/images/campus-logo-182x40@2x.png">
+            <p>Campus runs IT for higher education with a team of one, Fleet, and AI.</p>
+            <a href="/case-study/campus">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/foursquare', $event)">
+            <img alt="Foursquare logo" src="/images/foursquare-logo-212x40@2x.png">
+            <p>Foursquare cut costs and gained 114% ROI with Fleet.</p>
+            <a href="/case-study/foursquare">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/fastly', $event)">
+            <img alt="Fastly logo" src="/images/fastly-logo-104x40@2x.png">
+            <p>Fastly gains visibility into all endpoints and critical infrastructure around the world.</p>
+            <a href="/case-study/fastly">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/faire', $event)">
+            <img alt="Faire logo" src="/images/faire-logo-192x40@2x.png">
+            <p>Faire secures Macs with CIS benchmarks and Fleet.</p>
+            <a href="/case-study/faire">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/abridge', $event)">
+            <img alt="Abridge logo" src="/images/abridge-logo-220x40@2x.png">
+            <p>Abridge gets new hires productive in 10 minutes with Fleet.</p>
+            <a href="/case-study/abridge">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/hawx', $event)">
+            <img alt="Hawx logo" src="/images/hawx-logo-150x40@2x.png">
+            <p>Hawx gets field technicians productive from hour one with Fleet.</p>
+            <a href="/case-study/hawx">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/mollie', $event)">
+            <img alt="Mollie logo" src="/images/mollie-logo-136x40@2x.png">
+            <p>Mollie manages endpoint compliance the same way it ships software.</p>
+            <a href="/case-study/mollie">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/primo', $event)">
+            <img alt="Primo logo" src="/images/logo-primo-174x40@2x.png">
+            <p>Primo built an HR-driven IT platform, powered by Fleet.</p>
+            <a href="/case-study/primo">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/reed-college', $event)">
+            <img alt="Reed College logo" src="/images/reed-college-logo-133x40@2x.png">
+            <p>Reed College gained visibility into 300 unmanaged PCs and reclaimed 20 hours a week.</p>
+            <a href="/case-study/reed-college">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/stripe', $event)">
+            <img alt="Stripe logo" src="/images/stripe-logo-96x40@2x.png">
+            <p>Stripe moved 10,000 Macs to Fleet, saving hundreds of thousands annually.</p>
+            <a href="/case-study/stripe">Read their story</a>
+          </div>
+          <div purpose="article-card" @click="clickGotoCaseStudyLink('/case-study/thumbtack', $event)">
+            <img alt="Thumbtack logo" src="/images/thumbtack-logo-197x40@2x.png">
+            <p>Thumbtack migrates more than 90% of Macs with no IT intervention.</p>
+            <a href="/case-study/thumbtack">Read their story</a>
+          </div>
+        </div>
+      </div>
+      <div purpose="logo-container">
+      <logo-carousel display-bottom-row="true"></logo-carousel>
+      </div>
+      <div>
+        <div purpose="testimonials-container" class="card-columns">
+          <% for(let testimonial of testimonials) {%>
+            <a href="<%- testimonial.quoteLinkUrl%>" target="_blank" purpose="testimonial-card" no-icon>
+              <% if(testimonial.quoteImageFilename){ %>
+                <div purpose="logo" class="mb-4">
+                  <img alt="logo" height="<%- testimonial.imageHeight%>"  src="/images/<%- testimonial.quoteImageFilename %>"/>
+                </div>
+              <% } %>
+              <p purpose="quote">
+                “<%- testimonial.quote %>”
+                <%if(testimonial.youtubeVideoUrl) {%>
+                  <span purpose="video-link" @click.prevent.self="clickOpenVideoModal('<%- testimonial.quoteAuthorName %>')">See the video.</span>
+                <% } %>
+              </p>
+              <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+                <div purpose="profile-picture">
+                  <img alt="Profile picture" src="/images/<%- testimonial.quoteAuthorProfileImageFilename %>">
+                </div>
+                <div class="d-flex flex-column align-self-top">
+                  <p purpose="name" class="font-weight-bold m-0"><%- testimonial.quoteAuthorName %></p>
+                  <p purpose="job-title" class="m-0"><%- testimonial.quoteAuthorJobTitle %></p>
+                </div>
+              </div>
+            </a>
+          <% } %>
+        </div>
+      </div>
+      </div>
+    </div><%// page content%>
+  </div><%// page container%>
+  <%/* Bottom gradient */%>
+  <div purpose="bottom-gradient">
+    <div purpose="homepage-content" class="container">
+      <div class="text-center" purpose="bottom-cta">
+        <div>
+        <h4>Open device management</h4>
+        <h2 class="mx-auto">Manage all your devices like it's 2026</h2>
+        </div>
+        <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" class="mr-0" href="/contact?talkToUs">Get a demo</a>
+          <!-- <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button> -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <%/* Cloud city banner */%>
+  <cloud-city></cloud-city>
+
+
+  <div v-for="video in quotesWithVideoLinks">
+    <modal purpose="video-modal" v-if="modal === video.modalId" @close="closeModal()" >
+      <iframe width="560" height="315" :src="'https://www.youtube-nocookie.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
+    </modal>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

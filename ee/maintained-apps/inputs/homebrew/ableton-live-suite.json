@@ -1,0 +1,8 @@
+{
+  "name": "Ableton Live Suite",
+  "slug": "ableton-live-suite/darwin",
+  "unique_identifier": "com.ableton.live",
+  "token": "ableton-live-suite",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"]
+}

@@ -1,29 +1,29 @@
 #!/bin/bash
 
-# This script creates 3 teams and 12 users with various roles.
+# This script creates 3 fleets (formerly "teams") and 12 users with various roles.
 
 source $FLEET_ENV_PATH
 
-# Create teams
-create_team_endpoint="api/latest/fleet/teams"
+# Create fleets
+create_fleet_endpoint="api/latest/fleet/fleets"
 
 # Create Client Platform Engineering
 data='{
   "name": "Client Platform Engineering"
 }'
-curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_team_endpoint" -d "$data" --insecure
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_fleet_endpoint" -d "$data" --insecure
 
 # Security Engineering
 data='{
   "name": "Security Engineering"
 }'
-curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_team_endpoint" -d "$data" --insecure
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_fleet_endpoint" -d "$data" --insecure
 
 # Site Reliability Engineering
 data='{
   "name": "Site Reliability Engineering"
 }'
-curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_team_endpoint" -d "$data" --insecure
+curl -X POST $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$create_fleet_endpoint" -d "$data" --insecure
 
 # Create users
 create_user_endpoint="api/latest/fleet/users/admin"
@@ -35,7 +35,7 @@ data='{
   "password": "password123#",
   "invited_by": 1,
   "global_role": null,
-  "teams": [
+  "fleets": [
     {
       "id": 1,
       "role": "observer"
@@ -51,7 +51,7 @@ data='{
   "password": "password123#",
   "invited_by": 1,
   "global_role": null,
-  "teams": [
+  "fleets": [
     {
       "id": 2,
       "role": "maintainer"
@@ -67,7 +67,7 @@ data='{
   "password": "password123#",
   "invited_by": 1,
   "global_role": null,
-  "teams": [
+  "fleets": [
     {
       "id": 3,
       "role": "observer"
@@ -83,7 +83,7 @@ data='{
   "password": "password123#",
   "invited_by": 1,
   "global_role": null,
-  "teams": [
+  "fleets": [
     {
       "id": 1,
       "role": "observer"
@@ -127,7 +127,7 @@ data='{
   "password": "password123#",
   "invited_by": 1,
   "global_role": null,
-  "teams": [
+  "fleets": [
     {
       "id": 1,
       "role": "observer"
@@ -143,7 +143,7 @@ data='{
   "password": "password123#",
   "invited_by": 1,
   "global_role": null,
-  "teams": [
+  "fleets": [
     {
       "id": 1,
       "role": "observer"
@@ -173,7 +173,7 @@ data='{
   "password": "password123#",
   "invited_by": 1,
   "global_role": null,
-  "teams": [
+  "fleets": [
     {
       "id": 3,
       "role": "maintainer"

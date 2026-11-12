@@ -2,37 +2,33 @@
 
 import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
+import { SingleValue } from "react-select-5";
 import { Row } from "react-table";
 
-import PATHS from "router/paths";
-
-import { AppContext } from "context/app";
-import {
-  GITHUB_NEW_ISSUE_LINK,
-  VULNERABILITIES_SEARCH_BOX_TOOLTIP,
-} from "utilities/constants";
-import { isIncompleteQuoteQuery } from "utilities/strings/stringUtils";
-
 import CustomLink from "components/CustomLink";
-import TableContainer from "components/TableContainer";
-import LastUpdatedText from "components/LastUpdatedText";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
-import TableCount from "components/TableContainer/TableCount";
-import { SingleValue } from "react-select-5";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-
+import LastUpdatedText from "components/LastUpdatedText";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { AppContext } from "context/app";
 import EmptyVulnerabilitiesTable from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/EmptyVulnerabilitiesTable";
-
+import PATHS from "router/paths";
 import {
   IVulnerabilitiesResponse,
   IVulnerabilitiesEmptyStateReason,
 } from "services/entities/vulnerabilities";
-import { getPathWithQueryParams } from "utilities/url";
+import {
+  GITHUB_NEW_ISSUE_LINK,
+  VULNERABILITIES_SEARCH_BOX_TOOLTIP,
+} from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
+import { isIncompleteQuoteQuery } from "utilities/strings/stringUtils";
+import { getPathWithQueryParams } from "utilities/url";
 
-import generateTableConfig from "./VulnerabilitiesTableConfig";
 import { getExploitedVulnerabilitiesDropdownOptions } from "./helpers";
+import generateTableConfig from "./VulnerabilitiesTableConfig";
 
 const baseClass = "software-vulnerabilities-table";
 
@@ -62,7 +58,7 @@ const SoftwareVulnerabilitiesTable = ({
   isSoftwareEnabled,
   data,
   emptyStateReason,
-  query,
+  query = "",
   perPage,
   orderDirection,
   orderKey,
@@ -105,7 +101,7 @@ const SoftwareVulnerabilitiesTable = ({
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
       return {
-        team_id: teamId,
+        fleet_id: teamId,
         exploit: showExploitedVulnerabilitiesOnly.toString(),
         query: newTableQuery.searchQuery,
         order_direction: newTableQuery.sortDirection,
@@ -142,12 +138,12 @@ const SoftwareVulnerabilitiesTable = ({
     [determineQueryParamChange, generateNewQueryParams, router]
   );
 
-  // determines if a user be able to search in the table
-  const searchable =
-    isSoftwareEnabled &&
-    (!!data?.vulnerabilities ||
-      query !== "" ||
-      showExploitedVulnerabilitiesOnly);
+  const hasData = (data?.vulnerabilities?.length ?? 0) > 0;
+  const hasQuery = query !== "";
+
+  const isTrulyEmpty =
+    !hasData && !hasQuery && !showExploitedVulnerabilitiesOnly;
+  const controlsDisabled = !isSoftwareEnabled || isTrulyEmpty;
 
   const vulnerabilitiesTableHeaders = useMemo(() => {
     if (!data) return [];
@@ -161,7 +157,7 @@ const SoftwareVulnerabilitiesTable = ({
       },
       teamId
     );
-  }, [data, router, teamId]);
+  }, [data, isPremiumTier, router, teamId]);
 
   const handleExploitedVulnFilterDropdownChange = (
     isFilterExploited: string
@@ -172,7 +168,7 @@ const SoftwareVulnerabilitiesTable = ({
         routeTemplate: "",
         queryParams: {
           query,
-          team_id: teamId,
+          fleet_id: teamId,
           order_direction: orderDirection,
           order_key: orderKey,
           exploit: isFilterExploited,
@@ -189,7 +185,7 @@ const SoftwareVulnerabilitiesTable = ({
       const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
         PATHS.SOFTWARE_VULNERABILITY_DETAILS(cveName),
         {
-          team_id: teamId,
+          fleet_id: teamId,
         }
       );
 
@@ -238,6 +234,7 @@ const SoftwareVulnerabilitiesTable = ({
   const renderExploitedVulnerabilitiesDropdown = () => {
     return (
       <DropdownWrapper
+        ariaLabel="Filter by exploit status"
         name="exploited-vuln-filter"
         value={showExploitedVulnerabilitiesOnly.toString()}
         className={`${baseClass}__exploited-vulnerabilities-filter`}
@@ -246,6 +243,7 @@ const SoftwareVulnerabilitiesTable = ({
           newValue && handleExploitedVulnFilterDropdownChange(newValue.value)
         }
         variant="table-filter"
+        isDisabled={controlsDisabled}
       />
     );
   };
@@ -275,14 +273,13 @@ const SoftwareVulnerabilitiesTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
-        searchable={searchable}
+        searchable
+        disableSearch={controlsDisabled}
         searchQueryColumn="vulnerability"
         inputPlaceHolder="Search by CVE"
         searchToolTipText={VULNERABILITIES_SEARCH_BOX_TOOLTIP}
         onQueryChange={onQueryChange}
-        customControl={
-          searchable ? renderExploitedVulnerabilitiesDropdown : undefined
-        }
+        customControl={renderExploitedVulnerabilitiesDropdown}
         stackControls
         renderCount={renderVulnerabilityCount}
         renderTableHelpText={renderTableHelpText}

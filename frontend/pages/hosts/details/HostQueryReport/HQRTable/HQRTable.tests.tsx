@@ -1,6 +1,5 @@
-import React from "react";
-
 import { render, screen } from "@testing-library/react";
+import React from "react";
 
 import HQRTable, { IHQRTable } from "./HQRTable";
 
@@ -8,6 +7,7 @@ describe("HQRTable component", () => {
   it("Renders results normally when they are present", () => {
     const testData: IHQRTable[] = [
       {
+        queryId: 1,
         queryName: "testQuery0",
         queryDescription: "testDescription0",
         hostName: "testHost0",
@@ -37,7 +37,7 @@ describe("HQRTable component", () => {
     testData.forEach((tableProps) => {
       render(<HQRTable {...tableProps} />);
       expect(screen.getByText("1 result")).toBeInTheDocument();
-      expect(screen.getByText("Last fetched")).toBeInTheDocument();
+      expect(screen.getByText(/Last fetched/)).toBeInTheDocument();
       tableProps.rows.forEach((row) => {
         Object.entries(row).forEach(([col, val]) => {
           expect(screen.getByText(col)).toBeInTheDocument();
@@ -50,6 +50,7 @@ describe("HQRTable component", () => {
   it("Renders the 'collecting results' empty state when results have never been collected.", () => {
     const testData: IHQRTable[] = [
       {
+        queryId: 1,
         queryName: "testQuery0",
         queryDescription: "testDescription0",
         hostName: "testHost0",
@@ -63,7 +64,7 @@ describe("HQRTable component", () => {
 
     testData.forEach((tableProps) => {
       render(<HQRTable {...tableProps} />);
-      expect(screen.queryByText("Last fetched")).toBeNull();
+      expect(screen.queryByText(/Last fetched/)).toBeNull();
       expect(screen.getByText("Collecting results...")).toBeInTheDocument();
     });
   });
@@ -71,6 +72,7 @@ describe("HQRTable component", () => {
   it("Renders the 'report clipped' empty state when reporting for this query has been paused and there are no existing results.", () => {
     const testData: IHQRTable[] = [
       {
+        queryId: 1,
         queryName: "testQuery0",
         queryDescription: "testDescription0",
         hostName: "testHost0",
@@ -84,7 +86,7 @@ describe("HQRTable component", () => {
 
     testData.forEach((tableProps) => {
       render(<HQRTable {...tableProps} />);
-      expect(screen.queryByText("Last fetched")).toBeNull();
+      expect(screen.queryByText(/Last fetched/)).toBeNull();
       expect(screen.getByText("Report clipped")).toBeInTheDocument();
     });
   });
@@ -92,6 +94,7 @@ describe("HQRTable component", () => {
   it("Renders the 'nothing to report' empty state when the query has run and there are no results.", () => {
     const testData: IHQRTable[] = [
       {
+        queryId: 1,
         queryName: "testQuery0",
         queryDescription: "testDescription0",
         hostName: "testHost0",
@@ -105,7 +108,7 @@ describe("HQRTable component", () => {
 
     testData.forEach((tableProps) => {
       render(<HQRTable {...tableProps} />);
-      expect(screen.queryByText("Last fetched")).toBeNull();
+      expect(screen.queryByText(/Last fetched/)).toBeNull();
       expect(screen.getByText("Nothing to report")).toBeInTheDocument();
     });
   });

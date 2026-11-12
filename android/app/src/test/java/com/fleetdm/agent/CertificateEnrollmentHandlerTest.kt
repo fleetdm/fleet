@@ -1,15 +1,16 @@
 package com.fleetdm.agent
 
 import com.fleetdm.agent.scep.MockScepClient
+import com.fleetdm.agent.testutil.MockCertificateInstaller
+import com.fleetdm.agent.testutil.TestCertificateTemplateFactory
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import java.security.PrivateKey
-import java.security.cert.Certificate
 import kotlinx.coroutines.test.runTest
 
 /**
@@ -39,42 +40,19 @@ class CertificateEnrollmentHandlerTest {
         mockInstaller.reset()
     }
 
-    /**
-     * Mock certificate installer for testing.
-     */
-    class MockCertificateInstaller : CertificateEnrollmentHandler.CertificateInstaller {
-        var wasInstallCalled = false
-        var capturedAlias: String? = null
-        var capturedPrivateKey: PrivateKey? = null
-        var capturedCertificateChain: Array<Certificate>? = null
-        var shouldSucceed = true
-
-        override fun installCertificate(alias: String, privateKey: PrivateKey, certificateChain: Array<Certificate>): Boolean {
-            wasInstallCalled = true
-            capturedAlias = alias
-            capturedPrivateKey = privateKey
-            capturedCertificateChain = certificateChain
-            return shouldSucceed
-        }
-
-        fun reset() {
-            wasInstallCalled = false
-            capturedAlias = null
-            capturedPrivateKey = null
-            capturedCertificateChain = null
-            shouldSucceed = true
-        }
-    }
-
     @Test
     fun `handler enrolls with valid certificate template`() = runTest {
-        val template = createValidCertificateTemplate()
+        val template = TestCertificateTemplateFactory.create(
+            name = "device-cert",
+            scepChallenge = "secret123",
+            subjectName = "CN=Device123,O=FleetDM",
+        )
 
-        val result = handler.handleEnrollment(template)
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
-        // Verify SCEP client was called with correct config
+        // Verify SCEP client was called with correct config and URL
         assertNotNull(mockScepClient.capturedConfig)
-        assertEquals("https://scep.example.com/cgi-bin/pkiclient.exe", mockScepClient.capturedConfig?.url)
+        assertEquals(TestCertificateTemplateFactory.DEFAULT_SCEP_URL, mockScepClient.capturedScepUrl)
         assertEquals("secret123", mockScepClient.capturedConfig?.scepChallenge)
         assertEquals("device-cert", mockScepClient.capturedConfig?.name)
         assertEquals("CN=Device123,O=FleetDM", mockScepClient.capturedConfig?.subjectName)
@@ -85,9 +63,9 @@ class CertificateEnrollmentHandlerTest {
 
     @Test
     fun `handler installs certificate after successful enrollment`() = runTest {
-        val template = createValidCertificateTemplate()
+        val template = TestCertificateTemplateFactory.create(name = "device-cert")
 
-        val result = handler.handleEnrollment(template)
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
         // Verify certificate installer was called
         assertTrue(mockInstaller.wasInstallCalled)
@@ -104,53 +82,80 @@ class CertificateEnrollmentHandlerTest {
     fun `handler handles enrollment failure gracefully`() = runTest {
         mockScepClient.shouldThrowEnrollmentException = true
 
-        val template = createValidCertificateTemplate()
+        val template = TestCertificateTemplateFactory.create()
 
-        val result = handler.handleEnrollment(template)
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
         // Verify certificate installer was NOT called since enrollment failed
         assertFalse(mockInstaller.wasInstallCalled)
 
-        // Verify failure result
+        // Verify failure result - enrollment failures are not retryable
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertFalse(failure.isRetryable)
+        assertEquals(
+            "The certificate authority didn't issue the certificate. Check your certificate authority configuration. Mock enrollment failed",
+            failure.reason,
+        )
     }
 
     @Test
     fun `handler handles network exception gracefully`() = runTest {
         mockScepClient.shouldThrowNetworkException = true
 
-        val template = createValidCertificateTemplate()
+        val template = TestCertificateTemplateFactory.create()
 
-        val result = handler.handleEnrollment(template)
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
         // Verify certificate installer was NOT called
         assertFalse(mockInstaller.wasInstallCalled)
 
-        // Verify failure result
+        // Verify failure result - network failures are retryable
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertTrue(failure.isRetryable)
+        assertEquals("Couldn't reach the certificate authority. Mock network error", failure.reason)
+    }
+
+    @Test
+    fun `handler handles unexpected SCEP exception`() = runTest {
+        mockScepClient.shouldSucceed = false
+
+        val template = TestCertificateTemplateFactory.create()
+
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
+
+        assertFalse(mockInstaller.wasInstallCalled)
+        assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertFalse(failure.isRetryable)
+        assertEquals("Something went wrong while getting the certificate. Mock general error", failure.reason)
     }
 
     @Test
     fun `handler handles installation failure`() = runTest {
         mockInstaller.shouldSucceed = false
 
-        val template = createValidCertificateTemplate()
+        val template = TestCertificateTemplateFactory.create(name = "device-cert")
 
-        val result = handler.handleEnrollment(template)
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
-        // Verify enrollment succeeded but installation failed
+        // Verify enrollment succeeded but installation failed - installation failures are not retryable
         assertTrue(mockInstaller.wasInstallCalled)
         assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertFalse(failure.isRetryable)
+        assertEquals("Couldn't install the \"device-cert\" certificate on the host.", failure.reason)
     }
 
     @Test
     fun `handler uses custom key length and signature algorithm`() = runTest {
-        val template = createValidCertificateTemplate(
+        val template = TestCertificateTemplateFactory.create(
             keyLength = 4096,
             signatureAlgorithm = "SHA512withRSA",
         )
 
-        handler.handleEnrollment(template)
+        handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
         // Verify config was used correctly
         assertEquals(4096, mockScepClient.capturedConfig?.keyLength)
@@ -158,39 +163,47 @@ class CertificateEnrollmentHandlerTest {
     }
 
     @Test
-    fun `handler uses default values for optional parameters`() = runTest {
-        val template = createValidCertificateTemplate()
+    fun `handler handles IllegalStateException from installer as non-retryable failure`() = runTest {
+        mockInstaller.exceptionToThrow = IllegalStateException(
+            "CERT_INSTALL delegation not granted to com.fleetdm.agent, current scopes: []",
+        )
 
-        handler.handleEnrollment(template)
+        val template = TestCertificateTemplateFactory.create(name = "device-cert")
+
+        val result = handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
+
+        assertTrue(mockInstaller.wasInstallCalled)
+        assertTrue(result is CertificateEnrollmentHandler.EnrollmentResult.Failure)
+        val failure = result as CertificateEnrollmentHandler.EnrollmentResult.Failure
+        assertFalse(failure.isRetryable)
+        assertTrue(failure.reason.contains("CERT_INSTALL delegation not granted"))
+        assertTrue(failure.reason.startsWith("Couldn't install the \"device-cert\" certificate on the host."))
+    }
+
+    @Test
+    fun `handler uses default values for optional parameters`() = runTest {
+        val template = TestCertificateTemplateFactory.create()
+
+        handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
         // Verify defaults were used
         assertEquals(2048, mockScepClient.capturedConfig?.keyLength)
         assertEquals("SHA256withRSA", mockScepClient.capturedConfig?.signatureAlgorithm)
     }
 
-    // Helper functions
+    @Test
+    fun `handler forwards subjectAlternativeName to SCEP client`() = runTest {
+        val san = "DNS=host.example.com, UPN=marko@corp.example.com"
+        val template = TestCertificateTemplateFactory.create(subjectAlternativeName = san)
+        handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
+        assertEquals(san, mockScepClient.capturedConfig?.subjectAlternativeName)
+    }
 
-    private fun createValidCertificateTemplate(
-        id: Int = 1,
-        name: String = "device-cert",
-        scepUrl: String = "https://scep.example.com/cgi-bin/pkiclient.exe",
-        scepChallenge: String = "secret123",
-        subjectName: String = "CN=Device123,O=FleetDM",
-        keyLength: Int = 2048,
-        signatureAlgorithm: String = "SHA256withRSA",
-    ): GetCertificateTemplateResponse = GetCertificateTemplateResponse(
-        id = id,
-        name = name,
-        certificateAuthorityId = 123,
-        certificateAuthorityName = "Test CA",
-        createdAt = "2024-01-01T00:00:00Z",
-        subjectName = subjectName,
-        certificateAuthorityType = "SCEP",
-        status = "active",
-        scepChallenge = scepChallenge,
-        fleetChallenge = "fleet-secret",
-        keyLength = keyLength,
-        signatureAlgorithm = signatureAlgorithm,
-        url = scepUrl,
-    )
+    @Test
+    fun `handler forwards null subjectAlternativeName when absent`() = runTest {
+        val template = TestCertificateTemplateFactory.create()
+        handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
+        assertNotNull(mockScepClient.capturedConfig)
+        assertNull(mockScepClient.capturedConfig?.subjectAlternativeName)
+    }
 }

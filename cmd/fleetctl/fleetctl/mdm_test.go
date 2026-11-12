@@ -1,6 +1,7 @@
 package fleetctl
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -121,11 +122,21 @@ func TestMDMRunCommand(t *testing.T) {
 			},
 			mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
 		},
+		{
+			// ABM and Autopilot pending hosts have no UUID until they enroll.
+			host: &fleet.Host{
+				ID:             12,
+				HardwareSerial: "abm-pending-serial",
+				Platform:       "darwin",
+				MDM:            fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Pending"), ConnectedToFleet: new(false)},
+			},
+			mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+		},
 	}
 	hostByUUID := make(map[string]testhost)
 	hostByID := make(map[uint]testhost)
 	for _, h := range hosts {
-		hostByUUID[h.host.UUID] = h
+		hostByUUID[cmp.Or(h.host.UUID, h.host.HardwareSerial)] = h
 		hostByID[h.host.ID] = h
 	}
 
@@ -189,12 +200,22 @@ func TestMDMRunCommand(t *testing.T) {
 				NoCacheDatastore: true,
 			})
 
-			ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 				h, ok := hostByUUID[identifier]
 				if !ok {
 					return nil, &notFoundError{}
 				}
+				return &fleet.HostLite{ID: h.host.ID, TeamID: h.host.TeamID}, nil
+			}
+			ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+				h, ok := hostByID[hostID]
+				if !ok {
+					return nil, &notFoundError{}
+				}
 				return h.host, nil
+			}
+			ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
+				return time.Now(), nil
 			}
 			ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 				return nil
@@ -214,8 +235,23 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 				return nil, nil
 			}
+			ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+				return nil, nil
+			}
+			ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+				return nil, nil
+			}
 			ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 				return nil, nil
+			}
+			ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+				return true, nil
+			}
+			ds.ListAppleProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
+				return nil, nil
+			}
+			ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+				return fleet.DiskEncryptionConfig{}, nil
 			}
 			ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 				return nil, nil
@@ -225,6 +261,9 @@ func TestMDMRunCommand(t *testing.T) {
 			}
 			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 				return &fleet.HostLockWipeStatus{}, nil
+			}
+			ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+				return nil, nil
 			}
 			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
 				if len(uuids) == 0 {
@@ -263,11 +302,17 @@ func TestMDMRunCommand(t *testing.T) {
 				}
 				return res, nil
 			}
-			ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-				return nil, nil, nil
+			ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+				return &fleet.NanoMDMEnrollmentDetails{}, nil
 			}
 			ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 				return false, nil
+			}
+			ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+				return &fleet.HostDEPAssignment{}, nil
+			}
+			ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+				return nil, nil
 			}
 
 			enqueuer.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
@@ -294,6 +339,7 @@ func TestMDMRunCommand(t *testing.T) {
 				{"windows non-fleet host", []string{"--hosts", "win-non-fleet-enrolled", "--payload", winCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
 				{"macOS pending host", []string{"--hosts", "mac-pending", "--payload", appleCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
 				{"windows pending host", []string{"--hosts", "win-pending", "--payload", winCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
+				{"pending host without UUID", []string{"--hosts", "abm-pending-serial", "--payload", appleCmdFilePath}, appCfgAllMDM, `Can't run the MDM command because one or more hosts have MDM turned off.`},
 				{"valid single mac", []string{"--hosts", "mac-enrolled", "--payload", appleCmdFilePath}, appCfgAllMDM, ""},
 				{"valid single windows", []string{"--hosts", "win-enrolled", "--payload", winCmdFilePath}, appCfgAllMDM, ""},
 				{"no mdm enabled", []string{"--hosts", "win-enrolled", "--payload", winCmdFilePath}, appCfgNoMDM, "MDM features aren't turned on in Fleet."},
@@ -330,7 +376,7 @@ func TestMDMRunCommand(t *testing.T) {
 						return c.appCfg, nil
 					}
 
-					buf, err := RunAppNoChecks(append([]string{"mdm", "run-command"}, c.flags...))
+					buf, err := runAppNoChecks(append([]string{"mdm", "run-command"}, c.flags...))
 					if c.wantErr != "" {
 						require.Error(t, err)
 						require.ErrorContains(t, err, c.wantErr)
@@ -341,6 +387,20 @@ func TestMDMRunCommand(t *testing.T) {
 					}
 				})
 			}
+
+			t.Run("gitops user", func(t *testing.T) {
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return appCfgAllMDM, nil
+				}
+				ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+					return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+				}
+				ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+					return nil, nil
+				}
+				_, err := runAppNoChecks([]string{"mdm", "run-command", "--hosts", "mac-enrolled", "--payload", appleCmdFilePath})
+				require.ErrorContains(t, err, fleet.GitOpsMDMCommandErrorMessage)
+			})
 		})
 	}
 }
@@ -450,6 +510,16 @@ func TestMDMLockCommand(t *testing.T) {
 		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 	}
 
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID:       15,
+			UUID:     "android-not-connected",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
+
 	hostByUUID := make(map[string]testhost)
 	hostsByID := make(map[uint]testhost)
 	for _, h := range []testhost{
@@ -465,6 +535,7 @@ func TestMDMLockCommand(t *testing.T) {
 		macEnrolledLP,
 		winEnrolledWP,
 		macEnrolledWP,
+		androidNotConnected,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -488,6 +559,9 @@ func TestMDMLockCommand(t *testing.T) {
 	setupDSMocks(ds, hostByUUID, hostsByID)
 
 	// custom ds mocks for these tests
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return nil, nil
+	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		fleetPlatform := host.FleetPlatform()
 
@@ -560,6 +634,11 @@ func TestMDMLockCommand(t *testing.T) {
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
+
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
 	successfulOutput := func(ident string) string {
@@ -602,9 +681,28 @@ fleetctl mdm unlock --host=%s
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.host.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.host.UUID}, "Host has pending wipe request."},
 		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.host.UUID}, "Host has pending wipe request."},
+		{appCfgAllMDM, "valid android but not connected", []string{"--host", androidNotConnected.host.UUID}, `Can't lock the host because it doesn't have MDM turned on.`},
 	}
 
 	runTestCases(t, ds, "lock", successfulOutput, cases)
+
+	t.Run("gitops user", func(t *testing.T) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfgAllMDM, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+		}
+		ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+			return nil, nil
+		}
+		for _, action := range []string{"lock", "unlock", "clear-passcode", "wipe"} {
+			t.Run(action, func(t *testing.T) {
+				_, err := runAppNoChecks([]string{"mdm", action, "--host", macEnrolled.host.UUID})
+				require.ErrorContains(t, err, fleet.GitOpsMDMCommandErrorMessage)
+			})
+		}
+	})
 }
 
 func TestMDMUnlockCommand(t *testing.T) {
@@ -710,6 +808,15 @@ func TestMDMUnlockCommand(t *testing.T) {
 		},
 		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 	}
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID:       15,
+			UUID:     "android-not-connected",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
 
 	hostByUUID := make(map[string]testhost)
 	hostsByID := make(map[uint]testhost)
@@ -726,6 +833,7 @@ func TestMDMUnlockCommand(t *testing.T) {
 		macEnrolledLP,
 		winEnrolledWP,
 		macEnrolledWP,
+		androidNotConnected,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -755,6 +863,9 @@ func TestMDMUnlockCommand(t *testing.T) {
 	setupDSMocks(ds, hostByUUID, hostsByID)
 
 	// custom mocks for these test
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return nil, nil
+	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		fleetPlatform := host.FleetPlatform()
 
@@ -836,6 +947,11 @@ func TestMDMUnlockCommand(t *testing.T) {
 	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
 		return nil, nil
 	}
+
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
 
 	successfulOutput := func(ident string) string {
@@ -878,6 +994,7 @@ fleetctl get host %s
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.host.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.host.UUID}, "Host has pending wipe request."},
 		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.host.UUID}, "Host has pending wipe request."},
+		{appCfgAllMDM, "valid android but not connected", []string{"--host", androidNotConnected.host.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
 	}
 
 	runTestCases(t, ds, "unlock", successfulOutput, cases)
@@ -1036,6 +1153,15 @@ func TestMDMWipeCommand(t *testing.T) {
 			Platform: "linux",
 		},
 	}
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID:       21,
+			UUID:     "android-not-connected",
+			Platform: "android",
+			MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
 
 	linuxHostIDs := []uint{linuxEnrolled.host.ID, linuxEnrolled2.host.ID, linuxEnrolled3.host.ID}
 
@@ -1060,6 +1186,7 @@ func TestMDMWipeCommand(t *testing.T) {
 		macEnrolledWiped,
 		winEnrolledLocked,
 		macEnrolledLocked,
+		androidNotConnected,
 	} {
 		hostByUUID[h.host.UUID] = h
 		hostsByID[h.host.ID] = h
@@ -1093,6 +1220,9 @@ func TestMDMWipeCommand(t *testing.T) {
 	setupDSMocks(ds, hostByUUID, hostsByID)
 
 	// TODO: custom ds mocks for these tests
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return nil, nil
+	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		fleetPlatform := host.FleetPlatform()
 
@@ -1209,8 +1339,11 @@ func TestMDMWipeCommand(t *testing.T) {
 		return host.MDM.ConnectedToFleet != nil && *host.MDM.ConnectedToFleet, nil
 	}
 
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
-	appCfgScriptsDisabled := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}
 
 	cases := []struct {
 		appCfg  *fleet.AppConfig
@@ -1242,7 +1375,7 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgAllMDM, "valid windows but host is locked", []string{"--host", winEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
-		{appCfgScriptsDisabled, "valid linux and scripts are disabled", []string{"--host", linuxEnrolled.host.UUID}, ""},
+		{appCfgAllMDM, "valid android but not connected", []string{"--host", androidNotConnected.host.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
 	}
 
 	successfulOutput := func(ident string) string {
@@ -1305,6 +1438,77 @@ func writeTmpMobileconfig(t *testing.T, name string) string {
 	return tmpFile.Name()
 }
 
+// TestMDMClearPasscodeCommand exercises the failure paths of `fleetctl mdm clear-passcode`. The happy-path against a real iOS /
+// Android host is covered by integration tests; here we just confirm the subcommand is wired in, the host-required validation
+// works, and the MDM-not-on / unknown-host messages match the existing lock/wipe ergonomics.
+func TestMDMClearPasscodeCommand(t *testing.T) {
+	macEnrolled := testhost{
+		host: &fleet.Host{
+			ID: 1, UUID: "mac-enrolled-cp", Platform: "darwin",
+			MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)"), ConnectedToFleet: new(true)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+	}
+	macNotEnrolled := testhost{
+		host: &fleet.Host{ID: 2, UUID: "mac-not-enrolled-cp", Platform: "darwin"},
+	}
+	androidNotConnected := testhost{
+		host: &fleet.Host{
+			ID: 3, UUID: "android-not-connected-cp", Platform: "android",
+			MDM: fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: new("Off"), ConnectedToFleet: new(false)},
+		},
+		mdmInfo: &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
+	}
+
+	hostByUUID := map[string]testhost{
+		macEnrolled.host.UUID:         macEnrolled,
+		macNotEnrolled.host.UUID:      macNotEnrolled,
+		androidNotConnected.host.UUID: androidNotConnected,
+	}
+	hostsByID := map[uint]testhost{
+		macEnrolled.host.ID:         macEnrolled,
+		macNotEnrolled.host.ID:      macNotEnrolled,
+		androidNotConnected.host.ID: androidNotConnected,
+	}
+
+	ds := setupTestServer(t)
+	setupDSMocks(ds, hostByUUID, hostsByID)
+	ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+		mdmInfo := hostsByID[host.ID].mdmInfo
+		return mdmInfo != nil && mdmInfo.Enrolled && mdmInfo.Name == fleet.WellKnownMDMFleet, nil
+	}
+	// Stubs required by the host-details endpoint that fleetctl hits via HostByIdentifier.
+	ds.GetHostMDMAppleEnrollmentPermissionsFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMApplePermissions, error) {
+		return nil, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{HostFleetPlatform: host.FleetPlatform()}, nil
+	}
+	ds.GetHostDEPAssignmentFunc = func(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
+		return &fleet.HostDEPAssignment{}, nil
+	}
+
+	appCfgAllMDM, _, _, _ := setupAppConigs()
+	cases := []struct {
+		appCfg  *fleet.AppConfig
+		desc    string
+		flags   []string
+		wantErr string
+	}{
+		{appCfgAllMDM, "no flags", nil, `Required flag "host" not set`},
+		{appCfgAllMDM, "empty host", []string{"--host", ""}, `No host targeted. Please provide --host.`},
+		{appCfgAllMDM, "unknown host", []string{"--host", "doesnotexist"}, fleet.HostNotFoundErrMsg},
+		{appCfgAllMDM, "darwin not enrolled", []string{"--host", macNotEnrolled.host.UUID}, "Can't clear passcode for the host because it doesn't have MDM turned on."},
+		{appCfgAllMDM, "android not connected", []string{"--host", androidNotConnected.host.UUID}, "Can't clear passcode for the host because it doesn't have MDM turned on."},
+	}
+	for _, c := range cases {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return c.appCfg, nil }
+		_, err := runAppNoChecks(append([]string{"mdm", "clear-passcode"}, c.flags...))
+		require.Error(t, err, c.desc)
+		require.ErrorContains(t, err, c.wantErr, c.desc)
+	}
+}
+
 // sets up the test server with the mock datastore and returns the mock datastore
 func setupTestServer(t *testing.T) *mock.Store {
 	enqueuer := new(mdmmock.MDMAppleStore)
@@ -1335,14 +1539,20 @@ func setupTestServer(t *testing.T) *mock.Store {
 
 // sets up common data store mocks that are needed for the tests.
 func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[uint]testhost) {
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 		h, ok := hostByUUID[identifier]
 		if !ok {
 			return nil, &notFoundError{}
 		}
-		return h.host, nil
+		return &fleet.HostLite{ID: h.host.ID, TeamID: h.host.TeamID}, nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
+		return time.Now(), nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.LoadHostMDMAndroidDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error {
 		return nil
 	}
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
@@ -1357,11 +1567,26 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
 		return nil, nil
 	}
+	ds.GetHostCustomHostVitalsFunc = func(ctx context.Context, hostID uint) ([]fleet.HostCustomHostVital, error) {
+		return nil, nil
+	}
+	ds.GetHostPatchDeadlineAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
+		return nil, nil
+	}
+	ds.GetHostGoogleDeviceIDFunc = func(ctx context.Context, hostID uint) (string, error) {
+		return "", nil
+	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return nil, nil
 	}
 	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
 		return nil, nil
+	}
+	ds.ListAppleProfilesForReconcileByTeamFunc = func(ctx context.Context, teamID uint) ([]*fleet.AppleProfileForReconcile, error) {
+		return nil, nil
+	}
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
 	}
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
@@ -1381,8 +1606,8 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 		return nil, nil
 	}
-	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
-		return nil, nil, nil
+	ds.GetNanoMDMEnrollmentDetailsFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoMDMEnrollmentDetails, error) {
+		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
 		h, ok := hostsByID[hostID]
@@ -1391,11 +1616,6 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 		}
 
 		return h.mdmInfo, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
@@ -1424,7 +1644,7 @@ func runTestCases(t *testing.T, ds *mock.Store, actionType string, successfulOut
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return c.appCfg, nil
 		}
-		buf, err := RunAppNoChecks(append([]string{"mdm", actionType}, c.flags...))
+		buf, err := runAppNoChecks(append([]string{"mdm", actionType}, c.flags...))
 		if c.wantErr != "" {
 			require.Error(t, err, c.desc)
 			require.ErrorContains(t, err, c.wantErr, c.desc)

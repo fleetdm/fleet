@@ -5,16 +5,17 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
+	notifications_api "github.com/fleetdm/fleet/v4/server/notifications/api"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -31,26 +32,27 @@ func TestActivity(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"UsernameChange", testActivityUsernameChange},
-		{"New", testActivityNew},
-		{"ListActivitiesStreamed", testListActivitiesStreamed},
-		{"EmptyUser", testActivityEmptyUser},
-		{"PaginationMetadata", testActivityPaginationMetadata},
 		{"ListHostUpcomingActivities", testListHostUpcomingActivities},
-		{"ListHostPastActivities", testListHostPastActivities},
-		{"CleanupActivitiesAndAssociatedData", testCleanupActivitiesAndAssociatedData},
-		{"CleanupActivitiesAndAssociatedDataBatch", testCleanupActivitiesAndAssociatedDataBatch},
+		{"CleanupExpiredLiveQueries", testCleanupExpiredLiveQueries},
+		{"CleanupExpiredLiveQueriesBatch", testCleanupExpiredLiveQueriesBatch},
 		{"ActivateNextActivity", testActivateNextActivity},
 		{"ActivateItselfOnEmptyQueue", testActivateItselfOnEmptyQueue},
 		{"CancelNonActivatedUpcomingActivity", testCancelNonActivatedUpcomingActivity},
 		{"CancelActivatedUpcomingActivity", testCancelActivatedUpcomingActivity},
+		{"BatchCancelAllHostUpcomingActivities", testBatchCancelAllHostUpcomingActivities},
 		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
 		{"GetHostUpcomingActivityMeta", testGetHostUpcomingActivityMeta},
 		{"UnblockHostsUpcomingActivityQueue", testUnblockHostsUpcomingActivityQueue},
+		{"ReleaseFleetInitiatedUpcomingActivities", testReleaseFleetInitiatedUpcomingActivities},
+		{"ReapStuckActivatedMDMInstalls", testReapStuckActivatedMDMInstalls},
 		{"ActivateScriptPackageInstallWithCorruptPayload", testActivateScriptPackageInstallWithCorruptPayload},
 		{"ActivateRegularPackageInstall", testActivateRegularPackageInstall},
 		{"ActivateDeletedInstallerShowsPlaceholder", testActivateDeletedInstallerShowsPlaceholder},
 		{"ActivateScriptPackageUninstallWithCorruptPayload", testActivateScriptPackageUninstallWithCorruptPayload},
-		{"ActivitySearchAndFiltering", testActivitySearchAndFiltering},
+		{"ListPolicyAutomationActivities", testListPolicyAutomationActivities},
+		{"ListPolicyAutomationActivitiesNotifyBeforePatching", testListPolicyAutomationActivitiesNotifyBeforePatching},
+		{"PolicyAutomationRunCounts", testPolicyAutomationRunCounts},
+		{"PolicyAutomationRunCountsFailedPendingVPPInstalls", testPolicyAutomationRunCountsFailedPendingVPPInstalls},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -87,6 +89,8 @@ func (d dummyActivity) HostIDs() []uint {
 }
 
 func testActivityUsernameChange(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+
 	u := &fleet.User{
 		Password:    []byte("asd"),
 		Name:        "fullname",
@@ -98,27 +102,26 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	_, err := ds.NewUser(context.Background(), u)
 	require.NoError(t, err)
 
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	apiUser := &activity_api.User{ID: u.ID, Name: u.Name, Email: u.Email}
+	ctx := context.Background()
 	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
+		t, activitySvc.NewActivity(
+			ctx, apiUser, dummyActivity{
 				name:    "test1",
 				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
+			},
 		),
 	)
 	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
+		t, activitySvc.NewActivity(
+			ctx, apiUser, dummyActivity{
 				name:    "test2",
 				details: map[string]interface{}{"detail": 2},
-			}, nil, timestamp,
+			},
 		),
 	)
 
-	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities := ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 
@@ -126,8 +129,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	err = ds.SaveUser(context.Background(), u)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "newname", *activities[0].ActorFullName)
 	assert.Equal(t, "http://asd.com", *activities[0].ActorGravatar)
@@ -137,265 +139,10 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 	err = ds.DeleteUser(context.Background(), u.ID)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
+	activities = ListActivitiesAPI(t, context.Background(), activitySvc, activity_api.ListOptions{})
 	assert.Len(t, activities, 2)
 	assert.Equal(t, "fullname", *activities[0].ActorFullName)
 	assert.Nil(t, activities[0].ActorGravatar)
-}
-
-func testActivityNew(t *testing.T, ds *Datastore) {
-	u := &fleet.User{
-		Password:   []byte("asd"),
-		Name:       "fullname",
-		Email:      "email@asd.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
-	}
-	_, err := ds.NewUser(context.Background(), u)
-	require.Nil(t, err)
-	timestamp := time.Now()
-
-	activity := dummyActivity{
-		name:    "test0",
-		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-	}
-	// If we don't set the ActivityWebhookContextKey context value, the activity will not be created
-	assert.Error(t, ds.NewActivity(context.Background(), u, activity, nil, timestamp))
-	// If we set the context value to the wrong thing, the activity will not be created
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, "bozo")
-	assert.Error(t, ds.NewActivity(ctx, u, activity, nil, timestamp))
-
-	ctx = context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
-		),
-	)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test2",
-				details: map[string]interface{}{"detail": 2},
-			}, nil, timestamp,
-		),
-	)
-
-	opt := fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			Page:    0,
-			PerPage: 1,
-		},
-	}
-	activities, _, err := ds.ListActivities(context.Background(), opt)
-	require.NoError(t, err)
-	assert.Len(t, activities, 1)
-	assert.Equal(t, "fullname", *activities[0].ActorFullName)
-	assert.Equal(t, "test1", activities[0].Type)
-
-	opt = fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			Page:    1,
-			PerPage: 1,
-		},
-	}
-	activities, _, err = ds.ListActivities(context.Background(), opt)
-	require.NoError(t, err)
-	assert.Len(t, activities, 1)
-	assert.Equal(t, "fullname", *activities[0].ActorFullName)
-	assert.Equal(t, "test2", activities[0].Type)
-
-	opt = fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			Page:    0,
-			PerPage: 10,
-		},
-	}
-	activities, _, err = ds.ListActivities(context.Background(), opt)
-	require.NoError(t, err)
-	assert.Len(t, activities, 2)
-}
-
-func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
-	u := &fleet.User{
-		Password:   []byte("asd"),
-		Name:       "fullname",
-		Email:      "email@asd.com",
-		GlobalRole: ptr.String(fleet.RoleObserver),
-	}
-	_, err := ds.NewUser(context.Background(), u)
-	require.Nil(t, err)
-
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
-		),
-	)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test2",
-				details: map[string]interface{}{"detail": 2},
-			}, nil, timestamp,
-		),
-	)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, u, dummyActivity{
-				name:    "test3",
-				details: map[string]interface{}{"detail": 3},
-			}, nil, timestamp,
-		),
-	)
-
-	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	assert.Len(t, activities, 3)
-
-	sort.Slice(activities, func(i, j int) bool {
-		return activities[i].ID < activities[j].ID
-	})
-
-	err = ds.MarkActivitiesAsStreamed(context.Background(), []uint{activities[0].ID})
-	require.NoError(t, err)
-
-	// Reload activities (with streamed field updated).
-	activities, _, err = ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	assert.Len(t, activities, 3)
-	sort.Slice(activities, func(i, j int) bool {
-		return activities[i].ID < activities[j].ID
-	})
-
-	nonStreamed, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{
-		Streamed: ptr.Bool(false),
-	})
-	require.NoError(t, err)
-	assert.Len(t, nonStreamed, 2)
-	require.Equal(t, nonStreamed[0], activities[1])
-	require.Equal(t, nonStreamed[1], activities[2])
-
-	streamed, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{
-		Streamed: ptr.Bool(true),
-	})
-	require.NoError(t, err)
-	assert.Len(t, streamed, 1)
-	require.Equal(t, streamed[0], activities[0])
-}
-
-func testActivityEmptyUser(t *testing.T, ds *Datastore) {
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, nil, dummyActivity{
-				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
-			}, nil, timestamp,
-		),
-	)
-
-	require.NoError(
-		t, ds.NewActivity(
-			ctx, nil, fleet.ActivityInstalledAppStoreApp{
-				HostID:          1,
-				HostDisplayName: "A Host",
-				SoftwareTitle:   "Trello",
-				AppStoreID:      "123456",
-				CommandUUID:     "some uuid",
-				Status:          string(fleet.SoftwareInstalled),
-				SelfService:     false,
-				PolicyID:        ptr.Uint(1),
-				PolicyName:      ptr.String("Sample Policy"),
-			}, nil, timestamp,
-		),
-	)
-
-	activities, _, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	assert.Len(t, activities, 2)
-	assert.Equal(t, "Fleet", *activities[1].ActorFullName)
-}
-
-func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	for i := 0; i < 3; i++ {
-		require.NoError(
-			t, ds.NewActivity(
-				ctx, nil, dummyActivity{
-					name:    fmt.Sprintf("test-%d", i),
-					details: map[string]interface{}{},
-				}, nil, timestamp,
-			),
-		)
-	}
-
-	cases := []struct {
-		name  string
-		opts  fleet.ListOptions
-		count int
-		meta  *fleet.PaginationMetadata
-	}{
-		{
-			"default options",
-			fleet.ListOptions{PerPage: 0},
-			3,
-			&fleet.PaginationMetadata{},
-		},
-		{
-			"per page 2",
-			fleet.ListOptions{PerPage: 2},
-			2,
-			&fleet.PaginationMetadata{HasNextResults: true},
-		},
-		{
-			"per page 2 - page 1",
-			fleet.ListOptions{PerPage: 2, Page: 1},
-			1,
-			&fleet.PaginationMetadata{HasPreviousResults: true},
-		},
-		{
-			"per page 3",
-			fleet.ListOptions{PerPage: 3},
-			3,
-			&fleet.PaginationMetadata{},
-		},
-		{
-			`after "0" - orderKey "a.id"`,
-			fleet.ListOptions{After: "0", OrderKey: "a.id"},
-			3,
-			nil,
-		},
-		{
-			"per page 4",
-			fleet.ListOptions{PerPage: 4},
-			3,
-			&fleet.PaginationMetadata{},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			activities, metadata, err := ds.ListActivities(context.Background(), fleet.ListActivitiesOptions{ListOptions: c.opts})
-			require.NoError(t, err)
-			assert.Len(t, activities, c.count)
-			if c.meta == nil {
-				assert.Nil(t, metadata)
-			} else {
-				require.NotNil(t, metadata)
-				assert.Equal(t, c.meta.HasNextResults, metadata.HasNextResults)
-				assert.Equal(t, c.meta.HasPreviousResults, metadata.HasPreviousResults)
-			}
-		})
-	}
 }
 
 func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
@@ -405,7 +152,8 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	u2 := test.NewUser(t, ds, "user2", "user2@example.com", false)
 	ctx := viewer.NewContext(noUserCtx, viewer.Viewer{User: u2})
 
-	test.CreateInsertGlobalVPPToken(t, ds)
+	vppTok := test.CreateInsertGlobalVPPToken(t, ds)
+	require.NotNil(t, vppTok)
 
 	// create four hosts
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
@@ -485,7 +233,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		Name: "vpp_no_team_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "b3",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil, nil)
 	require.NoError(t, err)
 
 	// install the VPP app on h1
@@ -494,7 +242,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	// vppCommand1 is now active for h1
 
 	// install the VPP app on h2, self-service
-	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", fleet.HostSoftwareInstallOptions{SelfService: true})
+	err = ds.InsertHostVPPSoftwareInstall(noUserCtx, h2.ID, vppApp.VPPAppID, vppCommand2, "event-id-2", fleet.HostSoftwareInstallOptions{SelfService: true, VPPTokenID: vppTok.ID})
 	require.NoError(t, err)
 	// vppCommand2 is now active for h2
 
@@ -566,7 +314,7 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 	t.Log("h2SelfService", h2SelfService)
 
 	setupExpScript := &fleet.Script{Name: "setup_experience_script", ScriptContents: "setup_experience"}
-	err = ds.SetSetupExperienceScript(ctx, setupExpScript)
+	_, err = ds.SetSetupExperienceScript(ctx, setupExpScript)
 	require.NoError(t, err)
 	ses, err := ds.GetSetupExperienceScript(ctx, h2.TeamID)
 	require.NoError(t, err)
@@ -760,6 +508,17 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 					require.Equal(t, wantExec, details["command_uuid"], "result %d", i)
 					require.Equal(t, "vpp_no_team_app_1", details["software_title"], "result %d", i)
 					require.Equal(t, !execIDsWithUser[wantExec], details["self_service"], "result %d", i)
+					if wantExec == vppCommand2 {
+						require.Equal(t, map[string]any{
+							"id":           float64(vppTok.ID),
+							"location":     vppTok.Location,
+							"country_code": vppTok.CountryCode,
+						}, details["vpp_token"], "result %d", i)
+					} else {
+						// no token was recorded at queue time
+						require.Contains(t, details, "vpp_token", "result %d", i)
+						require.Nil(t, details["vpp_token"], "result %d", i)
+					}
 					wantUser = u2
 
 				default:
@@ -795,105 +554,14 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 			}
 		})
 	}
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
-func testListHostPastActivities(t *testing.T, ds *Datastore) {
-	getDetails := func(a *fleet.Activity) map[string]any {
-		details := make(map[string]any)
-		err := json.Unmarshal([]byte(*a.Details), &details)
-		require.NoError(t, err)
-
-		return details
-	}
-
-	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
-	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
-	activities := []dummyActivity{
-		{
-			name:    "ran_script",
-			details: map[string]any{"host_id": float64(h1.ID), "host_display_name": h1.DisplayName(), "script_execution_id": "exec_1", "script_name": "script_1.sh", "async": true},
-			hostIDs: []uint{h1.ID},
-		},
-
-		{
-			name:    "ran_script",
-			details: map[string]any{"host_id": float64(h1.ID), "host_display_name": h1.DisplayName(), "script_execution_id": "exec_2", "async": false},
-			hostIDs: []uint{h1.ID},
-		},
-	}
-
-	timestamp := time.Now()
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	for _, a := range activities {
-		detailsBytes, err := json.Marshal(a)
-		require.NoError(t, err)
-		require.NoError(t, ds.NewActivity(ctx, u, a, detailsBytes, timestamp))
-	}
-
-	cases := []struct {
-		name    string
-		expActs []dummyActivity
-		opts    fleet.ListActivitiesOptions
-		expMeta *fleet.PaginationMetadata
-	}{
-		{
-			name:    "fetch page one",
-			expActs: []dummyActivity{activities[0]},
-			expMeta: &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    0,
-					PerPage: 1,
-				},
-			},
-		},
-		{
-			name:    "fetch page two",
-			expActs: []dummyActivity{activities[1]},
-			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    1,
-					PerPage: 1,
-				},
-			},
-		},
-		{
-			name:    "fetch all activities",
-			expActs: activities,
-			expMeta: &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
-			opts: fleet.ListActivitiesOptions{
-				ListOptions: fleet.ListOptions{
-					Page:    0,
-					PerPage: 2,
-				},
-			},
-		},
-	}
-
-	for _, c := range cases {
-		c.opts.ListOptions.IncludeMetadata = true
-		acts, meta, err := ds.ListHostPastActivities(ctx, h1.ID, c.opts.ListOptions)
-		require.NoError(t, err)
-		require.Len(t, acts, len(c.expActs))
-		require.Equal(t, c.expMeta, meta)
-
-		// check fields in activities
-		for i, ra := range acts {
-			require.Equal(t, u.Email, *ra.ActorEmail)
-			require.Equal(t, u.Name, *ra.ActorFullName)
-			require.Equal(t, "ran_script", ra.Type)
-			require.Equal(t, u.GravatarURL, *ra.ActorGravatar)
-			require.Equal(t, u.ID, *ra.ActorID)
-			details := getDetails(ra)
-			for k, v := range details {
-				require.Equal(t, c.expActs[i].details[k], v)
-			}
-		}
-	}
-}
-
-func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
+func testCleanupExpiredLiveQueries(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user1 := &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
@@ -905,230 +573,123 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Nothing to delete.
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, 500, 1)
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	nonSavedQuery1, err := ds.NewQuery(ctx, &fleet.Query{
-		Name:    "nonSavedQuery1",
+	nonSavedQuery, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:    "nonSavedQuery",
 		Saved:   false,
 		Query:   "SELECT 1;",
 		Logging: fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
-	savedQuery1, err := ds.NewQuery(ctx, &fleet.Query{
-		Name:    "savedQuery1",
+	savedQuery, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:    "savedQuery",
 		Saved:   true,
 		Query:   "SELECT 2;",
 		Logging: fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
-	distributedQueryCampaign1, err := ds.NewDistributedQueryCampaign(ctx, &fleet.DistributedQueryCampaign{
-		QueryID: nonSavedQuery1.ID,
+	campaign, err := ds.NewDistributedQueryCampaign(ctx, &fleet.DistributedQueryCampaign{
+		QueryID: nonSavedQuery.ID,
 		Status:  fleet.QueryComplete,
 		UserID:  user1.ID,
 	})
 	require.NoError(t, err)
 	_, err = ds.NewDistributedQueryCampaignTarget(ctx, &fleet.DistributedQueryCampaignTarget{
-		DistributedQueryCampaignID: distributedQueryCampaign1.ID,
+		DistributedQueryCampaignID: campaign.ID,
 		TargetID:                   1,
 		Type:                       fleet.TargetHost,
 	})
 	require.NoError(t, err)
-	timestamp := time.Now()
-	ctx = context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
-		name:    "other activity",
-		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
-	}, nil, timestamp,
-	)
-	require.NoError(t, err)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
-		name:    "live query",
-		details: map[string]interface{}{"detail": 1, "foo": "bar"},
-	}, nil, timestamp,
-	)
-	require.NoError(t, err)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
-		name:    "some host activity",
-		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
-		hostIDs: []uint{1},
-	}, nil, timestamp,
-	)
-	require.NoError(t, err)
-	err = ds.NewActivity(ctx, user1, dummyActivity{
-		name:    "some host activity 2",
-		details: map[string]interface{}{"detail": 0, "foo": "bar"},
-		hostIDs: []uint{2},
-	}, nil, timestamp,
-	)
+
+	// Nothing is deleted because the data is recent.
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	// Nothing is deleted, as the activities and associated data is recent.
-	const maxCount = 500
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	_, err = ds.Query(ctx, nonSavedQuery.ID)
 	require.NoError(t, err)
-
-	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	_, err = ds.DistributedQueryCampaign(ctx, campaign.ID)
 	require.NoError(t, err)
-	require.Len(t, activities, 4)
-	nonExpiredActivityID := activities[0].ID
-	expiredActivityID := activities[1].ID
-	nonExpiredHostActivityID := activities[2].ID
-	expiredHostActivityID := activities[3].ID
-	_, err = ds.Query(ctx, nonSavedQuery1.ID)
-	require.NoError(t, err)
-	_, err = ds.DistributedQueryCampaign(ctx, distributedQueryCampaign1.ID)
-	require.NoError(t, err)
-	targets, err := ds.DistributedQueryCampaignTargetIDs(ctx, distributedQueryCampaign1.ID)
+	targets, err := ds.DistributedQueryCampaignTargetIDs(ctx, campaign.ID)
 	require.NoError(t, err)
 	require.Len(t, targets.HostIDs, 1)
 
-	// Make some of the activity and associated data older.
-	_, err = ds.writer(context.Background()).Exec(`
-		UPDATE activities SET created_at = ? WHERE id = ? OR id = ?`,
-		time.Now().Add(-48*time.Hour), expiredActivityID, expiredHostActivityID,
-	)
-	require.NoError(t, err)
+	// Make the queries older.
 	_, err = ds.writer(context.Background()).Exec(`
 		UPDATE queries SET created_at = ? WHERE id = ? OR id = ?`,
-		time.Now().Add(-48*time.Hour), nonSavedQuery1.ID, savedQuery1.ID,
+		time.Now().Add(-48*time.Hour), nonSavedQuery.ID, savedQuery.ID,
 	)
 	require.NoError(t, err)
 
-	// Expired activity and associated data should be cleaned up.
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// Expired unsaved query, its campaign, and campaign targets should be cleaned up.
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activities, 3)
-	require.Equal(t, nonExpiredActivityID, activities[0].ID)
-	require.Equal(t, nonExpiredHostActivityID, activities[1].ID)
-	require.Equal(t, expiredHostActivityID, activities[2].ID)
-	_, err = ds.Query(ctx, nonSavedQuery1.ID)
+	_, err = ds.Query(ctx, nonSavedQuery.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
-	_, err = ds.DistributedQueryCampaign(ctx, distributedQueryCampaign1.ID)
+	_, err = ds.DistributedQueryCampaign(ctx, campaign.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
-	targets, err = ds.DistributedQueryCampaignTargetIDs(ctx, distributedQueryCampaign1.ID)
+	targets, err = ds.DistributedQueryCampaignTargetIDs(ctx, campaign.ID)
 	require.NoError(t, err)
 	require.Empty(t, targets.HostIDs)
 	require.Empty(t, targets.LabelIDs)
 	require.Empty(t, targets.TeamIDs)
 
 	// Saved query should not be cleaned up.
-	savedQuery1, err = ds.Query(ctx, savedQuery1.ID)
+	savedQuery, err = ds.Query(ctx, savedQuery.ID)
 	require.NoError(t, err)
-	require.NotNil(t, savedQuery1)
+	require.NotNil(t, savedQuery)
 }
 
-func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
+func testCleanupExpiredLiveQueriesBatch(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	user1 := &fleet.User{
-		Password:   []byte("p4ssw0rd.123"),
-		Name:       "user1",
-		Email:      "user1@example.com",
-		GlobalRole: ptr.String(fleet.RoleAdmin),
-	}
-	user1, err := ds.NewUser(ctx, user1)
-	require.NoError(t, err)
-
-	const maxCount = 500
-
-	// Create 1500 activities.
-	insertActivitiesStmt := `
-		INSERT INTO activities
-		(user_id, user_name, activity_type, details, user_email)
-		VALUES `
-	var insertActivitiesArgs []interface{}
-	for i := 0; i < 1500; i++ {
-		insertActivitiesArgs = append(insertActivitiesArgs,
-			user1.ID, user1.Name, "foobar", `{"foo": "bar"}`, user1.Email,
-		)
-	}
-	insertActivitiesStmt += strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", 1500), ",")
-	_, err = ds.writer(ctx).ExecContext(ctx, insertActivitiesStmt, insertActivitiesArgs...)
-	require.NoError(t, err)
 
 	// Create 1500 non-saved queries.
 	insertQueriesStmt := `
 		INSERT INTO queries
 		(name, description, query)
 		VALUES `
-	var insertQueriesArgs []interface{}
-	for i := 0; i < 1500; i++ {
+	var insertQueriesArgs []any
+	for i := range 1500 {
 		insertQueriesArgs = append(insertQueriesArgs,
 			fmt.Sprintf("foobar%d", i), "foobar", "SELECT 1;",
 		)
 	}
 	insertQueriesStmt += strings.TrimSuffix(strings.Repeat("(?, ?, ?),", 1500), ",")
-	_, err = ds.writer(ctx).ExecContext(ctx, insertQueriesStmt, insertQueriesArgs...)
+	_, err := ds.writer(ctx).ExecContext(ctx, insertQueriesStmt, insertQueriesArgs...)
 	require.NoError(t, err)
 
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// Nothing deleted; all recent.
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activities, 1500)
 	var queriesLen int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 1500, queriesLen)
 
-	// Make 1250 activities as expired.
-	_, err = ds.writer(context.Background()).Exec(`
-		UPDATE activities SET created_at = ? WHERE id <= 1250`,
-		time.Now().Add(-48*time.Hour),
-	)
-	require.NoError(t, err)
-
-	// Make 1250 queries as expired.
+	// Make 1250 queries expired.
 	_, err = ds.writer(context.Background()).Exec(`
 		UPDATE queries SET created_at = ? WHERE id <= 1250`,
 		time.Now().Add(-48*time.Hour),
 	)
 	require.NoError(t, err)
 
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// All 1250 expired queries should be cleaned up in one call (batched internally).
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activities, 1000)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
-	})
-	require.Equal(t, 250, queriesLen) // All expired queries should be cleaned up.
-
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
-	require.NoError(t, err)
-
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activities, 500)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 250, queriesLen)
 
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// Running again should be a no-op (remaining 250 are not expired).
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activities, 250)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
-	})
-	require.Equal(t, 250, queriesLen)
-
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
-	require.NoError(t, err)
-
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
-	require.NoError(t, err)
-	require.Len(t, activities, 250)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
@@ -1136,8 +697,8 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 }
 
 func testActivateNextActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1159,19 +720,19 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "vpp1",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil, nil)
 	require.NoError(t, err)
 	vppApp2 := &fleet.VPPApp{
 		Name: "vpp_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp2", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "vpp2",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp2, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp2, nil, nil)
 	require.NoError(t, err)
 	vppApp1IOS := &fleet.VPPApp{
 		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.IOSPlatform}},
 		BundleIdentifier: "vpp1",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1IOS, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1IOS, nil, nil)
 	require.NoError(t, err)
 
 	// create a software installer that can be installed later
@@ -1258,7 +819,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, vpp1_2, pendingActs[3].UUID)
 
 	// listing scripts ready to execute returns script1_1
-	pendingScripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, h1.ID, false)
+	pendingScripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, h1.ID)
 	require.NoError(t, err)
 	require.Len(t, pendingScripts, 1)
 	require.Equal(t, script1_1, pendingScripts[0].ExecutionID)
@@ -1284,7 +845,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	// set a script result, will activate both VPP apps
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// get host script result now returns the result
@@ -1308,6 +869,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	rawCmd := string(cmd.Raw)
 	require.Contains(t, rawCmd, ">"+vppApp1.VPPAppTeam.AdamID+"<")
 	require.Contains(t, rawCmd, ">"+vpp1_1+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+    <integer>0</integer>`, "MacOS VPP app install command should have ManagementFlags 0")
 
 	// insert a result for that command and create the past activity,
 	// which triggers the next activity to be activated (should be none
@@ -1320,11 +883,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      h1.ID,
 		AppStoreID:  vppApp1.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_1,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	appleCmdRes, err := ds.GetMDMAppleCommandResults(ctx, vpp1_1, "")
@@ -1356,7 +919,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Len(t, pendingSw, 0)
 
 	// without only active, returns it
-	pendingSw, err = ds.ListPendingSoftwareInstalls(ctx, h1.ID)
+	pendingSw, err = ds.listUpcomingSoftwareInstalls(ctx, h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pendingSw, 1)
 	require.Equal(t, sw1_1, pendingSw[0])
@@ -1401,11 +964,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      h1.ID,
 		AppStoreID:  vppApp2.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_2,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	appleCmdRes, err = ds.GetMDMAppleCommandResults(ctx, vpp1_2, "")
@@ -1425,7 +988,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	swRes, err := ds.GetSoftwareInstallResults(ctx, sw1_1)
@@ -1447,7 +1010,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 		HostID:      h1.ID,
 		ExecutionID: sw1_2,
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// because the install and uninstall are for the same software installer,
@@ -1483,6 +1046,18 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, vpp1_1_ios, pendingActs[0].UUID)
 	require.Equal(t, ihaCmd, pendingActs[1].UUID)
 
+	// get next nano command for iOS host is the VPP app
+	nanoCtx = &mdm.Request{EnrollID: &mdm.EnrollID{ID: hIOS.UUID}, Context: ctx}
+	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, vpp1_1_ios, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd = string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+vppApp1IOS.VPPAppTeam.AdamID+"<")
+	require.Contains(t, rawCmd, ">"+vpp1_1_ios+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+    <integer>1</integer>`)
+
 	// record a result for the VPP app install, which will activate the in-house app
 	cmdRes = &mdm.CommandResults{
 		CommandUUID: vpp1_1_ios,
@@ -1492,12 +1067,12 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      hIOS.ID,
 		AppStoreID:  vppApp1IOS.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_1_ios,
 		Status:      "Error", // using a failure because otherwise it requires verification to activate next
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	// the in-house app is now activated
@@ -1505,6 +1080,15 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, pendingActs, 1)
 	require.Equal(t, ihaCmd, pendingActs[0].UUID)
+
+	cmd, err = nanoDB.RetrieveNextCommand(nanoCtx, false)
+	require.NoError(t, err)
+	require.Equal(t, ihaCmd, cmd.CommandUUID)
+	require.Equal(t, "InstallApplication", cmd.Command.Command.RequestType)
+	rawCmd = string(cmd.Raw)
+	require.Contains(t, rawCmd, ">"+ihaCmd+"<")
+	require.Contains(t, rawCmd, `<key>ManagementFlags</key>
+    <integer>1</integer>`)
 
 	// enqueue a VPP app request for iOS host once more
 	vpp1_1_ios = uuid.NewString()
@@ -1526,11 +1110,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+	err = activitySvc.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
 		HostID:      hIOS.ID,
 		CommandUUID: ihaCmd,
 		Status:      "Error", // using a failure because otherwise it requires verification to activate next
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
@@ -1558,11 +1142,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+	err = activitySvc.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
 		HostID:      hIOS.ID,
 		CommandUUID: vpp1_1_ios,
 		Status:      string(fleet.SoftwareInstalled),
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	// both are still upcoming...
@@ -1590,11 +1174,11 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
 
-	err = ds.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
+	err = activitySvc.NewActivity(ctx, nil, &fleet.ActivityTypeInstalledSoftware{
 		HostID:      hIOS.ID,
 		CommandUUID: ihaCmd,
 		Status:      string(fleet.SoftwareInstalled),
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	pendingActs, _, err = ds.ListHostUpcomingActivities(ctx, hIOS.ID, fleet.ListOptions{})
@@ -1612,8 +1196,8 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 }
 
 func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
 	test.CreateInsertGlobalVPPToken(t, ds)
 
 	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
@@ -1628,7 +1212,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 		Name: "vpp_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "vpp1", Platform: fleet.MacOSPlatform}},
 		BundleIdentifier: "vpp1",
 	}
-	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil)
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp1, nil, nil)
 	require.NoError(t, err)
 
 	installer1, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
@@ -1656,7 +1240,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 		HostID:                h1.ID,
 		InstallUUID:           sw1_1,
 		InstallScriptExitCode: ptr.Int(0),
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending script execution request
@@ -1670,7 +1254,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 	// set a result for the script
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID: h1.ID, ExecutionID: script1_1, Output: "a", ExitCode: 0,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending uninstall request
@@ -1683,7 +1267,7 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 		HostID:      h1.ID,
 		ExecutionID: sw1_2,
 		ExitCode:    1,
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// create a pending vpp app install
@@ -1699,11 +1283,11 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 	}
 	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
 	require.NoError(t, err)
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      h1.ID,
 		AppStoreID:  vppApp1.VPPAppTeam.AdamID,
 		CommandUUID: vpp1_1,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 
 	// the upcoming queue should be empty, each result having emptied the list
@@ -1714,6 +1298,14 @@ func testActivateItselfOnEmptyQueue(t *testing.T, ds *Datastore) {
 }
 
 func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+	newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		var apiUser *activity_api.User
+		if user != nil {
+			apiUser = &activity_api.User{ID: user.ID, Name: user.Name, Email: user.Email}
+		}
+		return activitySvc.NewActivity(ctx, apiUser, activity)
+	}
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1815,7 +1407,7 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec2 := test.CreateHostScriptUpcomingActivity(t, ds, host)
 				exec3 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged", newActivityFn)
 					test.SetHostSoftwareInstallResult(t, ds, host, exec3, 0)
 				})
 				return []string{exec1, exec2, exec3}
@@ -1844,7 +1436,7 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
 				exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec1, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, hostIOS, exec1, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1880,6 +1472,14 @@ func testCancelNonActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 }
 
 func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+	newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		var apiUser *activity_api.User
+		if user != nil {
+			apiUser = &activity_api.User{ID: user.ID, Name: user.Name, Email: user.Email}
+		}
+		return activitySvc.NewActivity(ctx, apiUser, activity)
+	}
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -1942,7 +1542,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
 				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -1996,7 +1596,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec2, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -2008,7 +1608,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				exec2, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
 				t.Cleanup(func() {
-					test.SetHostVPPAppInstallResult(t, ds, nanoDB, hostIOS, exec2, adamID, "Acknowledged")
+					test.SetHostVPPAppInstallResult(t, ds, nanoDB, hostIOS, exec2, adamID, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -2020,7 +1620,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 				exec1 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				exec2 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
 				t.Cleanup(func() {
-					test.SetHostInHouseAppInstallResult(t, ds, nanoDB, hostIOS, exec2, "Acknowledged")
+					test.SetHostInHouseAppInstallResult(t, ds, nanoDB, hostIOS, exec2, "Acknowledged", newActivityFn)
 				})
 				return []string{exec1, exec2}
 			},
@@ -2048,7 +1648,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 			// the next upcoming activity (and only this one) should show up in those
 			// lists of ready-to-process activities.
 			var gotExecIDs []string
-			scripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, c.host.ID, false)
+			scripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, c.host.ID)
 			require.NoError(t, err)
 			require.True(t, len(scripts) <= 1)
 			if len(scripts) == 1 {
@@ -2084,7 +1684,112 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
 }
 
+func testBatchCancelAllHostUpcomingActivities(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	host := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, host, false)
+	hostIOS := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now(), test.WithPlatform("ios"))
+	nanoEnrollAndSetHostMDMData(t, ds, hostIOS, false)
+	hostLeftUntouched := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, hostLeftUntouched, false)
+
+	pluckExecIDs := func(acts []*fleet.UpcomingActivity) []string {
+		execIDs := []string{}
+		for _, act := range acts {
+			execIDs = append(execIDs, act.UUID)
+		}
+		return execIDs
+	}
+
+	// edge case: host with no upcoming activities returns empty slice with no error
+	canceled, err := ds.BatchCancelAllHostUpcomingActivities(ctx, hostLeftUntouched.ID)
+	require.NoError(t, err)
+	require.Empty(t, canceled)
+
+	// enqueue an activity on hostLeftUntouched, must still be there after the test
+	execIDUntouched := test.CreateHostScriptUpcomingActivity(t, ds, hostLeftUntouched)
+
+	// enqueue mixed activities on the main host: the first becomes activated,
+	// the rest stay queued.
+	exec1 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+	exec2 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+	exec3 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+	exec4, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+	expectedExecIDs := []string{exec1, exec2, exec3, exec4}
+
+	got, _, err := ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, got, len(expectedExecIDs))
+	require.Equal(t, expectedExecIDs, pluckExecIDs(got))
+
+	// exec1 should already be activated (single activity at enqueue time)
+	meta, err := ds.GetHostUpcomingActivityMeta(ctx, host.ID, exec1)
+	require.NoError(t, err)
+	require.NotNil(t, meta.ActivatedAt)
+
+	// cancel everything in one shot
+	canceled, err = ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, canceled, len(expectedExecIDs))
+
+	// queue should now be empty
+	got, _, err = ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// exec1 was activated, so its host_script_results row must be marked canceled
+	var scriptCanceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scriptCanceled,
+			`SELECT canceled FROM host_script_results WHERE execution_id = ?`, exec1)
+	})
+	require.True(t, scriptCanceled)
+
+	// hostLeftUntouched still has its single activity untouched
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostLeftUntouched.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
+
+	// repeat on an iOS host with an in-house app install (activated) followed by
+	// a vpp install, to cover the in_house and vpp activated-cancel branches.
+	exec5 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
+	exec6, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
+
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []string{exec5, exec6}, pluckExecIDs(got))
+
+	canceledIOS, err := ds.BatchCancelAllHostUpcomingActivities(ctx, hostIOS.ID)
+	require.NoError(t, err)
+	require.Len(t, canceledIOS, 2)
+
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// exec5 was activated; its host_in_house_software_installs row must be canceled
+	var inHouseCanceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &inHouseCanceled,
+			`SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, exec5)
+	})
+	require.True(t, inHouseCanceled)
+}
+
 func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
+	activitySvc := NewTestActivityService(t, ds)
+	newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		var apiUser *activity_api.User
+		if user != nil {
+			apiUser = &activity_api.User{ID: user.ID, Name: user.Name, Email: user.Email}
+		}
+		return activitySvc.NewActivity(ctx, apiUser, activity)
+	}
 	ctx := context.Background()
 	test.CreateInsertGlobalVPPToken(t, ds)
 
@@ -2116,7 +1821,7 @@ func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
 	exec, adamID := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
 	_, err = ds.CancelHostUpcomingActivity(ctx, host.ID, exec)
 	require.NoError(t, err)
-	test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec, adamID, "Acknowledged")
+	test.SetHostVPPAppInstallResult(t, ds, nanoDB, host, exec, adamID, "Acknowledged", newActivityFn)
 }
 
 func testGetHostUpcomingActivityMeta(t *testing.T, ds *Datastore) {
@@ -2260,7 +1965,7 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	}
 
 	// run without anything in any host queue
-	n, err := ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	n, err := ds.UnblockHostsUpcomingActivityQueue(ctx, 10, false)
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
@@ -2288,14 +1993,14 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[4])
 
 	// nothing to unblock
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10, false)
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
 	// block queue for host 0
 	deleteUpcomingActivityToBlockQueue(host0ScriptA.ExecutionID)
 
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10, false)
 	require.NoError(t, err)
 	require.Equal(t, 1, n)
 
@@ -2331,7 +2036,7 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	deleteUpcomingActivityToBlockQueue(host3ScriptC.ExecutionID)
 	deleteUpcomingActivityToBlockQueue(host4ScriptC.ExecutionID)
 
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10, false)
 	require.NoError(t, err)
 	require.Equal(t, 3, n)
 
@@ -2377,15 +2082,15 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	deleteUpcomingActivityToBlockQueue(host4ScriptD.ExecutionID)
 
 	// process max 3 hosts
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3, false)
 	require.NoError(t, err)
 	require.Equal(t, 3, n)
 	// run again, should process the next 2 hosts
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3, false)
 	require.NoError(t, err)
 	require.Equal(t, 2, n)
 	// run again, nothing to unblock
-	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3)
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 3, false)
 	require.NoError(t, err)
 	require.Equal(t, 0, n)
 
@@ -2394,6 +2099,661 @@ func testUnblockHostsUpcomingActivityQueue(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[2], host2ScriptD.ExecutionID, host2ScriptE.ExecutionID)
 	checkUpcomingActivities(t, ds, hosts[3], host3ScriptE.ExecutionID)
 	checkUpcomingActivities(t, ds, hosts[4], host4ScriptE.ExecutionID)
+}
+
+func testReleaseFleetInitiatedUpcomingActivities(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+	policy, err := ds.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{Name: "release-budget-policy", Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotNil(t, policy)
+
+	hosts := make([]*fleet.Host, 3)
+	for i := range hosts {
+		hosts[i] = test.NewHost(t, ds, fmt.Sprintf("hr%d.local", i+1), fmt.Sprintf("10.20.10.%d", i+1),
+			fmt.Sprintf("release-%d", i+1), fmt.Sprintf("release-%d", i+1), time.Now())
+	}
+
+	enqueueGated := func(hostID uint, contents string) *fleet.HostScriptResult {
+		hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+			HostID:          hostID,
+			ScriptContents:  contents,
+			PolicyID:        &policy.ID,
+			DeferActivation: true,
+		})
+		require.NoError(t, err)
+		return hsr
+	}
+
+	readyExecIDs := func(hostID uint) []string {
+		ready, err := ds.ListReadyToExecuteScriptsForHost(ctx, hostID)
+		require.NoError(t, err)
+		ids := make([]string, 0, len(ready))
+		for _, r := range ready {
+			ids = append(ids, r.ExecutionID)
+		}
+		return ids
+	}
+
+	// nothing gated yet
+	n, err := ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	// gated enqueues are not activated: invisible to the host
+	gated0 := enqueueGated(hosts[0].ID, "A")
+	gated1 := enqueueGated(hosts[1].ID, "A")
+	require.Empty(t, readyExecIDs(hosts[0].ID))
+	require.Empty(t, readyExecIDs(hosts[1].ID))
+
+	// the unblock job must not bypass the release budget
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10, true)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+	require.Empty(t, readyExecIDs(hosts[0].ID))
+
+	// release honors the budget, oldest host first
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.Equal(t, []string{gated0.ExecutionID}, readyExecIDs(hosts[0].ID))
+	require.Empty(t, readyExecIDs(hosts[1].ID))
+
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.Equal(t, []string{gated1.ExecutionID}, readyExecIDs(hosts[1].ID))
+
+	// nothing left to release
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 1)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	// a host with an in-flight (activated) activity is not double-released even
+	// with gated work behind it: per-host serialization is preserved
+	enqueueGated(hosts[0].ID, "B")
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+	require.Equal(t, []string{gated0.ExecutionID}, readyExecIDs(hosts[0].ID))
+
+	// a user-initiated script on a host with only gated work activates
+	// immediately and jumps ahead of the gated activity (higher priority)
+	gated2 := enqueueGated(hosts[2].ID, "G")
+	userScript, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         hosts[2].ID,
+		ScriptContents: "U",
+		UserID:         &u.ID,
+		SyncRequest:    true,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{userScript.ExecutionID}, readyExecIDs(hosts[2].ID))
+
+	// while the user script is in flight, release leaves the host alone
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 0, n)
+
+	// completing the user script chain-activates the gated activity (a person
+	// touching the host releases its queue early, by design)
+	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      hosts[2].ID,
+		ExecutionID: userScript.ExecutionID,
+		Output:      "ok",
+		ExitCode:    0,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, []string{gated2.ExecutionID}, readyExecIDs(hosts[2].ID))
+
+	// legacy unblock behavior (skipFleetInitiated=false) still rescues hosts
+	// with gated-only work, for deployments without the release budget
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM upcoming_activities WHERE execution_id = ?`, gated2.ExecutionID)
+		return err
+	})
+	enqueueGated(hosts[2].ID, "H")
+	n, err = ds.UnblockHostsUpcomingActivityQueue(ctx, 10, false)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.Len(t, readyExecIDs(hosts[2].ID), 1)
+
+	// the software-install enqueue path honors DeferActivation the same way:
+	// invisible to the host until released
+	installHost := test.NewHost(t, ds, "hr4.local", "10.20.10.4", "release-4", "release-4", time.Now())
+	installerFile, err := fleet.NewTempFileReader(strings.NewReader("echo"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install foo",
+		InstallerFile:   installerFile,
+		StorageID:       uuid.NewString(),
+		Filename:        "foo.pkg",
+		Title:           uuid.NewString(),
+		Source:          "apps",
+		Version:         "0.0.1",
+		UserID:          u.ID,
+		UninstallScript: "uninstall foo",
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	installExecID, err := ds.InsertSoftwareInstallRequest(ctx, installHost.ID, installerID, fleet.HostSoftwareInstallOptions{
+		PolicyID:        &policy.ID,
+		DeferActivation: true,
+	})
+	require.NoError(t, err)
+
+	installs, err := ds.ListReadyToExecuteSoftwareInstalls(ctx, installHost.ID)
+	require.NoError(t, err)
+	require.Empty(t, installs)
+
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	installs, err = ds.ListReadyToExecuteSoftwareInstalls(ctx, installHost.ID)
+	require.NoError(t, err)
+	require.Equal(t, []string{installExecID}, installs)
+
+	// a "poison" host whose activation deterministically fails must not wedge
+	// the release pipeline: with oldest-first selection it would otherwise be
+	// re-picked every run and roll back every other host in its chunk
+	poisonHost := test.NewHost(t, ds, "hr5.local", "10.20.10.5", "release-5", "release-5", time.Now())
+	healthyHost := test.NewHost(t, ds, "hr6.local", "10.20.10.6", "release-6", "release-6", time.Now())
+	poisonScript := enqueueGated(poisonHost.ID, "P")
+	healthyScript := enqueueGated(healthyHost.ID, "Q")
+	// pre-seed a host_script_results row with the poison activity's execution
+	// ID so its activation INSERT hits the unique key and fails
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_script_results (host_id, execution_id, script_content_id, output)
+			SELECT ua.host_id, ua.execution_id, sua.script_content_id, ''
+			FROM upcoming_activities ua
+			JOIN script_upcoming_activities sua ON sua.upcoming_activity_id = ua.id
+			WHERE ua.execution_id = ?`, poisonScript.ExecutionID)
+		return err
+	})
+
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.Error(t, err, "the poison host's activation error must be reported")
+	require.ErrorContains(t, err, fmt.Sprintf("host %d", poisonHost.ID))
+	require.Equal(t, 1, n, "the healthy host must be released despite the poison host")
+	require.Equal(t, []string{healthyScript.ExecutionID}, readyExecIDs(healthyHost.ID))
+
+	// unwedge the poison host and confirm it releases on the next run
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_script_results WHERE execution_id = ?`, poisonScript.ExecutionID)
+		return err
+	})
+	n, err = ds.ReleaseFleetInitiatedUpcomingActivities(ctx, 10)
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.Equal(t, []string{poisonScript.ExecutionID}, readyExecIDs(poisonHost.ID))
+}
+
+// TestReapableActivatedInstallArgs pins the conversion the reap predicate depends on. A duration
+// that reaches the query as 0 makes the cutoff NOW(), so every activated install on the fleet is
+// past it. The sub-second case in testReapStuckActivatedMDMInstalls says the same thing end to end,
+// but has to race a wall clock to do it.
+func TestReapableActivatedInstallArgs(t *testing.T) {
+	for _, tc := range []struct {
+		olderThan  time.Duration
+		wantMicros int64
+	}{
+		{time.Microsecond, 1},
+		{time.Millisecond, 1_000},
+		{500 * time.Millisecond, 500_000},
+		{999 * time.Millisecond, 999_000},
+		{24 * time.Hour, 86_400_000_000},
+	} {
+		t.Run(tc.olderThan.String(), func(t *testing.T) {
+			args := reapableActivatedInstallArgs(tc.olderThan)
+			require.Len(t, args, 3)
+			require.Equal(t, tc.wantMicros, args[0], "reap age must not truncate")
+			require.Equal(t, tc.wantMicros, args[1], "answer age must not truncate")
+			require.Equal(t, mdmApplePushDeliveryGraceDays, args[2])
+		})
+	}
+}
+
+func testReapStuckActivatedMDMInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+	u := test.NewUser(t, ds, "reaper-user", "reaper-user@example.com", false)
+
+	const reapAfter = 24 * time.Hour
+	agedActivation := time.Now().Add(-48 * time.Hour)
+
+	var hostSeq int
+	newMDMHost := func(opts ...test.NewHostOption) *fleet.Host {
+		hostSeq++
+		h := test.NewHost(t, ds, fmt.Sprintf("reap%d.local", hostSeq), fmt.Sprintf("10.20.30.%d", hostSeq),
+			fmt.Sprintf("reap-key-%d", hostSeq), fmt.Sprintf("reap-uuid-%d", hostSeq), time.Now(), opts...)
+		nanoEnrollAndSetHostMDMData(t, ds, h, false)
+		return h
+	}
+
+	// advance covers the case where an insert onto a non-empty queue did not activate itself
+	advance := func(host *fleet.Host, fromCompletedExecID string) {
+		_, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, fromCompletedExecID)
+		require.NoError(t, err)
+	}
+
+	// ageActivations backdates the activation so the rows are older than the reap timeout
+	ageActivations := func(execIDs ...string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt, args, err := sqlx.In(
+				`UPDATE upcoming_activities SET activated_at = ? WHERE execution_id IN (?)`, agedActivation, execIDs)
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, stmt, args...)
+			return err
+		})
+	}
+
+	// answeredAt records a command result, which is what a device reply leaves behind. updated_at
+	// carries the answer time: GetUnverifiedVPPInstallsForHost selects it as ack_at and the verify
+	// handler times its own budget against it, so the reaper ages the answered branch from it too.
+	answeredAt := func(host *fleet.Host, execID, status string, at time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO nano_command_results (id, command_uuid, status, result, updated_at)
+				VALUES (?, ?, ?, '<?xml version="1.0" encoding="UTF-8"?>', ?)`, host.UUID, execID, status, at)
+			return err
+		})
+	}
+	// deliver is the reported shape: acknowledged back when the install activated, unverified since
+	deliver := func(host *fleet.Host, execID string) {
+		answeredAt(host, execID, "Acknowledged", agedActivation)
+	}
+
+	ageNanoQueue := func(execID string, at time.Time) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE nano_enrollment_queue SET created_at = ? WHERE command_uuid = ?`, at, execID)
+			return err
+		})
+	}
+
+	deactivateNanoQueue := func(execID string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE nano_enrollment_queue SET active = 0 WHERE command_uuid = ?`, execID)
+			return err
+		})
+	}
+
+	queuedExecIDs := func(host *fleet.Host) []string {
+		acts, _, err := ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		ids := make([]string, 0, len(acts))
+		for _, a := range acts {
+			ids = append(ids, a.UUID)
+		}
+		return ids
+	}
+
+	type verifyState struct {
+		VerificationAt       *time.Time `db:"verification_at"`
+		VerificationFailedAt *time.Time `db:"verification_failed_at"`
+	}
+	vppVerifyState := func(execID string) verifyState {
+		var vs verifyState
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &vs,
+				`SELECT verification_at, verification_failed_at FROM host_vpp_software_installs WHERE command_uuid = ?`, execID)
+		})
+		return vs
+	}
+	nanoQueueActive := func(execID string) bool {
+		var active bool
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &active,
+				`SELECT active FROM nano_enrollment_queue WHERE command_uuid = ?`, execID)
+		})
+		return active
+	}
+	hasVerifyLock := func(host *fleet.Host) bool {
+		var n int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &n,
+				`SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`,
+				host.ID, fleet.VerifySoftwareInstallVPPPrefix)
+		})
+		return n > 0
+	}
+
+	// nothing to reap on a fleet with no activity at all
+	reaped, err := ds.ReapStuckActivatedMDMInstalls(ctx, reapAfter, 10)
+	require.NoError(t, err)
+	require.Empty(t, reaped)
+
+	// hAcked: delivered, never verified, aged. The reported case. A script is queued behind it to
+	// prove the whole queue is released, not just the install.
+	hAcked := newMDMHost()
+	ackedExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hAcked)
+	advance(hAcked, "")
+	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hAcked.ID, ScriptContents: "echo reaped",
+	})
+	require.NoError(t, err)
+	ackedScriptExec := hsr.ExecutionID
+	deliver(hAcked, ackedExec)
+	ageActivations(ackedExec)
+	// An automatic update, so the emitted activity has to say so. Written as 1 and not TRUE:
+	// raw SQL TRUE stores a JSON boolean, while a Go bool through the driver stores the number
+	// the reaper's `= 1` test matches, so only 1 reproduces what production writes.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE upcoming_activities SET payload = JSON_SET(payload, '$.from_auto_update', 1) WHERE execution_id = ?`,
+			ackedExec)
+		return err
+	})
+	// the acknowledgement that started verification also took the verify lock
+	require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+		{HostID: hAcked.ID, CommandType: fleet.VerifySoftwareInstallVPPPrefix},
+	}))
+	require.Equal(t, []string{ackedExec, ackedScriptExec}, queuedExecIDs(hAcked))
+
+	// hOffline: aged, but the command has not been delivered and its queue row is still live and
+	// inside the push window, so the device may yet install it. This is the regression guard: a
+	// bare age test would fail every install to a host that is merely switched off.
+	hOffline := newMDMHost()
+	offlineExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hOffline)
+	advance(hOffline, "")
+	ageActivations(offlineExec)
+
+	// hNotNow: the device answered, but with NotNow, so nanomdm keeps the command queued and will
+	// re-serve it. The install has not run, so it must be treated as undelivered and spared.
+	hNotNow := newMDMHost()
+	notNowExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hNotNow)
+	advance(hNotNow, "")
+	answeredAt(hNotNow, notNowExec, "NotNow", agedActivation)
+	ageActivations(notNowExec)
+
+	// hBackdated: its queue row carries the activity's old created_at, because both enqueue paths
+	// copy it to preserve ordering. That says nothing about whether the device can still receive
+	// the command, and it is the shape of every install behind a head the reaper has just freed.
+	hBackdated := newMDMHost()
+	backdatedExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hBackdated)
+	advance(hBackdated, "")
+	ageActivations(backdatedExec) // 48h, past the reap floor
+	ageNanoQueue(backdatedExec, time.Now().Add(-30*24*time.Hour))
+
+	// hLateAck: away longer than the delivery grace, then came back and acknowledged. The delivery
+	// branches must not apply to an install that has been answered, or returning after a long
+	// absence would fail the install the device is at that moment running.
+	hLateAck := newMDMHost()
+	lateAckExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hLateAck)
+	advance(hLateAck, "")
+	answeredAt(hLateAck, lateAckExec, "Acknowledged", time.Now())
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE upcoming_activities SET activated_at = ? WHERE execution_id = ?`,
+			time.Now().Add(-9*24*time.Hour), lateAckExec)
+		return err
+	})
+
+	// hUndeliverable: activated longer ago than the delivery grace, still unanswered, so Fleet has
+	// stopped pushing it and it is never going to arrive
+	hExpired := newMDMHost()
+	expiredExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hExpired)
+	advance(hExpired, "")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE upcoming_activities SET activated_at = ? WHERE execution_id = ?`,
+			time.Now().Add(-8*24*time.Hour), expiredExec)
+		return err
+	})
+
+	// hPulled: undelivered, and its queue row was deactivated out from under it
+	hPulled := newMDMHost()
+	pulledExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hPulled)
+	advance(hPulled, "")
+	ageActivations(pulledExec)
+	deactivateNanoQueue(pulledExec)
+
+	// hFresh: answered but activated just now, so still inside the timeout
+	hFresh := newMDMHost()
+	freshExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hFresh)
+	advance(hFresh, "")
+	answeredAt(hFresh, freshExec, "Acknowledged", time.Now())
+
+	// hJustAcked: past the timeout by activation age, but the device only just came back and
+	// acknowledged, so verification is in flight and entitled to its own budget. Reaping on
+	// activation age alone would fail an app that is at that moment installing.
+	hJustAcked := newMDMHost()
+	justAckedExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hJustAcked)
+	advance(hJustAcked, "")
+	answeredAt(hJustAcked, justAckedExec, "Acknowledged", time.Now())
+	ageActivations(justAckedExec)
+
+	// hBatch: a full activation batch. A script goes first so that all the installs queue up
+	// behind it and then activate together when it completes.
+	hBatch := newMDMHost()
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hBatch.ID, ScriptContents: "echo batch",
+	})
+	require.NoError(t, err)
+	batchExecs := make([]string, 0, 6)
+	for range 6 {
+		execID, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hBatch)
+		batchExecs = append(batchExecs, execID)
+	}
+	advance(hBatch, hsr.ExecutionID)
+	// maxMDMCommandActivations caps a batch at 5, so the sixth is still waiting
+	activatedBatch := batchExecs[:5]
+	for _, execID := range activatedBatch {
+		deliver(hBatch, execID)
+	}
+	ageActivations(activatedBatch...)
+
+	// hVerified: already verified, but its row was left activated. Nothing to fail, only to
+	// advance past, and the verified outcome must survive.
+	hVerified := newMDMHost()
+	verifiedExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hVerified)
+	advance(hVerified, "")
+	deliver(hVerified, verifiedExec)
+	ageActivations(verifiedExec)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE host_vpp_software_installs SET verification_at = NOW(6) WHERE command_uuid = ?`, verifiedExec)
+		return err
+	})
+
+	// hInHouse: an in-house app install blocks the queue by the same rule, and on iOS, so this
+	// also covers the platform independence of the whole mechanism
+	hInHouse := newMDMHost(test.WithPlatform("ios"))
+	inHouseExec := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hInHouse, u)
+	advance(hInHouse, "")
+	deliver(hInHouse, inHouseExec)
+	ageActivations(inHouseExec)
+
+	// hMixed: a batch holding both reapable and not-yet-reapable installs. Only the reapable ones
+	// are failed, and the queue stays blocked by the one whose command can still be delivered.
+	hMixed := newMDMHost()
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID: hMixed.ID, ScriptContents: "echo mixed",
+	})
+	require.NoError(t, err)
+	mixedExecs := make([]string, 0, 3)
+	for range 3 {
+		execID, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hMixed)
+		mixedExecs = append(mixedExecs, execID)
+	}
+	advance(hMixed, hsr.ExecutionID)
+	deliver(hMixed, mixedExecs[0])
+	deliver(hMixed, mixedExecs[1])
+	ageActivations(mixedExecs...)
+
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, reapAfter, 10)
+	require.NoError(t, err)
+
+	byCommandUUID := make(map[string]fleet.ReapedMDMInstall, len(reaped))
+	for _, r := range reaped {
+		byCommandUUID[r.CommandUUID] = r
+	}
+	expectedReaped := append([]string{ackedExec, expiredExec, pulledExec, inHouseExec}, activatedBatch...)
+	expectedReaped = append(expectedReaped, mixedExecs[0], mixedExecs[1])
+	require.Len(t, reaped, len(expectedReaped))
+	for _, execID := range expectedReaped {
+		require.Contains(t, byCommandUUID, execID)
+	}
+
+	// the reported case: the install is failed and the script behind it runs
+	require.Equal(t, []string{ackedScriptExec}, queuedExecIDs(hAcked))
+	require.NotNil(t, vppVerifyState(ackedExec).VerificationFailedAt)
+	require.False(t, nanoQueueActive(ackedExec), "a reaped command must not stay pushable")
+	require.False(t, hasVerifyLock(hAcked), "the verify lock must not outlive the install it was taken for")
+
+	ackedEntry := byCommandUUID[ackedExec]
+	require.Equal(t, hAcked.ID, ackedEntry.HostID)
+	require.Equal(t, hAcked.UUID, ackedEntry.HostUUID)
+	require.NotNil(t, ackedEntry.AppStoreActivity)
+	require.Equal(t, string(fleet.SoftwareInstallFailed), ackedEntry.AppStoreActivity.Status)
+	require.True(t, ackedEntry.AppStoreActivity.FromAutoUpdate,
+		"the activity must carry over that the install came from an automatic update")
+	require.Nil(t, ackedEntry.InHouseActivity)
+
+	// a person-requested install reads as such, so the flag is not simply always set
+	require.NotNil(t, byCommandUUID[expiredExec].AppStoreActivity)
+	require.False(t, byCommandUUID[expiredExec].AppStoreActivity.FromAutoUpdate)
+
+	// an install that can still be delivered is left alone, queue and all
+	require.Equal(t, []string{offlineExec}, queuedExecIDs(hOffline))
+	require.Nil(t, vppVerifyState(offlineExec).VerificationFailedAt)
+	require.True(t, nanoQueueActive(offlineExec))
+	require.NotContains(t, byCommandUUID, offlineExec)
+
+	// a NotNow reply is not an answer: nanomdm re-serves the command, so the install is still
+	// pending and must be spared exactly like an undelivered one
+	require.Equal(t, []string{notNowExec}, queuedExecIDs(hNotNow))
+	require.Nil(t, vppVerifyState(notNowExec).VerificationFailedAt)
+	require.True(t, nanoQueueActive(notNowExec))
+	require.NotContains(t, byCommandUUID, notNowExec)
+
+	// a backdated queue row is not evidence the command is undeliverable. Reaping on it would fail
+	// every install sitting behind a head the reaper had only just freed.
+	require.Equal(t, []string{backdatedExec}, queuedExecIDs(hBackdated))
+	require.Nil(t, vppVerifyState(backdatedExec).VerificationFailedAt)
+	require.True(t, nanoQueueActive(backdatedExec))
+	require.NotContains(t, byCommandUUID, backdatedExec)
+
+	// an install that can no longer be delivered is reaped, however it got there
+	require.Empty(t, queuedExecIDs(hExpired))
+	require.NotNil(t, vppVerifyState(expiredExec).VerificationFailedAt)
+	require.Empty(t, queuedExecIDs(hPulled))
+	require.NotNil(t, vppVerifyState(pulledExec).VerificationFailedAt)
+
+	// still inside the timeout
+	require.Equal(t, []string{freshExec}, queuedExecIDs(hFresh))
+	require.Nil(t, vppVerifyState(freshExec).VerificationFailedAt)
+	require.NotContains(t, byCommandUUID, freshExec)
+
+	// a just-acknowledged install keeps its verification window even though it was activated long
+	// before the device came back to answer
+	require.Equal(t, []string{justAckedExec}, queuedExecIDs(hJustAcked))
+	require.Nil(t, vppVerifyState(justAckedExec).VerificationFailedAt)
+	require.NotContains(t, byCommandUUID, justAckedExec)
+
+	// and it keeps it even when the absence ran past the delivery grace, since the answer settles
+	// delivery and the grace no longer has anything to say
+	require.Equal(t, []string{lateAckExec}, queuedExecIDs(hLateAck))
+	require.Nil(t, vppVerifyState(lateAckExec).VerificationFailedAt)
+	require.NotContains(t, byCommandUUID, lateAckExec)
+
+	// the whole batch goes in one pass, and the install waiting behind it activates
+	require.Equal(t, []string{batchExecs[5]}, queuedExecIDs(hBatch))
+	for _, execID := range activatedBatch {
+		require.NotNil(t, vppVerifyState(execID).VerificationFailedAt, "batch member %s", execID)
+	}
+
+	// a verified install is advanced past, not re-failed
+	require.Empty(t, queuedExecIDs(hVerified))
+	verified := vppVerifyState(verifiedExec)
+	require.NotNil(t, verified.VerificationAt)
+	require.Nil(t, verified.VerificationFailedAt, "a verified install must not be overwritten as failed")
+	require.NotContains(t, byCommandUUID, verifiedExec)
+
+	// in-house apps reap the same way, and carry the other activity type
+	require.Empty(t, queuedExecIDs(hInHouse))
+	inHouseEntry := byCommandUUID[inHouseExec]
+	require.NotNil(t, inHouseEntry.InHouseActivity)
+	require.Nil(t, inHouseEntry.AppStoreActivity)
+
+	// only the reapable half of a mixed batch is failed, and the queue stays blocked on purpose
+	require.Equal(t, []string{mixedExecs[2]}, queuedExecIDs(hMixed))
+	require.NotNil(t, vppVerifyState(mixedExecs[0]).VerificationFailedAt)
+	require.NotNil(t, vppVerifyState(mixedExecs[1]).VerificationFailedAt)
+	require.Nil(t, vppVerifyState(mixedExecs[2]).VerificationFailedAt)
+	require.NotContains(t, byCommandUUID, mixedExecs[2])
+
+	// running again reaps nothing: everything reapable is already failed, and what is left is
+	// left for a reason
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, reapAfter, 10)
+	require.NoError(t, err)
+	require.Empty(t, reaped)
+
+	// A sub-second age clears the callers' non-positive guards, so it must not then truncate to an
+	// interval of zero and match everything. 999ms still truncates to 0 whole seconds, so it
+	// discriminates, and the install below sits 1ms inside it. That leaves just under a second
+	// before the assertion races the clock, which is as wide as a sub-second timeout allows.
+	const subSecondTimeout = 999 * time.Millisecond
+	hSubSecond := newMDMHost()
+	subSecondExec, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hSubSecond)
+	advance(hSubSecond, "")
+	deliver(hSubSecond, subSecondExec)
+	setActivatedAgo := func(execID string, micros int) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE upcoming_activities SET activated_at = NOW(6) - INTERVAL ? MICROSECOND WHERE execution_id = ?`,
+				micros, execID)
+			return err
+		})
+	}
+	setActivatedAgo(subSecondExec, 1_000)
+
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, subSecondTimeout, 10)
+	require.NoError(t, err)
+	reapedUUIDs := make([]string, 0, len(reaped))
+	for _, r := range reaped {
+		reapedUUIDs = append(reapedUUIDs, r.CommandUUID)
+	}
+	require.NotContains(t, reapedUUIDs, subSecondExec,
+		"an install younger than a sub-second timeout must survive it")
+	require.Nil(t, vppVerifyState(subSecondExec).VerificationFailedAt)
+
+	// the same timeout does reap it once it is genuinely older. Only this install is checked: the
+	// hosts answered "just now" above are by now also older than a sub-second timeout, and none of
+	// them is used again.
+	setActivatedAgo(subSecondExec, 5_000_000)
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, subSecondTimeout, 10)
+	require.NoError(t, err)
+	reapedUUIDs = reapedUUIDs[:0]
+	for _, r := range reaped {
+		reapedUUIDs = append(reapedUUIDs, r.CommandUUID)
+	}
+	require.Contains(t, reapedUUIDs, subSecondExec)
+	require.NotNil(t, vppVerifyState(subSecondExec).VerificationFailedAt)
+
+	// maxHosts bounds hosts, not rows: two stuck hosts, one run each
+	hLimitA, hLimitB := newMDMHost(), newMDMHost()
+	limitExecs := make(map[uint]string, 2)
+	for _, h := range []*fleet.Host{hLimitA, hLimitB} {
+		execID, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, h)
+		advance(h, "")
+		deliver(h, execID)
+		ageActivations(execID)
+		limitExecs[h.ID] = execID
+	}
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, reapAfter, 1)
+	require.NoError(t, err)
+	require.Len(t, reaped, 1)
+	require.Equal(t, limitExecs[reaped[0].HostID], reaped[0].CommandUUID)
+
+	reaped, err = ds.ReapStuckActivatedMDMInstalls(ctx, reapAfter, 1)
+	require.NoError(t, err)
+	require.Len(t, reaped, 1)
+	require.Empty(t, queuedExecIDs(hLimitA))
+	require.Empty(t, queuedExecIDs(hLimitB))
 }
 
 func testActivateScriptPackageInstallWithCorruptPayload(t *testing.T, ds *Datastore) {
@@ -2418,13 +2778,13 @@ func testActivateScriptPackageInstallWithCorruptPayload(t *testing.T, ds *Datast
 			extension, version, platform, install_script_content_id,
 			pre_install_query, post_install_script_content_id, uninstall_script_content_id,
 			self_service, user_id, user_name, user_email, package_ids,
-			fleet_maintained_app_id, url, upgrade_code
+			fleet_maintained_app_id, url, upgrade_code, patch_query, is_active
 		)
-		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1)
 	`
 	res, err = ds.writer(ctx).ExecContext(ctx, installerStmt,
 		titleID, "storage-123", "test-script.sh", "sh", "", "linux", scriptContentID,
-		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "")
+		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "", "")
 	require.NoError(t, err)
 	installerID, _ := res.LastInsertId()
 
@@ -2544,6 +2904,10 @@ func testActivateDeletedInstallerShowsPlaceholder(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(ctx).ExecContext(ctx, siuaStmt, activityID, installerID)
 	require.NoError(t, err)
 
+	// The FK used to null the reference on delete; it now restricts, so null it first.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE software_install_upcoming_activities SET software_installer_id = NULL WHERE upcoming_activity_id = ?`, activityID)
+	require.NoError(t, err)
+
 	deleteStmt := `DELETE FROM software_installers WHERE id = ?`
 	_, err = ds.writer(ctx).ExecContext(ctx, deleteStmt, installerID)
 	require.NoError(t, err)
@@ -2593,13 +2957,13 @@ func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *Data
 			extension, version, platform, install_script_content_id,
 			pre_install_query, post_install_script_content_id, uninstall_script_content_id,
 			self_service, user_id, user_name, user_email, package_ids,
-			fleet_maintained_app_id, url, upgrade_code
+			fleet_maintained_app_id, url, upgrade_code, patch_query
 		)
-		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
 	`
 	res, err = ds.writer(ctx).ExecContext(ctx, installerStmt,
 		titleID, "storage-id-uninstall", "test-uninstall.sh", "sh", "", "linux", scriptContentID,
-		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "")
+		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "", "")
 	require.NoError(t, err)
 	installerID, _ := res.LastInsertId()
 
@@ -2634,157 +2998,980 @@ func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *Data
 	require.Equal(t, "Test Uninstall Script", result.SoftwareTitleName)
 }
 
-func testActivitySearchAndFiltering(t *testing.T, ds *Datastore) {
-	timestamp := time.Now().UTC().Truncate(time.Second)
+func testListPolicyAutomationActivities(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
-	u := test.NewUser(t, ds, "user1", "email-user1@example.com", true)
+	activitySvc := NewTestActivityService(t, ds)
 
-	// Create a single activity
-	err := ds.NewActivity(ctx, u, fleet.ActivityTypeEditedScript{
-		TeamID:   nil,
-		TeamName: ptr.String("No Team"),
-	}, nil, timestamp)
-	require.NoError(t, err)
-
-	// Search by type
-
-	// First no match on type
-	activities, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ActivityType: "mdm_enrolled",
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 0)
-
-	// Now search for our type
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ActivityType: "edited_script",
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Equal(t, "edited_script", activities[0].Type)
-
-	// Search by user
-	// We update the user in the users table, so we can verify search on both tables
-	u.Name = "newname"
-	u.Email = "email-newname@example.com"
-	err = ds.SaveUser(ctx, u)
-	require.NoError(t, err)
-
-	// First no match on user
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "nomatch",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 0)
-
-	// Match on activity user_name
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "user1",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Equal(t, "newname", *activities[0].ActorFullName) // We get the updated user info, but we can still search the old activity record columns
-
-	// Match on activity user_email
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "email-u",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Equal(t, "newname", *activities[0].ActorFullName) // We get the updated user info, but we can still search the old activity record columns
-
-	// Match on updated user name
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "newname",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Equal(t, "newname", *activities[0].ActorFullName)
-	// Match on updated user email
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "email-newname",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 1)
-	require.Equal(t, "newname", *activities[0].ActorFullName)
-
-	// Search by date range
-	// Create activities on different dates
-	dates := []time.Time{
-		timestamp.Add(-48 * time.Hour),
-		timestamp.Add(-24 * time.Hour),
-		timestamp,
-		timestamp.Add(24 * time.Hour),
+	// adminFilter sees all hosts regardless of team.
+	adminFilter := fleet.TeamFilter{
+		User:            &fleet.User{GlobalRole: new("admin")},
+		IncludeObserver: true,
 	}
-	for _, dt := range dates {
-		err = ds.NewActivity(ctx, u, fleet.ActivityTypeEditedScript{
-			TeamID:   nil,
-			TeamName: ptr.String("No Team"),
-		}, nil, dt)
+
+	// Create a policy to hang activities on.
+	policy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "test-policy", Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotNil(t, policy)
+
+	// Create a second policy; its activities must NOT appear in results for the first.
+	otherPolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "other-policy", Query: "SELECT 2"})
+	require.NoError(t, err)
+	require.NotNil(t, otherPolicy)
+
+	// Create two hosts so we can test per-host rows and the host-name filter.
+	h1 := test.NewHost(t, ds, "host-alpha", "1.1.1.1", "key1", "uuid1", time.Now())
+	h2 := test.NewHost(t, ds, "host-beta", "2.2.2.2", "key2", "uuid2", time.Now())
+
+	makeDetails := func(policyID uint) map[string]any {
+		return map[string]any{"policy_id": policyID}
+	}
+
+	// Seed one activity of each type for policy 1 linked to h1,
+	// plus one success activity linked to both hosts (tests multi-host expansion).
+	errorTypes := []string{
+		"failed_automation_webhook",
+		"failed_automation_ticket",
+		"failed_automation_calendar_event",
+		"failed_automation_conditional_access",
+	}
+	successTypes := []string{
+		"ran_automation_webhook",
+		"ran_automation_ticket",
+		"ran_automation_calendar_event",
+		"ran_automation_conditional_access",
+	}
+
+	for _, typ := range errorTypes {
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name:    typ,
+			details: makeDetails(policy.ID),
+			hostIDs: []uint{h1.ID},
+		}))
+	}
+	for _, typ := range successTypes {
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name:    typ,
+			details: makeDetails(policy.ID),
+			hostIDs: []uint{h1.ID},
+		}))
+	}
+
+	// One activity linked to both hosts — produces two rows.
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "ran_automation_webhook",
+		details: makeDetails(policy.ID),
+		hostIDs: []uint{h1.ID, h2.ID},
+	}))
+
+	// Activity for the other policy — must not appear in results for policy 1.
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "failed_automation_webhook",
+		details: makeDetails(otherPolicy.ID),
+		hostIDs: []uint{h1.ID},
+	}))
+
+	listOpts := func(extra ...fleet.ListOptions) fleet.ListOptions {
+		opts := fleet.ListOptions{OrderKey: "id", IncludeMetadata: true}
+		if len(extra) > 0 {
+			if extra[0].PerPage != 0 {
+				opts.PerPage = extra[0].PerPage
+			}
+			if extra[0].Page != 0 {
+				opts.Page = extra[0].Page
+			}
+			if extra[0].MatchQuery != "" {
+				opts.MatchQuery = extra[0].MatchQuery
+			}
+		}
+		return opts
+	}
+
+	t.Run("returns all types by default", func(t *testing.T) {
+		// 8 single-host activities + 2 rows from the dual-host one = 10 rows.
+		activities, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
 		require.NoError(t, err)
+		require.NotNil(t, meta)
+		require.Len(t, activities, 10)
+		for _, a := range activities {
+			require.NotZero(t, a.HostID)
+			// Policy automation activities are always Fleet-initiated; actor fields
+			// are not selected and must be absent (nil) so they're omitted from JSON.
+			require.Nil(t, a.ActorID)
+			require.Nil(t, a.ActorFullName)
+			require.Nil(t, a.ActorEmail)
+		}
+	})
+
+	t.Run("status=error returns only failed types", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		require.Len(t, activities, 4)
+		for _, a := range activities {
+			require.Contains(t, a.Type, "failed_")
+		}
+	})
+
+	t.Run("status=success returns only positive types", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		// 4 single-host success activities + 2 rows from dual-host = 6
+		require.Len(t, activities, 6)
+		for _, a := range activities {
+			require.NotContains(t, a.Type, "failed_")
+			require.Contains(t, successTypes, a.Type)
+		}
+	})
+
+	t.Run("profile resends appear, manual resends do not", func(t *testing.T) {
+		// A policy-triggered resend carries details.policy_id and is linked to the host, so it
+		// shows in the feed as a success. A manual resend records the same activity type with a
+		// null policy_id and must not appear under any policy.
+		resendPolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "resend-policy", Query: "SELECT 3"})
+		require.NoError(t, err)
+
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name: fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+			details: map[string]any{
+				"host_id":      h1.ID,
+				"profile_uuid": "a-profile-uuid",
+				"profile_name": "a profile",
+				"policy_id":    resendPolicy.ID,
+				"policy_name":  "resend-policy",
+			},
+			hostIDs: []uint{h1.ID},
+		}))
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name: fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(),
+			details: map[string]any{
+				"host_id":      h1.ID,
+				"profile_uuid": "a-profile-uuid",
+				"profile_name": "a profile",
+				"policy_id":    nil,
+				"policy_name":  nil,
+			},
+			hostIDs: []uint{h1.ID},
+		}))
+
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, resendPolicy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		require.Len(t, activities, 1, "the manual resend must not be attributed to a policy")
+		require.Equal(t, fleet.ActivityTypeResentConfigurationProfile{}.ActivityName(), activities[0].Type)
+		require.Equal(t, h1.ID, activities[0].HostID)
+		require.Equal(t, "success", activities[0].Status)
+
+		// It is a success, so it is absent from the error-filtered feed.
+		activities, _, err = ds.ListPolicyAutomationActivities(ctx, resendPolicy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		require.Empty(t, activities)
+
+		activities, _, err = ds.ListPolicyAutomationActivities(ctx, resendPolicy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+	})
+
+	t.Run("pagination", func(t *testing.T) {
+		activities, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{PerPage: 3}), "")
+		require.NoError(t, err)
+		require.NotNil(t, meta)
+		require.Len(t, activities, 3)
+		require.True(t, meta.HasNextResults)
+		require.False(t, meta.HasPreviousResults)
+
+		page2, meta2, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{PerPage: 3, Page: 1}), "")
+		require.NoError(t, err)
+		require.NotNil(t, meta2)
+		require.Len(t, page2, 3)
+		require.True(t, meta2.HasPreviousResults)
+	})
+
+	t.Run("host name query filters rows", func(t *testing.T) {
+		// "host-alpha" matches h1 only: 4 error + 4 success + 1 dual-host row = 9.
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host-alpha"}), "")
+		require.NoError(t, err)
+		require.Len(t, activities, 9)
+		for _, a := range activities {
+			require.Equal(t, h1.ID, a.HostID)
+			require.Equal(t, "host-alpha", a.HostDisplayName)
+		}
+		// "host-b" matches h2 only, which appears in just the dual-host activity.
+		activities, _, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host-b"}), "")
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+		for _, a := range activities {
+			require.Equal(t, h2.ID, a.HostID)
+		}
+	})
+
+	t.Run("other policy activities excluded", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, otherPolicy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		require.Len(t, activities, 1)
+		require.Equal(t, h1.ID, activities[0].HostID)
+	})
+
+	t.Run("invalid order_key returns error", func(t *testing.T) {
+		_, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, fleet.ListOptions{OrderKey: "invalid_column"}, "")
+		require.Error(t, err)
+	})
+
+	t.Run("include_metadata false returns nil meta", func(t *testing.T) {
+		opts := fleet.ListOptions{OrderKey: "id", IncludeMetadata: false}
+		_, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, opts, "")
+		require.NoError(t, err)
+		require.Nil(t, meta)
+	})
+
+	t.Run("query with wildcard characters matches literally", func(t *testing.T) {
+		// host-alpha has no '_' in its name; a query of "host_alpha" must NOT match
+		// it (the underscore is a literal character, not a SQL wildcard).
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(fleet.ListOptions{MatchQuery: "host_alpha"}), "")
+		require.NoError(t, err)
+		require.Empty(t, activities)
+		// An empty result set must be a non-nil slice so it marshals as [] (not null).
+		require.NotNil(t, activities)
+	})
+
+	t.Run("team filter scopes hosts", func(t *testing.T) {
+		// Use a dedicated policy so activities seeded here don't affect count
+		// assertions in other subtests.
+		teamScopePolicy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "team-scope-policy", Query: "SELECT 3"})
+		require.NoError(t, err)
+		require.NotNil(t, teamScopePolicy)
+
+		// Create two teams and assign one host to each.
+		teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-A"})
+		require.NoError(t, err)
+		teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-B"})
+		require.NoError(t, err)
+
+		hA := test.NewHost(t, ds, "host-team-a", "10.0.0.1", "keyA", "uuidA", time.Now())
+		hB := test.NewHost(t, ds, "host-team-b", "10.0.0.2", "keyB", "uuidB", time.Now())
+		// Assign hosts to teams directly to avoid policy-membership side-effects.
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = ? WHERE id = ?`, teamA.ID, hA.ID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = ? WHERE id = ?`, teamB.ID, hB.ID)
+		require.NoError(t, err)
+
+		// Seed activities for both hosts on the dedicated policy.
+		for _, typ := range errorTypes {
+			require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+				name:    typ,
+				details: makeDetails(teamScopePolicy.ID),
+				hostIDs: []uint{hA.ID, hB.ID},
+			}))
+		}
+
+		// A team-A observer filter sees only hA.
+		filterA := fleet.TeamFilter{
+			User: &fleet.User{
+				Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamA.ID}, Role: fleet.RoleObserver}},
+			},
+			IncludeObserver: true,
+		}
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, teamScopePolicy.ID, filterA, listOpts(), "")
+		require.NoError(t, err)
+		require.NotEmpty(t, activities)
+		for _, a := range activities {
+			require.Equal(t, hA.ID, a.HostID, "team-A filter must not return host from team-B")
+		}
+	})
+
+	// ── Script-run, software-install and VPP-install branches ─────────────────
+	// Disable FK checks so we can insert result rows without satisfying every
+	// foreign key in the test setup.
+	_, err = ds.writer(ctx).ExecContext(ctx, "SET FOREIGN_KEY_CHECKS=0")
+	require.NoError(t, err)
+	defer func() {
+		_, _ = ds.writer(ctx).ExecContext(ctx, "SET FOREIGN_KEY_CHECKS=1")
+	}()
+
+	// ── ran_script ────────────────────────────────────────────────────────────
+	scriptSuccessExecID := "script-success-exec-1"
+	scriptFailureExecID := "script-failure-exec-1"
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_script_results (host_id, execution_id, output, exit_code, policy_id)
+         VALUES (?, ?, 'script ok output', 0, ?), (?, ?, 'script fail output', 1, ?)`,
+		h1.ID, scriptSuccessExecID, policy.ID,
+		h1.ID, scriptFailureExecID, policy.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "ran_script",
+		details: map[string]any{"script_execution_id": scriptSuccessExecID, "script_name": "my-script.sh", "policy_id": policy.ID},
+		hostIDs: []uint{h1.ID},
+	}))
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "ran_script",
+		details: map[string]any{"script_execution_id": scriptFailureExecID, "script_name": "my-script.sh", "policy_id": policy.ID},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	// ── installed_software ────────────────────────────────────────────────────
+	swSuccessExecID := "sw-success-exec-1"
+	swFailureExecID := "sw-failure-exec-1"
+	// insert_script_exit_code=0 → execution_status='installed'; exit_code=1 → 'failed_install'
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_software_installs
+            (host_id, execution_id, software_installer_id, install_script_exit_code,
+             install_script_output, pre_install_query_output, post_install_script_output, policy_id)
+         VALUES
+            (?, ?, 1, 0, 'install ok', 'pre ok', 'post ok', ?),
+            (?, ?, 1, 1, 'install fail', 'pre fail', 'post fail', ?)`,
+		h1.ID, swSuccessExecID, policy.ID,
+		h1.ID, swFailureExecID, policy.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_software",
+		details: map[string]any{"install_uuid": swSuccessExecID, "software_title": "My Software", "status": "installed", "policy_id": policy.ID},
+		hostIDs: []uint{h1.ID},
+	}))
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_software",
+		details: map[string]any{"install_uuid": swFailureExecID, "software_title": "My Software", "status": "failed_install", "policy_id": policy.ID},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	// A historically-successful install whose host_software_installs row was later
+	// marked removed (e.g. after the installer package was edited or the software
+	// re-installed). The generated status column is NULL for such rows, so the
+	// outcome must come from the recorded details.status, not the live column.
+	swRemovedExecID := "sw-removed-exec-1"
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_software_installs
+            (host_id, execution_id, software_installer_id, install_script_exit_code,
+             install_script_output, pre_install_query_output, post_install_script_output, policy_id, removed)
+         VALUES
+            (?, ?, 1, 0, 'install ok', 'pre ok', 'post ok', ?, 1)`,
+		h1.ID, swRemovedExecID, policy.ID)
+	require.NoError(t, err)
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_software",
+		details: map[string]any{"install_uuid": swRemovedExecID, "software_title": "My Software", "status": "installed", "policy_id": policy.ID},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	// ── installed_app_store_app (VPP) ─────────────────────────────────────────
+	// Outcome comes from the recorded details.status (a terminal snapshot), like
+	// installed_software — not the live hvsi.verification_* columns. To prove
+	// that, the live verification columns are set to the OPPOSITE of each row's
+	// details.status: the "success" row is marked verification_failed_at and the
+	// "failure" row verification_at. If the query read the live columns, the
+	// outcomes would flip and the assertions below would fail.
+	vppSuccessCmdUUID := "vpp-success-cmd-1"
+	vppFailureCmdUUID := "vpp-failure-cmd-1"
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_vpp_software_installs (host_id, adam_id, command_uuid, policy_id, platform, verification_failed_at)
+         VALUES (?, 'A001', ?, ?, 'darwin', NOW())`,
+		h1.ID, vppSuccessCmdUUID, policy.ID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`INSERT INTO host_vpp_software_installs (host_id, adam_id, command_uuid, policy_id, platform, verification_at)
+         VALUES (?, 'A002', ?, ?, 'darwin', NOW())`,
+		h1.ID, vppFailureCmdUUID, policy.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_app_store_app",
+		details: map[string]any{"command_uuid": vppSuccessCmdUUID, "software_title": "My VPP App", "status": "installed", "policy_id": policy.ID},
+		hostIDs: []uint{h1.ID},
+	}))
+	require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+		name:    "installed_app_store_app",
+		details: map[string]any{"command_uuid": vppFailureCmdUUID, "software_title": "My VPP App", "status": "failed_install", "policy_id": policy.ID},
+		hostIDs: []uint{h1.ID},
+	}))
+
+	t.Run("script_software_vpp appear in all", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("status=error includes script_software_vpp failures", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		// Named automation failures still present.
+		require.Equal(t, 4, types["failed_automation_webhook"]+
+			types["failed_automation_ticket"]+
+			types["failed_automation_calendar_event"]+
+			types["failed_automation_conditional_access"])
+		// Script/software/VPP failures present.
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("status=success includes script_software_vpp successes", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		// Named automation successes still present.
+		require.Positive(t, types["ran_automation_webhook"]+
+			types["ran_automation_ticket"]+
+			types["ran_automation_calendar_event"]+
+			types["ran_automation_conditional_access"])
+		// Script/software/VPP successes present.
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("task activities are independent of policy_membership", func(t *testing.T) {
+		// Modifying a policy's query or targets wipes/prunes policy_membership.
+		// Automation history must survive that, so deleting all membership rows
+		// for the policy must not drop the script/software/VPP activities.
+		_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM policy_membership WHERE policy_id = ?`, policy.ID)
+		require.NoError(t, err)
+
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		types := make(map[string]int)
+		for _, a := range activities {
+			types[a.Type]++
+		}
+		require.Positive(t, types["ran_script"])
+		require.Positive(t, types["installed_software"])
+		require.Positive(t, types["installed_app_store_app"])
+	})
+
+	t.Run("removed install row is categorized by recorded status", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+
+		// hasRemovedInstall reports whether the removed install activity appears in
+		// the given result set (matched by its install_uuid in the details blob).
+		hasRemovedInstall := func(as []*fleet.PolicyAutomationActivity) bool {
+			for _, a := range as {
+				require.NotNil(t, a.Details)
+				var m map[string]any
+				require.NoError(t, json.Unmarshal(*a.Details, &m))
+				if uuid, _ := m["install_uuid"].(string); uuid == swRemovedExecID {
+					// The live host_software_installs.status is NULL (removed=1), but
+					// the recorded details.status is "installed", so the historical
+					// outcome must be reported as success.
+					require.Equal(t, "success", a.Status)
+					return true
+				}
+			}
+			return false
+		}
+		require.True(t, hasRemovedInstall(activities), "expected the removed install activity to be returned")
+
+		// The status filter must agree with the reported status: the removed row
+		// is a success, so it appears under status=success and not status=error.
+		// This guards errorCond/successCond, which the unfiltered query above does
+		// not exercise.
+		success, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		require.True(t, hasRemovedInstall(success), "removed install should appear under status=success")
+
+		errored, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		require.False(t, hasRemovedInstall(errored), "removed install must not appear under status=error")
+	})
+
+	t.Run("status and output are populated per activity", func(t *testing.T) {
+		activities, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+
+		var sawScriptSuccess, sawScriptFailure bool
+		var sawSwSuccess, sawSwFailure bool
+		var sawVPPSuccess, sawVPPFailure bool
+		var sawNamedError, sawNamedSuccess bool
+
+		// detailsValue extracts a string field from an activity's details blob.
+		detailsValue := func(a *fleet.PolicyAutomationActivity, key string) string {
+			require.NotNil(t, a.Details, "type %s missing details", a.Type)
+			var m map[string]any
+			require.NoError(t, json.Unmarshal(*a.Details, &m))
+			s, _ := m[key].(string)
+			return s
+		}
+
+		for _, a := range activities {
+			// Every activity carries an explicit error/success status.
+			require.Contains(t, []string{"error", "success"}, a.Status, "type %s", a.Type)
+
+			switch a.Type {
+			case "ran_script":
+				// Scripts always carry output; the script name comes through in
+				// the details blob. Pre/post-install output is install-only.
+				require.NotNil(t, a.Output)
+				require.Nil(t, a.PreInstallOutput)
+				require.Nil(t, a.PostInstallOutput)
+				require.Equal(t, "my-script.sh", detailsValue(a, "script_name"))
+				if a.Status == "success" {
+					sawScriptSuccess = true
+					require.Equal(t, "script ok output", *a.Output)
+				} else {
+					sawScriptFailure = true
+					require.Equal(t, "script fail output", *a.Output)
+				}
+			case "installed_software":
+				// Software installs carry the install-script output plus the
+				// pre-install query and post-install script output; the software
+				// title comes through in the details blob.
+				require.NotNil(t, a.Output)
+				require.NotNil(t, a.PreInstallOutput)
+				require.NotNil(t, a.PostInstallOutput)
+				require.Equal(t, "My Software", detailsValue(a, "software_title"))
+				if a.Status == "success" {
+					sawSwSuccess = true
+					require.Equal(t, "install ok", *a.Output)
+					require.Equal(t, "pre ok", *a.PreInstallOutput)
+					require.Equal(t, "post ok", *a.PostInstallOutput)
+				} else {
+					sawSwFailure = true
+					require.Equal(t, "install fail", *a.Output)
+					require.Equal(t, "pre fail", *a.PreInstallOutput)
+					require.Equal(t, "post fail", *a.PostInstallOutput)
+				}
+			case "installed_app_store_app":
+				// VPP apps are installed via MDM command, so there is no output;
+				// the software title comes through in the details blob.
+				require.Nil(t, a.Output)
+				require.Nil(t, a.PreInstallOutput)
+				require.Nil(t, a.PostInstallOutput)
+				require.Equal(t, "My VPP App", detailsValue(a, "software_title"))
+				if a.Status == "success" {
+					sawVPPSuccess = true
+				} else {
+					sawVPPFailure = true
+				}
+			default:
+				// Named automation activities encode outcome in the type and have
+				// no output.
+				require.Nil(t, a.Output)
+				require.Nil(t, a.PreInstallOutput)
+				require.Nil(t, a.PostInstallOutput)
+				if strings.HasPrefix(a.Type, "failed_") {
+					sawNamedError = true
+					require.Equal(t, "error", a.Status)
+				} else {
+					sawNamedSuccess = true
+					require.Equal(t, "success", a.Status)
+				}
+			}
+		}
+
+		require.True(t, sawScriptSuccess, "expected a successful ran_script")
+		require.True(t, sawScriptFailure, "expected a failed ran_script")
+		require.True(t, sawSwSuccess, "expected a successful installed_software")
+		require.True(t, sawSwFailure, "expected a failed installed_software")
+		require.True(t, sawVPPSuccess, "expected a successful installed_app_store_app")
+		require.True(t, sawVPPFailure, "expected a failed installed_app_store_app")
+		require.True(t, sawNamedError, "expected a failed named automation")
+		require.True(t, sawNamedSuccess, "expected a successful named automation")
+	})
+
+	t.Run("installed_software with an unrecorded status is treated as a success", func(t *testing.T) {
+		// Older installed_software activities can lack a recorded details.status
+		// (the field was added after the activity type, and back then the activity
+		// was only emitted on a successful install). 'failed_install' is the sole
+		// failure value, so a missing status is a success — and the reported status
+		// must agree with the filters: it appears under "All" and status=success,
+		// never under status=error.
+		execID := "sw-no-status-exec-1"
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO host_software_installs
+                (host_id, execution_id, software_installer_id, install_script_exit_code,
+                 install_script_output, policy_id)
+             VALUES (?, ?, 1, 0, 'historical output', ?)`,
+			h1.ID, execID, policy.ID)
+		require.NoError(t, err)
+
+		// details intentionally omits "status".
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name:    "installed_software",
+			details: map[string]any{"install_uuid": execID, "software_title": "My Software", "policy_id": policy.ID},
+			hostIDs: []uint{h1.ID},
+		}))
+
+		find := func(as []*fleet.PolicyAutomationActivity) *fleet.PolicyAutomationActivity {
+			for _, a := range as {
+				if a.Type != "installed_software" || a.Details == nil {
+					continue
+				}
+				var m map[string]any
+				require.NoError(t, json.Unmarshal(*a.Details, &m))
+				if m["install_uuid"] == execID {
+					return a
+				}
+			}
+			return nil
+		}
+
+		all, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "")
+		require.NoError(t, err)
+		got := find(all)
+		require.NotNil(t, got, "unrecorded-status install must appear under All")
+		require.Equal(t, "success", got.Status, "a non-failed_install status is reported as a success")
+
+		success, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "success")
+		require.NoError(t, err)
+		require.NotNil(t, find(success), "a success shown under All must also appear under status=success")
+
+		errored, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, listOpts(), "error")
+		require.NoError(t, err)
+		require.Nil(t, find(errored), "a success must not appear under status=error")
+	})
+
+	t.Run("status filters partition the feed for every activity type", func(t *testing.T) {
+		// A row is uniquely identified by (activity id, host id) — one activity
+		// linked to N hosts expands to N rows.
+		key := func(a *fleet.PolicyAutomationActivity) string {
+			return fmt.Sprintf("%d-%d", a.ID, a.HostID)
+		}
+		fetch := func(status string) map[string]*fleet.PolicyAutomationActivity {
+			acts, _, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter,
+				listOpts(fleet.ListOptions{PerPage: 1000}), status)
+			require.NoError(t, err)
+			m := make(map[string]*fleet.PolicyAutomationActivity, len(acts))
+			for _, a := range acts {
+				m[key(a)] = a
+			}
+			return m
+		}
+
+		all := fetch("")
+		errored := fetch("error")
+		success := fetch("success")
+
+		// error and success are disjoint and together reconstruct the full feed.
+		for k := range errored {
+			_, inSuccess := success[k]
+			require.False(t, inSuccess, "row %s appears under both status=error and status=success", k)
+		}
+		require.Equal(t, len(all), len(errored)+len(success),
+			"status=error and status=success must partition the unfiltered feed")
+
+		// Every row shown under All lands in exactly the filter matching its
+		// reported status — no type is dropped by either filter.
+		for k, a := range all {
+			_, inErr := errored[k]
+			_, inSucc := success[k]
+			require.True(t, inErr || inSucc,
+				"row %s (type %s, status %q) shown under All is missing from both filters",
+				k, a.Type, a.Status)
+			if a.Status == "error" {
+				require.True(t, inErr, "row %s (type %s) reports error but is absent from status=error", k, a.Type)
+			} else {
+				require.True(t, inSucc, "row %s (type %s) reports success but is absent from status=success", k, a.Type)
+			}
+		}
+
+		// Each task type is represented by both a success and a failure so the
+		// partition above is exercised for every branch, not just the named ones.
+		for _, typ := range []string{"ran_script", "installed_software", "installed_app_store_app"} {
+			var sawErr, sawSucc bool
+			for _, a := range all {
+				if a.Type != typ {
+					continue
+				}
+				if a.Status == "error" {
+					sawErr = true
+				} else {
+					sawSucc = true
+				}
+			}
+			require.True(t, sawErr, "expected at least one failed %s", typ)
+			require.True(t, sawSucc, "expected at least one successful %s", typ)
+		}
+		// Named automations: a failed_* type is an error, a ran_automation_* is a success.
+		var sawNamedErr, sawNamedSucc bool
+		for _, a := range all {
+			switch {
+			case strings.HasPrefix(a.Type, "failed_"):
+				sawNamedErr = true
+				require.Equal(t, "error", a.Status, "type %s", a.Type)
+			case strings.HasPrefix(a.Type, "ran_automation_"):
+				sawNamedSucc = true
+				require.Equal(t, "success", a.Status, "type %s", a.Type)
+			}
+		}
+		require.True(t, sawNamedErr, "expected a failed named automation")
+		require.True(t, sawNamedSucc, "expected a successful named automation")
+	})
+}
+
+func testListPolicyAutomationActivitiesNotifyBeforePatching(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	activitySvc := NewTestActivityService(t, ds)
+
+	adminFilter := fleet.TeamFilter{
+		User:            &fleet.User{GlobalRole: new("admin")},
+		IncludeObserver: true,
 	}
 
-	// From 36 hours ago to now (should get 2 activities)
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		StartCreatedAt: timestamp.Add(-36 * time.Hour).UTC().String(),
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 3) // includes the first activity created
+	host := test.NewHost(t, ds, "notified-host", "3.3.3.3", "notify-key", "notify-uuid", time.Now())
 
-	// From 72 hours ago to 24 hours ago (should get 2 activities)
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
-		EndCreatedAt:   timestamp.Add(-24 * time.Hour).UTC().String(),
-	})
+	// notify_before_patching is only valid on a team policy, never on "All fleets"
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "notify-before-patching-team"})
 	require.NoError(t, err)
-	require.Len(t, activities, 2)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID})))
 
-	// From now to 48 hours in the future (should get 3 activities)
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		StartCreatedAt: timestamp.UTC().String(),
-		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 3) // includes the first activity created
+	newPatchPolicy := func(t *testing.T, name string) *fleet.Policy {
+		policy, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{Name: name, Query: "SELECT 1"})
+		require.NoError(t, err)
+		require.NotNil(t, policy)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE policies SET notify_before_patching = 1 WHERE id = ?`, policy.ID)
+			return err
+		})
+		return policy
+	}
 
-	// Now we combine all 3 search types, should get all 5 activities
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ActivityType:   "edited_script",
-		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
-		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "newname",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 5)
+	firstPolicy := newPatchPolicy(t, "notify-policy-1")
+	secondPolicy := newPatchPolicy(t, "notify-policy-2")
 
-	// Now we retry with all 3 search types, but with no matches
-	activities, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		ActivityType:   "mdm_enrolled",
-		StartCreatedAt: timestamp.Add(-72 * time.Hour).UTC().String(),
-		EndCreatedAt:   timestamp.Add(48 * time.Hour).UTC().String(),
-		ListOptions: fleet.ListOptions{
-			MatchQuery: "nomatch",
-		},
-	})
-	require.NoError(t, err)
-	require.Len(t, activities, 0)
+	// A notification with one app per policy, and the activity reporting whether
+	// the notification was displayed. Automation runs finds that activity by
+	// joining the notification's apps to the policy.
+	newNotification := func(t *testing.T, status string, policyIDs []uint) string {
+		notificationUUID := newPatchNotification(t, ds, host.ID, notifications_api.EndUserNotificationDispatched, 1)
 
-	// Try with non valid timestamp
-	_, _, err = ds.ListActivities(ctx, fleet.ListActivitiesOptions{
-		StartCreatedAt: "not-a-timestamp",
+		for _, policyID := range policyIDs {
+			require.NoError(t, ds.AddPatchNotificationApp(ctx, notificationUUID, fleet.PatchNotificationApp{
+				PolicyID:        &policyID,
+				SoftwareTitleID: newTestSoftwareTitle(t, ds, uuid.NewString()),
+			}))
+		}
+
+		require.NoError(t, activitySvc.NewActivity(ctx, nil, dummyActivity{
+			name: "notified_end_user_before_patching",
+			details: map[string]any{
+				"patch_notification_uuid": notificationUUID,
+				"status":                  status,
+				"time_before":             3600,
+			},
+			hostIDs: []uint{host.ID},
+		}))
+		return notificationUUID
+	}
+
+	bothPolicies := newNotification(t, "success", []uint{firstPolicy.ID, secondPolicy.ID})
+	failedOnFirst := newNotification(t, "failed", []uint{firstPolicy.ID})
+
+	listOpts := fleet.ListOptions{OrderKey: "id", IncludeMetadata: true}
+
+	t.Run("a notification with an app from two policies shows in both Automation runs tables", func(t *testing.T) {
+		// the first policy has an app on both notifications
+		first, _, err := ds.ListPolicyAutomationActivities(ctx, firstPolicy.ID, adminFilter, listOpts, "")
+		require.NoError(t, err)
+		require.Len(t, first, 2)
+
+		// the second policy only has an app on the notification that lists both policies
+		second, _, err := ds.ListPolicyAutomationActivities(ctx, secondPolicy.ID, adminFilter, listOpts, "")
+		require.NoError(t, err)
+		require.Len(t, second, 1)
+		require.Equal(t, "notified_end_user_before_patching", second[0].Type)
+		require.Equal(t, "success", second[0].Status)
+		require.Contains(t, string(*second[0].Details), bothPolicies)
 	})
+
+	// the activity's status field is what the error and success filters read
+	t.Run("status filters split displayed from failed", func(t *testing.T) {
+		failed, _, err := ds.ListPolicyAutomationActivities(ctx, firstPolicy.ID, adminFilter, listOpts, "error")
+		require.NoError(t, err)
+		require.Len(t, failed, 1)
+		require.Contains(t, string(*failed[0].Details), failedOnFirst)
+
+		displayed, _, err := ds.ListPolicyAutomationActivities(ctx, firstPolicy.ID, adminFilter, listOpts, "success")
+		require.NoError(t, err)
+		require.Len(t, displayed, 1)
+		require.Contains(t, string(*displayed[0].Details), bothPolicies)
+	})
+}
+
+func testPolicyAutomationRunCounts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "run-counts-team"})
 	require.NoError(t, err)
+	teamHost := test.NewHost(t, ds, "run-counts-team-host", "10.1.0.1", "run-counts-key-1", "run-counts-uuid-1", time.Now())
+	noTeamHost := test.NewHost(t, ds, "run-counts-no-team-host", "10.1.0.2", "run-counts-key-2", "run-counts-uuid-2", time.Now())
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE hosts SET team_id = ? WHERE id = ?`, team.ID, teamHost.ID)
+	require.NoError(t, err)
+
+	policy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "run-counts-policy", Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotNil(t, policy)
+
+	// count a successful and a failed script run on the fleet host and a successful one on the Unassigned host
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, teamHost.ID, fleet.ActivityTypeRanScript{}, true))
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, teamHost.ID, fleet.ActivityTypeRanScript{}, false))
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, noTeamHost.ID, fleet.ActivityTypeRanScript{}, true))
+
+	// count a successful install on the fleet host and a failed one on the Unassigned host
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, teamHost.ID, fleet.ActivityTypeInstalledSoftware{}, true))
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, noTeamHost.ID, fleet.ActivityTypeInstalledSoftware{}, false))
+
+	// count a verified VPP install on the fleet host and a failed one on the Unassigned host
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, teamHost.ID, fleet.ActivityInstalledAppStoreApp{}, true))
+	require.NoError(t, ds.IncrementHostPolicyAutomationRunCount(ctx, policy.ID, noTeamHost.ID, fleet.ActivityInstalledAppStoreApp{}, false))
+
+	type runCount struct {
+		PolicyID     uint   `db:"policy_id"`
+		ActivityType string `db:"activity_type"`
+		HostID       uint   `db:"host_id"`
+		SuccessCount uint   `db:"success_count"`
+		FailCount    uint   `db:"fail_count"`
+	}
+
+	// read the count rows, each counted run should be on its host's row for its activity type
+	var counts []runCount
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &counts, `SELECT * FROM host_policy_automation_run_counts ORDER BY activity_type, host_id`))
+	expectedCounts := []runCount{
+		{PolicyID: policy.ID, ActivityType: "installed_app_store_app", HostID: teamHost.ID, SuccessCount: 1},
+		{PolicyID: policy.ID, ActivityType: "installed_app_store_app", HostID: noTeamHost.ID, FailCount: 1},
+		{PolicyID: policy.ID, ActivityType: "installed_software", HostID: teamHost.ID, SuccessCount: 1},
+		{PolicyID: policy.ID, ActivityType: "installed_software", HostID: noTeamHost.ID, FailCount: 1},
+		{PolicyID: policy.ID, ActivityType: "ran_script", HostID: teamHost.ID, SuccessCount: 1, FailCount: 1},
+		{PolicyID: policy.ID, ActivityType: "ran_script", HostID: noTeamHost.ID, SuccessCount: 1},
+	}
+	require.Equal(t, expectedCounts, counts)
+
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}, IncludeObserver: true}
+	teamFilter := fleet.TeamFilter{
+		User:            &fleet.User{Teams: []fleet.UserTeam{{ID: team.ID, Role: fleet.RoleObserver}}},
+		IncludeObserver: true,
+	}
+	countOpts := fleet.ListOptions{IncludeMetadata: true, PerPage: 10}
+
+	// list the policy's runs as an admin, the total should sum the script, install and VPP counts of both hosts
+	_, meta, err := ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, countOpts, "")
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Equal(t, uint(7), meta.TotalResults)
+
+	// list only failed runs, the total should sum only the fail counts
+	_, meta, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, countOpts, "error")
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Equal(t, uint(3), meta.TotalResults)
+
+	// list only successful runs, the total should sum only the success counts
+	_, meta, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, countOpts, "success")
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Equal(t, uint(4), meta.TotalResults)
+
+	// list as an observer of the fleet, the total should leave out the Unassigned host
+	_, meta, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, teamFilter, countOpts, "")
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Equal(t, uint(4), meta.TotalResults)
+
+	// search for the Unassigned host by name, the total should only count its runs
+	searchOpts := fleet.ListOptions{IncludeMetadata: true, PerPage: 10, MatchQuery: "run-counts-no-team"}
+	_, meta, err = ds.ListPolicyAutomationActivities(ctx, policy.ID, adminFilter, searchOpts, "")
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Equal(t, uint(3), meta.TotalResults)
+
+	// delete the policy, its count rows should be deleted with it
+	_, err = ds.DeleteGlobalPolicies(ctx, []uint{policy.ID})
+	require.NoError(t, err)
+	var remainingRows int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &remainingRows, `SELECT COUNT(*) FROM host_policy_automation_run_counts`))
+	require.Zero(t, remainingRows)
+}
+
+func testPolicyAutomationRunCountsFailedPendingVPPInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	policy, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: "pending-vpp-policy", Query: "SELECT 1"})
+	require.NoError(t, err)
+	require.NotNil(t, policy)
+	vppApp := &fleet.VPPApp{
+		Name:             "pending-vpp-app",
+		AdamID:           "pending-vpp-app",
+		Platform:         fleet.MacOSPlatform,
+		BundleIdentifier: "com.example.pending-vpp-app",
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vppApp, nil, nil)
+	require.NoError(t, err)
+	policyInstallOpts := fleet.HostSoftwareInstallOptions{PolicyID: &policy.ID}
+
+	turnOffHost := test.NewHost(t, ds, "pending-vpp-turn-off-host", "10.2.0.1", "pending-vpp-key-1", "pending-vpp-uuid-1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, turnOffHost, false)
+	stuckHost := test.NewHost(t, ds, "pending-vpp-stuck-host", "10.2.0.2", "pending-vpp-key-2", "pending-vpp-uuid-2", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, stuckHost, false)
+
+	// send a policy VPP install to the first host and fail it after its install command errored, then send a second one that stays pending
+	erroredExecID := uuid.NewString()
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, turnOffHost.ID, vppApp.VPPAppID, erroredExecID, "", policyInstallOpts))
+	pendingExecID := uuid.NewString()
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, turnOffHost.ID, vppApp.VPPAppID, pendingExecID, "", policyInstallOpts))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO nano_command_results (id, command_uuid, status, result)
+			VALUES (?, ?, 'Error', '<?xml version="1.0" encoding="UTF-8"?>')`, turnOffHost.UUID, erroredExecID)
+		return err
+	})
+	require.NoError(t, ds.SetVPPInstallAsFailed(ctx, turnOffHost.ID, erroredExecID, ""))
+
+	// turn off MDM for the first host, only the pending install should get a failed activity
+	_, activities, err := ds.MDMTurnOff(ctx, turnOffHost.UUID)
+	require.NoError(t, err)
+	var failedInstallCommandUUIDs []string
+	for _, activity := range activities {
+		appStoreActivity, isAppStoreActivity := activity.(*fleet.ActivityInstalledAppStoreApp)
+		if isAppStoreActivity {
+			failedInstallCommandUUIDs = append(failedInstallCommandUUIDs, appStoreActivity.CommandUUID)
+		}
+	}
+	require.Equal(t, []string{pendingExecID}, failedInstallCommandUUIDs)
+
+	// queue a policy VPP install on the second host, acknowledge it and backdate its activation past the timeout, the cleanup should fail it
+	stuckExecID := uuid.NewString()
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, stuckHost.ID, vppApp.VPPAppID, stuckExecID, "", policyInstallOpts))
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), stuckHost.ID, "")
+	require.NoError(t, err)
+	twoDaysAgo := time.Now().Add(-48 * time.Hour)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE upcoming_activities SET activated_at = ? WHERE execution_id = ?`, twoDaysAgo, stuckExecID)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `
+			INSERT INTO nano_command_results (id, command_uuid, status, result, updated_at)
+			VALUES (?, ?, 'Acknowledged', '<?xml version="1.0" encoding="UTF-8"?>', ?)`, stuckHost.UUID, stuckExecID, twoDaysAgo)
+		return err
+	})
+	reaped, err := ds.ReapStuckActivatedMDMInstalls(ctx, 24*time.Hour, 10)
+	require.NoError(t, err)
+	require.Len(t, reaped, 1)
+
+	type runCount struct {
+		PolicyID     uint   `db:"policy_id"`
+		ActivityType string `db:"activity_type"`
+		HostID       uint   `db:"host_id"`
+		SuccessCount uint   `db:"success_count"`
+		FailCount    uint   `db:"fail_count"`
+	}
+
+	// read the count rows, each install that got a failed activity should be counted as one failed run on its host
+	var counts []runCount
+	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &counts, `SELECT * FROM host_policy_automation_run_counts ORDER BY host_id`))
+	expectedCounts := []runCount{
+		{PolicyID: policy.ID, ActivityType: "installed_app_store_app", HostID: turnOffHost.ID, FailCount: 1},
+		{PolicyID: policy.ID, ActivityType: "installed_app_store_app", HostID: stuckHost.ID, FailCount: 1},
+	}
+	require.Equal(t, expectedCounts, counts)
 }

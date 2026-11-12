@@ -32,7 +32,7 @@ This Terraform project automates the deployment of Fleet on the Google Cloud Pla
 
 ## Configuration
 
-1.  [Clone the repository](https://github.com/fleetdm/fleet-terraform/tree/e8d559ecba80ab35cb8014212f5bd0a22b545618/gcp) or consume the entire project as a Terraform module. Below is a minimal example of how to declare the module in your Terraform configuration:
+1.  [Clone the repository](https://github.com/fleetdm/fleet-terraform/tree/e8d559ecba80ab35cb8014212f5bd0a22b545618/gcp) or consume the entire project as a Terraform module. All files related to GCP deployment can be found in the 'GCP' folder within the repository. Below is a minimal example of how to declare the module in your Terraform configuration:
 
 ```hcl
 module "fleet" {
@@ -53,23 +53,23 @@ module "fleet" {
 
 ```hcl
 # Required: GCP Organization and Billing
-org_id               = "YOUR_ORGANIZATION_ID" # e.g., "123456789012"
-billing_account_id   = "YOUR_BILLING_ACCOUNT_ID" # e.g., "012345-6789AB-CDEF
+org_id             = "YOUR_ORGANIZATION_ID"    # e.g., "123456789012"
+billing_account_id = "YOUR_BILLING_ACCOUNT_ID" # e.g., "012345-6789AB-CDEF
 # Required: DNS Configuration
 # The public DNS zone name (e.g., "example.com." - note the trailing dot)
 # This project will create/manage this zone in Cloud DNS.
-dns_zone_name        = "your-domain.com."
+dns_zone_name = "your-domain.com."
 # The fully qualified domain name for your Fleet instance (e.g., "fleet.your-domain.com.")
-dns_record_name      = "fleet.your-domain.co
+dns_record_name = "fleet.your-domain.com"
 # Optional: Project Configuration
-project_name         = "my-fleet-project" # Name for the new GCP project
-random_project_id    = true               # Set to false if you want to use project_nameproject_id (must be globally uniq
+project_name      = "my-fleet-project" # Name for the new GCP project
+random_project_id = true               # Set to false if you want to use project_nameproject_id (must be globally uniq
 # Optional: Labels
 labels = {
   application = "fleetdm"
   environment = "production"
   owner       = "devops-team"
-
+}
 # --- byo-project module specific variables (passed through from root) ---
 # You can override defaults from byo-project/variables.tf here if needed,
 # or set values for variables that don't have defaul
@@ -83,8 +83,8 @@ fleet_config = {
   # debug_logging            = false
   # min_instance_count       = 1
   # max_instance_count       = 3
-  # exec_migration           = true # Set to true to run migrations on `terraform apply`
-                                   # (e.g., when changing image_tag)
+  # exec_migration           = true # Set to true to run migrations on `terraform apply` (e.g., when changing image_tag)
+}
 
 ```
 

@@ -1,31 +1,51 @@
-import React from "react";
+import classnames from "classnames";
 import FileSaver from "file-saver";
+import React from "react";
 
-import { uploadedFromNow } from "utilities/date_format";
-
-import Icon from "components/Icon";
+import Button from "components/buttons/Button";
 import Card from "components/Card";
 import Graphic from "components/Graphic";
-import Button from "components/buttons/Button";
-import { IAppleSetupEnrollmentProfileResponse } from "services/entities/mdm";
+import {
+  IAppleSetupEnrollmentProfileResponse,
+  IDefaultAppleSetupEnrollmentProfileResponse,
+} from "services/entities/mdm";
+import { uploadedFromNow } from "utilities/date_format";
 
-const baseClass = "setup-assistant-profile-card";
-interface ISetupAssistantProfileCardProps {
-  profile: IAppleSetupEnrollmentProfileResponse;
+interface IBaseProps<TProfile> {
+  profile: TProfile;
+}
+
+interface IDefaultProfileProps
+  extends IBaseProps<IDefaultAppleSetupEnrollmentProfileResponse> {
+  defaultProfile: true;
+}
+
+interface ICustomProfileProps
+  extends IBaseProps<IAppleSetupEnrollmentProfileResponse> {
+  defaultProfile?: false;
   onDelete: () => void;
 }
 
-const SetupAssistantProfileCard = ({
-  profile,
-  onDelete,
-}: ISetupAssistantProfileCardProps) => {
+type ISetupAssistantProfileCardProps =
+  | IDefaultProfileProps
+  | ICustomProfileProps;
+
+const SetupAssistantProfileCard = (props: ISetupAssistantProfileCardProps) => {
+  const baseClass = "setup-assistant-profile-card";
+
+  const cardClassName = classnames(baseClass, {
+    [`${baseClass}--default-profile`]: props.defaultProfile,
+  });
+
   const onDownload = () => {
     const date = new Date();
-    const filename = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${
-      profile.name
+    const filename = `${date.toISOString().split("T")[0]}_${
+      props.defaultProfile
+        ? "default-automatic-enrollment.json"
+        : props.profile.name
     }`;
     const file = new global.window.File(
-      [JSON.stringify(profile.enrollment_profile)],
+      [JSON.stringify(props.profile.enrollment_profile, null, 2)],
       filename
     );
 
@@ -33,29 +53,46 @@ const SetupAssistantProfileCard = ({
   };
 
   return (
-    <Card paddingSize="medium" className={baseClass}>
+    <Card paddingSize="medium" className={cardClassName}>
       <Graphic name="file-configuration-profile" />
       <div className={`${baseClass}__info`}>
-        <span className={`${baseClass}__profile-name`}>{profile.name}</span>
-        <span className={`${baseClass}__uploaded-at`}>
-          {uploadedFromNow(profile.uploaded_at)}
-        </span>
+        {props.defaultProfile ? (
+          <>
+            <span className={`${baseClass}__profile-name`}>
+              Default profile
+            </span>
+            <span className={`${baseClass}__description`}>
+              Hosts use this profile, unless you add your own.
+            </span>
+          </>
+        ) : (
+          <>
+            <span className={`${baseClass}__profile-name`}>
+              {props.profile.name}
+            </span>
+            <span className={`${baseClass}__uploaded-at`}>
+              {uploadedFromNow(props.profile.uploaded_at)}
+            </span>
+          </>
+        )}
       </div>
       <div className={`${baseClass}__actions`}>
         <Button
           className={`${baseClass}__download-button`}
-          variant="icon"
+          variant="secondary"
           onClick={onDownload}
-        >
-          <Icon name="download" />
-        </Button>
-        <Button
-          className={`${baseClass}__delete-button`}
-          variant="icon"
-          onClick={onDelete}
-        >
-          <Icon name="trash" />
-        </Button>
+          icon="download"
+          ariaLabel="Download setup assistant profile"
+        />
+        {!props.defaultProfile && (
+          <Button
+            className={`${baseClass}__delete-button`}
+            variant="secondary"
+            onClick={props.onDelete}
+            icon="trash"
+            ariaLabel="Delete setup assistant profile"
+          />
+        )}
       </div>
     </Card>
   );

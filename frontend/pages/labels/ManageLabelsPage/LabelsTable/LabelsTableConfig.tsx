@@ -1,19 +1,24 @@
 import React from "react";
-import { ILabel, LabelMembershipTypeToDisplayCopy } from "interfaces/label";
-import { IDropdownOption } from "interfaces/dropdownOption";
 
+import ActionsDropdown from "components/ActionsDropdown";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import ViewAllHostsButton from "components/ViewAllHostsLink";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ILabel, LabelMembershipTypeToDisplayCopy } from "interfaces/label";
+import { IUser } from "interfaces/user";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 import {
   isGlobalAdmin,
   isGlobalMaintainer,
   isAnyTeamMaintainerOrTeamAdmin,
   isTeamAdmin,
   isTeamMaintainer,
+  isGlobalTechnician,
+  isAnyTeamTechnician,
+  isTeamTechnician,
 } from "utilities/permissions/permissions";
-import { IUser } from "interfaces/user";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 
 interface IHeaderProps {
   column: {
@@ -57,19 +62,24 @@ const hasEditPermission = (currentUser: IUser, label: ILabel): boolean => {
     // global permissions
     isGlobalAdmin(currentUser) ||
     isGlobalMaintainer(currentUser) ||
+    isGlobalTechnician(currentUser) ||
     // author permission
     (label.author_id === currentUser.id &&
-      isAnyTeamMaintainerOrTeamAdmin(currentUser)) ||
+      (isAnyTeamMaintainerOrTeamAdmin(currentUser) ||
+        isAnyTeamTechnician(currentUser))) ||
     // team permission
-    (label.team_id != null &&
-      (isTeamAdmin(currentUser, label.team_id) ||
-        isTeamMaintainer(currentUser, label.team_id)))
+    (label.fleet_id != null &&
+      (isTeamAdmin(currentUser, label.fleet_id) ||
+        isTeamMaintainer(currentUser, label.fleet_id) ||
+        isTeamTechnician(currentUser, label.fleet_id)))
   );
 };
 
 const generateActionDropdownOptions = (
   currentUser: IUser,
-  label: ILabel
+  label: ILabel,
+  labelsGitOpsManaged: boolean,
+  repoURL?: string
 ): IDropdownOption[] => {
   const options: IDropdownOption[] = [
     {
@@ -78,6 +88,11 @@ const generateActionDropdownOptions = (
       value: "view_hosts",
     },
   ];
+
+  const gitOpsTooltip =
+    labelsGitOpsManaged && repoURL
+      ? getGitOpsModeTipContent(repoURL)
+      : undefined;
 
   if (hasEditPermission(currentUser, label)) {
     if (label.label_membership_type !== "host_vitals") {
@@ -90,8 +105,9 @@ const generateActionDropdownOptions = (
 
     options.push({
       label: "Delete",
-      disabled: false,
+      disabled: labelsGitOpsManaged,
       value: "delete",
+      tooltipContent: gitOpsTooltip,
     });
   }
 
@@ -100,7 +116,9 @@ const generateActionDropdownOptions = (
 
 const generateTableHeaders = (
   currentUser: IUser,
-  onClickAction: (action: string, label: ILabel) => void
+  onClickAction: (action: string, label: ILabel) => void,
+  labelsGitOpsManaged = false,
+  repoURL?: string
 ): IDataColumn[] => {
   return [
     {
@@ -153,17 +171,25 @@ const generateTableHeaders = (
         const label = cellProps.row.original;
         const dropdownOptions = generateActionDropdownOptions(
           currentUser,
-          label
+          label,
+          labelsGitOpsManaged,
+          repoURL
         );
+
+        if (
+          dropdownOptions.length === 1 &&
+          dropdownOptions[0].value === "view_hosts"
+        ) {
+          return <ViewAllHostsButton platformLabelId={label.id} rowHover />;
+        }
+
         return (
-          <ViewAllHostsLink
-            rowHover
-            noLink
-            excludeChevron
-            dropdown={{
-              options: dropdownOptions,
-              onChange: (value: string) => onClickAction(value, label),
-            }}
+          <ActionsDropdown
+            options={dropdownOptions}
+            onChange={(value: string) => onClickAction(value, label)}
+            placeholder="Actions"
+            menuAlign="right"
+            variant="secondary"
           />
         );
       },

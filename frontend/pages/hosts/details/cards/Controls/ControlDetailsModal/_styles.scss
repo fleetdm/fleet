@@ -1,0 +1,36 @@
+.control-details-modal {
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+
+    // Textarea's own default is $pad-medium; the design calls for 8px between
+    // the label row and the output box.
+    .textarea-wrapper {
+      gap: $pad-small;
+    }
+  }
+
+  &__status {
+    display: flex;
+    gap: $pad-small;
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      // Icon's own styles center it against the whole block; keep it on the
+      // first line when the message wraps.
+      align-self: flex-start;
+      margin-top: 3px;
+    }
+  }
+
+  &__details-label {
+    font-weight: $bold;
+    color: $core-fleet-black;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+}

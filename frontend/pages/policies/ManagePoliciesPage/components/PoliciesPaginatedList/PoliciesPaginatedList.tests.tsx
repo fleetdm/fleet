@@ -1,42 +1,42 @@
-import React from "react";
-
-import { http, HttpResponse } from "msw";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
+import React from "react";
+
+import createMockPolicy from "__mocks__/policyMock";
+import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import mockServer from "test/mock-server";
 import {
   baseUrl,
   createCustomRenderer,
   waitForLoadingToFinish,
 } from "test/test-utils";
-import createMockPolicy from "__mocks__/policyMock";
-import mockServer from "test/mock-server";
 
-import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import PoliciesPaginatedList, { IFormPolicy } from "./PoliciesPaginatedList";
 
 const globalPolicies = [
   createMockPolicy({
-    team_id: null,
+    fleet_id: null,
     name: "Inherited policy 1",
     platform: "darwin",
   }),
   createMockPolicy({
     id: 2,
-    team_id: null,
+    fleet_id: null,
     name: "Inherited policy 2",
     platform: "darwin",
   }),
   createMockPolicy({
     id: 3,
-    team_id: null,
+    fleet_id: null,
     name: "Inherited policy 3",
     platform: "darwin",
   }),
 ];
 
 const teamPolicies = [
-  createMockPolicy({ id: 4, team_id: 2, name: "Team policy 1" }),
-  createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
+  createMockPolicy({ id: 4, fleet_id: 2, name: "Team policy 1" }),
+  createMockPolicy({ id: 5, fleet_id: 2, name: "Team policy 2" }),
 ];
 
 const globalPoliciesHandler = http.get(baseUrl("/policies"), () => {
@@ -51,14 +51,14 @@ const globalPoliciesCountHandler = http.get(baseUrl("/policies/count"), () => {
   });
 });
 
-const teamPoliciesHandler = http.get(baseUrl("/teams/2/policies"), () => {
+const teamPoliciesHandler = http.get(baseUrl("/fleets/2/policies"), () => {
   return HttpResponse.json({
     policies: teamPolicies,
   });
 });
 
 const teamPoliciesCountHandler = http.get(
-  baseUrl("/teams/2/policies/count"),
+  baseUrl("/fleets/2/policies/count"),
   () => {
     return HttpResponse.json({
       count: teamPolicies.length,

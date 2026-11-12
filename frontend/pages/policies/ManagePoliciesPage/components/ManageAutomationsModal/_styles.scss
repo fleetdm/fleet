@@ -1,0 +1,34 @@
+.manage-automations-modal {
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+  }
+
+  &__header {
+    color: $core-fleet-black;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__section-title {
+    font-size: $small;
+    margin: 0;
+  }
+
+  &__platforms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $pad-large;
+  }
+
+  &__platform {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
+}

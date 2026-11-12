@@ -1,18 +1,17 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 
-import { formatSeverity } from "utilities/helpers";
-import { getPathWithQueryParams } from "utilities/url";
-import { ISoftwareVulnerability } from "interfaces/software";
-
-import paths from "router/paths";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { ISoftwareVulnerability } from "interfaces/software";
+import paths from "router/paths";
+import { formatSeverity } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
 
 interface IHeaderProps {
   column: {
@@ -62,7 +61,7 @@ const generateTableConfig = (
 
         const softwareVulnerabilityDetailsPath = getPathWithQueryParams(
           paths.SOFTWARE_VULNERABILITY_DETAILS(cveName),
-          { team_id: teamId }
+          { fleet_id: teamId }
         );
 
         return (
@@ -218,7 +217,7 @@ const generateTableConfig = (
               <ViewAllHostsLink
                 queryParams={{
                   vulnerability: cellProps.row.original.cve,
-                  team_id: teamId,
+                  fleet_id: teamId,
                 }}
                 className="vulnerabilities-link"
                 rowHover

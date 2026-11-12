@@ -1,0 +1,10 @@
+{
+  "name": "Bruno",
+  "slug": "bruno/windows",
+  "package_identifier": "Bruno.Bruno",
+  "unique_identifier": "Bruno",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

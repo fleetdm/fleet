@@ -1,0 +1,8 @@
+{
+  "name": "Duo Desktop",
+  "unique_identifier": "com.duosecurity.duo-device-health",
+  "token": "duo-desktop",
+  "installer_format": "pkg",
+  "slug": "duo-desktop/darwin",
+  "default_categories": ["Productivity"]
+}

@@ -7,20 +7,29 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"unicode"
 
 	"github.com/smallstep/pkcs7"
 )
 
-// MaxProfileRetries is the maximum times an install profile command may be
-// retried, after which marked as failed and no further attempts will be made
-// to install the profile.
-const MaxProfileRetries = 1
+// MaxAppleProfileRetries is the maximum number of times an Apple install profile command may be retried after the
+// initial attempt, after which it is marked as failed and no further attempts will be made to install the profile.
+const MaxAppleProfileRetries = 3
+
+// MaxAppleDeviceNameRetries is the maximum number of times Fleet automatically re-sends the host name template
+// to a host (after drift or a failed command) before marking it as failed until a manual resend.
+const MaxAppleDeviceNameRetries = 3
+
+// MaxWindowsProfileRetries is the maximum number of times a Windows install profile command may be retried after the
+// initial attempt, after which it is marked as failed and no further attempts will be made to install the profile.
+const MaxWindowsProfileRetries = 3
 
 // DecryptBase64CMS decrypts a base64 encoded pkcs7-encrypted value using the
 // provided certificate and private key.
@@ -36,6 +45,119 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 	}
 
 	return p7.Decrypt(cert, key)
+}
+
+// DecryptBase64CMSWithCerts tries each candidate certificate in order and
+// returns the first successful decryption.
+//
+// CMS matches the recipient by issuer + serial number, not by key (see
+// pkcs7.selectRecipientForCertificate). After a CA certificate rollover the
+// renewed cert keeps the same private key but is issued a new serial, so a
+// payload escrowed against a previous CA cert no longer matches the current
+// cert even though the key can still decrypt it. Passing the current and any
+// previous CA certs (all sharing the one private key) lets decryption succeed
+// regardless of which cert was current when the payload was escrowed.
+func DecryptBase64CMSWithCerts(p7Base64 string, key crypto.PrivateKey, certs []*x509.Certificate) ([]byte, error) {
+	if len(certs) == 0 {
+		return nil, errors.New("no certificates provided for decryption")
+	}
+
+	p7Bytes, err := base64.StdEncoding.DecodeString(p7Base64)
+	if err != nil {
+		return nil, err
+	}
+	p7, err := pkcs7.Parse(p7Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	var errs []error
+	for _, cert := range certs {
+		decrypted, err := p7.Decrypt(cert, key)
+		if err == nil {
+			return decrypted, nil
+		}
+		errs = append(errs, err)
+	}
+	return nil, errors.Join(errs...)
+}
+
+// cmsContentInfo, cmsEnvelopedData and the types below mirror the part of a CMS message that names its recipient. The
+// pkcs7 package keeps its own types unexported, so they are duplicated to read the issuer and serial out of a message.
+type cmsContentInfo struct {
+	ContentType asn1.ObjectIdentifier
+	Content     asn1.RawValue `asn1:"explicit,optional,tag:0"`
+}
+
+type cmsEnvelopedData struct {
+	Version        int
+	RecipientInfos []cmsRecipientInfo `asn1:"set"`
+}
+
+type cmsRecipientInfo struct {
+	Version               int
+	IssuerAndSerialNumber cmsIssuerAndSerial
+}
+
+type cmsIssuerAndSerial struct {
+	IssuerName   asn1.RawValue
+	SerialNumber *big.Int
+}
+
+// DecryptBase64CMSWithKey decrypts a DER message, as pkcs7.Encrypt produces, encrypted to a single recipient using
+// only that recipient's private key.
+//
+// CMS matches the recipient by issuer and serial number, so a renewed certificate with the same key and a new serial
+// no longer matches what the message names. Fleet encrypts to exactly one certificate, so the recipient named in the
+// message is used as the match and the private key does the rest.
+func DecryptBase64CMSWithKey(p7Base64 string, key crypto.PrivateKey) (plain []byte, err error) {
+	// The pkcs7 package panics on some malformed inputs instead of returning an error, and a stored blob is data a host
+	// sent, so a bad one must not take down the caller.
+	defer func() {
+		if r := recover(); r != nil {
+			plain, err = nil, fmt.Errorf("parse CMS message: %v", r)
+		}
+	}()
+
+	p7Bytes, err := base64.StdEncoding.DecodeString(p7Base64)
+	if err != nil {
+		return nil, err
+	}
+
+	var info cmsContentInfo
+	rest, err := asn1.Unmarshal(p7Bytes, &info)
+	if err != nil {
+		return nil, fmt.Errorf("parse CMS content info: %w", err)
+	}
+	if len(rest) != 0 {
+		return nil, errors.New("parse CMS content info: trailing data")
+	}
+	if !info.ContentType.Equal(pkcs7.OIDEnvelopedData) {
+		return nil, pkcs7.ErrNotEncryptedContent
+	}
+	// The struct omits the optional originatorInfo and only knows issuer-and-serial recipients, which is all
+	// pkcs7.Encrypt produces.
+	var env cmsEnvelopedData
+	rest, err = asn1.Unmarshal(info.Content.Bytes, &env)
+	if err != nil {
+		return nil, fmt.Errorf("parse CMS enveloped data: %w", err)
+	}
+	if len(rest) != 0 {
+		return nil, errors.New("parse CMS enveloped data: trailing data")
+	}
+	if len(env.RecipientInfos) != 1 {
+		return nil, fmt.Errorf("CMS message has %d recipients, expected 1", len(env.RecipientInfos))
+	}
+
+	p7, err := pkcs7.Parse(p7Bytes)
+	if err != nil {
+		return nil, err
+	}
+	recipient := env.RecipientInfos[0].IssuerAndSerialNumber
+	return p7.Decrypt(&x509.Certificate{
+		RawIssuer:    recipient.IssuerName.FullBytes,
+		SerialNumber: recipient.SerialNumber,
+	}, key)
 }
 
 func prefixMatches(val []byte, prefix string) bool {
@@ -78,7 +200,7 @@ func GetRawProfilePlatform(profile []byte) string {
 		return "darwin"
 	}
 
-	if prefixMatches(trimmedProfile, "<replace") || prefixMatches(trimmedProfile, "<add") || prefixMatches(trimmedProfile, "<!--") {
+	if prefixMatches(trimmedProfile, "<replace") || prefixMatches(trimmedProfile, "<add") || prefixMatches(trimmedProfile, "<atomic") || prefixMatches(trimmedProfile, "<!--") {
 		return "windows"
 	}
 
@@ -211,6 +333,9 @@ func DecodeAndDecrypt(base64CipherText string, symmetricKey string) (string, err
 	nonceSize := aesGCM.NonceSize()
 
 	// Extract the nonce from the encrypted data
+	if len(encrypted) < nonceSize {
+		return "", errors.New("decrypting: ciphertext is shorter than the nonce")
+	}
 	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
 
 	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
@@ -249,26 +374,31 @@ const (
 	// FleetIPadOSUpdatesProfileName is the name of the DDM profile used by Fleet
 	// to configure iPadOS OS updates.
 	FleetIPadOSUpdatesProfileName = "Fleet iPadOS OS Updates"
+
+	// FleetWindowsEnrollSecretProfileName is the name of the profile used by Fleet to deliver a one-time enroll secret to a
+	// Windows host's registry.
+	FleetWindowsEnrollSecretProfileName = "Fleetd enroll secret" //nolint:gosec // G101 false positive, a profile name
 )
 
 // FleetReservedProfileNames returns a map of PayloadDisplayName or profile
 // name strings that are reserved by Fleet.
 func FleetReservedProfileNames() map[string]struct{} {
 	return map[string]struct{}{
-		FleetdConfigProfileName:          {},
-		FleetFileVaultProfileName:        {},
-		FleetWindowsOSUpdatesProfileName: {},
-		FleetMacOSUpdatesProfileName:     {},
-		FleetIOSUpdatesProfileName:       {},
-		FleetIPadOSUpdatesProfileName:    {},
-		FleetCAConfigProfileName:         {},
+		FleetdConfigProfileName:             {},
+		FleetFileVaultProfileName:           {},
+		FleetWindowsOSUpdatesProfileName:    {},
+		FleetMacOSUpdatesProfileName:        {},
+		FleetIOSUpdatesProfileName:          {},
+		FleetIPadOSUpdatesProfileName:       {},
+		FleetCAConfigProfileName:            {},
+		FleetWindowsEnrollSecretProfileName: {},
 	}
 }
 
 // ListFleetReservedWindowsProfileNames returns a list of PayloadDisplayName strings
 // that are reserved by Fleet for Windows.
 func ListFleetReservedWindowsProfileNames() []string {
-	return []string{FleetWindowsOSUpdatesProfileName}
+	return []string{FleetWindowsOSUpdatesProfileName, FleetWindowsEnrollSecretProfileName}
 }
 
 // ListFleetReservedMacOSProfileNames returns a list of PayloadDisplayName strings

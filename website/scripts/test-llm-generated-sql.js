@@ -43,7 +43,7 @@ module.exports = {
     \`\`\`
 
     Please respond in JSON, with the same data shape as the provided context, but with the array filtered to include only relevant tables.`;
-    let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'gpt-4o', true);
+    let filteredTables = await sails.helpers.ai.prompt(schemaFiltrationPrompt, 'claude-haiku-4-5', true);
 
 
 
@@ -80,7 +80,7 @@ Please give me all of the above in JSON, with this data shape:
   "linuxCaveats": "TODO",
   "chromeOSCaveats": "TODO",
 }`;
-    let sqlReport = await sails.helpers.ai.prompt(sqlPrompt, 'o1-preview', true);
+    let sqlReport = await sails.helpers.ai.prompt(sqlPrompt, 'claude-sonnet-5', true);
 
 
     // Which of my computers dont have filevault enabled?

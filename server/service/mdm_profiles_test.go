@@ -91,20 +91,32 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 		{
 			name:    "Custom SCEP challenge missing",
 			profile: customSCEPForValidation("challenge", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName", "Name", "com.apple.security.scep"),
-			errMsg:  "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
+			errMsg:  "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_CERTIFICATE_RENEWAL_ID variables.",
 		},
 		{
 			name: "Custom SCEP url missing",
 			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "https://bozo.com", "Name",
 				"com.apple.security.scep"),
-			errMsg: "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
+			errMsg: "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_CERTIFICATE_RENEWAL_ID variables.",
 		},
 		{
 			name: "Custom SCEP renewal ID missing",
 			profile: strings.Replace(customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
 				"Name",
 				"com.apple.security.scep"), "$FLEET_VAR_SCEP_RENEWAL_ID", "", 1),
-			errMsg: "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
+			errMsg: "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_CERTIFICATE_RENEWAL_ID variables.",
+		},
+		{
+			// This variable was renamed but needs to still validate
+			// for back-compat.
+			name: "Custom SCEP accepts legacy $FLEET_VAR_SCEP_RENEWAL_ID",
+			profile: customSCEPForValidation(
+				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName",
+				"$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
+				"Name",
+				"com.apple.security.scep",
+			),
+			errMsg: "",
 		},
 		{
 			name: "Custom SCEP challenge and url CA names don't match",
@@ -138,6 +150,19 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 			errMsg: fleet.NDESSCEPVariablesMissingErrMsg,
 		},
 		{
+			name: "Conditional access url shows up an extra time",
+			profile: customSCEPForValidation("challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"com.apple.security.scep"),
+			errMsg: "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL is already present in configuration profile",
+		},
+		{
+			name: "Conditional access renewal ID missing",
+			profile: strings.Replace(customSCEPForValidation("challenge", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"Name", "com.apple.security.scep"), "$FLEET_VAR_SCEP_RENEWAL_ID", "", 1),
+			errMsg: fleet.ConditionalAccessSCEPVariablesMissingErrMsg,
+		},
+		{
 			name: "Smallstep badCA",
 			profile: customSCEPForValidation("$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_bad", "$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_bad", "Name",
 				"com.apple.security.scep"),
@@ -160,13 +185,13 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 		{
 			name:    "Smallstep challenge missing",
 			profile: customSCEPForValidation("challenge", "$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName", "Name", "com.apple.security.scep"),
-			errMsg:  "Smallstep certificate authority requires: $FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
+			errMsg:  "Smallstep certificate authority requires: $FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_CERTIFICATE_RENEWAL_ID variables.",
 		},
 		{
 			name: "Smallstep url missing",
 			profile: customSCEPForValidation("$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName", "https://bozo.com", "Name",
 				"com.apple.security.scep"),
-			errMsg: "Smallstep certificate authority requires: $FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_SCEP_RENEWAL_ID variables.",
+			errMsg: "Smallstep certificate authority requires: $FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_CERTIFICATE_RENEWAL_ID variables.",
 		},
 		{
 			name: "Smallstep challenge and url CA names don't match",
@@ -180,7 +205,7 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Pass a premium license for testing (we're not testing license validation here)
 			premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-			err := validateProfileCertificateAuthorityVariables(tc.profile, premiumLic, groupedCAs, nil, nil, nil, nil)
+			err := validateProfileCertificateAuthorityVariables(tc.profile, premiumLic, groupedCAs, caVarValidators{})
 			if tc.errMsg != "" {
 				require.ErrorContains(t, err, tc.errMsg)
 			} else {

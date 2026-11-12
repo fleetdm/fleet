@@ -1,0 +1,8 @@
+{
+    "Type": "com.apple.configuration.softwareupdate.enforcement.specific",
+    "Identifier": "EB13EE2B-5D63-4EBA-810F-5B81D07F5017",
+    "Payload": {
+        "TargetOSVersion": "15.7.3",
+        "TargetLocalDateTime": "2026-03-12T09:30:00"
+    }
+}

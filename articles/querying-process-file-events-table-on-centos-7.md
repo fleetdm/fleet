@@ -1,4 +1,4 @@
-# Querying process_file_events on CentOS 7
+# Reporting on process_file_events on CentOS 7
 
 This guide contains step-by-step instructions for configuring the `process_file_events` table on CentOS 7.
 
@@ -42,15 +42,15 @@ echo "zoo" > /etc/foobar/zoo.txt
 echo "other" > /etc/foobar/other.txt
 ```
 
-## Create a test team in Fleet.
+## Create a test fleet in Fleet.
 
-We will use a test team with special settings to avoid impacting other hosts.
+We will use a test fleet with special settings to avoid impacting other hosts.
 
 ## Install fleetd on the CentOS instance and enroll host
 
 Generate fleetd rpm package (This step was executed on macOS.)
 ```sh
-fleetctl package --type=rpm --fleet-desktop --fleet-url=https://host.docker.internal:8080 --enroll-secret=[redacted team enroll secret] --insecure --debug
+fleetctl package --type=rpm --fleet-desktop --fleet-url=https://host.docker.internal:8080 --enroll-secret=[redacted enroll secret] --insecure --debug
 ```
 
 Install fleetd package on the CentOS 7 VM:
@@ -58,9 +58,9 @@ Install fleetd package on the CentOS 7 VM:
 rpm --install fleet-osquery-1.10.0.x86_64.rpm
 ```
 
-## Set team agent options
+## Set agent options
 
-Configure following settings on the team's agent options:
+Configure following settings on the fleet's agent options:
 ```sh
 config:
   options:
@@ -158,9 +158,9 @@ rm /etc/foobar/other.txt
 > Remember: the files must exist before the osquery process is initialized.
 > Creating or modifying new files won't generate `process_file_events` events.
 
-## Query the process_file_events table
+## Report on the process_file_events table
 
-Run the following live query:
+Run the following live report:
 ```sql
 SELECT * from process_file_events;
 ```
@@ -176,7 +176,7 @@ auditdnetlink.cpp:354 The Audit publisher has throttled reading records from Net
 Some events might get lost due to system load or low CPU/memory resources.
 
 <meta name="articleTitle" value="Querying process_file_events on CentOS 7">
-<meta name="description" value="Learn how to configure and query the process_file_events table on CentOS 7 with Fleet.">
+<meta name="description" value="Learn how to configure and report on the process_file_events table on CentOS 7 with Fleet.">
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="lucasmrod">
 <meta name="authorFullName" value="Lucas Rodriguez">

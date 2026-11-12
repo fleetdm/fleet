@@ -26,26 +26,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
     - name: Checkout code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v.24.0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     # We trust own version of mk-ca-bundle.pl and its output, but as an extra check
     # we compare with the cacert.pem served by https://curl.se/ca/cacert.pem (this
     # allows detecting updates in the mk-ca-bundle.pl or any issues with the output
     # of mk-ca-bundle.pl).
+    # The -x fingerprints match the emSign roots excluded by curl.se's own bundle
+    # (https://github.com/curl/curl-www/blob/master/ca/update.sh) after the eMudhra
+    # intermediate CA key compromise, which Mozilla's certdata.txt doesn't remove.
     - name: Update certs
       run: |
-        cd orbit/pkg/packaging && ./mk-ca-bundle.pl -u certs.pem
+        cd orbit/pkg/cabundle && ./mk-ca-bundle.pl -u -x '125609AA301DA0A249B97A8239CB6A34216F44DCAC9F3954B14292F2E8C8608F,BC4D809B15189D78DB3E1D8CF4F9726A795DA1643CA5F1358E1DDB0EDC0D7EB3,86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B' certs.pem
         curl https://curl.se/ca/cacert.pem --output cacert.pem
         diff --ignore-matching-lines "Certificate data from Mozilla as of*" certs.pem cacert.pem
         rm cacert.pem
 
+    - name: Add changes file to orbit
+      run: |
+        if [[ $(git diff) ]]; then
+          echo "* Updated Orbit CA certs" > orbit/changes/updated-ca-certs
+        fi
+
     - name: PR changes
-      uses: peter-evans/create-pull-request@f22a7da129c901513876a2380e2dae9f8e145330 # v3.12.1
+      uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
       with:
         base: main
         branch: update-ca-certs
@@ -57,3 +68,24 @@ jobs:
 
           Generated automatically with curl mk-ca-bundle.pl script.
         body: Automated change from [GitHub action](https://github.com/fleetdm/fleet/actions/workflows/update-certs.yml).
+
+    - name: Slack notification on failure
+      if: ${{ failure() }}
+      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+      with:
+        payload: |
+          {
+            "text": "${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "❌ The Update certs workflow failed\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}"
+                }
+              }
+            ]
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_ORCHESTRATION_WEBHOOK_URL }}
+        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

@@ -1,6 +1,5 @@
 import { http, HttpResponse } from "msw";
 
-import { baseUrl } from "test/test-utils";
 import {
   createMockBootstrapPackageMetadataResponse,
   createMockBootstrapPackageSummaryResponse,
@@ -13,13 +12,14 @@ import {
   IGetSetupExperienceScriptResponse,
   IGetSetupExperienceSoftwareResponse,
 } from "services/entities/mdm";
+import { baseUrl } from "test/test-utils";
 
 const setupExperienceScriptUrl = baseUrl("/setup_experience/script");
 const setupExperienceInstallSoftwareUrl = baseUrl(`/setup_experience/software`);
 const setupExperienceBootstrapMetadataUrl = baseUrl(
-  "/mdm/bootstrap/:teamId/metadata"
+  "/bootstrap/:teamId/metadata"
 );
-const setupExperienceBootstrapSummaryUrl = baseUrl("/mdm/bootstrap/summary");
+const setupExperienceBootstrapSummaryUrl = baseUrl("/bootstrap/summary");
 
 export const defaultSetupExperienceScriptHandler = http.get(
   setupExperienceScriptUrl,

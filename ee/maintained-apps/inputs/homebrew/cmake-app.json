@@ -1,0 +1,10 @@
+{
+  "name": "CMake",
+  "unique_identifier": "org.cmake.cmake",
+  "token": "cmake-app",
+  "installer_format": "dmg",
+  "slug": "cmake-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

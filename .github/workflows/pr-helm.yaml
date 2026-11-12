@@ -29,14 +29,20 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
       with:
         egress-policy: audit
 
     - name: checkout
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
     - name: create temp dir
       run: mkdir -p helm-temp
+    - name: helm dependency build
+      run: |
+        helm repo add valkey https://valkey.io/valkey-helm/
+        helm dependency build charts/fleet
     - name: helm template -- default values
       run: |
         helm template \
@@ -105,3 +111,19 @@ jobs:
         "helm-temp/enable-mysql-tls.yaml" \
         'FLEET_MYSQL_TLS_CA FLEET_MYSQL_TLS_CERT FLEET_MYSQL_TLS_KEY FLEET_MYSQL_TLS_CONFIG FLEET_MYSQL_TLS_SERVER_NAME' \
         'fleet-tls osquery-logs mysql-tls'
+    - name: check scalar environment values and secret override
+      run: |
+        for KIND in Deployment CronJob; do
+          FILE=helm-temp/environments-scalar-values.yaml
+          if [ "${KIND}" = "Deployment" ]; then
+            ENV_PATH='.spec.template.spec.containers[].env[]'
+          else
+            ENV_PATH='.spec.jobTemplate.spec.template.spec.containers[].env[]'
+          fi
+          PRIVATE_KEY_COUNT=$(yq eval-all "[select(.kind == \"${KIND}\") | ${ENV_PATH} | select(.name == \"FLEET_SERVER_PRIVATE_KEY\")] | length" "${FILE}")
+          TEST_ZERO=$(yq eval-all "select(.kind == \"${KIND}\") | ${ENV_PATH} | select(.name == \"FLEET_TEST_ZERO\") | .value" "${FILE}")
+          TEST_FALSE=$(yq eval-all "select(.kind == \"${KIND}\") | ${ENV_PATH} | select(.name == \"FLEET_TEST_FALSE\") | .value" "${FILE}")
+          test "${PRIVATE_KEY_COUNT}" = "1"
+          test "${TEST_ZERO}" = "0"
+          test "${TEST_FALSE}" = "false"
+        done

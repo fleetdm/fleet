@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	gopsutil_process "github.com/shirou/gopsutil/v3/process"
+	gopsutil_process "github.com/shirou/gopsutil/v4/process"
 )
 
 // ChmodRestrictFile sets the appropriate permissions on a file so it can not be read by everyone
@@ -85,10 +85,6 @@ func GetProcessesByName(name string) ([]*gopsutil_process.Process, error) {
 	}
 
 	return foundProcesses, nil
-}
-
-func GetSMBiosUUID() (string, UUIDSource, error) {
-	return "", UUIDSourceInvalid, errors.New("not implemented.")
 }
 
 // RunUpdateQuirks is a no-op on non-windows platforms

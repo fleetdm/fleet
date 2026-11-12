@@ -1,0 +1,46 @@
+.mdm-status-modal {
+  .modal__content {
+    @include vertical-modal-layout;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  .list__row {
+    min-height: 28px; // keep same row height for rows with no button
+  }
+
+  &__status {
+    display: flex;
+  }
+
+  &__status-title {
+    width: 215px;
+  }
+
+  &__status-value {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
+
+  &__profile-assignment {
+    @include vertical-data-set-layout;
+  }
+
+  &__dep-error {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-large;
+    padding: 0 $pad-medium;
+
+    .data-error__header {
+      align-items: flex-start;
+
+      .icon {
+        align-self: flex-start;
+        margin-top: 3px;
+      }
+    }
+  }
+}

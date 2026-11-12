@@ -21,7 +21,7 @@ type ExistsFunc func(ctx context.Context, installerID string) (bool, error)
 
 type CleanupFunc func(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
 
-type SignFunc func(ctx context.Context, fileID string) (string, error)
+type SignFunc func(ctx context.Context, fileID string, expiresIn time.Duration) (string, error)
 
 type SoftwareInstallerStore struct {
 	GetFunc        GetFunc
@@ -70,9 +70,9 @@ func (s *SoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs [
 	return s.CleanupFunc(ctx, usedInstallerIDs, removeCreatedBefore)
 }
 
-func (s *SoftwareInstallerStore) Sign(ctx context.Context, fileID string) (string, error) {
+func (s *SoftwareInstallerStore) Sign(ctx context.Context, fileID string, expiresIn time.Duration) (string, error) {
 	s.mu.Lock()
 	s.SignFuncInvoked = true
 	s.mu.Unlock()
-	return s.SignFunc(ctx, fileID)
+	return s.SignFunc(ctx, fileID, expiresIn)
 }

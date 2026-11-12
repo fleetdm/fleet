@@ -1,0 +1,93 @@
+import React, { useState, useContext } from "react";
+import { SingleValue } from "react-select-5";
+
+import CustomLink from "components/CustomLink";
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
+import Modal from "components/Modal";
+import PageDescription from "components/PageDescription";
+import { AppContext } from "context/app";
+import { IIntegration, IZendeskJiraIntegrations } from "interfaces/integration";
+
+import IntegrationForm from "../IntegrationForm";
+
+const baseClass = "add-integration-modal";
+
+interface IAddTicketDestinationModalProps {
+  onCancel: () => void;
+  onSubmit: (
+    integrationSubmitData: IIntegration[],
+    integrationDestination: string
+  ) => void | Promise<unknown>;
+  integrations: IZendeskJiraIntegrations;
+  testingConnection: boolean;
+}
+
+const destinationOptions = [
+  { label: "Jira", value: "jira" },
+  { label: "Zendesk", value: "zendesk" },
+];
+
+const AddTicketDestinationModal = ({
+  onCancel,
+  onSubmit,
+  integrations,
+  testingConnection,
+}: IAddTicketDestinationModalProps): JSX.Element => {
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
+
+  const [destination, setDestination] = useState("jira");
+
+  const onDestinationChange = (
+    selectedDestination: SingleValue<CustomOptionType>
+  ) => {
+    setDestination(selectedDestination?.value || "jira");
+  };
+
+  return (
+    <Modal
+      title="Add ticket destination"
+      onExit={onCancel}
+      className={baseClass}
+    >
+      <div className="form">
+        {!testingConnection && (
+          <>
+            <DropdownWrapper
+              ariaLabel="Select ticket destination"
+              name="destination"
+              label="Ticket destination"
+              onChange={onDestinationChange}
+              value={destination}
+              options={destinationOptions}
+              className={`${baseClass}__destination-dropdown`}
+              wrapperClassname={`${baseClass}__form-field ${baseClass}__form-field--platform`}
+              isDisabled={gitOpsModeEnabled}
+            />
+            <PageDescription
+              variant="modal"
+              content={
+                <CustomLink
+                  url="https://github.com/fleetdm/fleet/issues/new?assignees=&labels=idea&template=feature-request.md&title="
+                  text="Suggest a new destination"
+                  newTab
+                />
+              }
+            />
+          </>
+        )}
+        <IntegrationForm
+          onCancel={onCancel}
+          onSubmit={onSubmit}
+          integrations={integrations}
+          destination={destination}
+          testingConnection={testingConnection}
+          gitOpsModeEnabled={gitOpsModeEnabled}
+        />
+      </div>
+    </Modal>
+  );
+};
+
+export default AddTicketDestinationModal;

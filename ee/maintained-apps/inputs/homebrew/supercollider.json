@@ -1,0 +1,10 @@
+{
+  "name": "SuperCollider",
+  "unique_identifier": "net.sourceforge.supercollider",
+  "token": "supercollider",
+  "installer_format": "dmg",
+  "slug": "supercollider/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

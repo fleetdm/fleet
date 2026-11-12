@@ -9,6 +9,5 @@ This directory contains guides for integrating Fleet with external systems.
 
 ## Related Resources
 
-- [MDM Product Group](../../product-groups/mdm/README.md) - Documentation for the MDM product group
-- [Orchestration Product Group](../../product-groups/orchestration/README.md) - Documentation for the Orchestration product group
-- [Software Product Group](../../product-groups/software/README.md) - Documentation for the Software product group
+- [Feature docs index](../../README.md#features) - Contributor docs organized by feature
+- [Authentication](../../authentication/README.md) - IdP integration, certificates, and device identity

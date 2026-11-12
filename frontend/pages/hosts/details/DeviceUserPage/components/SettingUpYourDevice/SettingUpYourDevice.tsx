@@ -1,17 +1,20 @@
-import Card from "components/Card";
-import { ISetupStep } from "interfaces/setup";
-import Icon from "components/Icon";
-import TooltipWrapper from "components/TooltipWrapper";
-import RevealButton from "components/buttons/RevealButton";
-import Textarea from "components/Textarea";
 import React, { useState } from "react";
-import InfoButton from "../InfoButton";
-import SetupStatusTable from "./SetupStatusTable";
+
+import RevealButton from "components/buttons/RevealButton";
+import Card from "components/Card";
+import Icon from "components/Icon";
+import Textarea from "components/Textarea";
+import TooltipWrapper from "components/TooltipWrapper";
+import { ISetupStep } from "interfaces/setup";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import {
   hasRemainingSetupSteps,
   getFailedSoftwareInstall,
 } from "../../helpers";
+import InfoButton from "../InfoButton";
+
+import SetupStatusTable from "./SetupStatusTable";
 
 const baseClass = "setting-up-your-device";
 
@@ -40,10 +43,17 @@ const SettingUpYourDevice = ({
       <>
         <p>
           Your organization requires that critical software be installed before
-          you use your device. <b>{failedSoftware.name}</b> failed to install.
+          you use your device.{" "}
+          <b>
+            {getDisplayedSoftwareName(
+              failedSoftware.name,
+              failedSoftware.display_name
+            )}
+          </b>{" "}
+          failed to install.
         </p>
         <p>
-          <Icon name="error-outline" color="status-error" size="small" />{" "}
+          <Icon name="error" color="status-error" />{" "}
           <TooltipWrapper
             tipContent={<>Hold down power button/Touch ID for 5 seconds</>}
           >
@@ -74,7 +84,7 @@ const SettingUpYourDevice = ({
 
   return (
     <div className={`${baseClass} main-content device-user`}>
-      <Card borderRadiusSize="xxlarge" paddingSize="xlarge">
+      <Card paddingSize="xlarge">
         <div className={`${baseClass}__header`}>
           <h2>{title}</h2>
           {!failedSoftware && platform !== "darwin" && (

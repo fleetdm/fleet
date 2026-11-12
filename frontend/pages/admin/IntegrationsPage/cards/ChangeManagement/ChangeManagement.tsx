@@ -1,37 +1,34 @@
 import React, { useContext, useState } from "react";
-
 import { useQuery } from "react-query";
 
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-
-import configAPI from "services/entities/config";
-
-import { IConfig } from "interfaces/config";
-import { IInputFieldParseTarget } from "interfaces/form_field";
-import { getErrorReason } from "interfaces/errors";
-
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox";
-import validUrl from "components/forms/validators/valid_url";
-import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-import SectionHeader from "components/SectionHeader";
-import PageDescription from "components/PageDescription";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import Checkbox from "components/forms/fields/Checkbox";
+import InputField from "components/forms/fields/InputField";
+import { isValidURL } from "components/forms/validators";
+import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import TooltipWrapper from "components/TooltipWrapper";
+import { AppContext } from "context/app";
+import { IConfig } from "interfaces/config";
+import { getErrorReason } from "interfaces/errors";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import SettingsSection from "pages/admin/components/SettingsSection";
+import configAPI from "services/entities/config";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "change-management";
 
 interface IChangeManagementFormData {
   gitOpsModeEnabled: boolean;
   repoURL: string;
+  exceptLabels: boolean;
+  exceptSoftware: boolean;
+  exceptSecrets: boolean;
 }
 
 interface IChangeManagementFormErrors {
@@ -45,7 +42,7 @@ const validate = (formData: IChangeManagementFormData) => {
     if (!repoURL) {
       errs.repository_url =
         "Git repository URL is required when GitOps mode is enabled";
-    } else if (!validUrl({ url: repoURL, protocols: ["http", "https"] })) {
+    } else if (!isValidURL({ url: repoURL, protocols: ["http", "https"] })) {
       errs.repository_url =
         "Git repository URL must include protocol (e.g. https://)";
     }
@@ -55,12 +52,14 @@ const validate = (formData: IChangeManagementFormData) => {
 
 const ChangeManagement = () => {
   const { setConfig } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const [formData, setFormData] = useState<IChangeManagementFormData>({
-    // dummy 0 values, will be populated with fresh config API response
+    // dummy values, will be populated with fresh config API response
     gitOpsModeEnabled: false,
     repoURL: "",
+    exceptLabels: false,
+    exceptSoftware: false,
+    exceptSecrets: true,
   });
   const [formErrors, setFormErrors] = useState<IChangeManagementFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
@@ -70,14 +69,22 @@ const ChangeManagement = () => {
     Error,
     IConfig
   >(["integrations"], () => configAPI.loadAll(), {
+    refetchOnWindowFocus: false,
     onSuccess: (data) => {
       const {
         gitops: {
           gitops_mode_enabled: gitOpsModeEnabled,
           repository_url: repoURL,
+          exceptions,
         },
       } = data;
-      setFormData({ gitOpsModeEnabled, repoURL });
+      setFormData({
+        gitOpsModeEnabled,
+        repoURL,
+        exceptLabels: exceptions.labels,
+        exceptSoftware: exceptions.software,
+        exceptSecrets: exceptions.secrets,
+      });
       setConfig(data);
     },
   });
@@ -91,7 +98,13 @@ const ChangeManagement = () => {
       </SettingsSection>
     );
 
-  const { gitOpsModeEnabled, repoURL } = formData;
+  const {
+    gitOpsModeEnabled,
+    repoURL,
+    exceptLabels,
+    exceptSoftware,
+    exceptSecrets,
+  } = formData;
 
   if (isLoadingConfig) {
     return <Spinner />;
@@ -114,20 +127,28 @@ const ChangeManagement = () => {
         gitops: {
           gitops_mode_enabled: formData.gitOpsModeEnabled,
           repository_url: formData.repoURL,
+          exceptions: {
+            labels: formData.exceptLabels,
+            software: formData.exceptSoftware,
+            secrets: formData.exceptSecrets,
+          },
         },
       });
 
       setFormData({
         gitOpsModeEnabled: updatedConfig.gitops.gitops_mode_enabled,
         repoURL: updatedConfig.gitops.repository_url,
+        exceptLabels: updatedConfig.gitops.exceptions.labels,
+        exceptSoftware: updatedConfig.gitops.exceptions.software,
+        exceptSecrets: updatedConfig.gitops.exceptions.secrets,
       });
 
       setConfig(updatedConfig);
 
-      renderFlash("success", "Successfully updated settings");
+      notify.success("Successfully updated settings");
     } catch (e) {
       const message = getErrorReason(e);
-      renderFlash("error", message || "Failed to update settings");
+      notify.error(message || "Failed to update settings", { response: e });
     } finally {
       setIsUpdating(false);
     }
@@ -195,6 +216,40 @@ const ChangeManagement = () => {
           helpText="When GitOps mode is enabled, you will be directed here to make changes."
           disabled={!gitOpsModeEnabled}
         />
+        <div className={`form-field`}>
+          <div className="form-field__label">
+            <TooltipWrapper tipContent="Opt-in to managing outside of git. Running GitOps won’t override changes made in the UI or API.">
+              Exceptions
+            </TooltipWrapper>
+          </div>
+          <div className="form-field">
+            <Checkbox
+              onChange={onInputChange}
+              name="exceptLabels"
+              value={exceptLabels}
+              parseTarget
+            >
+              Labels
+            </Checkbox>
+            <Checkbox
+              onChange={onInputChange}
+              name="exceptSoftware"
+              value={exceptSoftware}
+              parseTarget
+            >
+              Software
+            </Checkbox>
+            <Checkbox
+              onChange={onInputChange}
+              name="exceptSecrets"
+              value={exceptSecrets}
+              parseTarget
+            >
+              Enroll secrets
+            </Checkbox>
+          </div>
+        </div>
+
         <div className="button-wrap">
           <Button
             type="submit"

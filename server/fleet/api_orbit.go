@@ -1,0 +1,540 @@
+package fleet
+
+import (
+	"context"
+	"crypto/x509"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+)
+
+// EnrollOrbitRequest is the request Orbit instances use to enroll to Fleet.
+type EnrollOrbitRequest struct {
+	// EnrollSecret is the secret to authenticate the enroll request.
+	EnrollSecret string `json:"enroll_secret"`
+	// HardwareUUID is the device's hardware UUID.
+	HardwareUUID string `json:"hardware_uuid"`
+	// HardwareSerial is the device's serial number.
+	HardwareSerial string `json:"hardware_serial"`
+	// Hostname is the device's hostname.
+	Hostname string `json:"hostname"`
+	// Platform is the device's platform as defined by osquery.
+	Platform string `json:"platform"`
+	// PlatformLike is the device's platform_like as defined by osquery.
+	PlatformLike string `json:"platform_like"`
+	// OsqueryIdentifier holds the identifier used by osquery.
+	// If not set, then the hardware UUID is used to match orbit and osquery.
+	OsqueryIdentifier string `json:"osquery_identifier"`
+	// ComputerName is the device's friendly name (optional).
+	ComputerName string `json:"computer_name"`
+	// HardwareModel is the device's hardware model.
+	HardwareModel string `json:"hardware_model"`
+	// EUAToken is a Fleet-signed JWT containing the user's UPN and Windows MDM device ID.
+	EUAToken string `json:"eua_token,omitempty"`
+	// AutopilotDeviceID is the Windows Autopilot device ID (ZTDID), if the device has one.
+	AutopilotDeviceID string `json:"autopilot_device_id,omitempty"`
+}
+
+// SetOrbitNodeKeyer is the interface implemented by orbit request types that
+// carry an orbit node key for authentication.
+type SetOrbitNodeKeyer interface {
+	SetOrbitNodeKey(nodeKey string)
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Orbit config
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitGetConfigRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+func (r *OrbitGetConfigRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitGetConfigRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+// DecodeBody implements the bodyDecoder interface for custom request body decoding.
+// This endpoint is susceptible to client read timeouts (poll.DeadlineExceededError).
+// By implementing DecodeBody, we classify those network errors as client errors.
+func (r *OrbitGetConfigRequest) DecodeBody(_ context.Context, reader io.Reader, _ url.Values, _ []*x509.Certificate) error {
+	if err := json.NewDecoder(reader).Decode(r); err != nil {
+		if errors.Is(err, os.ErrDeadlineExceeded) {
+			return &BadRequestError{
+				Message:     "request body read timeout",
+				InternalErr: err,
+			}
+		}
+		return err
+	}
+	return nil
+}
+
+type OrbitGetConfigResponse struct {
+	OrbitConfig
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitGetConfigResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Enroll Orbit
+/////////////////////////////////////////////////////////////////////////////////
+
+type EnrollOrbitResponse struct {
+	OrbitNodeKey string `json:"orbit_node_key,omitempty"`
+	Err          error  `json:"error,omitempty"`
+}
+
+func (r EnrollOrbitResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Ping orbit endpoint
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitPingRequest struct{}
+
+type OrbitPingResponse struct{}
+
+func (r OrbitPingResponse) Error() error { return nil }
+
+/////////////////////////////////////////////////////////////////////////////////
+// SetOrUpdateDeviceToken endpoint
+/////////////////////////////////////////////////////////////////////////////////
+
+type SetOrUpdateDeviceTokenRequest struct {
+	OrbitNodeKey    string `json:"orbit_node_key"`
+	DeviceAuthToken string `json:"device_auth_token"`
+}
+
+func (r *SetOrUpdateDeviceTokenRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *SetOrUpdateDeviceTokenRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type SetOrUpdateDeviceTokenResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r SetOrUpdateDeviceTokenResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get Orbit pending script execution request
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitGetScriptRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	ExecutionID  string `json:"execution_id"`
+}
+
+func (r *OrbitGetScriptRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitGetScriptRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitGetScriptResponse struct {
+	Err error `json:"error,omitempty"`
+	*HostScriptResult
+}
+
+func (r OrbitGetScriptResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit script execution result
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitPostScriptResultRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	*HostScriptResultPayload
+}
+
+func (r *OrbitPostScriptResultRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostScriptResultRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostScriptResultResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostScriptResultResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit device mapping (custom email)
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitPutDeviceMappingRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	Email        string `json:"email"`
+}
+
+func (r *OrbitPutDeviceMappingRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPutDeviceMappingRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPutDeviceMappingResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPutDeviceMappingResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit Entra device token
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitPostEntraDeviceTokenRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	IDToken      string `json:"id_token"`
+}
+
+func (r *OrbitPostEntraDeviceTokenRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostEntraDeviceTokenRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostEntraDeviceTokenResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostEntraDeviceTokenResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit disk encryption key
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitPostDiskEncryptionKeyRequest struct {
+	OrbitNodeKey  string `json:"orbit_node_key"`
+	EncryptionKey []byte `json:"encryption_key"`
+	ClientError   string `json:"client_error"`
+}
+
+func (r *OrbitPostDiskEncryptionKeyRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostDiskEncryptionKeyRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+// DiskEncryptionProtectionOutcome is what the agent did about a volume that was encrypted but unprotected.
+type DiskEncryptionProtectionOutcome string
+
+const (
+	// DiskEncryptionProtectionRestored means protection was turned back on.
+	DiskEncryptionProtectionRestored DiskEncryptionProtectionOutcome = "restored"
+	// DiskEncryptionProtectionDeferred means a restart is staged, so the agent deliberately changed nothing.
+	DiskEncryptionProtectionDeferred DiskEncryptionProtectionOutcome = "deferred"
+	// DiskEncryptionProtectionFailed means protection could not be restored; ClientError says why.
+	DiskEncryptionProtectionFailed DiskEncryptionProtectionOutcome = "failed"
+)
+
+// OrbitPostDiskEncryptionProtectionRequest reports the outcome of an attempt to restore disk encryption protection.
+type OrbitPostDiskEncryptionProtectionRequest struct {
+	OrbitNodeKey string                          `json:"orbit_node_key"`
+	Outcome      DiskEncryptionProtectionOutcome `json:"outcome"`
+	ClientError  string                          `json:"client_error"`
+}
+
+func (r *OrbitPostDiskEncryptionProtectionRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostDiskEncryptionProtectionRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostDiskEncryptionProtectionResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostDiskEncryptionProtectionResponse) Error() error { return r.Err }
+func (r OrbitPostDiskEncryptionProtectionResponse) Status() int  { return http.StatusNoContent }
+
+type OrbitPostDiskEncryptionKeyResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostDiskEncryptionKeyResponse) Error() error { return r.Err }
+func (r OrbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNoContent }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Orbit BitLocker startup PIN handoff
+/////////////////////////////////////////////////////////////////////////////////
+
+// OrbitGetDiskEncryptionPINDetailsRequest collects the BitLocker startup PIN the end user submitted from the My device page.
+// The response is the only place the server ever hands the PIN back out, and it can only be read once.
+type OrbitGetDiskEncryptionPINDetailsRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+func (r *OrbitGetDiskEncryptionPINDetailsRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitGetDiskEncryptionPINDetailsRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitGetDiskEncryptionPINDetailsResponse struct {
+	PIN string `json:"pin,omitempty"`
+	// RequestUUID names the submission this PIN came from. The agent echoes it when reporting the outcome.
+	RequestUUID string `json:"request_uuid,omitempty"`
+	Err         error  `json:"error,omitempty"`
+}
+
+func (r OrbitGetDiskEncryptionPINDetailsResponse) Error() error { return r.Err }
+
+// OrbitPostDiskEncryptionPINResultRequest reports whether the agent applied the PIN it collected. Outcome is one of
+// BitLockerPINRequestSet or BitLockerPINRequestFailed; ClientError is required for a failure.
+type OrbitPostDiskEncryptionPINResultRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	// RequestUUID is the id returned with the PIN the agent collected.
+	RequestUUID string                    `json:"request_uuid"`
+	Outcome     BitLockerPINRequestStatus `json:"outcome"`
+	ClientError string                    `json:"client_error"`
+}
+
+func (r *OrbitPostDiskEncryptionPINResultRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostDiskEncryptionPINResultRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostDiskEncryptionPINResultResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostDiskEncryptionPINResultResponse) Error() error { return r.Err }
+func (r OrbitPostDiskEncryptionPINResultResponse) Status() int  { return http.StatusNoContent }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit LUKS (Linux disk encryption) data
+/////////////////////////////////////////////////////////////////////////////////
+
+// LUKS key type values reported by orbit in OrbitPostLUKSRequest.KeyType. An
+// empty value is treated as LUKSKeyTypePassphrase for backward compatibility
+// with older orbit agents that predate TPM-backed FDE support.
+const (
+	// LUKSKeyTypePassphrase is a Fleet-generated passphrase added to a
+	// dedicated LUKS key slot (the legacy path). It carries a Salt and a
+	// numeric KeySlot.
+	LUKSKeyTypePassphrase = "passphrase"
+	// LUKSKeyTypeRecoveryKey is a snapd/secboot-managed recovery key escrowed
+	// from a host using TPM-backed full-disk encryption (e.g. Ubuntu 26). It
+	// has no Salt and no numeric KeySlot because snapd owns the key slots.
+	LUKSKeyTypeRecoveryKey = "recovery_key"
+)
+
+type OrbitPostLUKSRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	Passphrase   string `json:"passphrase"`
+	Salt         string `json:"salt"`
+	KeySlot      *uint  `json:"key_slot"`
+	ClientError  string `json:"client_error"`
+	// KeyType identifies how the escrowed secret unlocks the volume. Empty or
+	// LUKSKeyTypePassphrase means the legacy passphrase-in-a-key-slot path;
+	// LUKSKeyTypeRecoveryKey means a TPM-backed FDE recovery key (no Salt/KeySlot).
+	KeyType string `json:"key_type"`
+	// Status reports progress instead of a result; other fields are ignored when set. Only sent to
+	// servers advertising CapabilityLinuxEscrowStatus.
+	Status string `json:"status"`
+}
+
+func (r *OrbitPostLUKSRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostLUKSRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostLUKSResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostLUKSResponse) Error() error { return r.Err }
+func (r OrbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
+
+// Values for OrbitPostLUKSRequest.Status. The first two are progress reports that keep the request
+// in flight; the last two end it without a key or an error.
+const (
+	LinuxEscrowStatusPrompting = "prompting"
+	LinuxEscrowStatusEscrowing = "escrowing"
+	LinuxEscrowStatusCanceled  = "canceled"
+	LinuxEscrowStatusTimedOut  = "timed_out"
+)
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit Windows managed local account password
+/////////////////////////////////////////////////////////////////////////////////
+
+// OrbitPostManagedLocalAccountRequest carries the device-generated password that Windows fleetd escrows after creating
+// the managed local admin account. ClientError, when set, reports a device-side failure so the server can log it without
+// recording a password.
+type OrbitPostManagedLocalAccountRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	Password     string `json:"password"`
+	ClientError  string `json:"client_error"`
+}
+
+func (r *OrbitPostManagedLocalAccountRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostManagedLocalAccountRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostManagedLocalAccountResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostManagedLocalAccountResponse) Error() error { return r.Err }
+func (r OrbitPostManagedLocalAccountResponse) Status() int  { return http.StatusNoContent }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get Orbit software install details
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitGetSoftwareInstallRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	OrbotNodeKey string `json:"orbot_node_key"` // legacy typo -- keep for backwards compatibility with orbit <= 1.38.0
+	InstallUUID  string `json:"install_uuid"`
+}
+
+func (r *OrbitGetSoftwareInstallRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+	r.OrbotNodeKey = nodeKey // legacy typo -- keep for backwards compatability with fleet server < 4.63.0
+}
+
+func (r *OrbitGetSoftwareInstallRequest) OrbitHostNodeKey() string {
+	if r.OrbitNodeKey != "" {
+		return r.OrbitNodeKey
+	}
+	return r.OrbotNodeKey
+}
+
+type OrbitGetSoftwareInstallResponse struct {
+	Err error `json:"error,omitempty"`
+	*SoftwareInstallDetails
+}
+
+func (r OrbitGetSoftwareInstallResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Download Orbit software installer request
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitDownloadSoftwareInstallerRequest struct {
+	Alt          string `query:"alt"`
+	OrbitNodeKey string `json:"orbit_node_key"`
+	InstallerID  uint   `json:"installer_id"`
+}
+
+func (r *OrbitDownloadSoftwareInstallerRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitDownloadSoftwareInstallerRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Post Orbit software install result
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitPostSoftwareInstallResultRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	*HostSoftwareInstallResultPayload
+}
+
+func (r *OrbitPostSoftwareInstallResultRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitPostSoftwareInstallResultRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitPostSoftwareInstallResultResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r OrbitPostSoftwareInstallResultResponse) Error() error { return r.Err }
+func (r OrbitPostSoftwareInstallResultResponse) Status() int  { return http.StatusNoContent }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get Orbit setup experience status
+/////////////////////////////////////////////////////////////////////////////////
+
+type GetOrbitSetupExperienceStatusRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+	ForceRelease bool   `json:"force_release"`
+	// Whether to re-enqueue canceled setup experience steps after a previous
+	// software install failure on MacOS.
+	ResetFailedSetupSteps bool `json:"reset_failed_setup_steps"`
+}
+
+func (r *GetOrbitSetupExperienceStatusRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *GetOrbitSetupExperienceStatusRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type GetOrbitSetupExperienceStatusResponse struct {
+	Results *SetupExperienceStatusPayload `json:"setup_experience_results,omitempty"`
+	Err     error                         `json:"error,omitempty"`
+}
+
+func (r GetOrbitSetupExperienceStatusResponse) Error() error { return r.Err }
+
+/////////////////////////////////////////////////////////////////////////////////
+// Setup experience init
+/////////////////////////////////////////////////////////////////////////////////
+
+type OrbitSetupExperienceInitRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+func (r *OrbitSetupExperienceInitRequest) SetOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *OrbitSetupExperienceInitRequest) OrbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type OrbitSetupExperienceInitResponse struct {
+	Result SetupExperienceInitResult `json:"result"`
+	Err    error                     `json:"error,omitempty"`
+}
+
+func (r OrbitSetupExperienceInitResponse) Error() error {
+	return r.Err
+}

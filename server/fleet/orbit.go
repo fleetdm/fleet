@@ -2,8 +2,9 @@ package fleet
 
 import (
 	"encoding/json"
+	"reflect"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 )
 
 // OrbitConfigNotifications are notifications that the fleet server sends to
@@ -34,6 +35,11 @@ type OrbitConfigNotifications struct {
 	// host.IsEligibleForWindowsMDMUnenrollment for the list of conditions).
 	NeedsProgrammaticWindowsMDMUnenrollment bool `json:"needs_programmatic_windows_mdm_unenrollment,omitempty"`
 
+	// WindowsMDMSyncRequest is set to true when the host's Windows MDM enrollment has queued commands awaiting delivery and the device should
+	// start an OMA-DM session now (via deviceenroller) instead of waiting for its next scheduled poll. Only set for hosts whose fleetd
+	// advertises CapabilityWindowsMDMSync. Older fleetd that does not understand this field ignores it.
+	WindowsMDMSyncRequest bool `json:"windows_mdm_sync_request,omitempty"`
+
 	// PendingScriptExecutionIDs lists the IDs of scripts that are pending
 	// execution on that host. The scripts pending execution are those that
 	// haven't received a result yet.
@@ -43,12 +49,24 @@ type OrbitConfigNotifications struct {
 	// enabled and the device should encrypt its disk volumes with BitLocker.
 	EnforceBitLockerEncryption bool `json:"enforce_bitlocker_encryption,omitempty"`
 
+	// EnableBitLockerProtection tells Orbit that the volume is encrypted but its protection is off, and that it should
+	// turn protection back on.
+	EnableBitLockerProtection bool `json:"enable_bitlocker_protection,omitempty"`
+
+	// BitLockerPINRequestPending tells fleetd on Windows that the end user has submitted a BitLocker startup PIN.
+	BitLockerPINRequestPending bool `json:"bitlocker_pin_request_pending,omitempty"`
+
 	// PendingSoftwareInstallerIDs contains a list of software install_ids queued for installation
 	PendingSoftwareInstallerIDs []string `json:"pending_software_installer_ids,omitempty"`
 
 	// RunSetupExperience indicates whether Orbit should run the Fleet setup experience
 	// during macOS Setup Assistant.
 	RunSetupExperience bool `json:"run_setup_experience,omitempty"`
+
+	// CreateWindowsManagedLocalAccount tells fleetd on Windows to create the hidden managed local admin account and escrow its password.
+	// Set for any Windows MDM host whose fleet has the setting enabled, not only during OOBE, for hosts whose fleetd advertises
+	// CapabilityWindowsManagedLocalAccount, and until the host has escrowed a password for its current enrollment.
+	CreateWindowsManagedLocalAccount bool `json:"create_windows_managed_local_account,omitempty"`
 
 	// RunDiskEncryptionEscrow tells Orbit to prompt the end user to escrow disk
 	// encryption data for Linux platforms where disk encryption is supported,
@@ -57,16 +75,79 @@ type OrbitConfigNotifications struct {
 	RunDiskEncryptionEscrow bool `json:"run_disk_encryption_escrow,omitempty"`
 }
 
+// OrbitConfigFallbackChangesHeader is the request header in which orbit
+// reports the orbit config fields that its fallback poll found changed, i.e.
+// that changed without the server nudging it: a comma-separated list of JSON
+// field names, notifications fields prefixed with "notifications.".
+const OrbitConfigFallbackChangesHeader = "X-Fleet-Orbit-Config-Fallback-Changes"
+
+// OsqueryConfigFallbackChangeHeader is the osquery config request header in
+// which orbit, serving osquery its config, reports that the config it fetched
+// on its fallback poll had changed without the server nudging it.
+const OsqueryConfigFallbackChangeHeader = "X-Fleet-Osquery-Config-Fallback-Change"
+
+// IsQuiet reports whether the notifications ask orbit for nothing: no flag is
+// set and no script or software installer is pending. Orbit receivers use the
+// config poll as their clock while a flag is set, so only a quiet config lets
+// a connected agent slow its polling down.
+func (n OrbitConfigNotifications) IsQuiet() bool {
+	if len(n.PendingScriptExecutionIDs) > 0 || len(n.PendingSoftwareInstallerIDs) > 0 {
+		return false
+	}
+	n.PendingScriptExecutionIDs, n.PendingSoftwareInstallerIDs = nil, nil
+	// Data accompanying NeedsProgrammaticWindowsMDMEnrollment, not a request.
+	n.WindowsMDMDiscoveryEndpoint = ""
+	// Compared reflectively so a new field counts as a request by default.
+	return reflect.DeepEqual(n, OrbitConfigNotifications{})
+}
+
 type OrbitConfig struct {
 	ScriptExeTimeout int                      `json:"script_execution_timeout,omitempty"`
 	Flags            json.RawMessage          `json:"command_line_startup_flags,omitempty"`
 	Extensions       json.RawMessage          `json:"extensions,omitempty"`
-	NudgeConfig      *NudgeConfig             `json:"nudge_config,omitempty"`
 	Notifications    OrbitConfigNotifications `json:"notifications,omitempty"`
 	// UpdateChannels contains the TUF channels to use on fleetd components.
 	//
 	// If UpdateChannels is nil it means the server isn't using/setting this feature.
 	UpdateChannels *OrbitUpdateChannels `json:"update_channels,omitempty"`
+	// nil = no opinion (orbit keeps its current level); true/false sets it.
+	DebugLogging *bool `json:"debug_logging,omitempty"`
+	// WebSocketTransport, when set with Enabled=true, directs fleetd to open a
+	// persistent WebSocket to the server as a check-in notification channel
+	// (ADR-0011). Absent (nil) means disabled; old orbit versions ignore it.
+	WebSocketTransport *OrbitWebSocketTransportConfig `json:"websocket_transport,omitempty"`
+	// EntraDeviceTokenRequest, when set, asks fleetd on macOS to get an Entra ID token
+	// proving the device's Entra device ID and post it to the server, for the Microsoft
+	// "Conditional access" integration. Its values only change with the integration.
+	EntraDeviceTokenRequest *OrbitEntraDeviceTokenRequest `json:"entra_device_token_request,omitempty"`
+}
+
+// OrbitEntraDeviceTokenRequest holds the parameters of the Entra device token request.
+type OrbitEntraDeviceTokenRequest struct {
+	TenantID string `json:"tenant_id"`
+	ClientID string `json:"client_id"`
+	// Nonce binds the token to the host. It's prefixed with the host's hardware UUID.
+	Nonce string `json:"nonce"`
+}
+
+// OrbitWebSocketTransportConfig is the WebSocket transport directive delivered
+// via the orbit config. A struct rather than a bare bool so future hints
+// (ping interval, backoff tuning) can ride along without breaking old agents.
+type OrbitWebSocketTransportConfig struct {
+	Enabled bool `json:"enabled"`
+	// OrbitConfigPollInterval, in seconds, is how often a connected agent
+	// whose last config was quiet (see OrbitConfigNotifications.IsQuiet)
+	// polls for its orbit config: the server nudges it on changes
+	// (AgentWSMessageTypeOrbitConfig), so the poll is only a fallback. Unset
+	// means the server doesn't send orbit/config nudges; agents keep their
+	// default poll interval.
+	OrbitConfigPollInterval *int `json:"orbit_config_poll_interval,omitempty"`
+	// OsqueryConfigPollInterval, when set, directs orbit to serve osquery its
+	// config (as osquery's config plugin), fetching it from the server when
+	// nudged (AgentWSMessageTypeOsqueryConfig) and, while connected, every
+	// OsqueryConfigPollInterval seconds as a fallback. Unset means osquery
+	// fetches its config from the server directly.
+	OsqueryConfigPollInterval *int `json:"osquery_config_poll_interval,omitempty"`
 }
 
 type OrbitConfigReceiver interface {
@@ -113,20 +194,42 @@ type OrbitHostInfo struct {
 	ComputerName string
 	// HardwareModel is the device's hardware model. For example: Standard PC (Q35 + ICH9, 2009)
 	HardwareModel string
+	// AutopilotDeviceID is the Windows Autopilot device ID (ZTDID) the device cached from its Autopilot profile. Empty
+	// when the device has no Autopilot profile.
+	AutopilotDeviceID string
 }
 
 // DatastoreEnrollOrbitConfig holds the configuration for datastore Orbit enrollment
 type DatastoreEnrollOrbitConfig struct {
-	IsMDMEnabled     bool
-	HostInfo         OrbitHostInfo
-	OrbitNodeKey     string
-	TeamID           *uint
-	IdentityCert     *types.HostIdentityCertificate
-	IgnoreTeamUpdate bool // when true the host's team won't be updated on enrollment where an entry already exists.
+	IsMDMEnabled bool
+	HostInfo     OrbitHostInfo
+	OrbitNodeKey string
+	TeamID       *uint
+	IdentityCert *types.HostIdentityCertificate
+
+	// OneTimeEnrollSecretID is set when the agent presented a one-time enroll
+	// secret; the enrollment consumes it for the orbit plane.
+	OneTimeEnrollSecretID *uint
+	// RejectSharedSecretForAppleMDMHosts refuses a shared enroll secret that would
+	// claim an Apple host enrolled in Fleet MDM or assigned to Fleet in ABM.
+	RejectSharedSecretForAppleMDMHosts bool
+	// RejectSharedSecretForWindowsMDMHosts refuses a shared enroll secret that would claim a Windows host enrolled in Fleet MDM.
+	RejectSharedSecretForWindowsMDMHosts bool
+
+	// Created, when non-nil, is set to true if enrollment inserted a new hosts row.
+	Created *bool
 }
 
 // DatastoreEnrollOrbitOption is a functional option for configuring datastore Orbit enrollment
 type DatastoreEnrollOrbitOption func(*DatastoreEnrollOrbitConfig)
+
+// WithEnrollOrbitCreated sets *created to true when enrollment inserts a new hosts row
+// rather than re-enrolling an existing one.
+func WithEnrollOrbitCreated(created *bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.Created = created
+	}
+}
 
 // WithEnrollOrbitMDMEnabled sets the MDM enabled flag for datastore Orbit enrollment
 func WithEnrollOrbitMDMEnabled(enabled bool) DatastoreEnrollOrbitOption {
@@ -162,11 +265,21 @@ func WithEnrollOrbitIdentityCert(identityCert *types.HostIdentityCertificate) Da
 	}
 }
 
-// WithEnrollOrbitIgnoreTeamUpdate sets whether to ignore team updates for datastore Orbit enrollment
-// it only acts on existing hosts (i.e. it won't ignore the team id on new hosts)
-func WithEnrollOrbitIgnoreTeamUpdate(ignore bool) DatastoreEnrollOrbitOption {
+func WithEnrollOrbitOneTimeEnrollSecret(id uint) DatastoreEnrollOrbitOption {
 	return func(c *DatastoreEnrollOrbitConfig) {
-		c.IgnoreTeamUpdate = ignore
+		c.OneTimeEnrollSecretID = &id
+	}
+}
+
+func WithEnrollOrbitRejectSharedSecretForAppleMDMHosts(reject bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.RejectSharedSecretForAppleMDMHosts = reject
+	}
+}
+
+func WithEnrollOrbitRejectSharedSecretForWindowsMDMHosts(reject bool) DatastoreEnrollOrbitOption {
+	return func(c *DatastoreEnrollOrbitConfig) {
+		c.RejectSharedSecretForWindowsMDMHosts = reject
 	}
 }
 

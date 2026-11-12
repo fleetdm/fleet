@@ -1,4 +1,6 @@
-.munki-issues-card {
+.munki-issues-section {
+  @include vertical-card-layout;
+
   .data-table-block {
     .issue_tooltip,
     .time_tooltip {

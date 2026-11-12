@@ -1,10 +1,42 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { QueryClient, QueryClientProvider } from "react-query";
 
-import { getStatusMessage, ModalButtons } from "./VppInstallDetailsModal";
+import {
+  createMockHostAppStoreApp,
+  createMockHostSoftware,
+  DEFAULT_INSTALLED_VERSION,
+} from "__mocks__/hostMock";
+import mockServer from "test/mock-server";
+import {
+  createCustomRenderer,
+  renderWithSetup,
+  baseUrl,
+} from "test/test-utils";
+
+import VppInstallDetailsModal, {
+  getStatusMessage,
+  ModalButtons,
+} from "./VppInstallDetailsModal";
 
 describe("getStatusMessage helper function", () => {
+  it("on activity feed, shows the activity's timestamp instead of the command's", () => {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    render(
+      getStatusMessage({
+        displayStatus: "installed",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        activityCreatedAt: fiveMinutesAgo,
+      })
+    );
+    expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
+  });
+
   it("shows NotNow message when isStatusNotNow is true", () => {
     render(
       getStatusMessage({
@@ -46,24 +78,121 @@ describe("getStatusMessage helper function", () => {
     expect(screen.getByText(/Refetch/i)).toBeInTheDocument();
   });
 
-  it("shows failed_install message for non-Apple platform when MDM command fails", () => {
+  it("renders the actor-driven failure sentence when Fleet failed the install before sending it to the device (admin actor)", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
         isMDMStatusNotNow: false,
         isMDMStatusAcknowledged: false,
         appName: "Logic Pro",
+        hostDisplayName: "Anna's iPad",
+        commandUpdatedAt: "2026-05-27T22:49:52Z",
+        platform: "ipados",
+        failureReason:
+          "There is no IdP department for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.",
+        actorFullName: "Carlo DiCelico",
+        fleetInitiated: false,
+        selfService: false,
+      })
+    );
+    // The reason text is rendered by the modal's Details section, not by
+    // getStatusMessage — here we only verify the top-line sentence is
+    // actor-driven and references the right app/host.
+    expect(screen.getByText("Carlo DiCelico")).toBeInTheDocument();
+    expect(screen.getByText(/failed to install/i)).toBeInTheDocument();
+    expect(screen.getByText("Logic Pro")).toBeInTheDocument();
+  });
+
+  it("renders 'Fleet' as the actor when the install is Fleet-initiated (policy, auto-update, setup experience)", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Zoom Workplace",
         hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2026-05-27T22:49:52Z",
+        platform: "ipados",
+        failureReason: "There is no IdP username for this host. …",
+        fleetInitiated: true,
+      })
+    );
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(screen.getByText(/failed to install/i)).toBeInTheDocument();
+  });
+
+  it("renders 'End user' as the actor for self-service installs", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Slack",
+        hostDisplayName: "Anna's iPad",
+        commandUpdatedAt: "2026-05-27T22:49:52Z",
+        platform: "ipados",
+        failureReason: "There is no IdP email for this host. …",
+        selfService: true,
+        actorFullName: "Anna",
+      })
+    );
+    expect(screen.getByText("End user")).toBeInTheDocument();
+  });
+
+  it("shows failed_install message for Android when MDM command fails", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's Pixel 8",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "android",
+      })
+    );
+    expect(screen.getByText(/Fleet failed to install/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/The end user can retry via the Google Play Store/i)
+    ).toBeInTheDocument();
+  });
+
+  it("shows first-person failed_install message for Android on My Device page", () => {
+    render(
+      getStatusMessage({
+        isMyDevicePage: true,
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's Pixel 8",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "android",
+      })
+    );
+    expect(screen.getByText(/Fleet failed to install/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Retry via the Google Play Store in your work profile/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/The end user can retry/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("falls back to generic failed_install copy for a platform that's neither Apple nor Android", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: false,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's ThinkPad",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "windows",
       })
     );
-    expect(
-      screen.getByText(/The MDM command \(request\) to install/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Please re-attempt this installation/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Fleet failed to install/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Google Play Store/i)).not.toBeInTheDocument();
   });
 
   it("shows Apple-specific message when MDM command fails on macOS", () => {
@@ -132,23 +261,25 @@ describe("getStatusMessage helper function", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows failed verification message for non-Apple platforms", () => {
+  it("shows failed verification message for Android", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
         isMDMStatusNotNow: false,
         isMDMStatusAcknowledged: true,
         appName: "Logic Pro",
-        hostDisplayName: "Marko's MacBook Pro",
+        hostDisplayName: "Marko's Pixel 8",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
-        platform: "windows",
+        platform: "android",
       })
     );
     expect(
-      screen.getByText(
-        /but the installation has not been verified. Please re-attempt this installation/i
-      )
+      screen.getByText(/installation has not been verified/i)
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Please re-attempt this installation/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/within 10 minutes/i)).not.toBeInTheDocument();
   });
 
   it("shows Apple-specific failed verification message for macOS", () => {
@@ -161,16 +292,19 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's MacBook Pro",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "darwin",
+        vppVerifyTimeoutSeconds: 1200,
       })
     );
     expect(
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/but the app failed to install/i)
+      screen.getByText(
+        /the install took longer than 20 minutes, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/but the installation has not been verified/i)
+      screen.queryByText(/but the app failed to install/i)
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/If you're updating the app and the app is open/i)
@@ -193,10 +327,12 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/but the app failed to install/i)
+      screen.getByText(
+        /the install took longer than .*, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/but the installation has not been verified/i)
+      screen.queryByText(/but the app failed to install/i)
     ).not.toBeInTheDocument();
   });
 
@@ -216,14 +352,39 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/but the app failed to install/i)
+      screen.getByText(
+        /the install took longer than .*, so Fleet marked it as failed/i
+      )
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/but the installation has not been verified/i)
+      screen.queryByText(/but the app failed to install/i)
     ).not.toBeInTheDocument();
   });
 
-  it("shows macOS update tip when app is already installed", () => {
+  it("on the My device page, timeout copy omits the host display name", () => {
+    render(
+      getStatusMessage({
+        isMyDevicePage: true,
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Keynote",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "darwin",
+        vppVerifyTimeoutSeconds: 1200,
+      })
+    );
+
+    expect(
+      screen.getByText(
+        /the install took longer than 20 minutes, so Fleet marked it as failed/i
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Marko's MacBook Pro/i)).not.toBeInTheDocument();
+  });
+
+  it("treats failed_install as installed when app is already installed on macOS", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
@@ -233,24 +394,19 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's MacBook Pro",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "darwin",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
+
+    expect(screen.getByText(/Logic Pro/i)).toBeInTheDocument();
+    expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
     expect(
-      screen.getByText(/The host acknowledged the MDM command to install/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/but the app failed to install/i)
-    ).toBeInTheDocument();
-    // Text is split by TooltipWrapper, so check for the parts separately
-    expect(
-      screen.getByText(/If you're updating the app and the app is open,/i)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/close it/i)).toBeInTheDocument();
-    expect(screen.getByText(/and try again\./i)).toBeInTheDocument();
+      screen.queryByText(/If you're updating the app and the app is open/i)
+    ).not.toBeInTheDocument();
   });
 
-  it("doesn't show update tip when app is already installed on iOS", () => {
+  it("treats failed_install as installed when app is already installed on iOS", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
@@ -260,21 +416,19 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's iPhone",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "ios",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
+
+    expect(screen.getByText(/Slack/i)).toBeInTheDocument();
+    expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
     expect(
-      screen.getByText(/The host acknowledged the MDM command to install/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/but the app failed to install/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText(/If you're updating the app and the app is open/i)
+      screen.queryByText(/The host acknowledged the MDM command to install/i)
     ).not.toBeInTheDocument();
   });
 
-  it("doesn't show update tip when app is already installed on iPadOS", () => {
+  it("treats failed_install as installed when app is already installed on iPadOS", () => {
     render(
       getStatusMessage({
         displayStatus: "failed_install",
@@ -284,15 +438,39 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's iPad",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "ipados",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
+
+    expect(screen.getByText(/Slack/i)).toBeInTheDocument();
+    expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
     expect(
-      screen.getByText(/The host acknowledged the MDM command to install/i)
-    ).toBeInTheDocument();
+      screen.queryByText(/The host acknowledged the MDM command to install/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides macOS update tip when failed_install and app is already installed", () => {
+    render(
+      getStatusMessage({
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Logic Pro",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "darwin",
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
+      })
+    );
+
     expect(
-      screen.getByText(/but the app failed to install/i)
-    ).toBeInTheDocument();
+      screen.queryByText(/The host acknowledged the MDM command to install/i)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/but the app failed to install/i)
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/If you're updating the app and the app is open/i)
     ).not.toBeInTheDocument();
@@ -390,17 +568,17 @@ describe("getStatusMessage helper function", () => {
 });
 
 describe("VPP Install Details Modal - ModalButtons component", () => {
-  it("renders Done button by default", async () => {
+  it("renders Close button by default", async () => {
     const onCancel = jest.fn();
 
     const { user } = renderWithSetup(
       <ModalButtons displayStatus="installed" onCancel={onCancel} />
     );
 
-    const doneButton = screen.getByRole("button", { name: /done/i });
-    expect(doneButton).toBeInTheDocument();
+    const closeButton = screen.getByRole("button", { name: /close/i });
+    expect(closeButton).toBeInTheDocument();
 
-    await user.click(doneButton);
+    await user.click(closeButton);
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
@@ -428,5 +606,443 @@ describe("VPP Install Details Modal - ModalButtons component", () => {
     await user.click(retryButton);
     expect(onRetry).toHaveBeenCalledWith(123);
     expect(onCancel).toHaveBeenCalled();
+  });
+});
+
+describe("VPP Install Details Modal", () => {
+  const renderWithBackend = createCustomRenderer({ withBackendMock: true });
+
+  afterEach(() => {
+    mockServer.resetHandlers();
+  });
+
+  describe("config-update note", () => {
+    const configUpdateRe = /When the app's configuration is updated Fleet also updates the app\./i;
+
+    const renderNoteCase = (
+      platform: "ios" | "ipados" | "darwin",
+      fleetInstallStatus: "installed" | "pending_install" | "failed_install"
+    ) => {
+      // Minimal command-results handler: a 200 with an acknowledged result so
+      // the modal routes to the status-rendering branch without errors.
+      mockServer.use(
+        http.get(baseUrl("/commands/results"), ({ request }) => {
+          const url = new URL(request.url);
+          const commandUuid = url.searchParams.get("command_uuid");
+          return HttpResponse.json({
+            results: [
+              {
+                host_uuid: "11111111-2222-3333-4444-555555555555",
+                command_uuid: commandUuid,
+                status: "Acknowledged",
+                updated_at: "2025-08-10T12:05:00Z",
+                request_type: "InstallApplication",
+                hostname: "Mock Host",
+                payload: btoa("<Command />"),
+                result: btoa("<Result />"),
+                results_metadata: { software_installed: true },
+              },
+            ],
+          });
+        })
+      );
+
+      const hostSoftware = createMockHostSoftware({
+        id: 123,
+        status: fleetInstallStatus,
+        name: "Keynote",
+        display_name: "Keynote",
+        installed_versions: [],
+        source: "apps",
+        app_store_app: createMockHostAppStoreApp({
+          platform,
+          last_install: {
+            command_uuid: "mock-uuid",
+            installed_at: "2025-08-10T12:00:00Z",
+          },
+        }),
+      });
+
+      renderWithBackend(
+        <VppInstallDetailsModal
+          details={{
+            fleetInstallStatus,
+            hostDisplayName: "Mock Host",
+            appName: "Keynote",
+            commandUuid: "mock-uuid",
+            platform,
+          }}
+          hostSoftware={hostSoftware}
+          onCancel={jest.fn()}
+        />
+      );
+    };
+
+    it("shows the note on iOS installed", async () => {
+      renderNoteCase("ios", "installed");
+      await waitFor(() => {
+        expect(screen.getByText(configUpdateRe)).toBeInTheDocument();
+      });
+    });
+
+    it("shows the note on iPadOS pending_install", async () => {
+      renderNoteCase("ipados", "pending_install");
+      await waitFor(() => {
+        expect(screen.getByText(configUpdateRe)).toBeInTheDocument();
+      });
+    });
+
+    it("omits the note on macOS installed", async () => {
+      renderNoteCase("darwin", "installed");
+      // Wait for the modal to settle before asserting absence.
+      await waitFor(() => {
+        expect(screen.getByText(/Keynote/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(configUpdateRe)).not.toBeInTheDocument();
+    });
+
+    it("omits the note on iOS failed_install", async () => {
+      renderNoteCase("ios", "failed_install");
+      await waitFor(() => {
+        expect(screen.getByText(/Keynote/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(configUpdateRe)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("license sentence", () => {
+    const licenseRe = /Fleet assigned license from/i;
+
+    const renderLicenseCase = (
+      platform: "ios" | "ipados" | "darwin",
+      fleetInstallStatus: "installed" | "pending_install" | "failed_install",
+      withTokenLocation = true
+    ) => {
+      mockServer.use(
+        http.get(baseUrl("/commands/results"), ({ request }) => {
+          const url = new URL(request.url);
+          return HttpResponse.json({
+            results: [
+              {
+                host_uuid: "11111111-2222-3333-4444-555555555555",
+                command_uuid: url.searchParams.get("command_uuid"),
+                status: "Acknowledged",
+                updated_at: "2025-08-10T12:05:00Z",
+                request_type: "InstallApplication",
+                hostname: "Mock Host",
+                payload: btoa("<Command />"),
+                result: btoa("<Result />"),
+              },
+            ],
+          });
+        })
+      );
+
+      // Activity feed entry point: no hostSoftware.
+      renderWithBackend(
+        <VppInstallDetailsModal
+          details={{
+            fleetInstallStatus,
+            hostDisplayName: "Marko's iPhone",
+            appName: "Zoom Workplace",
+            commandUuid: "mock-uuid",
+            platform,
+            vppTokenLocation: withTokenLocation ? "Acme Inc." : undefined,
+          }}
+          onCancel={jest.fn()}
+        />
+      );
+    };
+
+    it.each(["ios", "ipados"] as const)(
+      "names the token for %s installed",
+      async (platform) => {
+        renderLicenseCase(platform, "installed");
+        expect(await screen.findByText("Acme Inc.")).toBeInTheDocument();
+        expect(screen.getByText(licenseRe)).toHaveTextContent(
+          /Fleet assigned license from Acme Inc\. VPP token\./
+        );
+      }
+    );
+
+    it.each(["ios", "ipados"] as const)(
+      "names the token for %s pending_install",
+      async (platform) => {
+        renderLicenseCase(platform, "pending_install");
+        expect(await screen.findByText("Acme Inc.")).toBeInTheDocument();
+      }
+    );
+
+    it("omits the sentence on macOS", async () => {
+      renderLicenseCase("darwin", "installed");
+      await waitFor(() => {
+        expect(screen.getByText(/Zoom Workplace/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(licenseRe)).not.toBeInTheDocument();
+    });
+
+    it("omits the sentence on failed installs", async () => {
+      renderLicenseCase("ios", "failed_install");
+      await waitFor(() => {
+        expect(screen.getByText(/Zoom Workplace/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(licenseRe)).not.toBeInTheDocument();
+    });
+
+    it("omits the sentence when the token location is missing", async () => {
+      renderLicenseCase("ios", "installed", false);
+      await waitFor(() => {
+        expect(screen.getByText(/Zoom Workplace/)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(licenseRe)).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders timeout follow-up copy on host details", async () => {
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), ({ request }) => {
+        const url = new URL(request.url);
+        const commandUuid = url.searchParams.get("command_uuid");
+
+        return HttpResponse.json({
+          results: [
+            {
+              host_uuid: "11111111-2222-3333-4444-555555555555",
+              command_uuid: commandUuid,
+              status: "Acknowledged",
+              updated_at: "2025-08-10T12:05:00Z",
+              request_type: "InstallApplication",
+              hostname: "Mock iPhone",
+              payload: btoa("<Command />"),
+              result: btoa("<Result />"),
+              results_metadata: {
+                software_installed: false,
+                vpp_verify_timeout_seconds: 1200,
+              },
+            },
+          ],
+        });
+      })
+    );
+
+    const hostSoftware = createMockHostSoftware({
+      id: 123,
+      status: "failed_install",
+      name: "Keynote",
+      display_name: "Keynote",
+      installed_versions: [],
+      source: "apps",
+      app_store_app: createMockHostAppStoreApp({
+        platform: "darwin",
+        last_install: {
+          command_uuid: "acknowledged-uuid",
+          installed_at: "2025-08-10T12:00:00Z",
+        },
+      }),
+    });
+
+    renderWithBackend(
+      <VppInstallDetailsModal
+        details={{
+          fleetInstallStatus: "failed_install",
+          hostDisplayName: "Marko's MacBook Pro",
+          appName: "Keynote",
+          commandUuid: "acknowledged-uuid",
+          platform: "darwin",
+        }}
+        hostSoftware={hostSoftware}
+        onCancel={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /the install took longer than 20 minutes, so Fleet marked it as failed/i
+        )
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(
+        /If the install finishes later, Fleet will update the status when the host is refetched/i
+      )
+    ).toBeInTheDocument();
+  });
+
+  it("renders the Single App Mode copy when an iPadOS install fails with Error 1407", async () => {
+    const errorResult = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+  <key>ErrorChain</key>
+  <array>
+    <dict>
+      <key>ErrorCode</key>
+      <integer>1407</integer>
+      <key>ErrorDomain</key>
+      <string>DeviceManagement.error</string>
+      <key>LocalizedDescription</key>
+      <string>The user is already being prompted.</string>
+    </dict>
+  </array>
+  <key>Status</key>
+  <string>Error</string>
+</dict>
+</plist>`;
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), ({ request }) => {
+        const url = new URL(request.url);
+        const commandUuid = url.searchParams.get("command_uuid");
+
+        return HttpResponse.json({
+          results: [
+            {
+              host_uuid: "11111111-2222-3333-4444-555555555555",
+              command_uuid: commandUuid,
+              status: "Error",
+              updated_at: "2025-08-10T12:05:00Z",
+              request_type: "InstallApplication",
+              hostname: "iPad-kiosk-1334",
+              payload: btoa("<Command />"),
+              result: btoa(errorResult),
+            },
+          ],
+        });
+      })
+    );
+
+    renderWithBackend(
+      <VppInstallDetailsModal
+        details={{
+          fleetInstallStatus: "failed_install",
+          hostDisplayName: "iPad-kiosk-1334",
+          appName: "Zoom",
+          commandUuid: "error-1407-uuid",
+          platform: "ipados",
+          fleetInitiated: true,
+        }}
+        onCancel={jest.fn()}
+      />
+    );
+
+    // load the 1407 command result, the status line should name Fleet, the app and the host
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          (_, element) =>
+            element?.tagName === "SPAN" &&
+            element.textContent ===
+              "Fleet failed to install Zoom on iPad-kiosk-1334."
+        )
+      ).toBeInTheDocument();
+    });
+    // check the guidance line, it should tell the admin to disable Single App Mode
+    expect(
+      screen.getByText(
+        "For hosts in Single App Mode, temporarily disable that mode to install the update."
+      )
+    ).toBeInTheDocument();
+    // check the generic Apple failure copy, it should not render
+    expect(
+      screen.queryByText(/The MDM command to install/i)
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Details/i })
+    ).toBeInTheDocument();
+  });
+
+  // A failed_install with an available update reads "Failed" in the cell, so
+  // the admin modal must surface the failure instead of overriding to "is installed."
+  it("on admin, does not override a failed install to 'is installed' when the host reports an older installed version with an update available", async () => {
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), ({ request }) => {
+        const url = new URL(request.url);
+        const commandUuid = url.searchParams.get("command_uuid");
+        return HttpResponse.json({
+          results: [
+            {
+              host_uuid: "11111111-2222-3333-4444-555555555555",
+              command_uuid: commandUuid,
+              status: "Error",
+              updated_at: "2025-08-10T12:05:00Z",
+              request_type: "InstallApplication",
+              hostname: "Marko's MacBook Pro",
+              payload: btoa("<Command />"),
+              result: btoa("<Result />"),
+              results_metadata: { software_installed: false },
+            },
+          ],
+        });
+      })
+    );
+
+    renderWithBackend(
+      <VppInstallDetailsModal
+        details={{
+          fleetInstallStatus: "failed_install",
+          hostDisplayName: "Marko's MacBook Pro",
+          appName: "Logic Pro",
+          commandUuid: "failed-update-uuid",
+          platform: "darwin",
+        }}
+        hostSoftware={createMockHostSoftware({
+          id: 99,
+          name: "Logic Pro",
+          source: "apps",
+          software_package: null,
+          app_store_app: createMockHostAppStoreApp({ version: "2.0.0" }),
+          installed_versions: [
+            { ...DEFAULT_INSTALLED_VERSION, version: "1.0.0" },
+          ],
+        })}
+        onCancel={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/The MDM command to install/i)
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/is installed\./i)).not.toBeInTheDocument();
+  });
+
+  it("does not retry the command results request when the API returns 404", async () => {
+    let requestCount = 0;
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), () => {
+        requestCount += 1;
+        return HttpResponse.json({ message: "Not Found" }, { status: 404 });
+      })
+    );
+
+    // The shared test renderer sets `retry: false` for every query, which would
+    // hide the behavior under test. Render against a client that retries, so
+    // it's the modal's own retry rule that decides.
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: 3, retryDelay: 0, cacheTime: 0 } },
+    });
+
+    render(
+      <QueryClientProvider client={client}>
+        <VppInstallDetailsModal
+          details={{
+            fleetInstallStatus: "pending_install",
+            hostDisplayName: "Marko's MacBook Pro",
+            appName: "Keynote",
+            commandUuid: "missing-uuid",
+            platform: "darwin",
+          }}
+          onCancel={jest.fn()}
+        />
+      </QueryClientProvider>
+    );
+
+    // Waiting on the settled UI rather than a timer: the query stays loading
+    // while retries are in flight, so this only resolves once they're done.
+    await waitFor(() => {
+      expect(screen.getByText(/when it comes online/i)).toBeInTheDocument();
+    });
+
+    expect(requestCount).toBe(1);
   });
 });

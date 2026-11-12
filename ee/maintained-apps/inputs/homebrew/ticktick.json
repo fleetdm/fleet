@@ -1,0 +1,10 @@
+{
+  "name": "TickTick",
+  "unique_identifier": "com.TickTick.task.mac",
+  "token": "ticktick",
+  "installer_format": "dmg",
+  "slug": "ticktick/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

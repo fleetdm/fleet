@@ -9,7 +9,7 @@ export const getErrorMessage = (err: unknown) => {
   });
 
   if (invalidTokenReason) {
-    return "Invalid token. Please provide a valid token from Apple Business Manager.";
+    return "Invalid token. Please provide a valid token from Apple Business.";
   }
 
   return DEFAULT_ERROR_MESSAGE;

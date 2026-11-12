@@ -1,10 +1,10 @@
+import classnames from "classnames";
 import React, { useState, useEffect } from "react";
 import { browserHistory } from "react-router";
 
-import Card from "components/Card";
+import AutomationsButton from "components/buttons/AutomationsButton";
 import Button from "components/buttons/Button";
-import Icon from "components/Icon";
-import classnames from "classnames";
+import Card from "components/Card";
 
 interface IInfoCardProps {
   title: string;
@@ -21,6 +21,10 @@ interface IInfoCardProps {
     | {
         type: "button";
         text: string;
+        onClick?: () => void;
+      }
+    | {
+        type: "automations";
         onClick?: () => void;
       };
   total_host_count?: number;
@@ -59,11 +63,21 @@ const useInfoCard = ({
 
   const renderAction = () => {
     if (action) {
+      if (action.type === "automations") {
+        return (
+          <AutomationsButton
+            className={`${baseClass}__action-button`}
+            size="small"
+            onClick={action.onClick}
+          />
+        );
+      }
+
       if (action.type === "button") {
         return (
           <Button
             className={`${baseClass}__action-button`}
-            variant="inverse"
+            variant="secondary"
             size="small"
             onClick={action.onClick}
           >
@@ -84,7 +98,7 @@ const useInfoCard = ({
 
         return (
           <Button
-            variant="inverse"
+            variant="secondary"
             onClick={onClick}
             className={`${baseClass}__action-button`}
             size="small"
@@ -92,7 +106,6 @@ const useInfoCard = ({
             <span className={`${baseClass}__action-button-text`}>
               {action.text}
             </span>
-            <Icon name="arrow-internal-link" color="ui-fleet-black-75" />
           </Button>
         );
       }
@@ -115,7 +128,7 @@ const useInfoCard = ({
   const classNames = classnames(baseClass, className);
 
   return (
-    <Card className={classNames} paddingSize="xlarge" borderRadiusSize="large">
+    <Card className={classNames} paddingSize="xlarge">
       {showTitle && (
         <div>
           <div className={`${baseClass}__section-title-cta`}>

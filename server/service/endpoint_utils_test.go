@@ -3,7 +3,10 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
+	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,15 +14,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +36,7 @@ func TestUniversalDecoderIDs(t *testing.T) {
 		ID1        uint `url:"some-id"`
 		OptionalID uint `url:"some-other-id,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 	req = mux.SetURLVars(req, map[string]string{"some-id": "999"})
@@ -54,7 +60,7 @@ func TestUniversalDecoderIDsAndJSON(t *testing.T) {
 		ID1        uint   `url:"some-id"`
 		SomeString string `json:"some_string"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
@@ -77,7 +83,7 @@ func TestUniversalDecoderIDsAndJSONEmbedded(t *testing.T) {
 		ID1 uint `url:"some-id"`
 		EmbeddedJSON
 	}
-	decoder := makeDecoder(UniversalStruct{})
+	decoder := makeDecoder(UniversalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "hello"}`
 	req := httptest.NewRequest("POST", "/target", strings.NewReader(body))
@@ -98,7 +104,7 @@ func TestUniversalDecoderIDsAndListOptions(t *testing.T) {
 		Opts       fleet.ListOptions `url:"list_options"`
 		SomeString string            `json:"some_string"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "bye"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
@@ -124,7 +130,7 @@ func TestUniversalDecoderHandlersEmbeddedAndNot(t *testing.T) {
 		Opts fleet.ListOptions `url:"list_options"`
 		EmbeddedJSON
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	body := `{"some_string": "o/"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(body))
@@ -146,7 +152,7 @@ func TestUniversalDecoderListOptions(t *testing.T) {
 		ID1  uint              `url:"some-id"`
 		Opts fleet.ListOptions `url:"list_options"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
@@ -161,7 +167,7 @@ func TestUniversalDecoderOptionalQueryParams(t *testing.T) {
 	type universalStruct struct {
 		ID1 *uint `query:"some_id,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -187,7 +193,7 @@ func TestUniversalDecoderOptionalQueryParamString(t *testing.T) {
 	type universalStruct struct {
 		ID1 *string `query:"some_val,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -213,7 +219,7 @@ func TestUniversalDecoderOptionalQueryParamNotPtr(t *testing.T) {
 	type universalStruct struct {
 		ID1 string `query:"some_val,optional"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target", nil)
 
@@ -239,7 +245,7 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 		ID1  *uint             `query:"some_id"`
 		Opts fleet.ListOptions `url:"list_options"`
 	}
-	decoder := makeDecoder(universalStruct{})
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
 
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4&some_id=444", nil)
 
@@ -252,6 +258,43 @@ func TestUniversalDecoderQueryAndListPlayNice(t *testing.T) {
 	assert.Equal(t, uint(4), casted.Opts.Page)
 	require.NotNil(t, casted.ID1)
 	assert.Equal(t, uint(444), *casted.ID1)
+}
+
+func TestUniversalDecoderSizeLimit(t *testing.T) {
+	type universalStruct struct {
+		ID1  uint              `url:"some-id"`
+		Opts fleet.ListOptions `url:"list_options"`
+	}
+	decoder := makeDecoder(universalStruct{}, platform_http.MaxRequestBodySize)
+
+	// Body larger than the limit should return PayloadTooLargeError.
+	largeBody := `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)+1) + `"}`
+	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
+	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+
+	_, err := decoder(context.Background(), req)
+	require.Error(t, err)
+	require.IsType(t, platform_http.PayloadTooLargeError{}, err)
+
+	// Body within the limit but with broken JSON
+	incompleteBody := `{"key": "` + strings.Repeat("A", 100) // missing closing "}
+	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(incompleteBody))
+	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+
+	_, err = decoder(context.Background(), req)
+	require.Error(t, err)
+	require.True(t, errors.Is(err, io.ErrUnexpectedEOF), "expected io.ErrUnexpectedEOF, got %T: %v", err, err)
+	_, isPayloadTooLarge := err.(platform_http.PayloadTooLargeError)
+	require.False(t, isPayloadTooLarge, "incomplete body within size limit must not produce PayloadTooLargeError, got %T: %v", err, err)
+
+	// Body within the limit and complete ... OK
+
+	largeBody = `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)-11) + `"}` // -11 to account for the wrapping JSON
+	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
+	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+
+	_, err = decoder(context.Background(), req)
+	require.NoError(t, err)
 }
 
 type stringErrorer string
@@ -289,11 +332,11 @@ func TestEndpointer(t *testing.T) {
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: kitlog.NewNopLogger()}),
-		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: slog.New(slog.DiscardHandler)}),
+		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(slog.DiscardHandler)),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -409,11 +452,11 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 			kithttp.PopulateRequestContext,
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&endpoint_utils.ErrorHandler{Logger: kitlog.NewNopLogger()}),
-		kithttp.ServerErrorEncoder(endpoint_utils.EncodeError),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: slog.New(slog.DiscardHandler)}),
+		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(slog.DiscardHandler)),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -468,9 +511,10 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 	require.Equal(t, "ABCH2", buf.String())
 }
 
-func TestWriteBrowserSecurityHeaders(t *testing.T) {
+func TestWriteBrowserSecurityHeadersNoCSP(t *testing.T) {
 	w := httptest.NewRecorder()
-	endpoint_utils.WriteBrowserSecurityHeaders(w)
+	_, err := endpointer.WriteBrowserSecurityHeaders(w, false, false)
+	require.NoError(t, err)
 	headers := w.Header()
 	require.Equal(
 		t,
@@ -482,4 +526,194 @@ func TestWriteBrowserSecurityHeaders(t *testing.T) {
 		},
 		headers,
 	)
+}
+
+func TestWriteBrowserSecurityHeadersCSPNoNonce(t *testing.T) {
+	w := httptest.NewRecorder()
+	_, err := endpointer.WriteBrowserSecurityHeaders(w, true, false)
+	require.NoError(t, err)
+	headers := w.Header()
+	require.Equal(
+		t,
+		http.Header{
+			"X-Content-Type-Options":    {"nosniff"},
+			"X-Frame-Options":           {"SAMEORIGIN"},
+			"Strict-Transport-Security": {"max-age=31536000; includeSubDomains;"},
+			"Referrer-Policy":           {"strict-origin-when-cross-origin"},
+			"Content-Security-Policy":   {"default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self'; font-src 'self'; script-src 'self'"},
+		},
+		headers,
+	)
+}
+
+func TestWriteBrowserSecurityHeadersCSPAndNonce(t *testing.T) {
+	w := httptest.NewRecorder()
+	nonce, err := endpointer.WriteBrowserSecurityHeaders(w, true, true)
+	require.NoError(t, err)
+	headers := w.Header()
+	require.Equal(
+		t,
+		http.Header{
+			"X-Content-Type-Options":    {"nosniff"},
+			"X-Frame-Options":           {"SAMEORIGIN"},
+			"Strict-Transport-Security": {"max-age=31536000; includeSubDomains;"},
+			"Referrer-Policy":           {"strict-origin-when-cross-origin"},
+			"Content-Security-Policy":   {"default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self' 'nonce-" + nonce + "'; font-src 'self'; script-src 'self' 'nonce-" + nonce + "'"},
+		},
+		headers,
+	)
+}
+
+func TestBrowserSecurityHeadersHandlerCSPNonce(t *testing.T) {
+	serve := func(serveCSP bool, h http.HandlerFunc) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		endpointer.BrowserSecurityHeadersHandler(serveCSP, h).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+		return rec
+	}
+
+	t.Run("not requested", func(t *testing.T) {
+		rec := serve(true, func(w http.ResponseWriter, r *http.Request) {})
+		require.NotEmpty(t, rec.Header().Get("Content-Security-Policy"))
+		require.NotContains(t, rec.Header().Get("Content-Security-Policy"), "nonce-")
+	})
+
+	t.Run("requested", func(t *testing.T) {
+		var nonce, again string
+		var err, errAgain error
+		rec := serve(true, func(w http.ResponseWriter, r *http.Request) {
+			nonce, err = endpointer.CSPNonce(r.Context())
+			again, errAgain = endpointer.CSPNonce(r.Context())
+		})
+		require.NoError(t, err)
+		require.NoError(t, errAgain)
+		require.Equal(t, nonce, again)
+		require.NotEqual(t, "disabled", nonce)
+		require.Contains(t, rec.Header().Get("Content-Security-Policy"), "style-src 'self' 'nonce-"+nonce+"'")
+		require.Contains(t, rec.Header().Get("Content-Security-Policy"), "script-src 'self' 'nonce-"+nonce+"'")
+	})
+
+	t.Run("CSP disabled", func(t *testing.T) {
+		var nonce string
+		var err error
+		rec := serve(false, func(w http.ResponseWriter, r *http.Request) {
+			nonce, err = endpointer.CSPNonce(r.Context())
+		})
+		require.NoError(t, err)
+		require.Equal(t, "disabled", nonce)
+		require.Empty(t, rec.Header().Get("Content-Security-Policy"))
+	})
+}
+
+// newMultipartRequest creates an *http.Request with multipart/form-data body
+// containing the given field key/value pairs.
+func newMultipartRequest(t *testing.T, fields map[string]string) *http.Request {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		require.NoError(t, w.WriteField(k, v))
+	}
+	require.NoError(t, w.Close())
+	req := httptest.NewRequest("POST", "/target", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
+}
+
+func TestParseMultipartForm(t *testing.T) {
+	t.Run("passes through fleet_id unchanged", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"fleet_id": "42"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		assert.Equal(t, []string{"42"}, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+		assert.Nil(t, logCtx.ForceLevel)
+		assert.Empty(t, logCtx.Extras)
+	})
+
+	t.Run("rewrites team_id to fleet_id and logs deprecation", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"team_id": "7"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		// team_id should be removed, fleet_id should be set
+		assert.Equal(t, []string{"7"}, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+
+		// r.Form should also be updated
+		assert.Equal(t, "7", req.Form.Get("fleet_id"))
+		assert.Empty(t, req.Form.Get("team_id"))
+
+		// deprecation should be logged
+		require.NotNil(t, logCtx.ForceLevel)
+		assert.Equal(t, slog.LevelWarn, *logCtx.ForceLevel)
+		assert.Contains(t, logCtx.Extras, "deprecated_param")
+		assert.Contains(t, logCtx.Extras, "team_id")
+	})
+
+	t.Run("no team_id or fleet_id", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"other_field": "hello"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		assert.Empty(t, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+		assert.Equal(t, []string{"hello"}, req.MultipartForm.Value["other_field"])
+		assert.Nil(t, logCtx.ForceLevel)
+		assert.Empty(t, logCtx.Extras)
+	})
+
+	t.Run("invalid body returns error", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/target", strings.NewReader("not multipart"))
+		req.Header.Set("Content-Type", "multipart/form-data; boundary=bogus")
+
+		err := parseMultipartForm(context.Background(), req, platform_http.MaxMultipartFormSize)
+		require.Error(t, err)
+	})
+}
+
+// TestUniversalDecoderReportsFieldPath covers the endpoints that decode through the generic decoder
+// rather than their own DecodeBody, which is most of them. Go 1.27 stopped reporting the position of a
+// failure inside a custom UnmarshalJSON, and every pkg/optjson type has one, so these errors lost the
+// field name entirely. See https://github.com/fleetdm/fleet/issues/52493.
+func TestUniversalDecoderReportsFieldPath(t *testing.T) {
+	type nested struct {
+		Enabled optjson.Bool `json:"enabled"`
+	}
+	type universalStruct struct {
+		Nested nested   `json:"nested"`
+		Items  []nested `json:"items"`
+		Name   string   `json:"name"`
+	}
+	decoder := makeDecoder(universalStruct{}, installersize.MaxSoftwareInstallerSize)
+
+	for _, c := range []struct {
+		body string
+		want string
+	}{
+		{`{"nested":{"enabled":"yes"}}`, "invalid value type at 'nested.enabled': expected bool but got string"},
+		{`{"items":[{"enabled":true},{"enabled":"yes"}]}`, "invalid value type at 'items.1.enabled': expected bool but got string"},
+		// A plain field never lost its path; it must keep reporting the same way.
+		{`{"name":123}`, "invalid value type at 'name': expected string but got number"},
+	} {
+		t.Run(c.body, func(t *testing.T) {
+			req := httptest.NewRequest("POST", "/target", strings.NewReader(c.body))
+			_, err := decoder(context.Background(), req)
+			require.Error(t, err)
+
+			var bre *platform_http.BadRequestError
+			require.ErrorAs(t, err, &bre)
+			require.Equal(t, c.want, bre.Message)
+			require.Error(t, bre.InternalErr, "the decoder error stays available for logs")
+		})
+	}
 }

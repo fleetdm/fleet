@@ -33,7 +33,7 @@ Fleet currently has three infrastructure dependencies: MySQL, Redis, and a TLS c
 Fleet uses MySQL extensively as its main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well-supported MySQL [Docker image](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. 
 For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [MySQL configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mysql) documentation.
 
-Fleet requires at least MySQL version 8.0.36, and is tested using the InnoDB storage engine [with versions 8.0.36, 8.4.7, and 9.5.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L51).
+Fleet requires at least MySQL version 8.0.44, and is tested using the InnoDB storage engine [with versions 8.0.44, 8.4.8, and 9.5.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L73-L90). MySQL 9.6.0 is currently incompatible.
 
 There are many "drop-in replacements" for MySQL available. If you'd like to experiment with some bleeding-edge technology and use Fleet with one of these alternative database servers, we think that's awesome! Please be aware they are not officially supported and that it is very important to set up a dev environment to thoroughly test new releases.
 
@@ -113,7 +113,8 @@ In order for osqueryd clients to connect, the connection to Fleet must use TLS. 
 
 ## Using a proxy
 
-In enterprise environments where Fleet operates behind a proxy, you may need to configure proxy settings to enable services requiring outbound traffic, such as [vulnerability processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) or [device management](https://fleetdm.com/device-management). Fleet automatically uses the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables.
+In enterprise environments where Fleet operates behind a proxy, you may need to configure proxy settings to enable services requiring outbound traffic, such as [vulnerability processing](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing) or [device management](https://fleetdm.com/device-management). Fleet automatically uses the `HTTP_PROXY`, `HTTPS_PROXY`, and `NO_PROXY` environment variables. `NO_PROXY` is an exclusion list — hosts listed here connect directly, bypassing the proxy. It does not provide a fallback.
+
 
 For example, to configure the proxy in a systemd service file:
 
@@ -123,6 +124,122 @@ Environment="HTTP_PROXY=http(s)://PROXY_URL:PORT/"
 Environment="HTTPS_PROXY=http(s)://PROXY_URL:PORT/"
 Environment="NO_PROXY=localhost,127.0.0.1,::1"
 ```
+
+> Note: If HTTP_PROXY/HTTPS_PROXY points at a loopback or private address, Fleet's private network blocking may block it. See [server_allow_private_network_integrations](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-allow-private-network-integrations).
+
+Also, allow the Fleet server to reach the following routes for the features you use.
+
+### Apple MDM
+
+Learn more about [Apple MDM](https://fleetdm.com/guides/apple-mdm-setup) and [App Store apps](https://fleetdm.com/guides/install-app-store-apps).
+
+| Route | Reason |
+|---|---|
+| `fleetdm.com/api/v1/deliver-apple-csr` | Get a signed certificate signing request (CSR) for your Apple Push Notification service (APNs) certificate. |
+| `api.push.apple.com` | Send MDM commands to hosts through APNs. |
+| `mdmenrollment.apple.com` | Automatic enrollment (ADE) with Apple Business Manager (ABM). |
+| `gdmf.apple.com` | Get the latest macOS, iOS, and iPadOS versions for OS updates. |
+| `vpp.itunes.apple.com` | Install App Store apps with Apps and Books (VPP). |
+| `fleetdm.com/api/vpp/v1/*` | Get App Store app details, like names, icons, and versions. |
+| `api.ent.apple.com` | Get App Store app details directly from Apple. Only if `mdm.apple_vpp_app_metadata_api_bearer_token` is set. |
+
+### Windows MDM
+
+Learn more about [Windows MDM](https://fleetdm.com/guides/windows-mdm-setup).
+
+| Route | Reason |
+|---|---|
+| `download.fleetdm.com` | Install Fleet's agent (fleetd) on Windows hosts. |
+| `login.microsoftonline.com` | Verify Windows automatic enrollment with Microsoft Entra, and sign in to Microsoft Graph. |
+| `graph.microsoft.com` | Sync Windows Autopilot devices. |
+
+### Android MDM
+
+Learn more about [Android MDM](https://fleetdm.com/guides/android-mdm-setup).
+
+Fleet calls the [Android Management API](https://developers.google.com/android/management) through fleetdm.com, so the Fleet server doesn't need to reach Google. Allowlist the whole `fleetdm.com/api/android/*` prefix, because new routes are added over time.
+
+| Route | Reason |
+|---|---|
+| `POST /api/android/v1/signupUrls` | Start connecting Android Enterprise. |
+| `POST /api/android/v1/enterprises` | Create your Android Enterprise. |
+| `GET /api/android/v1/enterprises` | Check your Android Enterprise connection. |
+| `DELETE /api/android/v1/enterprises/:enterpriseId` | Turn off Android MDM. |
+| `POST /api/android/v1/enterprises/:enterpriseId/enrollmentTokens` | Create enrollment tokens so hosts can enroll. |
+| `PATCH /api/android/v1/enterprises/:enterpriseId/policies/:policyId` | Apply configuration profiles and settings. |
+| `POST /api/android/v1/enterprises/:enterpriseId/policies/:policyId::action` | Add or remove apps. |
+| `GET /api/android/v1/enterprises/:enterpriseId/devices` | Sync enrolled hosts. |
+| `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId` | Get a host's details. |
+| `PATCH /api/android/v1/enterprises/:enterpriseId/devices/:deviceId` | Update a host's settings. |
+| `DELETE /api/android/v1/enterprises/:enterpriseId/devices/:deviceId` | Unenroll or wipe a host. |
+| `POST /api/android/v1/enterprises/:enterpriseId/devices/:deviceId::issueCommand` | Send commands, like lock. |
+| `GET /api/android/v1/enterprises/:enterpriseId/devices/:deviceId/operations/:operationId` | Check a command's status. |
+| `GET /api/android/v1/enterprises/:enterpriseId/applications/:applicationId` | Get Google Play app details. |
+| `POST /api/android/v1/enterprises/:enterpriseId/webApps` | Create web apps. |
+
+### Fleet-maintained apps
+
+Learn more about [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps).
+
+| Route | Reason |
+|---|---|
+| `maintained-apps.fleetdm.com` | Get the Fleet-maintained apps catalog. Fleet also downloads each app's installer from its vendor's URL. |
+| `raw.githubusercontent.com/fleetdm/fleet/*` | A fallback for the catalog, if `maintained-apps.fleetdm.com` is unreachable. |
+
+### Conditional access
+
+Learn more about [conditional access](https://fleetdm.com/guides/conditional-access).
+
+| Route | Reason |
+|---|---|
+| `fleetdm.com/api/v1/microsoft-compliance-partner*` | [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). Fleet reaches Entra through fleetdm.com. |
+
+### Vulnerability processing
+
+Learn more about [vulnerability processing](https://fleetdm.com/guides/vulnerability-processing).
+
+| Route | Reason |
+|---|---|
+| `api.github.com` and `github.com` (`fleetdm/nvd` and `fleetdm/vulnerabilities` releases) | Download the CPE dictionary, CVE feeds, Microsoft (MSRC and Office) bulletins, OSV, Go vulnerability data, and OVAL sources. GitHub redirects release downloads to its asset hosts, so allow those too. |
+| `epss.empiricalsecurity.com` | Download Exploit Prediction Scoring System (EPSS) scores. |
+| `www.cisa.gov` | Download CISA's Known Exploited Vulnerabilities (KEV) catalog. |
+| Upstream OVAL sources | Download OVAL definitions for Linux distributions that OSV doesn't cover, like Fedora. The sources are listed in [`oval_sources.json`](https://github.com/fleetdm/nvd/blob/master/oval_sources.json). |
+
+You can point some feeds at a mirror with [`cpe_database_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cpe-database-url), [`cpe_translations_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cpe-translations-url), [`cve_feed_prefix_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cve-feed-prefix-url), and [`cisa_known_exploits_url`](https://fleetdm.com/docs/configuration/fleet-server-configuration#cisa-known-exploits-url). To stop all of these downloads, use [`disable_data_sync`](https://fleetdm.com/docs/configuration/fleet-server-configuration#disable-data-sync) and provide the files yourself.
+
+### Google Calendar
+
+Learn more about [calendar events](https://fleetdm.com/guides/using-maintenance-windows).
+
+| Route | Reason |
+|---|---|
+| `oauth2.googleapis.com` | Sign in to Google. |
+| `www.googleapis.com` | Create calendar events for hosts failing policies. |
+
+### Google Workspace
+
+Learn more about [syncing IdP host vitals from Google Workspace](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts#google-workspace).
+
+| Route | Reason |
+|---|---|
+| `oauth2.googleapis.com` | Sign in to Google. |
+| `admin.googleapis.com` | Sync identity provider (IdP) host vitals from your directory. |
+
+### Usage statistics
+
+Learn more about [usage statistics](https://fleetdm.com/guides/fleet-usage-statistics).
+
+| Route | Reason |
+|---|---|
+| `fleetdm.com/api/v1/webhooks/receive-usage-analytics` | Send usage statistics. On by default. Fleet Free can turn it off with [`enable_analytics`](https://fleetdm.com/docs/configuration/yaml-files#server-settings). |
+
+### Policy autofill
+
+Learn more about [policy autofill](https://fleetdm.com/guides/fleet-ai-assisted-policy-descriptions-and-resolutions).
+
+| Route | Reason |
+|---|---|
+| `fleetdm.com/api/v1/get-human-interpretation-from-osquery-sql` | Autofill a policy's description and resolution. On by default. Turn off with [`ai_features_disabled`](https://fleetdm.com/docs/configuration/yaml-files#server-settings). |
 
 ## Public IPs of devices
 
@@ -156,7 +273,7 @@ span multiple regions for more advanced configurations (_not included in the [re
 
 In some cases adding a read replica can increase database performance for specific access patterns. In scenarios when automating the API or with `fleetctl`, there can be benefits to read performance.
 
-**Note:Fleet servers need to talk to a writer in the same datacenter. Cross region replication can be used for failover but writes need to be local.**
+**Note: Fleet servers need to talk to a writer in the same datacenter. Cross region replication can be used for failover but writes need to be local.**
 
 #### Traffic load balancing
 Load balancing enables distributing request traffic over many instances of the backend application. Using [AWS Application
@@ -174,58 +291,110 @@ assume On-Demand pricing (savings are available through Reserved Instances). Cal
 
 ###### Up to 300 hosts
 
-See https://fleetdm.com/docs/deploy/deploy-fleet#render
+| Fleet instances | CPU   | RAM |
+| --------------- | ----- | --- |
+| 1 Pro           | 2 CPU | 4GB |
+
+| Dependencies | Version                      | Instance type    | Nodes |
+| ------------ | ---------------------------- | ---------------- | ----- |
+| Redis        | Render Key Value             | Starter (256 MB) | 1     |
+| MySQL        | MySQL 8.0 (private service)  | Standard (2GB)   | 1     |
+
+To deploy this configuration, see [Deploy Fleet on Render](https://fleetdm.com/guides/deploy-fleet-on-render).
 
 
 #### AWS
 
 ##### Example configuration breakpoints
-###### [Up to 1000 hosts](https://calculator.aws/#/estimate?id=7a821fc049a0ecc6ead22b6720246e55498be50e)
 
-| Fleet instances | CPU Units     | RAM |
-| --------------- | ------------- | --- |
-| 1 Fargate task  | 512 CPU Units | 4GB |
+###### [Up to 5000 hosts](https://calculator.aws/#/estimate?id=cc26267f829536383e9b1b449ca0c56f0e844084)
+
+| Fleet instances | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| --------------- | -------------- | --- | -------------------------- |
+| 6 Fargate tasks | 1024 CPU Units | 4GB | 10                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6                       | cache.t4g.small | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.t4g.small | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.t4g.medium   | 2     |
 
+###### [Up to 10000 hosts](https://calculator.aws/#/estimate?id=5ea231525450b1cd4fa847f4564351d2c17d2ee2)
 
-###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=d735758715f059118dbce8dc42f3ff2410adc621)
+| Fleet instances | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| --------------- | -------------- | --- | -------------------------- |
+| 8 Fargate tasks | 1024 CPU Units | 4GB | 10                         |
 
-| Fleet instances | CPU Units      | RAM |
-| --------------- | -------------- | --- |
-| 10 Fargate task | 1024 CPU Units | 4GB |
+| Dependencies | Version                 | Instance type    | Nodes |
+| ------------ |-------------------------| ---------------- | ----- |
+| Redis        | 7.x                     | cache.t4g.medium | 3     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.t4g.large     | 2     |
+
+###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=4700e7a36ef34b84ae9ad4f444690f1df2ca3753)
+
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 10 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6                       | cache.m6g.large | 3     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
 | MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.large    | 2     |
 
+###### [Up to 50000 hosts](https://calculator.aws/#/estimate?id=3887d782a8f6cfeb9e0463686b5629aeb4cd678e)
 
-###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=689fea65efff361ee070b15044a01224b8d26621)
-
-| Fleet instances | CPU Units      | RAM |
-| --------------- | -------------- | --- |
-| 20 Fargate task | 1024 CPU Units | 4GB |
-
-| Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.4xlarge  | 2     |
-
-
-###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=19b667fde567df0d64d9fae632d4885d7fdc726a)
-
-| Fleet instances | CPU Units      | RAM |
-| --------------- | -------------- | --- |
-| 20 Fargate task | 1024 CPU Units | 4GB |
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 15 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
 
 | Dependencies | Version                 | Instance type   | Nodes |
-| ------------ | ----------------------- | --------------- | ----- |
-| Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.16xlarge | 2     |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.xlarge   | 3     |
+
+###### [Up to 80000 hosts](https://calculator.aws/#/estimate?id=7d0dee9241aff55fc733a9eead816baea14aee21)
+
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 20 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
+
+| Dependencies | Version                 | Instance type   | Nodes |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.2xlarge  | 3     |
+
+###### [Up to 100000 hosts](https://calculator.aws/#/estimate?id=cd17a0dda5e1ee5f919ac0a2a0ea8a6e1557e307)
+
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 25 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
+
+| Dependencies | Version                 | Instance type   | Nodes |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.2xlarge  | 3     |
+
+###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=a53e31063df9e5941b0c4b019b03ca2bd226fd48)
+
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 40 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
+
+| Dependencies | Version                 | Instance type   | Nodes |
+| ------------ |-------------------------| --------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.large | 3     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.4xlarge  | 3     |
+
+###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=1f54ccc80e27a78f192b0e9db02ab957eff0c26c)
+
+| Fleet instances  | CPU Units      | RAM | FLEET_MYSQL_MAX_OPEN_CONNS |
+| ---------------- | -------------- | --- | -------------------------- |
+| 70 Fargate tasks | 1024 CPU Units | 4GB | 20                         |
+
+| Dependencies | Version                 | Instance type    | Nodes |
+| ------------ |-------------------------| ---------------- | ----- |
+| Redis        | 7.x                     | cache.r6g.xlarge | 3     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.8xlarge   | 3     |
+
 
 AWS reference architecture can be found in the [reference terraform](https://github.com/fleetdm/fleet-terraform/tree/main/example). This configuration includes:
 
@@ -245,9 +414,13 @@ AWS reference architecture can be found in the [reference terraform](https://git
 
 Additional addons are available such as:
 - [Monitoring via Cloudwatch alarms](https://github.com/fleetdm/fleet-terraform/tree/main/addons/monitoring)
+- [Cloudfront for software installers](https://github.com/fleetdm/fleet-terraform/tree/main/addons/cloudfront-software-installers)
 
-Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled query frequency can have
-a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.
+Some AWS services used in the provider reference architecture are billed as pay-per-use such as Firehose. This means that osquery scheduled report frequency can have a direct correlation to how much these services cost, something to keep in mind when configuring Fleet in AWS.
+
+###### S3 configuration for AWS deployments
+
+When using IAM Roles for Service Accounts (IRSA) with Amazon Elastic Kubernetes Service (EKS) or Elastic Container Service (ECS) task roles, do not set any `endpoint_url` S3 configuration. It overrides all AWS API calls (not just S3) and breaks token-based authentication. Use `region` instead. Also set `region` explicitly; if omitted, Fleet defaults to `us-east-1` for region discovery. See the [S3 configuration reference](https://fleetdm.com/docs/configuration/fleet-server-configuration#s3_software_installers_endpoint_url) for details.
 
 ###### AWS Terraform CI/CD IAM permissions
 The following permissions are the minimum required to apply AWS terraform resources:
@@ -299,7 +472,7 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 
 - Cloud Run (Fleet backend)
 - Cloud SQL MySQL 8.0 (Fleet database)
-- Memorystore Redis (Fleet cache & live query orchestrator)
+- Memorystore Redis (Fleet cache & live report orchestrator)
 
 GCP support for add/install software and file carve features is coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 
@@ -311,8 +484,8 @@ GCP support for add/install software and file carve features is coming soon. Get
 | 2 Cloud Run     | 1   | 2GB |
 
 | Dependencies | Version               | Instance type |
-| ------------ | --------------------- | ------------- |
-| Redis        | MemoryStore Redis 6   | M1 Basic      |
+| ------------ |-----------------------| ------------- |
+| Redis        | MemoryStore Redis 7   | M1 Basic      |
 | MySQL        | Cloud SQL for MySQL 8 | db-standard-1 |
 
 ###### [Up to 25000 hosts](https://cloud.google.com/products/calculator/#id=fadbb96c-967c-4397-9921-743d75b98d42)
@@ -322,8 +495,8 @@ GCP support for add/install software and file carve features is coming soon. Get
 | 10 Cloud Run    | 1   | 2GB |
 
 | Dependencies | Version               | Instance type |
-| ------------ | --------------------- | ------------- |
-| Redis        | MemoryStore Redis 6   | M1 2GB        |
+| ------------ |-----------------------| ------------- |
+| Redis        | MemoryStore Redis 7   | M1 2GB        |
 | MySQL        | Cloud SQL for MySQL 8 | db-standard-4 |
 
 
@@ -334,8 +507,8 @@ GCP support for add/install software and file carve features is coming soon. Get
 | 30 Cloud Run    | 1 CPU | 2GB |
 
 | Dependencies | Version               | Instance type | Nodes |
-| ------------ | --------------------- | ------------- | ----- |
-| Redis        | MemoryStore Redis 6   | M1 4GB        | 1     |
+| ------------ |-----------------------| ------------- | ----- |
+| Redis        | MemoryStore Redis 7   | M1 4GB        | 1     |
 | MySQL        | Cloud SQL for MySQL 8 | db-highmem-16 | 1     |
 
 #### Azure
@@ -344,73 +517,7 @@ Coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 
 #### Render
 
-Using [Render's IAC](https://render.com/docs/infrastructure-as-code) see [the repository](https://github.com/edwardsb/fleet-on-render) for full details.
-```yaml
-services:
-  - name: fleet
-    plan: standard
-    type: web
-    env: docker
-    healthCheckPath: /healthz
-    envVars:
-      - key: FLEET_MYSQL_ADDRESS
-        fromService:
-          name: fleet-mysql
-          type: pserv
-          property: hostport
-      - key: FLEET_MYSQL_DATABASE
-        fromService:
-          name: fleet-mysql
-          type: pserv
-          envVarKey: MYSQL_DATABASE
-      - key: FLEET_MYSQL_PASSWORD
-        fromService:
-          name: fleet-mysql
-          type: pserv
-          envVarKey: MYSQL_PASSWORD
-      - key: FLEET_MYSQL_USERNAME
-        fromService:
-          name: fleet-mysql
-          type: pserv
-          envVarKey: MYSQL_USER
-      - key: FLEET_REDIS_ADDRESS
-        fromService:
-          name: fleet-redis
-          type: pserv
-          property: hostport
-      - key: FLEET_SERVER_TLS
-        value: false
-      - key: PORT
-        value: 8080
-
-  - name: fleet-mysql
-    type: pserv
-    env: docker
-    repo: https://github.com/render-examples/mysql
-    branch: mysql-5
-    disk:
-      name: mysql
-      mountPath: /var/lib/mysql
-      sizeGB: 10
-    envVars:
-      - key: MYSQL_DATABASE
-        value: fleet
-      - key: MYSQL_PASSWORD
-        generateValue: true
-      - key: MYSQL_ROOT_PASSWORD
-        generateValue: true
-      - key: MYSQL_USER
-        value: fleet
-
-  - name: fleet-redis
-    type: pserv
-    env: docker
-    repo: https://github.com/render-examples/redis
-    disk:
-      name: redis
-      mountPath: /var/lib/redis
-      sizeGB: 10
-```
+Fleet's [Render Blueprint](https://github.com/fleetdm/fleet/blob/main/render.yaml) uses [Render's infrastructure as code](https://render.com/docs/infrastructure-as-code) to provision the Fleet server, MySQL, and Redis. For instructions, see [Deploy Fleet on Render](https://fleetdm.com/guides/deploy-fleet-on-render).
 
 ##### Digital Ocean
 
@@ -513,7 +620,7 @@ Individual checks can be run by providing the `check` URL parameter (e.x., `/hea
 
 ### Metrics
 
-Fleet exposes server metrics in a format compatible with [Prometheus](https://prometheus.io/). A simple example Prometheus configuration is available in [tools/app/prometheus.yml](https://github.com/fleetdm/fleet/blob/194ad5963b0d55bdf976aa93f3de6cabd590c97a/tools/app/prometheus.yml).
+Fleet exposes server metrics in a format compatible with [Prometheus](https://prometheus.io/).
 
 Prometheus can be configured to use a wide range of service discovery mechanisms within AWS, GCP, Azure, Kubernetes, and more. See the Prometheus [configuration documentation](https://prometheus.io/docs/prometheus/latest/configuration/configuration/) for more information.
 
@@ -547,6 +654,75 @@ in the terraform reference architecture (see `monitoring.tf`).
 #### Graphing
 
 Prometheus provides basic graphing capabilities, and integrates tightly with [Grafana](https://prometheus.io/docs/visualization/grafana/) for sophisticated visualizations.
+
+### Traces
+
+In addition to metrics, Fleet can export distributed traces using [OpenTelemetry](https://opentelemetry.io/) (OTLP). Traces show the lifecycle of a request as it flows through the Fleet server, including database queries and cron jobs, which is useful for diagnosing latency and errors that are hard to reproduce outside production.
+
+#### Enabling traces
+
+Set the following on each Fleet server, then point it at an OTLP collector such as [SigNoz](https://signoz.io/), [Grafana Tempo](https://grafana.com/oss/tempo/), or any OpenTelemetry-compatible backend:
+
+```bash
+export FLEET_LOGGING_TRACING_ENABLED=true
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_SERVICE_NAME=fleet
+# Optional: export logs alongside traces.
+export FLEET_LOGGING_OTEL_LOGS_ENABLED=true
+```
+
+See [logging_tracing_enabled](https://fleetdm.com/docs/configuration/fleet-server-configuration#logging-tracing-enabled) for the full list of related settings. For a local development setup, see [tools/signoz](https://github.com/fleetdm/fleet/tree/main/tools/signoz).
+
+#### Multiple environments
+
+When you run more than one Fleet deployment (for example, `production`, `staging`, and `dev`) and send their telemetry to the same observability backend, keep the service name the same and distinguish deployments by environment instead.
+
+Leave `OTEL_SERVICE_NAME` at its default of `fleet` on every deployment. This keeps all of your Fleet instances grouped under a single service so dashboards, service maps, and alerts treat them as one application. Then set the deployment environment through `OTEL_RESOURCE_ATTRIBUTES`, which lets you filter and compare environments within that service.
+
+Set two attributes for the environment:
+
+- `deployment.environment.name` is the current [OpenTelemetry semantic convention](https://opentelemetry.io/docs/specs/semconv/resource/deployment-environment/) for the deployment environment.
+- `deployment.environment` is the older, now-deprecated attribute. Some tools, including SigNoz, still key off this name, so set it to the same value for compatibility.
+
+For example, on a development deployment:
+
+```bash
+export OTEL_SERVICE_NAME=fleet
+export OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=dev,deployment.environment=dev
+```
+
+Use a distinct value (such as `production`, `staging`, or `dev`) on each deployment, and keep both attributes in sync. Fleet's [SigNoz dashboards](https://github.com/fleetdm/fleet/tree/main/tools/signoz) include an environment selector backed by these attributes.
+
+#### Sampling
+
+Tracing every request on a large fleet would emit an unsustainable volume of spans: agent endpoints such as osquery distributed read/write and orbit check-ins dominate request volume. Fleet uses route-aware head sampling so tracing can stay enabled in production at a reasonable cost. Each route is assigned to a tier:
+
+| Tier | Default sample rate | Routes |
+| ---- | ------------------- | ------ |
+| Never | 0% | Liveness and infrastructure paths (`/healthz`, `/version`, `/metrics`). |
+| High volume | 0.1% | Agent endpoints (osquery distributed read/write, config, log uploads; orbit config and pings; device ping and desktop). |
+| Standard | 2% | Admin and UI read endpoints (hosts, software, policies, dashboard, etc.). |
+| Always | 100% | Everything else: enrollment, MDM command flows, SCEP, GitOps applies, and cron jobs. These are low-volume and load-bearing, so they are never down-sampled. |
+
+When a request arrives with a sampled parent trace (for example, propagated from another service), Fleet honors that decision so distributed traces stay coherent.
+
+Sampling is controlled entirely by Fleet's route-aware sampler; the standard `OTEL_TRACES_SAMPLER` environment variables are not honored.
+
+Because traces are head-sampled, the tracing backend receives only the sampled spans; it does not see the full request volume. For total request counts and error rates, use the OpenTelemetry metrics pipeline rather than traces.
+
+#### Adjusting sampling at runtime
+
+The two sample rates and a full-sampling override can be changed at runtime through an admin-only debug endpoint, without restarting the server. This is useful for opening a temporary high-resolution window while reproducing an issue. See [Adjust trace sampling](https://fleetdm.com/docs/rest-api/rest-api#adjust-trace-sampling) in the REST API reference.
+
+For example, to capture every span for a short debugging window:
+
+```bash
+curl -k -X PATCH "https://<fleet-server>/debug/trace_sampler" \
+  -H "Authorization: Bearer <token>" \
+  -d '{"force_full": true}'
+```
+
+Each Fleet server polls for changes about once a minute, so an update applies across all servers within roughly a minute. Remember to revert `force_full` to `false` once finished; running at 100% on a large fleet produces a very high span volume.
 
 ### Fleet server performance
 
@@ -604,3 +780,4 @@ Below are some projects created by Fleet community members. These projects provi
 
 <meta name="pageOrderInSection" value="400">
 <meta name="description" value="An opinionated view of running Fleet in a production environment, and configuration strategies to enable high availability.">
+<meta name="keywordsForDocsearch" value="production deployment, reverse proxy">

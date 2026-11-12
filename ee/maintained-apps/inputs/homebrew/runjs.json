@@ -1,0 +1,10 @@
+{
+  "name": "RunJS",
+  "unique_identifier": "me.lukehaas.runjs",
+  "token": "runjs",
+  "installer_format": "dmg",
+  "slug": "runjs/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

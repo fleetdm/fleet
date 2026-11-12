@@ -1,0 +1,10 @@
+{
+  "name": "DevKnife",
+  "unique_identifier": "com.solotuna.devknife",
+  "token": "devknife",
+  "installer_format": "dmg",
+  "slug": "devknife/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

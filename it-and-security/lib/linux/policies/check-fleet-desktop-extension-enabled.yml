@@ -1,4 +1,4 @@
-- name: Linux - Fleet Desktop extensions enabled
+- name: Fleet Desktop extensions enabled
   critical: false
   description: This policy checks if the extension required for Fleet Desktop is installed and enabled.
   resolution: |

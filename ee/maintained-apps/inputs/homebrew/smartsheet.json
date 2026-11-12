@@ -1,0 +1,10 @@
+{
+  "name": "Smartsheet",
+  "unique_identifier": "com.smartsheet.desktopapp",
+  "token": "smartsheet",
+  "installer_format": "dmg",
+  "slug": "smartsheet/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -16,8 +16,9 @@ interface ScepClient {
      * Performs SCEP enrollment to obtain a certificate from a SCEP server.
      *
      * @param config The SCEP enrollment configuration
+     * @param scepUrl The SCEP server URL to enroll against
      * @return ScepResult containing the private key and certificate chain
      * @throws ScepException if enrollment fails
      */
-    suspend fun enroll(config: GetCertificateTemplateResponse): ScepResult
+    suspend fun enroll(config: GetCertificateTemplateResponse, scepUrl: String): ScepResult
 }

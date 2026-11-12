@@ -1,30 +1,31 @@
 import React, { useContext, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import { AppContext } from "context/app";
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
-
-import { IConfig } from "interfaces/config";
-import { ITeamConfig } from "interfaces/team";
-import { ApplePlatform } from "interfaces/platform";
-
-import configAPI from "services/entities/config";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-
+import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
+import { AppContext } from "context/app";
+import { IConfig } from "interfaces/config";
+import { ApplePlatform } from "interfaces/platform";
+import { ITeamConfig } from "interfaces/team";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import { getPathWithQueryParams } from "utilities/url";
 
-import GenericMsgWithNavButton from "../../../components/GenericMsgWithNavButton/GenericMsgWithNavButton";
 import CurrentVersionSection from "./components/CurrentVersionSection";
-import TargetSection from "./components/TargetSection";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
+import TargetSection from "./components/TargetSection";
 
 export type OSUpdatesSupportedPlatform = ApplePlatform | "windows";
 
-export type OSUpdatesTargetPlatform = OSUpdatesSupportedPlatform | "android"; // used for displaying "coming soon" messaging
+// "android" and "linux" only display empty-state messaging
+export type OSUpdatesTargetPlatform =
+  | OSUpdatesSupportedPlatform
+  | "android"
+  | "linux";
 
 const baseClass = "os-updates";
 
@@ -35,10 +36,11 @@ const getDefaultSelectedPlatform = (
   // This is usually when the users first comes to this page.
   if (appConfig === null) return "darwin";
 
-  // if the mac mdm is enable and configured we check the app config to see if
-  // the mdm for mac is enabled. If it is, it does not matter if windows is
-  // enabled and configured and we will always return "mac".
-  return appConfig.mdm.enabled_and_configured ? "darwin" : "windows"; // TODO(android): adjust this when android is supported
+  // Default to the first tab (macOS) unless only Windows MDM is turned on.
+  return !appConfig.mdm.enabled_and_configured &&
+    appConfig.mdm.windows_mdm_enabled
+    ? "windows"
+    : "darwin";
 };
 
 interface IOSUpdates {
@@ -82,7 +84,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     {
       refetchOnWindowFocus: false,
       enabled: !!teamIdForApi,
-      select: (data) => data.team,
+      select: (data) => data.fleet,
     }
   );
 
@@ -95,7 +97,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     );
   }
 
-  if (isLoadingConfig || isLoadingTeam || isFetchingTeamConfig) {
+  if (!config || isLoadingConfig || isLoadingTeam || isFetchingTeamConfig) {
     return <Spinner />;
   }
 
@@ -106,27 +108,12 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   if (!isGlobalAdmin && !isTeamAdmin) {
     router.replace(
       getPathWithQueryParams(PATHS.CONTROLS_OS_SETTINGS, {
-        team_id: teamIdForApi,
+        fleet_id: teamIdForApi,
       })
     );
   }
 
   // FIXME: Handle error states for app config and team config (need specifications for this).
-  // mdm is not enabled for mac or windows.
-  if (
-    !config?.mdm.enabled_and_configured &&
-    !config?.mdm.windows_enabled_and_configured
-  ) {
-    return (
-      <GenericMsgWithNavButton
-        header="Manage your hosts"
-        info="MDM must be turned on to change settings on your hosts."
-        path={PATHS.ADMIN_INTEGRATIONS_MDM}
-        buttonText="Turn on"
-        router={router}
-      />
-    );
-  }
 
   // If the user has not selected a platform yet, we default to the platform that
   // is enabled and configured.
@@ -135,9 +122,10 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Remotely enforce software updates.
-      </p>
+      <PageDescription
+        variant="tab-panel"
+        content="Remotely enforce software updates."
+      />
       <>
         <div className={`${baseClass}__current-version-container`}>
           <CurrentVersionSection

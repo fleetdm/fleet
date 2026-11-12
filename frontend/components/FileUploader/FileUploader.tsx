@@ -1,16 +1,71 @@
-import React, { useState, useRef } from "react";
 import classnames from "classnames";
+import React, { useState, useRef } from "react";
 
 import Button from "components/buttons/Button";
 import Card from "components/Card";
-import { GraphicNames } from "components/graphics";
-import Icon from "components/Icon";
-import Graphic from "components/Graphic";
 import FileDetails from "components/FileDetails";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import Graphic from "components/Graphic";
+import { GraphicNames } from "components/graphics";
+import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "file-uploader";
+
+// The native picker resolves a MIME spec against the browser's own
+// MIME-to-extension table, so e.g. `application/gzip` matches a picked
+// `.tar.gz`. Dropped files only expose `file.type` from the OS, which varies
+// (`application/x-gzip`, empty) and often won't exact-match that spec. Mirror
+// the picker by allowing a dropped file whose filename matches a known
+// extension for the MIME spec. Bare `.gz` is intentionally omitted; the
+// package flow only supports `.tar.gz` archives, and callers that need bare
+// `.gz` would have to opt in explicitly.
+const MIME_EXTENSION_ALIASES: Record<string, readonly string[]> = {
+  "application/gzip": [".tar.gz", ".tgz"],
+};
+
+// The HTML `accept` attribute only filters the native file picker; dropped
+// files are not pre-filtered by the browser. Mirror the picker's behavior
+// for drops so a FileUploader with `accept=".pem"` doesn't accept a dropped
+// `.txt`.
+const isFileAccepted = (file: File, accept?: string): boolean => {
+  if (!accept) return true;
+  const specs = accept
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  if (specs.length === 0) return true;
+  const type = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+  return specs.some((spec) => {
+    if (spec.startsWith(".")) return name.endsWith(spec);
+    if (spec.endsWith("/*")) return type.startsWith(spec.slice(0, -1));
+    if (type === spec) return true;
+    const aliases = MIME_EXTENSION_ALIASES[spec];
+    return aliases ? aliases.some((ext) => name.endsWith(ext)) : false;
+  });
+};
+
+const INVALID_DROP_FALLBACK = "File type isn't supported";
+
+// Falls back to a generic message when accept contains unspellable MIME types.
+const invalidDropMessage = (accept?: string): string => {
+  if (!accept) return INVALID_DROP_FALLBACK;
+  const specs = accept
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (specs.length === 0 || specs.some((s) => !s.startsWith("."))) {
+    return INVALID_DROP_FALLBACK;
+  }
+  if (specs.length === 1) return `File type must be ${specs[0]}`;
+  if (specs.length === 2) {
+    return `File type must be ${specs[0]} or ${specs[1]}`;
+  }
+  return `File type must be ${specs.slice(0, -1).join(", ")}, or ${
+    specs[specs.length - 1]
+  }`;
+};
 
 export type ISupportedGraphicNames = Extract<
   GraphicNames,
@@ -19,12 +74,16 @@ export type ISupportedGraphicNames = Extract<
   | "file-ps1"
   | "file-py"
   | "file-script"
+  | "file-md"
   | "file-pdf"
   | "file-pkg"
   | "file-p7m"
   | "file-pem"
+  | "file-certificate"
   | "file-vpp"
   | "file-png"
+  | "file-json"
+  | "fleet-logo"
 >;
 
 interface IFileUploaderProps {
@@ -34,10 +93,14 @@ interface IFileUploaderProps {
   title?: string;
   /** allow error state within the file uploader, as opposed to on its label */
   internalError?: string;
+  /** Show the error in the label slot, replacing the label, like other form
+   * fields. Off by default because some callers already show the error in
+   * `fileDetails`. */
+  errorInLabel?: boolean;
   additionalInfo?: string;
   /** Controls the loading spinner on the upload button */
   isLoading?: boolean;
-  /** Disables the upload button */
+  /** Disables the upload button, the file picker and drops */
   disabled?: boolean;
   /** A comma separated string of one or more file types accepted to upload.
    * This is the same as the html accept attribute.
@@ -53,13 +116,19 @@ interface IFileUploaderProps {
    * a link.
    * @default "button"
    */
-  buttonType?: "button" | "brand-inverse-icon";
+  buttonType?: "button" | "secondary";
   /** renders a tooltip for the button. If `gitopsCompatible` is set to `true`
    * this tooltip will not be rendered if gitops mode is enabled. */
   buttonTooltip?: React.ReactNode;
   onFileUpload: (files: FileList | null) => void;
   /** renders the current file with the edit pencil button */
   canEdit?: boolean;
+  /** renders a custom editor for the current file replacing the edit pencil button */
+  customEditor?: () => React.ReactNode;
+  /** if provided, replaces the default file-type Graphic shown next to the
+   * file details (e.g. to display a preview thumbnail of the picked image
+   * instead of a generic file icon). */
+  customPreview?: React.ReactNode;
   /** renders the current file with the delete trash button */
   onDeleteFile?: () => void;
   /** if provided, will be called when the button is clicked
@@ -87,6 +156,7 @@ export const FileUploader = ({
   message,
   title,
   internalError,
+  errorInLabel = false,
   additionalInfo,
   isLoading = false,
   disabled = false,
@@ -98,20 +168,39 @@ export const FileUploader = ({
   onButtonClick,
   onFileUpload,
   canEdit = false,
+  customEditor,
+  customPreview,
   onDeleteFile,
   fileDetails,
   gitopsCompatible = false,
   gitOpsModeEnabled = false,
 }: IFileUploaderProps) => {
   const [isFileSelected, setIsFileSelected] = useState(!!fileDetails);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [dropError, setDropError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Server error wins over stale drop-rejection error.
+  const errorText = internalError || dropError;
+
+  // When onButtonClick is set, the uploader renders no file input (file
+  // selection happens elsewhere, e.g. in a modal), so drops have nowhere
+  // to go. GitOps mode is a safety gate — if the click button is suppressed
+  // by GitOps, drops must be suppressed too.
+  const canAcceptDrop =
+    !disabled &&
+    !isLoading &&
+    !onButtonClick &&
+    !fileDetails &&
+    !(gitopsCompatible && gitOpsModeEnabled);
 
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
-    [`${baseClass}__error`]: !!internalError,
+    [`${baseClass}__error`]: !!errorText,
+    [`${baseClass}__drag-active`]: isDragActive && canAcceptDrop,
+    [`${baseClass}--disabled`]: disabled,
   });
-  const buttonVariant =
-    buttonType === "button" ? "default" : "brand-inverse-icon";
+  const buttonVariant = buttonType === "button" ? "default" : "secondary";
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
@@ -124,11 +213,53 @@ export const FileUploader = ({
       const files = target.files;
       onFileUpload(files);
       setIsFileSelected(true);
+      setDropError(null);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
+  };
+
+  // Always preventDefault on drag events over the component so the browser
+  // doesn't fall back to opening/downloading the file when a drop lands on
+  // the Card's padding or a FileDetails preview.
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (canAcceptDrop && !isDragActive) {
+      setIsDragActive(true);
+      if (dropError) setDropError(null);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    // dragleave fires when the pointer enters a child element too; ignore
+    // those so the active state doesn't flicker.
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragActive(false);
+    if (!canAcceptDrop) return;
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    // Reject the whole drop if any file would have been filtered out by
+    // the native picker. The signature returns FileList (read-only), so we
+    // can't hand back a partial batch; all-or-nothing matches "picker
+    // declined this file" semantics.
+    const hasInvalid = Array.from(files).some(
+      (file) => !isFileAccepted(file, accept)
+    );
+    if (hasInvalid) {
+      setDropError(invalidDropMessage(accept));
+      return;
+    }
+    setDropError(null);
+    onFileUpload(files);
+    setIsFileSelected(true);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -139,6 +270,15 @@ export const FileUploader = ({
   };
 
   const renderLabel = () => {
+    // The title slot isn't rendered once a file is selected, so the error
+    // falls back to the label slot then.
+    if (errorInLabel && errorText && (label || fileDetails)) {
+      return (
+        <div className="form-field__label form-field__label--error">
+          {errorText}
+        </div>
+      );
+    }
     return label ? (
       <div className={`${baseClass}__label form-field__label`}>{label}</div>
     ) : null;
@@ -159,9 +299,7 @@ export const FileUploader = ({
     let buttonMarkup = (
       <>
         {buttonMessage}
-        {buttonType === "brand-inverse-icon" && (
-          <Icon color="core-fleet-green" name="upload" />
-        )}
+        {buttonType === "secondary" && <Icon name="upload" />}
       </>
     );
     // If we want to actual do file uploading, wrap in a label that
@@ -228,10 +366,8 @@ export const FileUploader = ({
   };
 
   const renderTitle = () => {
-    if (internalError) {
-      return (
-        <div className={`${baseClass}__internal-error`}>{internalError}</div>
-      );
+    if (errorText && !(errorInLabel && label)) {
+      return <div className={`${baseClass}__internal-error`}>{errorText}</div>;
     }
     if (title) {
       return <div className={`${baseClass}__title`}>{title}</div>;
@@ -241,9 +377,9 @@ export const FileUploader = ({
 
   const renderFileUploader = () => {
     return (
-      <div className="content-wrapper">
-        <div className="outer">
-          <div className="inner">
+      <div className={`${baseClass}__content-wrapper`}>
+        <div className={`${baseClass}__outer`}>
+          <div className={`${baseClass}__inner`}>
             <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
             {renderTitle()}
             <p className={`${baseClass}__message`}>{message}</p>
@@ -262,6 +398,8 @@ export const FileUploader = ({
               id="upload-file"
               type="file"
               onChange={onFileSelect}
+              className="file-input-visually-hidden"
+              disabled={disabled}
             />
           )}
         </div>
@@ -270,7 +408,14 @@ export const FileUploader = ({
   };
 
   return (
-    <div className={`${baseClass}__wrapper form-field`}>
+    <div
+      className={classnames(`${baseClass}__wrapper form-field`, {
+        [`${baseClass}__wrapper--disabled`]: disabled,
+      })}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {renderLabel()}
       <Card color="grey" className={classes}>
         {fileDetails ? (
@@ -278,11 +423,14 @@ export const FileUploader = ({
             graphicNames={graphicNames}
             fileDetails={fileDetails}
             canEdit={canEdit}
+            customEditor={customEditor}
+            customPreview={customPreview}
             onDeleteFile={onDeleteFile}
             onFileSelect={onFileSelect}
             accept={accept}
             gitopsCompatible={gitopsCompatible}
             gitOpsModeEnabled={gitOpsModeEnabled}
+            disabled={disabled}
           />
         ) : (
           renderFileUploader()

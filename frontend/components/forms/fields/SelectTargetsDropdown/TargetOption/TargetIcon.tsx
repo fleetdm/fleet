@@ -1,10 +1,11 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
 
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
-
+import { isLinuxLike } from "interfaces/platform";
 import { ISelectTargetsEntity } from "interfaces/target";
+
 import { isTargetLabel, isTargetHost } from "../helpers";
 
 const baseClass = "target-option";
@@ -19,6 +20,10 @@ const TargetIcon = ({ target }: ITargetIconProps): JSX.Element => {
       return target.name === "All Hosts" ? "all-hosts" : "label";
     }
     if (isTargetHost(target)) {
+      if (isLinuxLike(target.platform)) {
+        return "linux";
+      }
+
       return target.platform === "darwin" ? "apple" : target.platform;
     }
     return "";

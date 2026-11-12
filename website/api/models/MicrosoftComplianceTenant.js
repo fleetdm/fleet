@@ -28,7 +28,6 @@ module.exports = {
     fleetInstanceUrl: {
       type: 'string',
       description: 'The url of the connected Fleet instance.',
-      unique: true,
       required: true,
     },
 

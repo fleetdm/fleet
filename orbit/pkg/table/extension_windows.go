@@ -5,9 +5,11 @@ package table
 import (
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/adobe_plugins"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/amcache"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/bitlocker_key_protectors"
 	cisaudit "github.com/fleetdm/fleet/v4/orbit/pkg/table/cis_audit"
-	mdmbridge "github.com/fleetdm/fleet/v4/orbit/pkg/table/mdm"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/mdm_bridge"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/windowsupdatetable"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sys/windows/registry"
@@ -19,11 +21,15 @@ import (
 func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
+		adobe_plugins.TablePlugin(log.Logger),
 		table.NewPlugin("cis_audit", cisaudit.Columns(), cisaudit.Generate),
 
 		bitlocker_key_protectors.TablePlugin(log.Logger),
 
 		windowsupdatetable.TablePlugin(windowsupdatetable.UpdatesTable, log.Logger), // table name is "windows_updates"
+	}
+	for _, p := range amcache.TablePlugins(log.Logger) {
+		plugins = append(plugins, p)
 	}
 
 	windowsServer, err := IsWindowsServer()
@@ -32,7 +38,7 @@ func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	}
 
 	if !windowsServer {
-		plugins = append(plugins, table.NewPlugin("mdm_bridge", mdmbridge.Columns(), mdmbridge.Generate))
+		plugins = append(plugins, table.NewPlugin("mdm_bridge", mdm_bridge.Columns(), mdm_bridge.Generate))
 	}
 
 	return plugins, nil

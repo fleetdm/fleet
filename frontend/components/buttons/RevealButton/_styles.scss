@@ -1,7 +1,6 @@
 .reveal-button .children-wrapper {
   display: inline-flex;
   align-items: center;
-  padding: $pad-small $pad-xxsmall; // larger clickable area
   min-width: max-content;
 
   .reveal-button__caret svg {
@@ -12,12 +11,6 @@
     transform: rotate(180deg);
   }
 
-  svg {
-    path {
-      fill: none; // Chevron icon uses stroke color
-    }
-  }
-
   &:hover,
   &:focus {
     .component__tooltip-wrapper__element {
@@ -26,7 +19,7 @@
 
     svg {
       path {
-        stroke: $ui-fleet-black-75-over;
+        fill: $ui-fleet-black-75-over;
       }
     }
   }

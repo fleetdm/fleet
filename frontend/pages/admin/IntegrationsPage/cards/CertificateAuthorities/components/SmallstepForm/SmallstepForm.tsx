@@ -1,15 +1,12 @@
 import React, { useMemo } from "react";
 
-import { ICertificateAuthorityPartial } from "interfaces/certificates";
-
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
+import { MAX_ENTITY_CHAR_LENGTH } from "utilities/constants";
 
 import { generateFormValidations, validateFormData } from "./helpers";
-
-const baseClass = "smallstep-form";
 
 export interface ISmallstepFormData {
   name: string;
@@ -68,6 +65,7 @@ const SmallstepForm = ({
         parseTarget
         placeholder="WIFI_CERTIFICATE"
         helpText="Letters, numbers, and underscores only. Fleet will create configuration profile variables with the name as suffix (e.g. $FLEET_VAR_SMALLSTEP_DATA_WIFI_CERTIFICATE)."
+        inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}
       />
       <InputField
         label="SCEP URL"
@@ -138,7 +136,7 @@ const SmallstepForm = ({
             {submitBtnText}
           </Button>
         </TooltipWrapper>
-        <Button variant="inverse" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
       </div>

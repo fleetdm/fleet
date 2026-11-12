@@ -1,0 +1,143 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { noop } from "lodash";
+import React from "react";
+
+import { notify } from "components/ToastNotification";
+import softwareAPI from "services/entities/software";
+
+import DeleteSoftwareModal from "./DeleteSoftwareModal";
+
+jest.mock("components/ToastNotification", () => ({
+  notify: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+jest.mock("services/entities/software", () => ({
+  __esModule: true,
+  default: { deleteSoftwareInstaller: jest.fn() },
+}));
+
+const renderModal = (
+  props: Partial<React.ComponentProps<typeof DeleteSoftwareModal>> = {}
+) => {
+  return render(
+    <DeleteSoftwareModal
+      softwareId={1}
+      teamId={1}
+      onExit={noop}
+      onSuccess={noop}
+      {...props}
+    />
+  );
+};
+
+describe("DeleteSoftwareModal", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("renders GitOps banner when gitOpsModeEnabled is true", () => {
+    renderModal({ gitOpsModeEnabled: true });
+
+    expect(
+      screen.getByText(
+        "You are currently in GitOps mode. If the package is defined in GitOps, it will reappear when GitOps runs."
+      )
+    ).toBeVisible();
+  });
+
+  it("renders default platform message when not VPP app or Android app", () => {
+    renderModal();
+
+    expect(screen.getByText(/won't be uninstalled/i)).toBeVisible();
+    expect(
+      screen.getByText(/Pending installs and uninstalls will be canceled\./i)
+    ).toBeVisible();
+  });
+
+  it("renders App Store message when isAppStoreApp is true", () => {
+    renderModal({ isAppStoreApp: true });
+
+    expect(screen.getByText(/won't be uninstalled/i)).toBeVisible();
+    expect(
+      screen.getByText(
+        /Pending or already started installs and uninstalls won't be canceled/i
+      )
+    ).toBeVisible();
+  });
+
+  it("renders Android message when isAndroidApp is true", () => {
+    renderModal({ isAndroidApp: true });
+
+    expect(screen.getByText(/will be uninstalled/i)).toBeVisible();
+  });
+
+  describe("multi-package title", () => {
+    it("renders the 'Delete software' title and the custom-metadata warning by default (single-package legacy path)", () => {
+      renderModal();
+
+      expect(screen.getByText("Delete software")).toBeInTheDocument();
+      expect(screen.queryByText("Delete version")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Custom icon and display name will be deleted.")
+      ).toBeVisible();
+    });
+
+    it("renders the 'Delete version' title and suppresses the custom-metadata warning when canActivateMultiplePackages is true", () => {
+      // On a multi-package title, only one installer is being deleted — the
+      // title-level custom icon and display name stay put, so the warning
+      // would be misleading.
+      renderModal({ canActivateMultiplePackages: true });
+
+      expect(screen.getByText("Delete version")).toBeInTheDocument();
+      expect(screen.queryByText("Delete software")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Custom icon and display name will be deleted.")
+      ).not.toBeInTheDocument();
+    });
+
+    it("names the deleted package in the success toast", async () => {
+      (softwareAPI.deleteSoftwareInstaller as jest.Mock).mockResolvedValue({});
+      renderModal({
+        canActivateMultiplePackages: true,
+        installerId: 3,
+        packageName: "Zoom-arm64.pkg",
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+      await waitFor(() => expect(notify.success).toHaveBeenCalledTimes(1));
+      const { container } = render(
+        <>{(notify.success as jest.Mock).mock.calls[0][0]}</>
+      );
+      expect(container).toHaveTextContent(
+        "Successfully deleted Zoom-arm64.pkg version."
+      );
+    });
+  });
+
+  describe("multi-version title (App Store app)", () => {
+    it("renders the 'Delete version' title when a versionId is passed", () => {
+      renderModal({ versionId: 7 });
+      expect(screen.getByText("Delete version")).toBeInTheDocument();
+      expect(screen.queryByText("Delete software")).not.toBeInTheDocument();
+    });
+
+    it("suppresses the custom-metadata warning on a non-last version delete", () => {
+      renderModal({ versionId: 7, isLastVersion: false });
+      expect(
+        screen.queryByText("Custom icon and display name will be deleted.")
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows the custom-metadata warning when deleting the last remaining version", () => {
+      renderModal({ versionId: 7, isLastVersion: true });
+      expect(
+        screen.getByText("Custom icon and display name will be deleted.")
+      ).toBeVisible();
+    });
+  });
+});

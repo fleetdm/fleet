@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,10 +17,11 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
-	"github.com/go-kit/log"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pandatix/nvdapi/v2"
 	"github.com/stretchr/testify/require"
@@ -29,6 +31,64 @@ var (
 	legacyCVEFeedsDir = filepath.Join("testdata", "cve", "legacy_feeds")
 	api20CVEDir       = filepath.Join("testdata", "cve", "api_2.0")
 )
+
+func TestTransformVuln(t *testing.T) {
+	t.Parallel()
+
+	// makeItem builds a minimal CVEItem with a single CPE match carrying the given criteria and
+	// versionEndIncluding/versionEndExcluding constraints.
+	makeItem := func(cveID, criteria string, endIncluding, endExcluding *string) nvdapi.CVEItem {
+		return nvdapi.CVEItem{
+			CVE: nvdapi.CVE{
+				ID: &cveID,
+				Configurations: []nvdapi.Config{
+					{
+						Nodes: []nvdapi.Node{
+							{
+								CPEMatch: []nvdapi.CVECPEMatch{
+									{
+										Vulnerable:          true,
+										Criteria:            criteria,
+										VersionEndIncluding: endIncluding,
+										VersionEndExcluding: endExcluding,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	endExcludingOf := func(item nvdapi.CVEItem) *string {
+		return item.CVE.Configurations[0].Nodes[0].CPEMatch[0].VersionEndExcluding
+	}
+
+	const ollamaCPE = "cpe:2.3:a:ollama:ollama:*:*:*:*:*:*:*:*"
+
+	t.Run("CVE-2025-63389 gets a resolved version when NVD provides only versionEndIncluding", func(t *testing.T) {
+		got := transformVuln(2025, makeItem("CVE-2025-63389", ollamaCPE, new("0.12.3"), nil))
+		require.NotNil(t, endExcludingOf(got))
+		require.Equal(t, "0.12.4", *endExcludingOf(got))
+	})
+
+	t.Run("CVE-2025-63389 does not clobber an existing versionEndExcluding", func(t *testing.T) {
+		got := transformVuln(2025, makeItem("CVE-2025-63389", ollamaCPE, new("0.12.3"), new("0.12.9")))
+		require.NotNil(t, endExcludingOf(got))
+		require.Equal(t, "0.12.9", *endExcludingOf(got))
+	})
+
+	t.Run("CVE-2025-63389 override does not apply to other products", func(t *testing.T) {
+		got := transformVuln(2025, makeItem("CVE-2025-63389", "cpe:2.3:a:acme:widget:*:*:*:*:*:*:*:*", new("0.12.3"), nil))
+		require.Nil(t, endExcludingOf(got))
+	})
+
+	t.Run("unrelated CVE is left unchanged", func(t *testing.T) {
+		got := transformVuln(2025, makeItem("CVE-2025-00000", ollamaCPE, new("0.12.3"), nil))
+		require.Nil(t, endExcludingOf(got))
+	})
+}
 
 func TestStoreCVEsLegacyFormat(t *testing.T) {
 	t.Parallel()
@@ -58,7 +118,7 @@ func TestStoreCVEsLegacyFormat(t *testing.T) {
 			matched               = 0
 		)
 		for _, api20Vuln := range api20CVEs {
-			convertedLegacyVuln := convertAPI20CVEToLegacy(api20Vuln.CVE, log.NewNopLogger())
+			convertedLegacyVuln := convertAPI20CVEToLegacy(t.Context(), api20Vuln.CVE, slog.New(slog.DiscardHandler))
 			legacyVuln, ok := legacyVulns[*api20Vuln.CVE.ID]
 			if !ok {
 				vulnsNotFoundInLegacy = append(vulnsNotFoundInLegacy, *api20Vuln.CVE.ID)
@@ -216,7 +276,7 @@ func TestEnhanceNVDwithVulncheck(t *testing.T) {
 	syncer, err := NewCVE(testDataPath)
 	require.NoError(t, err)
 
-	err = syncer.processVulnCheckFile("vulncheck.zip")
+	err = syncer.processVulnCheckFile(t.Context(), "vulncheck.zip")
 	require.NoError(t, err)
 
 	// compare the enhanced data with the expected data
@@ -294,4 +354,61 @@ func copyFile(src, dst string) error {
 
 	// Ensure that the copied contents are flushed to stable storage
 	return destFile.Sync()
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// stalledBody returns prefix, then blocks until ctx is done, like a response
+// whose body stops arriving mid-stream.
+type stalledBody struct {
+	ctx    context.Context
+	prefix []byte
+}
+
+func (b *stalledBody) Read(p []byte) (int, error) {
+	if len(b.prefix) > 0 {
+		n := copy(p, b.prefix)
+		b.prefix = b.prefix[n:]
+		return n, nil
+	}
+	<-b.ctx.Done()
+	return 0, b.ctx.Err()
+}
+
+func (b *stalledBody) Close() error { return nil }
+
+func TestSyncTimesOutStalledNVDRequest(t *testing.T) {
+	// Runs on synctest's fake clock, so the real timeouts and retry waits elapse
+	// instantly. Without a per-request deadline, the stalled body never returns
+	// and synctest fails the test as a deadlock.
+	synctest.Test(t, func(t *testing.T) {
+		var requests int
+		syncer, err := NewCVE(t.TempDir())
+		require.NoError(t, err)
+		syncer.client = fleethttp.NewClient(fleethttp.WithNoTimeout())
+		syncer.client.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			requests++
+			// Headers and part of the body arrive, then the body stalls: the
+			// response-header timeout doesn't apply, so only a per-request deadline
+			// can end the request.
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": {"application/json"}},
+				Body:       &stalledBody{ctx: r.Context(), prefix: []byte(`{"resultsPerPage": 2000, "vulnerabilities": [`)},
+				Request:    r,
+			}, nil
+		})
+
+		start := time.Now()
+		_, err = syncer.sync(t.Context(), nil)
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+
+		// The first attempt plus maxRetryAttempts+1 retries, each ended by the
+		// per-request deadline and followed by a retry wait.
+		attempts := maxRetryAttempts + 2
+		require.Equal(t, attempts, requests)
+		require.Equal(t, time.Duration(attempts)*nvdRequestTimeout+time.Duration(attempts-1)*waitTimeForRetry, time.Since(start))
+	})
 }

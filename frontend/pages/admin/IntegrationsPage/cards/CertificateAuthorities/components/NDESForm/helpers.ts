@@ -1,6 +1,5 @@
+import { isValidURL } from "components/forms/validators";
 import { getErrorReason } from "interfaces/errors";
-
-import valid_url from "components/forms/validators/valid_url";
 
 import { INDESFormData } from "./NDESForm";
 
@@ -39,7 +38,7 @@ const FORM_VALIDATIONS: Record<
       {
         name: "validUrl",
         isValid: (formData: INDESFormData) => {
-          return valid_url({ url: formData.scepURL });
+          return isValidURL({ url: formData.scepURL });
         },
         message: "Must be a valid URL.",
       },
@@ -56,7 +55,7 @@ const FORM_VALIDATIONS: Record<
       {
         name: "validUrl",
         isValid: (formData: INDESFormData) => {
-          return valid_url({ url: formData.adminURL });
+          return isValidURL({ url: formData.adminURL });
         },
         message: "Must be a valid URL",
       },

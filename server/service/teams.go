@@ -25,7 +25,7 @@ type listTeamsRequest struct {
 }
 
 type listTeamsResponse struct {
-	Teams []fleet.Team `json:"teams"`
+	Teams []fleet.Team `json:"fleets"`
 	Err   error        `json:"error,omitempty"`
 }
 
@@ -62,14 +62,14 @@ type getTeamRequest struct {
 }
 
 type getTeamResponse struct {
-	Team *fleet.Team `json:"team"`
+	Team *fleet.Team `json:"fleet"`
 	Err  error       `json:"error,omitempty"`
 }
 
 func (r getTeamResponse) Error() error { return r.Err }
 
 type defaultTeamResponse struct {
-	Team *fleet.DefaultTeam `json:"team"`
+	Team *fleet.DefaultTeam `json:"fleet"`
 	Err  error              `json:"error,omitempty"`
 }
 
@@ -91,6 +91,7 @@ func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 			DefaultTeamConfig: fleet.DefaultTeamConfig{
 				WebhookSettings: fleet.DefaultTeamWebhookSettings{
 					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
+					HostActivitiesWebhook:  team.Config.WebhookSettings.HostActivitiesWebhook,
 				},
 				Integrations: fleet.DefaultTeamIntegrations{
 					Jira:    team.Config.Integrations.Jira,
@@ -121,7 +122,7 @@ type createTeamRequest struct {
 }
 
 type teamResponse struct {
-	Team *fleet.Team `json:"team,omitempty"`
+	Team *fleet.Team `json:"fleet,omitempty"`
 	Err  error       `json:"error,omitempty"`
 }
 
@@ -181,6 +182,7 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			DefaultTeamConfig: fleet.DefaultTeamConfig{
 				WebhookSettings: fleet.DefaultTeamWebhookSettings{
 					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
+					HostActivitiesWebhook:  team.Config.WebhookSettings.HostActivitiesWebhook,
 				},
 				Integrations: fleet.DefaultTeamIntegrations{
 					Jira:    team.Config.Integrations.Jira,
@@ -245,13 +247,15 @@ type applyTeamSpecsRequest struct {
 }
 
 func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
-	if err := fleet.JSONStrictDecode(r, req); err != nil {
-		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
-		if !req.Force || !fleet.IsJSONUnknownFieldError(err) {
-			// only unknown field errors can be forced at this point (other errors
-			// can be forced later, after agent options' validations)
-			return ctxerr.Wrap(ctx, err, "strict decode team specs")
-		}
+	// force accepts specs containing unknown fields, so decode without rejecting them rather than
+	// decoding strictly and ignoring the resulting error. Every other error still has to surface, and
+	// other kinds of error can be forced later, after agent options' validations.
+	decode := fleet.JSONStrictDecode
+	if req.Force {
+		decode = fleet.JSONDecode
+	}
+	if err := decode(r, req); err != nil {
+		return ctxerr.Wrap(ctx, fleet.NewUserMessageError(err, http.StatusBadRequest), "strict decode team specs")
 	}
 
 	// the MacOSSettings field must be validated separately, since it
@@ -278,7 +282,7 @@ func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader, u
 
 type applyTeamSpecsResponse struct {
 	Err           error           `json:"error,omitempty"`
-	TeamIDsByName map[string]uint `json:"team_ids_by_name,omitempty"`
+	TeamIDsByName map[string]uint `json:"fleet_ids_by_name,omitempty"`
 }
 
 func (r applyTeamSpecsResponse) Error() error { return r.Err }
@@ -468,7 +472,7 @@ func (svc *Service) TeamEnrollSecrets(ctx context.Context, teamID uint) ([]*flee
 ////////////////////////////////////////////////////////////////////////////////
 
 type modifyTeamEnrollSecretsRequest struct {
-	TeamID  uint                 `url:"team_id"`
+	TeamID  uint                 `url:"fleet_id"`
 	Secrets []fleet.EnrollSecret `json:"secrets"`
 }
 

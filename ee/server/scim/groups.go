@@ -3,17 +3,19 @@ package scim
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/elimity-com/scim"
 	"github.com/elimity-com/scim/errors"
 	"github.com/elimity-com/scim/optional"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/scim2/filter-parser/v2"
 )
 
@@ -25,13 +27,13 @@ const (
 
 type GroupHandler struct {
 	ds     fleet.Datastore
-	logger kitlog.Logger
+	logger *slog.Logger
 }
 
 // Compile-time check
 var _ scim.ResourceHandler = &GroupHandler{}
 
-func NewGroupHandler(ds fleet.Datastore, logger kitlog.Logger) scim.ResourceHandler {
+func NewGroupHandler(ds fleet.Datastore, logger *slog.Logger) scim.ResourceHandler {
 	return &GroupHandler{ds: ds, logger: logger}
 }
 
@@ -39,7 +41,7 @@ func NewGroupHandler(ds fleet.Datastore, logger kitlog.Logger) scim.ResourceHand
 func (g *GroupHandler) Create(r *http.Request, attributes scim.ResourceAttributes) (scim.Resource, error) {
 	displayName, err := getRequiredResource[string](attributes, displayNameAttr)
 	if err != nil {
-		level.Error(g.logger).Log("msg", "failed to get displayName", "err", err)
+		g.logger.ErrorContext(r.Context(), "failed to get displayName", "err", err)
 		return scim.Resource{}, err
 	}
 
@@ -50,17 +52,24 @@ func (g *GroupHandler) Create(r *http.Request, attributes scim.ResourceAttribute
 	_, err = g.ds.ScimGroupByDisplayName(r.Context(), displayName)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
-		level.Error(g.logger).Log("msg", "failed to check for displayName uniqueness", displayNameAttr, displayName, "err", err)
+		g.logger.ErrorContext(r.Context(), "failed to check for displayName uniqueness", displayNameAttr, displayName, "err", err)
 		return scim.Resource{}, err
 	case err == nil:
-		level.Info(g.logger).Log("msg", "group already exists", displayNameAttr, displayName)
+		g.logger.InfoContext(r.Context(), "group already exists", displayNameAttr, displayName)
 		return scim.Resource{}, errors.ScimErrorUniqueness
 	}
 
 	group, err := createGroupFromAttributes(attributes)
 	if err != nil {
-		level.Error(g.logger).Log("msg", "failed to create group from attributes", displayNameAttr, displayName, "err", err)
+		g.logger.ErrorContext(r.Context(), "failed to create group from attributes", displayNameAttr, displayName, "err", err)
 		return scim.Resource{}, err
+	}
+	rejected, err := g.dropUnknownMembers(ctxdb.RequirePrimary(r.Context(), true), group, nil)
+	if err != nil {
+		return scim.Resource{}, err
+	}
+	if rejected != nil {
+		return scim.Resource{}, errors.ScimErrorBadParams(rejected)
 	}
 	group.ID, err = g.ds.CreateScimGroup(r.Context(), group)
 	if err != nil {
@@ -88,8 +97,9 @@ func createGroupFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimG
 		return nil, err
 	}
 	userIDs := make([]uint, 0, len(members))
+	childGroupIDs := make([]uint, 0, len(members))
 	for _, member := range members {
-		// Get the value attribute which contains the user ID
+		// Get the value attribute which contains the member ID
 		valueIntf, ok := member["value"]
 		if !ok || valueIntf == nil {
 			continue
@@ -99,14 +109,20 @@ func createGroupFromAttributes(attributes scim.ResourceAttributes) (*fleet.ScimG
 			return nil, errors.ScimErrorBadParams([]string{"value"})
 		}
 
-		// Extract user ID from the value
-		userID, err := extractUserIDFromValue(valueStr)
+		// A member can be either a user (bare numeric ID) or a nested group
+		// (prefixed "group-<id>", as sent by Entra ID for nested groups).
+		kind, id, err := classifyMemberValue(valueStr)
 		if err != nil {
 			return nil, errors.ScimErrorBadParams([]string{"value"})
 		}
-		userIDs = append(userIDs, userID)
+		if kind == memberKindGroup {
+			childGroupIDs = append(childGroupIDs, id)
+		} else {
+			userIDs = append(userIDs, id)
+		}
 	}
 	group.ScimUsers = userIDs
+	group.ChildGroups = childGroupIDs
 
 	return &group, nil
 }
@@ -135,17 +151,17 @@ func areMembersExcluded(r *http.Request) bool {
 func (g *GroupHandler) Get(r *http.Request, id string) (scim.Resource, error) {
 	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
-		level.Info(g.logger).Log("msg", "failed to parse id", "id", id, "err", err)
+		g.logger.InfoContext(r.Context(), "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
 
 	group, err := g.ds.ScimGroupByID(r.Context(), idUint, areMembersExcluded(r))
 	switch {
 	case fleet.IsNotFound(err):
-		level.Info(g.logger).Log("msg", "failed to find group", "id", id)
+		g.logger.InfoContext(r.Context(), "failed to find group", "id", id)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	case err != nil:
-		level.Error(g.logger).Log("msg", "failed to get group", "id", id, "err", err)
+		g.logger.ErrorContext(r.Context(), "failed to get group", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
 
@@ -161,13 +177,19 @@ func createGroupResource(group *fleet.ScimGroup) scim.Resource {
 	groupResource.Attributes = scim.ResourceAttributes{}
 	groupResource.Attributes[displayNameAttr] = group.DisplayName
 
-	// Add members if any
-	if len(group.ScimUsers) > 0 {
-		members := make([]scim.ResourceAttributes, 0, len(group.ScimUsers))
+	// Add members if any (users and nested child groups)
+	if len(group.ScimUsers) > 0 || len(group.ChildGroups) > 0 {
+		members := make([]scim.ResourceAttributes, 0, len(group.ScimUsers)+len(group.ChildGroups))
 		for _, userID := range group.ScimUsers {
 			members = append(members, map[string]interface{}{
 				"value": scimUserID(userID),
 				"type":  "User",
+			})
+		}
+		for _, childID := range group.ChildGroups {
+			members = append(members, map[string]any{
+				"value": scimGroupID(childID),
+				"type":  "Group",
 			})
 		}
 		groupResource.Attributes[membersAttr] = members
@@ -203,23 +225,23 @@ func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (s
 	if resourceFilter != "" {
 		expr, err := filter.ParseAttrExp([]byte(resourceFilter))
 		if err != nil {
-			level.Error(g.logger).Log("msg", "failed to parse filter", "filter", resourceFilter, "err", err)
+			g.logger.ErrorContext(r.Context(), "failed to parse filter", "filter", resourceFilter, "err", err)
 			return scim.Page{}, errors.ScimErrorInvalidFilter
 		}
 		if !strings.EqualFold(expr.AttributePath.String(), "displayName") || expr.Operator != "eq" {
-			level.Info(g.logger).Log("msg", "unsupported filter", "filter", resourceFilter)
+			g.logger.InfoContext(r.Context(), "unsupported filter", "filter", resourceFilter)
 			return scim.Page{}, nil
 		}
 		displayName, ok := expr.CompareValue.(string)
 		if !ok {
-			level.Error(g.logger).Log("msg", "unsupported value", "value", expr.CompareValue)
+			g.logger.ErrorContext(r.Context(), "unsupported value", "value", expr.CompareValue)
 			return scim.Page{}, nil
 		}
 
 		// Decode URL-encoded characters
 		displayName, err = url.QueryUnescape(displayName)
 		if err != nil {
-			level.Error(g.logger).Log("msg", "failed to decode displayName", "displayName", displayName, "err", err)
+			g.logger.ErrorContext(r.Context(), "failed to decode displayName", "displayName", displayName, "err", err)
 			return scim.Page{}, nil
 		}
 		opts.DisplayNameFilter = &displayName
@@ -227,7 +249,7 @@ func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (s
 
 	groups, totalResults, err := g.ds.ListScimGroups(r.Context(), opts)
 	if err != nil {
-		level.Error(g.logger).Log("msg", "failed to list groups", "err", err)
+		g.logger.ErrorContext(r.Context(), "failed to list groups", "err", err)
 		return scim.Page{}, err
 	}
 
@@ -245,13 +267,13 @@ func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (s
 func (g *GroupHandler) Replace(r *http.Request, id string, attributes scim.ResourceAttributes) (scim.Resource, error) {
 	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
-		level.Info(g.logger).Log("msg", "failed to parse id", "id", id, "err", err)
+		g.logger.InfoContext(r.Context(), "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
 
 	group, err := createGroupFromAttributes(attributes)
 	if err != nil {
-		level.Error(g.logger).Log("msg", "failed to create group from attributes", "id", id, "err", err)
+		g.logger.ErrorContext(r.Context(), "failed to create group from attributes", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
 	group.ID = idUint
@@ -260,21 +282,39 @@ func (g *GroupHandler) Replace(r *http.Request, id string, attributes scim.Resou
 	groupWithSameDisplayName, err := g.ds.ScimGroupByDisplayName(r.Context(), group.DisplayName)
 	switch {
 	case err != nil && !fleet.IsNotFound(err):
-		level.Error(g.logger).Log("msg", "failed to check for displayName uniqueness", displayNameAttr, group.DisplayName, "err", err)
+		g.logger.ErrorContext(r.Context(), "failed to check for displayName uniqueness", displayNameAttr, group.DisplayName, "err", err)
 		return scim.Resource{}, err
 	case err == nil && group.ID != groupWithSameDisplayName.ID:
-		level.Info(g.logger).Log("msg", "group already exists with this displayName", displayNameAttr, group.DisplayName)
+		g.logger.InfoContext(r.Context(), "group already exists with this displayName", displayNameAttr, group.DisplayName)
 		return scim.Resource{}, errors.ScimErrorUniqueness
 		// Otherwise, we assume that we are replacing the displayName with this operation.
 	}
 
+	ctx := ctxdb.RequirePrimary(r.Context(), true)
+	rejected, err := g.dropUnknownMembers(ctx, group, nil)
+	if err != nil {
+		return scim.Resource{}, err
+	}
+	if rejected != nil {
+		// The write reports a missing group as not found, and rejecting the members
+		// first must not turn that into a 400.
+		found, err := g.ds.ExistingScimGroupIDs(ctx, []uint{group.ID})
+		if err != nil {
+			return scim.Resource{}, ctxerr.Wrap(ctx, err, "check scim group exists")
+		}
+		if len(found) == 0 {
+			g.logger.InfoContext(r.Context(), "failed to find group to replace", "id", id)
+			return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
+		}
+		return scim.Resource{}, errors.ScimErrorBadParams(rejected)
+	}
 	err = g.ds.ReplaceScimGroup(r.Context(), group)
 	switch {
 	case fleet.IsNotFound(err):
-		level.Info(g.logger).Log("msg", "failed to find group to replace", "id", id)
+		g.logger.InfoContext(r.Context(), "failed to find group to replace", "id", id)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	case err != nil:
-		level.Error(g.logger).Log("msg", "failed to replace group", "id", id, "err", err)
+		g.logger.ErrorContext(r.Context(), "failed to replace group", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
 
@@ -284,16 +324,16 @@ func (g *GroupHandler) Replace(r *http.Request, id string, attributes scim.Resou
 func (g *GroupHandler) Delete(r *http.Request, id string) error {
 	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
-		level.Info(g.logger).Log("msg", "failed to parse id", "id", id, "err", err)
+		g.logger.InfoContext(r.Context(), "failed to parse id", "id", id, "err", err)
 		return errors.ScimErrorResourceNotFound(id)
 	}
 	err = g.ds.DeleteScimGroup(r.Context(), idUint)
 	switch {
 	case fleet.IsNotFound(err):
-		level.Info(g.logger).Log("msg", "failed to find group to delete", "id", id)
+		g.logger.InfoContext(r.Context(), "failed to find group to delete", "id", id)
 		return errors.ScimErrorResourceNotFound(id)
 	case err != nil:
-		level.Error(g.logger).Log("msg", "failed to delete group", "id", id, "err", err)
+		g.logger.ErrorContext(r.Context(), "failed to delete group", "id", id, "err", err)
 		return err
 	}
 	return nil
@@ -302,93 +342,117 @@ func (g *GroupHandler) Delete(r *http.Request, id string) error {
 // Patch
 // Supporting add/replace/remove operations for "displayName", "externalId", and "members" attributes.
 func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.PatchOperation) (scim.Resource, error) {
+	ctx := ctxdb.RequirePrimary(r.Context(), true)
 	idUint, err := extractGroupIDFromValue(id)
 	if err != nil {
-		level.Info(g.logger).Log("msg", "failed to parse id", "id", id, "err", err)
+		g.logger.InfoContext(ctx, "failed to parse id", "id", id, "err", err)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	}
-	group, err := g.ds.ScimGroupByID(r.Context(), idUint, false)
+
+	group, err := g.ds.ScimGroupByID(ctx, idUint, false)
 	switch {
 	case fleet.IsNotFound(err):
-		level.Info(g.logger).Log("msg", "failed to find group to patch", "id", id)
+		g.logger.InfoContext(ctx, "failed to find group to patch", "id", id)
 		return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 	case err != nil:
-		level.Error(g.logger).Log("msg", "failed to get group to patch", "id", id, "err", err)
+		g.logger.ErrorContext(ctx, "failed to get group to patch", "id", id, "err", err)
 		return scim.Resource{}, err
 	}
 
+	// A replace or remove-all operation declares a final membership state, which is
+	// destructive by intent; anything else is applied as a targeted delta.
+	deltas := &fleet.ScimGroupMemberDeltas{}
+	replaceAll := false
 	for _, op := range operations {
 		if op.Op != scim.PatchOperationAdd && op.Op != scim.PatchOperationReplace && op.Op != scim.PatchOperationRemove {
-			level.Info(g.logger).Log("msg", "unsupported patch operation", "op", op.Op)
+			g.logger.InfoContext(ctx, "unsupported patch operation", "op", op.Op)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
 		switch {
 		case op.Path == nil:
 			if op.Op == scim.PatchOperationRemove {
-				level.Info(g.logger).Log("msg", "the 'path' attribute is REQUIRED for 'remove' operations", "op", op.Op)
+				g.logger.InfoContext(ctx, "the 'path' attribute is REQUIRED for 'remove' operations", "op", op.Op)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-			newValues, ok := op.Value.(map[string]interface{})
+			newValues, ok := op.Value.(map[string]any)
 			if !ok {
-				level.Info(g.logger).Log("msg", "unsupported patch value", "value", op.Value)
+				g.logger.InfoContext(ctx, "unsupported patch value", "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
 			for k, v := range newValues {
 				switch k {
 				case externalIdAttr:
-					err = g.patchExternalId(op.Op, v, group)
+					err = g.patchExternalId(ctx, op.Op, v, group)
 					if err != nil {
 						return scim.Resource{}, err
 					}
 				case displayNameAttr:
-					err = g.patchDisplayName(op.Op, v, group)
+					err = g.patchDisplayName(ctx, op.Op, v, group)
 					if err != nil {
 						return scim.Resource{}, err
 					}
 				case membersAttr:
-					err = g.patchMembers(r.Context(), op.Op, v, group)
-					if err != nil {
+					replaceAll = replaceAll || declaresFullMembership(op.Op, v)
+					if err = g.patchMembers(ctx, op.Op, v, group, deltas); err != nil {
 						return scim.Resource{}, err
 					}
 				default:
-					level.Info(g.logger).Log("msg", "unsupported patch value field", "field", k)
+					g.logger.InfoContext(ctx, "unsupported patch value field", "field", k)
 					return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 				}
 			}
 		case op.Path.String() == externalIdAttr:
-			err = g.patchExternalId(op.Op, op.Value, group)
+			err = g.patchExternalId(ctx, op.Op, op.Value, group)
 			if err != nil {
 				return scim.Resource{}, err
 			}
 		case op.Path.String() == displayNameAttr:
-			err = g.patchDisplayName(op.Op, op.Value, group)
+			err = g.patchDisplayName(ctx, op.Op, op.Value, group)
 			if err != nil {
 				return scim.Resource{}, err
 			}
 		case op.Path.String() == membersAttr:
-			err = g.patchMembers(r.Context(), op.Op, op.Value, group)
-			if err != nil {
+			replaceAll = replaceAll || declaresFullMembership(op.Op, op.Value)
+			if err = g.patchMembers(ctx, op.Op, op.Value, group, deltas); err != nil {
 				return scim.Resource{}, err
 			}
 		case op.Path.AttributePath.String() == membersAttr:
-			err = g.patchMembersWithPathFiltering(r.Context(), op, group)
+			err = g.patchMembersWithPathFiltering(ctx, op, group, deltas)
 			if err != nil {
 				return scim.Resource{}, err
 			}
 		default:
-			level.Info(g.logger).Log("msg", "unsupported patch path", "path", op.Path)
+			g.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path)
 			return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
 	}
 
 	if len(operations) != 0 {
-		err = g.ds.ReplaceScimGroup(r.Context(), group)
+		// A replace declares the group's final membership, so the whole list needs
+		// checking.
+		checkDeltas := deltas
+		if replaceAll {
+			checkDeltas = nil
+		}
+		rejected, err := g.dropUnknownMembers(ctx, group, checkDeltas)
+		if err != nil {
+			return scim.Resource{}, err
+		}
+		if rejected != nil {
+			return scim.Resource{}, errors.ScimErrorBadParams(rejected)
+		}
+
+		if replaceAll {
+			err = g.ds.ReplaceScimGroup(ctx, group)
+		} else {
+			err = g.ds.ApplyScimGroupPatch(ctx, group, *deltas)
+		}
 		switch {
 		case fleet.IsNotFound(err):
-			level.Info(g.logger).Log("msg", "failed to find group to patch", "id", id)
+			g.logger.InfoContext(ctx, "failed to find group to patch", "id", id)
 			return scim.Resource{}, errors.ScimErrorResourceNotFound(id)
 		case err != nil:
-			level.Error(g.logger).Log("msg", "failed to patch group", "id", id, "err", err)
+			g.logger.ErrorContext(ctx, "failed to patch group", "id", id, "err", err)
 			return scim.Resource{}, err
 		}
 	}
@@ -396,32 +460,104 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 	return createGroupResource(group), nil
 }
 
-func (g *GroupHandler) patchExternalId(op string, v interface{}, group *fleet.ScimGroup) error {
+const maxLoggedUnknownMembers = 10
+
+// dropUnknownMembers removes members that reference no existing SCIM user or group
+// from group and, when given, from deltas' additions. IdPs treat a 400 as permanent,
+// so one stale or not-yet-provisioned ID must not fail the rest of a group push. A
+// request whose added members are all unknown is still rejected, unless it is a
+// delta patch that also removes members; the rejection is reported by returning the
+// unknown values, with group left unchanged.
+func (g *GroupHandler) dropUnknownMembers(
+	ctx context.Context, group *fleet.ScimGroup, deltas *fleet.ScimGroupMemberDeltas,
+) (rejected []string, err error) {
+	userIDs, childGroupIDs := group.ScimUsers, group.ChildGroups
+	if deltas != nil {
+		userIDs, childGroupIDs = deltas.AddUsers, deltas.AddChildGroups
+	}
+	foundUsers, err := g.ds.ExistingScimUserIDs(ctx, userIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check scim group member users exist")
+	}
+	foundGroups, err := g.ds.ExistingScimGroupIDs(ctx, childGroupIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check scim group member groups exist")
+	}
+
+	knownUsers, unknownUsers := splitKnownIDs(userIDs, foundUsers)
+	knownGroups, unknownGroups := splitKnownIDs(childGroupIDs, foundGroups)
+	if len(unknownUsers) == 0 && len(unknownGroups) == 0 {
+		return nil, nil
+	}
+
+	values := make([]string, 0, len(unknownUsers)+len(unknownGroups))
+	for _, id := range unknownUsers {
+		values = append(values, scimUserID(id))
+	}
+	for _, id := range unknownGroups {
+		values = append(values, scimGroupID(id))
+	}
+
+	// Groups can have thousands of members, and IdPs resend the same request every
+	// sync cycle, so the logged list is capped.
+	logAttrs := []any{
+		displayNameAttr, group.DisplayName,
+		"unknown_count", len(values),
+		membersAttr, values[:min(len(values), maxLoggedUnknownMembers)],
+	}
+	if group.ID != 0 {
+		logAttrs = append(logAttrs, "group_id", group.ID)
+	}
+	hasRemovals := deltas != nil && (len(deltas.RemoveUsers) > 0 || len(deltas.RemoveChildGroups) > 0)
+	if len(knownUsers) == 0 && len(knownGroups) == 0 && !hasRemovals {
+		g.logger.InfoContext(ctx, "none of the added group members exist", logAttrs...)
+		return values, nil
+	}
+	g.logger.InfoContext(ctx, "skipping unknown group members", logAttrs...)
+
+	group.ScimUsers = removeUints(group.ScimUsers, unknownUsers)
+	group.ChildGroups = removeUints(group.ChildGroups, unknownGroups)
+	if deltas != nil {
+		deltas.AddUsers = knownUsers
+		deltas.AddChildGroups = knownGroups
+	}
+	return nil, nil
+}
+
+// splitKnownIDs partitions ids, preserving order, into those in found and those not.
+func splitKnownIDs(ids []uint, found map[uint]struct{}) (known, unknown []uint) {
+	isKnown := func(id uint) bool { _, ok := found[id]; return ok }
+	known = slices.DeleteFunc(slices.Clone(ids), func(id uint) bool { return !isKnown(id) })
+	unknown = slices.DeleteFunc(slices.Clone(ids), isKnown)
+	return known, unknown
+}
+
+func (g *GroupHandler) patchExternalId(ctx context.Context, op string, v any, group *fleet.ScimGroup) error {
 	if op == scim.PatchOperationRemove || v == nil {
 		group.ExternalID = nil
 		return nil
 	}
 	externalId, ok := v.(string)
 	if !ok {
-		level.Info(g.logger).Log("msg", fmt.Sprintf("unsupported '%s' value", externalIdAttr), "value", v)
+		g.logger.InfoContext(ctx, fmt.Sprintf("unsupported '%s' value", externalIdAttr), "value", v)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
 	}
 	group.ExternalID = &externalId
 	return nil
 }
 
-func (g *GroupHandler) patchDisplayName(op string, v interface{}, group *fleet.ScimGroup) error {
+func (g *GroupHandler) patchDisplayName(ctx context.Context, op string, v any, group *fleet.ScimGroup) error {
 	if op == scim.PatchOperationRemove {
-		level.Info(g.logger).Log("msg", "cannot remove required attribute", "attribute", displayNameAttr)
+		g.logger.InfoContext(ctx, "cannot remove required attribute", "attribute", displayNameAttr)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
 	displayName, ok := v.(string)
 	if !ok {
-		level.Info(g.logger).Log("msg", fmt.Sprintf("unsupported '%s' value", displayNameAttr), "value", v)
+		g.logger.InfoContext(ctx, fmt.Sprintf("unsupported '%s' value", displayNameAttr), "value", v)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
 	}
 	if displayName == "" {
-		level.Info(g.logger).Log("msg", fmt.Sprintf("'%s' cannot be empty", displayNameAttr), "value", v)
+		g.logger.InfoContext(ctx, fmt.Sprintf("'%s' cannot be empty", displayNameAttr), "value", v)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
 	}
 	group.DisplayName = displayName
@@ -429,10 +565,13 @@ func (g *GroupHandler) patchDisplayName(op string, v interface{}, group *fleet.S
 }
 
 // patchMembers handles add/replace/remove operations for the members attribute
-func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{}, group *fleet.ScimGroup) error {
-	if op == scim.PatchOperationRemove {
-		// Remove all members
+func (g *GroupHandler) patchMembers(
+	ctx context.Context, op string, v any, group *fleet.ScimGroup, deltas *fleet.ScimGroupMemberDeltas,
+) error {
+	if op == scim.PatchOperationRemove && v == nil {
+		// Remove all members (both users and nested child groups)
 		group.ScimUsers = []uint{}
+		group.ChildGroups = []uint{}
 		return nil
 	}
 
@@ -453,93 +592,135 @@ func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{
 			membersList = append(membersList, m)
 		}
 	default:
-		level.Info(g.logger).Log("msg", "unsupported members value format", "value", v)
+		g.logger.InfoContext(ctx, "unsupported members value format", "value", v)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", v)})
 	}
 
-	// Process the members
+	// Process the members. A member is either a user (bare numeric ID) or a
+	// nested group (prefixed "group-<id>", as sent by Entra ID for nested groups).
 	userIDs := make([]uint, 0, len(membersList))
-	valueStrings := make([]string, 0, len(membersList))
+	childGroupIDs := make([]uint, 0, len(membersList))
 
 	for _, memberIntf := range membersList {
 		member, ok := memberIntf.(map[string]interface{})
 		if !ok {
-			level.Info(g.logger).Log("msg", "member must be an object", "member", memberIntf)
+			g.logger.InfoContext(ctx, "member must be an object", "member", memberIntf)
 			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", memberIntf)})
 		}
 
-		// Get the value attribute which contains the user ID
+		// Get the value attribute which contains the member ID
 		valueIntf, ok := member["value"]
 		if !ok || valueIntf == nil {
-			level.Info(g.logger).Log("msg", "member missing value attribute", "member", member)
+			g.logger.InfoContext(ctx, "member missing value attribute", "member", member)
 			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", member)})
 		}
 
 		valueStr, ok := valueIntf.(string)
 		if !ok {
-			level.Info(g.logger).Log("msg", "member value must be a string", "value", valueIntf)
+			g.logger.InfoContext(ctx, "member value must be a string", "value", valueIntf)
 			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", valueIntf)})
 		}
-		valueStrings = append(valueStrings, valueStr)
 
-		// Extract user ID from the value
-		userID, err := extractUserIDFromValue(valueStr)
+		kind, id, err := classifyMemberValue(valueStr)
 		if err != nil {
-			level.Info(g.logger).Log("msg", "invalid user ID format", "value", valueStr, "err", err)
+			g.logger.InfoContext(ctx, "invalid member ID format", "value", valueStr, "err", err)
 			return errors.ScimErrorBadParams([]string{valueStr})
 		}
-
-		userIDs = append(userIDs, userID)
-	}
-
-	// Verify all users exist in a single database call
-	if len(userIDs) > 0 {
-		allExist, err := g.ds.ScimUsersExist(ctx, userIDs)
-		if err != nil {
-			level.Error(g.logger).Log("msg", "error checking users existence", "err", err)
-			return err
-		}
-		if !allExist {
-			level.Info(g.logger).Log("msg", "one or more users not found", "userIDs", userIDs)
-			return errors.ScimErrorBadParams(valueStrings)
+		if kind == memberKindGroup {
+			childGroupIDs = append(childGroupIDs, id)
+		} else {
+			userIDs = append(userIDs, id)
 		}
 	}
 
-	// For add operation, append to existing members
-	if op == scim.PatchOperationAdd {
-		// Create a map to track existing user IDs to avoid duplicates
-		existingUsers := make(map[uint]bool)
-		for _, id := range group.ScimUsers {
-			existingUsers[id] = true
+	switch op {
+	case scim.PatchOperationAdd:
+		group.ScimUsers = appendMissingUint(group.ScimUsers, userIDs)
+		group.ChildGroups = appendMissingUint(group.ChildGroups, childGroupIDs)
+		for _, userID := range userIDs {
+			deltas.AddUser(userID)
 		}
-
-		// Add new users that don't already exist in the group
-		for _, id := range userIDs {
-			if !existingUsers[id] {
-				group.ScimUsers = append(group.ScimUsers, id)
-				existingUsers[id] = true
-			}
+		for _, childGroupID := range childGroupIDs {
+			deltas.AddChildGroup(childGroupID)
 		}
-	} else {
-		// For replace operation, replace all members
+	case scim.PatchOperationRemove:
+		group.ScimUsers = removeUints(group.ScimUsers, userIDs)
+		group.ChildGroups = removeUints(group.ChildGroups, childGroupIDs)
+		for _, userID := range userIDs {
+			deltas.RemoveUser(userID)
+		}
+		for _, childGroupID := range childGroupIDs {
+			deltas.RemoveChildGroup(childGroupID)
+		}
+	default: // replace
 		group.ScimUsers = userIDs // FIXME: List should be deduplicated by us? See https://github.com/fleetdm/fleet/issues/30086
+		group.ChildGroups = childGroupIDs
 	}
 
 	return nil
 }
 
+// declaresFullMembership reports whether an unfiltered members operation declares
+// the group's final membership rather than a delta: a replace, or a remove with no
+// value. A remove naming members (Entra ID's single-member removal form) is a delta.
+func declaresFullMembership(op string, v any) bool {
+	return op == scim.PatchOperationReplace || (op == scim.PatchOperationRemove && v == nil)
+}
+
+// removeUints returns base without the elements of toRemove, preserving order.
+func removeUints(base, toRemove []uint) []uint {
+	if len(toRemove) == 0 {
+		return base
+	}
+	remove := make(map[uint]struct{}, len(toRemove))
+	for _, id := range toRemove {
+		remove[id] = struct{}{}
+	}
+	return slices.DeleteFunc(base, func(id uint) bool {
+		_, ok := remove[id]
+		return ok
+	})
+}
+
+// appendMissingUint appends to base the elements of extra that are not already
+// present, preserving order and avoiding duplicates.
+func appendMissingUint(base, extra []uint) []uint {
+	existing := make(map[uint]struct{}, len(base))
+	for _, id := range base {
+		existing[id] = struct{}{}
+	}
+	for _, id := range extra {
+		if _, ok := existing[id]; !ok {
+			base = append(base, id)
+			existing[id] = struct{}{}
+		}
+	}
+	return base
+}
+
 // patchMembersWithPathFiltering handles patch operations with path filtering for members
 // This supports paths like members[value eq "422"] for add/replace/remove operations
-func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op scim.PatchOperation, group *fleet.ScimGroup) error {
-	memberID, err := g.getMemberID(op)
+func (g *GroupHandler) patchMembersWithPathFiltering(
+	ctx context.Context, op scim.PatchOperation, group *fleet.ScimGroup, deltas *fleet.ScimGroupMemberDeltas,
+) error {
+	kind, memberID, err := g.getMemberID(ctx, op)
 	if err != nil {
 		return err
+	}
+
+	// Operate on the appropriate member slice depending on whether the filter
+	// targets a user or a nested child group (e.g. members[value eq "group-62"]).
+	target := &group.ScimUsers
+	recordAdd, recordRemove := deltas.AddUser, deltas.RemoveUser
+	if kind == memberKindGroup {
+		target = &group.ChildGroups
+		recordAdd, recordRemove = deltas.AddChildGroup, deltas.RemoveChildGroup
 	}
 
 	// Check if the member exists in the group
 	memberFound := false
 	var memberIndex int
-	for i, id := range group.ScimUsers {
+	for i, id := range *target {
 		if id == memberID {
 			memberIndex = i
 			memberFound = true
@@ -549,41 +730,39 @@ func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op sci
 
 	// For remove operations, remove the member if found
 	if op.Op == scim.PatchOperationRemove {
+		// The removal is recorded even when the member is absent from the list we
+		// read: the IdP asked for it to be gone, and a targeted delete of a row
+		// that isn't there is a no-op.
+		recordRemove(memberID)
 		if !memberFound {
-			level.Info(g.logger).Log("msg", "member not found in group", "member_id", memberID, "op", fmt.Sprintf("%v", op))
+			g.logger.InfoContext(ctx, "member not found in group", "member_id", memberID, "kind", kind, "op", fmt.Sprintf("%v", op))
 			// The member may have been removed already from this group. For example, if the member was deleted.
 			return nil
 		}
-		group.ScimUsers = append(group.ScimUsers[:memberIndex], group.ScimUsers[memberIndex+1:]...)
+		*target = append((*target)[:memberIndex], (*target)[memberIndex+1:]...)
 		return nil
 	}
 
 	// For add operations, add the member if not found
 	if op.Op == scim.PatchOperationAdd && !memberFound {
-		// Verify the user exists
-		userExists, err := g.ds.ScimUsersExist(ctx, []uint{memberID})
-		if err != nil {
-			level.Error(g.logger).Log("msg", "error checking user existence", "err", err)
-			return err
-		}
-		if !userExists {
-			level.Info(g.logger).Log("msg", "user not found", "user_id", memberID)
-			return errors.ScimErrorBadParams([]string{scimUserID(memberID)})
-		}
-		group.ScimUsers = append(group.ScimUsers, memberID)
+		*target = append(*target, memberID)
+		recordAdd(memberID)
 		return nil
 	}
 
 	// For replace operations with a value
 	if op.Op == scim.PatchOperationReplace {
 		if !memberFound {
-			level.Info(g.logger).Log("msg", "member not found for replace operation", "members.value", memberID, "op", fmt.Sprintf("%v", op))
+			g.logger.InfoContext(
+				ctx, "member not found for replace operation", "members.value", memberID, "op", fmt.Sprintf("%v", op),
+			)
 			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
 
 		// If the value is nil or an empty object, remove the member
 		if op.Value == nil {
-			group.ScimUsers = append(group.ScimUsers[:memberIndex], group.ScimUsers[memberIndex+1:]...)
+			*target = append((*target)[:memberIndex], (*target)[memberIndex+1:]...)
+			recordRemove(memberID)
 			return nil
 		}
 
@@ -595,38 +774,71 @@ func (g *GroupHandler) patchMembersWithPathFiltering(ctx context.Context, op sci
 	return nil
 }
 
-// getMemberID extracts the member ID from a path expression like members[value eq "422"]
-func (g *GroupHandler) getMemberID(op scim.PatchOperation) (uint, error) {
+// getMemberID extracts the member kind and ID from a path expression like
+// members[value eq "422"] (user) or members[value eq "group-62"] (nested group).
+func (g *GroupHandler) getMemberID(ctx context.Context, op scim.PatchOperation) (memberKind, uint, error) {
 	attrExpression, ok := op.Path.ValueExpression.(*filter.AttributeExpression)
 	if !ok {
-		level.Info(g.logger).Log("msg", "unsupported patch path", "path", op.Path)
-		return 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+		g.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path)
+		return memberKindUser, 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
 
-	// Only matching by member value (user ID) is supported
+	// Only matching by member value is supported
 	if attrExpression.AttributePath.String() != valueAttr || attrExpression.Operator != filter.EQ {
-		level.Info(g.logger).Log("msg", "unsupported patch path", "path", op.Path, "expression", attrExpression.AttributePath.String())
-		return 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+		g.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path, "expression", attrExpression.AttributePath.String())
+		return memberKindUser, 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
 
 	memberIDStr, ok := attrExpression.CompareValue.(string)
 	if !ok {
-		level.Info(g.logger).Log("msg", "unsupported patch path", "path", op.Path, "compare_value", attrExpression.CompareValue)
-		return 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+		g.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path, "compare_value", attrExpression.CompareValue)
+		return memberKindUser, 0, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
 
-	// Extract user ID from the value
-	userID, err := extractUserIDFromValue(memberIDStr)
+	// Classify and extract the member ID from the value
+	kind, id, err := classifyMemberValue(memberIDStr)
 	if err != nil {
-		level.Info(g.logger).Log("msg", "invalid user ID format", "value", memberIDStr, "err", err)
-		return 0, errors.ScimErrorBadParams([]string{memberIDStr})
+		g.logger.InfoContext(ctx, "invalid member ID format", "value", memberIDStr, "err", err)
+		return memberKindUser, 0, errors.ScimErrorBadParams([]string{memberIDStr})
 	}
 
-	return userID, nil
+	return kind, id, nil
 }
 
 func scimGroupID(groupID uint) string {
 	return fmt.Sprintf("group-%d", groupID)
+}
+
+// groupValuePrefix is the prefix used to identify a member value that references
+// a nested SCIM group (e.g. "group-62") rather than a user (e.g. "1031").
+const groupValuePrefix = "group-"
+
+// memberKind distinguishes a user member from a nested group member in a SCIM
+// group's members list.
+type memberKind int
+
+const (
+	memberKindUser memberKind = iota
+	memberKindGroup
+)
+
+// classifyMemberValue inspects a SCIM group member "value" and reports whether it
+// references a user or a nested group, along with the parsed numeric ID. Entra ID
+// sends user members as bare numeric IDs (e.g. "1031") and nested group members as
+// prefixed IDs (e.g. "group-62").
+func classifyMemberValue(value string) (memberKind, uint, error) {
+	if strings.HasPrefix(value, groupValuePrefix) {
+		id, err := extractGroupIDFromValue(value)
+		if err != nil {
+			return memberKindGroup, 0, err
+		}
+		return memberKindGroup, id, nil
+	}
+	id, err := extractUserIDFromValue(value)
+	if err != nil {
+		return memberKindUser, 0, err
+	}
+	return memberKindUser, id, nil
 }
 
 // extractGroupIDFromValue extracts the group ID from a value like "group-123"

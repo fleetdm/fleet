@@ -3,11 +3,10 @@
 import React from "react";
 import { Column, Row } from "react-table";
 
+import Button from "components/buttons/Button";
+import TextCell from "components/TableContainer/DataTable/TextCell";
 import { IStringCellProps } from "interfaces/datatable_config";
 import { IHost } from "interfaces/host";
-
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import Icon from "components/Icon/Icon";
 
 export type ITargestInputHostTableConfig = Column<IHost>;
 type ITableStringCellProps = IStringCellProps<IHost>;
@@ -23,9 +22,12 @@ export const generateTableHeaders = (
           id: "delete",
           Header: "",
           Cell: (cellProps: ITableStringCellProps) => (
-            <div onClick={() => handleRowRemove(cellProps.row)}>
-              <Icon name="close-filled" />
-            </div>
+            <Button
+              onClick={() => handleRowRemove(cellProps.row)}
+              variant="subdued"
+              icon="close"
+              ariaLabel="Remove"
+            />
           ),
           disableHidden: true,
         },

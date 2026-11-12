@@ -1,21 +1,27 @@
-import React, { useCallback, useContext } from "react";
-import { Tab, TabList, Tabs } from "react-tabs";
-import { InjectedRouter } from "react-router";
 import { Location } from "history";
+import React, { useCallback, useContext } from "react";
+import { InjectedRouter } from "react-router";
+import { Tab, TabList, Tabs } from "react-tabs";
 
-import PATHS from "router/paths";
-import { getPathWithQueryParams } from "utilities/url";
+import BackButton from "components/BackButton";
+import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import SidePanelContent from "components/SidePanelContent";
+import SidePanelPage from "components/SidePanelPage";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import PATHS from "router/paths";
+import { getPathWithQueryParams } from "utilities/url";
 
-import SidePanelPage from "components/SidePanelPage";
-import MainContent from "components/MainContent";
-import BackButton from "components/BackButton";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import SidePanelContent from "components/SidePanelContent";
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import {
+  FmaPlatformValue,
+  FmaStatusValue,
+} from "./SoftwareFleetMaintained/FleetMaintainedAppsTable/FmaFilters/FmaFilters";
 
 const baseClass = "software-add-page";
 
@@ -47,11 +53,13 @@ const getTabIndex = (path: string): number => {
 };
 
 export interface ISoftwareAddPageQueryParams {
-  team_id?: string;
+  fleet_id?: string;
   query?: string;
   page?: string;
   order_key?: string;
   order_direction?: "asc" | "desc";
+  platform: FmaPlatformValue;
+  status: FmaStatusValue;
 }
 
 interface ISoftwareAddPageProps {
@@ -68,27 +76,34 @@ const SoftwareAddPage = ({
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
+  const { availableTeams } = useContext(AppContext);
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(false);
+  // Resolve the fleet name directly from availableTeams instead of via
+  // useTeamIdParam. On Fleet Free, that hook strips any fleet_id from the URL,
+  // but the page guard below immediately re-adds fleet_id=0, which loops.
+  const currentTeamName = availableTeams?.find(
+    (t) => t.id === parseInt(location.query.fleet_id ?? "", 10)
+  )?.name;
 
   const navigateToNav = useCallback(
     (i: number): void => {
       setSidePanelOpen(false);
       // Only query param to persist between tabs is team id
       const navPath = getPathWithQueryParams(addSoftwareSubNav[i].pathname, {
-        team_id: location.query.team_id,
+        fleet_id: location.query.fleet_id,
       });
       router.replace(navPath);
     },
-    [location.query.team_id, router, setSidePanelOpen]
+    [location.query.fleet_id, router, setSidePanelOpen]
   );
 
-  // Quick exit if no team_id param. This page must have a team id to function
+  // Quick exit if no fleet_id param. This page must have a team id to function
   // correctly. We redirect to the same page with the "No team" context if it
   // is not provieded.
-  if (!location.query.team_id) {
+  if (!location.query.fleet_id) {
     router.replace(
       getPathWithQueryParams(location.pathname, {
-        team_id: APP_CONTEXT_NO_TEAM_ID,
+        fleet_id: APP_CONTEXT_NO_TEAM_ID,
       })
     );
     return null;
@@ -98,8 +113,8 @@ const SoftwareAddPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const backUrl = getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
-    team_id: location.query.team_id,
+  const backUrl = getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
+    fleet_id: location.query.fleet_id,
   });
 
   return (
@@ -114,6 +129,7 @@ const SoftwareAddPage = ({
             />
           </div>
           <h1>Add software</h1>
+          <PageDescription content="Add software to your library. You can add it to self service later." />
           <TabNav>
             <Tabs
               selectedIndex={getTabIndex(location?.pathname || "")}
@@ -130,12 +146,15 @@ const SoftwareAddPage = ({
               </TabList>
             </Tabs>
           </TabNav>
-          {React.cloneElement(children, {
-            router,
-            currentTeamId: parseInt(location.query.team_id, 10),
-            isSidePanelOpen,
-            setSidePanelOpen,
-          })}
+          <div key={location?.pathname} className="tab-nav-routed-content">
+            {React.cloneElement(children, {
+              router,
+              currentTeamId: parseInt(location.query.fleet_id, 10),
+              currentTeamName,
+              isSidePanelOpen,
+              setSidePanelOpen,
+            })}
+          </div>
         </MainContent>
         {isSidePanelOpen && (
           <SidePanelContent>

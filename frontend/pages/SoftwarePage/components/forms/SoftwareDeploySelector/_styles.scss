@@ -1,0 +1,24 @@
+.software-deploy-selector {
+  &__checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+
+    .form-field--checkbox {
+      margin-bottom: 0;
+      width: auto;
+    }
+  }
+
+  &__patch-options {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    margin-top: $pad-small;
+    margin-left: $pad-large;
+  }
+
+  &__patch-when-closed-notice {
+    margin: $pad-large 0 0;
+  }
+}

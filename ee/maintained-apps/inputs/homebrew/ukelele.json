@@ -1,0 +1,10 @@
+{
+  "name": "Ukelele",
+  "unique_identifier": "org.sil.ukelele",
+  "token": "ukelele",
+  "installer_format": "dmg",
+  "slug": "ukelele/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

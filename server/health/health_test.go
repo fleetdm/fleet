@@ -2,11 +2,11 @@ package health
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,13 +17,13 @@ func TestCheckHealth(t *testing.T) {
 		"pass": Nop(),
 	}
 
-	healthy := CheckHealth(log.NewNopLogger(), checkers)
+	healthy := CheckHealth(slog.New(slog.DiscardHandler), checkers)
 	require.False(t, healthy)
 
 	checkers = map[string]Checker{
 		"pass": Nop(),
 	}
-	healthy = CheckHealth(log.NewNopLogger(), checkers)
+	healthy = CheckHealth(slog.New(slog.DiscardHandler), checkers)
 	require.True(t, healthy)
 }
 
@@ -34,7 +34,7 @@ func (c fail) HealthCheck() error {
 }
 
 func TestHealthzHandler(t *testing.T) {
-	logger := log.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	failCheck := healthcheckFunc(func() error {
 		return errors.New("health check failed")
 	})

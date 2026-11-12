@@ -3,11 +3,20 @@
 
   form {
     @include vertical-form-layout;
+    max-width: $settings-form-max-width;
   }
 
-  &__enrollment-type-fieldset {
-    padding: 0;
-    margin: 0;
-    border: none;
+  .form-field__label {
+    font-size: $small;
+    margin-bottom: $pad-small;
+  }
+
+  &__default-fleet-label {
+    font-size: $x-small;
+  }
+
+  // Keep the label readable when the dropdown is disabled; only the control greys out.
+  &__default-fleet-label.dropdown-wrapper__label--disabled {
+    color: $core-fleet-black;
   }
 }

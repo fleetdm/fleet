@@ -30,7 +30,7 @@ func (c *Client) ListCarves(opt fleet.CarveListOptions) ([]*fleet.CarveMetadata,
 		)
 	}
 
-	var responseBody listCarvesResponse
+	var responseBody fleet.ListCarvesResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
 		return nil, fmt.Errorf("decode get carves response: %w", err)
@@ -63,7 +63,7 @@ func (c *Client) GetCarve(carveId int64) (*fleet.CarveMetadata, error) {
 			extractServerErrorText(response.Body),
 		)
 	}
-	var responseBody getCarveResponse
+	var responseBody fleet.GetCarveResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
 		return nil, fmt.Errorf("decode carve response: %w", err)
@@ -95,7 +95,7 @@ func (c *Client) getCarveBlock(carveId, blockId int64) ([]byte, error) {
 		)
 	}
 
-	var responseBody getCarveBlockResponse
+	var responseBody fleet.GetCarveBlockResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
 		return nil, fmt.Errorf("decode get carve block response: %w", err)
@@ -175,7 +175,7 @@ func (c *Client) DownloadCarve(id int64) (io.Reader, error) {
 		)
 	}
 
-	var responseBody getCarveResponse
+	var responseBody fleet.GetCarveResponse
 	err = json.NewDecoder(response.Body).Decode(&responseBody)
 	if err != nil {
 		return nil, fmt.Errorf("decode get carve by name response: %w", err)

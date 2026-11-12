@@ -9,3 +9,35 @@ type ConditionalAccessIDPAssets struct{}
 func (c *ConditionalAccessIDPAssets) AuthzType() string {
 	return "conditional_access_idp_assets"
 }
+
+// ConditionalAccessOktaProfileIdentifier is the top-level PayloadIdentifier
+// of the .mobileconfig profile delivered for Okta conditional access. It is
+// also the value stored in host_mdm_apple_profiles.profile_identifier for
+// hosts that have received the profile, and is used to detect when an
+// InstallProfile ack applies to the Okta CA profile.
+const ConditionalAccessOktaProfileIdentifier = "com.fleetdm.conditional-access-okta"
+
+// ConditionalAccessOktaCertificateCN is the Subject CN of the SCEP
+// certificate issued for Okta conditional access. The duplicate-cert
+// cleanup script matches certificates in the keychain by this CN.
+const ConditionalAccessOktaCertificateCN = "Fleet conditional access for Okta"
+
+// ConditionalAccessSCEPPath is the path of Fleet's conditional access SCEP server.
+const ConditionalAccessSCEPPath = "/api/fleet/conditional_access/scep"
+
+// ConditionalAccessManagedCertificateCAName is the ca_name of the host_mdm_managed_certificates rows for certificates
+// issued by Fleet's conditional access SCEP server.
+const ConditionalAccessManagedCertificateCAName = "Conditional access"
+
+type ConditionalAccessWindowsProfiles struct {
+	SCEPProfile    string `json:"scep_profile"`
+	BrowserProfile string `json:"browser_profile"`
+}
+
+// OktaCACleanupTarget identifies where to run the Okta conditional access
+// keychain-cleanup script after a successful InstallProfile ack for the
+// Okta CA profile.
+type OktaCACleanupTarget struct {
+	HostID        uint   `db:"host_id"`
+	UserShortName string `db:"user_short_name"`
+}

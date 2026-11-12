@@ -1,4 +1,5 @@
 import React from "react";
+
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
 
@@ -13,7 +14,7 @@ const SelfServiceHeader = ({
 
   return (
     <CardHeader
-      header="Self-service"
+      header="Self service"
       subheader={
         <>
           Install organization-approved apps provided by your IT department.{" "}

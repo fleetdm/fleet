@@ -1,0 +1,10 @@
+{
+  "name": "WordService",
+  "unique_identifier": "org.grunenberg.WordService",
+  "token": "wordservice",
+  "installer_format": "zip",
+  "slug": "wordservice/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

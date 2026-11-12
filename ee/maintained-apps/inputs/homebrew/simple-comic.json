@@ -1,0 +1,10 @@
+{
+  "name": "Simple Comic",
+  "unique_identifier": "com.ToWatchList.SimpleComic",
+  "token": "simple-comic",
+  "installer_format": "zip",
+  "slug": "simple-comic/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

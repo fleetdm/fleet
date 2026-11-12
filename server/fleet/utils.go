@@ -2,13 +2,16 @@ package fleet
 
 import (
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"io"
 	"regexp"
 	"strings"
+	"uuid"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/fatih/color"
+	"github.com/fleetdm/fleet/v4/server/platform/jsondecode"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -18,7 +21,7 @@ func WriteExpiredLicenseBanner(w io.Writer) {
 		w,
 		"Your license for Fleet Premium is about to expire. If you’d like to renew or have questions about "+
 			"downgrading, please navigate to "+
-			"https://fleetdm.com/docs/using-fleet/faq#how-do-i-downgrade-from-fleet-premium-to-fleet-free and "+
+			"https://fleetdm.com/learn-more-about/downgrading and "+
 			"contact us for help.",
 	)
 	// We need to disable color and print a new line to make it look somewhat neat, otherwise colors continue to the
@@ -32,8 +35,8 @@ func WriteAppleBMTermsExpiredBanner(w io.Writer) {
 	warningColor.Fprintf(
 		w,
 		`Your organization can’t automatically enroll macOS hosts until you accept the new terms `+
-			`and conditions for Apple Business Manager (ABM). An ABM administrator can accept these terms. `+
-			`Go to ABM: https://business.apple.com/`,
+			`and conditions for Apple Business (AB). An AB administrator can accept these terms. `+
+			`Go to AB: https://business.apple.com/`,
 	)
 	// We need to disable color and print a new line to make it look somewhat neat, otherwise colors continue to the
 	// next line
@@ -47,8 +50,17 @@ func WriteAppleBMTermsExpiredBanner(w io.Writer) {
 // any unknown key is specified in the JSON value, and if there is any trailing
 // byte after the JSON value.
 func JSONStrictDecode(r io.Reader, v interface{}) error {
-	dec := json.NewDecoder(r)
-	dec.DisallowUnknownFields()
+	return jsonDecode(r, v, jsondecode.RejectUnknownMembers())
+}
+
+// JSONDecode is JSONStrictDecode without the unknown-key rejection: unrecognized keys are ignored, as
+// with a plain json.Unmarshal. Trailing bytes are still an error.
+func JSONDecode(r io.Reader, v any) error {
+	return jsonDecode(r, v)
+}
+
+func jsonDecode(r io.Reader, v any, opts ...jsonv2.Options) error {
+	dec := jsondecode.NewDecoder(r, opts...)
 	if err := dec.Decode(v); err != nil {
 		return err
 	}
@@ -106,4 +118,14 @@ func VersionToSemverVersion(version string) (*semver.Version, error) {
 		return nil, err
 	}
 	return ver, nil
+}
+
+// ParseNonNilUUID parses s in any form uuid.Parse accepts, and reports false when it is not a UUID or is the all-zero UUID,
+// which callers such as Microsoft Graph use to mean "none".
+func ParseNonNilUUID(s string) (uuid.UUID, bool) {
+	parsed, err := uuid.Parse(s)
+	if err != nil || parsed == uuid.Nil() {
+		return uuid.Nil(), false
+	}
+	return parsed, true
 }

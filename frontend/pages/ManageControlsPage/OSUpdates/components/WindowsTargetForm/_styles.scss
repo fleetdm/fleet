@@ -1,0 +1,5 @@
+.windows-target-form {
+  // Matches the Apple target form so the tabs are consistent: the fields and
+  // the save button are stacked siblings, spaced by the form.
+  @include vertical-form-layout;
+}

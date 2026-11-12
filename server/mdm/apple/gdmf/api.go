@@ -9,81 +9,97 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/rootcert"
 )
 
 const baseURL = "https://gdmf.apple.com/v2/pmv"
 
-// Asset represents the metadata for an asset in the Apple Software Lookup Service[1][2].
-// Example:
-//
-//	{
-//	    "ProductVersion": "14.6.1",
-//	    "Build": "23G93",
-//	    "PostingDate": "2024-08-07",
-//	    "ExpirationDate": "2024-11-11",
-//	    "SupportedDevices": [
-//	        "J132AP",
-//	        "VMA2MACOSAP",
-//	        "VMM-x86_64"
-//	    ]
-//	}
-//
-// [1]: http://gdmf.apple.com/v2/pmv
-// [2]:
-// https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-type Asset struct {
-	ProductVersion   string   `json:"ProductVersion"`
-	Build            string   `json:"Build"`
-	PostingDate      string   `json:"PostingDate"`
-	ExpirationDate   string   `json:"ExpirationDate"`
-	SupportedDevices []string `json:"SupportedDevices"`
-}
-
 // AssetSets represents the metadata for a set of assets in the Apple Software Lookup Service[1][2].
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
 type AssetSets struct {
-	IOS   []Asset `json:"iOS"`
-	MacOS []Asset `json:"macOS"`
+	IOS   []fleet.OSUpdateAsset `json:"iOS"`
+	MacOS []fleet.OSUpdateAsset `json:"macOS"`
 	// VisionOS []Asset `json:"visionOS"` // Fleet doesn't support visionOS yet
 	// XROS     []Asset `json:"xrOS"`    // Fleet doesn't support xrOS yet
 }
 
-// APIResponse represents the response from the Apple Software Lookup Service[1][2].
+// AssetMetadata represents the response from the Apple Software Lookup Service[1][2].
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-type APIResponse struct {
+type AssetMetadata struct {
 	PublicAssetSets AssetSets `json:"PublicAssetSets"`
 	AssetSets       AssetSets `json:"AssetSets"`
 	// PublicRapidSecurityResponses interface{} `json:"PublicRapidSecurityResponses"` // Fleet doesn't support PublicRapidSecurityResponses yet
 }
 
-// GetLatestOSVersion returns the latest OS version for the given device. The device is matched
-// against the Apple Software Update Lookup Service[1][2] to find the latest version. If no matching
-// asset is found, an error is returned.
-// [1]: http://gdmf.apple.com/v2/pmv
-// [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-func GetLatestOSVersion(device fleet.MDMAppleMachineInfo) (*Asset, error) {
-	r, err := GetAssetMetadata()
-	if err != nil {
-		return nil, fmt.Errorf("retrieving asset metadata: %w", err)
+// IsSupportedMacOSVersion checks if the given macOS version is supported by Apple. The
+// excludeNonPublicAssetSets parameter controls whether to check against the full asset set or just
+// the public asset set, which is relevant for DEP enrollment where only public versions are valid.
+func (a AssetMetadata) IsSupportedMacOSVersion(version string, excludeNonPublicAssetSets bool) bool {
+	as := a.AssetSets.MacOS
+	if excludeNonPublicAssetSets {
+		as = a.PublicAssetSets.MacOS
 	}
 
-	assetSet := r.PublicAssetSets.MacOS // default to public asset set; note that if the device is not macOS, iPhone, or iPad, we'll fail to match the supported device and return an error below
+	for _, s := range as {
+		if s.ProductVersion == version {
+			return true // version is supported
+		}
+	}
+
+	return false // version is not supported
+}
+
+// IsSupportedIOSVersion checks if the given iOS version is supported by Apple for the given device
+// prefix (e.g. "iPhone", "iPad"). If devicePrefix is empty, it checks if the version is supported
+// for any iOS device (which includes things like iPod, Apple Watch, and Apple TV). The
+// excludeNonPublicAssetSets parameter controls whether to check against the full asset set or just
+// the public asset set, which is relevant for DEP enrollment where only public versions are valid.
+func (a AssetMetadata) IsSupportedIOSVersion(version string, devicePrefix string, excludeNonPublicAssetSets bool) bool {
+	as := a.AssetSets.IOS
+	if excludeNonPublicAssetSets {
+		as = a.PublicAssetSets.IOS
+	}
+
+	for _, s := range as {
+		if s.ProductVersion == version {
+			if devicePrefix == "" {
+				return true // version is supported for iOS with any device prefix
+			}
+			for _, d := range s.SupportedDevices {
+				if strings.HasPrefix(strings.ToLower(d), strings.ToLower(devicePrefix)) {
+					return true // version is supported for device with the given prefix
+				}
+			}
+		}
+	}
+
+	return false // version is not supported
+}
+
+// GetLatestOSVersion returns the latest OS version for the given device. The device is matched
+// against the Apple Software Update Lookup Service[1][2] that is locally cached in the apple_software_update_assets table to find the latest version in the
+// updateAssets. If no matching asset is found, an error is returned.
+// [1]: http://gdmf.apple.com/v2/pmv
+// [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
+func GetLatestOSVersion(device fleet.MDMAppleMachineInfo, updateAssets map[string][]fleet.AppleSoftwareUpdateAsset) (*fleet.AppleSoftwareUpdateAsset, error) {
+	assetSet := updateAssets["macos"] // default to public asset set; note that if the device is not macOS, iPhone, iPad, or iPod we'll fail to match the supported device and return an error below
 	if strings.HasPrefix(device.Product, "iPhone") ||
+		strings.HasPrefix(device.Product, "iPod") ||
 		strings.HasPrefix(device.Product, "iPad") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPhone") ||
+		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPod") ||
 		strings.HasPrefix(device.SoftwareUpdateDeviceID, "iPad") {
-		assetSet = r.PublicAssetSets.IOS
+		assetSet = updateAssets["ios"]
 	}
 	latestIdx := -1
 	for i, s := range assetSet {
@@ -127,7 +143,7 @@ func createClient() *http.Client {
 // GetAssetMetadata retrieves the asset metadata from the Apple Software Lookup Service[1][2].
 // [1]: http://gdmf.apple.com/v2/pmv
 // [2]: https://support.apple.com/guide/deployment/use-mdm-to-deploy-software-updates-depafd2fad80/web
-func GetAssetMetadata() (*APIResponse, error) {
+func GetAssetMetadata() (*AssetMetadata, error) {
 	baseURL := getBaseURL()
 	reqURL, err := url.Parse(baseURL)
 	if err != nil {
@@ -149,7 +165,7 @@ func GetAssetMetadata() (*APIResponse, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading response body from Apple endpoint: %w", err)
 	}
-	var dest APIResponse
+	var dest AssetMetadata
 	if err := json.Unmarshal(body, &dest); err != nil {
 		return nil, fmt.Errorf("decoding response data from Apple endpoint: %w", err)
 	}
@@ -205,7 +221,7 @@ func doWithRetry(req *http.Request) (*http.Response, error) {
 }
 
 func getBaseURL() string {
-	devURL := os.Getenv("FLEET_DEV_GDMF_URL")
+	devURL := dev_mode.Env("FLEET_DEV_GDMF_URL")
 	if devURL != "" {
 		return devURL
 	}

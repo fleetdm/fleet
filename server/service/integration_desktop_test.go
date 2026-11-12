@@ -5,14 +5,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -38,7 +41,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	}, fleet.DeviceMappingGoogleChromeProfiles))
 	_, err = s.ds.SetOrUpdateCustomHostDeviceMapping(context.Background(), hosts[0].ID, "c@b.c", fleet.DeviceMappingCustomInstaller)
 	require.NoError(t, err)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, "", "", false))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, "", "", fleet.PersonalEnrollmentTypeNone))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), hosts[0].ID, "1.3.0", nil, nil))
 	// create a battery for hosts[0]
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), hosts[0].ID, []*fleet.HostBattery{
@@ -47,7 +50,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 
 	// create an auth token for hosts[0]
 	token := "much_valid"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hosts[0].ID, token)
 		return err
 	})
@@ -173,6 +176,42 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
 	require.NoError(t, res.Body.Close())
 	require.Nil(t, getDesktopResp.FailingPolicies)
+
+	// vulnerability severity filters (CVSS score, known exploit) are premium-only and must be
+	// rejected with a missing-license error on the free-tier device software endpoint, rather
+	// than being silently served.
+	for _, premiumFilter := range []string{"min_cvss_score=1", "max_cvss_score=10", "exploit=true"} {
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?vulnerable=true&"+premiumFilter, nil, http.StatusPaymentRequired)
+		require.NoError(t, res.Body.Close())
+	}
+
+	// the (non-premium) vulnerable filter is still served on the free tier.
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software?vulnerable=true", nil, http.StatusOK)
+	require.NoError(t, res.Body.Close())
+
+	// the type filter is also served on the free tier, and validated.
+	_, err = s.ds.UpdateHostSoftware(t.Context(), hosts[0].ID, []fleet.Software{
+		{Name: "brave ext", Version: "1.0", Source: "chrome_extensions", ExtensionFor: "brave"},
+		{Name: "edge ext", Version: "1.0", Source: "chrome_extensions", ExtensionFor: "edge"},
+		{Name: "curl", Version: "1.0", Source: "deb_packages"},
+	})
+	require.NoError(t, err)
+	for _, c := range softwareTypeFilterErrorCases {
+		res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusUnprocessableEntity, c.params...)
+		require.Contains(t, extractServerErrorText(res.Body), c.reason)
+	}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusPaymentRequired, "ai_tool", "true")
+	require.NoError(t, res.Body.Close())
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK, "source", "mcp_servers")
+	require.NoError(t, res.Body.Close())
+	var deviceSoftwareResp getDeviceSoftwareResponse
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusOK,
+		"source", "chrome_extensions", "extension_for", "brave,edge", "per_page", "1")
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&deviceSoftwareResp))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, 2, deviceSoftwareResp.Count)
+	require.Len(t, deviceSoftwareResp.Software, 1)
+	require.True(t, deviceSoftwareResp.Meta.HasNextResults)
 }
 
 // TestDefaultTransparencyURL tests that Fleet Free licensees are restricted to the default transparency url.
@@ -194,7 +233,7 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 
 	// create device token for host
 	token := "token_test_default_transparency_url"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, host.ID, token)
 		return err
 	})
@@ -304,7 +343,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 
 	hosts := s.createHosts(t)
 	token := "much_valid"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hosts[0].ID, token)
 		return err
 	})
@@ -318,7 +357,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	res.Body.Close()
 
 	data := make(map[string]interface{})
-	for i := int64(0); i < (maxFleetdErrorReportSize+1024)/20; i++ {
+	for i := range (fleet.MaxFleetdErrorReportSize + 1024) / 20 {
 		key := fmt.Sprintf("key%d", i)
 		value := fmt.Sprintf("value%d", i)
 		data[key] = value
@@ -521,4 +560,172 @@ func (s *integrationEnterpriseTestSuite) TestRateLimitOfDesktopEndpoints() {
 	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device/invalid_token/ping", nil, http.StatusUnauthorized).Body.Close()
 	// A new failing request is not banned.
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+}
+
+func (s *integrationEnterpriseTestSuite) TestAlternativeBrowserHostSetting() {
+	t := s.T()
+
+	token := "valid_token"
+	createHostAndDeviceToken(s.T(), s.ds, token)
+
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	getDesktopResp := fleetDesktopResponse{}
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, acResp.FleetDesktop.AlternativeBrowserHost, getDesktopResp.AlternativeBrowserHost)
+
+	originalHost := acResp.FleetDesktop.AlternativeBrowserHost
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(
+			`{"fleet_desktop": {"alternative_browser_host": %q}}`, originalHost)), http.StatusOK, &appConfigResponse{})
+	})
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop": {"alternative_browser_host":"althost"}}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	getDesktopResp = fleetDesktopResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, "althost", getDesktopResp.AlternativeBrowserHost)
+}
+
+// requireSSORequired asserts whether res carries the marker the "My device" page
+// keys off of to start the Fleet Desktop SSO flow.
+func requireSSORequired(t *testing.T, res *http.Response, want bool) {
+	t.Helper()
+	defer res.Body.Close()
+
+	var body struct {
+		SSORequired bool `json:"sso_required"`
+	}
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&body))
+	require.Equal(t, want, body.SSORequired)
+}
+
+// enableFleetDesktopSSO turns the setting on with a placeholder IdP, and turns
+// both back off when the test ends.
+func (s *integrationEnterpriseTestSuite) enableFleetDesktopSSO(metadataURL string) {
+	t := s.T()
+
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"fleet_desktop": { "sso_enabled": false },
+			"mdm": { "end_user_authentication": { "entity_id": "", "idp_name": "", "metadata_url": "" } }
+		}`), http.StatusOK, &appConfigResponse{})
+	})
+
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "mdm.test.com",
+				"idp_name": "SimpleSAML",
+				"metadata_url": %q
+			}
+		},
+		"fleet_desktop": { "sso_enabled": true }
+	}`, metadataURL)), http.StatusOK, &acResp)
+	require.True(t, acResp.FleetDesktop.SSOEnabled)
+}
+
+func (s *integrationEnterpriseTestSuite) TestFleetDesktopSSOGate() {
+	t := s.T()
+	ctx := t.Context()
+
+	token := "desktop_sso_gate_token"
+	host := createHostAndDeviceToken(t, s.ds, token)
+
+	// baseline: with the setting off the device page needs nothing but the token
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK).Body.Close()
+
+	s.enableFleetDesktopSSO("https://idp.example.com/metadata")
+
+	// no session cookie: the SPA is told to sign in rather than that its URL is bad
+	requireSSORequired(t, s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusUnauthorized), true)
+	requireSSORequired(t, s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/policies", nil, http.StatusUnauthorized), true)
+	requireSSORequired(t, s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/software", nil, http.StatusUnauthorized), true)
+
+	// a session ID that matches nothing is no better than no cookie at all
+	requireSSORequired(t, s.DoRawWithHeaders("GET", "/api/latest/fleet/device/"+token, nil, http.StatusUnauthorized,
+		map[string]string{"Cookie": cookieNameDeviceSSOSession + "=not-a-session"}), true)
+
+	// an invalid token is still an invalid token: signing in would not fix it
+	requireSSORequired(t, s.DoRawNoAuth("GET", "/api/latest/fleet/device/no_such_token", nil, http.StatusUnauthorized), false)
+
+	// the exempt endpoints answer exactly as they do with the setting off
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK).Body.Close()
+	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device/"+token+"/ping", nil, http.StatusOK).Body.Close()
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/transparency", nil, http.StatusTemporaryRedirect).Body.Close()
+	s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", []byte("{}"), http.StatusOK).Body.Close()
+	// The tray app's migration dialog posts this with the token alone. Apple MDM is
+	// not configured in this suite, so it stops at that check -- which is the point:
+	// it got past the gate rather than being told to sign in.
+	requireSSORequired(t, s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/migrate_mdm", nil, http.StatusBadRequest), false)
+
+	// the orbit endpoints authenticate on their own middleware and are untouched
+	s.DoRawNoAuth("POST", "/api/fleet/orbit/config", []byte(`{"orbit_node_key":"no_such_key"}`), http.StatusUnauthorized).Body.Close()
+
+	// a host still in Setup Experience is carved out: an IdP prompt inside Setup
+	// Assistant is the failure this feature exists to retire
+	require.NoError(t, s.ds.SetHostAwaitingConfiguration(ctx, host.UUID, true))
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK).Body.Close()
+
+	// and once Setup Experience is done, the next visit is gated again
+	require.NoError(t, s.ds.SetHostAwaitingConfiguration(ctx, host.UUID, false))
+	requireSSORequired(t, s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusUnauthorized), true)
+}
+
+func (s *integrationEnterpriseTestSuite) TestFleetDesktopSSOGateEndToEnd() {
+	t := s.T()
+
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+		t.Skip("SSO tests are disabled")
+	}
+
+	token := "desktop_sso_e2e_token" //nolint:gosec // G101: test value, not a real credential
+	createHostAndDeviceToken(t, s.ds, token)
+
+	otherToken := "desktop_sso_e2e_other_token" //nolint:gosec // G101: test value, not a real credential
+	otherHost := test.NewHost(t, s.ds, t.Name()+"-other.local", "", t.Name()+"-other", uuid.New().String(), time.Now())
+	createDeviceTokenForHost(t, s.ds, otherHost.ID, otherToken)
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	originalServerURL := acResp.ServerSettings.ServerURL
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(
+			`{"server_settings": {"server_url": %q}}`, originalServerURL)), http.StatusOK, &appConfigResponse{})
+	})
+	s.DoJSON("PATCH", "/api/latest/fleet/config",
+		json.RawMessage(`{"server_settings": {"server_url": "https://localhost:8080"}}`), http.StatusOK, &acResp)
+
+	s.enableFleetDesktopSSO(testSAMLIDPMetadataURL)
+
+	// refused before signing in
+	requireSSORequired(t, s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusUnauthorized), true)
+
+	res := s.LoginDeviceSSOUser("sso_user", "user123#", token)
+	var sessionCookie *http.Cookie
+	for _, c := range res.Cookies() {
+		if c.Name == cookieNameDeviceSSOSession {
+			sessionCookie = c
+		}
+	}
+	require.NotNil(t, sessionCookie)
+	require.NotEmpty(t, sessionCookie.Value)
+
+	// admitted with the session the callback minted
+	sessionHeader := map[string]string{"Cookie": cookieNameDeviceSSOSession + "=" + sessionCookie.Value}
+	s.DoRawWithHeaders("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK, sessionHeader).Body.Close()
+
+	// but only for the host it was minted for: the same browser holding this
+	// cookie cannot open another device's page
+	requireSSORequired(t, s.DoRawWithHeaders("GET", "/api/latest/fleet/device/"+otherToken, nil,
+		http.StatusUnauthorized, sessionHeader), true)
 }

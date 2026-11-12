@@ -1,0 +1,10 @@
+{
+  "name": "Framer",
+  "unique_identifier": "com.framer.electron",
+  "token": "framer",
+  "installer_format": "zip",
+  "slug": "framer/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

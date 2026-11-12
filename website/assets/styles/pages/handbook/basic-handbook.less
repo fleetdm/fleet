@@ -11,89 +11,55 @@
     padding: 0px 40px;
   }
 
-  [purpose='search'] {
-    // Note: We're using classes here to override the default Docsearch styles;
-    button {
+  [purpose='searchbar'] {
+    width: 100%;
+    input {
       width: 100%;
-      cursor: text;
-      margin: 0;
+      padding-top: 6px;
+      padding-bottom: 6px;
+      border: none;
+      &:focus {
+        outline: none;
+      }
+      &::placeholder {
+        font-size: 16px;
+        line-height: 24px;
+        color: #8B8FA2;
+      }
     }
-    .DocSearch-Button {
+    img {
+      height: 16px;
+      margin-right: 8px;
+    }
+    .input-group {
       border-top-left-radius: 6px;
       border-bottom-left-radius: 6px;
       border-top-right-radius: 6px;
       border-bottom-right-radius: 6px;
       border: 1px solid @core-fleet-black-25;
-      background-color: #FFF;
-      padding: 6px;
-      height: 36px;
-      margin: 0;
-    }
-    .DocSearch-Button:hover {
-      box-shadow: none;
-      border: 1px solid @core-fleet-black-25;
-      color: @core-fleet-black-50;
-    }
-    .DocSearch-Search-Icon {
-      margin-left: 10px;
-      height: 16px;
-      width: 16px;
-      color: @core-fleet-black-50;
-      stroke-width: 3px;
-    }
-    .DocSearch-Button-Keys {
-      display: none;
+      background: #FFF;
+      align-items: center;
     }
     .input-group:focus-within {
-      border: 1px solid @core-vibrant-blue;
+      border: 1px solid @core-vibrant-green;
     }
-    .DocSearch-Button-Placeholder {
+    .form-control {
+      border-radius: 6px;
+      height: 36px;
+      margin: 0;
+      padding: 0px;
+      width: 100%;
       font-size: 16px;
-      font-weight: 400;
-      padding-left: 12px;
-    }
-    .DocSearch-Button-Placeholder::after {
-      content: ' the handbook...';
-    }
-    [purpose='disabled-search'] {
-      input {
-        padding-top: 6px;
-        padding-bottom: 6px;
+      border: none;
+      &:focus {
         border: none;
-        } &::placeholder {
-          font-size: 16px;
-          line-height: 24px;
-        }
-      .input-group {
-        border-top-left-radius: 6px;
-        border-bottom-left-radius: 6px;
-        border-top-right-radius: 6px;
-        border-bottom-right-radius: 6px;
-        border: 1px solid @core-fleet-black-25;
-        background: #FFF;
       }
-      .input-group:focus-within {
-        border: 1px solid @core-vibrant-blue;
-      }
-      .docsearch-input {
-        height: 100%;
-        width: 98%;
-      }
-      .docsearch-input:focus-visible {
-        outline: none;
-      }
-      .ds-input:focus {
-        outline: rgba(0, 0, 0, 0);
-      }
-      .input-group-text {
-        color: @core-fleet-black-50;
-      }
-      .form-control {
-        height: 36px;
-        padding: 0px;
-        font-size: 16px;
-      } &:focus {
-        border: none;
+    }
+    [purpose='searchbar-submit'] {
+      .searchbar-submit-btn();
+      margin-left: 2px;
+      &:focus {
+        outline: 2px solid @core-fleet-black;
       }
     }
   }
@@ -244,11 +210,15 @@
       padding-top: 40px;
       padding-bottom: 24px;
       margin-top: 40px;
+      margin-bottom: 0px;
       &:first-of-type {
         border-top: none;
         padding-top: 24px;
         margin-top: 0px;
       }
+    }
+    h2 + h3 {
+      padding-top: 12px;
     }
     h3 {
       font-size: 20px;
@@ -314,6 +284,10 @@
         code:not(.nohighlight):not(.mermaid) {
           display: inline;
         }
+        > pre {
+          margin-top: 16px;
+          text-indent: 0px;
+        }
         p {
           display: inline;
           margin-bottom: 0px;
@@ -334,13 +308,14 @@
         text-align: center;
         line-height: 20px;
         text-indent: 0px;
+        white-space: nowrap;
       }
     }
     img {
       display: flex;
-      width: calc(100% - 32px);
+      width: 100%;
       height: auto;
-      padding: 24px 16px;
+      padding: 24px 0;
       margin: auto;
     }
     a > code:not(.hljs):not(.nohighlight):not(.mermaid) {
@@ -401,6 +376,9 @@
       td {
         border: 1px solid @border-lt-gray;
         padding: 8px 7px 7px 8px;
+        sub {
+          font-size: 14px;
+        }
       }
     }
     blockquote {
@@ -430,34 +408,7 @@
       height: 18px;
     }
     [purpose='tip'] {
-      margin: 16px 0 32px;
-      background: #F7F7FC;
-      border: 1px solid @core-vibrant-blue-50;
-      padding: 16px;
-      border-radius: 8px;
-      display: flex;
-      img {
-        display: flex;
-        margin: 4px 12px 0 0;
-        height: 16px;
-        width: 16px;
-        padding: 0px;
-      }
-      p {
-        display: block;
-        margin-bottom: 16px;
-        line-height: 24px;
-        font-size: 16px;
-      }
-      p:last-child {
-        margin-bottom: 0px;
-      }
-      ul:last-child {
-        margin-bottom: 0px;
-      }
-      li:last-child {
-        padding-bottom: 0px;
-      }
+      .tip-block();
     }
     [purpose='ritual-description'] {
       white-space: preserve;
@@ -491,7 +442,7 @@
         height: 16px;
         vertical-align: middle;
         margin-left: 8px;
-        content: url('/images/icon-link-16x16@2x.png');
+        content: url('/images/icon-link-green-16x16@2x.png');
       }
     }
     [purpose='embedded-content'] {
@@ -640,7 +591,7 @@
       padding-bottom: 0px;
     }
     [purpose='right-sidebar'] {
-      width: 100%;
+      width: fit-content;
       margin: 0;
       [purpose='subtopics'] {
         border-left: none;

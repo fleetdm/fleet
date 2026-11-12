@@ -1,11 +1,11 @@
-import React, { Component } from "react";
 import PropTypes from "prop-types";
+import React, { Component } from "react";
 
-import Form from "components/forms/Form";
-import formFieldInterface from "interfaces/form_field";
 import Button from "components/buttons/Button";
-import helpers from "components/forms/RegistrationForm/FleetDetails/helpers";
 import InputField from "components/forms/fields/InputField";
+import Form from "components/forms/Form";
+import helpers from "components/forms/RegistrationForm/FleetDetails/helpers";
+import formFieldInterface from "interfaces/form_field";
 
 const formFields = ["server_url"];
 const { validate } = helpers;
@@ -53,8 +53,13 @@ class FleetDetails extends Component {
             this.firstInput = input;
           }}
         />{" "}
-        <div className="button-wrap">
-          <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
+        <div className="button-wrap--center">
+          <Button
+            type="submit"
+            tabIndex={tabIndex}
+            disabled={!currentPage}
+            size="wide"
+          >
             Next
           </Button>
         </div>

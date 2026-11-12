@@ -1,0 +1,10 @@
+{
+  "name": "Kdenlive",
+  "unique_identifier": "org.kde.Kdenlive",
+  "token": "kdenlive",
+  "installer_format": "dmg",
+  "slug": "kdenlive/darwin",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

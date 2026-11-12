@@ -1,0 +1,10 @@
+{
+  "name": "PDF Expert",
+  "unique_identifier": "com.readdle.PDFExpert-Mac",
+  "token": "pdf-expert",
+  "installer_format": "zip",
+  "slug": "pdf-expert/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

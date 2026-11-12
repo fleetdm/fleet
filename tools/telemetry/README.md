@@ -20,3 +20,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317" \
 ```
 
 Afterwards, you can navigate to http://localhost:16686/ to access the Jaeger UI.
+
+## Alternatives
+
+For a more full-featured observability platform that includes traces, metrics, and logs in a single UI, see [SigNoz](../signoz/README.md).

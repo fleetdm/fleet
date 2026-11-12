@@ -1,13 +1,13 @@
 # MDM commands
 
-MDM commands can be sent to macOS, iOS / iPadOS and Windows hosts managed in Fleet using the following general steps:
+MDM commands can be sent to Apple (macOS, iOS, iPadOS), Windows, and Android hosts:
 
 1. Create a payload that functions as the MDM command.
 2. Choose a target host, or, a set of target hosts on which to run the MDM command.
 3. Execute the MDM command by using the `fleetctl` command line interface (CLI) or by sending the payload in a Fleet API call.
 4. If needed, verify the MDM command result with an additional `fleetctl` command or API call.
 
-### Step 1: Create an MDM command payload
+## Step 1: Create an MDM command payload
 
 An MDM command payload can be created in mulitple ways.
 
@@ -15,11 +15,15 @@ For Apple devices, the payload is a  `.plist` that can be copied like this examp
 
 For Windows, the payload is standard `xml` and command options can be referenced in the [Microsoft CSP Policy docuementation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider).
 
-You can run any command supported by [Apple's MDM protocol](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/).
+For Android, the payload is `json`, matching the request body of the Android Management API's [`issueCommand`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand) request.
+
+You can run any command supported by [Apple's MDM protocol](https://developer.apple.com/documentation/devicemanagement/commands_and_queries), [Microsoft's MDM protocol](https://learn.microsoft.com/en-us/windows/client-management/mdm/), or the [Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand).
 
 The end result simply needs to be a standard, plain text file with the correct key / values for obtaining the intended result on the host device.
 
-> Lock and wipe commands are only available in Fleet Premium.
+> Apple's [`DeviceLock`](https://developer.apple.com/documentation/devicemanagement/lock_a_device) and [`EraseDevice`](https://developer.apple.com/documentation/devicemanagement/erase_a_device) commands, Windows's [`RemoteWipe`](https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp) commands (`doWipe`, `doWipeProtected`, etc.), and Android's [`LOCK`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.LOCK) and [`RESET_PASSWORD`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.RESET_PASSWORD) commands, are only available in Fleet Premium. Android's [`WIPE`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType.ENUM_VALUES.WIPE) command is available on Fleet Free for company-owned hosts.
+
+> While running the `RESET_PASSWORD` command on an Android host, `newPassword` can have a value of 4 characters or more, contrary to what is written in [AMAPI documentation](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand).
 
 ### Examples
 
@@ -60,6 +64,18 @@ Below is the text to be used as the MDM command payload. Save it as a file and n
 </Exec>
 ```
 
+To restart an Android host, we can use the [`REBOOT`](https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/issueCommand#CommandType) command.
+
+Below is the text to be used as the MDM command payload. Save it as a file and name it something like `android-reboot-device.json`.
+
+```json
+{
+  "type": "REBOOT"
+}
+```
+
+Unlike Apple and Windows commands, an Android command payload has no `CommandUUID` field to set. Fleet generates the command's ID for you, and you can find it in the response after running the command (see [Step 3](#step-3-execute-the-mdm-command)).
+
 To prepare an MDM command payload for use with the Fleet API, generate a UUID to be used as the `CommandUUID`, e.g.,
 
 In Terminal, execute the following command:
@@ -69,7 +85,7 @@ In Terminal, execute the following command:
 16F4301E-7A88-42AD-8523-A2F73F9D38FA
 ```
 
-> It's not necessary to add the `CommandUUID` to the MDM command payload, but having it available makes it easier and quicker to verify the MDM command result if a check is needed. 
+> When using `fleetctl mdm run-command`, the command UUID will be replaced by Fleet. If using the API endpoint [Run MDM command](https://fleetdm.com/docs/rest-api/rest-api#run-mdm-command), it will retain your custom UUID. It's not necessary to add the `CommandUUID` to the MDM command payload, but having it available makes it easier and quicker to verify the MDM command result if a check is needed.
 
 A `.plist` with the `CommandUUID` key / value added will look something like this:
 
@@ -91,7 +107,9 @@ A `.plist` with the `CommandUUID` key / value added will look something like thi
 </plist>
 ```
 
-### Step 2: Choose a target host
+> If you're trying to remove macOS configuration profiles via the `RemoveProfile` command, note that this endpoint (and `fleetctl run mdm command`) sends commands on the device channel only. User-scoped profiles installed via the user channel cannot be removed this way. In Fleet, in **host details > OS settings** profiles will have an icon indicator <img src="../website/assets/images/articles/user-scope-icon-16x16@2x.png" alt="user-scope-icon" style="display:inline; margin:0; height:16px; width:16px;"> when it is user-scoped.
+
+## Step 2: Choose a target host
 
 Run the `fleetctl get hosts --mdm` command to get a list of hosts that are enrolled in Fleet and have MDM enabled. This may not be practical in Fleet environments with a large number of hosts without using command line tools to parse the output, e.g.,
 
@@ -117,7 +135,7 @@ Or, something like `jq` for API output:
 
 > You will need a [Fleet API token](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token) in your `fleetctl` configuration or for any interaction with the Fleet API to work.
 
-### Step 3: Execute the MDM command
+## Step 3: Execute the MDM command
 
 To deliver the MDM command payload with `fleetctl`, use something like the following that:
 
@@ -128,11 +146,28 @@ To deliver the MDM command payload with `fleetctl`, use something like the follo
 
 For targeting multiple hosts, the `--hosts` option can be populated with comma-separated values.
 
-To prepare the MDM command payload for execution in a Fleet API call, it must be base64-encoded. This is true for both Apple and Windows MDM command payloads.
+> Android only supports one host per command: `fleetctl mdm run-command --payload='android-reboot-device.json' --hosts='someAndroidHostname'`.
 
-E.g., 
+To deliver the MDM command payload via the Fleet API, use a command that conforms to the `curl` example below. (This can be achieved with any programmatic solution, e.g., python `requests` or `urllib.request`).
 
-to `base64` encode a `.plist` in Terminal:
+```
+% fleet_key='yourfleetAPItoken'
+% fleet_url='https://your.url.com'
+% /usr/bin/curl -LSs \
+--request POST \
+--header 'Content-Type: application/json' \
+--header "Authorization: Bearer $fleet_key" \
+--data '{"command":"PD94bWwgdmVyc2lvbj0iMS4wIiBlSomeMorebase64blahblahblah...","host_uuids":["some-host-uuid"]}' \
+"$fleet_url/api/v1/fleet/commands/run"
+```
+
+For targeting multiple hosts, the `"host_uuids"` key / value is a json array that can be populated with multiple host uuid values, e.g.,
+
+`"host_uuids":["some-host-uuid-1","some-host-uuid-2","some-host-uuid-3"]`
+
+When sending a command via the Fleet API, the MDM command payload has to be base64 encoded:
+
+To `base64` encode an Apple `.plist` in Terminal:
 
 ```
 % echo '<?xml version="1.0" encoding="UTF-8"?>
@@ -153,7 +188,7 @@ to `base64` encode a `.plist` in Terminal:
 PD94bWwgdmVyc2lvbj0iMS4wIiBlSomeMorebase64blahblahblah...
 ```
 
-to `base64` encode an `.xml` in PowerShell:
+To `base64` encode Windows `.xml` in PowerShell:
 
 ```
 PS C:\WINDOWS\system32> cd C:\Users\username\Desktop\
@@ -161,30 +196,22 @@ PS C:\Users\username\Desktop> [Convert]::ToBase64String((Get-Content -path "file
 cG9vcXblahblahblah...
 ```
 
-To deliver the MDM command payload via the Fleet API, use a command that conforms to the `curl` example below. (This can be achieved with any programmatic solution, e.g., python `requests` or `urllib.request`).
+To `base64` encode the Android `.json` payload in Terminal:
 
 ```
-% fleet_key='yourfleetAPItoken'
-% fleet_url='https://your.url.com'
-% /usr/bin/curl -LSs \
---request POST \
---header 'Content-Type: application/json' \
---header "Authorization: Bearer $fleet_key" \
---data '{"command":"PD94bWwgdmVyc2lvbj0iMS4wIiBlSomeMorebase64blahblahblah...","host_uuids":["some-host-uuid"]}' \
-"$fleet_url/api/v1/fleet/commands/run"
+% echo '{"type": "REBOOT"}' | base64
+eyJ0eXBlIjogIlJFQk9PVCJ9
 ```
 
-For targeting multiple hosts, the `"host_uuids"` key / value is a json array that can be populated with multiple host uuid values, e.g.,
-
-`"host_uuids":["some-host-uuid-1","some-host-uuid-2","some-host-uuid-3"]`
-
-### Step 4: Verify the MDM command result
+## Step 4: Verify the MDM command result
 
 To verify the MDM command result with `fleetctl`, use something like the command below:
 
 `fleetctl get mdm-command-results --id=<insert-command-id>`
 
-If you generated the `CommandUUID`, add that value in the `--id` field. If you did not generate a command ID, one will be added to the MDM command by Fleet and it should appear in a succesful response after execution or in the MDM command results stored in Fleet.
+If you generated the `CommandUUID`, add that value in the `--id` field. If you did not generate a command ID, one will be added to the MDM command by Fleet and it should appear in a succesful response after execution or in the MDM command results stored in Fleet. For Android, Fleet always generates the command ID, since the AMAPI payload has no `CommandUUID` field.
+
+For Android hosts, `command_status` in the [MDM command results](https://fleetdm.com/docs/rest-api/rest-api#get-mdm-command-results) response is `pending` until the device executes the command, `acknowledged` once it succeeds, or `error` if the Android Management API or the device rejects it.
 
 To verify the MDM command result with the Fleet API, use a command that conforms to the `curl` example below:
 
@@ -197,6 +224,20 @@ To verify the MDM command result with the Fleet API, use a command that conforms
 ```
 
 > The `?command_uuid=` parameter appended to the URL is populated with the same `CommandUUID` string that was used to populate the `CommandUUID` key / value in the base64-encoded `.plist` in Step 1.
+
+### Command history retention
+
+Fleet deletes old MDM command history on a schedule, so check results before they're removed. Once a command is deleted, it no longer appears in the host's MDM command history or in `fleetctl get mdm-commands`, and Fleet no longer returns its results.
+
+For Apple (macOS, iOS, iPadOS) hosts, Fleet deletes a command after the host responds, or after it's superseded and will never be sent:
+
+- Commands Fleet sends automatically on a recurring schedule, like refetches and `DeclarativeManagement` syncs, are deleted after 24 hours by default.
+- Profile and app installs, and inventory commands you run yourself, like `DeviceInformation` or `InstalledApplicationList`, are deleted after 30 days by default.
+- Fleet keeps commands that a host's status depends on, like `DeviceLock` and `EraseDevice`, and any command type not covered above, like `RestartDevice`.
+
+To change these windows, see [`mdm.apple_command_cleanup_short_retention`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-command-cleanup-short-retention) and [`mdm.apple_command_cleanup_standard_retention`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-command-cleanup-standard-retention).
+
+For Windows hosts, Fleet deletes command history after 30 days by default. To change this, see [`mdm.windows_command_retention`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-windows-command-retention).
 
 ## Troubleshooting
 
@@ -219,8 +260,8 @@ You can also get this list of MDM commands from the Fleet API with something lik
 ```
 
 <meta name="category" value="guides">
-<meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="authorFullName" value="Noah Talerman">
+<meta name="authorGitHubUsername" value="nonpunctual">
+<meta name="authorFullName" value="Brock Walters">
 <meta name="publishedOn" value="2024-06-12">
 <meta name="articleTitle" value="MDM commands">
 <meta name="description" value="Learn how to run custom MDM commands on hosts using Fleet.">

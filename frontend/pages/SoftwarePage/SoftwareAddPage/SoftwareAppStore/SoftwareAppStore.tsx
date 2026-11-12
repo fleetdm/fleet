@@ -1,23 +1,25 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
 import { SingleValue } from "react-select-5";
+
+import DropdownWrapper from "components/forms/fields/DropdownWrapper";
+import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import SoftwareAppStoreVpp from "./SoftwareAppStoreVpp";
 import SoftwareAppStoreAndroid from "./SoftwareAppStoreAndroid";
+import SoftwareAppStoreVpp from "./SoftwareAppStoreVpp";
 
 const baseClass = "software-app-store";
 
 interface ISoftwareAppStoreProps {
   currentTeamId: number;
+  currentTeamName?: string;
   router: InjectedRouter;
   location: {
     pathname: string;
     query: {
-      team_id?: string;
+      fleet_id?: string;
       platform?: string;
     };
     search?: string;
@@ -31,6 +33,7 @@ const platformOptions = [
 
 const SoftwareAppStore = ({
   currentTeamId,
+  currentTeamName,
   router,
   location,
 }: ISoftwareAppStoreProps) => {
@@ -41,7 +44,7 @@ const SoftwareAppStore = ({
   ) => {
     router.push(
       getPathWithQueryParams(PATHS.SOFTWARE_ADD_APP_STORE, {
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         platform: selectedPlatform?.value,
       })
     );
@@ -49,6 +52,7 @@ const SoftwareAppStore = ({
 
   const renderDropdown = () => (
     <DropdownWrapper
+      ariaLabel="Select platform"
       name="platform"
       label="Platform"
       onChange={onDestinationChange}
@@ -61,7 +65,11 @@ const SoftwareAppStore = ({
 
   const renderContent = () =>
     platform === "apple" ? (
-      <SoftwareAppStoreVpp currentTeamId={currentTeamId} router={router} />
+      <SoftwareAppStoreVpp
+        currentTeamId={currentTeamId}
+        currentTeamName={currentTeamName}
+        router={router}
+      />
     ) : (
       <SoftwareAppStoreAndroid currentTeamId={currentTeamId} router={router} />
     );

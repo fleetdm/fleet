@@ -2,10 +2,13 @@ package fleet
 
 import (
 	"errors"
+	"fmt"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"golang.org/x/text/unicode/norm"
 )
 
 // PolicyPayload holds data for policy creation.
@@ -48,14 +51,44 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ScriptID *uint
-	// LabelsExcludeAny is a list of labels that are targeted by this policy
+	// ProfileUUID is the UUID of the configuration profile that will be resent if the policy fails.
+	//
+	// Only applies to team policies.
+	ProfileUUID *string
+	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
 	LabelsIncludeAny []string
-	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
+	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []string
+	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
 	LabelsExcludeAny []string
+	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
+	LabelsExcludeAll []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type string
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app checked by a patch policy.
+	//
+	// Only applies to team policies with the patch type.
+	PatchSoftwareTitleID *uint
+
+	// ContinuousAutomationsEnabled indicates whether software/script automations
+	// should run on every failing policy result, not just on pass→fail transitions.
+	//
+	// Only applies to team policies.
+	ContinuousAutomationsEnabled bool
+
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool
+	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
+	PatchDeadline bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -86,29 +119,125 @@ type NewTeamPolicyPayload struct {
 	CalendarEventsEnabled bool
 	// SoftwareTitleID is the ID of the software title that will be installed if the policy fails.
 	SoftwareTitleID *uint
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When nil, the policy defaults to the title's first-added package.
+	SoftwareInstallerID *uint
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	ScriptID *uint
-	// LabelsExcludeAny is a list of labels that are targeted by this policy
+	// ProfileUUID is the UUID of the configuration profile that will be resent if the policy fails.
+	ProfileUUID *string
+	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
 	LabelsIncludeAny []string
-	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
+	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []string
+	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
 	LabelsExcludeAny []string
+	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
+	LabelsExcludeAll []string
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	ConditionalAccessEnabled bool
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type *string
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app checked by a patch policy.
+	PatchSoftwareTitleID *uint
+	// ContinuousAutomationsEnabled indicates whether software/script automations
+	// should run on every failing policy result, not just on pass→fail transitions.
+	ContinuousAutomationsEnabled bool
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool
+	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
+	PatchDeadline bool
 }
 
 var (
-	errPolicyEmptyName         = errors.New("policy name cannot be empty")
-	errPolicyEmptyQuery        = errors.New("policy query cannot be empty")
-	errPolicyIDAndQuerySet     = errors.New("both fields \"queryID\" and \"query\" cannot be set")
-	errPolicyInvalidPlatform   = errors.New("invalid policy platform")
-	errPolicyConflictingLabels = errors.New("policy cannot include both labels_include_any and labels_exclude_any")
+	errPolicyEmptyName                               = errors.New("policy name cannot be empty")
+	errPolicyEmptyQuery                              = errors.New("policy query cannot be empty")
+	errPolicyIDAndQuerySet                           = errors.New("both fields \"queryID\" and \"query\" cannot be set")
+	errPolicyInvalidPlatform                         = errors.New("invalid policy platform")
+	ErrPolicyConflictingIncludeLabels                = errors.New("policy can include at most one of labels_include_any or labels_include_all")
+	ErrPolicyConflictingExcludeLabels                = errors.New("policy can include at most one of labels_exclude_any or labels_exclude_all")
+	errPolicyPatchAndQuerySet                        = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
+	errPolicyPatchAndPlatformSet                     = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
+	errPolicyPatchNoTitleID                          = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
+	errPatchPolicyRequiresTeam                       = errors.New("If the \"type\" is \"patch\", the \"team\" field is required.")
+	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
+	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
+	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyHiddenWithConditionalAccess             = errors.New("\"hidden\" and \"conditional_access_enabled\" cannot both be set")
+	errPolicyResendProfileInvalidPlatform            = errors.New("\"profile_uuid\" is only valid on \"darwin\" and \"windows\" policies")
+	errPolicyFMASlugRequiresPatch                    = errors.New("\"fleet_maintained_app_slug\" is only supported for patch policies")
+	errPolicyPatchWhenClosedRequiresPatch            = errors.New("\"patch_when_closed\" is only supported for patch policies")
+	errPolicyNotifyBeforePatchingRequiresPatch       = errors.New("\"notify_before_patching\" is only supported for patch policies")
+	errPolicyPatchDeadlineRequiresPatch              = errors.New("\"patch_deadline\" is only supported for patch policies")
+	ErrPolicyPatchOptionsMutuallyExclusive           = errors.New("Only one of \"patch_when_closed\", \"notify_before_patching\", or \"patch_deadline\" can be set to true.")
+	ErrPolicyNotifyBeforePatchingRequiresMacOS       = errors.New("\"notify_before_patching\" is only available for macOS Fleet-maintained apps.")
+	ErrPolicyPatchDeadlineRequiresMacOS              = errors.New("\"patch_deadline\" is available for macOS Fleet-maintained apps. It's coming soon to Windows.")
 )
+
+// PatchOptionsConflict reports whether more than one patch option is set.
+func PatchOptionsConflict(options ...bool) bool {
+	n := 0
+	for _, o := range options {
+		if o {
+			n++
+		}
+	}
+	return n > 1
+}
 
 // PolicyNoTeamID is the team ID of "No team" policies.
 const PolicyNoTeamID = uint(0)
 
+// Max times a policy automation will be retried on failure.
+const MaxPolicyAutomationRetries = 3
+
+// Max amount of retries allowed in a row via policy automations.
+const MaxPolicyAutomationInstallAttempts = 10
+
+// Time to live of the install attempt counter key when it is not updated again.
+const PolicyAutomationInstallAttemptExpiry = 24 * time.Hour
+
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
+	if err := PolicyVerifyHidden(p.Hidden, p.ConditionalAccessEnabled); err != nil {
+		return err
+	}
+	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
+		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchDeadline && p.Type != PolicyTypePatch {
+		return errPolicyPatchDeadlineRequiresPatch
+	}
+	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
+		return ErrPolicyPatchOptionsMutuallyExclusive
+	}
+	if p.Type == PolicyTypePatch {
+		if p.QueryID != nil {
+			return errPolicyPatchAndQuerySet
+		}
+		if !emptyString(p.Query) {
+			return errPolicyPatchAndQuerySet
+		}
+		if !emptyString(p.Platform) {
+			return errPolicyPatchAndPlatformSet
+		}
+		if p.PatchSoftwareTitleID == nil {
+			return errPolicyPatchNoTitleID
+		}
+		if err := verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	if p.QueryID != nil {
 		if p.Query != "" {
 			return errPolicyIDAndQuerySet
@@ -117,15 +246,56 @@ func (p PolicyPayload) Verify() error {
 		if err := verifyPolicyName(p.Name); err != nil {
 			return err
 		}
-		if err := verifyPolicyQuery(p.Query); err != nil {
+		if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
 			return err
 		}
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err
 	}
-	if len(p.LabelsIncludeAny) > 0 && len(p.LabelsExcludeAny) > 0 {
-		return errPolicyConflictingLabels
+	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
+		return err
+	}
+	if err := PolicyVerifyResendProfile(p.ProfileUUID, p.Platform); err != nil {
+		return err
+	}
+
+	return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
+}
+
+// verifyPolicyLabelScopes enforces the policy label-targeting rules: at most one
+// include scope (labels_include_any or labels_include_all) and at most one
+// exclude scope (labels_exclude_any or labels_exclude_all) may carry values, and
+// no label may appear in both an include and an exclude list. An include scope
+// and an exclude scope may be combined. Empty slices ([]) are treated as "no
+// value", so e.g. {LabelsIncludeAny: [], LabelsIncludeAll: [A]} is valid.
+func verifyPolicyLabelScopes(includeAny, includeAll, excludeAny, excludeAll []string) error {
+	includeScopes := 0
+	if len(includeAny) > 0 {
+		includeScopes++
+	}
+	if len(includeAll) > 0 {
+		includeScopes++
+	}
+	if includeScopes > 1 {
+		return ErrPolicyConflictingIncludeLabels
+	}
+
+	excludeScopes := 0
+	if len(excludeAny) > 0 {
+		excludeScopes++
+	}
+	if len(excludeAll) > 0 {
+		excludeScopes++
+	}
+	if excludeScopes > 1 {
+		return ErrPolicyConflictingExcludeLabels
+	}
+
+	include := slices.Concat(includeAny, includeAll)
+	exclude := slices.Concat(excludeAny, excludeAll)
+	if overlap := LabelOverlap(include, exclude); overlap != "" {
+		return fmt.Errorf("label %q cannot appear in both an include and an exclude list", overlap)
 	}
 	return nil
 }
@@ -141,8 +311,8 @@ func emptyString(s string) bool {
 	return len(strings.TrimSpace(s)) == 0
 }
 
-func verifyPolicyQuery(query string) error {
-	if emptyString(query) {
+func verifyPolicyQuery(query string, typ string) error {
+	if emptyString(query) && typ != PolicyTypePatch {
 		return errPolicyEmptyQuery
 	}
 	return nil
@@ -159,6 +329,66 @@ func verifyPolicyPlatforms(platforms string) error {
 		default:
 			return errPolicyInvalidPlatform
 		}
+	}
+	return nil
+}
+
+// ValidatePolicyPlatformFilter validates the platform query parameter used to
+// filter policies on list/count endpoints. An empty string means "no filter"
+// and is always valid; otherwise the value must be a single supported
+// platform token.
+func ValidatePolicyPlatformFilter(platform string) error {
+	if platform == "" {
+		return nil
+	}
+	switch platform {
+	case "windows", "linux", "darwin", "chrome":
+		return nil
+	}
+	return NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", or "chrome".`)
+}
+
+func verifyPatchPolicy(team string, typ string) error {
+	if typ == PolicyTypePatch && emptyString(team) {
+		return errPatchPolicyRequiresTeam
+	}
+	return nil
+}
+
+// PolicyVerifyResendProfile checks that a policy resending a configuration profile targets a
+// platform that can receive configuration profiles at all: only macOS and Windows hosts can, so a
+// policy scoped exclusively to linux or chrome has
+// nothing to resend to.
+func PolicyVerifyResendProfile(profileUUID *string, platform string) error {
+	if profileUUID == nil || *profileUUID == "" {
+		return nil
+	}
+
+	if platform == "" {
+		return nil // empty = all platforms
+	}
+
+	for p := range strings.SplitSeq(platform, ",") {
+		switch strings.TrimSpace(p) {
+		case "darwin", "windows":
+			return nil
+		}
+	}
+	return errPolicyResendProfileInvalidPlatform
+}
+
+func PolicyVerifyConditionalAccess(conditionalAccessEnabled bool, platform string) error {
+	if conditionalAccessEnabled && !strings.Contains(platform, "darwin") && !strings.Contains(platform, "windows") {
+		return errPolicyConditionalAccessEnabledInvalidPlatform
+	}
+	return nil
+}
+
+// PolicyVerifyHidden rejects hiding a conditional access policy: end users must
+// be able to see why their sign-in is blocked.
+func PolicyVerifyHidden(hidden, conditionalAccessEnabled bool) error {
+	if hidden && conditionalAccessEnabled {
+		return errPolicyHiddenWithConditionalAccess
 	}
 	return nil
 }
@@ -187,30 +417,86 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	SoftwareTitleID optjson.Any[uint] `json:"software_title_id" premium:"true"`
+	// SoftwareInstallerID optionally selects which package of the title to install on failure.
+	// When omitted (or 0), the policy defaults to the title's first-added package.
+	// The wire key is `software_package_id`; the endpointer's renameto layer accepts
+	// the legacy `software_installer_id` alias and logs a deprecation warning.
+	//
+	// Only applies to team policies.
+	SoftwareInstallerID optjson.Any[uint] `json:"software_installer_id" renameto:"software_package_id" premium:"true"`
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	// Value 0 will unset the current script from the policy.
 	//
 	// Only applies to team policies.
 	ScriptID optjson.Any[uint] `json:"script_id" premium:"true"`
-	// LabelsExcludeAny is a list of labels that are targeted by this policy
-	LabelsIncludeAny []string `json:"labels_include_any"`
-	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	// ProfileUUID is the UUID of the configuration profile that will be resent if the policy fails.
+	// Value "" will unset the current profile from the policy.
+	//
+	// Only applies to team policies.
+	ProfileUUID optjson.String `json:"profile_uuid" premium:"true"`
+	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
+	LabelsIncludeAny []string `json:"labels_include_any" premium:"true"`
+	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
+	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
+	LabelsExcludeAny []string `json:"labels_exclude_any" premium:"true"`
+	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
+	LabelsExcludeAll []string `json:"labels_exclude_all" premium:"true"`
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden *bool `json:"hidden" premium:"true"`
+	// ContinuousAutomationsEnabled indicates whether software/script automations
+	// should run on every failing policy result, not just on pass→fail transitions.
+	//
+	// Only applies to team policies.
+	ContinuousAutomationsEnabled *bool `json:"continuous_automations_enabled" premium:"true"`
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type string `json:"-"`
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed *bool `json:"patch_when_closed" premium:"true"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching *bool `json:"notify_before_patching" premium:"true"`
+	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
+	PatchDeadline *bool `json:"patch_deadline" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
+	if p.PatchWhenClosed != nil && *p.PatchWhenClosed && p.Type != PolicyTypePatch {
+		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching != nil && *p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchDeadline != nil && *p.PatchDeadline && p.Type != PolicyTypePatch {
+		return errPolicyPatchDeadlineRequiresPatch
+	}
+	if p.Type == PolicyTypePatch {
+		if p.Name != nil {
+			if err := verifyPolicyName(*p.Name); err != nil {
+				return err
+			}
+		}
+		if p.Query != nil {
+			return errPolicyQueryUpdated
+		}
+		if p.Platform != nil {
+			return errPolicyPlatformUpdated
+		}
+		return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
+	}
+
 	if p.Name != nil {
 		if err := verifyPolicyName(*p.Name); err != nil {
 			return err
 		}
 	}
 	if p.Query != nil {
-		if err := verifyPolicyQuery(*p.Query); err != nil {
+		if err := verifyPolicyQuery(*p.Query, PolicyTypeDynamic); err != nil {
 			return err
 		}
 	}
@@ -219,7 +505,7 @@ func (p ModifyPolicyPayload) Verify() error {
 			return err
 		}
 	}
-	return nil
+	return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
 }
 
 // PolicyData holds data of a fleet policy.
@@ -244,7 +530,7 @@ type PolicyData struct {
 	AuthorEmail string `json:"author_email" db:"author_email"`
 	// TeamID is the ID of the team the policy belongs to.
 	// If TeamID is nil, then this is a global policy.
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id" db:"team_id"`
 	// Resolution describes how to solve a failing policy.
 	Resolution *string `json:"resolution,omitempty" db:"resolution"`
 	// Platform is a comma-separated string to indicate the target platforms.
@@ -252,25 +538,99 @@ type PolicyData struct {
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
 
-	// LabelsExcludeAny is a list of labels that are targeted by this policy
+	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
 	LabelsIncludeAny []LabelIdent `json:"labels_include_any,omitempty"`
-	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
+	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []LabelIdent `json:"labels_include_all,omitempty"`
+	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
 	LabelsExcludeAny []LabelIdent `json:"labels_exclude_any,omitempty"`
+	// LabelsExcludeAll scopes the policy to hosts that are NOT members of ALL of the listed labels.
+	LabelsExcludeAll []LabelIdent `json:"labels_exclude_all,omitempty"`
 
 	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
 	//
 	// Only applies to team policies.
-	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
-	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`
-	VPPAppsTeamsID        *uint `json:"-" db:"vpp_apps_teams_id"`
-	ScriptID              *uint `json:"-" db:"script_id"`
+	CalendarEventsEnabled    bool    `json:"calendar_events_enabled" db:"calendar_events_enabled"`
+	SoftwareInstallerID      *uint   `json:"-" db:"software_installer_id"`
+	VPPAppsTeamsID           *uint   `json:"-" db:"vpp_apps_teams_id"`
+	ScriptID                 *uint   `json:"-" db:"script_id"`
+	ResendAppleProfileUUID   *string `json:"-" db:"resend_apple_profile_uuid"`
+	ResendWindowsProfileUUID *string `json:"-" db:"resend_windows_profile_uuid"`
 
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled" db:"conditional_access_enabled"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool `json:"hidden" db:"hidden"`
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type string `json:"type" db:"type"`
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app chcked by a patch policy.
+	//
+	// Only applies to team policies with the patch type.
+	PatchSoftwareTitleID *uint `json:"-" db:"patch_software_title_id"`
+
+	// ContinuousAutomationsEnabled indicates whether software/script automations
+	// should run on every failing policy result, not just on pass→fail transitions.
+	//
+	// Only applies to team policies.
+	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled" db:"continuous_automations_enabled"`
+
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool `json:"patch_when_closed" db:"patch_when_closed"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool `json:"notify_before_patching" db:"notify_before_patching"`
+	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
+	PatchDeadline bool `json:"patch_deadline" db:"patch_deadline"`
 
 	UpdateCreateTimestamps
+}
+
+// VerifyLabelScopes checks that the policy's label scopes are valid: at most one
+// include scope (any/all) combined with at most one exclude scope (any/all),
+// with no label appearing in both an include and an exclude list.
+func (p PolicyData) VerifyLabelScopes() error {
+	return verifyPolicyLabelScopes(
+		LabelIdentsToNames(p.LabelsIncludeAny),
+		LabelIdentsToNames(p.LabelsIncludeAll),
+		LabelIdentsToNames(p.LabelsExcludeAny),
+		LabelIdentsToNames(p.LabelsExcludeAll),
+	)
+}
+
+// ResendProfileUUID returns the UUID of the configuration profile this policy resends, whichever
+// platform's column holds it, or nil when the policy has no associated profile.
+func (p *PolicyData) ResendProfileUUID() *string {
+	if p.ResendAppleProfileUUID != nil {
+		return p.ResendAppleProfileUUID
+	}
+	return p.ResendWindowsProfileUUID
+}
+
+func (p *PolicyData) SetResendProfileUUID(profileUUID string) error {
+	if profileUUID == "" {
+		p.ResendAppleProfileUUID = nil
+		p.ResendWindowsProfileUUID = nil
+		return nil
+	}
+
+	resolvedProfile, err := ResolvePolicyResendProfile(&profileUUID)
+	if err != nil {
+		return err
+	}
+
+	if resolvedProfile.AppleUUID != nil {
+		p.ResendAppleProfileUUID = resolvedProfile.AppleUUID
+		p.ResendWindowsProfileUUID = nil
+	}
+
+	if resolvedProfile.WindowsUUID != nil {
+		p.ResendWindowsProfileUUID = resolvedProfile.WindowsUUID
+		p.ResendAppleProfileUUID = nil
+	}
+
+	return nil
 }
 
 // Policy is a fleet's policy query.
@@ -297,6 +657,21 @@ type Policy struct {
 	//
 	// This field is populated from PolicyData.ScriptID
 	RunScript *PolicyScript `json:"run_script,omitempty"`
+
+	// PatchSoftware is used to check the installed version of a Fleet
+	// maintaind app.
+	//
+	// Only applies to team policies with the patch type.
+	//
+	// This field is populated from PolicyData.PatchSoftwareTitleID
+	PatchSoftware *PolicySoftwareTitle `json:"patch_software,omitempty"`
+
+	// ResendConfigurationProfile is used to trigger the resend of a configuration profile when this policy fails.
+	//
+	// Only applies to team policies.
+	//
+	// This field is populated from PolicyData.ResendAppleProfileUUID and PolicyData.ResendWindowsProfileUUID
+	ResendConfigurationProfile *PolicyProfile `json:"resend_configuration_profile,omitempty"`
 }
 
 type PolicyCalendarData struct {
@@ -305,19 +680,30 @@ type PolicyCalendarData struct {
 }
 
 type PolicySoftwareInstallerData struct {
-	ID          uint `db:"id"`
-	InstallerID uint `db:"software_installer_id"`
+	ID                           uint `db:"id"`
+	InstallerID                  uint `db:"software_installer_id"`
+	ContinuousAutomationsEnabled bool `db:"continuous_automations_enabled"`
+	OverridePreInstallQuery      bool `db:"override_pre_install_query"`
 }
 
 type PolicyVPPData struct {
-	ID       uint                      `db:"id"`
-	AdamID   string                    `db:"adam_id"`
-	Platform InstallableDevicePlatform `db:"platform"`
+	ID                           uint                      `db:"id"`
+	AdamID                       string                    `db:"adam_id"`
+	Platform                     InstallableDevicePlatform `db:"platform"`
+	ContinuousAutomationsEnabled bool                      `db:"continuous_automations_enabled"`
 }
 
 type PolicyScriptData struct {
-	ID       uint `db:"id"`
-	ScriptID uint `db:"script_id"`
+	ID                           uint `db:"id"`
+	ScriptID                     uint `db:"script_id"`
+	ContinuousAutomationsEnabled bool `db:"continuous_automations_enabled"`
+}
+
+type PolicyProfileData struct {
+	PolicyID    uint   `db:"policy_id"`
+	PolicyName  string `db:"policy_name"`
+	ProfileUUID string `db:"profile_uuid"`
+	ProfileName string `db:"profile_name"`
 }
 
 // PolicyLite is a stripped down version of the policy.
@@ -350,6 +736,65 @@ type HostPolicy struct {
 	Response string `json:"response" db:"response"`
 }
 
+// DevicePolicy is a device-safe representation of a policy in the context of
+// a host, for device-authenticated ("My device") endpoints. It intentionally
+// omits fields that must not be exposed to end users holding only a device
+// token, such as the policy author's name and email and the raw SQL query.
+type DevicePolicy struct {
+	// ID is the unique ID of the policy.
+	ID uint `json:"id"`
+	// Name is the name of the policy.
+	Name string `json:"name"`
+	// Description describes the policy.
+	Description string `json:"description"`
+	// Resolution describes how to solve a failing policy.
+	Resolution *string `json:"resolution,omitempty"`
+	// Platform is a comma-separated string to indicate the target platforms.
+	//
+	// Empty string targets all platforms.
+	Platform string `json:"platform"`
+	// Critical marks the policy as high impact.
+	Critical bool `json:"critical"`
+	// ConditionalAccessEnabled indicates whether this is a policy used for
+	// conditional access.
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
+	// Response can be one of the following values:
+	//	- "pass": if the policy was executed and passed.
+	//	- "fail": if the policy was executed and did not pass.
+	//	- "": if the policy did not run yet.
+	Response string `json:"response"`
+}
+
+// ToDevicePolicy returns the device-safe representation of the host policy.
+func (p *HostPolicy) ToDevicePolicy() *DevicePolicy {
+	return &DevicePolicy{
+		ID:                       p.ID,
+		Name:                     p.Name,
+		Description:              p.Description,
+		Resolution:               p.Resolution,
+		Platform:                 p.Platform,
+		Critical:                 p.Critical,
+		ConditionalAccessEnabled: p.ConditionalAccessEnabled,
+		Response:                 p.Response,
+	}
+}
+
+// HostPoliciesToDevicePolicies converts host policies to their device-safe
+// representation for device-authenticated endpoints.
+func HostPoliciesToDevicePolicies(policies []*HostPolicy) []*DevicePolicy {
+	if policies == nil {
+		return nil
+	}
+	devicePolicies := make([]*DevicePolicy, 0, len(policies))
+	for _, p := range policies {
+		if p == nil {
+			continue
+		}
+		devicePolicies = append(devicePolicies, p.ToDevicePolicy())
+	}
+	return devicePolicies
+}
+
 // PolicySpec is used to hold policy data to apply policy specs.
 //
 // Policies are currently identified by name (unique).
@@ -365,7 +810,7 @@ type PolicySpec struct {
 	// Resolution describes how to solve a failing policy.
 	Resolution string `json:"resolution,omitempty"`
 	// Team is the name of the team.
-	Team string `json:"team,omitempty"`
+	Team string `json:"fleet,omitempty"`
 	// Platform is a comma-separated string to indicate the target platforms.
 	//
 	// Empty string targets all platforms.
@@ -377,25 +822,66 @@ type PolicySpec struct {
 	// SoftwareTitleID is the title ID of the installer associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the title ID is unset from the policy.
 	SoftwareTitleID *uint `json:"software_title_id"`
+	// SoftwarePackageID optionally pins the policy to a specific package under
+	// the given SoftwareTitleID (team policies only). When nil the applier
+	// falls back to the title's first-added package. Used by GitOps to preserve
+	// which package a policy YAML referenced when the title has multiple
+	// installers sharing a bundle identifier.
+	SoftwarePackageID *uint `json:"software_package_id,omitempty"`
 	// ScriptID is the ID of the script associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the script ID is unset from the policy.
-	ScriptID         *uint    `json:"script_id"`
+	ScriptID *uint `json:"script_id"`
+	// ProfileUUID is the UUID of the configuration profile associated with this policy (team policies only).
+	// When editing a policy, if this is nil or "" then the profile UUID is unset from the policy.
+	ProfileUUID      *string  `json:"profile_uuid"`
 	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
+	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	LabelsExcludeAll []string `json:"labels_exclude_all,omitempty"`
 	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
 	//
 	// Only applies to team policies.
 	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
+	// Hidden hides the policy from end users in Fleet Desktop.
+	Hidden bool `json:"hidden"`
+	// ContinuousAutomationsEnabled indicates whether software/script automations
+	// should run on every failing policy result, not just on pass→fail transitions.
+	//
+	// Only applies to team policies.
+	ContinuousAutomationsEnabled bool `json:"continuous_automations_enabled"`
+	// PatchWhenClosed skips the install while the app is open, via the managed pre-install query.
+	PatchWhenClosed bool `json:"patch_when_closed"`
+	// NotifyBeforePatching skips the install while the app is open, and notifies the end user before installing.
+	NotifyBeforePatching bool `json:"notify_before_patching"`
+	// PatchDeadline skips the install while the app is open, and notifies the end user before the fleet's next patch deadline.
+	PatchDeadline bool `json:"patch_deadline"`
+
+	Type                   string `json:"type"`
+	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
+	PatchSoftwareTitleID   uint   `json:"-"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.
 type PolicySoftwareTitle struct {
 	// SoftwareTitleID is the ID of the title associated to the policy.
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
+	// SoftwareInstallerID is the ID of the specific package the policy pins
+	// on a multi-package title. Nil for VPP-backed policies (which pin via
+	// vpp_apps_teams_id, not a package). The multi-package policy
+	// automation UI reads this on load to reflect the user's non-default
+	// package choice; when nil, the UI falls back to the title's first-added
+	// package. Wire key is `software_package_id` (via the endpointer's renameto
+	// layer, which also accepts the legacy `software_installer_id` alias).
+	SoftwareInstallerID *uint `json:"software_installer_id,omitempty" renameto:"software_package_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
 	Name        string `json:"name" db:"name"`
 	DisplayName string `json:"display_name" db:"display_name"`
+	// IconURL is the API path to this software title's icon in the policy's
+	// team. It is set when a custom icon was uploaded for the title, or for VPP
+	// apps (whose icon endpoint redirects to the App Store icon), and is nil
+	// otherwise.
+	IconURL *string `json:"icon_url,omitempty"`
 }
 
 // PolicyScript contains script data for policies.
@@ -406,31 +892,74 @@ type PolicyScript struct {
 	Name string `json:"name"`
 }
 
+type PolicyProfile struct {
+	// UUID is the UUID of the configuration profile associated with the policy
+	UUID string `json:"profile_uuid"`
+	// Name is the configuration profile's name
+	Name string `json:"name"`
+}
+
 // Verify verifies the policy data is valid.
 func (p PolicySpec) Verify() error {
 	if err := verifyPolicyName(p.Name); err != nil {
 		return err
 	}
-	if err := verifyPolicyQuery(p.Query); err != nil {
+	if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
 		return err
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err
 	}
-	return nil
+	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
+		return err
+	}
+	if err := PolicyVerifyHidden(p.Hidden, p.ConditionalAccessEnabled); err != nil {
+		return err
+	}
+	if err := PolicyVerifyResendProfile(p.ProfileUUID, p.Platform); err != nil {
+		return err
+	}
+	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {
+		return err
+	}
+	if p.Type != PolicyTypePatch && p.FleetMaintainedAppSlug != "" {
+		return errPolicyFMASlugRequiresPatch
+	}
+	if p.PatchWhenClosed && p.Type != PolicyTypePatch {
+		return errPolicyPatchWhenClosedRequiresPatch
+	}
+	if p.NotifyBeforePatching && p.Type != PolicyTypePatch {
+		return errPolicyNotifyBeforePatchingRequiresPatch
+	}
+	if p.PatchDeadline && p.Type != PolicyTypePatch {
+		return errPolicyPatchDeadlineRequiresPatch
+	}
+	if PatchOptionsConflict(p.PatchWhenClosed, p.NotifyBeforePatching, p.PatchDeadline) {
+		return ErrPolicyPatchOptionsMutuallyExclusive
+	}
+	return p.VerifyLabelScopes()
+}
+
+// VerifyLabelScopes checks that the spec's label scopes are valid: at most one
+// include scope (any/all) combined with at most one exclude scope (any/all),
+// with no label appearing in both an include and an exclude list.
+func (p PolicySpec) VerifyLabelScopes() error {
+	return verifyPolicyLabelScopes(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny, p.LabelsExcludeAll)
 }
 
 // FirstDuplicatePolicySpecName returns first duplicate name of policies (in a team) or empty string if no duplicates found
 func FirstDuplicatePolicySpecName(specs []*PolicySpec) string {
 	teams := make(map[string]map[string]struct{})
 	for _, spec := range specs {
-		if team, ok := teams[spec.Team]; ok {
-			if _, ok = team[spec.Name]; ok {
+		// Names are stored NFC-normalized, so names that differ only in normalization are the same policy.
+		teamName, name := norm.NFC.String(spec.Team), norm.NFC.String(spec.Name)
+		if team, ok := teams[teamName]; ok {
+			if _, ok = team[name]; ok {
 				return spec.Name
 			}
-			team[spec.Name] = struct{}{}
+			team[name] = struct{}{}
 		} else {
-			teams[spec.Team] = map[string]struct{}{spec.Name: {}}
+			teams[teamName] = map[string]struct{}{name: {}}
 		}
 	}
 	return ""
@@ -464,4 +993,55 @@ type PolicyMembershipResult struct {
 	HostID   uint
 	PolicyID uint
 	Passes   *bool
+}
+
+const (
+	PolicyTypeDynamic = "dynamic"
+	PolicyTypePatch   = "patch"
+)
+
+type PolicyAutomationType string
+
+const (
+	PolicyAutomationTypeSoftware          PolicyAutomationType = "software"
+	PolicyAutomationTypePatch             PolicyAutomationType = "patch"
+	PolicyAutomationTypeScripts           PolicyAutomationType = "scripts"
+	PolicyAutomationTypeCalendar          PolicyAutomationType = "calendar"
+	PolicyAutomationTypeConditionalAccess PolicyAutomationType = "conditional_access"
+	PolicyAutomationTypeProfiles          PolicyAutomationType = "profiles"
+	PolicyAutomationTypeOther             PolicyAutomationType = "other"
+	PolicyAutomationTypeNone              PolicyAutomationType = ""
+)
+
+// resendProfile holds the resolved values for a policy's
+// resend_apple_profile_uuid / resend_windows_profile_uuid columns. At most one of
+// the two is ever set (enforced by the ck_policies_resend_profile_uuid constraint).
+type resendProfile struct {
+	AppleUUID   *string
+	WindowsUUID *string
+	// Table is the configuration profile table the UUID belongs to.
+	Table string
+}
+
+// ResolvePolicyResendProfile maps a configuration profile UUID onto the resend columns
+// based on its UUID prefix. A nil or empty UUID clears both columns.
+func ResolvePolicyResendProfile(profileUUID *string) (resendProfile, error) {
+	if profileUUID == nil || *profileUUID == "" {
+		return resendProfile{}, nil
+	}
+
+	switch {
+	case strings.HasPrefix(*profileUUID, MDMAppleProfileUUIDPrefix):
+		return resendProfile{AppleUUID: profileUUID, Table: "mdm_apple_configuration_profiles"}, nil
+	case strings.HasPrefix(*profileUUID, MDMWindowsProfileUUIDPrefix):
+		return resendProfile{WindowsUUID: profileUUID, Table: "mdm_windows_configuration_profiles"}, nil
+	case strings.HasPrefix(*profileUUID, MDMAppleDeclarationUUIDPrefix):
+		return resendProfile{}, &BadRequestError{
+			Message: CantResendAppleDeclarationProfilesMessage,
+		}
+	default:
+		return resendProfile{}, &BadRequestError{
+			Message: fmt.Sprintf("Configuration profile with UUID %s has an invalid prefix", *profileUUID),
+		}
+	}
 }

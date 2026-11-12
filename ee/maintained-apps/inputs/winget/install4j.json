@@ -1,0 +1,16 @@
+{
+  "name": "install4j",
+  "slug": "install4j/windows",
+  "package_identifier": "ej-technologies.install4j.11",
+  "unique_identifier": "install4j",
+  "fuzzy_match_name": "install4j%",
+  "program_publisher": "ej-technologies GmbH",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/install4j_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/install4j_uninstall.ps1",
+  "default_categories": [
+    "Developer tools"
+  ]
+}

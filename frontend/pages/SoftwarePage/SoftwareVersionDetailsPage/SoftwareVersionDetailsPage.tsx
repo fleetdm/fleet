@@ -1,49 +1,47 @@
 /** software/versions/:id */
 
-import React, { useCallback, useContext } from "react";
-import { useQuery } from "react-query";
-import { useErrorHandler } from "react-error-boundary";
-import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
+import React, { useCallback, useContext } from "react";
+import { useErrorHandler } from "react-error-boundary";
+import { useQuery } from "react-query";
+import { RouteComponentProps } from "react-router";
 
-import useTeamIdParam from "hooks/useTeamIdParam";
-
+import Card from "components/Card";
+import MainContent from "components/MainContent";
+import Spinner from "components/Spinner";
+import TeamsHeader from "components/TeamsHeader";
 import { AppContext } from "context/app";
-
-import softwareAPI, {
-  ISoftwareVersionResponse,
-  IGetSoftwareVersionQueryKey,
-} from "services/entities/software";
+import useTeamIdParam from "hooks/useTeamIdParam";
+import { ignoreAxiosError } from "interfaces/errors";
+import { DisplayPlatform } from "interfaces/platform";
+import {
+  ISoftwareVersion,
+  formatSoftwareType,
+  formatSoftwareVersion,
+  isIpadOrIphoneSoftwareSource,
+  isAndroidSoftwareSource,
+} from "interfaces/software";
 import hostsCountAPI, {
   IHostsCountQueryKey,
   IHostsCountResponse,
 } from "services/entities/host_count";
-import {
-  ISoftwareVersion,
-  formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
-  isAndroidSoftwareSource,
-} from "interfaces/software";
-import { ignoreAxiosError } from "interfaces/errors";
-import { DisplayPlatform } from "interfaces/platform";
-
+import softwareAPI, {
+  ISoftwareVersionResponse,
+  IGetSoftwareVersionQueryKey,
+} from "services/entities/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import Spinner from "components/Spinner";
-import MainContent from "components/MainContent";
-import TeamsHeader from "components/TeamsHeader";
-import Card from "components/Card";
-
+import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import SoftwareDetailsSummary from "../components/cards/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabilitiesTable";
-import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import { VulnsNotSupported } from "../components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import { getDisplayedSoftwareName } from "../helpers";
 
 const baseClass = "software-version-details-page";
 
 interface ISoftwareVersionDetailsRouteParams {
   id: string;
-  team_id?: string;
+  fleet_id?: string;
 }
 
 type ISoftwareTitleDetailsPageProps = RouteComponentProps<
@@ -58,6 +56,7 @@ const getVulnUnsupportedSourceText = (
   if (isIpadOrIphoneSoftwareSource(source)) {
     return source === "ios_apps" ? "iOS" : "iPadOS";
   }
+  return undefined;
 };
 
 const SoftwareVersionDetailsPage = ({
@@ -174,28 +173,24 @@ const SoftwareVersionDetailsPage = ({
           />
         ) : (
           <>
-            <Card
-              borderRadiusSize="xxlarge"
-              className={`${baseClass}__summary-section`}
-            >
+            <Card className={`${baseClass}__summary-section`}>
               <SoftwareDetailsSummary
-                displayName={`${
-                  softwareVersion.display_name || softwareVersion.name
-                }, ${softwareVersion.version}`}
+                displayName={`${getDisplayedSoftwareName(
+                  softwareVersion.name,
+                  softwareVersion.display_name,
+                  softwareVersion.bundle_identifier
+                )}, ${formatSoftwareVersion(softwareVersion)}`}
                 type={formatSoftwareType(softwareVersion)}
                 hostCount={hostsCount}
                 queryParams={{
                   software_version_id: softwareVersion.id,
-                  team_id: teamIdForApi,
+                  fleet_id: teamIdForApi,
                 }}
                 name={softwareVersion.name}
                 source={softwareVersion.source}
               />
             </Card>
-            <Card
-              borderRadiusSize="xxlarge"
-              className={`${baseClass}__vulnerabilities-section`}
-            >
+            <Card className={`${baseClass}__vulnerabilities-section`}>
               <h2 className="section__header">Vulnerabilities</h2>
               {renderVulnTable(softwareVersion)}
             </Card>

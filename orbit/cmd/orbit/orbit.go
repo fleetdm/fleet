@@ -27,20 +27,27 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
 	httpsigproxy "github.com/fleetdm/fleet/v4/ee/orbit/pkg/httpsigproxy"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/augeas"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/autopilot"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/cabundle"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/entratoken"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/installer"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/keystore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/logging"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/luks"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/managedaccount"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osservice"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
@@ -53,13 +60,13 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/wstransport"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
 	"github.com/oklog/run"
 	httpsig "github.com/remitly-oss/httpsig-go"
@@ -68,9 +75,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
-
-// unusedFlagKeyword is used by the MSI installer to populate parameters, which cannot be empty
-const unusedFlagKeyword = "dummy"
 
 type logError string
 
@@ -90,6 +94,7 @@ func main() {
 	app.Commands = []*cli.Command{
 		versionCommand,
 		shellCommand,
+		entraDeviceTokenCommand,
 	}
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
@@ -227,6 +232,12 @@ func main() {
 			Usage:   "Sets the email address of the user associated with the host when enrolling to Fleet. (requires Fleet >= v4.43.0)",
 			EnvVars: []string{"ORBIT_END_USER_EMAIL"},
 		},
+		&cli.StringFlag{
+			Name:    "eua-token",
+			Hidden:  true,
+			Usage:   "EUA token from Windows MDM enrollment, used during orbit enrollment to link IdP account",
+			EnvVars: []string{"ORBIT_EUA_TOKEN"},
+		},
 		&cli.BoolFlag{
 			Name:    "disable-keystore",
 			Usage:   "Disables the use of the keychain on macOS and Credentials Manager on Windows",
@@ -237,6 +248,23 @@ func main() {
 			Usage:   "Sets a custom osquery database directory, it must be an absolute path",
 			EnvVars: []string{"ORBIT_OSQUERY_DB"},
 		},
+		// The NIX_ORBIT_* names are accepted so the nixpkgs services.orbit module
+		// keeps working once it drops its downstream patches.
+		&cli.StringFlag{
+			Name:    "osqueryd-path",
+			Usage:   "Path to an externally managed osqueryd binary. Requires --disable-updates, osqueryd is not downloaded or updated by fleetd",
+			EnvVars: []string{"ORBIT_OSQUERYD_PATH", "NIX_ORBIT_OSQUERYD_PATH"},
+		},
+		&cli.StringFlag{
+			Name:    "desktop-path",
+			Usage:   "Path to an externally managed Fleet Desktop executable (the .app bundle on macOS). Requires --osqueryd-path, used when --fleet-desktop is set",
+			EnvVars: []string{"ORBIT_DESKTOP_PATH", "NIX_ORBIT_DESKTOP_PATH"},
+		},
+		&cli.StringFlag{
+			Name:    "osquery-log-path",
+			Usage:   "Sets a custom osquery log directory, it must be an absolute path (defaults to <root-dir>/osquery_log)",
+			EnvVars: []string{"ORBIT_OSQUERY_LOG_PATH", "NIX_ORBIT_OSQUERY_LOG_PATH"},
+		},
 		&cli.BoolFlag{
 			Name:    "fleet-managed-host-identity-certificate",
 			Usage:   "Configures fleetd to use TPM-backed key to sign HTTP requests. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
@@ -246,6 +274,11 @@ func main() {
 			Name:    "disable-setup-experience",
 			Usage:   "Disables checking for setup experience on Linux or Windows hosts",
 			EnvVars: []string{"ORBIT_DISABLE_SETUP_EXPERIENCE"},
+		},
+		&cli.BoolFlag{
+			Name:    "bypass-end-user-auth",
+			Usage:   "Bypasses end-user authentication during fleetd enrollment on Linux and Windows",
+			EnvVars: []string{"ORBIT_BYPASS_END_USER_AUTH"},
 		},
 	}
 	app.Before = func(c *cli.Context) error {
@@ -266,1288 +299,8 @@ func main() {
 		}
 		return nil
 	}
-	app.Action = func(c *cli.Context) error {
-		if c.Bool("version") {
-			fmt.Println("orbit " + build.Version)
-			return nil
-		}
-		startTime := time.Now()
-
-		var logFile io.Writer
-		if logf := c.String("log-file"); logf != "" {
-			if logDir := filepath.Dir(logf); logDir != "." {
-				if err := secure.MkdirAll(logDir, constant.DefaultDirMode); err != nil {
-					panic(err)
-				}
-			}
-			logFile = &lumberjack.Logger{
-				Filename:   logf,
-				MaxSize:    25, // megabytes
-				MaxBackups: 3,
-				MaxAge:     28, // days
-			}
-			if runtime.GOOS == "windows" {
-				// On Windows, Orbit runs as a "Windows Service", which fails to write to os.Stderr with
-				// "write /dev/stderr: The handle is invalid" (see
-				// #3100). Thus, we log to the logFile only.
-				log.Logger = log.Output(zerolog.MultiLevelWriter(
-					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
-					&fleetd_logs.Logger,
-				))
-			} else {
-				log.Logger = log.Output(zerolog.MultiLevelWriter(
-					zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
-					zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
-					&fleetd_logs.Logger,
-				))
-			}
-		} else {
-			log.Logger = log.Output(zerolog.MultiLevelWriter(
-				zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
-				&fleetd_logs.Logger,
-			))
-		}
-
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-
-		if c.Bool("debug") {
-			zerolog.SetGlobalLevel(zerolog.DebugLevel)
-		}
-
-		// Override flags with values retrieved from Fleet.
-		fallbackServerOverridesCfg := setServerOverrides(c)
-		if !fallbackServerOverridesCfg.empty() {
-			log.Debug().Msgf("fallback settings: %+v", fallbackServerOverridesCfg)
-		}
-
-		if c.Bool("insecure") && c.String("fleet-certificate") != "" {
-			return errors.New("insecure and fleet-certificate may not be specified together")
-		}
-
-		if c.Bool("insecure") && c.String("update-tls-certificate") != "" {
-			return errors.New("insecure and update-tls-certificate may not be specified together")
-		}
-
-		if odb := c.String("osquery-db"); odb != "" && !filepath.IsAbs(odb) {
-			return fmt.Errorf("the osquery database must be an absolute path: %q", odb)
-		}
-
-		readEnrollSecretFromFile := func(enrollSecretPath string) error {
-			// Read secret from file. If secret is found and keystore enabled, write/overwrite the secret to the keystore and delete the file.
-			b, err := os.ReadFile(enrollSecretPath)
-			if err != nil {
-				if !errors.Is(err, os.ErrNotExist) || !keystore.Supported() || c.Bool("disable-keystore") {
-					return fmt.Errorf("read enroll secret file: %w", err)
-				}
-			} else {
-				secret := strings.TrimSpace(string(b))
-				if err = c.Set("enroll-secret", secret); err != nil {
-					return fmt.Errorf("set enroll secret from file: %w", err)
-				}
-				if keystore.Supported() && !c.Bool("disable-keystore") {
-					// Check if secret is already in the keystore.
-					secretFromKeystore, err := keystore.GetSecret()
-					if err != nil { //nolint:gocritic // ignore ifElseChain
-						log.Warn().Err(err).Msgf("failed to retrieve enroll secret from %v", keystore.Name())
-					} else if secretFromKeystore == "" {
-						// Keystore secret not found, so we will add it to the keystore.
-						if err = keystore.AddSecret(secret); err != nil {
-							log.Warn().Err(err).Msgf("failed to add enroll secret to %v", keystore.Name())
-						} else {
-							// Sanity check that the secret was added to the keystore.
-							checkSecret, err := keystore.GetSecret()
-							if err != nil { //nolint:gocritic // ignore ifElseChain
-								log.Warn().Err(err).Msgf("failed to check that enroll secret was saved in %v", keystore.Name())
-							} else if checkSecret != secret {
-								log.Warn().Msgf("enroll secret was not saved correctly in %v", keystore.Name())
-							} else {
-								log.Info().Msgf("added enroll secret to keystore: %v", keystore.Name())
-								deleteSecretPathIfExists(enrollSecretPath)
-							}
-						}
-					} else if secretFromKeystore != secret {
-						// Keystore secret found, but needs to be updated.
-						if err = keystore.UpdateSecret(secret); err != nil {
-							log.Warn().Err(err).Msgf("failed to update enroll secret in %v", keystore.Name())
-						} else {
-							// Sanity check that the secret was updated in the keystore.
-							checkSecret, err := keystore.GetSecret()
-							if err != nil { //nolint:gocritic // ignore ifElseChain
-								log.Warn().Err(err).Msgf("failed to check that enroll secret was updated in %v", keystore.Name())
-							} else if checkSecret != secret {
-								log.Warn().Msgf("enroll secret was not updated correctly in %v", keystore.Name())
-							} else {
-								log.Info().Msgf("updated enroll secret in keystore: %v", keystore.Name())
-								deleteSecretPathIfExists(enrollSecretPath)
-							}
-						}
-					} else {
-						// Keystore secret found, and it matches the secret from the file.
-						deleteSecretPathIfExists(enrollSecretPath)
-					}
-				}
-			}
-			return nil
-		}
-		enrollSecretPath := c.String("enroll-secret-path")
-		if enrollSecretPath != "" {
-			if c.String("enroll-secret") != "" {
-				return errors.New("enroll-secret and enroll-secret-path may not be specified together")
-			}
-			if err := readEnrollSecretFromFile(enrollSecretPath); err != nil {
-				return err
-			}
-		}
-		tryReadEnrollSecretFromKeystore := func() error {
-			if c.String("enroll-secret") == "" && keystore.Supported() && !c.Bool("disable-keystore") {
-				secret, err := keystore.GetSecret()
-				if err != nil || secret == "" {
-					return fmt.Errorf("failed to retrieve enroll secret from %v: %w", keystore.Name(), err)
-				}
-				log.Info().Msgf("found enroll secret in keystore: %v", keystore.Name())
-				if err = c.Set("enroll-secret", secret); err != nil {
-					return fmt.Errorf("set enroll secret from keystore: %w", err)
-				}
-			}
-			return nil
-		}
-		if !(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
-			if err := tryReadEnrollSecretFromKeystore(); err != nil {
-				return err
-			}
-		}
-
-		if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
-			return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
-		}
-
-		if email := c.String("end-user-email"); email != "" && email != unusedFlagKeyword && !fleet.IsLooseEmail(email) {
-			return fmt.Errorf("the provided end-user email address %q is not a valid email address", email)
-		}
-
-		if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
-			return fmt.Errorf("initialize root dir: %w", err)
-		}
-
-		// if neither are set, this might be an agent deployed via MDM, try to read
-		// both configs from a configuration profile
-		if runtime.GOOS == "darwin" && c.Bool("use-system-configuration") {
-			log.Info().Msg("trying to read fleet-url and enroll-secret from a configuration profile")
-			for {
-				config, err := profiles.GetFleetdConfig()
-				switch {
-				// handle these errors separately as debug messages to not raise false
-				// alarms when users look into the orbit logs, it's perfectly normal to
-				// not have a configuration profile, or to get into this situation in
-				// operating systems that don't have profile support.
-				case err != nil:
-					log.Error().Err(err).Msg("reading configuration profile")
-				case config.EnrollSecret == "" || config.FleetURL == "":
-					log.Debug().Msg("enroll secret or fleet url are empty in configuration profile, not setting either")
-				default:
-					log.Info().Msg("setting enroll-secret and fleet-url configs from configuration profile")
-					if err := c.Set("enroll-secret", config.EnrollSecret); err != nil {
-						return fmt.Errorf("set enroll secret from configuration profile: %w", err)
-					}
-					if err := c.Set("fleet-url", config.FleetURL); err != nil {
-						return fmt.Errorf("set fleet URL from configuration profile: %w", err)
-					}
-					if err := writeSecret(config.EnrollSecret, c.String("root-dir")); err != nil {
-						return fmt.Errorf("write enroll secret: %w", err)
-					}
-					if err := writeFleetURL(config.FleetURL, c.String("root-dir")); err != nil {
-						return fmt.Errorf("write fleet URL: %w", err)
-					}
-				}
-
-				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
-					log.Info().Msg("found configuration values in system profile")
-					break
-				}
-
-				// If we didn't find the configuration values, try to read them from the stored files.
-				// First, get Fleet URL
-				b, err := os.ReadFile(path.Join(c.String("root-dir"), constant.FleetURLFileName))
-				if err != nil {
-					if !errors.Is(err, os.ErrNotExist) {
-						return fmt.Errorf("read fleet URL file: %w", err)
-					}
-				} else {
-					fleetURL := strings.TrimSpace(string(b))
-					if err = c.Set("fleet-url", fleetURL); err != nil {
-						return fmt.Errorf("set fleet URL from file: %w", err)
-					}
-				}
-				// Now, get enroll secret
-				if err := readEnrollSecretFromFile(path.Join(c.String("root-dir"), constant.OsqueryEnrollSecretFileName)); err != nil {
-					return err
-				}
-				// Since the normal enroll secret flow supports keychain, we can use it here as well.
-				// The story to remove the enroll secret from macOS MDM profile is: https://github.com/fleetdm/fleet/issues/16118
-				if err := tryReadEnrollSecretFromKeystore(); err != nil {
-					// Log the error but don't return it, as we want to keep trying to read the configuration
-					// from the system profile.
-					log.Error().Err(err).Msg("failed to read enroll secret from keystore")
-				}
-				if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
-					log.Info().Msg("found configuration values in local files")
-					break
-				}
-
-				log.Info().Msg("didn't find configuration values in system profile, trying again in 30 seconds")
-				time.Sleep(30 * time.Second)
-			}
-		}
-
-		if updateURL := c.String("update-url"); updateURL != update.OldFleetTUFURL && updateURL != update.DefaultURL {
-			// Migrate agents running with a custom TUF to use the new metadata file.
-			// We'll keep the old metadata file to support downgrades.
-			newMetadataFilePath := filepath.Join(c.String("root-dir"), update.MetadataFileName)
-			ok, err := file.Exists(newMetadataFilePath)
-			if err != nil {
-				// If we cannot stat this file then we cannot do other operations on it thus we fail with fatal error.
-				log.Fatal().Err(err).Msg("failed to check for new metadata file path")
-			}
-			if !ok {
-				oldMetadataFilePath := filepath.Join(c.String("root-dir"), update.OldMetadataFileName)
-				err := file.Copy(oldMetadataFilePath, newMetadataFilePath, constant.DefaultFileMode)
-				if err != nil {
-					// If we cannot write to this file then we cannot do other operations on it thus we fail with fatal error.
-					log.Fatal().Err(err).Msg("failed to copy new metadata file path")
-				}
-			}
-		}
-
-		localStore, err := filestore.New(filepath.Join(c.String("root-dir"), update.MetadataFileName))
-		if err != nil {
-			log.Fatal().Err(err).Msg("create local metadata store")
-		}
-
-		opt := update.DefaultOptions
-
-		if c.Bool("fleet-desktop") {
-			switch runtime.GOOS {
-			case "darwin":
-				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopMacOSTarget
-			case "windows":
-				if runtime.GOARCH == "arm64" {
-					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsArm64Target
-				} else {
-					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
-				}
-			case "linux":
-				if runtime.GOARCH == "arm64" {
-					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxArm64Target
-				} else {
-					opt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxTarget
-				}
-			default:
-				log.Fatal().Str("GOOS", runtime.GOOS).Msg("unsupported GOOS for desktop target")
-			}
-			// Override default channel with the provided value.
-			opt.Targets.SetTargetChannel(constant.DesktopTUFTargetName, c.String("desktop-channel"))
-		}
-
-		// Override default channels with the provided values.
-		opt.Targets.SetTargetChannel(constant.OrbitTUFTargetName, c.String("orbit-channel"))
-		opt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, c.String("osqueryd-channel"))
-
-		opt.RootDirectory = c.String("root-dir")
-		opt.ServerURL = c.String("update-url")
-		if opt.ServerURL == update.OldFleetTUFURL {
-			//
-			// This only gets executed on orbit 1.38.0+
-			// when it is configured to connect to the old TUF server
-			// (fleetd instances packaged before the migration,
-			// built by fleetctl previous to v4.63.0).
-			//
-			opt.ServerURL = update.DefaultURL
-		}
-		opt.LocalStore = localStore
-		opt.InsecureTransport = c.Bool("insecure")
-		opt.ServerCertificatePath = c.String("update-tls-certificate")
-
-		var (
-			osquerydPath string
-			desktopPath  string
-			g            run.Group
-			appDoneCh    chan struct{} // closed when runner run.group.Run() returns
-		)
-
-		// Setting up the system service management early on the process lifetime
-		appDoneCh = make(chan struct{})
-
-		// Initializing windows service runner and system service manager.
-		if runtime.GOOS == "windows" {
-			systemChecker := newSystemChecker()
-			addSubsystem(&g, "system checker", systemChecker)
-			go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
-		}
-
-		// sofwareupdated is a macOS daemon that automatically updates Apple software.
-		if c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
-			log.Warn().Msg("fleetd no longer automatically kickstarts softwareupdated. The --disable-kickstart-softwareupdated flag, which was previously used to disable this behavior, has been deprecated and will be removed in a future version")
-		}
-
-		updateClientCrtPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientCertificateFileName)
-		updateClientKeyPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientKeyFileName)
-		updateClientCrt, err := certificate.LoadClientCertificateFromFiles(updateClientCrtPath, updateClientKeyPath)
-		if err != nil {
-			return fmt.Errorf("error loading update client certificate: %w", err)
-		}
-		if updateClientCrt != nil {
-			log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to the update server.")
-			opt.ClientCertificate = &updateClientCrt.Crt
-		}
-
-		// NOTE: When running in dev-mode, even if `disable-updates` is set,
-		// it fetches osqueryd once as part of initialization.
-		var updater *update.Updater
-		var updateRunner *update.Runner
-		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			updater, err := update.NewUpdater(opt)
-			if err != nil {
-				return fmt.Errorf("create updater: %w", err)
-			}
-			if err := updater.UpdateMetadata(); err != nil {
-				log.Info().Err(err).Msg("update metadata")
-			}
-
-			signaturesExpiredAtStartup := updater.SignaturesExpired()
-			if signaturesExpiredAtStartup {
-				log.Info().Err(err).Msg("detected signatures expired at startup")
-			}
-
-			targets := []string{constant.OrbitTUFTargetName, constant.OsqueryTUFTargetName}
-
-			if c.Bool("fleet-desktop") {
-				targets = append(targets, constant.DesktopTUFTargetName)
-			}
-			if c.Bool("dev-mode") {
-				targets = targets[1:] // exclude orbit itself on dev-mode.
-			}
-			updateRunner, err = update.NewRunner(updater, update.RunnerOptions{
-				CheckInterval:              c.Duration("update-interval"),
-				Targets:                    targets,
-				SignaturesExpiredAtStartup: signaturesExpiredAtStartup,
-			})
-			if err != nil {
-				return err
-			}
-
-			// Get current version of osquery
-			log.Info().Msgf("orbit version: %s", build.Version)
-			osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
-			if err != nil {
-				log.Info().Err(err).Msg("Could not find local osqueryd executable")
-			} else {
-				version, err := update.GetVersion(osquerydPath)
-				if err == nil && version != "" {
-					log.Info().Msgf("Found osquery version: %s", version)
-					updateRunner.OsqueryVersion = version
-				}
-			}
-
-			// Perform early check for updates before starting any sub-system.
-			// This is to prevent bugs in other sub-systems to mess up with
-			// the download of available updates.
-			didUpdate, err := updateRunner.UpdateAction()
-			if err != nil {
-				log.Info().Err(err).Msg("early update check failed")
-			}
-			if didUpdate && !c.Bool("dev-mode") {
-				log.Info().Msg("exiting due to successful early update")
-				return nil
-			}
-
-			addSubsystem(&g, "update runner", updateRunner)
-
-			// if getting any of the targets fails, keep on
-			// retrying, the `updater.Get` method has built-in backoff functionality.
-			//
-			// NOTE: it used to be the case that we would return an
-			// error on the first attempt here, causing orbit to
-			// restart. This was changed to have control over
-			// how/when we want to retry to download the packages.
-			err = retrypkg.Do(func() error {
-				var err error
-				osquerydPath, desktopPath, err = getFleetdComponentPaths(c, updater, fallbackServerOverridesCfg)
-				if err != nil {
-					return err
-				}
-				return nil
-			},
-				// retry every 5 minutes to not flood the logs,
-				// but actual pings to the remote server are
-				// handled by `updater.Get`
-				retrypkg.WithInterval(5*time.Minute),
-			)
-			if err != nil {
-				// this should never happen because `retry.Do` is
-				// executed without a defined number of max attempts
-				return fmt.Errorf("getting targets after retry: %w", err)
-			}
-		} else {
-			log.Info().Msg("running with auto updates disabled")
-			updater = update.NewDisabled(opt)
-			osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
-			if err != nil {
-				log.Fatal().Err(err).Msgf("locate %s", constant.OsqueryTUFTargetName)
-			}
-			if c.Bool("fleet-desktop") {
-				if runtime.GOOS == "darwin" {
-					desktopPath, err = updater.DirLocalPath(constant.DesktopTUFTargetName)
-					if err != nil {
-						return fmt.Errorf("get %s target: %w", constant.DesktopTUFTargetName, err)
-					}
-				} else {
-					desktopPath, err = updater.ExecutableLocalPath(constant.DesktopTUFTargetName)
-					if err != nil {
-						return fmt.Errorf("get %s target: %w", constant.DesktopTUFTargetName, err)
-					}
-				}
-			}
-		}
-
-		// Clear leftover files from updates
-		if err := filepath.Walk(c.String("root-dir"), func(path string, info fs.FileInfo, err error) error {
-			// Ignore anything not containing .old extension
-			if !strings.HasSuffix(path, ".old") {
-				return nil
-			}
-
-			if err := os.RemoveAll(path); err != nil {
-				log.Info().Err(err).Msg("remove .old")
-				return nil
-			}
-			log.Debug().Str("path", path).Msg("cleaned up old")
-
-			return nil
-		}); err != nil {
-			return fmt.Errorf("cleanup old files: %w", err)
-		}
-
-		// Kill any pre-existing instances of osqueryd (otherwise getHostInfo will fail
-		// because of osqueryd's lock over its database).
-		//
-		// This can happen for instance when orbit is killed via the Windows Task Manager
-		// (there's no SIGTERM on Windows) and the osqueryd child processes are left orphaned.
-		killedProcesses, err := platform.KillAllProcessByName("osqueryd")
-		if err != nil {
-			log.Error().Err(err).Msg("failed to kill pre-existing instances of osqueryd")
-		} else if len(killedProcesses) > 0 {
-			log.Debug().Str("processes", fmt.Sprintf("%+v", killedProcesses)).Msg("existing osqueryd processes killed")
-		}
-
-		osqueryDB := filepath.Join(c.String("root-dir"), "osquery.db")
-		if odb := c.String("osquery-db"); odb != "" {
-			osqueryDB = odb
-		}
-
-		osqueryHostInfo, err := getHostInfo(osquerydPath, osqueryDB)
-		if err != nil {
-			return fmt.Errorf("get UUID: %w", err)
-		}
-		log.Debug().Str("info", fmt.Sprint(osqueryHostInfo)).Msg("retrieved host info from osquery")
-		orbitHostInfo := fleet.OrbitHostInfo{
-			HardwareSerial: osqueryHostInfo.HardwareSerial,
-			HardwareUUID:   osqueryHostInfo.HardwareUUID,
-			Hostname:       osqueryHostInfo.Hostname,
-			Platform:       osqueryHostInfo.Platform,
-			PlatformLike:   osqueryHostInfo.PlatformLike,
-			ComputerName:   osqueryHostInfo.ComputerName,
-			HardwareModel:  osqueryHostInfo.HardwareModel,
-		}
-
-		if runtime.GOOS == "darwin" {
-			// Get the hardware UUID. We use a temporary osquery DB location in order to guarantee that
-			// we're getting true UUID, not a cached UUID. See
-			// https://github.com/fleetdm/fleet/issues/17934 and
-			// https://github.com/osquery/osquery/issues/7509 and
-			// https://github.com/fleetdm/fleet/issues/31934 for more details.
-
-			tmpDBPath := filepath.Join(os.TempDir(), strings.Join([]string{uuid.NewString(), "tmp-db"}, "-"))
-			oi, err := getHostInfo(osquerydPath, tmpDBPath)
-			if err != nil {
-				return fmt.Errorf("get UUID from temp db: %w", err)
-			}
-
-			if err := os.RemoveAll(tmpDBPath); err != nil {
-				log.Info().Err(err).Msg("failed to remove temporary osquery db")
-			}
-
-			// Read the stored hardware UUID from file (if it exists)
-			hardwareUUIDFile := filepath.Join(c.String("root-dir"), constant.HardwareUUIDFileName)
-			var storedUUID string
-
-			fileContent, err := os.ReadFile(hardwareUUIDFile)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					// If there's an error other than file not existing, log it
-					log.Warn().Err(err).Msg("failed to read hardware UUID file")
-				}
-				// If file doesn't exist or can't be read, create it with the current UUID
-				if err := os.WriteFile(hardwareUUIDFile, []byte(oi.HardwareUUID), constant.DefaultFileMode); err != nil {
-					log.Error().Err(err).Msg("failed to write hardware UUID file")
-				} else {
-					log.Debug().Str("uuid", oi.HardwareUUID).Msg("created hardware UUID file")
-				}
-				storedUUID = oi.HardwareUUID
-			} else {
-				storedUUID = strings.TrimSpace(string(fileContent))
-			}
-
-			if !strings.EqualFold(oi.HardwareUUID, storedUUID) {
-				// Then we have moved to a new physical machine, so we should restart!
-				log.Info().Str("stored_uuid", storedUUID).Str("current_uuid", oi.HardwareUUID).Msg("detected hardware migration")
-
-				// Remove the hardware UUID file so it gets recreated with the new UUID on restart
-				if err := os.RemoveAll(hardwareUUIDFile); err != nil {
-					return fmt.Errorf("removing old hardware UUID file: %w", err)
-				}
-
-				// Removing the osquery DB should trigger a re-enrollment when fleetd is restarted.
-				if err := os.RemoveAll(osqueryDB); err != nil {
-					return fmt.Errorf("removing old osquery.db: %w", err)
-				}
-
-				// We can remove these because we want them to be regenerated during the re-enrollment.
-				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.OrbitNodeKeyFileName)); err != nil {
-					return fmt.Errorf("removing old orbit node key file: %w", err)
-				}
-				if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName)); err != nil {
-					return fmt.Errorf("removing old Fleet Desktop identifier file: %w", err)
-				}
-
-				return errors.New("found a new hardware uuid, restarting")
-			}
-		}
-
-		// Only send osquery's `instance_id` if the user is running orbit with `--host-identifier=instance`.
-		// When not set, orbit and osquery will be matched using the hardware UUID (orbitHostInfo.HardwareUUID).
-		if c.String("host-identifier") == "instance" {
-			orbitHostInfo.OsqueryIdentifier = osqueryHostInfo.InstanceID
-		}
-
-		var (
-			options []osquery.Option
-			// optionsAfterFlagfile is populated with options that will be set after the '--flagfile' argument
-			// to not allow users to change their values on their flagfiles.
-			optionsAfterFlagfile []osquery.Option
-		)
-		options = append(options, osquery.WithDataPath(c.String("root-dir"), ""))
-		options = append(options, osquery.WithLogPath(filepath.Join(c.String("root-dir"), "osquery_log")))
-		optionsAfterFlagfile = append(optionsAfterFlagfile, osquery.WithFlags(
-			[]string{"--database_path", osqueryDB},
-		))
-
-		if logFile != nil {
-			// If set, redirect osqueryd's stderr to the logFile.
-			options = append(options, osquery.WithStderr(logFile))
-		}
-
-		fleetURL := c.String("fleet-url")
-		if !strings.HasPrefix(fleetURL, "http") {
-			fleetURL = "https://" + fleetURL
-		}
-
-		enrollSecret := c.String("enroll-secret")
-		if enrollSecret != "" {
-			const enrollSecretEnvName = "ENROLL_SECRET"
-			options = append(options,
-				osquery.WithEnv([]string{enrollSecretEnvName + "=" + enrollSecret}),
-				osquery.WithFlags([]string{"--enroll_secret_env", enrollSecretEnvName}),
-			)
-		}
-
-		if runtime.GOOS == "windows" {
-			if systemDrive, ok := os.LookupEnv("SystemDrive"); ok {
-				options = append(options, osquery.WithEnv([]string{fmt.Sprintf("SystemDrive=%s", systemDrive)}))
-			}
-		}
-
-		var certPath string
-
-		// Both options --fleet-managed-host-identity-certificate and --insecure make use of a local HTTPS proxy.
-		// If the user sets both --fleet-managed-host-identity-certificate and --insecure then only the proxy
-		// for the fleet managed client certificate will be executed.
-		if fleetURL != "https://" && c.Bool("insecure") && !c.Bool("fleet-managed-host-identity-certificate") {
-			proxy, err := insecure.NewTLSProxy(fleetURL)
-			if err != nil {
-				return fmt.Errorf("create TLS proxy: %w", err)
-			}
-
-			addSubsystem(&g, "insecure proxy", &wrapSubsystem{
-				execute: func() error {
-					log.Info().
-						Str("addr", fmt.Sprintf("localhost:%d", proxy.Port)).
-						Str("target", c.String("fleet-url")).
-						Msg("using insecure TLS proxy")
-					err := proxy.InsecureServeTLS()
-					return err
-				},
-				interrupt: func(err error) {
-					if err := proxy.Close(); err != nil {
-						log.Error().Err(err).Msg("close proxy")
-					}
-				},
-			})
-
-			// Directory to store proxy related assets
-			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
-			if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
-				return fmt.Errorf("there was a problem creating the proxy directory: %w", err)
-			}
-
-			certPath = filepath.Join(proxyDirectory, "fleet.crt")
-
-			// Write cert that proxy uses
-			err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.FileMode(0o644))
-			if err != nil {
-				return fmt.Errorf("write server cert: %w", err)
-			}
-
-			// Rewrite URL to the proxy URL. Note the proxy handles any URL
-			// prefix so we don't need to carry that over here.
-			parsedURL := &url.URL{
-				Scheme: "https",
-				Host:   fmt.Sprintf("localhost:%d", proxy.Port),
-			}
-
-			// Check and log if there are any errors with TLS connection.
-			pool, err := certificate.LoadPEM(certPath)
-			if err != nil {
-				return fmt.Errorf("load certificate: %w", err)
-			}
-			if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
-				log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
-			}
-
-			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
-				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
-			)
-		} else if fleetURL != "https://" {
-			if enrollSecret == "" {
-				return errors.New("enroll secret must be specified to connect to Fleet server")
-			}
-
-			parsedURL, err := url.Parse(fleetURL)
-			if err != nil {
-				return fmt.Errorf("parse URL: %w", err)
-			}
-
-			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(parsedURL)),
-			)
-
-			if certPath = c.String("fleet-certificate"); certPath != "" {
-				// Check and log if there are any errors with TLS connection.
-				pool, err := certificate.LoadPEM(certPath)
-				if err != nil {
-					return fmt.Errorf("load certificate: %w", err)
-				}
-				if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
-					log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
-				}
-
-				options = append(options,
-					osquery.WithFlags([]string{"--tls_server_certs", certPath}),
-				)
-			} else {
-				certPath = filepath.Join(c.String("root-dir"), "certs.pem")
-				if exists, err := file.Exists(certPath); err == nil && exists {
-					_, err = certificate.LoadPEM(certPath)
-					if err != nil {
-						return fmt.Errorf("load certs.pem: %w", err)
-					}
-					options = append(options, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
-				} else {
-					log.Info().Msg("No cert chain available. Relying on system store.")
-				}
-			}
-		}
-
-		fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
-		fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
-		fleetClientCrt, err := certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
-		if err != nil {
-			return fmt.Errorf("error loading fleet client certificate: %w", err)
-		}
-
-		if c.Bool("fleet-managed-host-identity-certificate") {
-			if runtime.GOOS != "linux" {
-				return errors.New("fleet-managed-host-identity-certificate is only supported on Linux")
-			}
-			if fleetClientCrt != nil {
-				return errors.New("fleet-managed-host-identity-certificate for HTTP signing, and TLS client certificates may not be specified together")
-			}
-		}
-
-		var fleetClientCertificate *tls.Certificate
-		if fleetClientCrt != nil {
-			log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to Fleet.")
-			fleetClientCertificate = &fleetClientCrt.Crt
-			options = append(options, osquery.WithFlags([]string{
-				"--tls_client_cert", fleetClientCertPath,
-				"--tls_client_key", fleetClientKeyPath,
-			}))
-		}
-
-		var (
-			signerWrapper               func(*http.Client) *http.Client
-			hostIdentityCertificatePath string
-			orbitClient                 *service.OrbitClient
-		)
-		if c.Bool("fleet-managed-host-identity-certificate") {
-			commonName := osqueryHostInfo.HardwareUUID
-			if c.String("host-identifier") == "instance" {
-				commonName = osqueryHostInfo.InstanceID
-			}
-			hostIdentityCredentials, err := hostidentity.Setup(
-				c.Context,
-				c.String("root-dir"),
-				fleetURL+"/api/fleet/orbit/host_identity/scep",
-				c.String("enroll-secret"),
-				commonName,
-				c.String("fleet-certificate"),
-				c.Bool("insecure"),
-				log.Logger,
-				func(reason string) {
-					if orbitClient != nil {
-						orbitClient.TriggerOrbitRestart(reason)
-					}
-				},
-			)
-			if err != nil {
-				if c.Bool("fleet-desktop") {
-					// Generic error for when the TPM-backed certificate could not be generated.
-					// (e.g. invalid enroll secret, server down).
-					errorMessage := "🔒🚫 Missing Fleet certificate.\nPlease contact your IT admin."
-					if errors.As(err, &securehw.ErrSecureHWUnavailable{}) {
-						errorMessage = "🔒🚫 TPM 2.0 device unavailable.\nPlease contact your IT admin."
-					}
-					if err := executeFleetDesktopWithPermanentError(desktopPath, errorMessage); err != nil {
-						log.Error().Err(err).Msg("failed to launch Fleet Desktop with permanent error")
-					}
-				}
-				return fmt.Errorf("failed to create or load client certificate: %w", err)
-			}
-			defer hostIdentityCredentials.Close()
-
-			log.Info().Str(
-				"commonName", hostIdentityCredentials.Certificate.Subject.CommonName,
-			).Msg("certificate issued successfully")
-
-			cryptoSigner, err := hostIdentityCredentials.SecureHWKey.HTTPSigner()
-			if err != nil {
-				return fmt.Errorf("error getting secure HW backed signer: %w", err)
-			}
-
-			// Get serial number as hex string
-			certSN := strings.ToUpper(hostIdentityCredentials.Certificate.SerialNumber.Text(16))
-
-			// Get ECC algorithm for signing.
-			var signingAlgorithm httpsig.Algorithm
-			switch v := cryptoSigner.ECCAlgorithm(); v {
-			case securehw.ECCAlgorithmP256:
-				signingAlgorithm = httpsig.Algo_ECDSA_P256_SHA256
-			case securehw.ECCAlgorithmP384:
-				signingAlgorithm = httpsig.Algo_ECDSA_P384_SHA384
-			default:
-				return fmt.Errorf("invalid ECC algorithm: %v", v)
-			}
-
-			httpSigner, err := fleethttpsig.Signer(certSN, cryptoSigner, signingAlgorithm)
-			if err != nil {
-				return fmt.Errorf("failed to create HTTP signer: %w", err)
-			}
-
-			proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
-			proxy, err := httpsigproxy.NewProxy(proxyDirectory, fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), httpSigner)
-			if err != nil {
-				return fmt.Errorf("create TLS proxy: %w", err)
-			}
-
-			addSubsystem(&g, "httpsig localhost proxy", &wrapSubsystem{
-				execute: func() error {
-					log.Info().
-						Str("addr", proxy.ParsedURL.String()).
-						Str("target", fleetURL).
-						Msg("httpsig localhost proxy")
-					return proxy.Serve()
-				},
-				interrupt: func(_ error) {
-					if err := proxy.Close(); err != nil {
-						log.Error().Err(err).Msg("close httpsig proxy")
-					}
-				},
-			})
-
-			signerWrapper = func(client *http.Client) *http.Client {
-				return httpsig.NewHTTPClient(client, httpSigner, nil)
-			}
-			hostIdentityCertificatePath = hostIdentityCredentials.CertificatePath
-
-			options = append(options,
-				osquery.WithFlags(osquery.FleetFlags(proxy.ParsedURL)),
-
-				// This is overriding the previous set of --tls_server_certs in osquery.FleetFlags above.
-				osquery.WithFlags([]string{"--tls_server_certs", proxy.CertificatePath}),
-			)
-		}
-
-		orbitClient, err = service.NewOrbitClient(
-			c.String("root-dir"),
-			fleetURL,
-			c.String("fleet-certificate"),
-			c.Bool("insecure"),
-			enrollSecret,
-			fleetClientCertificate,
-			orbitHostInfo,
-			&service.OnGetConfigErrFuncs{
-				DebugErrFunc: func(err error) {
-					log.Debug().Err(err).Msg("get config")
-				},
-				OnNetErrFunc: func(err error) {
-					log.Info().Err(err).Msg("network error")
-				},
-			},
-			signerWrapper,
-			hostIdentityCertificatePath,
-		)
-		if err != nil {
-			return fmt.Errorf("error new orbit client: %w", err)
-		}
-
-		// Set the function that will be called to open the SSO window if an enroll
-		// request returns an "end user authentication required" error.
-		orbitClient.SetOpenSSOWindowFunc(func() error {
-			err = openBrowserWindow(fleetURL + "/mdm/sso?initiator=setup_experience&host_uuid=" + orbitHostInfo.HardwareUUID)
-			if err != nil {
-				return fmt.Errorf("opening browser: %w", err)
-			}
-			return nil
-		})
-
-		// If the server can't be reached, we want to fail quickly on any blocking network calls
-		// so that desktop can be launched as soon as possible.
-		serverIsReachable := orbitClient.Ping() == nil
-
-		// create the notifications middleware that wraps the orbit client
-		// (must be shared by all runners that use a ConfigFetcher).
-		const (
-			renewEnrollmentProfileCommandFrequency = 3 * time.Minute
-			windowsMDMEnrollmentCommandFrequency   = time.Hour
-			windowsMDMBitlockerCommandFrequency    = time.Hour
-		)
-
-		scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
-			c.Bool("enable-scripts"), orbitClient, c.String("root-dir"),
-		)
-		orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
-
-		var trw *token.ReadWriter
-		var deviceClient *service.DeviceClient
-		// Note that the deviceClient used by orbit must not define a retry on
-		// invalid token, because its goal is to detect invalid tokens when
-		// making requests with this client.
-		deviceClient, err = service.NewDeviceClient(
-			fleetURL,
-			c.Bool("insecure"),
-			c.String("fleet-certificate"),
-			fleetClientCertificate,
-			c.String("fleet-desktop-alternative-browser-host"),
-		)
-		if err != nil {
-			return fmt.Errorf("initializing client: %w", err)
-		}
-
-		// Create a new token read/writer that will store the token on disk.
-		// This token will be used to identify this desktop to the Fleet server.
-		trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName), deviceClient.CheckToken)
-		if err := trw.LoadOrGenerate(); err != nil {
-			return fmt.Errorf("initializing token read writer: %w", err)
-		}
-
-		// we enable remote updates only if the server supports them by setting
-		// this function.
-		trw.SetRemoteUpdateFunc(
-			func(token string) error {
-				return orbitClient.SetOrUpdateDeviceToken(token)
-			},
-		)
-
-		// Check if the token is not expired and still good.
-		// If not, rotate the token iff the server is reachable.
-		if serverIsReachable {
-			expired, _ := trw.HasExpired()
-			if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
-				if err := trw.Rotate(); err != nil {
-					return fmt.Errorf("rotating token: %w", err)
-				}
-			}
-		}
-
-		if c.Bool("fleet-desktop") {
-			// Ensure that the token rotation checker is started,
-			// so that we have a valid token to launch the
-			// My Device page.
-			stopRotation := trw.StartRotation()
-			defer stopRotation()
-		}
-
-		switch runtime.GOOS {
-		case "darwin":
-			orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(
-				orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL))
-			const nudgeLaunchInterval = 30 * time.Minute
-			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
-				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
-			}))
-			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, deviceClient, c.String("root-dir"), trw)
-			// Use the legacy UI if the server indicates so via capabilities.
-			setupExperiencer.UseLegacyUI = !orbitClient.GetServerCapabilities().Has(fleet.CapabilityMacOSWebSetupExperience)
-			orbitClient.RegisterConfigReceiver(setupExperiencer)
-			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
-
-		case "windows":
-			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
-			orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(windowsMDMBitlockerCommandFrequency, orbitClient))
-		case "linux":
-			orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
-		}
-
-		flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
-			RootDir: c.String("root-dir"),
-		})
-		orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
-
-		if !c.Bool("disable-updates") {
-			serverOverridesReceiver := newServerOverridesReceiver(
-				c.String("root-dir"),
-				fallbackServerOverridesConfig{
-					OsquerydPath: osquerydPath,
-					DesktopPath:  desktopPath,
-				},
-				c.Bool("fleet-desktop"),
-				orbitClient.TriggerOrbitRestart,
-			)
-
-			orbitClient.RegisterConfigReceiver(serverOverridesReceiver)
-		}
-
-		// only setup extensions autoupdate if we have enabled updates
-		// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
-		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
-		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
-			extRunner := update.NewExtensionConfigUpdateRunner(update.ExtensionUpdateOptions{
-				RootDir: c.String("root-dir"),
-			}, updateRunner, orbitClient.TriggerOrbitRestart)
-
-			// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
-			_, err := updateRunner.UpdateAction()
-			if err != nil {
-				// OK, initial call may fail, ok to continue
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial extensions update action failed")
-			}
-
-			extensionAutoLoadFile := filepath.Join(c.String("root-dir"), "extensions.load")
-			stat, err := os.Stat(extensionAutoLoadFile)
-			// we only want to add the extensions_autoload flag to osquery, if the file exists and size > 0
-			switch {
-			case err == nil:
-				if stat.Size() > 0 {
-					log.Debug().Msg("adding --extensions_autoload flag for file " + extensionAutoLoadFile)
-					// We set this option after the --flagfile to prevent users from changing it on their flagfiles.
-					optionsAfterFlagfile = append(optionsAfterFlagfile, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
-				} else {
-					// OK, expected as well when extensions are unloaded, just debug log
-					log.Debug().Msg("found empty extensions.load file at " + extensionAutoLoadFile)
-				}
-			case errors.Is(err, os.ErrNotExist):
-				// OK, nothing to do.
-			default:
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "error with extensions.load file at "+extensionAutoLoadFile)
-			}
-
-			orbitClient.RegisterConfigReceiver(extRunner)
-		}
-
-		// Run an early check of fleetd configuration (iff server can be reached)
-		// to check if orbit needs to restart before proceeding to start the sub-systems.
-		//
-		// E.g. the administrator has updated the following agent options for this device:
-		//	- `update_channels`
-		//	- `extensions` were removed/unset
-		//	- `command_line_flags` (osquery startup flags)
-		if serverIsReachable {
-			if err := orbitClient.RunConfigReceivers(); err != nil {
-				log.Error().Msgf("failed initial config fetch: %s", err)
-			} else if orbitClient.RestartTriggered() {
-				log.Info().Msg("exiting after early config fetch")
-				return nil
-			}
-		}
-
-		addSubsystem(&g, "config receivers", &wrapSubsystem{
-			execute:   orbitClient.ExecuteConfigReceivers,
-			interrupt: orbitClient.InterruptConfigReceivers,
-		})
-
-		// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
-		// `"", nil`. Therefore there's no platform-specific stuff required here
-		augeasPath, err := augeas.CopyLenses(c.String("root-dir"))
-		if err != nil {
-			log.Warn().Err(err).Msg("failed to copy augeas lenses, augeas may not be available")
-		} else if augeasPath != "" {
-			options = append(options, osquery.WithFlags([]string{"--augeas_lenses", augeasPath}))
-		}
-
-		// --force is sometimes needed when an older osquery process has not
-		// exited properly
-		options = append(options, osquery.WithFlags([]string{"--force"}))
-
-		if c.Bool("debug") {
-			options = append(options,
-				osquery.WithFlags([]string{"--verbose", "--tls_dump"}),
-			)
-		}
-
-		// Provide the flagfile to osquery if it exists. This comes after the other flags set by
-		// Orbit so that users can override those flags. Note this means users may unintentionally
-		// break things by overriding Orbit flags in incompatible ways. That's the price to pay for
-		// flexibility.
-		flagfilePath := filepath.Join(c.String("root-dir"), "osquery.flags")
-		if exists, err := file.Exists(flagfilePath); err == nil && exists {
-			options = append(options, osquery.WithFlags([]string{"--flagfile", flagfilePath}))
-		}
-
-		// These options must go after '--flagfile' to not allow users to change their values
-		// on their flagfiles.
-		hostIdentifier := c.String("host-identifier")
-		options = append(options, osquery.WithFlags([]string{"--host-identifier", hostIdentifier}))
-		options = append(options, optionsAfterFlagfile...)
-
-		// Handle additional args after '--' in the command line. These are added last and should
-		// override all other flags and flagfile entries.
-		options = append(options, osquery.WithFlags(c.Args().Slice()))
-
-		// Create an osquery runner with the provided options.
-		r, err := osquery.NewRunner(osquerydPath, options...)
-		if err != nil {
-			return fmt.Errorf("create osquery runner: %w", err)
-		}
-		addSubsystem(&g, "osqueryd runner", r)
-
-		checkerClient, err := service.NewOrbitClient(
-			c.String("root-dir"),
-			fleetURL,
-			c.String("fleet-certificate"),
-			c.Bool("insecure"),
-			enrollSecret,
-			fleetClientCertificate,
-			orbitHostInfo,
-			&service.OnGetConfigErrFuncs{
-				DebugErrFunc: func(err error) {
-					log.Debug().Err(err).Msg("get config")
-				},
-				OnNetErrFunc: func(err error) {
-					log.Info().Err(err).Msg("network error")
-				},
-			},
-			nil,
-			"",
-		)
-		if err != nil {
-			return fmt.Errorf("new client for capabilities checker: %w", err)
-		}
-		capabilitiesChecker := newCapabilitiesChecker(checkerClient)
-		// We populate the known capabilities so that the capability checker does not need to do the initial check on startup.
-		checkerClient.GetServerCapabilities().Copy(orbitClient.GetServerCapabilities())
-		addSubsystem(&g, "capabilities checker", capabilitiesChecker)
-
-		var desktopVersion string
-		if c.Bool("fleet-desktop") {
-			runPath := desktopPath
-			if runtime.GOOS == "darwin" {
-				runPath = filepath.Join(desktopPath, "Contents", "MacOS", constant.DesktopAppExecName)
-			}
-			desktopVersion, err = update.GetVersion(runPath)
-			if err == nil && desktopVersion != "" {
-				log.Info().Msgf("Found fleet-desktop version: %s", desktopVersion)
-			} else {
-				desktopVersion = "unknown"
-			}
-		}
-
-		registerExtensionRunner(
-			&g,
-			r.ExtensionSocketPath(),
-			table.WithExtension(orbit_info.New(
-				orbitClient,
-				c.String("orbit-channel"),
-				c.String("osqueryd-channel"),
-				c.String("desktop-channel"),
-				desktopVersion,
-				trw,
-				startTime,
-				scriptsEnabledFn,
-				opt.ServerURL,
-			)),
-		)
-
-		if c.Bool("fleet-desktop") {
-			var (
-				rawClientCrt []byte
-				rawClientKey []byte
-			)
-			if fleetClientCrt != nil {
-				rawClientCrt = fleetClientCrt.RawCrt
-				rawClientKey = fleetClientCrt.RawKey
-			}
-			desktopRunner := newDesktopRunner(
-				desktopPath,
-				fleetURL,
-				c.String("fleet-certificate"),
-				c.Bool("insecure"),
-				trw,
-				rawClientCrt,
-				rawClientKey,
-				c.String("fleet-desktop-alternative-browser-host"),
-				opt.RootDirectory,
-			)
-			go func() {
-				for {
-					msg := <-desktopRunner.errorNotifyCh
-					log.Error().Err(errors.New(msg)).Msg("fleet-desktop runner error")
-					// Vital errors are always sent to Fleet, regardless of the error reporting setting FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS.
-					fleetdErr := fleet.FleetdError{
-						Vital:              true,
-						ErrorSource:        "fleet-desktop",
-						ErrorSourceVersion: desktopVersion,
-						ErrorTimestamp:     time.Now(),
-						ErrorMessage:       msg,
-						ErrorAdditionalInfo: map[string]interface{}{
-							"orbit_version":    build.Version,
-							"osquery_version":  osqueryHostInfo.OsqueryVersion,
-							"os_platform":      osqueryHostInfo.Platform,
-							"os_platform_like": osqueryHostInfo.PlatformLike,
-							"os_version":       osqueryHostInfo.OSVersion,
-						},
-					}
-					if err = deviceClient.ReportError(trw.GetCached(), fleetdErr); err != nil {
-						log.Error().Err(err).Msg(fmt.Sprintf("failed to send error report to Fleet: %s", msg))
-					}
-				}
-			}()
-			addSubsystem(&g, "desktop runner", desktopRunner)
-		}
-
-		// --end-user-email is only supported on Windows and Linux (for macOS it gets the
-		// email from the enrollment profile)
-		endUserEmail := c.String("end-user-email")
-		if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && endUserEmail != "" && endUserEmail != unusedFlagKeyword {
-			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
-				log.Debug().Msg("sending end-user email to Fleet")
-				if err := orbitClient.SetOrUpdateDeviceMappingEmail(endUserEmail); err != nil {
-					log.Error().Err(err).Msg("error sending end-user email to Fleet")
-				}
-			} else {
-				log.Info().Msg("an end-user email is provided, but the Fleet server doesn't have the capability to set it.")
-			}
-		}
-
-		// For macOS hosts, check if MDM enrollment profile is present and if it contains the
-		// custom end user email field. If so, report it to the server.
-		if runtime.GOOS == "darwin" {
-			log.Info().Msg("checking for custom mdm enrollment profile with end user email")
-			email, err := profiles.GetCustomEnrollmentProfileEndUserEmail()
-			if err != nil {
-				if errors.Is(err, profiles.ErrNotFound) {
-					// This is fine. Many hosts will not have this profile so just log and continue.
-					log.Info().Msg(fmt.Sprintf("get custom enrollment profile end user email: %s", err))
-				} else {
-					log.Error().Err(err).Msg("get custom enrollment profile end user email")
-				}
-			}
-
-			if email != "" {
-				log.Info().Msg(fmt.Sprintf("found custom end user email: %s", email))
-				if err := orbitClient.SetOrUpdateDeviceMappingEmail(email); err != nil {
-					log.Error().Err(err).Msg(fmt.Sprintf("set or update device mapping: %s", email))
-				}
-			}
-		}
-
-		softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn, c.String("root-dir"))
-		orbitClient.RegisterConfigReceiver(softwareRunner)
-
-		if runtime.GOOS == "darwin" {
-			log.Info().Msgf("orbitClient.GetServerCapabilities() %+v", orbitClient.GetServerCapabilities())
-			if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEscrowBuddy) {
-				orbitClient.RegisterConfigReceiver(update.NewEscrowBuddyRunner(updateRunner, 5*time.Minute))
-			} else {
-				orbitClient.RegisterConfigReceiver(
-					update.ApplyDiskEncryptionRunnerMiddleware(
-						orbitClient.GetServerCapabilities,
-						orbitClient.TriggerOrbitRestart,
-					),
-				)
-			}
-		}
-
-		// Install a signal handler
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		signalHandlerExecute, signalHandlerInterrupt := signalHandler(ctx)
-		addSubsystem(&g, "signal handler", &wrapSubsystem{
-			execute:   signalHandlerExecute,
-			interrupt: signalHandlerInterrupt,
-		})
-
-		go sigusrListener(c.String("root-dir"))
-
-		setupExperienceOS := runtime.GOOS == "linux" || runtime.GOOS == "windows"
-		setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
-		runSetupExperience := setupExperienceOS && setupExperienceNotDisabled
-		log.Debug().
-			Bool("setupExperienceOS", setupExperienceOS).
-			Bool("notDisabled", setupExperienceNotDisabled).
-			Msg("checking setup experience preflight values")
-
-		openMyDevicePage := func() error {
-			if !c.Bool("fleet-desktop") {
-				log.Debug().Msg("fleet desktop disabled, not launching my device page")
-				return nil
-			}
-
-			log.Debug().Msg("launching browser for my device page")
-			token, err := trw.Read()
-			if err != nil {
-				return fmt.Errorf("getting device token: %w", err)
-			}
-			// My Device page
-			browserURL := deviceClient.BrowserDeviceURL(token)
-			return openBrowserWindow(browserURL)
-		}
-
-		if runSetupExperience {
-			log.Debug().Msg("web setup experience enabled")
-			if err := processSetupExperience(orbitClient, c.String("root-dir"), openMyDevicePage); err != nil {
-				log.Error().Err(err).Msg("initiating setup experience")
-			}
-		} else {
-			log.Debug().Msg("not running setup experience")
-		}
-
-		if err := g.Run(); err != nil {
-			log.Error().Err(err).Msg("unexpected exit")
-		}
-
-		close(appDoneCh) // Signal to indicate runners have just ended
-		return nil
-	}
+	// orbitAction is a named function so that NilAway can analyze it for nil-safety.
+	app.Action = orbitAction
 
 	if len(os.Args) == 2 && os.Args[1] == "--help" {
 		platform.PreUpdateQuirks()
@@ -1558,7 +311,1665 @@ func main() {
 	}
 }
 
-func processSetupExperience(orbitClient *service.OrbitClient, rootDir string, openMyDevicePage func() error) error {
+// enrollSecretKeystore abstracts orbit/pkg/keystore so the enroll secret
+// loading logic can be unit tested.
+type enrollSecretKeystore interface {
+	Supported() bool
+	Name() string
+	GetSecret() (string, error)
+	AddSecret(secret string) error
+	UpdateSecret(secret string) error
+}
+
+// realKeystore delegates to the orbit/pkg/keystore package.
+type realKeystore struct{}
+
+func (realKeystore) Supported() bool                  { return keystore.Supported() }
+func (realKeystore) Name() string                     { return keystore.Name() }
+func (realKeystore) GetSecret() (string, error)       { return keystore.GetSecret() }
+func (realKeystore) AddSecret(secret string) error    { return keystore.AddSecret(secret) }
+func (realKeystore) UpdateSecret(secret string) error { return keystore.UpdateSecret(secret) }
+
+// readEnrollSecretFromFile reads the enroll secret from enrollSecretPath. If the
+// secret is found and the keystore is enabled, it writes/overwrites the secret
+// in the keystore and deletes the file. An empty (or missing) secret file is a
+// no-op: there's nothing to load, so the keystore is not touched.
+func readEnrollSecretFromFile(enrollSecretPath string, ks enrollSecretKeystore, disableKeystore bool, setSecret func(string) error) error {
+	b, err := os.ReadFile(enrollSecretPath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) || !ks.Supported() || disableKeystore {
+			return fmt.Errorf("read enroll secret file: %w", err)
+		}
+		return nil
+	}
+	secret := strings.TrimSpace(string(b))
+	// An empty secret file means there's nothing to load. Don't set the secret
+	// or attempt to add it to the keystore (otherwise the keystore rejects it
+	// with "secret cannot be empty"). This happens during ABM enrollment of a
+	// package built with --use-system-configuration, before the configuration
+	// profile is available.
+	if secret == "" {
+		return nil
+	}
+	return loadEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
+		deleteSecretPathIfExists(enrollSecretPath)
+	})
+}
+
+// loadEnrollSecret sets secret as the active enroll secret and syncs it into the keystore, adding it when the keystore holds
+// none and updating it when it holds a different one. The update branch is what lets a freshly delivered secret supersede a
+// stored one.
+//
+// onDelivered is called once the secret is safely in the keystore, to discard the copy it arrived in: the file for a
+// package-delivered secret, the registry value for an MDM-delivered one.
+func loadEnrollSecret(
+	secret string,
+	ks enrollSecretKeystore,
+	disableKeystore bool,
+	setSecret func(string) error,
+	onDelivered func(),
+) error {
+	if err := setSecret(secret); err != nil {
+		return fmt.Errorf("set enroll secret: %w", err)
+	}
+	if !ks.Supported() || disableKeystore {
+		return nil
+	}
+	// Check if secret is already in the keystore.
+	secretFromKeystore, err := ks.GetSecret()
+	if err != nil { //nolint:gocritic // ignore ifElseChain
+		log.Warn().Err(err).Msgf("failed to retrieve enroll secret from %v", ks.Name())
+	} else if secretFromKeystore == "" {
+		// Keystore secret not found, so we will add it to the keystore.
+		if err = ks.AddSecret(secret); err != nil {
+			log.Warn().Err(err).Msgf("failed to add enroll secret to %v", ks.Name())
+		} else {
+			// Sanity check that the secret was added to the keystore.
+			checkSecret, err := ks.GetSecret()
+			if err != nil { //nolint:gocritic // ignore ifElseChain
+				log.Warn().Err(err).Msgf("failed to check that enroll secret was saved in %v", ks.Name())
+			} else if checkSecret != secret {
+				log.Warn().Msgf("enroll secret was not saved correctly in %v", ks.Name())
+			} else {
+				log.Info().Msgf("added enroll secret to keystore: %v", ks.Name())
+				onDelivered()
+			}
+		}
+	} else if secretFromKeystore != secret {
+		// Keystore secret found, but needs to be updated.
+		if err = ks.UpdateSecret(secret); err != nil {
+			log.Warn().Err(err).Msgf("failed to update enroll secret in %v", ks.Name())
+		} else {
+			// Sanity check that the secret was updated in the keystore.
+			checkSecret, err := ks.GetSecret()
+			if err != nil { //nolint:gocritic // ignore ifElseChain
+				log.Warn().Err(err).Msgf("failed to check that enroll secret was updated in %v", ks.Name())
+			} else if checkSecret != secret {
+				log.Warn().Msgf("enroll secret was not updated correctly in %v", ks.Name())
+			} else {
+				log.Info().Msgf("updated enroll secret in keystore: %v", ks.Name())
+				onDelivered()
+			}
+		}
+	} else {
+		// Keystore secret found, and it matches the delivered secret.
+		onDelivered()
+	}
+	return nil
+}
+
+// loadDeliveredEnrollSecret takes the delivery channel as functions so tests can exercise it without reading or clearing the
+// host's real enroll secret.
+func loadDeliveredEnrollSecret(
+	readDelivered func() (string, error),
+	clearDelivered func() error,
+	enrollSecretPath string,
+	ks enrollSecretKeystore,
+	disableKeystore bool,
+	setSecret func(string) error,
+) (bool, error) {
+	secret, err := readDelivered()
+	switch {
+	case errors.Is(err, profiles.ErrEnrollSecretNotFound), errors.Is(err, profiles.ErrNotImplemented):
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("read MDM-delivered enroll secret: %w", err)
+	}
+
+	log.Info().Msg("found an enroll secret delivered by Fleet MDM")
+	if !ks.Supported() || disableKeystore {
+		return true, moveDeliveredEnrollSecretToFile(secret, clearDelivered, enrollSecretPath, setSecret)
+	}
+	if err := loadEnrollSecret(secret, ks, disableKeystore, setSecret, func() {
+		if err := clearDelivered(); err != nil {
+			// Not fatal: the secret is already in the keystore, so orbit can enroll.
+			log.Warn().Err(err).Msg("failed to clear the MDM-delivered enroll secret")
+		}
+		if enrollSecretPath != "" {
+			deleteSecretPathIfExists(enrollSecretPath)
+		}
+	}); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// throttledMDMSync returns a function that asks the device to check in with its MDM server, at most once per interval and in the
+// background. orbit calls it when the server rejects the enroll secret it has, so only a secret Fleet MDM delivers can help. With
+// orbit's node key rejected the server cannot ask the device to check in, so without this a resent profile waits for the device's
+// own MDM poll, which can be hours away.
+func throttledMDMSync(interval time.Duration, enrolledInMDM func() bool, triggerSync func() error) func() {
+	var (
+		mu   sync.Mutex
+		last time.Time
+	)
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		if !last.IsZero() && time.Since(last) < interval {
+			return
+		}
+		if !enrolledInMDM() {
+			return
+		}
+		last = time.Now()
+		go func() {
+			if err := triggerSync(); err != nil {
+				log.Debug().Err(err).Msg("failed to trigger an MDM sync while waiting for an enroll secret")
+			}
+		}()
+	}
+}
+
+// moveDeliveredEnrollSecretToFile is loadDeliveredEnrollSecret without a keystore. The enroll secret file is then where the secret
+// lives across restarts, so the delivered value moves there and the delivered copy is cleared.
+func moveDeliveredEnrollSecretToFile(secret string, clearDelivered func() error, enrollSecretPath string, setSecret func(string) error) error {
+	if err := setSecret(secret); err != nil {
+		return fmt.Errorf("set enroll secret: %w", err)
+	}
+	if enrollSecretPath == "" {
+		return nil
+	}
+	if err := writeRestrictedFile(enrollSecretPath, secret); err != nil {
+		// Not fatal: the secret is active, and the delivered copy is kept so the next start still has it.
+		log.Warn().Err(err).Msg("failed to move the MDM-delivered enroll secret into the enroll secret file")
+		return nil
+	}
+	if err := clearDelivered(); err != nil {
+		log.Warn().Err(err).Msg("failed to clear the MDM-delivered enroll secret")
+	}
+	return nil
+}
+
+// writeRestrictedFile restricts the file before writing to it, so the contents are never on disk with inherited permissions.
+func writeRestrictedFile(path, contents string) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, constant.DefaultFileMode)
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+	defer f.Close()
+	if err := platform.ChmodRestrictFile(path); err != nil {
+		return fmt.Errorf("restrict: %w", err)
+	}
+	if _, err := f.WriteString(contents); err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+	return nil
+}
+
+// tryReadEnrollSecretFromKeystore loads the enroll secret from the keystore via
+// setSecret when one isn't already set and the keystore is enabled. A keystore
+// that holds no secret yet is not an error: there's simply nothing to load.
+func tryReadEnrollSecretFromKeystore(currentSecret string, ks enrollSecretKeystore, disableKeystore bool, setSecret func(string) error) error {
+	if currentSecret != "" || !ks.Supported() || disableKeystore {
+		return nil
+	}
+	secret, err := ks.GetSecret()
+	if err != nil {
+		return fmt.Errorf("failed to retrieve enroll secret from %v: %w", ks.Name(), err)
+	}
+	if secret == "" {
+		// No secret stored in the keystore yet; nothing to load.
+		return nil
+	}
+	log.Info().Msgf("found enroll secret in keystore: %v", ks.Name())
+	if err = setSecret(secret); err != nil {
+		return fmt.Errorf("set enroll secret from keystore: %w", err)
+	}
+	return nil
+}
+
+// orbitAction is a named function so that NilAway can analyze it for nil-safety.
+func orbitAction(c *cli.Context) error {
+	if c.Bool("version") {
+		fmt.Println("orbit " + build.Version)
+		return nil
+	}
+	startTime := time.Now()
+
+	var logFile io.Writer
+	if logf := c.String("log-file"); logf != "" {
+		if logDir := filepath.Dir(logf); logDir != "." {
+			if err := secure.MkdirAll(logDir, constant.DefaultDirMode); err != nil {
+				panic(err)
+			}
+		}
+		logFile = &lumberjack.Logger{
+			Filename:   logf,
+			MaxSize:    25, // megabytes
+			MaxBackups: 3,
+			MaxAge:     28, // days
+		}
+		if runtime.GOOS == "windows" {
+			// On Windows, Orbit runs as a "Windows Service", which fails to write to os.Stderr with
+			// "write /dev/stderr: The handle is invalid" (see
+			// #3100). Thus, we log to the logFile only.
+			log.Logger = log.Output(zerolog.MultiLevelWriter(
+				zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
+				&fleetd_logs.Logger,
+			))
+		} else {
+			log.Logger = log.Output(zerolog.MultiLevelWriter(
+				zerolog.ConsoleWriter{Out: logFile, TimeFormat: time.RFC3339Nano, NoColor: true},
+				zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
+				&fleetd_logs.Logger,
+			))
+		}
+	} else {
+		log.Logger = log.Output(zerolog.MultiLevelWriter(
+			zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339Nano, NoColor: true},
+			&fleetd_logs.Logger,
+		))
+	}
+
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+
+	if c.Bool("debug") {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+
+	// Override flags with values retrieved from Fleet.
+	fallbackServerOverridesCfg := setServerOverrides(c)
+	if !fallbackServerOverridesCfg.empty() {
+		log.Debug().Msgf("fallback settings: %+v", fallbackServerOverridesCfg)
+	}
+
+	if c.Bool("insecure") && c.String("fleet-certificate") != "" {
+		return errors.New("insecure and fleet-certificate may not be specified together")
+	}
+
+	if c.Bool("insecure") && c.String("update-tls-certificate") != "" {
+		return errors.New("insecure and update-tls-certificate may not be specified together")
+	}
+
+	if odb := c.String("osquery-db"); odb != "" && !filepath.IsAbs(odb) {
+		return fmt.Errorf("the osquery database must be an absolute path: %q", odb)
+	}
+
+	if p := c.String("osquery-log-path"); p != "" && !filepath.IsAbs(p) {
+		return fmt.Errorf("the osquery log path must be an absolute path: %q", p)
+	}
+
+	externalOsquerydPath := c.String("osqueryd-path")
+	externalDesktopPath := c.String("desktop-path")
+	if externalOsquerydPath != "" {
+		if !c.Bool("disable-updates") {
+			return errors.New("osqueryd-path requires disable-updates")
+		}
+		if !filepath.IsAbs(externalOsquerydPath) {
+			return fmt.Errorf("osqueryd-path must be an absolute path: %q", externalOsquerydPath)
+		}
+		if c.Bool("fleet-desktop") && externalDesktopPath == "" {
+			return errors.New("desktop-path is required when fleet-desktop and osqueryd-path are set")
+		}
+	}
+	if externalDesktopPath != "" {
+		if externalOsquerydPath == "" {
+			return errors.New("desktop-path requires osqueryd-path")
+		}
+		if !filepath.IsAbs(externalDesktopPath) {
+			return fmt.Errorf("desktop-path must be an absolute path: %q", externalDesktopPath)
+		}
+	}
+
+	setEnrollSecret := func(secret string) error { return c.Set("enroll-secret", secret) }
+	disableKeystore := c.Bool("disable-keystore")
+	enrollSecretPath := c.String("enroll-secret-path")
+
+	// Checked before anything below sets enroll-secret, so it judges only what the caller passed.
+	if enrollSecretPath != "" && c.String("enroll-secret") != "" {
+		return errors.New("enroll-secret and enroll-secret-path may not be specified together")
+	}
+
+	// Windows MDM can deliver a secret out of band, and that takes precedence over anything already stored.
+	loadedMDMSecret := loadMDMSecretIfWaiting(enrollSecretPath, disableKeystore, setEnrollSecret)
+
+	if enrollSecretPath != "" && !loadedMDMSecret {
+		if err := readEnrollSecretFromFile(enrollSecretPath, realKeystore{}, disableKeystore, setEnrollSecret); err != nil {
+			return err
+		}
+	}
+	if !(runtime.GOOS == "darwin" && c.Bool("use-system-configuration")) {
+		if err := tryReadEnrollSecretFromKeystore(c.String("enroll-secret"), realKeystore{}, disableKeystore, setEnrollSecret); err != nil {
+			return err
+		}
+	}
+
+	if hostIdentifier := c.String("host-identifier"); hostIdentifier != "uuid" && hostIdentifier != "instance" {
+		return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
+	}
+
+	if email := c.String("end-user-email"); email != "" && email != constant.UnusedFlagKeyword && !fleet.IsLooseEmail(email) {
+		return fmt.Errorf("the provided end-user email address %q is not a valid email address", email)
+	}
+
+	if err := secure.MkdirAll(c.String("root-dir"), constant.DefaultDirMode); err != nil {
+		return fmt.Errorf("initialize root dir: %w", err)
+	}
+
+	// if neither are set, this might be an agent deployed via MDM, try to read
+	// both configs from a configuration profile
+	if runtime.GOOS == "darwin" && c.Bool("use-system-configuration") {
+		log.Info().Msg("trying to read fleet-url and enroll-secret from a configuration profile")
+		for {
+			config, err := profiles.GetFleetdConfig()
+			switch {
+			// handle these errors separately as debug messages to not raise false
+			// alarms when users look into the orbit logs, it's perfectly normal to
+			// not have a configuration profile, or to get into this situation in
+			// operating systems that don't have profile support.
+			case err != nil:
+				log.Error().Err(err).Msg("reading configuration profile")
+			case config.EnrollSecret == "" || config.FleetURL == "":
+				log.Debug().Msg("enroll secret or fleet url are empty in configuration profile, not setting either")
+			default:
+				log.Info().Msg("setting enroll-secret and fleet-url configs from configuration profile")
+				if err := c.Set("enroll-secret", config.EnrollSecret); err != nil {
+					return fmt.Errorf("set enroll secret from configuration profile: %w", err)
+				}
+				if err := c.Set("fleet-url", config.FleetURL); err != nil {
+					return fmt.Errorf("set fleet URL from configuration profile: %w", err)
+				}
+				if err := writeSecret(config.EnrollSecret, c.String("root-dir")); err != nil {
+					return fmt.Errorf("write enroll secret: %w", err)
+				}
+				if err := writeFleetURL(config.FleetURL, c.String("root-dir")); err != nil {
+					return fmt.Errorf("write fleet URL: %w", err)
+				}
+			}
+
+			if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
+				log.Info().Msg("found configuration values in system profile")
+				break
+			}
+
+			// If we didn't find the configuration values, try to read them from the stored files.
+			// First, get Fleet URL
+			b, err := os.ReadFile(path.Join(c.String("root-dir"), constant.FleetURLFileName))
+			if err != nil {
+				if !errors.Is(err, os.ErrNotExist) {
+					return fmt.Errorf("read fleet URL file: %w", err)
+				}
+			} else {
+				fleetURL := strings.TrimSpace(string(b))
+				if err = c.Set("fleet-url", fleetURL); err != nil {
+					return fmt.Errorf("set fleet URL from file: %w", err)
+				}
+			}
+			// Now, get enroll secret. During initial ABM/profile bootstrap the local
+			// secret file is expected to be absent (it's written once the configuration
+			// profile is read). When the keystore is disabled, readEnrollSecretFromFile
+			// reports a missing file as an error; ignore that here so the loop keeps
+			// polling for the configuration profile instead of exiting.
+			if err := readEnrollSecretFromFile(path.Join(c.String("root-dir"), constant.OsqueryEnrollSecretFileName), realKeystore{}, disableKeystore, setEnrollSecret); err != nil {
+				if !(disableKeystore && errors.Is(err, os.ErrNotExist)) {
+					return err
+				}
+			}
+			// Since the normal enroll secret flow supports keychain, we can use it here as well.
+			// The story to remove the enroll secret from macOS MDM profile is: https://github.com/fleetdm/fleet/issues/16118
+			if err := tryReadEnrollSecretFromKeystore(c.String("enroll-secret"), realKeystore{}, disableKeystore, setEnrollSecret); err != nil {
+				// Log the error but don't return it, as we want to keep trying to read the configuration
+				// from the system profile.
+				log.Error().Err(err).Msg("failed to read enroll secret from keystore")
+			}
+			if c.String("fleet-url") != "" && c.String("enroll-secret") != "" {
+				log.Info().Msg("found configuration values in local files")
+				break
+			}
+
+			log.Info().Msg("didn't find configuration values in system profile, trying again in 30 seconds")
+			time.Sleep(30 * time.Second)
+		}
+	}
+
+	if updateURL := c.String("update-url"); updateURL != update.OldFleetTUFURL && updateURL != update.DefaultURL {
+		// Migrate agents running with a custom TUF to use the new metadata file.
+		// We'll keep the old metadata file to support downgrades.
+		newMetadataFilePath := filepath.Join(c.String("root-dir"), update.MetadataFileName)
+		ok, err := file.Exists(newMetadataFilePath)
+		if err != nil {
+			// If we cannot stat this file then we cannot do other operations on it thus we fail with fatal error.
+			log.Fatal().Err(err).Msg("failed to check for new metadata file path")
+		}
+		if !ok {
+			oldMetadataFilePath := filepath.Join(c.String("root-dir"), update.OldMetadataFileName)
+			err := file.Copy(oldMetadataFilePath, newMetadataFilePath, constant.DefaultFileMode)
+			if err != nil {
+				// If we cannot write to this file then we cannot do other operations on it thus we fail with fatal error.
+				log.Fatal().Err(err).Msg("failed to copy new metadata file path")
+			}
+		}
+	}
+
+	localStore, err := filestore.New(filepath.Join(c.String("root-dir"), update.MetadataFileName))
+	if err != nil {
+		log.Fatal().Err(err).Msg("create local metadata store")
+	}
+
+	opt := update.DefaultOptions
+
+	if c.Bool("fleet-desktop") {
+		switch runtime.GOOS {
+		case "darwin":
+			opt.Targets[constant.DesktopTUFTargetName] = update.DesktopMacOSTarget
+		case "windows":
+			if runtime.GOARCH == "arm64" {
+				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsArm64Target
+			} else {
+				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
+			}
+		case "linux":
+			if runtime.GOARCH == "arm64" {
+				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxArm64Target
+			} else {
+				opt.Targets[constant.DesktopTUFTargetName] = update.DesktopLinuxTarget
+			}
+		default:
+			log.Fatal().Str("GOOS", runtime.GOOS).Msg("unsupported GOOS for desktop target")
+		}
+		// Override default channel with the provided value.
+		opt.Targets.SetTargetChannel(constant.DesktopTUFTargetName, c.String("desktop-channel"))
+	}
+
+	// Override default channels with the provided values.
+	opt.Targets.SetTargetChannel(constant.OrbitTUFTargetName, c.String("orbit-channel"))
+	opt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, c.String("osqueryd-channel"))
+
+	opt.RootDirectory = c.String("root-dir")
+	opt.ServerURL = c.String("update-url")
+	if opt.ServerURL == update.OldFleetTUFURL {
+		//
+		// This only gets executed on orbit 1.38.0+
+		// when it is configured to connect to the old TUF server
+		// (fleetd instances packaged before the migration,
+		// built by fleetctl previous to v4.63.0).
+		//
+		opt.ServerURL = update.DefaultURL
+	}
+	opt.LocalStore = localStore
+	opt.InsecureTransport = c.Bool("insecure")
+	opt.ServerCertificatePath = c.String("update-tls-certificate")
+
+	var (
+		osquerydPath string
+		desktopPath  string
+		g            run.Group
+		appDoneCh    chan struct{} // closed when runner run.group.Run() returns
+	)
+
+	// Setting up the system service management early on the process lifetime
+	appDoneCh = make(chan struct{})
+
+	// Initializing windows service runner and system service manager.
+	if runtime.GOOS == "windows" {
+		systemChecker := newSystemChecker()
+		addSubsystem(&g, "system checker", systemChecker)
+		go osservice.SetupServiceManagement(constant.SystemServiceName, systemChecker.svcInterruptCh, appDoneCh)
+	}
+
+	// sofwareupdated is a macOS daemon that automatically updates Apple software.
+	if c.Bool("disable-kickstart-softwareupdated") && runtime.GOOS == "darwin" {
+		log.Warn().Msg("fleetd no longer automatically kickstarts softwareupdated. The --disable-kickstart-softwareupdated flag, which was previously used to disable this behavior, has been deprecated and will be removed in a future version")
+	}
+
+	updateClientCrtPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientCertificateFileName)
+	updateClientKeyPath := filepath.Join(c.String("root-dir"), constant.UpdateTLSClientKeyFileName)
+	updateClientCrt, err := certificate.LoadClientCertificateFromFiles(updateClientCrtPath, updateClientKeyPath)
+	if err != nil {
+		return fmt.Errorf("error loading update client certificate: %w", err)
+	}
+	if updateClientCrt != nil {
+		log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to the update server.")
+		opt.ClientCertificate = &updateClientCrt.Crt
+	}
+
+	// NOTE: When running in dev-mode, even if `disable-updates` is set,
+	// it fetches osqueryd once as part of initialization.
+	var updater *update.Updater
+	var updateRunner *update.Runner
+	var osqueryVersion string
+	switch {
+	case externalOsquerydPath != "":
+		log.Info().Msgf("orbit version: %s", build.Version)
+		log.Info().Msgf("running with externally managed osqueryd: %s", externalOsquerydPath)
+		if _, err := os.Stat(externalOsquerydPath); err != nil {
+			return fmt.Errorf("osqueryd-path: %w", err)
+		}
+		osquerydPath = externalOsquerydPath
+		if v, err := update.GetVersion(osquerydPath); err == nil && v != "" {
+			log.Info().Msgf("Found osquery version: %s", v)
+			osqueryVersion = v
+		}
+		if c.Bool("fleet-desktop") {
+			if _, err := os.Stat(externalDesktopPath); err != nil {
+				return fmt.Errorf("desktop-path: %w", err)
+			}
+			desktopPath = externalDesktopPath
+		}
+	case !c.Bool("disable-updates") || c.Bool("dev-mode"):
+		updater, err := update.NewUpdater(opt)
+		if err != nil {
+			return fmt.Errorf("create updater: %w", err)
+		}
+		if err := updater.UpdateMetadata(); err != nil {
+			log.Info().Err(err).Msg("update metadata")
+		}
+
+		signaturesExpiredAtStartup := updater.SignaturesExpired()
+		if signaturesExpiredAtStartup {
+			log.Info().Err(err).Msg("detected signatures expired at startup")
+		}
+
+		targets := []string{constant.OrbitTUFTargetName, constant.OsqueryTUFTargetName}
+
+		if c.Bool("fleet-desktop") {
+			targets = append(targets, constant.DesktopTUFTargetName)
+		}
+		if c.Bool("dev-mode") {
+			targets = targets[1:] // exclude orbit itself on dev-mode.
+		}
+		updateRunner, err = update.NewRunner(updater, update.RunnerOptions{
+			CheckInterval:              c.Duration("update-interval"),
+			Targets:                    targets,
+			SignaturesExpiredAtStartup: signaturesExpiredAtStartup,
+		})
+		if err != nil {
+			return err
+		}
+
+		// Get current version of osquery
+		log.Info().Msgf("orbit version: %s", build.Version)
+		osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
+		if err != nil {
+			log.Info().Err(err).Msg("Could not find local osqueryd executable")
+		} else {
+			version, err := update.GetVersion(osquerydPath)
+			if err == nil && version != "" {
+				log.Info().Msgf("Found osquery version: %s", version)
+				updateRunner.OsqueryVersion = version
+				osqueryVersion = version
+			}
+		}
+
+		// Perform early check for updates before starting any sub-system.
+		// This is to prevent bugs in other sub-systems to mess up with
+		// the download of available updates.
+		didUpdate, err := updateRunner.UpdateAction()
+		if err != nil {
+			log.Info().Err(err).Msg("early update check failed")
+		}
+		if didUpdate && !c.Bool("dev-mode") {
+			log.Info().Msg("exiting due to successful early update")
+			return nil
+		}
+
+		addSubsystem(&g, "update runner", updateRunner)
+
+		// if getting any of the targets fails, keep on
+		// retrying, the `updater.Get` method has built-in backoff functionality.
+		//
+		// NOTE: it used to be the case that we would return an
+		// error on the first attempt here, causing orbit to
+		// restart. This was changed to have control over
+		// how/when we want to retry to download the packages.
+		err = retrypkg.Do(func() error {
+			var err error
+			osquerydPath, desktopPath, err = getFleetdComponentPaths(c, updater, fallbackServerOverridesCfg)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+			// retry every 5 minutes to not flood the logs,
+			// but actual pings to the remote server are
+			// handled by `updater.Get`
+			retrypkg.WithInterval(5*time.Minute),
+		)
+		if err != nil {
+			// this should never happen because `retry.Do` is
+			// executed without a defined number of max attempts
+			return fmt.Errorf("getting targets after retry: %w", err)
+		}
+	default:
+		log.Info().Msg("running with auto updates disabled")
+		updater = update.NewDisabled(opt)
+		osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
+		if err != nil {
+			log.Fatal().Err(err).Msgf("locate %s", constant.OsqueryTUFTargetName)
+		}
+		if v, err := update.GetVersion(osquerydPath); err == nil && v != "" {
+			log.Info().Msgf("Found osquery version: %s", v)
+			osqueryVersion = v
+		}
+		if c.Bool("fleet-desktop") {
+			if runtime.GOOS == "darwin" {
+				desktopPath, err = updater.DirLocalPath(constant.DesktopTUFTargetName)
+				if err != nil {
+					return fmt.Errorf("get %s target: %w", constant.DesktopTUFTargetName, err)
+				}
+			} else {
+				desktopPath, err = updater.ExecutableLocalPath(constant.DesktopTUFTargetName)
+				if err != nil {
+					return fmt.Errorf("get %s target: %w", constant.DesktopTUFTargetName, err)
+				}
+			}
+		}
+	}
+
+	// Clear leftover files from updates
+	if err := filepath.Walk(c.String("root-dir"), func(path string, info fs.FileInfo, err error) error {
+		// Ignore anything not containing .old extension
+		if !strings.HasSuffix(path, ".old") {
+			return nil
+		}
+
+		if err := os.RemoveAll(path); err != nil {
+			log.Info().Err(err).Msg("remove .old")
+			return nil
+		}
+		log.Debug().Str("path", path).Msg("cleaned up old")
+
+		return nil
+	}); err != nil {
+		return fmt.Errorf("cleanup old files: %w", err)
+	}
+
+	// Kill any pre-existing instances of osqueryd (otherwise getHostInfo will fail
+	// because of osqueryd's lock over its database).
+	//
+	// This can happen for instance when orbit is killed via the Windows Task Manager
+	// (there's no SIGTERM on Windows) and the osqueryd child processes are left orphaned.
+	killedProcesses, err := platform.KillAllProcessByName("osqueryd")
+	if err != nil {
+		log.Error().Err(err).Msg("failed to kill pre-existing instances of osqueryd")
+	} else if len(killedProcesses) > 0 {
+		log.Debug().Str("processes", fmt.Sprintf("%+v", killedProcesses)).Msg("existing osqueryd processes killed")
+	}
+
+	osqueryDB := filepath.Join(c.String("root-dir"), "osquery.db")
+	if odb := c.String("osquery-db"); odb != "" {
+		osqueryDB = odb
+	}
+
+	osqueryHostInfo, err := getHostInfo(osquerydPath, osqueryDB)
+	if err != nil {
+		return fmt.Errorf("get UUID: %w", err)
+	}
+	log.Debug().Str("info", fmt.Sprint(osqueryHostInfo)).Msg("retrieved host info from osquery")
+	orbitHostInfo := fleet.OrbitHostInfo{
+		HardwareSerial: osqueryHostInfo.HardwareSerial,
+		HardwareUUID:   osqueryHostInfo.HardwareUUID,
+		Hostname:       osqueryHostInfo.Hostname,
+		Platform:       osqueryHostInfo.Platform,
+		PlatformLike:   osqueryHostInfo.PlatformLike,
+		ComputerName:   osqueryHostInfo.ComputerName,
+		HardwareModel:  osqueryHostInfo.HardwareModel,
+	}
+	// Lets Fleet match the device to its pending Autopilot host exactly, which the serial cannot do reliably.
+	if autopilotDeviceID, err := autopilot.RegistrationID(); err != nil {
+		log.Debug().Err(err).Msg("read autopilot device id")
+	} else {
+		orbitHostInfo.AutopilotDeviceID = autopilotDeviceID
+	}
+
+	if runtime.GOOS == "darwin" {
+		// Get the hardware UUID. We use a temporary osquery DB location in order to guarantee that
+		// we're getting true UUID, not a cached UUID. See
+		// https://github.com/fleetdm/fleet/issues/17934 and
+		// https://github.com/osquery/osquery/issues/7509 and
+		// https://github.com/fleetdm/fleet/issues/31934 for more details.
+
+		tmpDBPath := filepath.Join(os.TempDir(), strings.Join([]string{uuid.NewString(), "tmp-db"}, "-"))
+		oi, err := getHostInfo(osquerydPath, tmpDBPath)
+		if err != nil {
+			return fmt.Errorf("get UUID from temp db: %w", err)
+		}
+
+		if err := os.RemoveAll(tmpDBPath); err != nil {
+			log.Info().Err(err).Msg("failed to remove temporary osquery db")
+		}
+
+		// Read the stored hardware UUID from file (if it exists)
+		hardwareUUIDFile := filepath.Join(c.String("root-dir"), constant.HardwareUUIDFileName)
+		var storedUUID string
+
+		fileContent, err := os.ReadFile(hardwareUUIDFile)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				// If there's an error other than file not existing, log it
+				log.Warn().Err(err).Msg("failed to read hardware UUID file")
+			}
+			// If file doesn't exist or can't be read, create it with the current UUID
+			if err := os.WriteFile(hardwareUUIDFile, []byte(oi.HardwareUUID), constant.DefaultFileMode); err != nil {
+				log.Error().Err(err).Msg("failed to write hardware UUID file")
+			} else {
+				log.Debug().Str("uuid", oi.HardwareUUID).Msg("created hardware UUID file")
+			}
+			storedUUID = oi.HardwareUUID
+		} else {
+			storedUUID = strings.TrimSpace(string(fileContent))
+		}
+
+		if !strings.EqualFold(oi.HardwareUUID, storedUUID) {
+			// Then we have moved to a new physical machine, so we should restart!
+			log.Info().Str("stored_uuid", storedUUID).Str("current_uuid", oi.HardwareUUID).Msg("detected hardware migration")
+
+			// Remove the hardware UUID file so it gets recreated with the new UUID on restart
+			if err := os.RemoveAll(hardwareUUIDFile); err != nil {
+				return fmt.Errorf("removing old hardware UUID file: %w", err)
+			}
+
+			// Removing the osquery DB should trigger a re-enrollment when fleetd is restarted.
+			if err := os.RemoveAll(osqueryDB); err != nil {
+				return fmt.Errorf("removing old osquery.db: %w", err)
+			}
+
+			// We can remove these because we want them to be regenerated during the re-enrollment.
+			if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.OrbitNodeKeyFileName)); err != nil {
+				return fmt.Errorf("removing old orbit node key file: %w", err)
+			}
+			if err := os.RemoveAll(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName)); err != nil {
+				return fmt.Errorf("removing old Fleet Desktop identifier file: %w", err)
+			}
+
+			return errors.New("found a new hardware uuid, restarting")
+		}
+	}
+
+	// Only send osquery's `instance_id` if the user is running orbit with `--host-identifier=instance`.
+	// When not set, orbit and osquery will be matched using the hardware UUID (orbitHostInfo.HardwareUUID).
+	if c.String("host-identifier") == "instance" {
+		orbitHostInfo.OsqueryIdentifier = osqueryHostInfo.InstanceID
+	}
+
+	var (
+		options []osquery.Option
+		// optionsAfterFlagfile is populated with options that will be set after the '--flagfile' argument
+		// to not allow users to change their values on their flagfiles.
+		optionsAfterFlagfile []osquery.Option
+	)
+	options = append(options, osquery.WithDataPath(c.String("root-dir"), ""))
+	osqueryLogPath := c.String("osquery-log-path")
+	if osqueryLogPath == "" {
+		osqueryLogPath = filepath.Join(c.String("root-dir"), "osquery_log")
+	}
+	options = append(options, osquery.WithLogPath(osqueryLogPath))
+	optionsAfterFlagfile = append(optionsAfterFlagfile, osquery.WithFlags(
+		[]string{"--database_path", osqueryDB},
+	))
+
+	if logFile != nil {
+		// If set, redirect osqueryd's stderr to the logFile.
+		options = append(options, osquery.WithStderr(logFile))
+	}
+
+	fleetURL := c.String("fleet-url")
+	if !strings.HasPrefix(fleetURL, "http") {
+		fleetURL = "https://" + fleetURL
+	}
+
+	enrollSecret := c.String("enroll-secret")
+	if enrollSecret != "" {
+		const enrollSecretEnvName = "ENROLL_SECRET"
+		options = append(options,
+			osquery.WithEnv([]string{enrollSecretEnvName + "=" + enrollSecret}),
+			osquery.WithFlags([]string{"--enroll_secret_env", enrollSecretEnvName}),
+		)
+	}
+
+	if runtime.GOOS == "windows" {
+		if systemDrive, ok := os.LookupEnv("SystemDrive"); ok {
+			options = append(options, osquery.WithEnv([]string{fmt.Sprintf("SystemDrive=%s", systemDrive)}))
+		}
+	}
+
+	var certPath string
+
+	// Both options --fleet-managed-host-identity-certificate and --insecure make use of a local HTTPS proxy.
+	// If the user sets both --fleet-managed-host-identity-certificate and --insecure then only the proxy
+	// for the fleet managed client certificate will be executed.
+	if fleetURL != "https://" && c.Bool("insecure") && !c.Bool("fleet-managed-host-identity-certificate") {
+		proxy, err := insecure.NewTLSProxy(fleetURL)
+		if err != nil {
+			return fmt.Errorf("create TLS proxy: %w", err)
+		}
+
+		addSubsystem(&g, "insecure proxy", &wrapSubsystem{
+			execute: func() error {
+				log.Info().
+					Str("addr", fmt.Sprintf("localhost:%d", proxy.Port)).
+					Str("target", c.String("fleet-url")).
+					Msg("using insecure TLS proxy")
+				err := proxy.InsecureServeTLS()
+				return err
+			},
+			interrupt: func(err error) {
+				if err := proxy.Close(); err != nil {
+					log.Error().Err(err).Msg("close proxy")
+				}
+			},
+		})
+
+		// Directory to store proxy related assets
+		proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
+		if err := secure.MkdirAll(proxyDirectory, constant.DefaultDirMode); err != nil {
+			return fmt.Errorf("there was a problem creating the proxy directory: %w", err)
+		}
+
+		certPath = filepath.Join(proxyDirectory, "fleet.crt")
+
+		// Write cert that proxy uses
+		err = os.WriteFile(certPath, []byte(insecure.ServerCert), os.FileMode(0o644))
+		if err != nil {
+			return fmt.Errorf("write server cert: %w", err)
+		}
+
+		// Rewrite URL to the proxy URL. Note the proxy handles any URL
+		// prefix so we don't need to carry that over here.
+		parsedURL := &url.URL{
+			Scheme: "https",
+			Host:   fmt.Sprintf("localhost:%d", proxy.Port),
+		}
+
+		// Check and log if there are any errors with TLS connection.
+		pool, err := certificate.LoadPEM(certPath)
+		if err != nil {
+			return fmt.Errorf("load certificate: %w", err)
+		}
+		if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
+			log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
+		}
+
+		options = append(options,
+			osquery.WithFlags(osquery.FleetFlags(osqueryVersion, parsedURL)),
+			osquery.WithFlags([]string{"--tls_server_certs", certPath}),
+		)
+	} else if fleetURL != "https://" {
+		if enrollSecret == "" {
+			return errors.New("enroll secret must be specified to connect to Fleet server")
+		}
+
+		parsedURL, err := url.Parse(fleetURL)
+		if err != nil {
+			return fmt.Errorf("parse URL: %w", err)
+		}
+
+		options = append(options,
+			osquery.WithFlags(osquery.FleetFlags(osqueryVersion, parsedURL)),
+		)
+
+		if certPath = c.String("fleet-certificate"); certPath != "" {
+			// Check and log if there are any errors with TLS connection.
+			pool, err := certificate.LoadPEM(certPath)
+			if err != nil {
+				return fmt.Errorf("load certificate: %w", err)
+			}
+			if err := certificate.ValidateConnection(pool, fleetURL); err != nil {
+				log.Info().Err(err).Msg("Failed to connect to Fleet server. Osquery connection may fail.")
+			}
+
+			options = append(options,
+				osquery.WithFlags([]string{"--tls_server_certs", certPath}),
+			)
+		} else {
+			// Only the Fleet-shipped bundle is refreshed; a --fleet-certificate (fleet.pem) is never touched.
+			if updated, err := cabundle.Refresh(c.String("root-dir")); err != nil {
+				log.Error().Err(err).Msg("refresh CA bundle, keeping the installed one")
+			} else if updated {
+				log.Info().Msg("updated CA bundle to the version embedded in orbit")
+			}
+			certPath = filepath.Join(c.String("root-dir"), cabundle.FileName)
+			if exists, err := file.Exists(certPath); err == nil && exists {
+				_, err = certificate.LoadPEM(certPath)
+				if err != nil {
+					return fmt.Errorf("load certs.pem: %w", err)
+				}
+				options = append(options, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
+			} else {
+				log.Info().Msg("No cert chain available. Relying on system store.")
+			}
+		}
+	}
+
+	fleetClientCertPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientCertificateFileName)
+	fleetClientKeyPath := filepath.Join(c.String("root-dir"), constant.FleetTLSClientKeyFileName)
+	fleetClientCrt, err := certificate.LoadClientCertificateFromFiles(fleetClientCertPath, fleetClientKeyPath)
+	if err != nil {
+		return fmt.Errorf("error loading fleet client certificate: %w", err)
+	}
+
+	if c.Bool("fleet-managed-host-identity-certificate") {
+		if runtime.GOOS != "linux" {
+			return errors.New("fleet-managed-host-identity-certificate is only supported on Linux")
+		}
+		if fleetClientCrt != nil {
+			return errors.New("fleet-managed-host-identity-certificate for HTTP signing, and TLS client certificates may not be specified together")
+		}
+	}
+
+	var fleetClientCertificate *tls.Certificate
+	if fleetClientCrt != nil {
+		log.Info().Msg("Found TLS client certificate and key. Using them to authenticate to Fleet.")
+		fleetClientCertificate = &fleetClientCrt.Crt
+		options = append(options, osquery.WithFlags([]string{
+			"--tls_client_cert", fleetClientCertPath,
+			"--tls_client_key", fleetClientKeyPath,
+		}))
+	}
+
+	var (
+		signerWrapper               func(*http.Client) *http.Client
+		hostIdentityCertificatePath string
+		orbitClient                 *fleetclient.OrbitClient
+	)
+	if c.Bool("fleet-managed-host-identity-certificate") {
+		commonName := osqueryHostInfo.HardwareUUID
+		if c.String("host-identifier") == "instance" {
+			commonName = osqueryHostInfo.InstanceID
+		}
+		hostIdentityCredentials, err := hostidentity.Setup(
+			c.Context,
+			c.String("root-dir"),
+			fleetURL+"/api/fleet/orbit/host_identity/scep",
+			c.String("enroll-secret"),
+			commonName,
+			c.String("fleet-certificate"),
+			c.Bool("insecure"),
+			log.Logger,
+			func(reason string) {
+				if orbitClient != nil {
+					orbitClient.TriggerOrbitRestart(reason)
+				}
+			},
+		)
+		if err != nil {
+			if c.Bool("fleet-desktop") {
+				// Generic error for when the TPM-backed certificate could not be generated.
+				// (e.g. invalid enroll secret, server down).
+				errorMessage := "🔒🚫 Missing Fleet certificate.\nPlease contact your IT admin."
+				if errors.As(err, &securehw.ErrSecureHWUnavailable{}) {
+					errorMessage = "🔒🚫 TPM 2.0 device unavailable.\nPlease contact your IT admin."
+				}
+				if err := executeFleetDesktopWithPermanentError(desktopPath, errorMessage); err != nil {
+					log.Error().Err(err).Msg("failed to launch Fleet Desktop with permanent error")
+				}
+			}
+			return fmt.Errorf("failed to create or load client certificate: %w", err)
+		}
+		defer hostIdentityCredentials.Close()
+
+		log.Info().Str(
+			"commonName", hostIdentityCredentials.Certificate.Subject.CommonName,
+		).Msg("certificate issued successfully")
+
+		cryptoSigner, err := hostIdentityCredentials.SecureHWKey.HTTPSigner()
+		if err != nil {
+			return fmt.Errorf("error getting secure HW backed signer: %w", err)
+		}
+
+		// Get serial number as hex string
+		certSN := strings.ToUpper(hostIdentityCredentials.Certificate.SerialNumber.Text(16))
+
+		// Get ECC algorithm for signing.
+		var signingAlgorithm httpsig.Algorithm
+		switch v := cryptoSigner.ECCAlgorithm(); v {
+		case securehw.ECCAlgorithmP256:
+			signingAlgorithm = httpsig.Algo_ECDSA_P256_SHA256
+		case securehw.ECCAlgorithmP384:
+			signingAlgorithm = httpsig.Algo_ECDSA_P384_SHA384
+		default:
+			return fmt.Errorf("invalid ECC algorithm: %v", v)
+		}
+
+		httpSigner, err := fleethttpsig.Signer(certSN, cryptoSigner, signingAlgorithm)
+		if err != nil {
+			return fmt.Errorf("failed to create HTTP signer: %w", err)
+		}
+
+		proxyDirectory := filepath.Join(c.String("root-dir"), "proxy")
+		proxy, err := httpsigproxy.NewProxy(proxyDirectory, fleetURL, c.String("fleet-certificate"), c.Bool("insecure"), httpSigner)
+		if err != nil {
+			return fmt.Errorf("create TLS proxy: %w", err)
+		}
+
+		addSubsystem(&g, "httpsig localhost proxy", &wrapSubsystem{
+			execute: func() error {
+				log.Info().
+					Str("addr", proxy.ParsedURL.String()).
+					Str("target", fleetURL).
+					Msg("httpsig localhost proxy")
+				return proxy.Serve()
+			},
+			interrupt: func(_ error) {
+				if err := proxy.Close(); err != nil {
+					log.Error().Err(err).Msg("close httpsig proxy")
+				}
+			},
+		})
+
+		signerWrapper = func(client *http.Client) *http.Client {
+			return httpsig.NewHTTPClient(client, httpSigner, nil)
+		}
+		hostIdentityCertificatePath = hostIdentityCredentials.CertificatePath
+
+		options = append(options,
+			osquery.WithFlags(osquery.FleetFlags(osqueryVersion, proxy.ParsedURL)),
+
+			// This is overriding the previous set of --tls_server_certs in osquery.FleetFlags above.
+			osquery.WithFlags([]string{"--tls_server_certs", proxy.CertificatePath}),
+		)
+	}
+
+	// Bypass end-user authentication only when there is no EUA token to process. When the Windows MDM installer supplies
+	// an EUA token, the user already authenticated during MDM enrollment and the server links the host's IdP account
+	// from that token. Processing the token requires that orbit keep advertising the end-user auth capability, so a
+	// present token takes precedence over the bypass flag.
+	euaToken := c.String("eua-token")
+	hasEUAToken := euaToken != "" && euaToken != constant.UnusedFlagKeyword
+	bypassEndUserAuth := c.Bool("bypass-end-user-auth") && !hasEUAToken
+
+	orbitClient, err = fleetclient.NewOrbitClient(
+		c.String("root-dir"),
+		fleetURL,
+		c.String("fleet-certificate"),
+		c.Bool("insecure"),
+		enrollSecret,
+		fleetClientCertificate,
+		orbitHostInfo,
+		&fleetclient.OnGetConfigErrFuncs{
+			DebugErrFunc: func(err error) {
+				log.Debug().Err(err).Msg("get config")
+			},
+			OnNetErrFunc: func(err error) {
+				log.Info().Err(err).Msg("network error")
+			},
+		},
+		signerWrapper,
+		hostIdentityCertificatePath,
+		bypassEndUserAuth,
+	)
+	if err != nil {
+		return fmt.Errorf("error new orbit client: %w", err)
+	}
+
+	// Set the function that will be called to open the SSO window if an enroll
+	// request returns an "end user authentication required" error.
+	orbitClient.SetOpenSSOWindowFunc(func() error {
+		err = openBrowserWindow(fleetURL + "/mdm/sso?initiator=" + fleet.SSOInitiatorOrbitSetupExperience + "&host_uuid=" + orbitHostInfo.HardwareUUID)
+		if err != nil {
+			return fmt.Errorf("opening browser: %w", err)
+		}
+		return nil
+	})
+
+	// Set the EUA token from the MSI installer (Windows MDM enrollment).
+	// Must be set before any authenticated request triggers enrollment.
+	if hasEUAToken {
+		orbitClient.SetEUAToken(euaToken)
+	}
+
+	// Both run only on enroll attempts. They are how a running orbit that has to re-enroll picks up a secret Fleet MDM delivered
+	// after startup.
+	orbitClient.SetEnrollSecretRefresher(mdmEnrollSecretRefresher(enrollSecretPath, disableKeystore))
+	orbitClient.SetOnEnrollRejected(newMDMSync())
+
+	// If the server can't be reached, we want to fail quickly on any blocking network calls
+	// so that desktop can be launched as soon as possible.
+	serverIsReachable := orbitClient.Ping() == nil
+
+	// create the notifications middleware that wraps the orbit client
+	// (must be shared by all runners that use a ConfigFetcher).
+	const (
+		renewEnrollmentProfileCommandFrequency = 3 * time.Minute
+		windowsMDMEnrollmentCommandFrequency   = time.Hour
+		windowsMDMBitlockerCommandFrequency    = time.Hour
+		// windowsMDMSyncCommandFrequency throttles on-demand OMA-DM syncs: while a command stays queued the server keeps setting
+		// WindowsMDMSyncRequest on each config poll, and this bounds how often we act on it.
+		windowsMDMSyncCommandFrequency = time.Minute
+		// windowsManagedAccountRetryFrequency paces retries when the managed local account cannot be
+		// provisioned, for instance because the host's password policy rejects the generated password.
+		windowsManagedAccountRetryFrequency = time.Hour
+	)
+
+	scriptConfigReceiver, scriptsEnabledFn := update.ApplyRunScriptsConfigFetcherMiddleware(
+		c.Bool("enable-scripts"), orbitClient, c.String("root-dir"),
+	)
+	orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
+
+	var trw *token.ReadWriter
+	var deviceClient *fleetclient.DeviceClient
+	// Note that the deviceClient used by orbit must not define a retry on
+	// invalid token, because its goal is to detect invalid tokens when
+	// making requests with this client.
+	deviceClient, err = fleetclient.NewDeviceClient(
+		fleetURL,
+		c.Bool("insecure"),
+		c.String("fleet-certificate"),
+		fleetClientCertificate,
+		c.String("fleet-desktop-alternative-browser-host"),
+	)
+	if err != nil {
+		return fmt.Errorf("initializing client: %w", err)
+	}
+
+	// Create a new token read/writer that will store the token on disk.
+	// This token will be used to identify this desktop to the Fleet server.
+	trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName), deviceClient.CheckToken)
+	if err := trw.LoadOrGenerate(); err != nil {
+		return fmt.Errorf("initializing token read writer: %w", err)
+	}
+
+	// we enable remote updates only if the server supports them by setting
+	// this function.
+	trw.SetRemoteUpdateFunc(
+		func(token string) error {
+			return orbitClient.SetOrUpdateDeviceToken(token)
+		},
+	)
+
+	// Check if the token is not expired and still good.
+	// If not, rotate the token iff the server is reachable.
+	if serverIsReachable {
+		expired, _ := trw.HasExpired()
+		if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
+			// Not fatal: a stale orbit node key (e.g. host deleted while offline) returns 401 here,
+			// and exiting would restart orbit before the re-enroll grace period elapses. The
+			// periodic rotation below retries once orbit re-enrolls.
+			if err := trw.Rotate(); err != nil {
+				log.Error().Err(err).Msg("rotating token on startup")
+			}
+		}
+	}
+
+	// Always keep the device identifier (e.g. /opt/orbit/identifier) up to date
+	// with periodic rotation, so it's valid for refetch-host, device auth, and
+	// Fleet Desktop when enabled.
+	stopRotation := trw.StartRotation()
+	defer stopRotation()
+
+	switch runtime.GOOS {
+	case "darwin":
+		orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(
+			orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL))
+		setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, deviceClient, c.String("root-dir"), trw)
+		// Use the legacy UI if the server indicates so via capabilities.
+		setupExperiencer.UseLegacyUI = !orbitClient.GetServerCapabilities().Has(fleet.CapabilityMacOSWebSetupExperience)
+		orbitClient.RegisterConfigReceiver(setupExperiencer)
+		orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
+		orbitClient.RegisterConfigReceiver(entratoken.NewRunner(orbitClient, orbitHostInfo.HardwareUUID))
+
+	case "windows":
+		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
+		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMSyncFetcherMiddleware(windowsMDMSyncCommandFrequency))
+		comWorker, err := bitlocker.NewCOMWorker()
+		if err != nil {
+			return fmt.Errorf("create BitLocker COM worker: %w", err)
+		}
+		defer comWorker.Close()
+		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMBitlockerFetcherMiddleware(
+			windowsMDMBitlockerCommandFrequency, orbitClient, comWorker))
+		if c.Bool("fleet-desktop") {
+			registerFleetDesktopAppID(c.String("root-dir"))
+		}
+		orbitClient.RegisterConfigReceiver(managedaccount.New(orbitClient, windowsManagedAccountRetryFrequency))
+	case "linux":
+		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
+	}
+
+	flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
+		RootDir: c.String("root-dir"),
+	})
+	orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
+
+	// Watch the orbit config for the server's WebSocket transport directive; a
+	// toggle persists the new state and restarts orbit (see
+	// wstransport.ToggleReceiver).
+	orbitClient.RegisterConfigReceiver(wstransport.NewToggleReceiver(c.String("root-dir"), orbitClient.TriggerOrbitRestart))
+
+	// Floor for server-driven debug toggling: --debug at startup pins debug on.
+	startedInDebug := c.Bool("debug")
+	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
+
+	if !c.Bool("disable-updates") {
+		serverOverridesReceiver := newServerOverridesReceiver(
+			c.String("root-dir"),
+			fallbackServerOverridesConfig{
+				OsquerydPath: osquerydPath,
+				DesktopPath:  desktopPath,
+			},
+			c.Bool("fleet-desktop"),
+			orbitClient.TriggerOrbitRestart,
+		)
+
+		orbitClient.RegisterConfigReceiver(serverOverridesReceiver)
+	}
+
+	// only setup extensions autoupdate if we have enabled updates
+	// for extensions autoupdate, we can only proceed after orbit is enrolled in fleet
+	// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
+	// (extensions come from the update server, so never with externally managed components)
+	if externalOsquerydPath == "" && (!c.Bool("disable-updates") || c.Bool("dev-mode")) {
+		extRunner := update.NewExtensionConfigUpdateRunner(update.ExtensionUpdateOptions{
+			RootDir: c.String("root-dir"),
+		}, updateRunner, orbitClient.TriggerOrbitRestart)
+
+		// call UpdateAction on the updateRunner after we have fetched extensions from Fleet
+		if updateRunner != nil {
+			_, err := updateRunner.UpdateAction()
+			if err != nil {
+				// OK, initial call may fail, ok to continue
+				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial extensions update action failed")
+			}
+		}
+
+		extensionAutoLoadFile := filepath.Join(c.String("root-dir"), "extensions.load")
+		stat, err := os.Stat(extensionAutoLoadFile)
+		// we only want to add the extensions_autoload flag to osquery, if the file exists and size > 0
+		switch {
+		case err == nil:
+			if stat.Size() > 0 {
+				log.Debug().Msg("adding --extensions_autoload flag for file " + extensionAutoLoadFile)
+				// We set this option after the --flagfile to prevent users from changing it on their flagfiles.
+				optionsAfterFlagfile = append(optionsAfterFlagfile, osquery.WithFlags([]string{"--extensions_autoload", extensionAutoLoadFile}))
+			} else {
+				// OK, expected as well when extensions are unloaded, just debug log
+				log.Debug().Msg("found empty extensions.load file at " + extensionAutoLoadFile)
+			}
+		case errors.Is(err, os.ErrNotExist):
+			// OK, nothing to do.
+		default:
+			logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "error with extensions.load file at "+extensionAutoLoadFile)
+		}
+
+		orbitClient.RegisterConfigReceiver(extRunner)
+	}
+
+	// Run an early check of fleetd configuration (iff server can be reached)
+	// to check if orbit needs to restart before proceeding to start the sub-systems.
+	//
+	// E.g. the administrator has updated the following agent options for this device:
+	//	- `update_channels`
+	//	- `extensions` were removed/unset
+	//	- `command_line_flags` (osquery startup flags)
+	if serverIsReachable {
+		if err := orbitClient.RunConfigReceivers(); err != nil {
+			log.Error().Msgf("failed initial config fetch: %s", err)
+		} else if orbitClient.RestartTriggered() {
+			log.Info().Msg("exiting after early config fetch")
+			return nil
+		}
+	}
+
+	addSubsystem(&g, "config receivers", &wrapSubsystem{
+		execute:   orbitClient.ExecuteConfigReceivers,
+		interrupt: orbitClient.InterruptConfigReceivers,
+	})
+
+	// The WebSocket transport toggle is read once per process lifetime, after
+	// the early config fetch above had a chance to persist a server-directed
+	// change (and restart orbit if it did). Everything — the osquery flag
+	// flip, the plugin registration, the manager subsystem — derives from this
+	// one state, so there is no mixed state within a run.
+	wsTransportState := wstransport.LoadState(c.String("root-dir"))
+	wsTransportEnabled := wsTransportState.Enabled
+	if wsTransportEnabled {
+		log.Info().Bool("osquery_config", wsTransportState.OsqueryConfig).
+			Msg("websocket transport enabled: orbit will proxy osquery's distributed queries")
+	}
+
+	// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
+	// `"", nil`. Therefore there's no platform-specific stuff required here
+	augeasPath, err := augeas.CopyLenses(c.String("root-dir"))
+	if err != nil {
+		log.Warn().Err(err).Msg("failed to copy augeas lenses, augeas may not be available")
+	} else if augeasPath != "" {
+		options = append(options, osquery.WithFlags([]string{"--augeas_lenses", augeasPath}))
+	}
+
+	// --force is sometimes needed when an older osquery process has not
+	// exited properly
+	options = append(options, osquery.WithFlags([]string{"--force"}))
+
+	if c.Bool("debug") {
+		options = append(options,
+			osquery.WithFlags([]string{"--verbose", "--tls_dump"}),
+		)
+	}
+
+	// Provide the flagfile to osquery if it exists. This comes after the other flags set by
+	// Orbit so that users can override those flags. Note this means users may unintentionally
+	// break things by overriding Orbit flags in incompatible ways. That's the price to pay for
+	// flexibility.
+	flagfilePath := filepath.Join(c.String("root-dir"), "osquery.flags")
+	if exists, err := file.Exists(flagfilePath); err == nil && exists {
+		options = append(options, osquery.WithFlags([]string{"--flagfile", flagfilePath}))
+	}
+
+	// These options must go after '--flagfile' to not allow users to change their values
+	// on their flagfiles.
+	hostIdentifier := c.String("host-identifier")
+	options = append(options, osquery.WithFlags([]string{"--host-identifier", hostIdentifier}))
+	options = append(options, optionsAfterFlagfile...)
+
+	// Route osquery's distributed queries through orbit's extension plugin.
+	// Set after --flagfile so user flagfiles can't override it (repeated
+	// gflags: last one wins, overriding --distributed_plugin=tls from
+	// FleetFlags).
+	//
+	// --extensions_require makes osqueryd wait for orbit's extension before
+	// activating plugins; without it activation races extension registration
+	// (~1s window, observed on osquery 5.23) and a lost race crashloops the
+	// whole process. User-set --extensions_require/--extensions_timeout from
+	// the flagfile are merged in rather than clobbered — dropping the user's
+	// list would hit the same race for their extensions (see
+	// wstransport.OsqueryFlags).
+	var wsUserFlags map[string]string
+	serveOsqueryConfig := false
+	if wsTransportEnabled {
+		userFlags, err := update.ReadFlagFile(c.String("root-dir"))
+		if err != nil {
+			// the flagfile may legitimately not exist; merge against nothing
+			if !errors.Is(err, os.ErrNotExist) {
+				log.Warn().Err(err).Msg("read osquery.flags to merge websocket transport flags")
+			}
+			userFlags = nil
+		}
+		wsUserFlags = userFlags
+		serveOsqueryConfig = wsTransportState.OsqueryConfig
+		if plugin, ok := wstransport.UserConfigPlugin(userFlags); ok && serveOsqueryConfig {
+			log.Info().Str("config_plugin", plugin).Msg("osquery.flags sets a config plugin: orbit won't serve osquery its config")
+			serveOsqueryConfig = false
+		}
+		options = append(options, osquery.WithFlags(wstransport.OsqueryFlags(table.ExtensionName, userFlags, serveOsqueryConfig)))
+	}
+
+	// Handle additional args after '--' in the command line. These are added last and should
+	// override all other flags and flagfile entries.
+	options = append(options, osquery.WithFlags(c.Args().Slice()))
+
+	// Create an osquery runner with the provided options.
+	r, err := osquery.NewRunner(osquerydPath, options...)
+	if err != nil {
+		return fmt.Errorf("create osquery runner: %w", err)
+	}
+	addSubsystem(&g, "osqueryd runner", r)
+
+	checkerClient, err := fleetclient.NewOrbitClient(
+		c.String("root-dir"),
+		fleetURL,
+		c.String("fleet-certificate"),
+		c.Bool("insecure"),
+		enrollSecret,
+		fleetClientCertificate,
+		orbitHostInfo,
+		&fleetclient.OnGetConfigErrFuncs{
+			DebugErrFunc: func(err error) {
+				log.Debug().Err(err).Msg("get config")
+			},
+			OnNetErrFunc: func(err error) {
+				log.Info().Err(err).Msg("network error")
+			},
+		},
+		nil,
+		"",
+		bypassEndUserAuth,
+	)
+	if err != nil {
+		return fmt.Errorf("new client for capabilities checker: %w", err)
+	}
+	capabilitiesChecker := newCapabilitiesChecker(checkerClient)
+	// We populate the known capabilities so that the capability checker does not need to do the initial check on startup.
+	checkerClient.GetServerCapabilities().Copy(orbitClient.GetServerCapabilities())
+	addSubsystem(&g, "capabilities checker", capabilitiesChecker)
+
+	var desktopVersion string
+	if c.Bool("fleet-desktop") {
+		runPath := desktopPath
+		if runtime.GOOS == "darwin" {
+			runPath = filepath.Join(desktopPath, "Contents", "MacOS", constant.DesktopAppExecName)
+		}
+		desktopVersion, err = update.GetVersion(runPath)
+		if err == nil && desktopVersion != "" {
+			log.Info().Msgf("Found fleet-desktop version: %s", desktopVersion)
+		} else {
+			desktopVersion = "unknown"
+		}
+	}
+
+	extensionOpts := []table.Opt{
+		table.WithExtension(orbit_info.New(
+			orbitClient,
+			c.String("orbit-channel"),
+			c.String("osqueryd-channel"),
+			c.String("desktop-channel"),
+			desktopVersion,
+			trw,
+			startTime,
+			scriptsEnabledFn,
+			opt.ServerURL,
+		)),
+	}
+
+	if wsTransportEnabled {
+		parsedFleetURL, err := url.Parse(fleetURL)
+		if err != nil {
+			return fmt.Errorf("parse Fleet URL for websocket transport: %w", err)
+		}
+		var wsManager *wstransport.Manager
+		connected := func() bool { return wsManager.Connected() }
+		managerOpts := wstransport.Options{
+			ServerURL:          parsedFleetURL,
+			RootCA:             c.String("fleet-certificate"),
+			InsecureSkipVerify: c.Bool("insecure"),
+			ClientCertificate:  fleetClientCertificate,
+			NodeKeyFunc:        orbitClient.GetNodeKey,
+			Client:             orbitClient,
+			Cache:              wstransport.NewQueryCache(),
+			OnOrbitConfig:      orbitClient.TriggerConfigRefresh,
+			OnConnect:          orbitClient.TransportConnected,
+			OnDisconnect:       orbitClient.TransportDisconnected,
+		}
+		if serveOsqueryConfig {
+			configFetcher := wstransport.NewConfigFetcher(orbitClient, connected, wstransport.ServerConfigRefresh(wsUserFlags))
+			managerOpts.OnOsqueryConfig = configFetcher.Nudge
+			managerOpts.OnDisconnect = func() {
+				orbitClient.TransportDisconnected()
+				configFetcher.Disconnected()
+			}
+			orbitClient.RegisterConfigReceiver(fleet.OrbitConfigReceiverFunc(func(cfg *fleet.OrbitConfig) error {
+				if ws := cfg.WebSocketTransport; ws != nil && ws.OsqueryConfigPollInterval != nil {
+					configFetcher.SetPollInterval(time.Duration(*ws.OsqueryConfigPollInterval) * time.Second)
+				}
+				return nil
+			}))
+			extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewConfigPlugin(configFetcher)))
+		}
+		wsManager = wstransport.NewManager(managerOpts)
+		orbitClient.SetTransportConnectedFunc(wsManager.Connected)
+		addSubsystem(&g, "websocket transport", wsManager)
+		extensionOpts = append(extensionOpts, table.WithPlugin(wstransport.NewDistributedPlugin(wsManager, orbitClient)))
+	}
+
+	registerExtensionRunner(
+		&g,
+		r.ExtensionSocketPath(),
+		extensionOpts...,
+	)
+
+	if c.Bool("fleet-desktop") {
+		var (
+			rawClientCrt []byte
+			rawClientKey []byte
+		)
+		if fleetClientCrt != nil {
+			rawClientCrt = fleetClientCrt.RawCrt
+			rawClientKey = fleetClientCrt.RawKey
+		}
+		desktopRunner := newDesktopRunner(
+			desktopPath,
+			fleetURL,
+			c.String("fleet-certificate"),
+			c.Bool("insecure"),
+			trw,
+			rawClientCrt,
+			rawClientKey,
+			c.String("fleet-desktop-alternative-browser-host"),
+			opt.RootDirectory,
+		)
+		go func() {
+			for {
+				msg := <-desktopRunner.errorNotifyCh
+				log.Error().Err(errors.New(msg)).Msg("fleet-desktop runner error")
+				// Vital errors are always sent to Fleet, regardless of the error reporting setting FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS.
+				fleetdErr := fleet.FleetdError{
+					Vital:              true,
+					ErrorSource:        "fleet-desktop",
+					ErrorSourceVersion: desktopVersion,
+					ErrorTimestamp:     time.Now(),
+					ErrorMessage:       msg,
+					ErrorAdditionalInfo: map[string]any{
+						"orbit_version":    build.Version,
+						"osquery_version":  osqueryHostInfo.OsqueryVersion,
+						"os_platform":      osqueryHostInfo.Platform,
+						"os_platform_like": osqueryHostInfo.PlatformLike,
+						"os_version":       osqueryHostInfo.OSVersion,
+					},
+				}
+				if err = deviceClient.ReportError(trw.GetCached(), fleetdErr); err != nil {
+					log.Error().Err(err).Msg(fmt.Sprintf("failed to send error report to Fleet: %s", msg))
+				}
+			}
+		}()
+		addSubsystem(&g, "desktop runner", desktopRunner)
+	}
+
+	// --end-user-email is only supported on Windows and Linux (for macOS it gets the
+	// email from the enrollment profile)
+	endUserEmail := c.String("end-user-email")
+	if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && endUserEmail != "" && endUserEmail != constant.UnusedFlagKeyword {
+		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
+			log.Debug().Msg("sending end-user email to Fleet")
+			if err := orbitClient.SetOrUpdateDeviceMappingEmail(endUserEmail); err != nil {
+				log.Error().Err(err).Msg("error sending end-user email to Fleet")
+			}
+		} else {
+			log.Info().Msg("an end-user email is provided, but the Fleet server doesn't have the capability to set it.")
+		}
+	}
+
+	// For macOS hosts, check if MDM enrollment profile is present and if it contains the
+	// custom end user email field. If so, report it to the server.
+	if runtime.GOOS == "darwin" {
+		log.Info().Msg("checking for custom mdm enrollment profile with end user email")
+		email, err := profiles.GetCustomEnrollmentProfileEndUserEmail()
+		if err != nil {
+			if errors.Is(err, profiles.ErrNotFound) {
+				// This is fine. Many hosts will not have this profile so just log and continue.
+				log.Info().Msg(fmt.Sprintf("get custom enrollment profile end user email: %s", err))
+			} else {
+				log.Error().Err(err).Msg("get custom enrollment profile end user email")
+			}
+		}
+
+		if email != "" {
+			log.Info().Msg(fmt.Sprintf("found custom end user email: %s", email))
+			if err := orbitClient.SetOrUpdateDeviceMappingEmail(email); err != nil {
+				log.Error().Err(err).Msg(fmt.Sprintf("set or update device mapping: %s", email))
+			}
+		}
+	}
+
+	softwareRunner := installer.NewRunner(orbitClient, r.ExtensionSocketPath(), scriptsEnabledFn, c.String("root-dir"))
+	orbitClient.RegisterConfigReceiver(softwareRunner)
+
+	if runtime.GOOS == "darwin" {
+		log.Info().Msgf("orbitClient.GetServerCapabilities() %+v", orbitClient.GetServerCapabilities())
+		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEscrowBuddy) {
+			orbitClient.RegisterConfigReceiver(update.NewEscrowBuddyRunner(updateRunner, 5*time.Minute))
+		} else {
+			orbitClient.RegisterConfigReceiver(
+				update.ApplyDiskEncryptionRunnerMiddleware(
+					orbitClient.GetServerCapabilities,
+					orbitClient.TriggerOrbitRestart,
+				),
+			)
+		}
+	}
+
+	// Install a signal handler
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	signalHandlerExecute, signalHandlerInterrupt := signalHandler(ctx)
+	addSubsystem(&g, "signal handler", &wrapSubsystem{
+		execute:   signalHandlerExecute,
+		interrupt: signalHandlerInterrupt,
+	})
+
+	go sigusrListener(c.String("root-dir"))
+
+	setupExperienceOS := runtime.GOOS == "linux" || runtime.GOOS == "windows"
+	setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
+	runSetupExperience := setupExperienceOS && setupExperienceNotDisabled
+	log.Debug().
+		Bool("setupExperienceOS", setupExperienceOS).
+		Bool("notDisabled", setupExperienceNotDisabled).
+		Msg("checking setup experience preflight values")
+
+	openMyDevicePage := func() error {
+		if !c.Bool("fleet-desktop") {
+			log.Debug().Msg("fleet desktop disabled, not launching my device page")
+			return nil
+		}
+
+		log.Debug().Msg("launching browser for my device page")
+		token, err := trw.Read()
+		if err != nil {
+			return fmt.Errorf("getting device token: %w", err)
+		}
+		// My Device page
+		browserURL := deviceClient.BrowserDeviceURL(token)
+		return openBrowserWindow(browserURL)
+	}
+
+	if runSetupExperience {
+		log.Debug().Msg("web setup experience enabled")
+		if err := processSetupExperience(orbitClient, c.String("root-dir"), openMyDevicePage); err != nil {
+			log.Error().Err(err).Msg("initiating setup experience")
+		}
+	} else {
+		log.Debug().Msg("not running setup experience")
+	}
+
+	if err := g.Run(); err != nil {
+		log.Error().Err(err).Msg("unexpected exit")
+	}
+
+	close(appDoneCh) // Signal to indicate runners have just ended
+	return nil
+}
+
+func processSetupExperience(orbitClient *fleetclient.OrbitClient, rootDir string, openMyDevicePage func() error) error {
 	log.Debug().Msg("checking setup experience file")
 	exp, err := setupexperience.ReadSetupExperienceStatusFile(rootDir)
 	if err != nil {
@@ -1586,7 +1997,7 @@ func processSetupExperience(orbitClient *service.OrbitClient, rootDir string, op
 		switch {
 		case err == nil:
 			// OK, continue
-		case errors.Is(err, service.ErrMissingLicense):
+		case errors.Is(err, fleetclient.ErrMissingLicense):
 			// Setup experience is a premium feature.
 			log.Debug().Msg("setup experience is a premium feature, writing setup experience file, and continuing")
 			initSetupExperienceResponse = fleet.SetupExperienceInitResult{
@@ -1669,6 +2080,49 @@ func setServerOverrides(c *cli.Context) fallbackServerOverridesConfig {
 	return overrideCfg.fallbackServerOverridesConfig
 }
 
+// getComponentWithSelfHeal resolves a component target via the updater and
+// self-heals from a corrupt binary.
+//
+// After downloading/locating the target it verifies the installed executable
+// can run (CheckExec runs it with --help, or the target's CustomCheckExec). If
+// it fails to run for any reason (e.g. a truncated TUF download/extraction that
+// fails to fork/exec or execs and crashes), it removes the on-disk artifacts,
+// re-downloads from TUF, and re-verifies. Without this, orbit records the bad
+// path as last-known-good and crash-loops on it forever (see
+// https://github.com/fleetdm/fleet/issues/47552).
+func getComponentWithSelfHeal(updater *update.Updater, target string) (*update.LocalTarget, error) {
+	localTarget, err := updater.Get(target)
+	if err != nil {
+		return nil, err
+	}
+
+	checkErr := updater.CheckExec(target)
+	if checkErr == nil {
+		return localTarget, nil
+	}
+
+	// The installed binary failed to run (e.g. a truncated TUF
+	// download/extraction that fails to fork/exec, or that execs and then
+	// crashes). Whatever the cause, it's unusable, so remove the on-disk
+	// artifacts, re-download from TUF, and re-verify. Self-heal is a single
+	// attempt: if the re-downloaded binary still fails the exec check we return
+	// the error rather than crash-looping on it forever.
+	log.Error().Err(checkErr).Str("target", target).Msg("component binary failed exec check, self-healing")
+	if err := updater.RemoveTarget(target); err != nil {
+		return nil, fmt.Errorf("self-heal remove %s: %w", target, err)
+	}
+	localTarget, err = updater.Get(target)
+	if err != nil {
+		return nil, fmt.Errorf("self-heal re-download %s: %w", target, err)
+	}
+	if err := updater.CheckExec(target); err != nil {
+		return nil, fmt.Errorf("%s still failing exec check after self-heal: %w", target, err)
+	}
+	log.Info().Str("target", target).Msg("component self-heal succeeded")
+
+	return localTarget, nil
+}
+
 // getFleetdComponentPaths returns the paths of the fleetd components.
 // If the path to the component cannot be fetched using the updater (e.g. channel doesn't exist yet)
 // then it will use the fallbackCfg's paths (if set).
@@ -1729,7 +2183,7 @@ func getFleetdComponentPaths(
 	}
 
 	// osqueryd
-	osquerydLocalTarget, err := updater.Get(constant.OsqueryTUFTargetName)
+	osquerydLocalTarget, err := getComponentWithSelfHeal(updater, constant.OsqueryTUFTargetName)
 	if err != nil {
 		if fallbackCfg.OsquerydPath == "" {
 			log.Info().Err(err).Msgf("get %s target failed", constant.OsqueryTUFTargetName)
@@ -1743,7 +2197,7 @@ func getFleetdComponentPaths(
 
 	// Fleet Desktop
 	if c.Bool("fleet-desktop") {
-		fleetDesktopLocalTarget, err := updater.Get(constant.DesktopTUFTargetName)
+		fleetDesktopLocalTarget, err := getComponentWithSelfHeal(updater, constant.DesktopTUFTargetName)
 		if err != nil {
 			if fallbackCfg.DesktopPath == "" {
 				log.Info().Err(err).Msgf("get %s target failed", constant.DesktopTUFTargetName)
@@ -1870,20 +2324,25 @@ func (d *desktopRunner) Execute() error {
 	for {
 		// First retry logic to start fleet-desktop.
 		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
-			// On MacOS, if we attempt to run Fleet Desktop while the user is not logged in through
-			// the GUI, MacOS returns an error. See https://github.com/fleetdm/fleet/issues/14698
-			// for more details.
+			//
+			// - On MacOS, if we attempt to run Fleet Desktop while the user is not logged in through
+			//   the GUI, MacOS returns an error. See https://github.com/fleetdm/fleet/issues/14698
+			//   for more details.
+			// - On Linux, we also don't want to start the Fleet Desktop unless there's an active GUI session.
+			// - On Windows, user.UserLoggedInViaGui is a no-op, and execuser.Run will take care of
+			//   starting Fleet Desktop with the correct GUI user.
+			//
+
 			loggedInUser, err := user.UserLoggedInViaGui()
 			if err != nil {
-				log.Debug().Err(err).Msg("desktop.IsUserLoggedInGui")
+				log.Debug().Err(err).Msg("desktop.IsUserLoggedViaGui")
 				return true
 			}
 			if loggedInUser == nil {
 				log.Debug().Msg("No GUI user found, skipping fleet-desktop start")
 				return true
 			}
-			log.Debug().Msg(fmt.Sprintf("Found GUI user: %v, attempting fleet-desktop start", loggedInUser))
-
+			log.Debug().Msgf("found GUI user: %q, attempting fleet-desktop start", *loggedInUser)
 			if *loggedInUser != "" {
 				opts = append(opts, execuser.WithUser(*loggedInUser))
 			}
@@ -1900,7 +2359,7 @@ func (d *desktopRunner) Execute() error {
 			// we need to run the application as the login user.
 			// Package execuser provides multi-platform support for this.
 			if lastLogs, err := execuser.Run(d.desktopPath, opts...); err != nil {
-				log.Debug().Err(err).Msg("execuser.Run")
+				log.Warn().Err(err).Msg("failed to start fleet-desktop, will retry")
 				d.processLog(lastLogs)
 				return true
 			}
@@ -2122,12 +2581,12 @@ func (s *serviceChecker) Interrupt(err error) {
 //
 // This struct and its methods are designed to play nicely with `oklog.Group`.
 type capabilitiesChecker struct {
-	client        *service.OrbitClient
+	client        *fleetclient.OrbitClient
 	interruptCh   chan struct{} // closed when interrupt is triggered
 	executeDoneCh chan struct{} // closed when execute returns
 }
 
-func newCapabilitiesChecker(client *service.OrbitClient) *capabilitiesChecker {
+func newCapabilitiesChecker(client *fleetclient.OrbitClient) *capabilitiesChecker {
 	return &capabilitiesChecker{
 		client:        client,
 		interruptCh:   make(chan struct{}),
@@ -2418,7 +2877,7 @@ func executeFleetDesktopWithPermanentError(desktopPath string, errorMessage stri
 		log.Debug().Msg("No GUI user found, skipping fleet-desktop start")
 		return nil
 	}
-	log.Debug().Msg(fmt.Sprintf("Found GUI user: %v, attempting fleet-desktop start", loggedInUser))
+	log.Debug().Msgf("found GUI user: %q, attempting fleet-desktop start", *loggedInUser)
 
 	log.Info().Msg("killing any pre-existing fleet-desktop instances")
 	if err := platform.SignalProcessBeforeTerminate(constant.DesktopAppExecName); err != nil &&
@@ -2463,15 +2922,21 @@ func openBrowserWindow(browserURL string) error {
 			return errors.New("no user logged in")
 		}
 
-		browserBin := "/usr/bin/xdg-open"
-		firefoxBin := "/usr/bin/firefox"
-		if _, err := os.Stat(firefoxBin); err == nil {
-			browserBin = firefoxBin
+		// Bare names are resolved by the user's login shell (execuser runs
+		// `sudo -i`), which also covers non-FHS layouts such as NixOS.
+		// xdg-open comes first so the user's default browser is honored; firefox
+		// is only a fallback for minimal images that ship without xdg-utils.
+		browserBin := "xdg-open"
+		if _, err := exec.LookPath("xdg-open"); err != nil {
+			if _, err := exec.LookPath("firefox"); err == nil {
+				browserBin = "firefox"
+			}
 		}
 
 		var opts []execuser.Option
 		opts = append(opts, execuser.WithUser(*loggedInUser))
 		opts = append(opts, execuser.WithArg(browserURL, ""))
+		opts = append(opts, execuser.WithXDGSessionEnv())
 		log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening browser for setup experience")
 		if _, err := execuser.Run(browserBin, opts...); err != nil {
 			return fmt.Errorf("opening browser with %s: %w", browserBin, err)

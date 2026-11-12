@@ -1,11 +1,40 @@
 package nvd
 
 import (
+	"path/filepath"
 	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/stretchr/testify/require"
 )
+
+// TestFirefoxDeveloperEditionTranslation loads the real, shipped cpe_translations.json
+// and verifies Firefox Developer Edition (bundle org.mozilla.firefoxdeveloperedition)
+// translates to the standard mozilla:firefox product. Without this rule the
+// generated CPE is empty (the bundle's product token "firefoxdeveloperedition"
+// has no NVD entry), so Firefox CVEs are never matched (#48689). This test needs
+// no CPE dictionary or network — it exercises only the translation rule.
+func TestFirefoxDeveloperEditionTranslation(t *testing.T) {
+	translations, err := loadCPETranslations(filepath.Join(".", cpeTranslationsFilename))
+	require.NoError(t, err)
+
+	software := &fleet.Software{
+		Name:             "Firefox Developer Edition.app",
+		BundleIdentifier: "org.mozilla.firefoxdeveloperedition",
+		Source:           "apps",
+		Version:          "153.0",
+	}
+
+	filter, matched, err := translations.Translate(newRegexpCache(), software)
+	require.NoError(t, err)
+	require.True(t, matched, "Firefox Developer Edition should match a translation rule")
+	require.Equal(t, []string{"firefox"}, filter.Product)
+	require.Equal(t, []string{"mozilla"}, filter.Vendor)
+	// It tracks standard Firefox advisories, so it must not be pinned to an
+	// sw_edition (that is reserved for ESR).
+	require.Empty(t, filter.SWEdition)
+}
 
 func TestTranslate(t *testing.T) {
 	tests := []struct {

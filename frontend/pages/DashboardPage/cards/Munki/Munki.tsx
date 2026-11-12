@@ -1,21 +1,20 @@
 import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
+import CustomLink from "components/CustomLink";
+import TableDataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import {
   IMunkiIssuesAggregate,
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
 
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import TableContainer from "components/TableContainer";
-import Spinner from "components/Spinner";
-import TableDataError from "components/DataError";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
-
-import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
 import generateMunkiIssuesTableHeaders from "./MunkiIssuesTableConfig";
+import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
 
 interface IMunkiCardProps {
   errorMacAdmins: Error | null;
@@ -81,7 +80,7 @@ const Munki = ({
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   resultsTitle="Munki"
                   emptyComponent={() => (
-                    <EmptyTable
+                    <EmptyState
                       header="No Munki issues detected"
                       info="This report is updated every hour to protect the performance of your
       devices."
@@ -108,7 +107,7 @@ const Munki = ({
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   resultsTitle="Munki"
                   emptyComponent={() => (
-                    <EmptyTable
+                    <EmptyState
                       header="Unable to detect Munki versions"
                       info={
                         <>

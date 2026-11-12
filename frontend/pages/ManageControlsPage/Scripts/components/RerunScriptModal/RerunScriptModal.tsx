@@ -1,9 +1,8 @@
 import React, { useContext } from "react";
 
-import { AppContext } from "context/app";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { AppContext } from "context/app";
 
 const baseClass = "rerun-script-modal";
 
@@ -18,7 +17,7 @@ const generateMessageSuffix = (isPremiumTier?: boolean, teamId?: number) => {
   if (!isPremiumTier) {
     return "";
   }
-  return teamId ? " assigned to this team" : " with no team";
+  return teamId ? " assigned to this fleet" : " that are unassigned";
 };
 
 const RerunScriptModal = ({
@@ -49,7 +48,7 @@ const RerunScriptModal = ({
           <Button type="button" onClick={() => onRerun(scriptId)}>
             Rerun
           </Button>
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

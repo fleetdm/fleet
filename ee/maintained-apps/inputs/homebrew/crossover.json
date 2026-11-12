@@ -1,0 +1,10 @@
+{
+  "name": "CrossOver",
+  "unique_identifier": "com.codeweavers.CrossOver",
+  "token": "crossover",
+  "installer_format": "zip",
+  "slug": "crossover/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

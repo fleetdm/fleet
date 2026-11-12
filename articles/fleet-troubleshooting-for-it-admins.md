@@ -1,0 +1,132 @@
+# Fleet troubleshooting for IT admins
+
+It would be great if computers always performed flawlessly, but sometimes errors occur. When things go wrong, digging into logs is one of the first steps to resolving an issue.
+
+
+## Finding fleetd logs
+
+### Combined Orbit/osquery logs
+
+Logs from the currently running instance of fleetd can be retrieved by querying the `fleetd_logs` table:
+
+```SELECT * from fleetd_logs```
+
+To retrieve more detailed logs, you can run one of our health check scripts:
+
+- [Linux health check](https://github.com/fleetdm/fleet/blob/main/docs/solutions/linux/scripts/linux_ubuntu_fleetd_healthcheck.sh)
+- [macOS health check](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/fleetd_healthcheck_macos.sh)
+- [Windows health check](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/fleetd-healthcheck.ps1)
+
+### osquery status logs
+
+We highly recommend using one of Fleet's [logging plugins ](https://fleetdm.com/guides/log-destinations)to forward osquery status logs automatically to your preferred datastore.
+
+### Locating logs locally
+
+Fleetd will send stdout/stderr logs to the following directories:
+
+- macOS: `/var/log/orbit/orbit.std{out|err}.log`.
+- Windows: `C:\Windows\system32\config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log` (the log file is rotated).
+- Linux: Orbit and osqueryd stdout/stderr output is sent to syslog (`/var/log/syslog` on Debian systems, `/var/log/messages` on CentOS, and `journalctl -u orbit` on Fedora and Arch).
+
+If the `logger_path` agent configuration is set to `filesystem`, fleetd will send osquery's "result" and "status" logs to the following directories:
+- macOS: `/opt/orbit/osquery_log`
+- Windows: `C:\Program Files\Orbit\osquery_log`
+- Linux: `/opt/orbit/osquery_log`
+
+The Fleet Desktop log files can be found in the following directories depending on the platform:
+
+- macOS: `$HOME/Library/Logs/Fleet`
+- Windows: `%LocalAppData%/Fleet`
+- Linux: `$XDG_STATE_HOME/Fleet` or `$HOME/.local/state/Fleet`
+
+The log file name is `fleet-desktop.log`.
+
+## Enabling debug mode for fleetd
+
+Debug mode can be helpful by providing more information in the logs.
+
+When [generating an installer package](https://fleetdm.com/guides/enroll-hosts#cli) with `fleetctl package`, add the `--debug` argument to enable debug mode for the agent installer.
+
+If you've already installed Fleet on the device, you can [run a script on macOS](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/scripts/toggle-fleetd-debug.sh) or [Windows](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/toggle-fleetd-debug.ps1) devices to turn on debug mode. After you're done, run the script again to disable debug mode on the device.
+
+
+## Checking MDM commands
+
+If you suspect something went wrong with an [MDM command](https://fleetdm.com/guides/mdm-commands#basic-article) for a device (such as locking, wiping, installing an app, etc.), you can use the UI or API to view the MDM command results.
+
+For the UI, open the host details page and under **Activity** toggle the switch for **Show MDM commands**.
+
+<img width="717" height="365" alt="Show MDM commands toggle" src="https://github.com/user-attachments/assets/41e7297c-efb4-4355-841e-d46296b99505" />
+
+Hover over the command you'd like to view, and select the **"i"** button.
+
+For the API, use the [List MDM commands](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands) endpoint to find the `command_uuid` for the command. Use this UUID with the [Get MDM command results](https://fleetdm.com/docs/rest-api/rest-api#get-mdm-command-results) endpoint. The result of this looks like a random string of characters, but this is because it's base64 encoded. A quick way to decode this is on a Mac is to copy the long string, then decode it in the Terminal:
+
+```bash
+pbpaste | base64 -d
+```
+
+
+## MDM troubleshooting
+
+Fleet's MDM software engineering team has created a resource they use for MDM support escalations. The [MDM troubleshooting checklist](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/mdm/mdm-bug-checklist.md) lives as a plain-text document in the public Fleet GitHub repository so that anyone can keep it up-to-date as needed. 
+
+If the device is enrolled in Fleet, you can grab `mdmclient` logs remotely with this query:
+
+```sql
+SELECT
+  timestamp,
+  datetime(timestamp, 'unixepoch') AS event_time,
+  process,
+  subsystem,
+  category,
+  level,
+  message
+FROM unified_log
+WHERE timestamp > (SELECT unix_time - 3600 FROM time)
+  AND process = 'mdmclient'
+  AND subsystem = 'com.apple.ManagedClient'
+```
+
+
+## Server-side logs
+
+Use [fleetctl](https://fleetdm.com/guides/fleetctl) to see server logs.
+
+```bash
+fleetctl debug errors
+```
+
+
+## iOS & iPadOS MDMClient logs
+
+You can obtain MDMClient related logs on iOS and iPadOS using sysdiagnose. This will assist with troubleshooting MDM command and profile delivery issues to those devices.
+
+- Hold down **Power** and **Volume Up + Down** buttons together for ~ 1 second
+- An iPhone will vibrate once, and trigger a screenshot (iPad will trigger a screenshot)
+- Wait a few minutes for the log archive to be generated
+- Go to **Settings > Privacy & Security > Analytics & Improvements > Analytics Data**
+- Search for `sysdiag` and share the `.tar.gz` file
+- Search the archive for `system_logs.logarchive` and open with **Console**
+- Filter for `mdmclient`
+
+## Apple System Diagnostics
+
+A sysdiagnose is a collection of diagnostic logs that are useful for troubleshooting and debugging problems on Apple devices (macOS, iOS, and iPadOS).
+
+On a Mac, you can grab this two ways: via the UI with [Activity Monitor](https://support.apple.com/guide/activity-monitor/run-system-diagnostics-actmntr2225/mac) (the System Diagnostics option), or the CLI by running this command:
+
+```bash
+sudo sysdiagnose -f ~/Desktop/
+```
+
+Getting a sysdiagnose from iOS/iPadOS is a little more complicated, but can be done. The best way to do this is to follow [Apple's documentation](https://support.apple.com/guide/platform-support/use-diagnostics-to-research-device-issues-supd3f43814e/web).
+
+
+<meta name="category" value="guides">
+<meta name="authorFullName" value="Steven Palmesano">
+<meta name="authorGitHubUsername" value="spalmesano0">
+<meta name="publishedOn" value="2026-02-13">
+<meta name="articleTitle" value="Fleet troubleshooting for IT admins">
+<meta name="description" value="Basic troubleshooting steps for when things go wrong.">

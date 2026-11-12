@@ -27,21 +27,15 @@
     }
   }
 
-  &__advanced-options-section {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
+  &__advanced-options {
+    @include flex-column-16px-gap;
     align-items: flex-start;
-  }
-
-  &__advanced-options-fields {
-    width: 100%;
   }
 
   &__action-buttons {
     display: flex;
     flex-direction: row-reverse;
-    gap: $pad-medium;
+    gap: $gap-action-elements;
   }
 
   fieldset {
@@ -62,12 +56,7 @@
     gap: $pad-small;
   }
 
-  .info-banner {
-    margin-top: $pad-small;
-  }
-
   .form-fields--disabled {
     @include disabled;
   }
-  
 }

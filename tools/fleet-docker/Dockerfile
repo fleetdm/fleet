@@ -1,8 +1,15 @@
-FROM alpine:3.23.0@sha256:51183f2cfa6320055da30872f211093f9ff1d3cf06f39a0bdb212314c5dc7375
+FROM alpine:3.23.8@sha256:5c216c9767869f6ec7c4718977601d52f087c5c7bf2fdfb198e403f6b48ec40d
+ARG FLEET_VERSION=unknown
 LABEL maintainer="Fleet Developers"
+LABEL org.opencontainers.image.version="${FLEET_VERSION}"
+LABEL org.opencontainers.image.vendor="Fleet Device Management Inc."
+LABEL org.opencontainers.image.title="fleet"
+LABEL org.opencontainers.image.source="https://github.com/fleetdm/fleet"
+LABEL org.opencontainers.image.url="https://fleetdm.com"
+LABEL org.opencontainers.image.documentation="https://fleetdm.com/docs"
 
 RUN apk --update add ca-certificates
-RUN apk --no-cache add jq
+RUN apk --no-cache upgrade openssl libcrypto3 libssl3
 
 # Create fleet group and user
 RUN addgroup -S fleet && adduser -S fleet -G fleet

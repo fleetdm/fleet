@@ -1,0 +1,10 @@
+{
+  "name": "Reminders MenuBar",
+  "unique_identifier": "br.com.damascenorafael.reminders-menubar",
+  "token": "reminders-menubar",
+  "installer_format": "zip",
+  "slug": "reminders-menubar/darwin",
+  "default_categories": [
+    "Utilities"
+  ]
+}

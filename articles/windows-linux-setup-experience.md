@@ -4,53 +4,295 @@ _Available in Fleet Premium_
 
 In Fleet, you can customize the out-of-the-box Windows and Linux setup.
 
+Windows setup experience is supported for [manual enrollment](https://fleetdm.com/guides/windows-mdm-setup#manual-enrollment), [automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment), and [Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot). On Autopilot and Entra-join-during-OOBE enrollments, Fleet holds the device at the Enrollment Status Page while setup experience runs, so software and profiles can apply before the end user reaches the desktop.
+
+Currently, Linux setup experience is only supported for Ubuntu, Debian, Fedora, Amazon Linux, CentOS, openSUSE, and Red Hat Enterprise Linux (RHEL).
+
 Here's what you can configure, and in what order each happen, to your Windows and Linux hosts during setup:
 
 1. Require [end users to authenticate](#end-user-authentication) with your identity provider (IdP).
 
-2. [Install software](#install-software) inclduing [app store apps](https://fleetdm.com/guides/install-app-store-apps), [custom packages](https://fleetdm.com/guides/deploy-software-packages) (e.g. a bootstrap package), and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps). 
+2. [Install software](#install-software) including [app store apps](https://fleetdm.com/guides/install-app-store-apps), [custom packages](https://fleetdm.com/guides/deploy-software-packages) (e.g. a bootstrap package), and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps).
 
-## End user authentication
+Below is the end user experience for Linux. Check out the separate video for [Windows](https://www.youtube.com/watch?v=SHqT29NP-nk).
+
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/UZAqw4pg9xE?si=rMhbfImonY4Avb06" frameborder="0" allowfullscreen></iframe>
+</div>
+
+## Require IdP authentication
 
 ### End user experience
 
-Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue.
-Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
+Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue. 
 
-> If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, end user authentication won't be enforced.
+The sign-in page only works for a host that Fleet is currently waiting on. If the end user signs in with the wrong account, they can sign in again with the right one until the host finishes enrolling. Enrollment completes within about 30 seconds of a successful sign-in. After that, signing in again from the same page won't change the account linked to the host.
+
+Fleet records every link between a host and an IdP account in the [audit log](https://fleetdm.com/docs/using-fleet/audit-logs#bound_host_to_idp_account), including any account it replaced, and records a separate [audit log entry](https://fleetdm.com/docs/using-fleet/audit-logs#refused_host_idp_account_change) when a sign-in that arrives after enrollment is not applied.
+
+Until the end user logs in, Fleet opens a new browser tab with the login page every 5 minutes. If your IdP settings in **Settings > Integrations > Identity provider (IdP)** are wrong, the end user can't log in, and new tabs keep opening. Fleet doesn't show a clear error yet: the **Sign in** button may spin forever, or the end user sees a generic "Something's gone wrong" page. This is a [known bug](https://github.com/fleetdm/fleet/issues/54343).
+
+If the end user enrolls through **Settings > Access work or school**, Fleet's authentication window will be skipped because the user already authenticated.
+
+Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
+
+When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, IdP authentication won't be enforced when it re-enrolls.
+
+> By default, IdP authentication isn't enforced if the Fleet agent (fleetd) installed on the host is older than version 1.50.0. A technical end user can skip authentication by installing an older fleetd or by enrolling via a [script that bypasses authentication](https://github.com/fleetdm/fleet/issues/46644#issuecomment-5026981749). To enforce authentication always, you can disable the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass).
+
+### Skip authentication
+
+If end users authenticate before Fleet's agent (fleetd) is installed, for example during [Windows Autopilot] enrollment, you can skip Fleet's authentication window. Add the `--bypass-end-user-auth` flag when you build fleetd:
+
+```bash
+fleetctl package --type msi --fleet-url <your_fleet_url> --enroll-secret <your_enroll_secret> --bypass-end-user-auth
+```
+
+On Windows, you can instead pass the `BYPASS_END_USER_AUTH` property to the installer at install time. This works with the prebuilt [fleetd-base.msi](https://fleetdm.com/guides/config-less-fleetd-agent-deployment#for-windows) and with packaging tools that set MSI properties. Use `true` or `false`:
+
+```bash
+msiexec /i fleetd-base.msi FLEET_URL="<your_fleet_url>" FLEET_SECRET="<your_enroll_secret>" BYPASS_END_USER_AUTH=true
+```
+
+The flag and the property only work if the [`mdm.allow_orbit_end_user_auth_bypass` Fleet server configuration option](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-orbit-end-user-auth-bypass) is set to `true` (the default). If it's set to `false`, Fleet blocks these installers from enrolling.
+
+On Windows hosts joined to Microsoft Entra ID and not enrolled in Fleet MDM, Fleet populates the IdP host vitals without end user authentication. Learn more in the [IdP host vitals guide](https://fleetdm.com/guides/foreign-vitals-map-idp-users-to-hosts#entra-joined-windows-hosts).
 
 ## Install software
 
 ### End user experience
 
-Fleet automatically opens the default web browser to show end users software install progress:
-
-![screen shot of Fleet setup experience webpage](../website/assets/images/articles/setup-experience-browser-1795x1122@2x.png)
+Fleet automatically opens the default web browser to show end users software install progress.
 
 The browser can be closed, and the installation will continue in the background. End users can return to the setup experience page by clicking **My Device** from Fleet Desktop.  Once all steps have completed, the **My Device** page will show the host information as usual.
 
-If software installs fail, Fleet automatically retries. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
+For Linux, Fleet automatically installs on compatible platforms. This means `.deb` packages are only installed on Ubuntu and Debian hosts. `.rpm` packages are only installed on Fedora, CentOS, Amazon Linux, and Red Hat Enterprise Linux (RHEL).
+
+If software installs fail, Fleet automatically retries. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#require-idp-authentication).
 
 To replace the Fleet logo with your organization's logo:
 
 1. Go to **Settings** > **Organization settings** > **Organization info**
+
 2. Add URLs to your logos in the **Organization avatar URL (for dark backgrounds)** and **Organization avatar URL (for light backgrounds)** fields
+
 3. Press **Save**
 
 > See [configuration documentation](https://fleetdm.com/docs/configuration/yaml-files#org-info) for recommended logo sizes.
 
 > Software installations during setup experience are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. This ensures a more reliable setup process for end users.
 
+### Policies are checked before install
+
+On Windows and Linux hosts, Fleet checks policies before installing setup experience software. If the software has associated policies and the host passes all of them, Fleet skips the install. If the host fails any of them, Fleet installs the software. Software without associated policies is always installed.
+
+To associate a policy with software, use the policy's **Install software** automation. Learn more in the [automatic software install guide](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+
+[Patch policies](https://fleetdm.com/guides/how-to-use-policies-for-patch-management-in-fleet) don't count, even when they install the app. A patch policy passes on hosts that don't have the app, so Fleet always installs software that only has a patch policy and lets the patch policy keep it up to date afterward.
+
+A policy only counts toward the decision if it applies to the host. For example, a policy scoped to labels that exclude the host is ignored. If none of the associated policies apply to the host, or the host doesn't report policy results within 30 minutes of enrolling, Fleet installs the software.
+
+A skipped install counts as a success. It shows as **Installed** on the end user's setup progress page, it doesn't create an install activity, and it never triggers **Cancel setup if software fails**.
+
+### Cancel setup if software fails (Windows)
+
+For Windows hosts enrolling through Autopilot or Entra OOBE, you can configure Fleet to stop setup and show a failure screen on the device when a setup-experience software install fails. Without this setting, Fleet lets the device continue past the Enrollment Status Page even if some installs fail, and the end user reaches the desktop with the failed install marked **Failed** in **My device**.
+
+To enable for a team:
+
+1. Select the team you're configuring (or **No team**) from the team dropdown.
+
+2. Go to **Controls** > **Setup experience** > **Install software**.
+
+3. Click the **Windows** tab.
+
+4. Switch on **Cancel setup if software fails**.
+
+5. Press **Save**.
+
+The setting only applies to Autopilot and Entra-join-during-OOBE enrollments. On those paths, when a setup-experience software install fails, Fleet does the following:
+
+- Cancels remaining setup-experience steps for that host.
+- Posts a `canceled_setup_experience` activity to the activity feed, referencing the first failed install. The activity reads: "Fleet canceled setup experience on \<host\> because \<software\> failed to install. End user was asked to restart."
+- Sends the Enrollment Status Page failure screen described below.
+
+On BYOD enrollments (**Settings** > **Accounts** > **Access work or school** > **Connect**), the Enrollment Status Page is never shown, and the **Cancel setup if software fails** setting is ignored. A failing install just shows as **Failed** in **My device** and host details; other queued installs and scripts run independently. No `canceled_setup_experience` activity is emitted. Because the end user is not notified on the device, plan to surface the failure through host details or the activity feed.
+
+Profile failures alone do not trigger cancellation, even when **Cancel setup if software fails** is on. Only software install failures (including a 3-hour setup-experience timeout) cause the device to block.
+
+#### What end users see when setup is cancelled
+
+On Autopilot or Entra-OOBE, the device shows "Working on it..." for roughly a minute after the failing install reports back to Fleet, then transitions to a failure screen with the configured error text and a **Reset device** button. A **Collect logs** button may also appear, but Windows does not always render it. **Reset device** wipes the device and re-enters OOBE; if the failing software is still configured for the team, the device will hit the same failure again on the next enrollment. Use the recovery procedure below to log into the device without wiping it.
+
 ### Add software
 
 Add setup experience software setup experience:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **3. Install software**.
+
 2. Click on the tab corresponding to the operating system (e.g. Linux).
+
 3. Click **Add software**, then select or search for the software you want installed during the setup experience.
+
 4. Press **Save** to save your selection.
 
 Fleet also provides a API endpoints for managing setup experience software programmatically. Learn more in Fleet's [API reference](https://fleetdm.com/docs/rest-api/rest-api#update-software-setup-experience).
+
+## Managed local account (Windows)
+
+Fleet can create a hidden local admin account (`_fleetadmin`) with a unique password on each Windows host. IT admins can use it as a
+break-glass login for troubleshooting, so you don't have to ship a shared local admin password in an image or a script.
+
+Fleet's agent (fleetd) creates the account, so it doesn't depend on Autopilot or OOBE. Every Windows host enrolled to Fleet with MDM turned on gets
+one, including hosts that enrolled before you turned the setting on. This is different from macOS, where the account can only be
+created during Setup Assistant. For macOS, see the
+[setup experience guide](https://fleetdm.com/guides/setup-experience#managed-local-account).
+
+Requires Fleet Premium, [Windows MDM](https://fleetdm.com/guides/windows-mdm-setup) turned on, and fleetd 1.60.0 or later. Hosts
+running an earlier fleetd are skipped, and no error is reported for them.
+
+### Turn on the managed local account
+
+1. Select the fleet you're configuring (or **Unassigned**) from the fleet dropdown.
+
+2. Go to **Controls** > **Setup experience** > **Users**, then select the **Windows** tab.
+
+3. Check **Create hidden admin**.
+
+4. Press **Save**.
+
+You can also turn it on with Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#modify-configuration) or
+[GitOps](https://fleetdm.com/docs/configuration/yaml-files), using `windows_settings.enable_managed_local_account`.
+
+Hosts create their account on their next check-in, usually within a couple of minutes. Fleet stops asking a host once it has
+reported the password back.
+
+> Turning the setting back off stops Fleet from creating new accounts, but it does not remove accounts that already exist, and it
+> does not delete the stored passwords. Remove those accounts yourself if you no longer want them.
+
+### View the password
+
+Go to **Host details** > **Actions** > **Show managed account**. The password is unique per host and is stored encrypted in Fleet.
+
+### Rotate the password
+
+Go to **Host details** > **Actions** > **Show managed account**, then press **Rotate password**. Fleet also rotates the password
+automatically about an hour after someone views it.
+
+Fleet asks the host to generate a new password, set it, and report it back, so a rotation finishes on the host's next check-in
+rather than immediately. Fleet keeps showing the current password until the new one arrives.
+
+If the host can't set the new password, the managed account modal says the rotation failed, and Fleet keeps showing the last
+password it received. The reason the host reported is on the failed rotation entry in **Host details** > **Activity**.
+
+Fleet does not try again on its own. The request is cleared and the automatic rotation timer is turned off, so nothing changes
+until someone presses **Rotate password** again. Fix the cause first: see [Troubleshoot the managed local account](#Troubleshoot the managed local account) for the
+failures a host can report.
+
+### Sign in as the managed account
+
+The account is hidden from the Windows sign-in screen and from **Settings** > **Accounts**, so it won't appear in the list of users.
+
+To sign in, select **Other user** on the sign-in screen, then type the username with a `.\` prefix:
+
+```
+.\_fleetadmin
+```
+
+The leading `.\` tells Windows to authenticate against this computer rather than your identity provider. Without it, a host joined to
+Entra treats `_fleetadmin` as a work or school account and the sign-in fails. If the sign-in screen doesn't accept `.\_fleetadmin`,
+try `<computer-name>\_fleetadmin` (for example `DESKTOP-ABC123\_fleetadmin`).
+
+### Troubleshoot the managed local account
+
+If a host doesn't get an account, go to **Host details** > **Actions**. **Show managed account** is disabled when the account
+couldn't be created, and hovering it shows the reason the host reported.
+
+After a failure the host waits an hour before trying again, so it won't recover any sooner than that once you've fixed the cause.
+Restarting the Fleet agent on the host clears that wait.
+
+**The host's password policy rejected the password.** Fleet generates a 29-character password made of uppercase letters, lowercase
+letters, digits, and hyphens, omitting characters that are easy to misread. A host that requires a longer password, or that runs a
+custom password filter, can reject it. Windows reports every policy rejection with the same error, so the reason names the policy
+but not the specific rule. Check the host's minimum password length first, then any custom password filter.
+
+**An account named `_fleetadmin` already exists and Fleet didn't create it.** Fleet identifies its own account by the description
+`Fleet-managed local administrator account.` and refuses to take over an account that has anything else, rather than resetting a
+password and granting admin rights on an account that isn't Fleet's. Rename or remove the other account.
+
+> Don't edit the account's description, and don't rename the account. Fleet uses the description to recognize the account it
+> created, so editing it, including through a GPO, leaves Fleet unable to manage the account. Renaming the account instead leaves
+> the renamed one behind as an ordinary local admin, and Fleet creates a fresh `_fleetadmin` beside it.
+
+## Recover a Windows host from the setup failure screen
+
+When a Windows host is parked at the Enrollment Status Page failure screen, the on-screen options are limited to **Reset device** (which wipes the host) and a **Collect logs** button that may or may not appear. The procedures below let you log in to the device and reach a desktop without wiping anything.
+
+### End user recovery from the device
+
+An end user sitting in front of the failure screen has two useful keyboard shortcuts:
+
+- **Shift+F10** opens a Command Prompt. From the prompt, run `powershell.exe` to switch to PowerShell and execute the recovery script described below.
+- **Ctrl+Shift+D** opens the Windows Autopilot diagnostics page when diagnostics are enabled in the Autopilot deployment profile. Select **Export Logs** to save diagnostic logs to a USB drive. This is the documented Microsoft alternative when the on-screen **Collect logs** button doesn't appear, but it doesn't recover the device on its own.
+
+If Shift+F10 produces a blank screen with no console (we've seen this on some hypervisors, including Proxmox), ask an administrator to push the recovery script remotely (next section).
+
+### Administrator recovery through Fleet
+
+An administrator can push a PowerShell script to the locked-out host through Fleet. The host's Fleet agent (orbit) installs early in setup experience, so it is running in the background even while the device is parked at the failure screen. The script creates a local administrator account, clears the registry values that pin the Enrollment Status Page block, and reboots the device.
+
+> If you've turned on the [managed local account](#managed-local-account-windows), the host already has an admin account you can use.
+> Delete the two account-creation commands from the script below and sign in as `.\_fleetadmin` after the reboot, using the password
+> from **Host details** > **Actions** > **Show managed account**.
+
+```powershell
+$Username = "IT admin"
+$Password = ConvertTo-SecureString "StrongPassword123!" -AsPlainText -Force
+
+# Create the local user account
+New-LocalUser -Name $Username -Password $Password -FullName "Fleet IT admin" -Description "Fleet breakglass admin" -AccountNeverExpires -ErrorAction Stop
+
+# Add the user to the Administrators group
+Add-LocalGroupMember -Group "Administrators" -Member $Username -ErrorAction Stop
+
+# Clear the Enrollment Status Page block at the registry layer
+$key = Get-ChildItem "HKLM:\Software\Microsoft\Provisioning\OMADM\Accounts\*\Protected\*\FirstSyncStatus" -ErrorAction SilentlyContinue
+if ($key) {
+    Set-ItemProperty -Path $key.PSPath -Name "ServerHasFinishedProvisioning" -Value 1 -Type DWord
+    Set-ItemProperty -Path $key.PSPath -Name "BlockInStatusPage" -Value 0 -Type DWord
+}
+Restart-Computer -Force
+```
+
+To run it:
+
+1. Change `StrongPassword123!` to a password your organization controls.
+
+2. Go to **Controls** > **Scripts** and upload the script, or open the host's detail page and select **Actions** > **Run script** to paste it inline.
+
+3. Run the script against the locked-out host.
+
+4. The host's orbit agent picks up the script within a few seconds and runs it as SYSTEM. The host reboots automatically as the last step.
+
+After the reboot, the device leaves the failure screen on its own and arrives at a Windows sign-in screen.
+
+### Sign in as the recovery account
+
+After the reboot, the Windows sign-in screen defaults to a work or school (Entra) account. The `IT admin` account created above is a local account, so the sign-in must be told to authenticate against this computer rather than Entra. In the username field, type:
+
+```
+.\IT admin
+```
+
+The leading `.\` tells Windows to look for the account on this computer. If the sign-in screen does not accept `.\IT admin`, try `<computer-name>\IT admin` (for example `DESKTOP-ABC123\IT admin`), or look for a **Sign-in options** link under the password field and pick a local-account option.
+
+## Windows updates during Autopilot
+
+While a Windows device is in Autopilot OOBE, Windows itself may present a "We've got an update for you" screen and offer to restart immediately to install a pending Windows update. Fleet does not trigger this prompt; Windows shows it based on its own update checks, independent of any Fleet OS update profile you may have configured.
+
+Best practice: select **Another time** so the setup experience can complete before the device reboots. The pending Windows update will install on a later reboot, including any reboot scheduled by a Fleet OS update profile if you have one configured.
+
+If you select **Restart now**, Windows installs the update and resumes OOBE on the next boot. Setup experience commands that hadn't completed before the restart will resume after the device finishes updating. This works, but it adds time to the user's first-boot wait and makes the OOBE timeline harder to reason about when troubleshooting.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="dantecatalfamo">

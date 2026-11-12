@@ -1,0 +1,10 @@
+{
+  "name": "Highlight",
+  "unique_identifier": "tv.medal.highlight",
+  "token": "highlight-ai",
+  "installer_format": "dmg",
+  "slug": "highlight-ai/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -4,48 +4,40 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"log/slog"
 	"net/http"
-	"strconv"
 	"strings"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/certserial"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/devicesso"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
+	"github.com/fleetdm/fleet/v4/server/contexts/osqueryauth"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	middleware_log "github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/go-kit/kit/endpoint"
 )
 
-// extractCertSerialFromHeader extracts certificate serial from X-Client-Cert-Serial
-// header (set by load balancer during mTLS) for iOS/iPadOS device authentication.
-func extractCertSerialFromHeader(ctx context.Context, r *http.Request) context.Context {
-	serialStr := r.Header.Get("X-Client-Cert-Serial")
-	if serialStr == "" {
+// extractDeviceSSOSessionFromCookie stashes the Fleet Desktop device SSO session
+// ID in the context.
+func extractDeviceSSOSessionFromCookie(ctx context.Context, r *http.Request) context.Context {
+	cookie, err := r.Cookie(cookieNameDeviceSSOSession)
+	if err != nil {
 		return ctx
 	}
-
-	serial, err := strconv.ParseUint(serialStr, 10, 64)
-	if err != nil {
-		// Force cert auth on parse error instead of falling back to token auth.
-		return certserial.NewContext(ctx, 0)
-	}
-
-	return certserial.NewContext(ctx, serial)
+	return devicesso.NewContext(ctx, cookie.Value)
 }
 
-func logJSON(logger log.Logger, v interface{}, key string) {
+func logJSON(ctx context.Context, logger *slog.Logger, v any, key string) {
 	jsonV, err := json.Marshal(v)
 	if err != nil {
-		level.Debug(logger).Log("err", fmt.Errorf("marshaling %s for debug: %w", key, err))
+		logger.DebugContext(ctx, "error marshaling for debug", "key", key, "err", err)
 		return
 	}
-	level.Debug(logger).Log(key, string(jsonV))
+	logger.DebugContext(ctx, "debug JSON", key, string(jsonV))
 }
 
 // instrumentHostLogger adds host ID, IP information, and extras to the context logger.
@@ -65,8 +57,8 @@ func instrumentHostLogger(ctx context.Context, hostID uint, extras ...interface{
 // authenticatedDevice checks the validity of the device auth token
 // provided in the request, and attaches the corresponding host to the
 // context for the request.
-func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
-	authDeviceFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+func authenticatedDevice(svc fleet.Service, logger *slog.Logger, next endpoint.Endpoint) endpoint.Endpoint {
+	authDeviceFunc := func(ctx context.Context, request any) (any, error) {
 		identifier, err := getDeviceAuthToken(request)
 		if err != nil {
 			return nil, err
@@ -76,21 +68,15 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 		var debug bool
 		var authnMethod authz_ctx.AuthenticationMethod
 
-		if certSerial, ok := certserial.FromContext(ctx); ok {
-			// Header presence signals cert auth intent, even if serial is invalid.
-			host, debug, err = svc.AuthenticateDeviceByCertificate(ctx, certSerial, identifier)
-			authnMethod = authz_ctx.AuthnDeviceCertificate
+		// Try token auth first (hot path for Fleet Desktop).
+		host, debug, err = svc.AuthenticateDevice(ctx, identifier)
+		if err == nil {
+			authnMethod = authz_ctx.AuthnDeviceToken
 		} else {
-			// Try token auth first (hot path for Fleet Desktop).
-			host, debug, err = svc.AuthenticateDevice(ctx, identifier)
-			if err == nil {
-				authnMethod = authz_ctx.AuthnDeviceToken
-			} else {
-				// Fallback to UUID auth for iOS/iPadOS self-service via URL.
-				// The identifier (from {token}) is treated as the device UUID.
-				host, debug, err = svc.AuthenticateIDeviceByURL(ctx, identifier)
-				authnMethod = authz_ctx.AuthnDeviceURL
-			}
+			// Fallback to UUID auth for iOS/iPadOS self-service via URL.
+			// The identifier (from {token}) is treated as the device UUID.
+			host, debug, err = svc.AuthenticateIDeviceByURL(ctx, identifier)
+			authnMethod = authz_ctx.AuthnDeviceURL
 		}
 
 		if err != nil {
@@ -98,12 +84,16 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 			return nil, err
 		}
 
-		hlogger := log.With(logger, "host_id", host.ID)
+		hlogger := logger.With("host_id", host.ID)
 		if debug {
-			logJSON(hlogger, request, "request")
+			logJSON(ctx, hlogger, request, "request")
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
+		// Register host as error context provider for ctxerr enrichment
+		hostProvider := &hostctx.HostAttributeProvider{Host: host}
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
+
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authnMethod)
@@ -115,25 +105,110 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 		}
 
 		if debug {
-			logJSON(hlogger, request, "response")
+			logJSON(ctx, hlogger, resp, "response")
 		}
 		return resp, nil
 	}
 	return middleware_log.Logged(authDeviceFunc)
 }
 
+// DeviceAuthMiddleware authenticates a device token for endpoints owned by a
+// bounded context. Those contexts can't read the host that authenticatedDevice
+// leaves in hostctx, since it's a *fleet.Host, so the endpoint passed below
+// sits between the two: it takes the host's ID and hands it to onHost, which
+// stores it however the context wants. That keeps this signature free of any
+// bounded context's types, and their contexts free of fleet ones.
+func DeviceAuthMiddleware(
+	svc fleet.Service,
+	logger *slog.Logger,
+	onHost func(ctx context.Context, hostID uint) context.Context,
+) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return authenticatedDevice(svc, logger, func(ctx context.Context, request any) (any, error) {
+			if host, ok := hostctx.FromContext(ctx); ok {
+				ctx = onHost(ctx, host.ID)
+			}
+			return next(ctx, request)
+		})
+	}
+}
+
+// requireDeviceSSOSession enforces the Fleet Desktop SSO gate. It runs after
+// authenticatedDevice, so it applies however the host was identified: token or
+// device UUID in the URL.
+//
+// Rejections count toward the device routes' error limiter like any other
+// failure. A browser only sees one before it starts the SSO flow, so sustained
+// volume here is a scanner rather than an end user.
+func requireDeviceSSOSession(svc fleet.Service) endpoint.Middleware {
+	return func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, request any) (any, error) {
+			host, ok := hostctx.FromContext(ctx)
+			if !ok {
+				return nil, ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+			}
+
+			sessionID := devicesso.FromContext(ctx)
+			if err := svc.RequireDeviceSSOSession(ctx, host, sessionID); err != nil {
+				logging.WithErr(ctx, err)
+				return nil, err
+			}
+			return next(ctx, request)
+		}
+	}
+}
+
 func getDeviceAuthToken(r interface{}) (string, error) {
 	if dat, ok := r.(interface{ deviceAuthToken() string }); ok {
 		return dat.deviceAuthToken(), nil
+	}
+	// Go qualifies an unexported method name by the package declaring the
+	// interface, so a request type from another package can't satisfy the
+	// assertion above no matter how it spells the method. Bounded contexts
+	// define their own request types, so they implement the exported name.
+	if dat, ok := r.(interface{ DeviceAuthToken() string }); ok {
+		return dat.DeviceAuthToken(), nil
 	}
 	return "", fleet.NewAuthRequiredError("request type does not implement deviceAuthToken method. This is likely a Fleet programmer error.")
 }
 
 // authenticatedHost wraps an endpoint, checks the validity of the node_key
 // provided in the request, and attaches the corresponding osquery host to the
-// context for the request
-func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
+// context for the request.
+//
+// If the HTTP pre-auth middleware (osqueryHeaderPreAuth) has already
+// authenticated the request via the Authorization: NodeKey <token> header,
+// the hostctx and related ctx setup is already in place and this middleware
+// becomes a passthrough.
+func authenticatedHost(svc fleet.Service, logger *slog.Logger, next endpoint.Endpoint) endpoint.Endpoint {
 	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+		// HTTP pre-auth already authenticated the request and populated
+		// hostctx.
+		if osqueryauth.IsPreAuthed(ctx) {
+			host, ok := hostctx.FromContext(ctx)
+			if !ok {
+				return nil, ctxerr.New(ctx, "osquery pre-auth marker set without host in ctx")
+			}
+			instrumentHostLogger(ctx, host.ID)
+			if ac, ok := authz_ctx.FromContext(ctx); ok {
+				ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
+			}
+			debug := osqueryauth.IsDebug(ctx)
+			var hlogger *slog.Logger
+			if debug {
+				hlogger = logger.With("host_id", host.ID)
+				logJSON(ctx, hlogger, request, "request")
+			}
+			resp, err := next(ctx, request)
+			if err != nil {
+				return nil, err
+			}
+			if debug {
+				logJSON(ctx, hlogger, resp, "response")
+			}
+			return resp, nil
+		}
+
 		nodeKey, err := getNodeKey(request)
 		if err != nil {
 			return nil, err
@@ -145,12 +220,16 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 			return nil, err
 		}
 
-		hlogger := log.With(logger, "host_id", host.ID)
+		hlogger := logger.With("host_id", host.ID)
 		if debug {
-			logJSON(hlogger, request, "request")
+			logJSON(ctx, hlogger, request, "request")
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
+		// Register host as error context provider for ctxerr enrichment
+		hostProvider := &hostctx.HostAttributeProvider{Host: host}
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
+
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authz_ctx.AuthnHostToken)
@@ -162,7 +241,7 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 		}
 
 		if debug {
-			logJSON(hlogger, resp, "response")
+			logJSON(ctx, hlogger, resp, "response")
 		}
 		return resp, nil
 	}
@@ -171,7 +250,7 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 
 func authenticatedOrbitHost(
 	svc fleet.Service,
-	logger log.Logger,
+	logger *slog.Logger,
 	next endpoint.Endpoint,
 	orbitNodeKeyGetter func(context.Context, interface{}) (string, error),
 ) endpoint.Endpoint {
@@ -187,12 +266,16 @@ func authenticatedOrbitHost(
 			return nil, err
 		}
 
-		hlogger := log.With(logger, "host_id", host.ID)
+		hlogger := logger.With("host_id", host.ID)
 		if debug {
-			logJSON(hlogger, request, "request")
+			logJSON(ctx, hlogger, request, "request")
 		}
 
 		ctx = hostctx.NewContext(ctx, host)
+		// Register host as error context provider for ctxerr enrichment
+		hostProvider := &hostctx.HostAttributeProvider{Host: host}
+		ctx = ctxerr.AddErrorContextProvider(ctx, hostProvider)
+
 		instrumentHostLogger(ctx, host.ID)
 		if ac, ok := authz_ctx.FromContext(ctx); ok {
 			ac.SetAuthnMethod(authz_ctx.AuthnOrbitToken)
@@ -204,7 +287,7 @@ func authenticatedOrbitHost(
 		}
 
 		if debug {
-			logJSON(hlogger, resp, "response")
+			logJSON(ctx, hlogger, resp, "response")
 		}
 		return resp, nil
 	}
@@ -212,8 +295,8 @@ func authenticatedOrbitHost(
 }
 
 func getOrbitNodeKey(ctx context.Context, r interface{}) (string, error) {
-	if onk, err := r.(interface{ orbitHostNodeKey() string }); err {
-		return onk.orbitHostNodeKey(), nil
+	if onk, ok := r.(interface{ OrbitHostNodeKey() string }); ok {
+		return onk.OrbitHostNodeKey(), nil
 	}
 	return "", errors.New("error getting orbit node key")
 }
@@ -228,6 +311,9 @@ func authHeaderValue(prefix string) func(ctx context.Context, r interface{}) (st
 }
 
 func getNodeKey(r interface{}) (string, error) {
+	if hnk, ok := r.(interface{ HostNodeKey() string }); ok {
+		return hnk.HostNodeKey(), nil
+	}
 	if hnk, ok := r.(interface{ hostNodeKey() string }); ok {
 		return hnk.hostNodeKey(), nil
 	}

@@ -1,0 +1,10 @@
+{
+  "name": "MiniSim",
+  "unique_identifier": "com.oskarkwasniewski.MiniSim",
+  "token": "minisim",
+  "installer_format": "zip",
+  "slug": "minisim/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

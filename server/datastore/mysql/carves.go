@@ -8,8 +8,25 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+var carvesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":          "id",
+	"host_id":     "host_id",
+	"created_at":  "created_at",
+	"name":        "name",
+	"block_count": "block_count",
+	"block_size":  "block_size",
+	"carve_size":  "carve_size",
+	"carve_id":    "carve_id",
+	"request_id":  "request_id",
+	"session_id":  "session_id",
+	"expired":     "expired",
+	"max_block":   "max_block",
+	"error":       "error",
+}
 
 func upsertCarveDB(ctx context.Context, writer sqlx.ExecerContext, metadata *fleet.CarveMetadata) (int64, error) {
 	stmt := `INSERT INTO carve_metadata (
@@ -69,6 +86,25 @@ func (ds *Datastore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata
 // Only max_block and expired are updatable
 func (ds *Datastore) UpdateCarve(ctx context.Context, metadata *fleet.CarveMetadata) error {
 	return updateCarveDB(ctx, ds.writer(ctx), metadata)
+}
+
+// ExpireCarves marks the given carves as expired in batches.
+func (ds *Datastore) ExpireCarves(ctx context.Context, ids []int64) error {
+	const batchSize = 500
+	for start := 0; start < len(ids); start += batchSize {
+		end := min(start+batchSize, len(ids))
+		stmt, args, err := sqlx.In(`UPDATE carve_metadata SET expired = 1 WHERE id IN (?)`, ids[start:end])
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build sqlx.In for expire carves")
+		}
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, stmt, args...)
+			return err
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "expire carves")
+		}
+	}
+	return nil
 }
 
 func updateCarveDB(ctx context.Context, exec sqlx.ExecerContext, metadata *fleet.CarveMetadata) error {
@@ -198,7 +234,7 @@ func (ds *Datastore) CarveBySessionId(ctx context.Context, sessionId string) (*f
 	var metadata fleet.CarveMetadata
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &metadata, stmt, sessionId); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("CarveBySessionId").WithName(sessionId))
+			return nil, ctxerr.Wrap(ctx, notFound("CarveBySessionId").WithName(sessionId), "carve not found")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get carve by session ID")
 	}
@@ -234,7 +270,10 @@ func (ds *Datastore) ListCarves(ctx context.Context, opt fleet.CarveListOptions)
 	if !opt.Expired {
 		stmt += ` WHERE NOT expired `
 	}
-	stmt, params := appendListOptionsToSQL(stmt, &opt.ListOptions)
+	stmt, params, err := appendListOptionsToSQLSecure(stmt, &opt.ListOptions, carvesAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list carves")
+	}
 	carves := []*fleet.CarveMetadata{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &carves, stmt, params...); err != nil && err != sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, err, "list carves")

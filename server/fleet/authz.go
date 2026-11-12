@@ -13,6 +13,24 @@ const (
 	ActionCreate = "create"
 	// ActionCancelHostActivity refers to canceling an upcoming activity on a host.
 	ActionCancelHostActivity = "cancel_host_activity"
+	// ActionTransferHost refers to transferring a host between fleets (teams).
+	// This action is permitted for technicians in addition to admin/maintainer/gitops,
+	// so transferring does not require the broader ActionWrite permission.
+	ActionTransferHost = "transfer_host"
+	// ActionDeleteHost refers to deleting a host. Like ActionTransferHost, it is
+	// permitted for technicians, who otherwise have no write access to hosts.
+	ActionDeleteHost    = "delete_host"
+	ActionClearPasscode = "clear_passcode"
+	// ActionRotateDiskEncryptionKey refers to rotating a host's disk encryption key. It is narrower than writing MDM
+	// commands, which gitops is also granted.
+	ActionRotateDiskEncryptionKey = "rotate_disk_encryption_key"
+	// ActionResend refers to resending an entity on a single host (currently used for configuration profiles).
+	ActionResend = "resend"
+	// ActionReadSecrets refers to reading secrets/credentials of an entity (e.g. CA private keys, API tokens).
+	ActionReadSecrets = "read_secrets"
+	// ActionWriteMembers refers to adding/removing members of a team.
+	// This is more restrictive than ActionWrite to prevent non-admin roles from managing team membership.
+	ActionWriteMembers = "write_members"
 
 	//
 	// User specific actions
@@ -44,8 +62,6 @@ const (
 	// them.
 	//
 
-	// ActionSelectiveRead allows targeted read access of an entity.
-	ActionSelectiveRead = "selective_read"
 	// ActionSelectiveList allows targeted list access of an entity.
 	ActionSelectiveList = "selective_list"
 )

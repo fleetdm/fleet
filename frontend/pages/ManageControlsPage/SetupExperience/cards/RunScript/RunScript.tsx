@@ -1,33 +1,34 @@
+import { AxiosError } from "axios";
 import React, { useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import PageDescription from "components/PageDescription";
+import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
+import { IConfig } from "interfaces/config";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import PATHS from "router/paths";
+import configAPI from "services/entities/config";
+import mdmAPI, {
+  IGetSetupExperienceScriptResponse,
+} from "services/entities/mdm";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-import PATHS from "router/paths";
 
-import mdmAPI, {
-  IGetSetupExperienceScriptResponse,
-} from "services/entities/mdm";
-import configAPI from "services/entities/config";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
-import { IConfig } from "interfaces/config";
-import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
-
-import SectionHeader from "components/SectionHeader";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
-
-import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUploader";
-import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
-import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperienceScriptModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
+import { getManualAgentInstallSetting } from "../../helpers";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
-import getManualAgentInstallSetting from "../../helpers";
+
+import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperienceScriptModal";
+import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
+import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUploader";
 
 const baseClass = "run-script";
 
@@ -61,7 +62,7 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
   >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: currentTeamId !== API_NO_TEAM_ID,
-    select: (res) => res.team,
+    select: (res) => res.fleet,
   });
 
   const onUpload = () => {
@@ -85,61 +86,46 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
       return <Spinner />;
     }
 
-    if (
-      !(
-        globalConfig?.mdm.enabled_and_configured &&
-        globalConfig?.mdm.apple_bm_enabled_and_configured
-      )
-    ) {
-      return (
-        <GenericMsgWithNavButton
-          header="Additional configuration required"
-          info="Supported on macOS. To customize, first turn on automatic enrollment."
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          buttonText="Turn on"
-          router={router}
-        />
-      );
-    }
-
     if (isScriptError && scriptError.status !== 404) {
       return <DataError />;
     }
 
-    return (
-      <SetupExperienceContentContainer>
-        <div className={`${baseClass}__description-container`}>
-          <p className={`${baseClass}__description`}>
-            Upload a script to run on macOS hosts that automatically enroll to
-            Fleet.
-          </p>
-          {!script ? (
-            <SetupExperienceScriptUploader
-              currentTeamId={currentTeamId}
-              hasManualAgentInstall={hasManualAgentInstall}
-              onUpload={onUpload}
-            />
-          ) : (
-            <>
-              <p className={`${baseClass}__run-message`}>
-                Script will run during setup:
-              </p>
-              <SetupExperienceScriptCard
-                script={script}
-                onDelete={() => setShowDeleteScriptModal(true)}
-              />
-            </>
-          )}
-        </div>
-        {showDeleteScriptModal && script && (
-          <DeleteSetupExperienceScriptModal
-            currentTeamId={currentTeamId}
-            scriptName={script.name}
-            onDeleted={onDelete}
-            onExit={() => setShowDeleteScriptModal(false)}
-          />
-        )}
-      </SetupExperienceContentContainer>
+    const mdmNotConfigured = !(
+      globalConfig?.mdm.enabled_and_configured &&
+      globalConfig?.mdm.apple_bm_enabled_and_configured
+    );
+
+    if (mdmNotConfigured) {
+      return (
+        <EmptyState
+          variant="list"
+          header="Additional configuration required"
+          info="Supported on macOS. Turn on MDM and automatic enrollment to customize."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
+        />
+      );
+    }
+
+    return !script ? (
+      <SetupExperienceScriptUploader
+        currentTeamId={currentTeamId}
+        hasManualAgentInstall={hasManualAgentInstall}
+        onUpload={onUpload}
+      />
+    ) : (
+      <>
+        <p className={`${baseClass}__run-message`}>
+          Script will run during setup:
+        </p>
+        <SetupExperienceScriptCard
+          script={script}
+          onDelete={() => setShowDeleteScriptModal(true)}
+        />
+      </>
     );
   };
 
@@ -155,7 +141,21 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
           />
         }
       />
-      {renderContent()}
+      <PageDescription
+        variant="right-panel"
+        content="Upload a script to run on macOS hosts that automatically enroll to Fleet."
+      />
+      <SetupExperienceContentContainer>
+        {renderContent()}
+      </SetupExperienceContentContainer>
+      {showDeleteScriptModal && script && (
+        <DeleteSetupExperienceScriptModal
+          currentTeamId={currentTeamId}
+          scriptName={script.name}
+          onDeleted={onDelete}
+          onExit={() => setShowDeleteScriptModal(false)}
+        />
+      )}
     </section>
   );
 };

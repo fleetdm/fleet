@@ -1,10 +1,11 @@
 # Fleet extracts name from installer (EXE) and saves it to PACKAGE_ID
 # variable
-$softwareName = "Firefox"
+$softwareName = "Mozilla Firefox"
 
-# It is recommended to use exact software name here if possible to avoid
-# uninstalling unintended software.
-$softwareNameLike = "*$softwareName*"
+# Match only the release channel ("Mozilla Firefox (x64 en-US)"); the prefix
+# match plus the ESR exclusion below keeps ESR, Developer Edition, and Nightly
+# entries untouched.
+$softwareNameLike = "$softwareName*"
 
 # Some uninstallers require a flag to run silently.
 # Each uninstaller might use different argument (usually it's "/S" or "/s")
@@ -28,7 +29,8 @@ $foundUninstaller = $false
 foreach ($key in $uninstallKeys) {
     # If needed, add -notlike to the comparison to exclude certain similar
     # software
-    if ($key.DisplayName -like $softwareNameLike) {
+    if ($key.DisplayName -like $softwareNameLike -and
+        $key.DisplayName -notlike "*ESR*") {
         $foundUninstaller = $true
         # Get the uninstall command. Some uninstallers do not include
         # 'QuietUninstallString' and require a flag to run silently.

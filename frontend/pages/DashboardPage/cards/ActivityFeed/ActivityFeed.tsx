@@ -1,45 +1,66 @@
-import React, { useMemo, useRef, useState } from "react";
-import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
+import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
 
-import paths from "router/paths";
-
-import activitiesAPI, {
-  IActivitiesResponse,
-} from "services/entities/activities";
-
-import { isAndroid } from "interfaces/platform";
+import {
+  SoftwareInstallDetailsModal,
+  IPackageInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
+import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
+import RotationFailedDetailsModal from "components/ActivityDetails/RotationFailedDetailsModal";
+import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import IconStatusMessage from "components/IconStatusMessage";
+import EnrollmentAttemptDetailsModal, {
+  IEnrollmentAttemptDetailsModalProps,
+} from "components/modals/EnrollmentAttemptDetailsModal";
+import FailedEnrollmentProfileModal, {
+  IFailedEnrollmentProfileModalProps,
+} from "components/modals/FailedEnrollmentProfileModal";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+import Pagination from "components/Pagination";
+import Spinner from "components/Spinner";
+import {
+  ActivityType,
+  IActivityDetails,
+  IActivityDetailsWithActor,
+} from "interfaces/activity";
+import { PerformanceImpactIndicator } from "interfaces/schedulable_query";
 import {
   resolveUninstallStatus,
   SoftwareInstallUninstallStatus,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { ActivityType, IActivityDetails } from "interfaces/activity";
-
+import MdmCommandDetailsModal, {
+  getIconName,
+  getVerbForCommandStatus,
+} from "pages/hosts/components/CommandDetailsModal";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import paths from "router/paths";
+import activitiesAPI, {
+  IActivitiesResponse,
+} from "services/entities/activities";
+import {
+  formatMdmCommandNameForActivityItem,
+  getMdmCommandDisplayName,
+} from "utilities/activityHelpers";
+import { timeAgo } from "utilities/date_format";
 import { getPerformanceImpactDescription } from "utilities/helpers";
 
-import ShowQueryModal from "components/modals/ShowQueryModal";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import Pagination from "components/Pagination";
-import EmptyTable from "components/EmptyTable";
-
-import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
-import { SoftwareInstallDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
-import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
-import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
-import SoftwareUninstallDetailsModal, {
-  ISWUninstallDetailsParentState,
-} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
-
-import GlobalActivityItem from "./GlobalActivityItem";
 import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetailsModal";
-import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
-import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
-import AppStoreDetailsModal from "./components/AppStoreDetailsModal/AppStoreDetailsModal";
 import ActivityFeedFilters from "./components/ActivityFeedFilters";
+import AppStoreDetailsModal from "./components/AppStoreDetailsModal/AppStoreDetailsModal";
+import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
+import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
+import GlobalActivityItem from "./GlobalActivityItem";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -105,15 +126,15 @@ const ActivityFeed = ({
   const [
     packageInstallDetails,
     setPackageInstallDetails,
-  ] = useState<IActivityDetails | null>(null); // Also includes Android Play Store installs
+  ] = useState<IPackageInstallDetails | null>(null); // Also includes Android Play Store installs
   const [
     scriptPackageDetails,
     setScriptPackageDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<IPackageInstallDetails | null>(null);
   const [
     ipaPackageInstallDetails,
     setIpaPackageInstallDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<IActivityDetailsWithActor | null>(null);
   const [
     packageUninstallDetails,
     setPackageUninstallDetails,
@@ -121,7 +142,7 @@ const ActivityFeed = ({
   const [
     vppInstallDetails,
     setVppInstallDetails,
-  ] = useState<IActivityDetails | null>(null);
+  ] = useState<IActivityDetailsWithActor | null>(null);
   const [
     activityAutomationDetails,
     setActivityAutomationDetails,
@@ -134,6 +155,35 @@ const ActivityFeed = ({
     appStoreDetails,
     setAppStoreDetails,
   ] = useState<IActivityDetails | null>(null);
+  const [
+    enrollmentProfileFailedDetails,
+    setEnrollmentProfileFailedDetails,
+  ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [
+    enrollmentRejectedDetails,
+    setEnrollmentRejectedDetails,
+  ] = useState<Omit<IEnrollmentAttemptDetailsModalProps, "onDone"> | null>(
+    null
+  );
+  const [mdmCommandActivityDetails, setMdmCommandActivityDetails] = useState<{
+    host_uuid?: string;
+    command_uuid: string;
+    actor_full_name?: string;
+    host_display_name?: string;
+    request_type?: string;
+  } | null>(null);
+  const [
+    notifyBeforePatchingDetails,
+    setNotifyBeforePatchingDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    diskEncryptionKeyRotationFailedDetails,
+    setDiskEncryptionKeyRotationFailedDetails,
+  ] = useState<{
+    detail: string;
+    hostDisplayName: string;
+    createdAt?: string;
+  } | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [createdAtDirection, setCreatedAtDirection] = useState("desc");
@@ -141,7 +191,7 @@ const ActivityFeed = ({
   const [typeFilter, setTypeFilter] = useState<string[]>([""]);
 
   const queryShown = useRef("");
-  const queryImpact = useRef<string | undefined>(undefined);
+  const queryImpact = useRef<PerformanceImpactIndicator | undefined>(undefined);
   const scriptExecutionId = useRef("");
 
   const { startDate, endDate } = useMemo(() => generateDateFilter(dateFilter), [
@@ -206,14 +256,14 @@ const ActivityFeed = ({
     {
       keepPreviousData: true,
       staleTime: 5000,
-      onSuccess: () => {
-        setShowActivityFeedTitle(true);
-      },
-      onError: () => {
-        setShowActivityFeedTitle(true);
-      },
     }
   );
+
+  useLayoutEffect(() => {
+    if (activitiesData || errorActivities) {
+      setShowActivityFeedTitle(true);
+    }
+  }, [activitiesData, errorActivities, setShowActivityFeedTitle]);
 
   setRefetchActivities(refetch);
 
@@ -225,7 +275,13 @@ const ActivityFeed = ({
     setPageIndex(pageIndex + 1);
   };
 
-  const handleDetailsClick = ({ type, details }: IShowActivityDetailsData) => {
+  const handleDetailsClick = ({
+    type,
+    details,
+    created_at,
+    actor_full_name,
+    fleet_initiated,
+  }: IShowActivityDetailsData) => {
     switch (type) {
       case ActivityType.LiveQuery:
         queryShown.current = details?.query_sql ?? "";
@@ -240,27 +296,45 @@ const ActivityFeed = ({
         break;
       case ActivityType.InstalledSoftware:
         if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
-          setScriptPackageDetails({ ...details });
+          setScriptPackageDetails({
+            ...details,
+            activity_created_at: created_at,
+          });
         } else {
           details?.command_uuid
-            ? setIpaPackageInstallDetails({ ...details })
-            : setPackageInstallDetails({ ...details });
+            ? setIpaPackageInstallDetails({
+                ...details,
+                actor_full_name,
+                fleet_initiated,
+                activity_created_at: created_at,
+              })
+            : setPackageInstallDetails({
+                ...details,
+                activity_created_at: created_at,
+              });
         }
         break;
       case ActivityType.UninstalledSoftware:
         setPackageUninstallDetails({
           ...details,
-          softwareName:
-            details?.software_display_name || details?.software_title || "",
+          softwareName: getDisplayedSoftwareName(
+            details?.software_title,
+            details?.software_display_name
+          ),
           uninstallStatus: resolveUninstallStatus(details?.status),
           scriptExecutionId: details?.script_execution_id || "",
           hostDisplayName: details?.host_display_name,
         });
         break;
       case ActivityType.InstalledAppStoreApp:
-        isAndroid(details?.host_platform || "")
-          ? setPackageInstallDetails({ ...details }) // Android Play Store installs
-          : setVppInstallDetails({ ...details }); // Apple VPP installs
+        // Apple VPP + Android installs. Envelope actor fields ride along so
+        // the modal can render the actor-driven failure copy per Figma.
+        setVppInstallDetails({
+          ...details,
+          actor_full_name,
+          fleet_initiated,
+          activity_created_at: created_at,
+        });
         break;
       case ActivityType.EnabledActivityAutomations:
       case ActivityType.EditedActivityAutomations:
@@ -284,6 +358,45 @@ const ActivityFeed = ({
           )
         );
         break;
+      case ActivityType.FailedEnrollmentProfileRenewal:
+        setEnrollmentProfileFailedDetails({
+          command: {
+            command_uuid: details?.command_uuid || "",
+          },
+        });
+        break;
+      case ActivityType.NotifiedEndUserBeforePatching:
+        setNotifyBeforePatchingDetails({ ...details });
+        break;
+      case ActivityType.FailedToRotateDiskEncryptionKey:
+        setDiskEncryptionKeyRotationFailedDetails({
+          detail: details?.detail || "",
+          hostDisplayName: details?.host_display_name || "",
+          createdAt: created_at,
+        });
+        break;
+      case ActivityType.HostEnrollmentRejected:
+        setEnrollmentRejectedDetails({
+          hostDisplayName: details?.host_display_name,
+          hostSerial: details?.host_serial,
+          reason: details?.reason,
+          platform: details?.platform,
+          createdAt: created_at,
+        });
+        break;
+      case ActivityType.RanCustomMdmCommand: {
+        if (!details?.command_uuid) {
+          break;
+        }
+        setMdmCommandActivityDetails({
+          command_uuid: details.command_uuid,
+          host_uuid: details?.host_uuid,
+          actor_full_name,
+          host_display_name: details?.host_display_name,
+          request_type: details?.request_type,
+        });
+        break;
+      }
       default:
         break;
     }
@@ -295,9 +408,10 @@ const ActivityFeed = ({
 
   const renderNoActivities = () => {
     return (
-      <EmptyTable
+      <EmptyState
+        variant="list"
         header="No activities match the current criteria"
-        info="Try editing a query, updating your policies, or running a live query."
+        info="Try editing a report, updating your policies, or running a live report."
       />
     );
   };
@@ -376,6 +490,12 @@ const ActivityFeed = ({
           onCancel={() => setPackageInstallDetails(null)}
         />
       )}
+      {notifyBeforePatchingDetails && (
+        <NotifyBeforePatchingDetailsModal
+          details={notifyBeforePatchingDetails}
+          onCancel={() => setNotifyBeforePatchingDetails(null)}
+        />
+      )}
       {scriptPackageDetails && (
         <SoftwareScriptDetailsModal
           details={scriptPackageDetails}
@@ -385,14 +505,19 @@ const ActivityFeed = ({
       {ipaPackageInstallDetails && (
         <SoftwareIpaInstallDetailsModal
           details={{
-            appName:
-              ipaPackageInstallDetails.software_display_name ||
-              ipaPackageInstallDetails.software_title ||
-              "",
+            appName: getDisplayedSoftwareName(
+              ipaPackageInstallDetails.software_title,
+              ipaPackageInstallDetails.software_display_name
+            ),
             fleetInstallStatus: (ipaPackageInstallDetails.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: ipaPackageInstallDetails.host_display_name || "",
             commandUuid: ipaPackageInstallDetails.command_uuid || "",
+            failureReason: ipaPackageInstallDetails.failure_reason,
+            actorFullName: ipaPackageInstallDetails.actor_full_name,
+            fleetInitiated: ipaPackageInstallDetails.fleet_initiated,
+            selfService: ipaPackageInstallDetails.self_service,
+            activityCreatedAt: ipaPackageInstallDetails.activity_created_at,
           }}
           onCancel={() => setIpaPackageInstallDetails(null)}
         />
@@ -407,15 +532,21 @@ const ActivityFeed = ({
       {vppInstallDetails && (
         <VppInstallDetailsModal
           details={{
-            appName:
-              vppInstallDetails.software_display_name ||
-              vppInstallDetails.software_title ||
-              "",
+            appName: getDisplayedSoftwareName(
+              vppInstallDetails.software_title,
+              vppInstallDetails.software_display_name
+            ),
             fleetInstallStatus: (vppInstallDetails.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             hostDisplayName: vppInstallDetails.host_display_name || "",
             commandUuid: vppInstallDetails.command_uuid || "",
             platform: vppInstallDetails.host_platform,
+            failureReason: vppInstallDetails.failure_reason,
+            actorFullName: vppInstallDetails.actor_full_name,
+            fleetInitiated: vppInstallDetails.fleet_initiated,
+            selfService: vppInstallDetails.self_service,
+            vppTokenLocation: vppInstallDetails.vpp_token?.location,
+            activityCreatedAt: vppInstallDetails.activity_created_at,
           }}
           onCancel={() => setVppInstallDetails(null)}
         />
@@ -436,6 +567,121 @@ const ActivityFeed = ({
         <AppStoreDetailsModal
           details={appStoreDetails}
           onCancel={() => setAppStoreDetails(null)}
+        />
+      )}
+      {enrollmentProfileFailedDetails && (
+        <FailedEnrollmentProfileModal
+          command={enrollmentProfileFailedDetails.command}
+          onDone={() => setEnrollmentProfileFailedDetails(null)}
+        />
+      )}
+      {diskEncryptionKeyRotationFailedDetails && (
+        <RotationFailedDetailsModal
+          subject="disk encryption key"
+          detail={diskEncryptionKeyRotationFailedDetails.detail}
+          hostDisplayName={
+            diskEncryptionKeyRotationFailedDetails.hostDisplayName
+          }
+          createdAt={diskEncryptionKeyRotationFailedDetails.createdAt}
+          onCancel={() => setDiskEncryptionKeyRotationFailedDetails(null)}
+        />
+      )}
+      {enrollmentRejectedDetails && (
+        <EnrollmentAttemptDetailsModal
+          hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
+          reason={enrollmentRejectedDetails.reason}
+          platform={enrollmentRejectedDetails.platform}
+          createdAt={enrollmentRejectedDetails.createdAt}
+          onDone={() => setEnrollmentRejectedDetails(null)}
+        />
+      )}
+      {!!mdmCommandActivityDetails && (
+        <MdmCommandDetailsModal
+          command={mdmCommandActivityDetails}
+          contentBody={(cls, result) => {
+            const isDeleted = result.status === "Deleted";
+            const isPending = getIconName(result.status) === "pending";
+            const cmdDisplayName = getMdmCommandDisplayName(
+              isDeleted
+                ? mdmCommandActivityDetails.request_type
+                : result.request_type
+            );
+            const timeAgoText = result.updated_at
+              ? ` (${timeAgo(new Date(result.updated_at), {
+                  addSuffix: true,
+                })})`
+              : "";
+
+            if (isDeleted) {
+              // no result -- likely the host was wiped and re-enrolled since.
+              // Use the activity's own details, captured at click-time,
+              // instead of the (empty) fetched result. Both fields are
+              // optional on that captured state, so guard against a leading
+              // "ran ..." with no actor and a bare "on ." with no hostname.
+              const {
+                actor_full_name: actorText,
+                host_display_name: hostText,
+              } = mdmCommandActivityDetails;
+              return (
+                <>
+                  <IconStatusMessage
+                    className={`${cls}__status-message`}
+                    iconName="info"
+                    message={
+                      <span>
+                        {actorText && <b>{actorText}</b>}
+                        {actorText ? " ran " : "Ran "}
+                        {formatMdmCommandNameForActivityItem(
+                          mdmCommandActivityDetails.request_type
+                        )}
+                        {" on "}
+                        {hostText ? <b>{hostText}</b> : "this host"}
+                        {"."}
+                      </span>
+                    }
+                  />
+                  <div>This command has been deleted.</div>
+                </>
+              );
+            }
+
+            return (
+              <IconStatusMessage
+                className={`${cls}__status-message`}
+                iconName={getIconName(result.status)}
+                message={
+                  isPending ? (
+                    <span>
+                      {cmdDisplayName ? (
+                        <>
+                          {"The "}
+                          <b>{cmdDisplayName}</b>
+                          {" custom MDM command"}
+                        </>
+                      ) : (
+                        "A custom MDM command"
+                      )}
+                      {" is pending on "}
+                      <b>{result.hostname}</b>
+                      {`${timeAgoText}.`}
+                    </span>
+                  ) : (
+                    <span>
+                      {mdmCommandActivityDetails.actor_full_name && (
+                        <b>{mdmCommandActivityDetails.actor_full_name}</b>
+                      )}
+                      {` ${getVerbForCommandStatus(result.status)} `}
+                      {formatMdmCommandNameForActivityItem(result.request_type)}
+                      {" on "}
+                      <b>{result.hostname}</b>
+                      {"."}
+                    </span>
+                  )
+                }
+              />
+            );
+          }}
+          onDone={() => setMdmCommandActivityDetails(null)}
         />
       )}
     </div>

@@ -21,8 +21,12 @@ These flaws are listed here publicly for two reasons. The first is so that peopl
   - It is ok to set a boundary and let me marinate.  You might say: "Hold up.  What is our goal?"
   - I get grumpy when I am tired and I worry that I'll forget to follow up about things.  So I try to say them all.
   - I can talk too much.  On video calls, and especially during a screenshare session, I sometimes will keep talking longer than I otherwise would.  If you get lost, or overwhelmed, you can interrupt me or send a chat: "Hold up, I'm feeling out of phase from this conversation."
+4. I sometimes use [unnecessary idioms and expressions](https://www.linkedin.com/posts/ecuadros_no-mo-co-jo-ugcPost-7504261093037355009-idKr).
+  - For example, I might say "low hanging fruit". I cannot remember the last time I picked fruit, or walked on the floor of a jungle.
+  - Several Fleeties from outside the US have told me that they have to learn phrases like this. I will try to speak in plain language. It is ok to interrupt and ask "Mike, what do you mean?"
+  - I reserve the right to use [weird metaphors](https://en.wikipedia.org/wiki/Bizarreness_effect).  Just not boring idioms.
 
-> If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#performance-feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
+> If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
 
 
 ## Contact the CEO
@@ -52,56 +56,59 @@ To summon the CEO to meet in-person with a customer or prospect, join a team on-
 
 ## CEO responsibilities
 
-Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing tiers, the business model, human resources, legal counsel, signatures on all documents, and brand &amp; product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
+Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing tiers, the business model, product vision, signatures on many documents, and brand strategy.
 
 > **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [Executive Assistant](https://fleetdm.com/handbook/ceo#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
 
 
 ## Outline of departmental page structure
 
-Departmental pages are for reference, not philosophy.  For philosophy, use "Communications" (for all fleeties), "Leadership" (for managers), "Product groups" (for core product and website contributors), and "Why this way?" (for key decisions).
+Departmental pages outline intake, people, departmental philosophy, responsibilities, and recurring rituals. They always follow the structure below. Changes to departmental pages can be merged when the change results in a page consistent with this structure.
 
-Departmental pages exist to outline people, responsibilities, recurring rituals, and intake.  They always follow the structure below.
-
-Changes to departmental pages can be merged when the change results in a page consistent with this structure.
-
-> Please see https://fleetdm.com/handbook/it-and-enablement for an example of what this structure should look like in practice.
-
-<blockquote purpose="large-quote">
-Biggest learning is that we federated carte blanche edit permissions a bit too early back in 2021, and it’s resulted in the need for a lot of cleanup as different people have had their hands in the content prior to introducing a framework for organizing that content.  
-
-For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and were dealing with the consequences.
+> For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and we're dealing with the consequences.
 It meant that until late 2023, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re now close to 100% accurate.)
 
-The audience for the “Communications” page is every Fleetie.
-
-The audience for the “Leadership” page is every manager.
-
-The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first).
-This pass through the handbook has also eliminated several pages in favor of getting more onto single pages.  This is because there was still a lot of duplication, and it’s easier to deal with when everything is on a single page.
+We structure handbook pages based on audience. 
+- The audience for the “Communications” page is every Fleetie.
+- The audience for the “Leadership” page is every manager.
+- The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first).
 
 
-If you have any questions or feedback, please make a pull request.
-</blockquote>
+**Departmental page structure:**
 
-
-Departmental page structure:
 - `# Name of department`
   - "This handbook page details processes specific to working `[with](#contact-us)` and `[within](#responsibilities)` this department." 
 
   - `## Team`
-    - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/it-and-enablement#team](https://fleetdm.com/handbook/it-and-enablement#team) for example.
+    - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/people#team](https://fleetdm.com/handbook/people#team) for example.
 
   - `## Contact us`
-    - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=1-custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day (If urgent, mention a `[team member](#team)` in `[#g-DEPARTMENTAL-SLACK-CHANNEL]({DEPARTMENTAL-SLACK-CHANNEL-LINK})`)."
+  - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=1-custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day (If urgent, mention a `[team member](#team)` in `[:help-DEPARTMENTAL-SLACK-CHANNEL]({DEPARTMENTAL-SLACK-CHANNEL-LINK})`.)"
       - "Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request."
       - "Any Fleet team member can `[view the kanban board](https://github.com/orgs/fleetdm/projects/{PROJECT_ID})` for this department, including pending tasks and the status of new requests."
 
-- `## Responsibilities`
+  - `## Philosophical heading that matter to all roles in your department`
+  - Department leaders can add sections to their own README.md pages between "contact us" and "responsibilities".  e.g. P0,P1 levels for CS.
+
+  - `## Responsibilities`
   - The "Responsibilities" section consists of a flat list of H3 sub-headings written in the imperative mood (e.g. "Process CEO inbox") and designed to be the internal "How-to" of each department.  
 
 
 - `## Rituals`
+
+It may make sense to have per-role pages (e.g. cse, csa). But only when the role is very well defined and there are 3+ people at Fleet who have that job title.  The priority isn't to make a role page for the VP of Customer Success role, but there could be a role page for Customer Support Engineer. 
+
+**Role-specific sub page structure**
+
+- `# Job title`
+  - Definition of this role in 1-2 sentences. 
+
+  - `## Onboarding`
+  - Any info that could help a new Fleetie be successful in this particular role. 
+
+  - `## Responsibilities`
+  - The "Responsibilities" section consists of a flat list of H3 sub-headings written in the imperative mood (e.g. "Process CEO inbox") and designed to be the internal "How-to" for this role.
+  
 
 
 ## Board meeting and OKR planning
@@ -109,7 +116,10 @@ Departmental page structure:
 The board meeting and OKR planning happen during the first week of the third month of every quarter. Fleet uses the following agenda to prepare, execute, iterate on, and retro its in-person board meetings and quarterly Objective Key Results (OKRs):
 
 **Two weeks prior (virtual):**
-  - The CEO discusses the board meeting with his coach. 
+  - The CEO and CFO discuss the board meeting with the CEO's coach.
+  - The EA programs the CEO to ask each executive for 2-3 charts and 1-2 questions for board members ahead of the board meeting.
+  - The CEO and Head of People finalize the agenda, ensuring there is a clear DRI for all sessions and 30-minute time blocks built in for "running your life."
+  - The Head of People adds the agenda to the calendar and invites all attendees.
 
 **Day 1 _Prepare_ (in-person):**
   - Board deck finalization:
@@ -129,7 +139,7 @@ The board meeting and OKR planning happen during the first week of the third mon
 
 **Day 4 _Plan and finalize_ (virtual):**
   - OKR planning (entire E-Group, over Zoom, everyone comes prepared) for 3.5 hours.
-  - OKR finalization (CEO, EA, Head of People and Head of Digital Workplace & GTM Systems to clean up any details and messaging out to remind/help executives to book time with their teams if it is not booked already for Friday) for 1 hour. 
+  - OKR finalization (CEO, EA, Head of People, and GTM Systems Architect to clean up any details and messaging out to remind/help executives to book time with their teams if it is not booked already for Friday) for 1 hour. 
 
 **Day 5 _Communicate_ (virtual):**
   - Each manager will work with their team to ratify, understand, and raise any objections or initial edits to the OKRs, all the way down to the ICs.
@@ -143,7 +153,7 @@ Every release cycle, each department leader discusses their [key performance ind
 In this meeting, the department leader discusses actual week-over-week progress toward the goals for a particular quarter with the CEO.
 
 - Key reviews are scheduled during the e-group time slot every three weeks and are not moved or rescheduled.  If a department leader is not available to lead a particular key review, another team member from their department will join the meeting and discuss their department's key performance indicators (KPIs).
-- Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, contact 🌐 [IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#contact-us).
+- Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, contact [People](https://fleetdm.com/handbook/people#contact-us).
 
 
 ## Hiring
@@ -153,27 +163,22 @@ At Fleet, we collaborate with [core team members](#creating-a-new-position), [co
 
 > Hiring restrictions
 >
-> Fleet maintains a list of **incompatible locations** and companies with whom Fleet has **do-not-solicit terms** that prevent us from making offers to employees that reside in certian locations or have partnered with certain companies.  These lists are in the ["🚫 Hiring restrictions" spreadsheet](https://docs.google.com/spreadsheets/d/1tIUzzwdro6rx9jMhLmThJ-0ZGZPgiSJXTJwbnAJkNrU/edit?gid=921044344#gid=921044344).
+> Fleet maintains a list of **incompatible locations** and companies with whom Fleet has **do-not-solicit terms** that prevent us from making offers to employees that reside in certain locations or have partnered with certain companies.  These lists are in the ["🚫 Hiring restrictions" spreadsheet](https://docs.google.com/spreadsheets/d/1tIUzzwdro6rx9jMhLmThJ-0ZGZPgiSJXTJwbnAJkNrU/edit?gid=921044344#gid=921044344).
 
 
 ### Recruiting
 
-Fleet accepts job applications, but the company does not list positions on general purpose job boards.  This prevents us being overwhelmed with candidates so we can fulfill our goal of responding promptly to every applicant. This means that outbound recruiting, 3rd party recruiters, and references from team members are important aspect of the company's hiring strategy.  Fleet's CEO is happy to assist with outreach, intros, and recruiting strategy for candidates.
+Fleet accepts job applications, but the company does not list positions on general purpose job boards.  This prevents us being overwhelmed with candidates so we can fulfill our goal of responding promptly to every applicant. This means that outbound recruiting, 3rd party recruiters, and references from team members are an important aspect of the company's hiring strategy.  Fleet's CEO is happy to assist with outreach, intros, and recruiting strategy for candidates.
 
 
 ### Receiving job applications
 
-Every job description page ends with a "call to action", including a link to the hiring manager's LinkedIn to apply for the job directly with the hiring manager.  Fleet replies to all candidates within **1 business day** and always provides either a **rejection** or **decisive next steps**; even if the next step is just a promise. Hiring managers are encouraged to use [email/message templates](https://fleetdm.com/handbook/company/leadership#candidate-correspondence-email-templates) for consistency and efficiency.
-
-
-### Candidate correspondence email templates
-
-Fleet uses [certain email templates](https://docs.google.com/document/d/1VAMWIH8o7_vH7lV9nM1wQCM4Vc3GxBRBDPK-mKO9HNk/edit?usp=sharing) when responding to candidates.  This helps us live our value of [🔴 empathy](https://fleetdm.com/handbook/company#empathy) and helps the company meet the aspiration of replying to all applications within one business day.
-
+Every job description page ends with a call to action that directs candidates to the contact form to apply for open positions. The contact form is used as the single intake for all job applications.
 
 ### Communicating with applicants 
 
-At Fleet, we use the contact form and email to communicate with future team members. Community members will often inquire about positions that aren't currently being hired for.  The DRI for receiving applications is Fleet's Head of People, whose team uses a set of template responses and updates Fleet's HRIS with new applicants.  Fleet's SLA for responding to applicants is 1 business day, though this doesn't necessarily mean that the hiring manager has bandwidth to take further action after that initial reply.  In that initial reply, candidates are encouraged to apply for future positions if they don't hear back further within a few days.
+At Fleet, we use the contact form to communicate with future team members. The DRI for receiving applications is the Head of People, whose team uses a confirmation message to acknowledge applications, then updates the HRIS sheet. In the initial response, candidates are advised that the contact form is the best way to apply or follow up and are encouraged to apply again for future roles if they don’t hear back within about a week.
+
 
 > **Recommending someone for an [open position](https://fleetdm.com/handbook/company#open-positions) at Fleet?**
 >
@@ -195,7 +200,6 @@ In addition to [core team members](https://fleetdm.com/handbook/company/leadersh
 
 Consultants:
 - do NOT receive company-issued laptops
-- do NOT receive Yubikeys
 - do NOT get a "Hiring" issue created for them
 - do NOT get a company email address, nor everyone's calendars, nor the shared drive _(with occasional exceptions)_
 - do NOT go through training using the contributor onboarding issue.
@@ -206,6 +210,7 @@ Consultants [track time using the company's tools](https://fleetdm.com/handbook/
 
 > To update a consultant's fee, [submit an issue to 🧑‍🚀 People](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&title=Update%20consultant%20fee) with the consultant's name and new hourly rate.
 
+> **Offboarding a consultant?** When a consultant's engagement is ending, the DRI for that consultant notifies the [Head of People](https://fleetdm.com/handbook/people#team) so they can [begin the offboarding process](https://fleetdm.com/handbook/people#offboard-a-consultant).
 
 
 
@@ -225,7 +230,7 @@ Fleet asks US-based hourly contributors to track hours in Gusto, and contributor
 
 Core team members:
 - are hired for an existing [open position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position)
-- are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop and Yubikeys
+- are hired using Fleet's "Hiring" issue template, including receiving a company-issued laptop
 - must be onboarded (complete the entire, unabridged onboarding process in Fleet's "Onboarding" issue template)
 - must be offboarded
 - get an email address
@@ -252,7 +257,7 @@ Do you need to create a completely new role at Fleet? Use these steps to open up
     - `department`: The department of the proposed position.
     - `hiringManagerName`: The full name of this proposed position's hiring manager.
     - `hiringManagerGithubUsername`: The GitHub username of the proposed position's hiring manager. This is used to add the hiring manager as the open position page's maintainer.
-    - `hiringManagerLinkedInUrl`: The url of the hiring manger's LinkedIn profile. People applying for this position will be asked to reach out to the manager on LinkedIn.
+    - `hiringManagerLinkedInUrl`: The url of the hiring manager's LinkedIn profile. People applying for this position will be asked to reach out to the manager on LinkedIn.
     - `responsibilities`: A Markdown list of the responsibilities of this proposed position.
     - `experience`: A Markdown list of the experience that applicants should have when applying for the proposed position.
   - If needed, you can override the default compensation range ($48,000 - $480,000) in the open position template page by adding a `onTargetEarnings` value to the open position. If provided, `onTargetEarnings` values should be a string containing the salary range for the proposed position.
@@ -297,7 +302,7 @@ A completed open position entry should look something like this:
 
 Use this section to fill an already approved position.  At Fleet, the [Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process for all open positions. Interview steps vary by role, but before an offer is made, every successful candidate will have interviewed with the Head of People and the CEO.
 
-To start the interview process, the hiring manager will create a copy of the [🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for each candidate. All feedback will be kept in the cadidate's 🛸 Why hire document as they move through the process. 
+To start the interview process, the hiring manager will create a copy of the [🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for each candidate. All feedback will be kept in the candidate's 🛸 Why hire document as they move through the process. 
 
 > **To move an approved candidate into the final hiring stage**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?template=pre-onboarding.md) and complete the hiring manager tasks. This final step includes reference checks and CEO interview, and may influence the final hiring decision.
 
@@ -310,8 +315,10 @@ The hiring manager creates a 30-60-90 day plan outlining key role objectives to 
 ## CEO shadow program
 
 The CEO shadow program is a three-day temporary assignment (usually completed during onboarding) in which core team members will shadow all relevant meetings on the CEO's calendar. This gives team members an overview of all aspects of the company and provides high context and in turn, high-output contributors. The program also creates opportunities for the CEO to build relationships with team members across the company and to identify [challenges and opportunities](https://fleetdm.com/handbook/company/leadership#ceo-flaws) earlier. 
+
+> **AEs**: Account Executives (AEs) complete their shadow program with the [SVP Global Sales](https://fleetdm.com/handbook/sales#team) instead of the CEO.
  
-> **What it's not**: The CEO shadow program is not a performance evaluation or a determinating factor for a promotion or raise. 
+> **What it's not**: The CEO shadow program is not a performance evaluation or a determining factor for a promotion or raise. 
 
 As a CEO shadow, you will be attending both internal and external meetings regarding various areas of the company. In order to make the most of your time as a shadow:
 - **Be on time**: Your time is priceless, your time as a CEO shadow is short! Join each meeting on time, this limits the distraction for other attendees and gives the CEO the opportunity to introduce you to other folks on the call without interrupting the meeting.
@@ -402,7 +409,7 @@ Ask each attendee to arrange their own travel using the budget guidance from the
 
 ### 3. Plan an agenda.
 
-The primary purpose of team offsites is to build team cohesion. A large portion of the time together should be spent enjoying each other's company, sharing meals, and participating activities together. An agenda provides clear structure for all attendees so they know what to expect. 
+The primary purpose of team offsites is to build team cohesion. A large portion of the time together should be spent enjoying each other's company, sharing meals, and participating activities together. An agenda provides clear structure for all attendees so they know what to expect. There should be a DRI for all agenda items. 
 
 The agenda of each offsite varies based on number of days and the team. Below is a sample agenda from a product group offsite: 
 
@@ -447,6 +454,24 @@ Schedule a call with [💸 Finance](https://fleetdm.com/handbook/finance#team) t
 
 Once approved by 💸 Finance, finalize purchase of accommodations and can assist with dinner reservations, activity reservations, and travel considerations.
 
+
+## Executive bios
+
+Certain members of the executive team are asked for press involvement from time to time.  Below are their bios and headshots:
+
+| Person               | Headshot     | Bio   |
+|:---------------------|:-------------|:------|
+| Allen Houchins           | <img width="800" alt="AllenHouchinsBioPic" src="https://github.com/user-attachments/assets/77906b29-824a-4e9f-8a96-a6f5b994b286" /> | Contributor at Fleet Device Management. Before Fleet, Allen served as Vice President of Information Technology & Workplace Services at Jamf, where he helped scale the company from 200 to 3,000 employees and led IT and Security through its transition from private company, to private equity ownership, to publicly traded company. Earlier in his career, Allen held engineering and systems leadership roles at Apple, including Demo Systems Manager for Apple Retail's 400+ global stores. |
+| Zay Hanlon               | <img width="800" alt="ZayHanlonBioPic" src="https://github.com/user-attachments/assets/41eb92bb-7061-4ab4-be8d-4c60712e9d6d" /> | SVP of Customer Success at Fleet Device Management. Before Fleet, Zay was at Cisco, supporting Fortune 500 companies using their Cloud Security product suite, and at Kaseya, where she built out the structure for Mid-market customer success supporting 10,000 MSP customers and $42M of revenue. Zay's passion for solving problems in tech, rather than using her Biology background from Penn State, began at Kaseya in 2015. |
+| Tina Ong                 | <img width="800" alt="TinaOngBioPic" src="https://github.com/user-attachments/assets/97b832d1-baff-4798-8db3-48e91997b0a5" /> | Chief Financial Officer at Fleet Device Management. Before Fleet, Tina served as CFO at Nucleus Security. As CFO at Signal Sciences (acquired by Fastly for $775M in 2020), she helped guide the web application security company through its acquisition and subsequently served as Head of Security Finance at Fastly. Earlier in her career, Tina held finance and business operations leadership roles at TeleSign and the Singapore Economic Development Board. |
+| Chaz MacLaughlin         | <img width="800" alt="ChazMacLaughlinBioPic" src="https://github.com/user-attachments/assets/8fe1c3a1-f6a4-4404-81ed-72dba5956d1a" /> | Senior Vice President of Global Sales at Fleet Device Management. Before Fleet, Chaz served as CRO at Nucleus Security, VP of Sales at Lucidum, and VP of Corporate Sales at Signal Sciences (acquired by Fastly), driving partner-first revenue growth across the cybersecurity sector. As Director of Sales West at MobileIron (acquired by Ivanti), he helped build the partner-led go-to-market motion that established the company as a pioneer in enterprise mobility management. Earlier in his career, Chaz served as Regional Director Southwest at Imperva. |
+| Alex Mitchell            | <img width="800" alt="AlexMitchellBioPic" src="https://fleetdm.com/images/alex-mitchell-800x800@2x.png" /> | Head of Strategic Growth at Fleet Device Management. An engineer‑turned‑operator, Alex has held strategy, product, and go‑to‑market leadership roles at Planview, uStudio, Sprint, and Alcatel‑Lucent's Motive division, working across enterprise SaaS, telecom, and connected‑device software. He holds an MBA from Northwestern University's Kellogg School of Management and BS Electrical Engineering from the University of Kansas. |
+| Luke Heath          | <img alt="Luke Heath bio photo" width="460" src="https://github.com/user-attachments/assets/24afb40f-d33c-4e05-9672-e64dd03761a5" /> | Chief Technology Officer at Fleet Device Management. Luke spends a lot of time thinking about people and computers, and how the two can best get along. He joined Fleet in 2021 and was named CTO in March 2024. Before Fleet, Luke founded Heath Software, an Austin-based agency providing design and development services to startups and Fortune 500 companies including TIAA. Earlier in his career, he led engineering at TreeHouse and worked as an independent consultant for clients including Microsoft, Reuters, Samsung, SanDisk, and Paramount. Luke got his start in IT in 1998, providing technical support at AOL. |
+| Noah Talerman          | <img width="800" alt="Noah Talerman bio photo" src="https://fleetdm.com/images/noah-talerman-800x800@2x.jpg" /> | Head of Product Design and first hire at Fleet Device Management. |
+| Isabell Reedy | <img alt="Isabell Reedy bio photo" width="800" src="https://github.com/user-attachments/assets/cba833a1-d69c-4f71-9b9e-2cca78661750" /> | Head of People at Fleet Device Management. Isabell joined Fleet in 2023 as a Business Operations Engineer before moving into Finance Strategy, where she co-led the work behind Fleet's $27M Series B. She was named Head of People in 2025, where she owns people strategy, culture, and Fleet's digital workspace. Before Fleet, Isabell spent nearly five years at the Australian Embassy in Washington D.C. supporting strategic security engagements between Australia and the US, building on earlier roles across the Australian government and defence sector. |
+| Mike McNeil          | <img width="800" alt="image" src="https://github.com/user-attachments/assets/b98fa4f9-9284-4ee7-94c7-9f6d09ee7a5a" /> | CEO/Co-founder of Fleet Device Management. Creator & BDFL of Sails.js  (YC W15).  You can also read about some of the [CEO's flaws](https://fleetdm.com/handbook/company/leadership#ceo-flaws). |
+
+<!-- Note: Please don't put both width and height.  Use just width.  This prevents weird stretching of images.  Thanks.  -Mike, 2026-07-10.  -->
 
 #### Stubs
 

@@ -1,0 +1,11 @@
+{
+  "name": "Wrike",
+  "slug": "wrike/windows",
+  "package_identifier": "Wrike.WrikeDesktopApp",
+  "unique_identifier": "Wrike for Windows (64 bit)",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/wrike_install.ps1",
+  "default_categories": ["Productivity"]
+}

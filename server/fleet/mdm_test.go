@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strings"
 	"testing"
 
 	ctxabm "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
@@ -17,7 +19,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +68,7 @@ func TestDEPClient(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	logger := log.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	ds := new(mock.Store)
 
 	appCfg := fleet.AppConfig{}
@@ -101,127 +102,149 @@ func TestDEPClient(t *testing.T) {
 		return count, nil
 	}
 
-	checkDSCalled := func(readInvoked, writeTokInvoked, writeAppCfgInvoked bool) {
+	tokenInvalidByOrgName := map[string]bool{
+		"org1": false,
+		"org2": false,
+	}
+	ds.SetABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string, invalid bool) (wasSet bool, err error) {
+		was, ok := tokenInvalidByOrgName[orgName]
+		if !ok {
+			return invalid, nil
+		}
+		tokenInvalidByOrgName[orgName] = invalid
+		return was, nil
+	}
+	ds.IsABMTokenInvalidForOrgNameFunc = func(ctx context.Context, orgName string) (bool, error) {
+		return tokenInvalidByOrgName[orgName], nil
+	}
+
+	checkDSCalled := func(readInvoked, writeTokInvoked, writeAppCfgInvoked, writeTokenInvalidInvoked bool) {
 		require.Equal(t, readInvoked, ds.AppConfigFuncInvoked)
 		require.Equal(t, readInvoked, ds.CountABMTokensWithTermsExpiredFuncInvoked)
 		require.Equal(t, writeTokInvoked, ds.SetABMTokenTermsExpiredForOrgNameFuncInvoked)
 		require.Equal(t, writeAppCfgInvoked, ds.SaveAppConfigFuncInvoked)
+		require.Equal(t, writeTokenInvalidInvoked, ds.SetABMTokenInvalidForOrgNameFuncInvoked)
 		ds.AppConfigFuncInvoked = false
 		ds.CountABMTokensWithTermsExpiredFuncInvoked = false
 		ds.SaveAppConfigFuncInvoked = false
 		ds.SetABMTokenTermsExpiredForOrgNameFuncInvoked = false
+		ds.SetABMTokenInvalidForOrgNameFuncInvoked = false
 	}
 
 	cases := []struct {
-		token               string
-		orgName             string
-		wantErr             bool
-		readInvoked         bool
-		writeTokInvoked     bool
-		writeAppCfgInvoked  bool
-		wantAppCfgTermsFlag bool
-		wantToksTermsFlags  map[string]bool
+		token                    string
+		orgName                  string
+		wantErr                  bool
+		readInvoked              bool
+		writeTokInvoked          bool
+		writeAppCfgInvoked       bool
+		writeTokenInvalidInvoked bool
+		wantAppCfgTermsFlag      bool
+		wantToksTermsFlags       map[string]bool
 	}{
 		// use a valid token, appconfig should not be updated (already unflagged)
 		{
 			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
 		// use a valid token without org, nothing is checked
 		{
 			token: validToken, orgName: "", wantErr: false, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
 		// use an invalid token without org, call fails but nothing is checked because this is an unsaved token
 		{
 			token: invalidToken, orgName: "", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
-		// use an invalid token, appconfig should not even be read (not a terms error)
+		// use an invalid token, appconfig should not even be read (not a terms error); also not a
+		// token_rejected/signature_invalid error, so token_invalid is not touched either
 		{
 			token: invalidToken, orgName: "org1", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
-		// terms changed for org1 during the auth request
+		// terms changed for org1 during the auth request; terms-not-signed is
+		// proof the token was accepted, so token_invalid would be cleared, but
+		// the write is skipped since it was already false (no-op)
 		{
 			token: termsChangedToken, orgName: "org1", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false},
+			writeAppCfgInvoked: true, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false},
 		},
 
 		// use of an invalid token does not update the flag
 		{
 			token: invalidToken, orgName: "org1", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": false},
 		},
 
 		// use of a valid token for org1 resets the flags
 		{
 			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: true, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
 		// use of a valid token again with org2 does not update anything
 		{
 			token: validToken, orgName: "org2", wantErr: false, readInvoked: true, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 
 		// terms changed for org2 during the actual account request, after auth
 		{
 			token: termsChangedAfterAuthToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+			writeAppCfgInvoked: true, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
 		},
 
 		// again terms changed after auth for org2, doesn't update appConfig
 		{
 			token: termsChangedAfterAuthToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
 		},
 
 		// terms changed during auth for org2, doesn't update appConfig
 		{
 			token: termsChangedToken, orgName: "org2", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
 		},
 
 		// terms changed during auth for org1, now both tokens have the flag, doesn't update appConfig
 		{
 			token: termsChangedToken, orgName: "org1", wantErr: true, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
 		},
 
 		// use a valid token without org, nothing is checked
 		{
 			token: validToken, orgName: "", wantErr: false, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
 		},
 
 		// use an invalid token without org, call fails but nothing is checked because this is an unsaved token
 		{
 			token: invalidToken, orgName: "", wantErr: true, readInvoked: false, writeTokInvoked: false,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": true, "org2": true},
 		},
 
 		// valid token for org1, resets that token's flag but not appConfig
 		{
 			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
 		},
 
 		// valid token again for org1, still no write to appConfig
 		{
 			token: validToken, orgName: "org1", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
+			writeAppCfgInvoked: false, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: true, wantToksTermsFlags: map[string]bool{"org1": false, "org2": true},
 		},
 
 		// valid token again for org2, this time resets appConfig
 		{
 			token: validToken, orgName: "org2", wantErr: false, readInvoked: true, writeTokInvoked: true,
-			writeAppCfgInvoked: true, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
+			writeAppCfgInvoked: true, writeTokenInvalidInvoked: false, wantAppCfgTermsFlag: false, wantToksTermsFlags: map[string]bool{"org1": false, "org2": false},
 		},
 	}
 
@@ -272,9 +295,12 @@ func TestDEPClient(t *testing.T) {
 			require.True(t, store.RetrieveAuthTokensFuncInvoked)
 			require.True(t, store.RetrieveConfigFuncInvoked)
 		}
-		checkDSCalled(c.readInvoked, c.writeTokInvoked, c.writeAppCfgInvoked)
+		checkDSCalled(c.readInvoked, c.writeTokInvoked, c.writeAppCfgInvoked, c.writeTokenInvalidInvoked)
 		require.Equal(t, c.wantAppCfgTermsFlag, appCfg.MDM.AppleBMTermsExpired)
 		require.Equal(t, c.wantToksTermsFlags, termsExpiredByOrgName)
+		// none of these cases produce a token_rejected/signature_invalid error,
+		// so token_invalid should never actually flip to true.
+		require.Equal(t, map[string]bool{"org1": false, "org2": false}, tokenInvalidByOrgName)
 	}
 }
 
@@ -285,7 +311,7 @@ func TestMDMAppleBootstrapPackage(t *testing.T) {
 
 	url, err := bp.URL("http://example.com")
 	require.NoError(t, err)
-	require.Equal(t, "http://example.com/api/latest/fleet/mdm/bootstrap?token=abc-def", url)
+	require.Equal(t, "http://example.com/api/latest/fleet/bootstrap?token=abc-def", url)
 
 	url, err = bp.URL(" http://example.com")
 	require.Empty(t, url)
@@ -429,6 +455,20 @@ func TestMDMProfileSpecUnmarshalJSON(t *testing.T) {
 		require.Nil(t, storedConfig.MDM.MacOSSettings.CustomSettings[0].LabelsExcludeAny) // old key should be removed
 		require.Nil(t, storedConfig.MDM.MacOSSettings.CustomSettings[1].LabelsIncludeAll) // old key should be removed
 	})
+
+	t.Run("legacy string replaces the stored spec", func(t *testing.T) {
+		// same reuse as above, with the old plain-path form of an entry
+		var storedConfig fleet.AppConfig
+		storedConfig.MDM.MacOSSettings.CustomSettings = []fleet.MDMProfileSpec{{
+			Path:             "some-profile-1",
+			Name:             "Wi-Fi",
+			Description:      "Office network",
+			LabelsIncludeAll: []string{"foo"},
+		}}
+		err := json.Unmarshal([]byte(`{"mdm": {"macos_settings": {"custom_settings": ["some-profile-2"]}}}`), &storedConfig)
+		require.NoError(t, err)
+		require.Equal(t, []fleet.MDMProfileSpec{{Path: "some-profile-2"}}, storedConfig.MDM.MacOSSettings.CustomSettings)
+	})
 }
 
 func TestMDMProfileSpecsMatch(t *testing.T) {
@@ -548,12 +588,162 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			name: "Name Or Description Change Is A Change",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: "Wi-Fi", Description: "office"},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: "Wi-Fi", Description: "home"},
+			},
+			expected: false,
+		},
+		{
+			name: "Name And Description Compared Trimmed",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: "Wi-Fi", Description: "office"},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Name: " Wi-Fi ", Description: "office\n"},
+			},
+			expected: true,
+		},
+		{
+			name: "Hidden Flag Change Is A Change",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Hidden: false},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Hidden: true},
+			},
+			expected: false,
+		},
+		{
+			name: "SelfService Flag Change Is A Change",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", SelfService: false},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", SelfService: true},
+			},
+			expected: false,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result := fleet.MDMProfileSpecsMatch(tc.a, tc.b)
 			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+// TestMDMProfileSpecsMatchPanicsOnDuplicatePaths pins the precondition
+// documented on MDMProfileSpecsMatch: duplicate Paths within a slice are a
+// programming-bug indicator (upstream validation in client.go and mdm.go
+// rejects them before they reach storage), so the function panics rather
+// than silently miscomparing. See issue #45485.
+func TestMDMProfileSpecsMatchPanicsOnDuplicatePaths(t *testing.T) {
+	dup := []fleet.MDMProfileSpec{{Path: "/a"}, {Path: "/a"}}
+	clean := []fleet.MDMProfileSpec{{Path: "/a"}, {Path: "/b"}}
+
+	t.Run("duplicates in a", func(t *testing.T) {
+		require.PanicsWithValue(
+			t,
+			`MDMProfileSpecsMatch: a contains duplicate Path "/a"; upstream validation should have rejected this`,
+			func() { fleet.MDMProfileSpecsMatch(dup, clean) },
+		)
+	})
+	t.Run("duplicates in b", func(t *testing.T) {
+		require.PanicsWithValue(
+			t,
+			`MDMProfileSpecsMatch: b contains duplicate Path "/a"; upstream validation should have rejected this`,
+			func() { fleet.MDMProfileSpecsMatch(clean, dup) },
+		)
+	})
+}
+
+func TestHasCAVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		vars     []string
+		expected bool
+	}{
+		{"empty", nil, false},
+		{"no CA vars", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarHostHardwareSerial)}, false},
+		{"NDES challenge", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarNDESSCEPChallenge)}, true},
+		{"NDES proxy URL", []string{string(fleet.FleetVarNDESSCEPProxyURL)}, true},
+		{"SCEP renewal", []string{string(fleet.FleetVarSCEPRenewalID)}, true},
+		{"Certificate renewal (preferred)", []string{string(fleet.FleetVarCertificateRenewalID)}, true},
+		{"DigiCert data", []string{string(fleet.FleetVarDigiCertDataPrefix) + "my_ca"}, true},
+		{"DigiCert password", []string{string(fleet.FleetVarDigiCertPasswordPrefix) + "my_ca"}, true},
+		{"EJBCA data", []string{string(fleet.FleetVarEJBCADataPrefix) + "my_ca"}, true},
+		{"EJBCA password", []string{string(fleet.FleetVarEJBCAPasswordPrefix) + "my_ca"}, true},
+		{"Custom SCEP challenge", []string{string(fleet.FleetVarCustomSCEPChallengePrefix) + "my_ca"}, true},
+		{"Custom SCEP proxy URL", []string{string(fleet.FleetVarCustomSCEPProxyURLPrefix) + "my_ca"}, true},
+		{"Smallstep challenge", []string{string(fleet.FleetVarSmallstepSCEPChallengePrefix) + "my_ca"}, true},
+		{"Smallstep proxy URL", []string{string(fleet.FleetVarSmallstepSCEPProxyURLPrefix) + "my_ca"}, true},
+		{"Windows SCEP cert ID", []string{string(fleet.FleetVarSCEPWindowsCertificateID)}, true},
+		{"Conditional access SCEP URL", []string{string(fleet.FleetVarConditionalAccessSCEPURL)}, true},
+		{"mixed with CA", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarNDESSCEPChallenge)}, true},
+		{"unknown var", []string{"UNKNOWN_VAR"}, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := fleet.HasCAVariables(tc.vars)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestFleetVarRenewalIDRegexp(t *testing.T) {
+	cases := []struct {
+		input string
+		want  bool
+	}{
+		{"$FLEET_VAR_CERTIFICATE_RENEWAL_ID", true},
+		{"${FLEET_VAR_CERTIFICATE_RENEWAL_ID}", true},
+		{"$FLEET_VAR_SCEP_RENEWAL_ID", true},
+		{"${FLEET_VAR_SCEP_RENEWAL_ID}", true},
+		{"prefix $FLEET_VAR_CERTIFICATE_RENEWAL_ID suffix", true},
+		{"$FLEET_VAR_OTHER_VAR", false},
+		{"static-value", false},
+		{"", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			require.Equal(t, tc.want, fleet.FleetVarRenewalIDRegexp.MatchString(tc.input))
+		})
+	}
+}
+
+func TestMDMPlatformSupport(t *testing.T) {
+	cases := []struct {
+		hostPlatform        string
+		wantClassicPlatform string
+		wantTurnedOn        bool
+	}{
+		{"darwin", "darwin", true},
+		{"ios", "darwin", true},
+		{"ipados", "darwin", true},
+		{"windows", "windows", true},
+		// Android hosts can have MDM turned on, but they don't take part in the
+		// classic MDM command pipeline.
+		{"android", "", true},
+		// "linux" isn't a hosts.platform value, but it is what
+		// Host.FleetPlatform collapses the distros to.
+		{"linux", "", false},
+		{"ubuntu", "", false},
+		{"rhel", "", false},
+		{"chrome", "", false},
+		{"", "", false},
+		{"unknown", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.hostPlatform, func(t *testing.T) {
+			require.Equal(t, tc.wantClassicPlatform, fleet.ClassicMDMPlatform(tc.hostPlatform))
+			require.Equal(t, tc.wantClassicPlatform != "", fleet.ClassicMDMSupported(tc.hostPlatform))
+			require.Equal(t, tc.wantTurnedOn, fleet.MDMTurnedOnSupported(tc.hostPlatform))
 		})
 	}
 }
@@ -716,4 +906,131 @@ func TestFilterOutUserScopedProfiles(t *testing.T) {
 	filteredProfiles := fleet.FilterOutUserScopedProfiles(profilesToFilter)
 
 	require.ElementsMatch(t, filteredProfiles, []*fleet.MDMAppleProfilePayload{&systemScopedProfile})
+}
+
+func TestParseSSORelayState(t *testing.T) {
+	for _, initiator := range []string{
+		fleet.SSOInitiatorOTAEnroll,
+		fleet.SSOInitiatorOrbitSetupExperience,
+		fleet.SSOInitiatorAccountDrivenEnroll,
+		fleet.SSOInitiatorAppleMDMSSO,
+		fleet.SSOInitiatorFleetDesktop,
+	} {
+		require.Equal(t, fleet.SSORelayState(initiator), fleet.ParseSSORelayState(initiator))
+	}
+
+	for _, unknown := range []string{
+		"",
+		"FLEET_DESKTOP",
+		"fleet_desktop ",
+		"/device/abc123",
+		// The SAML bindings cap relay state at 80 bytes; a longer value is not
+		// something a conformant IdP echoed back.
+		strings.Repeat("a", 81),
+	} {
+		require.Empty(t, fleet.ParseSSORelayState(unknown), unknown)
+	}
+}
+
+func TestValidateMDMProfileName(t *testing.T) {
+	cases := []struct {
+		name    string
+		wantErr string
+	}{
+		{"Disable camera", ""},
+		{"", "can't be empty"},
+		{"   ", "can't be empty"},
+		{strings.Repeat("a", fleet.MaxProfileNameLength), ""},
+		{strings.Repeat("a", fleet.MaxProfileNameLength+1), fleet.MaxProfileNameLengthErrMsg},
+		{"Wi-Fi $FLEET_SECRET_PASSWORD", "FLEET_SECRET"},
+		{fleetmdm.FleetdConfigProfileName, "not allowed"},
+	}
+	for _, c := range cases {
+		err := fleet.ValidateMDMProfileName(c.name)
+		if c.wantErr == "" {
+			require.NoError(t, err, c.name)
+			continue
+		}
+		require.ErrorContains(t, err, c.wantErr, c.name)
+	}
+}
+
+func TestValidateMDMProfileDescription(t *testing.T) {
+	require.NoError(t, fleet.ValidateMDMProfileDescription(""))
+	require.NoError(t, fleet.ValidateMDMProfileDescription(strings.Repeat("d", fleet.MDMProfileMaxDescriptionLen)))
+	require.ErrorContains(t, fleet.ValidateMDMProfileDescription(strings.Repeat("d", fleet.MDMProfileMaxDescriptionLen+1)), "longer than")
+}
+
+func TestPayloadDisplayNameFromMobileconfig(t *testing.T) {
+	// nested payloads first, as exported by Apple's tools
+	mc := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+	<key>PayloadContent</key>
+	<array><dict>
+		<key>PayloadDisplayName</key>
+		<string>Nested</string>
+		<key>PayloadIdentifier</key>
+		<string>com.example.nested</string>
+		<key>PayloadType</key>
+		<string>com.apple.applicationaccess</string>
+		<key>PayloadUUID</key>
+		<string>11111111-1111-1111-1111-111111111111</string>
+		<key>PayloadVersion</key>
+		<integer>1</integer>
+	</dict></array>
+	<key>PayloadDisplayName</key>
+	<string> Top level </string>
+	<key>PayloadIdentifier</key>
+	<string>com.example.top</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>22222222-2222-2222-2222-222222222222</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict></plist>`)
+	require.Equal(t, "Top level", fleet.PayloadDisplayNameFromMobileconfig(mc))
+	require.Empty(t, fleet.PayloadDisplayNameFromMobileconfig([]byte("<plist/>")))
+	require.Empty(t, fleet.PayloadDisplayNameFromMobileconfig(nil))
+}
+
+func TestSanitizeEULAFileName(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct{ in, want string }{
+		{"terms.md", "terms.md"},
+		{"../../terms.md", "terms.md"},
+		{`..\..\Startup\run.pdf`, "run.pdf"},
+		{"a/", ""},
+		{"..", ""},
+		{".", ""},
+		{"a/..", ""},
+		{"", ""},
+		{" terms.md\t", "terms.md"},
+		{"ter\x00ms\r\n.md", "terms.md"},
+		{"terms\u202edm.exe", "termsdm.exe"},
+	} {
+		require.Equal(t, tc.want, fleet.SanitizeEULAFileName(tc.in), "%q", tc.in)
+	}
+}
+
+func TestMDMEULAPlatformValidated(t *testing.T) {
+	for _, tc := range []struct {
+		in   fleet.MDMEULAPlatform
+		want fleet.MDMEULAPlatform
+	}{
+		{"", fleet.MDMEULAPlatformDarwin},
+		{fleet.MDMEULAPlatformDarwin, fleet.MDMEULAPlatformDarwin},
+		{fleet.MDMEULAPlatformWindows, fleet.MDMEULAPlatformWindows},
+	} {
+		got, err := tc.in.Validated()
+		require.NoError(t, err, tc.in)
+		require.Equal(t, tc.want, got)
+	}
+	for _, in := range []fleet.MDMEULAPlatform{"linux", "Windows", "macos", " darwin"} {
+		_, err := in.Validated()
+		var invalid *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &invalid, in)
+	}
 }

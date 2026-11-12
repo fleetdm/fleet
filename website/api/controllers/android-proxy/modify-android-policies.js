@@ -24,6 +24,11 @@ module.exports = {
     missingAuthHeader: { description: 'This request was missing an authorization header.', responseType: 'unauthorized'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
+    enterpriseNotAccessible: { description: 'Fleet is not authorized to manage this Android enterprise.', responseType: 'notFound' },
+    invalidPolicy: { description: 'Invalid patch policy request', responseType: 'badRequest' },
+    policyNotFound: { description: 'The specified policy was not found on this Android enterprise', responseType: 'notFound' },
+    managementApiError: { statusCode: 503, description: 'The Android management API returned a transient 5xx error.' },
+    tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
   },
 
 
@@ -53,41 +58,46 @@ module.exports = {
       throw 'unauthorized';
     }
 
-    // Check the list of Android Enterprises managed by Fleet to see if this Android Enterprise is still managed.
-    let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(androidEnterpriseId);
-    // Return a 404 response if this Android enterprise is no longer managed by Fleet.
-    if(!isEnterpriseManagedByFleet) {
-      throw 'notFound';
-    }
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
 
     // Update the policy for this Android enterprise.
     // Note: We're using sails.helpers.flow.build here to handle any errors that occurr using google's node library.
     let modifyPoliciesResponse = await sails.helpers.flow.build(async () => {
       let { google } = require('googleapis');
-      let androidmanagement = google.androidmanagement('v1');
-      let googleAuth = new google.auth.GoogleAuth({
-        scopes: ['https://www.googleapis.com/auth/androidmanagement'],
-        credentials: {
-          client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-          private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-        },
-      });
-      // Acquire the google auth client, and bind it to all future calls
-      let authClient = await googleAuth.getClient();
-      google.options({ auth: authClient });
+      let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
       // [?]: https://googleapis.dev/nodejs/googleapis/latest/androidmanagement/classes/Resource$Enterprises$Policies.html#patch
-      let patchPoliciesResponse = await androidmanagement.enterprises.policies.patch({
+      sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+      if (!sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId]) { sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId] = {count: 0, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl}; }
+      sails.androidProxyApiRequestCountByEnterpriseId[androidEnterpriseId].count++;      let _rtKey = androidEnterpriseId + ':modify_policy';
+      if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'modify_policy'}; }
+      sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
+      let patchPoliciesResponse = await androidManagementConnection.enterprises.policies.patch({
         name: `enterprises/${androidEnterpriseId}/policies/${policyId}`,
+        // Note: Typically, we use defined inputs instead of accessing req.body directly. We forward req.body here to prevent previously set values from being overwritten by undefined values.
+        // This behavior should not be repeated in future Android proxy endpoints.
         requestBody: this.req.body,
         updateMask: this.req.param('updateMask') // Pass the update mask to avoid overwriting applications
       });
       return patchPoliciesResponse.data;
-    }).intercept({status: 429}, (err)=>{
+    }).intercept({ status: 429 }, () => {
       // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
       sails.log.warn(`p1: Android management API rate limit exceeded!`);
-      return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
-    }).intercept((err)=>{
-      return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+      // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
+      return 'tooManyRequests';
+    }).intercept({ status: 400 }, (err) => {
+      return {'invalidPolicy': `Attempted to update a policy with an invalid value for an Android enterprise (${androidEnterpriseId}): ${err}`};
+    }).intercept({status: 403}, ()=>{
+      // If the Android management API returns a 403 response, return a enterpriseNotAccessible (notFound) response to the Fleet server.
+      return {'enterpriseNotAccessible': 'Fleet is not authorized to manage this Android enterprise.'};
+    }).intercept({ status: 404 }, (err) => {
+      return {'policyNotFound': `Specified policy not found on this Android enterprise (${androidEnterpriseId}): ${err}`};
+    }).intercept((err) => {
+      if([502, 503, 504].includes(err.status)){
+        return {'managementApiError': `The Android management API returned a transient 5xx error: ${err}`};
+      }
+      return new Error(`When attempting to update a policy for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
     });
 
 

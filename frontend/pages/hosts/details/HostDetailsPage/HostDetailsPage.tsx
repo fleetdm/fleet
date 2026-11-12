@@ -1,63 +1,78 @@
-import React, { useContext, useState, useCallback, useEffect } from "react";
-import { Params, InjectedRouter } from "react-router/lib/Router";
-import { useQuery } from "react-query";
+import { omit, pick } from "lodash";
+import React, {
+  useContext,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from "react";
 import { useErrorHandler } from "react-error-boundary";
+import { useQuery, useQueryClient } from "react-query";
+import { Params, InjectedRouter } from "react-router/lib/Router";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { pick } from "lodash";
 
-import PATHS from "router/paths";
-
+import CertificateInstallDetailsModal, {
+  ICertificateInstallDetails,
+} from "components/ActivityDetails/InstallDetails/CertificateInstallDetailsModal";
+import {
+  SoftwareInstallDetailsModal,
+  IPackageInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
+import {
+  SoftwareIpaInstallDetailsModal,
+  ISoftwareIpaInstallDetails,
+} from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal/SoftwareIpaInstallDetailsModal";
+import { SoftwareScriptDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import {
+  VppInstallDetailsModal,
+  IVppInstallDetails,
+} from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import NotifyBeforePatchingDetailsModal from "components/ActivityDetails/NotifyBeforePatchingDetailsModal";
+import RotationFailedDetailsModal, {
+  RotationFailedSubject,
+} from "components/ActivityDetails/RotationFailedDetailsModal";
+import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+import BackButton from "components/BackButton";
+import CustomLink from "components/CustomLink/CustomLink";
+import EmptyState from "components/EmptyState";
+import IconStatusMessage from "components/IconStatusMessage";
+import MainContent, { IMainContentConfig } from "components/MainContent";
+import EnrollmentAttemptDetailsModal, {
+  IEnrollmentAttemptDetailsModalProps,
+} from "components/modals/EnrollmentAttemptDetailsModal";
+import FailedEnrollmentProfileModal, {
+  IFailedEnrollmentProfileModalProps,
+} from "components/modals/FailedEnrollmentProfileModal";
+import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-
-import activitiesAPI, {
-  IHostPastActivitiesResponse,
-  IHostUpcomingActivitiesResponse,
-} from "services/entities/activities";
-import hostAPI, {
-  IGetHostCertificatesResponse,
-  IGetHostCertsRequestParams,
-} from "services/entities/hosts";
-import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import commandAPI from "services/entities/command";
-
 import {
-  IHost,
-  IMacadminsResponse,
-  IHostResponse,
-  IHostMdmData,
-  IPackStats,
-} from "interfaces/host";
-import { ILabel } from "interfaces/label";
-import { IListSort } from "interfaces/list_options";
-import { IHostPolicy } from "interfaces/policy";
-import { IQueryStats } from "interfaces/query_stats";
-import {
-  IHostSoftware,
-  resolveUninstallStatus,
-  SCRIPT_PACKAGE_SOURCES,
-  SoftwareInstallUninstallStatus,
-} from "interfaces/software";
-import { ITeam } from "interfaces/team";
-import { ActivityType, IHostUpcomingActivity } from "interfaces/activity";
+  ActivityType,
+  IActivityDetails,
+  IHostUpcomingActivity,
+} from "interfaces/activity";
 import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isBYODAccountDrivenUserEnrollment } from "interfaces/mdm";
 import { ICommand } from "interfaces/command";
-
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
-import permissions from "utilities/permissions";
+import { IHostCustomVital } from "interfaces/custom_host_vitals";
+import { IHost, IMacadminsResponse, IHostResponse } from "interfaces/host";
+import { ILabel } from "interfaces/label";
+import { IListSort } from "interfaces/list_options";
 import {
-  DOCUMENT_TITLE_SUFFIX,
-  HOST_SUMMARY_DATA,
-  HOST_VITALS_DATA,
-  HOST_OSQUERY_DATA,
-  DEFAULT_USE_QUERY_OPTIONS,
-} from "utilities/constants";
-
+  canTriggerAPNSPing,
+  FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
+  isPersonalEnrollment,
+} from "interfaces/mdm";
 import {
+  HostPlatform,
   isAppleDevice,
   isMacOS,
   isAndroid,
@@ -65,77 +80,116 @@ import {
   isLinuxLike,
   isWindows,
 } from "interfaces/platform";
-
-import Spinner from "components/Spinner";
-import TabNav from "components/TabNav";
-import TabText from "components/TabText";
-import MainContent, { IMainContentConfig } from "components/MainContent";
-import BackButton from "components/BackButton";
-import CustomLink from "components/CustomLink/CustomLink";
-import EmptyTable from "components/EmptyTable";
-
+import { IHostPolicy } from "interfaces/policy";
+import {
+  IHostSoftware,
+  resolveUninstallStatus,
+  SCRIPT_PACKAGE_SOURCES,
+  SoftwareInstallUninstallStatus,
+} from "interfaces/software";
+import { ITeam } from "interfaces/team";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
+import CommandResultsModal, {
+  getIconName,
+  getVerbForCommandStatus,
+} from "pages/hosts/components/CommandDetailsModal";
 import {
-  VppInstallDetailsModal,
-  IVppInstallDetails,
-} from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+  getDiskEncryptionSettings,
+  isMacOSDiskEncryptionEnforceOnly,
+} from "pages/ManageControlsPage/OSSettings/cards/DiskEncryption/helpers";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+import PATHS from "router/paths";
+import activitiesAPI, {
+  IHostPastActivitiesResponse,
+  IHostUpcomingActivitiesResponse,
+} from "services/entities/activities";
+import commandAPI from "services/entities/command";
+import hostAPI, {
+  IGetHostCertificatesResponse,
+  IGetHostCertsApiParams,
+} from "services/entities/hosts";
+import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import {
-  SoftwareInstallDetailsModal,
-  IPackageInstallDetails,
-} from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal/SoftwareInstallDetailsModal";
-import { SoftwareScriptDetailsModal } from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal/SoftwareScriptDetailsModal";
+  formatMdmCommandNameForActivityItem,
+  getMdmCommandDisplayName,
+} from "utilities/activityHelpers";
 import {
-  SoftwareIpaInstallDetailsModal,
-  ISoftwareIpaInstallDetails,
-} from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal/SoftwareIpaInstallDetailsModal";
-import SoftwareUninstallDetailsModal, {
-  ISWUninstallDetailsParentState,
-} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
-import { IShowActivityDetailsData } from "components/ActivityItem/ActivityItem";
+  DOCUMENT_TITLE_SUFFIX,
+  HOST_SUMMARY_DATA,
+  HOST_VITALS_DATA,
+  HOST_OSQUERY_DATA,
+  DEFAULT_USE_QUERY_OPTIONS,
+} from "utilities/constants";
+import { timeAgo } from "utilities/date_format";
+import {
+  getHostOSDisplayName,
+  normalizeEmptyValues,
+  wrapFleetHelper,
+} from "utilities/helpers";
+import local from "utilities/local";
+import permissions from "utilities/permissions";
+import { getPathWithQueryParams } from "utilities/url";
 
-import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
-
-import HostSummaryCard from "../cards/HostSummary";
-import VitalsCard from "../cards/Vitals";
-import UserCard from "../cards/User";
+import DeleteHostModal from "../../components/DeleteHostModal";
+import TransferHostModal from "../../components/TransferHostModal";
 import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
-import LabelsCard from "../cards/Labels";
-import MunkiIssuesCard from "../cards/MunkiIssues";
-import SoftwareInventoryCard from "../cards/Software";
-import SoftwareLibraryCard from "../cards/HostSoftwareLibrary";
-import LocalUserAccountsCard from "../cards/LocalUserAccounts";
-import PoliciesCard from "../cards/Policies";
-import QueriesCard from "../cards/Queries";
-import PacksCard from "../cards/Packs";
-import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import CertificatesCard from "../cards/Certificates";
-
-import TransferHostModal from "../../components/TransferHostModal";
-import DeleteHostModal from "../../components/DeleteHostModal";
-
-import UnenrollMdmModal from "./modals/UnenrollMdmModal";
-import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
-import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
-import OSSettingsModal from "../OSSettingsModal";
-import BootstrapPackageModal from "./modals/BootstrapPackageModal";
-import ScriptModalGroup from "./modals/ScriptModalGroup";
-import SelectQueryModal from "./modals/SelectQueryModal";
-import HostDetailsBanners from "./components/HostDetailsBanners";
-import LockModal from "./modals/LockModal";
-import UnlockModal from "./modals/UnlockModal";
+import ControlsCard from "../cards/Controls";
+import { shouldShowControlsTab } from "../cards/Controls/helpers";
+import {
+  countFailedControls,
+  generateTableData,
+} from "../cards/Controls/OSSettingsTableConfig";
+import HostHeader from "../cards/HostHeader";
+import SoftwareLibraryCard from "../cards/HostSoftwareLibrary";
+import HostSummaryCard from "../cards/HostSummary";
+import LabelsCard from "../cards/Labels";
+import LocalUserAccountsCard from "../cards/LocalUserAccounts";
+import MunkiIssuesCard from "../cards/MunkiIssues";
+import PoliciesCard from "../cards/Policies";
+import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import SoftwareInventoryCard from "../cards/Software";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import UserCard from "../cards/User";
+import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
+import VitalsCard from "../cards/Vitals";
 import {
   HostMdmDeviceStatusUIState,
   getHostDeviceStatusUIState,
 } from "../helpers";
-import WipeModal from "./modals/WipeModal";
-import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { getErrorMessage } from "./helpers";
-import CancelActivityModal from "./modals/CancelActivityModal";
+import HostReportsTab from "../HostReportsTab";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
-import HostHeader from "../cards/HostHeader";
+import EditHostVitalModal from "../modals/EditHostVitalModal";
+import HostOnlineHistoryModal from "../modals/HostOnlineHistoryModal";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
-import UpdateEndUserModal from "../cards/User/components/UpdateEndUserModal";
+import LocationModal from "../modals/LocationModal";
+import MDMStatusModal from "../modals/MDMStatusModal";
+import VitalsModal from "../modals/VitalsModal";
+
+import { useHostDetailsBanner } from "./components/HostDetailsBanners";
+import ReleaseFromABModal from "./components/ReleaseFromABModal";
+import {
+  canShowMyDeviceButton,
+  getErrorMessage,
+  hasEverEnrolled,
+  getCanManageSelfServiceProfiles,
+  hasReportedVitals,
+} from "./helpers";
+import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
+import BootstrapPackageModal from "./modals/BootstrapPackageModal";
+import CancelActivityModal from "./modals/CancelActivityModal";
+import CancelCommandModal from "./modals/CancelCommandModal";
+import ClearPasscodeModal from "./modals/ClearPasscodeModal";
+import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
+import LockModal from "./modals/LockModal";
+import ManagedAccountModal from "./modals/ManagedAccountModal";
+import RecoveryLockPasswordModal from "./modals/RecoveryLockPasswordModal";
+import ScriptModalGroup from "./modals/ScriptModalGroup";
+import SelectReportModal from "./modals/SelectReportModal";
+import UnenrollMdmModal from "./modals/UnenrollMdmModal";
+import UnlockModal from "./modals/UnlockModal";
+import WipeModal from "./modals/WipeModal";
 
 const baseClass = "host-details";
 
@@ -144,12 +198,61 @@ const fullWidthCardClass = `${baseClass}__card--full-width`;
 const tripleHeightCardClass = `${baseClass}__card--triple-height`;
 
 export const REFETCH_HOST_DETAILS_POLLING_INTERVAL = 2000; // 2 seconds
-const BYOD_SW_INSTALL_LEARN_MORE_LINK =
-  "https://fleetdm.com/learn-more-about/byod-hosts-vpp-install";
 const ANDROID_SW_INSTALL_LEARN_MORE_LINK =
   "https://fleetdm.com/learn-more-about/install-google-play-apps";
+const NIXOS_PACKAGE_MANAGEMENT_LINK =
+  "https://fleetdm.com/learn-more-about/nixos-package-management";
+const SOFTWARE_LIBRARY_UNSUPPORTED_HEADER =
+  "Software library is currently not supported on this host";
+
+/** Returns the empty state explaining why the software library is unsupported
+ * on the host's platform, or undefined if it's supported. Android hosts don't
+ * support software installs yet. iOS/iPadOS user-enrolled (BYOD
+ * account-driven) hosts now do. */
+const getSoftwareLibraryUnsupportedState = (platform: HostPlatform) => {
+  if (isAndroid(platform)) {
+    return {
+      header: SOFTWARE_LIBRARY_UNSUPPORTED_HEADER,
+      info: (
+        <>
+          Software install is coming soon.{" "}
+          <CustomLink
+            text="Learn more"
+            url={ANDROID_SW_INSTALL_LEARN_MORE_LINK}
+            newTab
+          />
+        </>
+      ),
+    };
+  }
+  if (platform === "nixos") {
+    return {
+      header: SOFTWARE_LIBRARY_UNSUPPORTED_HEADER,
+      info: (
+        <>
+          Installing software on NixOS hosts happens outside of Fleet.{" "}
+          <CustomLink
+            text="Learn more"
+            url={NIXOS_PACKAGE_MANAGEMENT_LINK}
+            newTab
+          />
+        </>
+      ),
+    };
+  }
+  return undefined;
+};
 
 const ACTIVITY_CARD_DATA_STALE_TIME = 5000; // 5 seconds
+
+const SHOW_MDM_COMMANDS_STORAGE_KEY = "hostDetailsShowMDMCommands";
+
+export const getMDMCommandsToggleLocalState = (): boolean =>
+  local.getItem(SHOW_MDM_COMMANDS_STORAGE_KEY) === "true";
+
+export const setMDMCommandsToggleLocalState = (show: boolean): void => {
+  local.setItem(SHOW_MDM_COMMANDS_STORAGE_KEY, show ? "true" : "false");
+};
 
 interface IHostDetailsProps {
   router: InjectedRouter; // v3
@@ -160,6 +263,8 @@ interface IHostDetailsProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      fleet_id?: string;
+      show_mdm_status?: string;
     };
     search?: string;
   };
@@ -197,25 +302,29 @@ const HostDetailsPage = ({
     currentUser,
     isGlobalAdmin = false,
     isGlobalMaintainer,
-    isGlobalObserver,
+    isGlobalTechnician,
     isTeamMaintainerOrTeamAdmin,
     isPremiumTier = false,
     isOnlyObserver,
     filteredHostsPath,
     currentTeam,
+    isMacMdmEnabledAndConfigured,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
 
   const handlePageError = useErrorHandler();
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
-  const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
+  const [showSelectReportModal, setShowSelectReportModal] = useState(false);
   const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
-  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
   const [showDiskEncryptionModal, setShowDiskEncryptionModal] = useState(false);
+  const [
+    showRecoveryLockPasswordModal,
+    setShowRecoveryLockPasswordModal,
+  ] = useState(false);
+  const [showManagedAccountModal, setShowManagedAccountModal] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -223,6 +332,28 @@ const HostDetailsPage = ({
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [showWipeModal, setShowWipeModal] = useState(false);
   const [showUpdateEndUserModal, setShowUpdateEndUserModal] = useState(false);
+  // Undefined used to return to true after closing the lock modal
+  const [showLocationModal, setShowLocationModal] = useState<
+    boolean | undefined
+  >(false);
+  const [showMDMStatusModal, setShowMDMStatusModal] = useState(
+    location.query.show_mdm_status === "true"
+  );
+  const [showVitalsModal, setShowVitalsModal] = useState(false);
+  const [showOnlineHistoryModal, setShowOnlineHistoryModal] = useState(false);
+  // Sync MDM status modal state when the query param changes while mounted
+  // (e.g., browser back/forward navigation).
+  useEffect(() => {
+    setShowMDMStatusModal(location.query.show_mdm_status === "true");
+  }, [location.query.show_mdm_status]);
+
+  const [showClearPasscodeModal, setShowClearPasscodeModal] = useState(false);
+  const [showReleaseFromABModal, setShowReleaseFromABModal] = useState(false);
+
+  const [
+    editingCustomHostVital,
+    setEditingCustomHostVital,
+  ] = useState<IHostCustomVital | null>(null);
 
   // General-use updating state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -252,16 +383,64 @@ const HostDetailsPage = ({
     activityVPPInstallDetails,
     setActivityVPPInstallDetails,
   ] = useState<IVppInstallDetails | null>(null);
+  const [
+    certificateInstallDetails,
+    setCertificateInstallDetails,
+  ] = useState<ICertificateInstallDetails | null>(null);
   const [mdmCommandDetails, setMdmCommandDetails] = useState<ICommand | null>(
     null
   );
+  const [activityCommandDetails, setActivityCommandDetails] = useState<{
+    host_uuid: string;
+    command_uuid: string;
+    actor_full_name?: string;
+  } | null>(null);
+  const [
+    enrollmentProfileFailedDetails,
+    setEnrollmentProfileFailedDetails,
+  ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
+  const [
+    notifyBeforePatchingDetails,
+    setNotifyBeforePatchingDetails,
+  ] = useState<IActivityDetails | null>(null);
+  const [
+    enrollmentRejectedDetails,
+    setEnrollmentRejectedDetails,
+  ] = useState<Omit<IEnrollmentAttemptDetailsModalProps, "onDone"> | null>(
+    null
+  );
+  const [rotationFailedDetails, setRotationFailedDetails] = useState<{
+    detail: string;
+    hostDisplayName: string;
+    subject?: RotationFailedSubject;
+    createdAt?: string;
+  } | null>(null);
 
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  // React Router reuses this component when only host_id changes.
+  const [refetchStart, setRefetchStart] = useState<{
+    hostId: number;
+    at: number;
+    byUser: boolean;
+  } | null>(null);
+  const refetchStartTime =
+    refetchStart?.hostId === hostIdFromURL ? refetchStart.at : null;
+  const isUserRequestedRefetch =
+    refetchStart?.hostId === hostIdFromURL && refetchStart.byUser;
+  // Holds the pending next-poll timer so a focus-triggered re-entry into
+  // `onSuccess` can replace it instead of stacking a second loop.
+  const pollingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Last hostId whose refetch cycle timed out. Blocks the focus-triggered
+  // "timer just started" branch from restarting a cycle on a stale server
+  // `refetch_requested: true` after give-up.
+  const timedOutHostIdRef = useRef<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
-  const [schedule, setSchedule] = useState<IQueryStats[]>();
-  const [packsState, setPackState] = useState<IPackStats[]>();
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
+  const [refetchTimeout, setRefetchTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
+  const queryClient = useQueryClient();
+
   const [
     hostMdmDeviceStatus,
     setHostMdmDeviceState,
@@ -274,13 +453,27 @@ const HostDetailsPage = ({
     selectedCancelActivity,
     setSelectedCancelActivity,
   ] = useState<IHostUpcomingActivity | null>(null);
+  const [
+    selectedCancelCommand,
+    setSelectedCancelCommand,
+  ] = useState<ICommand | null>(null);
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
     "past" | "upcoming"
   >("past");
   const [activityPage, setActivityPage] = useState(0);
-  const [showMDMCommands, setShowMDMCommands] = useState(false);
+  // Per-browser rather than per-user: whether this becomes a shared default is
+  // still open, so keep the fix clear of where the preference ends up living.
+  const [showMDMCommands, setShowMDMCommands] = useState(
+    getMDMCommandsToggleLocalState
+  );
+
+  const updateShowMDMCommands = useCallback((show: boolean) => {
+    setActivityPage(0);
+    setShowMDMCommands(show);
+    setMDMCommandsToggleLocalState(show);
+  }, []);
 
   // certificates states
   const [
@@ -294,43 +487,21 @@ const HostDetailsPage = ({
     ...CERTIFICATES_DEFAULT_SORT,
   });
 
-  const { data: teams } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
-    "teams",
-    () => teamAPI.loadAll(),
-    {
-      enabled: !!hostIdFromURL && !!isPremiumTier,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: ILoadTeamsResponse) => data.teams,
-    }
-  );
-
-  const { data: mdm, refetch: refetchMdm } = useQuery<IHostMdmData>(
-    ["mdm", hostIdFromURL],
-    () => hostAPI.getMdm(hostIdFromURL),
-    {
-      enabled: !!hostIdFromURL,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
-      retry: false,
-      onError: (err) => {
-        // no handling needed atm. data is simply not shown.
-        console.error(err);
-      },
-    }
-  );
+  const { data: teams, isError: isTeamsError } = useQuery<
+    ILoadTeamsResponse,
+    Error,
+    ITeam[]
+  >("teams", () => teamAPI.loadAll(), {
+    enabled: !!hostIdFromURL && !!isPremiumTier,
+    retry: false,
+    select: (data: ILoadTeamsResponse) => data.fleets,
+  });
 
   const { data: macadmins, refetch: refetchMacadmins } = useQuery(
     ["macadmins", hostIdFromURL],
     () => hostAPI.loadHostDetailsExtension(hostIdFromURL, "macadmins"),
     {
       enabled: !!hostIdFromURL, // TODO(android): disable for unsupported platforms?
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
       retry: false,
       select: (data: IMacadminsResponse) => data.macadmins,
     }
@@ -344,7 +515,7 @@ const HostDetailsPage = ({
     IGetHostCertificatesResponse,
     Error,
     IGetHostCertificatesResponse,
-    Array<IGetHostCertsRequestParams & { scope: "host-certificates" }>
+    Array<IGetHostCertsApiParams & { scope: "host-certificates" }>
   >(
     [
       {
@@ -370,8 +541,16 @@ const HostDetailsPage = ({
 
   const refetchExtensions = () => {
     macadmins !== null && refetchMacadmins();
-    mdm?.enrollment_status !== null && refetchMdm();
     hostCertificates && refetchHostCertificates();
+  };
+
+  // Clears any pending next-poll timer so re-entries into onSuccess (e.g. react-query's
+  // refetchOnWindowFocus) replace the existing timer instead of stacking.
+  const clearPollingTimer = () => {
+    if (pollingTimerRef.current) {
+      clearTimeout(pollingTimerRef.current);
+      pollingTimerRef.current = null;
+    }
   };
 
   /**
@@ -380,7 +559,21 @@ const HostDetailsPage = ({
    */
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
-    setRefetchStartTime(null);
+    setRefetchStart(null);
+    clearPollingTimer();
+  };
+
+  // Replaces any pending timer, then schedules the next poll. refetchHostDetails /
+  // refetchExtensions are bound at call time (always after mount), so the forward
+  // references are safe.
+  const scheduleNextPoll = () => {
+    clearPollingTimer();
+    pollingTimerRef.current = setTimeout(() => {
+      pollingTimerRef.current = null;
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      refetchHostDetails();
+      refetchExtensions();
+    }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
   };
 
   const {
@@ -392,22 +585,49 @@ const HostDetailsPage = ({
     () => hostAPI.loadHostDetails(hostIdFromURL),
     {
       enabled: !!hostIdFromURL,
-      refetchOnMount: false,
-      refetchOnReconnect: false,
-      refetchOnWindowFocus: false,
       retry: false,
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
+        // Server flipped THIS host's refetch_requested back to false, so a prior
+        // timeout for this host is no longer "sticky". Scope the clear to the
+        // current host so navigating A (timed out) -> B -> A doesn't forget A's
+        // timeout and restart its cycle.
+        if (
+          !returnedHost.refetch_requested &&
+          timedOutHostIdRef.current === hostIdFromURL
+        ) {
+          timedOutHostIdRef.current = null;
+        }
+        // If this host's previous refetch cycle gave up and the server still reports
+        // refetch_requested: true (common with slow hosts), skip the restart path so a
+        // focus-triggered re-entry doesn't open a fresh 60s window + repeat toast.
+        const alreadyTimedOut =
+          timedOutHostIdRef.current === hostIdFromURL &&
+          refetchStartTime === null;
         // If API returns refetch_requested: true,
         // only set timer if *not* already set!
-        if (returnedHost.refetch_requested) {
+        // Pending hosts carry the flag from the moment they're created, so ignore it unless the host has enrolled and
+        // can actually return vitals. On a never-enrolled host only a click (within first 60s) sets refetchStartTime,
+        // so an explicit request still gets its spinner and its feedback.
+        if (
+          returnedHost.refetch_requested &&
+          (hasEverEnrolled(returnedHost) || refetchStartTime !== null) &&
+          !alreadyTimedOut
+        ) {
           if (!refetchStartTime) {
-            setRefetchStartTime(Date.now());
+            setRefetchStart({
+              hostId: hostIdFromURL,
+              at: Date.now(),
+              byUser: false,
+            });
           }
           setShowRefetchSpinner(true);
 
           // If Android, don't run timers/polling logic
           if (!isAndroid(returnedHost.platform)) {
+            // A host without vitals is still on its enrollment refetch, which nobody asked for, so only a Refetch click gets toasts.
+            const shouldNotify =
+              hasReportedVitals(returnedHost) || isUserRequestedRefetch;
             // Compute how long since timer started (if set)
             const totalElapsedTime = refetchStartTime
               ? Date.now() - refetchStartTime
@@ -418,10 +638,7 @@ const HostDetailsPage = ({
                 returnedHost.status === "online" ||
                 isIPadOrIPhone(returnedHost.platform)
               ) {
-                setTimeout(() => {
-                  refetchHostDetails();
-                  refetchExtensions();
-                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+                scheduleNextPoll();
               } else {
                 resetHostRefetchStates();
               }
@@ -431,23 +648,23 @@ const HostDetailsPage = ({
                 returnedHost.status === "online" ||
                 isIPadOrIPhone(returnedHost.platform)
               ) {
-                setTimeout(() => {
-                  refetchHostDetails();
-                  refetchExtensions();
-                }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+                scheduleNextPoll();
               } else {
-                renderFlash(
-                  "error",
-                  `This host is offline. Please try refetching host vitals later.`
-                );
+                if (shouldNotify) {
+                  notify.error(
+                    `This host is offline. Please try refetching host vitals later.`
+                  );
+                }
                 resetHostRefetchStates();
               }
             } else {
               // Total elapsed poll window exceeded (60s), stop and alert
-              renderFlash(
-                "error",
-                `We're having trouble fetching fresh vitals for this host. Please try again later.`
-              );
+              if (shouldNotify) {
+                notify.error(
+                  `Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds.`
+                );
+              }
+              timedOutHostIdRef.current = hostIdFromURL;
               resetHostRefetchStates();
             }
           }
@@ -463,27 +680,6 @@ const HostDetailsPage = ({
           )
         );
         setUsersState(returnedHost.users || []);
-        setSchedule(schedule);
-        if (returnedHost.pack_stats) {
-          const packStatsByType = returnedHost.pack_stats.reduce(
-            (
-              dictionary: {
-                packs: IPackStats[];
-                schedule: IQueryStats[];
-              },
-              pack: IPackStats
-            ) => {
-              if (pack.type === "pack") {
-                dictionary.packs.push(pack);
-              } else {
-                dictionary.schedule.push(...pack.query_stats);
-              }
-              return dictionary;
-            },
-            { packs: [], schedule: [] }
-          );
-          setSchedule(packStatsByType.schedule);
-        }
       },
       onError: (error) => handlePageError(error),
     }
@@ -503,6 +699,7 @@ const HostDetailsPage = ({
     IHostPastActivitiesResponse,
     Array<{
       scope: string;
+      hostId: number;
       pageIndex: number;
       perPage: number;
       activeTab: "past" | "upcoming";
@@ -511,17 +708,14 @@ const HostDetailsPage = ({
     [
       {
         scope: "past-activities",
+        hostId: hostIdFromURL,
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
         activeTab: activeActivityTab,
       },
     ],
-    ({ queryKey: [{ pageIndex, perPage }] }) => {
-      return activitiesAPI.getHostPastActivities(
-        hostIdFromURL,
-        pageIndex,
-        perPage
-      );
+    ({ queryKey: [{ hostId, pageIndex, perPage }] }) => {
+      return activitiesAPI.getHostPastActivities(hostId, pageIndex, perPage);
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -542,6 +736,7 @@ const HostDetailsPage = ({
     IHostUpcomingActivitiesResponse,
     Array<{
       scope: string;
+      hostId: number;
       pageIndex: number;
       perPage: number;
       activeTab: "past" | "upcoming";
@@ -550,14 +745,15 @@ const HostDetailsPage = ({
     [
       {
         scope: "upcoming-activities",
+        hostId: hostIdFromURL,
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
         activeTab: activeActivityTab,
       },
     ],
-    ({ queryKey: [{ pageIndex, perPage }] }) => {
+    ({ queryKey: [{ hostId, pageIndex, perPage }] }) => {
       return activitiesAPI.getHostUpcomingActivities(
-        hostIdFromURL,
+        hostId,
         pageIndex,
         perPage
       );
@@ -568,6 +764,17 @@ const HostDetailsPage = ({
       staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
+
+  const mdmConfig = host?.fleet_id
+    ? teams?.find((t) => t.id === host.fleet_id)?.mdm
+    : config?.mdm;
+
+  // We must check if the host has a UUID. Not-yet-enrolled hosts synced over from ABM will have
+  // a pending MDM status but no UUID, so there are no commands and no way to fetch them
+  const canGetMDMCommands =
+    !!isMacMdmEnabledAndConfigured &&
+    isAppleDevice(host?.platform) &&
+    !!host?.uuid;
 
   const {
     data: pastMDMCommands,
@@ -589,19 +796,18 @@ const HostDetailsPage = ({
       return commandAPI.getCommands({
         page: pageIndex,
         per_page: perPage,
-        host_identifier: hostUUID,
+        host_identifier: hostUUID ?? "",
         command_status: commandStatus,
       });
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
       keepPreviousData: true,
       staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
-  // request to get the host mdm commands
   const {
     data: upcomingMDMCommands,
     isError: upcomingMDMCommandsIsError,
@@ -622,43 +828,40 @@ const HostDetailsPage = ({
       return commandAPI.getCommands({
         page: pageIndex,
         per_page: perPage,
-        host_identifier: hostUUID,
+        host_identifier: hostUUID ?? "",
         command_status: commandStatus,
       });
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isAppleDevice(host?.platform),
+      enabled: canGetMDMCommands,
       keepPreviousData: true,
       staleTime: ACTIVITY_CARD_DATA_STALE_TIME,
     }
   );
 
-  const featuresConfig = host?.team_id
-    ? teams?.find((t) => t.id === host.team_id)?.features
+  const featuresConfig = host?.fleet_id
+    ? teams?.find((t) => t.id === host.fleet_id)?.features
     : config?.features;
 
-  const getOSVersionRequirementFromMDMConfig = (hostPlatform: string) => {
-    const mdmConfig = host?.team_id
-      ? teams?.find((t) => t.id === host.team_id)?.mdm
-      : config?.mdm;
-
-    switch (hostPlatform) {
-      case "darwin":
-        return mdmConfig?.macos_updates;
-      case "ipados":
-        return mdmConfig?.ipados_updates;
-      case "ios":
-        return mdmConfig?.ios_updates;
-      default:
-        return undefined;
-    }
-  };
+  // undefined = still resolving. Global config must be loaded, and for a
+  // teamed host the teams query must have either succeeded or errored. A
+  // teams-load failure falls back to the global setting rather than spinning
+  // forever; a missing team-level override is treated as "not disabled".
+  const teamFeaturesResolved =
+    !host?.fleet_id || teams !== undefined || isTeamsError;
+  const uptimeGloballyEnabled =
+    config?.features?.historical_data?.uptime ?? true;
+  const uptimeCollectionEnabled: boolean | undefined =
+    config?.features === undefined || !teamFeaturesResolved
+      ? undefined
+      : uptimeGloballyEnabled &&
+        (featuresConfig?.historical_data?.uptime ?? true);
 
   useEffect(() => {
     setUsersState(() => {
       return (
-        host?.users.filter((user) => {
+        host?.users?.filter((user) => {
           return user.username
             .toLowerCase()
             .includes(usersSearchString.toLowerCase());
@@ -677,6 +880,14 @@ const HostDetailsPage = ({
     }
   }, [location.pathname, host]);
 
+  useEffect(() => {
+    return () => {
+      if (refetchTimeout) {
+        clearTimeout(refetchTimeout);
+      }
+    };
+  }, [refetchTimeout]);
+
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
   const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
@@ -691,18 +902,45 @@ const HostDetailsPage = ({
     [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]
   );
 
-  const toggleOSSettingsModal = useCallback(() => {
-    setShowOSSettingsModal(!showOSSettingsModal);
-  }, [showOSSettingsModal, setShowOSSettingsModal]);
-
   const toggleBootstrapPackageModal = useCallback(() => {
     setShowBootstrapPackageModal(!showBootstrapPackageModal);
   }, [showBootstrapPackageModal, setShowBootstrapPackageModal]);
 
+  const toggleLocationModal = useCallback(() => {
+    setShowLocationModal(!showLocationModal);
+  }, [showLocationModal, setShowLocationModal]);
+
+  const toggleVitalsModal = useCallback(() => {
+    setShowVitalsModal(!showVitalsModal);
+  }, [showVitalsModal, setShowVitalsModal]);
+
+  const toggleOnlineHistoryModal = useCallback(() => {
+    setShowOnlineHistoryModal((prev) => !prev);
+  }, []);
+
+  const toggleMDMStatusModal = useCallback(() => {
+    setShowMDMStatusModal((prev) => {
+      const closing = prev;
+      // When closing, strip ?show_mdm_status=true so that refreshing or
+      // sharing the URL won't reopen the modal. Opening never adds the param
+      // — it's only set by external deep-links.
+      if (closing && location.query.show_mdm_status === "true") {
+        const rest = { ...location.query };
+        delete rest.show_mdm_status;
+        router.replace({ pathname: location.pathname, query: rest });
+      }
+      return !prev;
+    });
+  }, [location, router]);
+
+  const toggleClearPasscodeModal = useCallback(() => {
+    setShowClearPasscodeModal(!showClearPasscodeModal);
+  }, [showClearPasscodeModal, setShowClearPasscodeModal]);
+
   const onCancelPolicyDetailsModal = useCallback(() => {
-    setPolicyDetailsModal(!showPolicyDetailsModal);
+    setPolicyDetailsModal(false);
     setSelectedPolicy(null);
-  }, [showPolicyDetailsModal, setPolicyDetailsModal, setSelectedPolicy]);
+  }, [setPolicyDetailsModal, setSelectedPolicy]);
 
   const toggleUnenrollMdmModal = useCallback(() => {
     setShowUnenrollMdmModal(!showUnenrollMdmModal);
@@ -713,17 +951,18 @@ const HostDetailsPage = ({
       setIsUpdating(true);
       try {
         await hostAPI.destroy(host);
+        queryClient.invalidateQueries(["hosts_count_for_license"]);
+        // Removed rather than invalidated so the Hosts page doesn't render the
+        // cached list, which still includes the deleted host.
+        queryClient.removeQueries([{ scope: "hosts" }]);
+        queryClient.removeQueries([{ scope: "hosts_count" }]);
+        notify.success(`Host "${host.display_name}" was successfully deleted.`);
         router.push(PATHS.MANAGE_HOSTS);
-        renderFlash(
-          "success",
-          `Host "${host.display_name}" was successfully deleted.`
-        );
       } catch (error) {
         console.log(error);
-        renderFlash(
-          "error",
-          `Host "${host.display_name}" could not be deleted.`
-        );
+        notify.error(`Host "${host.display_name}" could not be deleted.`, {
+          response: error,
+        });
       } finally {
         setShowDeleteHostModal(false);
         setIsUpdating(false);
@@ -737,16 +976,31 @@ const HostDetailsPage = ({
       // unless there is an error. The spinner state is also controlled in the fullyReloadHost
       // method.
       setShowRefetchSpinner(true);
+
+      // Trigger APNS ping independently
+      if (
+        canTriggerAPNSPing(host) &&
+        permissions.isGlobalOrTeamObserverOrAbove(currentUser, host.fleet_id)
+      ) {
+        hostAPI.apnsPing(host.id).catch((error) => {
+          notify.error("Failed to send APNS ping", { response: error });
+        });
+      }
+
       try {
         await hostAPI.refetch(host).then(() => {
-          setRefetchStartTime(Date.now());
-          setTimeout(() => {
-            refetchHostDetails();
-            refetchExtensions();
-          }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+          timedOutHostIdRef.current = null;
+          setRefetchStart({
+            hostId: hostIdFromURL,
+            at: Date.now(),
+            byUser: true,
+          });
+          scheduleNextPoll();
         });
       } catch (error) {
-        renderFlash("error", getErrorMessage(error, host.display_name));
+        notify.error(getErrorMessage(error, host.display_name), {
+          response: error,
+        });
         resetHostRefetchStates();
       }
     }
@@ -755,12 +1009,56 @@ const HostDetailsPage = ({
   const resendProfile = useCallback(
     (profileUUID: string): Promise<void> => {
       if (!host?.id) {
-        return new Promise(() => undefined);
+        return Promise.resolve();
       }
       return hostAPI.resendProfile(host.id, profileUUID);
     },
     [host?.id]
   );
+
+  const installProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.installProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
+  const uninstallProfile = useCallback(
+    (profileUUID: string): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.uninstallProfile(host.id, profileUUID);
+    },
+    [host?.id]
+  );
+
+  const resendCertificate = useCallback(
+    (certificateTemplateId: number): Promise<void> => {
+      if (!host?.id) {
+        return Promise.resolve();
+      }
+      return hostAPI.resendCertificate(host.id, certificateTemplateId);
+    },
+    [host?.id]
+  );
+
+  const rotateRecoveryLockPassword = useCallback((): Promise<void> => {
+    if (!host?.id) {
+      return new Promise(() => undefined);
+    }
+    return hostAPI.rotateRecoveryLockPassword(host.id);
+  }, [host?.id]);
+
+  const resendHostNameTemplate = useCallback((): Promise<void> => {
+    if (!host?.id) {
+      return Promise.resolve();
+    }
+    return hostAPI.resendNameTemplate(host.id);
+  }, [host?.id]);
 
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
@@ -768,7 +1066,13 @@ const HostDetailsPage = ({
   };
 
   const onShowActivityDetails = useCallback(
-    ({ type, details }: IShowActivityDetailsData) => {
+    ({
+      type,
+      details,
+      created_at,
+      actor_full_name,
+      fleet_initiated,
+    }: IShowActivityDetailsData) => {
       switch (type) {
         case "ran_script":
           setScriptExecutiontId(details?.script_execution_id || "");
@@ -779,8 +1083,16 @@ const HostDetailsPage = ({
               fleetInstallStatus: details?.status as SoftwareInstallUninstallStatus,
               hostDisplayName:
                 host?.display_name || details?.host_display_name || "",
-              appName: details.software_display_name || details?.name || "", // TODO: Confirm correct field
+              appName: getDisplayedSoftwareName(
+                details.software_title,
+                details.software_display_name
+              ),
               commandUuid: details?.command_uuid,
+              failureReason: details?.failure_reason,
+              actorFullName: actor_full_name,
+              fleetInitiated: fleet_initiated,
+              selfService: details?.self_service,
+              activityCreatedAt: created_at,
             });
           } else if (SCRIPT_PACKAGE_SOURCES.includes(details?.source || "")) {
             setScriptPackageDetails({
@@ -790,6 +1102,7 @@ const HostDetailsPage = ({
               // the host object if it's available.
               host_display_name:
                 host?.display_name || details?.host_display_name || "",
+              activity_created_at: created_at,
             });
           } else {
             setPackageInstallDetails({
@@ -799,14 +1112,17 @@ const HostDetailsPage = ({
               // the host object if it's available.
               host_display_name:
                 host?.display_name || details?.host_display_name || "",
+              activity_created_at: created_at,
             });
           }
           break;
         case "uninstalled_software":
           setPackageUninstallDetails({
             ...details,
-            softwareName:
-              details?.software_display_name || details?.software_title || "",
+            softwareName: getDisplayedSoftwareName(
+              details?.software_title,
+              details?.software_display_name
+            ),
             uninstallStatus: resolveUninstallStatus(details?.status),
             scriptExecutionId: details?.script_execution_id || "",
             hostDisplayName: host?.display_name || details?.host_display_name,
@@ -814,8 +1130,10 @@ const HostDetailsPage = ({
           break;
         case "installed_app_store_app":
           setActivityVPPInstallDetails({
-            appName:
-              details?.software_display_name || details?.software_title || "",
+            appName: getDisplayedSoftwareName(
+              details?.software_title,
+              details?.software_display_name
+            ),
             fleetInstallStatus: (details?.status ||
               "pending_install") as SoftwareInstallUninstallStatus,
             commandUuid: details?.command_uuid || "",
@@ -825,6 +1143,72 @@ const HostDetailsPage = ({
             hostDisplayName:
               host?.display_name || details?.host_display_name || "",
             platform: details?.host_platform || host?.platform,
+            failureReason: details?.failure_reason,
+            actorFullName: actor_full_name,
+            fleetInitiated: fleet_initiated,
+            selfService: details?.self_service,
+            vppTokenLocation: details?.vpp_token?.location,
+            activityCreatedAt: created_at,
+          });
+          break;
+        case "installed_certificate":
+          setCertificateInstallDetails({
+            certificateName: details?.certificate_name || "",
+            hostDisplayName:
+              host?.display_name || details?.host_display_name || "",
+            status: details?.status || "",
+            detail: details?.detail || "",
+          });
+          break;
+        case ActivityType.FailedToRotateManagedLocalAccountPassword:
+          // The activity item only offers details when the host reported a reason, so detail is never empty.
+          setRotationFailedDetails({
+            detail: details?.detail || "",
+            hostDisplayName:
+              host?.display_name || details?.host_display_name || "",
+          });
+          break;
+        case ActivityType.FailedToRotateDiskEncryptionKey:
+          setRotationFailedDetails({
+            detail: details?.detail || "",
+            hostDisplayName:
+              host?.display_name || details?.host_display_name || "",
+            subject: "disk encryption key",
+            createdAt: created_at,
+          });
+          break;
+        case ActivityType.FailedEnrollmentProfileRenewal:
+          setEnrollmentProfileFailedDetails({
+            command: {
+              command_uuid: details?.command_uuid || "",
+            },
+          });
+          break;
+        case ActivityType.HostEnrollmentRejected:
+          setEnrollmentRejectedDetails({
+            hostDisplayName: host?.display_name || details?.host_display_name,
+            hostSerial: details?.host_serial,
+            reason: details?.reason,
+            platform: details?.platform,
+            createdAt: created_at,
+          });
+          break;
+        case ActivityType.RanCustomMdmCommand: {
+          const resolvedHostUuid = details?.host_uuid ?? host?.uuid;
+          if (!details?.command_uuid || !resolvedHostUuid) {
+            break;
+          }
+          setActivityCommandDetails({
+            command_uuid: details.command_uuid,
+            host_uuid: resolvedHostUuid,
+            actor_full_name,
+          });
+          break;
+        }
+        case ActivityType.NotifiedEndUserBeforePatching:
+          setNotifyBeforePatchingDetails({
+            ...details,
+            host_display_name: host?.display_name || details?.host_display_name,
           });
           break;
         default: // do nothing
@@ -885,14 +1269,16 @@ const HostDetailsPage = ({
 
       const successMessage =
         teamId === null
-          ? `Host successfully removed from teams.`
+          ? `Host successfully removed from fleets.`
           : `Host successfully transferred to  ${team.name}.`;
 
-      renderFlash("success", successMessage);
+      notify.success(successMessage);
       refetchHostDetails(); // Note: it is not necessary to `refetchExtensions` here because only team has changed
       setShowTransferHostModal(false);
     } catch (error) {
-      renderFlash("error", "Could not transfer host. Please try again.");
+      notify.error("Could not transfer host. Please try again.", {
+        response: error,
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -912,16 +1298,38 @@ const HostDetailsPage = ({
     refetchUpcomingActivities();
   }, [refetchPastActivities, refetchUpcomingActivities]);
 
+  // Memoized so the table keeps a stable `data` reference across renders.
+  const controls = useMemo(
+    () => (host ? generateTableData(host.mdm, host.platform) ?? [] : []),
+    [host]
+  );
+
+  // enforce-only (macOS disk encryption on, escrow off) fleets never receive
+  // keys, so the disk encryption control drops its key phrasing
+  const hostFleetMdm = host?.fleet_id
+    ? teams?.find((team) => team.id === host.fleet_id)?.mdm
+    : config?.mdm;
+  const fleetDiskEncryptionSettings = getDiskEncryptionSettings(hostFleetMdm);
+
   const onSelectHostAction = (action: string) => {
     switch (action) {
       case "transfer":
         setShowTransferHostModal(true);
         break;
       case "query":
-        setShowSelectQueryModal(true);
+        setShowSelectReportModal(true);
         break;
       case "diskEncryption":
         setShowDiskEncryptionModal(true);
+        break;
+      case "recoveryLockPassword":
+        setShowRecoveryLockPasswordModal(true);
+        break;
+      case "managedAccount":
+        setShowManagedAccountModal(true);
+        break;
+      case "releaseFromAB":
+        setShowReleaseFromABModal(true);
         break;
       case "mdmOff":
         toggleUnenrollMdmModal();
@@ -941,6 +1349,9 @@ const HostDetailsPage = ({
       case "wipe":
         setShowWipeModal(true);
         break;
+      case "clearPasscode":
+        setShowClearPasscodeModal(true);
+        break;
       default: // do nothing
     }
   };
@@ -954,22 +1365,75 @@ const HostDetailsPage = ({
       return null;
     }
 
+    const diskEncryptionProfile = host.mdm.profiles?.find(
+      (p) => p.name === FLEET_FILEVAULT_PROFILE_DISPLAY_NAME
+    );
+
     return (
       <HostActionsDropdown
-        hostTeamId={host.team_id}
+        hostTeamId={host.fleet_id}
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}
+        hostCpuType={host.cpu_type}
         hostStatus={host.status}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
-        doesStoreEncryptionKey={
-          host.mdm.encryption_key_available ||
-          !!host.mdm.encryption_key_archived
-        }
+        isEncryptionKeyAvailable={host.mdm.encryption_key_available}
+        isEncryptionKeyArchived={!!host.mdm.encryption_key_archived}
         isConnectedToFleetMdm={host.mdm?.connected_to_fleet}
+        isDEPAssignedToFleet={host.dep_assigned_to_fleet}
         hostScriptsEnabled={host.scripts_enabled}
+        isRecoveryLockPasswordEnabled={
+          mdmConfig?.macos_recovery_lock_password_enabled ?? false
+        }
+        diskEncryptionProfileStatus={diskEncryptionProfile?.status}
+        recoveryLockPasswordAvailable={
+          host.mdm.os_settings?.recovery_lock_password?.password_available ??
+          false
+        }
+        recoveryLockPasswordStatus={
+          host.mdm.os_settings?.recovery_lock_password?.status
+        }
+        isManagedLocalAccountEnabled={
+          host.platform === "windows"
+            ? mdmConfig?.windows_settings?.enable_managed_local_account ?? false
+            : mdmConfig?.macos_setup?.enable_managed_local_account ?? false
+        }
+        managedAccountStatus={
+          host.mdm.os_settings?.managed_local_account?.status
+        }
+        managedAccountDetail={
+          host.mdm.os_settings?.managed_local_account?.detail
+        }
+        managedAccountPasswordAvailable={
+          host.mdm.os_settings?.managed_local_account?.password_available ??
+          false
+        }
+        wipeAllowed={host.mdm.wipe_allowed}
+        lockAllowed={host.mdm.lock_allowed}
+        clearPasscodeAllowed={host.mdm.clear_passcode_allowed}
       />
     );
+  };
+
+  const onSuccessCancelCommand = () => {
+    // back to the first page: canceling the last command on a later page
+    // would otherwise strand the feed on an empty page
+    setActivityPage(0);
+    // invalidate by scope rather than the queries' bound refetch(): the
+    // refetch handles are tied to the page the user was on, while the page-0
+    // key that renders after the reset could still serve cached
+    // pre-cancellation data within the staleTime window. Invalidation covers
+    // every page of the scope, including the Upcoming tab badge and toggle
+    // label counts.
+    queryClient.invalidateQueries([{ scope: "host-upcoming-mdm-commands" }]);
+    queryClient.invalidateQueries([{ scope: "host-past-mdm-commands" }]);
+    // the canceled_mdm_command activity renders from the past-activities
+    // feed, not the command queries
+    queryClient.invalidateQueries([{ scope: "past-activities" }]);
+    // the device status chip ("Lock pending") is derived from host.mdm on the
+    // host details query
+    refetchHostDetails();
   };
 
   const onSuccessCancelActivity = (activity: IHostUpcomingActivity) => {
@@ -986,24 +1450,69 @@ const HostDetailsPage = ({
     }
   };
 
+  const onClickMyDevice = async () => {
+    if (!host) return;
+    // Open synchronously inside the click handler so popup blockers see a
+    // user-initiated open, and so we get a real WindowProxy back (passing
+    // `noopener` to window.open forces a null return per spec, which made
+    // the previous check a false positive).
+    const newWindow = window.open("about:blank", "_blank");
+    if (!newWindow) {
+      notify.error(
+        "Couldn't open My device page. Please allow pop-ups and try again."
+      );
+      return;
+    }
+    try {
+      const { device_url } = await hostAPI.getDeviceURL(host.id);
+      newWindow.location.replace(device_url);
+      newWindow.opener = null;
+    } catch (e) {
+      newWindow.close();
+      notify.error("Couldn't open My device page. Please try again.", {
+        response: e,
+      });
+    }
+  };
+
   const onUpdateEndUser = async (username: string) => {
     setIsUpdating(true);
     try {
       if (username === "") {
         await hostAPI.deleteHostIdp(hostIdFromURL);
-        renderFlash("success", "Removed end user.");
+        notify.success("Removed end user.");
       } else {
         await hostAPI.updateHostIdp(hostIdFromURL, username);
-        renderFlash("success", "Updated end user.");
+        notify.success("Updated end user.");
       }
       setShowUpdateEndUserModal(false);
       refetchHostDetails();
     } catch (e) {
-      renderFlash("error", "Could not update end user. Please try again.");
+      notify.error("Could not update end user. Please try again.", {
+        response: e,
+      });
     } finally {
       setIsUpdating(false);
     }
   };
+
+  // Computed before the loading return so MainContent knows whether this page
+  // has its own banner, which outranks the license host limit banner.
+  const hostDetailsBanner = useHostDetailsBanner({
+    mdmEnrollmentStatus: host?.mdm.enrollment_status ?? null,
+    hostPlatform: host?.platform,
+    macDiskEncryptionStatus: host?.mdm.apple_settings?.disk_encryption,
+    diskEncryptionActionRequired: host?.mdm.apple_settings?.action_required,
+    connectedToFleetMdm: host?.mdm.connected_to_fleet,
+    diskEncryptionOSSetting: host?.mdm.os_settings?.disk_encryption,
+    diskIsEncrypted: host?.disk_encryption_enabled,
+    diskEncryptionKeyAvailable: host?.mdm.encryption_key_available,
+    lastMdmEnrolledAt: host?.last_mdm_enrolled_at,
+    detailUpdatedAt: host?.detail_updated_at,
+    depAssignedToFleet: host?.dep_assigned_to_fleet || false,
+    onlyAllowAppleBusinessEnrollment:
+      config?.mdm.only_allow_apple_business_enrollment || false,
+  });
 
   if (
     !host ||
@@ -1017,28 +1526,72 @@ const HostDetailsPage = ({
   }
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
 
+  const isMacOSHost = isMacOS(host.platform);
+  const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
+  const isAndroidHost = isAndroid(host.platform);
+  const isWindowsHost = isWindows(host.platform);
+  const isLinuxHost = isLinuxLike(host.platform);
+  const isAppleDeviceHost = isAppleDevice(host.platform);
+  const isChromeOsHost = host?.platform === "chrome";
+
+  const showReportsTab =
+    !isIosOrIpadosHost && !isAndroidHost && !isChromeOsHost;
+  const showPoliciesTab = !isIosOrIpadosHost && !isAndroidHost;
+
+  const failedControlsCount = countFailedControls(controls);
+
+  const showControlsTab = shouldShowControlsTab({
+    platform: host.platform,
+    osVersion: getHostOSDisplayName(host.os_name, host.os_version),
+    enrollmentStatus: host.mdm?.enrollment_status ?? null,
+    hasControls: controls.length > 0,
+    isPlatformMdmEnabled:
+      (isAppleDeviceHost && !!config?.mdm.enabled_and_configured) ||
+      (isWindowsHost && !!config?.mdm.windows_mdm_enabled) ||
+      (isAndroidHost && !!config?.mdm.android_enabled_and_configured),
+  });
+
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
     {
       name: "Details",
       title: "details",
       pathname: PATHS.HOST_DETAILS(hostIdFromURL),
     },
+    ...(showControlsTab
+      ? [
+          {
+            name: "Controls",
+            title: "controls",
+            pathname: PATHS.HOST_CONTROLS(hostIdFromURL),
+            count: failedControlsCount,
+          },
+        ]
+      : []),
     {
       name: "Software",
       title: "software",
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
     },
-    {
-      name: "Queries",
-      title: "queries",
-      pathname: PATHS.HOST_QUERIES(hostIdFromURL),
-    },
-    {
-      name: "Policies",
-      title: "policies",
-      pathname: PATHS.HOST_POLICIES(hostIdFromURL),
-      count: failingPoliciesCount,
-    },
+    // Only include Reports for supported platforms
+    ...(showReportsTab
+      ? [
+          {
+            name: "Reports",
+            title: "reports",
+            pathname: PATHS.HOST_REPORTS(hostIdFromURL),
+          },
+        ]
+      : []),
+    ...(showPoliciesTab
+      ? [
+          {
+            name: "Policies",
+            title: "policies",
+            pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+            count: failingPoliciesCount,
+          },
+        ]
+      : []),
   ];
 
   const hostSoftwareSubNav: IHostDetailsSubNavItem[] = [
@@ -1072,62 +1625,118 @@ const HostDetailsPage = ({
 
   const navigateToNav = (i: number): void => {
     const navPath = hostDetailsSubNav[i].pathname;
-    router.push(navPath);
+    router.push(
+      getPathWithQueryParams(navPath, {
+        fleet_id: currentTeam?.id || location.query.fleet_id,
+      })
+    );
   };
-
   const navigateToSoftwareTab = (i: number): void => {
     const navPath = hostSoftwareSubNav[i].pathname;
-    router.push(navPath);
+    router.push(
+      getPathWithQueryParams(navPath, {
+        fleet_id: currentTeam?.id || location.query.fleet_id,
+      })
+    );
   };
 
-  const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, host?.team_id);
+  const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, host?.fleet_id);
   const isHostTeamMaintainer = permissions.isTeamMaintainer(
     currentUser,
-    host?.team_id
+    host?.fleet_id
+  );
+  const isHostTeamTechnician = permissions.isTeamTechnician(
+    currentUser,
+    host?.fleet_id
   );
 
-  /*  Context team id might be different that host's team id
-Observer plus must be checked against host's team id  */
-  const isGlobalOrHostsTeamObserverPlus =
-    currentUser && host?.team_id
-      ? permissions.isObserverPlus(currentUser, host.team_id)
-      : false;
+  const isHostTeamObserverPlus =
+    !!currentUser &&
+    permissions.isObserverPlus(currentUser, host?.fleet_id ?? null);
 
-  const isHostsTeamObserver =
-    currentUser && host?.team_id
-      ? permissions.isTeamObserver(currentUser, host.team_id)
-      : false;
+  // CTA permissions are checked against the host's specific team, not the
+  // currently selected team in the nav. Must align with the /reports/new
+  // route guard (AuthAnyMaintainerAdminObserverPlusRoutes).
+  const canScheduleReport =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer ||
+    isHostTeamObserverPlus;
 
-  const canViewPacks =
-    !isGlobalObserver &&
-    !isGlobalOrHostsTeamObserverPlus &&
-    !isHostsTeamObserver;
+  // Careful adding boolean logic to this component: eslint's rules-of-hooks
+  // counts code paths and each &&/||/ternary doubles them; this component is
+  // large enough that a handful more overflows the counter and every hook
+  // gets flagged as "called conditionally". Reuse this const where the
+  // admin-or-maintainer check is needed.
+  const isAdminOrMaintainer =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer;
+
+  const canManagePolicies = isAdminOrMaintainer;
+
+  // Deliberately not reusing cancel-activity permissions: canceling MDM
+  // commands is authorized like sending them (mdm_command write), which
+  // differs from the unified queue's cancel_host_activity and is free to
+  // diverge.
+  const canCancelMDMCommands = isPremiumTier && isAdminOrMaintainer;
+
+  // Technicians can open /controls but can't add anything once there — both
+  // configuration profiles and the script library hide their add actions for
+  // them — so the empty state's CTA would land them on a read-only page.
+  const canAddControls = isAdminOrMaintainer;
 
   const bootstrapPackageData = {
-    status: host?.mdm.macos_setup?.bootstrap_package_status,
-    details: host?.mdm.macos_setup?.details,
-    name: host?.mdm.macos_setup?.bootstrap_package_name,
+    status: host?.mdm.setup_experience?.bootstrap_package_status,
+    details: host?.mdm.setup_experience?.details,
+    name: host?.mdm.setup_experience?.bootstrap_package_name,
   };
 
-  const isMacOSHost = isMacOS(host.platform);
-  const isIosOrIpadosHost = isIPadOrIPhone(host.platform);
-  const isAndroidHost = isAndroid(host.platform);
-  const isWindowsHost = isWindows(host.platform);
-
   const canResendProfiles =
-    (isMacOSHost || isWindowsHost) &&
+    (isAppleDeviceHost || isWindowsHost || isAndroidHost) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
+      isGlobalTechnician ||
       isHostTeamAdmin ||
-      isHostTeamMaintainer);
+      isHostTeamMaintainer ||
+      isHostTeamTechnician);
+
+  const canManageSelfServiceProfiles = getCanManageSelfServiceProfiles(
+    isPremiumTier,
+    isMacOSHost,
+    canResendProfiles
+  );
+
+  // "My device" link points to that host's end-user My device page. The URL
+  // embeds the device auth token so it acts as a credential, hence global
+  // admin only. Also hide it on hosts that have no live end-user surface —
+  // no Fleet Desktop (so no token, and no page to load) or wiped.
+  const canViewMyDeviceLink =
+    isGlobalAdmin &&
+    canShowMyDeviceButton(
+      host,
+      config?.fleet_desktop.sso_enabled ?? false,
+      isPremiumTier
+    );
+
+  const canEditCustomHostVitals =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer;
 
   const showSoftwareLibraryTab = isPremiumTier;
-
-  const showActivityCard = !isAndroidHost;
+  const softwareLibraryUnsupportedState = getSoftwareLibraryUnsupportedState(
+    host.platform
+  );
+  const showReportsEmptyState = host.mdm?.enrollment_status === "Pending";
   const showAgentOptionsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showLocalUserAccountsCard = !isIosOrIpadosHost && !isAndroidHost;
   const showCertificatesCard =
-    isAppleDevice(host.platform) && !!hostCertificates?.certificates.length;
+    (isAppleDeviceHost || isWindowsHost) &&
+    (isErrorHostCertificates || !!hostCertificates?.certificates.length);
 
   const renderSoftwareCard = () => {
     return (
@@ -1142,7 +1751,7 @@ Observer plus must be checked against host's team id  */
                 <TabText>Library</TabText>
               </Tab>
             </TabList>
-            <TabPanel>
+            <TabPanel className={`${baseClass}__software-inventory-tab-panel`}>
               <SoftwareInventoryCard
                 id={host.id}
                 platform={host.platform}
@@ -1157,7 +1766,7 @@ Observer plus must be checked against host's team id  */
                 onShowInventoryVersions={
                   onSetSelectedHostSWForInventoryVersions
                 }
-                hostTeamId={host.team_id || 0}
+                hostTeamId={host.fleet_id || 0}
                 hostMdmEnrollmentStatus={host.mdm.enrollment_status}
               />
               {isMacOSHost && macadmins?.munki?.version && (
@@ -1169,28 +1778,8 @@ Observer plus must be checked against host's team id  */
               )}
             </TabPanel>
             <TabPanel>
-              {/* There is a special case for BYOD account driven enrolled mdm hosts where we are not
-               currently supporting software installs. This check should be removed
-               when we add that feature. Note: Android is currently a subset of BYODAccountDrivenUserEnrollment */}
-              {isBYODAccountDrivenUserEnrollment(host.mdm.enrollment_status) ||
-              isAndroidHost ? (
-                <EmptyTable
-                  header="Software library is currently not supported on this host."
-                  info={
-                    <>
-                      Software install is coming soon.{" "}
-                      <CustomLink
-                        newTab
-                        text="Learn more"
-                        url={
-                          isAndroidHost
-                            ? ANDROID_SW_INSTALL_LEARN_MORE_LINK
-                            : BYOD_SW_INSTALL_LEARN_MORE_LINK
-                        }
-                      />
-                    </>
-                  }
-                />
+              {softwareLibraryUnsupportedState ? (
+                <EmptyState {...softwareLibraryUnsupportedState} />
               ) : (
                 <SoftwareLibraryCard
                   id={host.id}
@@ -1201,14 +1790,18 @@ Observer plus must be checked against host's team id  */
                   isSoftwareEnabled={featuresConfig?.enable_software_inventory}
                   router={router}
                   queryParams={{
-                    ...parseHostSoftwareQueryParams(location.query),
+                    // Types and AI tools filter the Inventory tab only.
+                    ...omit(parseHostSoftwareQueryParams(location.query), [
+                      "types",
+                      "ai_tool",
+                    ]),
                     available_for_install: true,
                   }}
                   pathname={location.pathname}
                   onShowInventoryVersions={
                     onSetSelectedHostSWForInventoryVersions
                   }
-                  hostTeamId={host.team_id || 0}
+                  hostTeamId={host.fleet_id || 0}
                   hostName={host.display_name}
                   hostMDMEnrolled={host.mdm.connected_to_fleet}
                   isHostOnline={host.status === "online"}
@@ -1219,7 +1812,7 @@ Observer plus must be checked against host's team id  */
             </TabPanel>
           </>
         ) : (
-          <>
+          <div className={`${baseClass}__software-inventory-tab-panel`}>
             <SoftwareInventoryCard
               id={host.id}
               platform={host.platform}
@@ -1232,7 +1825,7 @@ Observer plus must be checked against host's team id  */
               }}
               pathname={location.pathname}
               onShowInventoryVersions={onSetSelectedHostSWForInventoryVersions}
-              hostTeamId={host.team_id || 0}
+              hostTeamId={host.fleet_id || 0}
             />
             {isMacOSHost && macadmins?.munki?.version && (
               <MunkiIssuesCard
@@ -1241,7 +1834,7 @@ Observer plus must be checked against host's team id  */
                 deviceType={host?.platform === "darwin" ? "macos" : ""}
               />
             )}
-          </>
+          </div>
         )}
       </div>
     );
@@ -1251,23 +1844,16 @@ Observer plus must be checked against host's team id  */
     return (
       <>
         <>
-          {!mainContentConfig.renderedBanner && (
-            <HostDetailsBanners
-              mdmEnrollmentStatus={host?.mdm.enrollment_status}
-              hostPlatform={host?.platform}
-              macDiskEncryptionStatus={
-                host?.mdm.macos_settings?.disk_encryption
-              }
-              connectedToFleetMdm={host?.mdm.connected_to_fleet}
-              diskEncryptionOSSetting={host?.mdm.os_settings?.disk_encryption}
-              diskIsEncrypted={host?.disk_encryption_enabled}
-              diskEncryptionKeyAvailable={host?.mdm.encryption_key_available}
-            />
-          )}
+          {!mainContentConfig.renderedBanner && hostDetailsBanner}
           <div className={`${baseClass}__header-links`}>
             <BackButton
               text="Back to all hosts"
-              path={filteredHostsPath || PATHS.MANAGE_HOSTS}
+              path={
+                filteredHostsPath ||
+                getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                  fleet_id: location.query.fleet_id,
+                })
+              }
             />
           </div>
           <div className={`${baseClass}__header-summary`}>
@@ -1277,6 +1863,7 @@ Observer plus must be checked against host's team id  */
               onRefetchHost={onRefetchHost}
               renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
+              hostMdmEnrollmentStatus={host.mdm?.enrollment_status ?? null}
             />
           </div>
           <TabNav className={`${baseClass}__tab-nav`}>
@@ -1302,79 +1889,76 @@ Observer plus must be checked against host's team id  */
                   summaryData={summaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
-                  toggleOSSettingsModal={toggleOSSettingsModal}
+                  showPatchDeadline
                   toggleBootstrapPackageModal={toggleBootstrapPackageModal}
-                  hostSettings={host?.mdm.profiles ?? []}
-                  osSettings={host?.mdm.os_settings}
+                  toggleOnlineHistoryModal={toggleOnlineHistoryModal}
                   className={fullWidthCardClass}
                 />
                 <VitalsCard
                   className={fullWidthCardClass}
                   vitalsData={vitalsData}
                   munki={macadmins?.munki}
-                  mdm={mdm}
-                  osVersionRequirement={getOSVersionRequirementFromMDMConfig(
-                    host.platform
-                  )}
+                  mdm={host?.mdm}
+                  osUpdateMinimumVersion={host.os_update_minimum_version}
+                  osUpdateDeadline={host.os_update_deadline}
+                  toggleLocationModal={toggleLocationModal}
+                  toggleMDMStatusModal={toggleMDMStatusModal}
+                  toggleVitalsModal={toggleVitalsModal}
+                  customHostVitals={host.custom_host_vitals}
+                  onEditCustomHostVital={
+                    canEditCustomHostVitals
+                      ? setEditingCustomHostVital
+                      : undefined
+                  }
                 />
-                {showActivityCard && (
-                  <ActivityCard
-                    className={
-                      showAgentOptionsCard
-                        ? tripleHeightCardClass
-                        : defaultCardClass
-                    }
-                    activeTab={activeActivityTab}
-                    activities={
-                      activeActivityTab === "past"
-                        ? pastActivities
-                        : upcomingActivities
-                    }
-                    commands={
-                      activeActivityTab === "past"
-                        ? pastMDMCommands
-                        : upcomingMDMCommands
-                    }
-                    isLoading={
-                      activeActivityTab === "past"
-                        ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
-                        : upcomingActivitiesIsFetching ||
-                          upcomingMDMCommandsIsFetching
-                    }
-                    isError={
-                      activeActivityTab === "past"
-                        ? pastActivitiesIsError || pastMDMCommandsIsError
-                        : upcomingActivitiesIsError ||
-                          upcomingMDMCommandsIsError
-                    }
-                    canCancelActivities={
-                      isGlobalAdmin ||
-                      isGlobalMaintainer ||
-                      isHostTeamAdmin ||
-                      isHostTeamMaintainer
-                    }
-                    showMDMCommandsToggle={isAppleDevice(host.platform)}
-                    showMDMCommands={showMDMCommands}
-                    onShowMDMCommands={() => {
-                      setActivityPage(0);
-                      setShowMDMCommands(true);
-                    }}
-                    onHideMDMCommands={() => {
-                      setActivityPage(0);
-                      setShowMDMCommands(false);
-                    }}
-                    upcomingCount={
-                      (upcomingActivities?.count || 0) +
-                      (upcomingMDMCommands?.count || 0)
-                    }
-                    onChangeTab={onChangeActivityTab}
-                    onNextPage={() => setActivityPage(activityPage + 1)}
-                    onPreviousPage={() => setActivityPage(activityPage - 1)}
-                    onShowDetails={onShowActivityDetails}
-                    onShowCommandDetails={setMdmCommandDetails}
-                    onCancel={onCancelActivity}
-                  />
-                )}
+                <ActivityCard
+                  className={
+                    showAgentOptionsCard
+                      ? tripleHeightCardClass
+                      : defaultCardClass
+                  }
+                  activeTab={activeActivityTab}
+                  activities={
+                    activeActivityTab === "past"
+                      ? pastActivities
+                      : upcomingActivities
+                  }
+                  commands={
+                    activeActivityTab === "past"
+                      ? pastMDMCommands
+                      : upcomingMDMCommands
+                  }
+                  isLoading={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsFetching || pastMDMCommandsIsFetching
+                      : upcomingActivitiesIsFetching ||
+                        upcomingMDMCommandsIsFetching
+                  }
+                  isError={
+                    activeActivityTab === "past"
+                      ? pastActivitiesIsError || pastMDMCommandsIsError
+                      : upcomingActivitiesIsError || upcomingMDMCommandsIsError
+                  }
+                  canCancelActivities={isAdminOrMaintainer}
+                  isUpcomingDisabled={isAndroidHost}
+                  showMDMCommandsToggle={canGetMDMCommands}
+                  showMDMCommands={showMDMCommands}
+                  onShowMDMCommands={() => updateShowMDMCommands(true)}
+                  onHideMDMCommands={() => updateShowMDMCommands(false)}
+                  upcomingCount={
+                    (upcomingActivities?.count || 0) +
+                    (upcomingMDMCommands?.count || 0)
+                  }
+                  onChangeTab={onChangeActivityTab}
+                  onNextPage={() => setActivityPage(activityPage + 1)}
+                  onPreviousPage={() => setActivityPage(activityPage - 1)}
+                  onShowDetails={onShowActivityDetails}
+                  onShowCommandDetails={setMdmCommandDetails}
+                  onCancel={onCancelActivity}
+                  onCancelCommand={
+                    canCancelMDMCommands ? setSelectedCancelCommand : undefined
+                  }
+                />
                 <UserCard
                   className={defaultCardClass}
                   endUsers={host.end_users ?? []}
@@ -1383,6 +1967,7 @@ Observer plus must be checked against host's team id  */
                     isGlobalAdmin ||
                     isGlobalMaintainer
                   }
+                  canViewMyDeviceLink={canViewMyDeviceLink}
                   onClickUpdateUser={(
                     e:
                       | React.MouseEvent<HTMLButtonElement>
@@ -1391,6 +1976,19 @@ Observer plus must be checked against host's team id  */
                     e.preventDefault();
                     setShowUpdateEndUserModal(true);
                   }}
+                  onClickMyDevice={(
+                    e:
+                      | React.MouseEvent<HTMLButtonElement>
+                      | React.KeyboardEvent<HTMLButtonElement>
+                  ) => {
+                    e.preventDefault();
+                    onClickMyDevice();
+                  }}
+                />
+                <LabelsCard
+                  className={defaultCardClass}
+                  labels={host?.labels || []}
+                  onLabelClick={onLabelClick}
                 />
                 {showAgentOptionsCard && (
                   <AgentOptionsCard
@@ -1400,15 +1998,6 @@ Observer plus must be checked against host's team id  */
                     isChromeOS={host?.platform === "chrome"}
                   />
                 )}
-                <LabelsCard
-                  className={
-                    !showActivityCard && !showAgentOptionsCard
-                      ? fullWidthCardClass
-                      : defaultCardClass
-                  }
-                  labels={host?.labels || []}
-                  onLabelClick={onLabelClick}
-                />
                 {showLocalUserAccountsCard && (
                   <LocalUserAccountsCard
                     className={fullWidthCardClass}
@@ -1438,6 +2027,38 @@ Observer plus must be checked against host's team id  */
                   />
                 )}
               </TabPanel>
+              {showControlsTab && (
+                <TabPanel>
+                  <ControlsCard
+                    controls={controls}
+                    hostDisplayName={host.display_name}
+                    canResendProfiles={canResendProfiles}
+                    canRotateRecoveryLockPassword={
+                      isGlobalAdmin ||
+                      isGlobalMaintainer ||
+                      isHostTeamAdmin ||
+                      isHostTeamMaintainer
+                    }
+                    canResendHostNameTemplate={canResendProfiles}
+                    canAddControls={canAddControls}
+                    isConnectedToFleetMdm={!!host.mdm?.connected_to_fleet}
+                    teamId={host.fleet_id}
+                    resendRequest={resendProfile}
+                    resendCertificateRequest={resendCertificate}
+                    rotateRecoveryLockPassword={rotateRecoveryLockPassword}
+                    resendHostNameTemplate={resendHostNameTemplate}
+                    onProfileResent={refetchHostDetails}
+                    isMacOSHost={isMacOSHost}
+                    canManageSelfServiceProfiles={canManageSelfServiceProfiles}
+                    installRequest={installProfile}
+                    uninstallRequest={uninstallProfile}
+                    isMacOSDiskEncryptionEnforceOnly={isMacOSDiskEncryptionEnforceOnly(
+                      fleetDiskEncryptionSettings
+                    )}
+                    router={router}
+                  />
+                </TabPanel>
+              )}
               <TabPanel>
                 <TabNav className={`${baseClass}__software-tab-nav`} secondary>
                   <Tabs
@@ -1448,33 +2069,49 @@ Observer plus must be checked against host's team id  */
                   </Tabs>
                 </TabNav>
               </TabPanel>
-              <TabPanel>
-                <QueriesCard
-                  hostId={host.id}
-                  router={router}
-                  hostPlatform={host.platform}
-                  schedule={schedule}
-                  queryReportsDisabled={
-                    config?.server_settings?.query_reports_disabled
-                  }
-                />
-                {canViewPacks && (
-                  <PacksCard
-                    packsState={packsState}
-                    isLoading={isLoadingHost}
+              {showReportsTab && (
+                <TabPanel>
+                  <HostReportsTab
+                    hostId={host.id}
+                    hostName={host.display_name}
+                    router={router}
+                    location={location}
+                    saveReportsDisabledInConfig={
+                      config?.server_settings?.query_reports_disabled
+                    }
+                    showReportsEmptyState={showReportsEmptyState}
+                    canScheduleReport={canScheduleReport}
+                    onScheduleReport={() =>
+                      router.push(
+                        getPathWithQueryParams(PATHS.NEW_REPORT, {
+                          host_id: host.id,
+                          fleet_id: host.fleet_id,
+                        })
+                      )
+                    }
                   />
-                )}
-              </TabPanel>
-              <TabPanel>
-                <PoliciesCard
-                  policies={host?.policies || []}
-                  isLoading={isLoadingHost}
-                  togglePolicyDetailsModal={togglePolicyDetailsModal}
-                  hostPlatform={host.platform}
-                  router={router}
-                  currentTeamId={currentTeam?.id}
-                />
-              </TabPanel>
+                </TabPanel>
+              )}
+              {showPoliciesTab && (
+                <TabPanel>
+                  <PoliciesCard
+                    policies={host?.policies || []}
+                    isLoading={isLoadingHost}
+                    togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    closePolicyDetailsModal={onCancelPolicyDetailsModal}
+                    hostPlatform={host.platform}
+                    currentTeamId={currentTeam?.id}
+                    canManagePolicies={canManagePolicies}
+                    onManagePolicies={() =>
+                      router.push(
+                        getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
+                          fleet_id: host.fleet_id,
+                        })
+                      )
+                    }
+                  />
+                </TabPanel>
+              )}
             </Tabs>
           </TabNav>
           {showDeleteHostModal && (
@@ -1482,15 +2119,18 @@ Observer plus must be checked against host's team id  */
               onCancel={() => setShowDeleteHostModal(false)}
               onSubmit={onDestroyHost}
               hostName={host?.display_name}
+              platform={host?.platform}
+              isMdmEnrolledInFleet={!!host?.mdm?.connected_to_fleet}
+              mdmEnrollmentStatus={host?.mdm?.enrollment_status}
               isUpdating={isUpdating}
             />
           )}
-          {showSelectQueryModal && host && (
-            <SelectQueryModal
-              onCancel={() => setShowSelectQueryModal(false)}
+          {showSelectReportModal && host && (
+            <SelectReportModal
+              onCancel={() => setShowSelectReportModal(false)}
               isOnlyObserver={isOnlyObserver}
               hostId={hostIdFromURL}
-              hostTeamId={host?.team_id}
+              hostTeamId={host?.fleet_id}
               router={router}
               currentTeamId={currentTeam?.id}
             />
@@ -1510,7 +2150,7 @@ Observer plus must be checked against host's team id  */
               teams={teams || []}
               isGlobalAdmin={isGlobalAdmin as boolean}
               isUpdating={isUpdating}
-              hostsTeamId={host.team_id}
+              hostsTeamId={host.fleet_id}
             />
           )}
           {!!host && showPolicyDetailsModal && (
@@ -1519,14 +2159,27 @@ Observer plus must be checked against host's team id  */
               policy={selectedPolicy}
             />
           )}
-          {showOSSettingsModal && (
-            <OSSettingsModal
-              canResendProfiles={canResendProfiles}
-              platform={host.platform}
-              hostMDMData={host.mdm}
-              onClose={toggleOSSettingsModal}
-              resendRequest={resendProfile}
-              onProfileResent={refetchHostDetails}
+          {!!host && showReleaseFromABModal && (
+            <ReleaseFromABModal
+              host={{
+                display_name: host.display_name,
+                id: host.id,
+                enrollment_status: host.mdm.enrollment_status,
+              }}
+              onExit={() => setShowReleaseFromABModal(false)}
+              onRelease={() => {
+                if (host.mdm.enrollment_status === "Pending") {
+                  router.push(
+                    filteredHostsPath ||
+                      getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
+                        fleet_id: location.query.fleet_id,
+                      })
+                  );
+                  return;
+                }
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
             />
           )}
           {showUnenrollMdmModal && !!host && host.mdm.enrollment_status && (
@@ -1535,14 +2188,83 @@ Observer plus must be checked against host's team id  */
               hostPlatform={host.platform}
               hostName={host.display_name}
               enrollmentStatus={host.mdm.enrollment_status}
+              onlyAllowAppleBusinessEnrollment={
+                config?.mdm.only_allow_apple_business_enrollment || false
+              }
+              depAssignedToFleet={host.dep_assigned_to_fleet}
               onClose={toggleUnenrollMdmModal}
+              onSuccess={() => {
+                // The server marks the host unenrolled immediately, so refresh
+                // to drop the action from the dropdown. Otherwise it stays
+                // offered until the window regains focus, and each extra
+                // confirmation queues another unenroll.
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
             />
           )}
           {showDiskEncryptionModal && host && (
             <DiskEncryptionKeyModal
               platform={host.platform}
               hostId={host.id}
+              canRotateKey={
+                isPremiumTier &&
+                isAdminOrMaintainer &&
+                host.mdm.encryption_key_available &&
+                !isPersonalEnrollment(host.mdm.enrollment_status)
+              }
+              isEscrowEnabled={fleetDiskEncryptionSettings.macOSEscrowEnabled}
               onCancel={() => setShowDiskEncryptionModal(false)}
+            />
+          )}
+          {showRecoveryLockPasswordModal && host && (
+            <RecoveryLockPasswordModal
+              hostId={host.id}
+              canRotatePassword={
+                isGlobalAdmin ||
+                isGlobalMaintainer ||
+                isHostTeamAdmin ||
+                isHostTeamMaintainer
+              }
+              onCancel={() => setShowRecoveryLockPasswordModal(false)}
+            />
+          )}
+          {!!rotationFailedDetails && (
+            <RotationFailedDetailsModal
+              detail={rotationFailedDetails.detail}
+              hostDisplayName={rotationFailedDetails.hostDisplayName}
+              subject={rotationFailedDetails.subject}
+              createdAt={rotationFailedDetails.createdAt}
+              onCancel={() => setRotationFailedDetails(null)}
+            />
+          )}
+          {showManagedAccountModal && host && (
+            <ManagedAccountModal
+              hostId={host.id}
+              canRotatePassword={
+                isGlobalAdmin ||
+                isGlobalMaintainer ||
+                isHostTeamAdmin ||
+                isHostTeamMaintainer
+              }
+              rotationFailed={
+                host.mdm.os_settings?.managed_local_account?.status === "failed"
+              }
+              onCancel={() => {
+                setShowManagedAccountModal(false);
+                // Opening the modal triggers a "viewed managed account"
+                // activity server-side and may set auto_rotate_at; refetch
+                // host details + activities so they reflect the new state.
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
+              onRotate={() => {
+                // The rotation activity and cleared auto_rotate_at land on
+                // host details / activities — refresh both so the banner and
+                // feed are in sync with the newly-rotated state.
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
             />
           )}
           {showBootstrapPackageModal &&
@@ -1566,6 +2288,12 @@ Observer plus must be checked against host's team id  */
               onCancel={onCancelSoftwareInstallDetailsModal}
             />
           )}
+          {notifyBeforePatchingDetails && (
+            <NotifyBeforePatchingDetailsModal
+              details={notifyBeforePatchingDetails}
+              onCancel={() => setNotifyBeforePatchingDetails(null)}
+            />
+          )}
           {scriptPackageDetails && (
             <SoftwareScriptDetailsModal
               details={scriptPackageDetails}
@@ -1580,6 +2308,7 @@ Observer plus must be checked against host's team id  */
                   "pending_install") as SoftwareInstallUninstallStatus,
                 hostDisplayName: ipaPackageInstallDetails.hostDisplayName || "",
                 commandUuid: ipaPackageInstallDetails.commandUuid || "",
+                activityCreatedAt: ipaPackageInstallDetails.activityCreatedAt,
               }}
               onCancel={onCancelIpaSoftwareInstallDetailsModal}
             />
@@ -1597,10 +2326,83 @@ Observer plus must be checked against host's team id  */
               onCancel={onCancelVppInstallDetailsModal}
             />
           )}
+          {!!certificateInstallDetails && (
+            <CertificateInstallDetailsModal
+              details={certificateInstallDetails}
+              onCancel={() => setCertificateInstallDetails(null)}
+            />
+          )}
           {!!mdmCommandDetails && (
             <CommandResultsModal
               command={mdmCommandDetails}
               onDone={onCancelMdmCommandDetailsModal}
+            />
+          )}
+          {!!activityCommandDetails && (
+            <CommandResultsModal
+              command={activityCommandDetails}
+              contentBody={(cls, result) => {
+                const isPending = getIconName(result.status) === "pending";
+                const cmdDisplayName = getMdmCommandDisplayName(
+                  result.request_type
+                );
+                const timeAgoText = result.updated_at
+                  ? ` (${timeAgo(new Date(result.updated_at), {
+                      addSuffix: true,
+                    })})`
+                  : "";
+                return (
+                  <IconStatusMessage
+                    className={`${cls}__status-message`}
+                    iconName={getIconName(result.status)}
+                    message={
+                      isPending ? (
+                        <span>
+                          {cmdDisplayName ? (
+                            <>
+                              {"The "}
+                              <b>{cmdDisplayName}</b>
+                              {" custom MDM command"}
+                            </>
+                          ) : (
+                            "A custom MDM command"
+                          )}
+                          {" is pending on "}
+                          <b>{result.hostname}</b>
+                          {`${timeAgoText}.`}
+                        </span>
+                      ) : (
+                        <span>
+                          {activityCommandDetails.actor_full_name && (
+                            <b>{activityCommandDetails.actor_full_name}</b>
+                          )}
+                          {` ${getVerbForCommandStatus(result.status)} `}
+                          {formatMdmCommandNameForActivityItem(
+                            result.request_type
+                          )}
+                          {" on this host."}
+                        </span>
+                      )
+                    }
+                  />
+                );
+              }}
+              onDone={() => setActivityCommandDetails(null)}
+            />
+          )}
+          {enrollmentProfileFailedDetails && (
+            <FailedEnrollmentProfileModal
+              command={enrollmentProfileFailedDetails.command}
+              onDone={() => setEnrollmentProfileFailedDetails(null)}
+            />
+          )}
+          {enrollmentRejectedDetails && (
+            <EnrollmentAttemptDetailsModal
+              hostDisplayName={enrollmentRejectedDetails.hostDisplayName}
+              reason={enrollmentRejectedDetails.reason}
+              platform={enrollmentRejectedDetails.platform}
+              createdAt={enrollmentRejectedDetails.createdAt}
+              onDone={() => setEnrollmentRejectedDetails(null)}
             />
           )}
           {showLockHostModal && (
@@ -1608,8 +2410,15 @@ Observer plus must be checked against host's team id  */
               id={host.id}
               platform={host.platform}
               hostName={host.display_name}
-              onSuccess={() => setHostMdmDeviceState("locking")}
-              onClose={() => setShowLockHostModal(false)}
+              onSuccess={() => {
+                setHostMdmDeviceState("locking");
+                setShowLocationModal(false);
+                setShowLockHostModal(false);
+              }}
+              onClose={() => {
+                setShowLockHostModal(false);
+                showLocationModal === undefined && setShowLocationModal(true);
+              }}
             />
           )}
           {showUnlockHostModal && (
@@ -1628,6 +2437,9 @@ Observer plus must be checked against host's team id  */
             <WipeModal
               id={host.id}
               hostName={host.display_name}
+              hostPlatform={host.platform}
+              isWindowsHost={isWindowsHost}
+              isLinuxHost={isLinuxHost}
               onSuccess={() => setHostMdmDeviceState("wiping")}
               onClose={() => setShowWipeModal(false)}
             />
@@ -1647,6 +2459,14 @@ Observer plus must be checked against host's team id  */
               onExit={() => setSelectedCancelActivity(null)}
             />
           )}
+          {selectedCancelCommand && (
+            <CancelCommandModal
+              hostId={host.id}
+              command={selectedCancelCommand}
+              onSuccessCancel={onSuccessCancelCommand}
+              onExit={() => setSelectedCancelCommand(null)}
+            />
+          )}
           {selectedCertificate && (
             <CertificateDetailsModal
               certificate={selectedCertificate}
@@ -1663,11 +2483,107 @@ Observer plus must be checked against host's team id  */
             onExit={() => setShowUpdateEndUserModal(false)}
           />
         )}
+        {showLocationModal && (
+          <LocationModal
+            hostGeolocation={host.geolocation}
+            onExit={toggleLocationModal}
+            iosOrIpadosDetails={{
+              isIosOrIpadosHost,
+              hostMdmDeviceStatus,
+            }}
+            onClickLock={() => {
+              setShowLockHostModal(true);
+              setShowLocationModal(undefined);
+            }}
+            detailsUpdatedAt={host.detail_updated_at}
+          />
+        )}
+        {showVitalsModal && (
+          <VitalsModal
+            host={host}
+            vitalsData={vitalsData}
+            munki={macadmins?.munki}
+            mdm={host?.mdm}
+            osUpdateMinimumVersion={host.os_update_minimum_version}
+            osUpdateDeadline={host.os_update_deadline}
+            toggleLocationModal={toggleLocationModal}
+            toggleMDMStatusModal={toggleMDMStatusModal}
+            customHostVitals={host.custom_host_vitals}
+            onEditCustomHostVital={
+              canEditCustomHostVitals ? setEditingCustomHostVital : undefined
+            }
+            onExit={toggleVitalsModal}
+          />
+        )}
+        {showOnlineHistoryModal && (
+          <HostOnlineHistoryModal
+            hostId={host.id}
+            fleetId={host.fleet_id ?? undefined}
+            uptimeCollectionEnabled={uptimeCollectionEnabled}
+            uptimeGloballyEnabled={uptimeGloballyEnabled}
+            onExit={toggleOnlineHistoryModal}
+          />
+        )}
+        {editingCustomHostVital && (
+          <EditHostVitalModal
+            hostId={host.id}
+            vital={editingCustomHostVital}
+            onCancel={() => setEditingCustomHostVital(null)}
+            onSave={() => {
+              refetchHostDetails();
+              refetchPastActivities();
+              setEditingCustomHostVital(null);
+            }}
+          />
+        )}
+        {showMDMStatusModal && host.mdm.enrollment_status && (
+          <MDMStatusModal
+            fleetId={host.fleet_id}
+            hostId={host.id}
+            depProfileError={host.mdm.dep_profile_error}
+            enrollmentStatus={host.mdm.enrollment_status}
+            isPremiumTier={isPremiumTier}
+            platform={host.platform}
+            lastMDMCheckIn={host.last_mdm_checked_in_at}
+            connectedToFleet={host.mdm.connected_to_fleet}
+            onSuccessfulCheckIn={() => {
+              // Delay the refetch of the host details
+              // so the device has time to check in.
+              const timeout = setTimeout(() => {
+                refetchHostDetails();
+              }, 5000);
+              setRefetchTimeout(timeout);
+            }}
+            user={currentUser}
+            router={router}
+            onExit={toggleMDMStatusModal}
+          />
+        )}
+        {showClearPasscodeModal && (
+          <ClearPasscodeModal
+            id={host.id}
+            hostName={host.display_name}
+            hostPlatform={host.platform}
+            hostMdmEnrollmentStatus={host.mdm.enrollment_status}
+            onExit={toggleClearPasscodeModal}
+            onSuccess={() => {
+              // Android: flip device_status to "clearing_passcode" so the badge appears.
+              // Apple follow up: #46286
+              if (isAndroid(host.platform)) {
+                setHostMdmDeviceState("clearing_passcode");
+              }
+            }}
+          />
+        )}
       </>
     );
   };
 
-  return <MainContent className={baseClass}>{renderContent}</MainContent>;
+  return (
+    <MainContent className={baseClass} pageHasBanner={!!hostDetailsBanner}>
+      {renderContent}
+    </MainContent>
+  );
 };
 
 export default HostDetailsPage;

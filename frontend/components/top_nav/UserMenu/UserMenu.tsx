@@ -6,18 +6,17 @@ import Select, {
   OptionProps,
   StylesConfig,
 } from "react-select-5";
-import { NotificationContext } from "context/notification";
-
-import { IUser } from "interfaces/user";
-import { ITeam, ITeamSummary } from "interfaces/team";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import PATHS from "router/paths";
-import { getSortedTeamOptions } from "utilities/helpers";
-
-import { PADDING } from "styles/var/padding";
-import { COLORS } from "styles/var/colors";
 
 import Icon from "components/Icon";
+import { AppContext } from "context/app";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { ITeamSummary } from "interfaces/team";
+import { IUser } from "interfaces/user";
+import PATHS from "router/paths";
+import { COLORS } from "styles/var/colors";
+import { PADDING } from "styles/var/padding";
+import permissions from "utilities/permissions";
+
 import AvatarTopNav from "../../AvatarTopNav";
 
 const baseClass = "user-menu";
@@ -50,7 +49,6 @@ const CustomDropdownIndicator = (
         name="chevron-down"
         color="ui-fleet-black-75"
         className={`${baseClass}__icon`}
-        size="small"
       />
     </components.DropdownIndicator>
   );
@@ -62,20 +60,29 @@ const CustomOption: React.FC<
   const { innerRef, data, isFocused, isKeyboardFocus } = props;
 
   return (
-    <components.Option
-      {...props}
-      isFocused={isKeyboardFocus ? isFocused : false} // work around to not preselect first option unless keyboarding
-    >
-      <div
-        className={`${baseClass}__option`}
-        ref={innerRef}
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-        tabIndex={0}
-        role="menuitem"
+    <>
+      {data.hasDividerBefore && (
+        <div
+          className={`${baseClass}__divider`}
+          aria-hidden="true"
+          role="presentation"
+        />
+      )}
+      <components.Option
+        {...props}
+        isFocused={isKeyboardFocus ? isFocused : false} // work around to not preselect first option unless keyboarding
       >
-        {data.label}
-      </div>
-    </components.Option>
+        <div
+          className={`${baseClass}__option`}
+          ref={innerRef}
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          tabIndex={0}
+          role="menuitem"
+        >
+          {data.label}
+        </div>
+      </components.Option>
+    </>
   );
 };
 
@@ -87,11 +94,13 @@ const UserMenu = ({
   currentUser,
   currentTeam,
 }: IUserMenuProps): JSX.Element => {
+  const { availableTeams, isPremiumTier, isSandboxMode } = useContext(
+    AppContext
+  );
+
   // Work around for react-select-5 not having :focus-visible pseudo class that can style dropdown on keyboard tab only
   // Work around preventing react-select-5 from auto focusing first option unless using keyboard
   const [isKeyboardFocus, setIsKeyboardFocus] = useState(false);
-
-  const { renderFlash } = useContext(NotificationContext);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -113,73 +122,111 @@ const UserMenu = ({
     };
   }, []);
 
-  const dropdownItems = [
+  const dropdownItems: IDropdownOption[] = [
     {
-      label: "My account",
-      value: "my-account",
-      onClick: () => onUserMenuItemClick(PATHS.ACCOUNT),
-    },
-    {
-      label: "Documentation",
-      value: "documentation",
-      onClick: () => {
-        window.open("https://fleetdm.com/docs", "_blank");
-      },
-    },
-    {
-      label: "Sign out",
-      value: "sign-out",
-      onClick: onLogout,
+      label: "Labels",
+      value: "labels",
+      onClick: () => onUserMenuItemClick(PATHS.MANAGE_LABELS),
     },
   ];
 
   if (isGlobalAdmin) {
-    const manageUserNavItem = {
-      label: "Users",
-      value: "manage-users",
-      onClick: () => onUserMenuItemClick(PATHS.ADMIN_USERS),
-    };
-    dropdownItems.unshift(manageUserNavItem);
-  }
-
-  const manageLabelsMenuItem = {
-    label: "Labels",
-    value: "labels",
-    onClick: () => onUserMenuItemClick(PATHS.MANAGE_LABELS),
-  };
-  dropdownItems.unshift(manageLabelsMenuItem);
-
-  if (currentUser && (isAnyTeamAdmin || isGlobalAdmin)) {
-    const userAdminTeams = currentUser.teams.filter(
-      (thisTeam: ITeam) => thisTeam.role === "admin"
-    );
-    const sortedTeams = getSortedTeamOptions(userAdminTeams);
-
-    let clickHandler = () => onUserMenuItemClick(PATHS.ADMIN_ORGANIZATION);
-    if (currentUser.global_role !== "admin") {
-      clickHandler = () => {
-        const targetTeam = sortedTeams[0];
-        if (currentTeam && currentTeam.id !== targetTeam.value) {
-          const msg = (
-            <>
-              You&apos;re not authorized to view this page for{" "}
-              <b>{currentTeam.name}</b>. Now viewing <b>{targetTeam.label}</b>.
-            </>
-          );
-          renderFlash("warning-filled", msg);
-        }
-        onUserMenuItemClick(PATHS.TEAM_DETAILS_USERS(targetTeam.value));
-      };
+    if (!isSandboxMode) {
+      dropdownItems.push({
+        label: "Organization settings",
+        value: "organization-settings",
+        hasDividerBefore: true,
+        onClick: () => onUserMenuItemClick(PATHS.ADMIN_ORGANIZATION),
+      });
+    } else {
+      dropdownItems.push({
+        label: "Integrations",
+        value: "integrations",
+        hasDividerBefore: true,
+        onClick: () => onUserMenuItemClick(PATHS.ADMIN_INTEGRATIONS),
+      });
     }
 
-    const adminMenuItem = {
-      label: "Settings",
-      value: "settings",
-      onClick: clickHandler,
+    if (!isSandboxMode) {
+      dropdownItems.push({
+        label: "Integrations",
+        value: "integrations",
+        onClick: () => onUserMenuItemClick(PATHS.ADMIN_INTEGRATIONS),
+      });
+      dropdownItems.push({
+        label: "Users",
+        value: "users",
+        onClick: () => onUserMenuItemClick(PATHS.ADMIN_USERS),
+      });
+    }
+
+    if (isPremiumTier) {
+      dropdownItems.push({
+        label: "Fleets",
+        value: "fleets",
+        onClick: () => onUserMenuItemClick(PATHS.ADMIN_FLEETS),
+      });
+    }
+  } else if (currentUser && isAnyTeamAdmin) {
+    // Resolved at click time so availableTeams is guaranteed to be loaded.
+    const getTargetTeamId = () => {
+      const currentTeamIsAdmin =
+        currentTeam && permissions.isTeamAdmin(currentUser, currentTeam.id);
+      // Use the current team if the user is an admin of it, otherwise fall back
+      // to the first team (alphabetical) the user is an admin of.
+      // availableTeams is pre-sorted alphabetically by AppContext.
+      return currentTeamIsAdmin
+        ? currentTeam.id
+        : availableTeams?.find((t) =>
+            permissions.isTeamAdmin(currentUser, t.id)
+          )?.id;
     };
 
-    dropdownItems.unshift(adminMenuItem);
+    dropdownItems.push({
+      label: "Users",
+      value: "team-users",
+      hasDividerBefore: true,
+      onClick: () =>
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(getTargetTeamId())),
+    });
+    dropdownItems.push({
+      label: "Agent options",
+      value: "team-agent-options",
+      onClick: () =>
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_OPTIONS(getTargetTeamId())),
+    });
+    dropdownItems.push({
+      label: "Settings",
+      value: "team-settings",
+      onClick: () =>
+        onUserMenuItemClick(PATHS.FLEET_DETAILS_SETTINGS(getTargetTeamId())),
+    });
   }
+
+  dropdownItems.push({
+    label: "My account",
+    value: "my-account",
+    hasDividerBefore: true,
+    onClick: () => onUserMenuItemClick(PATHS.ACCOUNT),
+  });
+  dropdownItems.push({
+    label: (
+      <span className={`${baseClass}__external-option`}>
+        Documentation
+        <Icon name="external-link" color="ui-fleet-black-75" />
+      </span>
+    ),
+    value: "documentation",
+    onClick: () => {
+      window.open("https://fleetdm.com/docs", "_blank");
+    },
+  });
+  dropdownItems.push({
+    label: "Sign out",
+    value: "sign-out",
+    hasDividerBefore: true,
+    onClick: onLogout,
+  });
 
   const customStyles: StylesConfig<IDropdownOption, false> = {
     control: (provided, state) => ({
@@ -218,7 +265,8 @@ const UserMenu = ({
     }),
     menu: (provided) => ({
       ...provided,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: COLORS["core-fleet-white"],
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "4px",
       zIndex: 6,
       marginTop: "7px",
@@ -244,13 +292,10 @@ const UserMenu = ({
       padding: "10px 8px",
       fontSize: "15px",
       backgroundColor: getOptionBackgroundColor(state),
-      color: COLORS["tooltip-bg"],
+      color: COLORS["core-fleet-black"],
       whiteSpace: "nowrap",
       "&:hover": {
         backgroundColor: COLORS["ui-fleet-black-5"],
-      },
-      "&:last-child, &:nth-last-of-type(2)": {
-        borderTop: `1px solid ${COLORS["ui-fleet-black-10"]}`,
       },
     }),
   };

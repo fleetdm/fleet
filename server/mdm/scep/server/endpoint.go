@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/go-kit/kit/endpoint"
 	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
 )
 
 // possible SCEP operations
@@ -166,6 +165,8 @@ func MakeClientEndpoints(instance string, opts ...ClientOption) (*Endpoints, err
 	var fleetOpts []fleethttp.ClientOpt
 	if co.timeout != nil {
 		fleetOpts = append(fleetOpts, fleethttp.WithTimeout(*co.timeout))
+	} else {
+		fleetOpts = append(fleetOpts, fleethttp.WithNoTimeout())
 	}
 
 	if co.rootCA != "" || co.insecure {
@@ -272,23 +273,3 @@ type SCEPResponse struct {
 }
 
 func (r SCEPResponse) scepOperation() string { return r.operation }
-
-// EndpointLoggingMiddleware returns an endpoint middleware that logs the
-// duration of each invocation, and the resulting error, if any.
-func EndpointLoggingMiddleware(logger log.Logger) endpoint.Middleware {
-	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			var keyvals []interface{}
-			// check if this is a scep endpoint, if it is, append the method to the log.
-			if oper, ok := request.(interface {
-				scepOperation() string
-			}); ok {
-				keyvals = append(keyvals, "op", oper.scepOperation())
-			}
-			defer func(begin time.Time) {
-				logger.Log(append(keyvals, "error", err, "took", time.Since(begin))...)
-			}(time.Now())
-			return next(ctx, request)
-		}
-	}
-}

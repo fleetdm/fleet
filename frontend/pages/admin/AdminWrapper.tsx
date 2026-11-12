@@ -1,13 +1,13 @@
-import React, { useContext } from "react";
-import { Tab, Tabs, TabList } from "react-tabs";
-import { InjectedRouter } from "react-router";
-import PATHS from "router/paths";
-import { AppContext } from "context/app";
-
-import TabNav from "components/TabNav";
-import MainContent from "components/MainContent";
-import TabText from "components/TabText";
 import classnames from "classnames";
+import React, { useContext } from "react";
+import { InjectedRouter } from "react-router";
+import { Tab, Tabs, TabList } from "react-tabs";
+
+import MainContent from "components/MainContent";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
+import { AppContext } from "context/app";
+import PATHS from "router/paths";
 
 interface ISettingSubNavItem {
   name: string;
@@ -48,8 +48,8 @@ const AdminWrapper = ({
       exclude: isSandboxMode,
     },
     {
-      name: "Teams",
-      pathname: PATHS.ADMIN_TEAMS,
+      name: "Fleets",
+      pathname: PATHS.ADMIN_FLEETS,
       exclude: !isPremiumTier,
     },
   ];
@@ -97,7 +97,14 @@ const AdminWrapper = ({
             </TabList>
           </Tabs>
         </TabNav>
-        {children}
+        <div className="tab-nav-routed-content">
+          <div
+            key={getTabIndex(pathname)}
+            className="tab-nav-routed-content__fade"
+          >
+            {children}
+          </div>
+        </div>
       </>
     </MainContent>
   );

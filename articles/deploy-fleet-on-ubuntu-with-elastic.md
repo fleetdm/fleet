@@ -6,7 +6,7 @@
 
 _Today we wanted to feature [Josh](https://defensivedepth.com/), a member of our community. His work was sponsored by [Internews](https://internews.org/). If you are interested in contributing to the Fleet blog, feel free to [contact us](https://fleetdm.com/company/contact) or reach out to [@jdstrong](https://osquery.slack.com/team/U04MTPBAHQS) on the osquery slack._ 
 
-This guide provides a detailed walkthrough for setting up a small production environment of Fleet alongside Elastic components (Elasticsearch, Kibana, Filebeat). The setup integrates Filebeat to collect scheduled query results from Fleet and feed them into Elasticsearch, while Kibana will be utilized for data visualization and the creation of detections. Additionally, Nginx will serve as a reverse proxy for the Kibana and Fleet web interfaces and will segregate the web administration and agent data+control planes of Fleet for more fine-grained access control.
+This guide provides a detailed walkthrough for setting up a small production environment of Fleet alongside Elastic components (Elasticsearch, Kibana, Filebeat). The setup integrates Filebeat to collect scheduled report results from Fleet and feed them into Elasticsearch, while Kibana will be utilized for data visualization and the creation of detections. Additionally, Nginx will serve as a reverse proxy for the Kibana and Fleet web interfaces and will segregate the web administration and agent data+control planes of Fleet for more fine-grained access control.
 
 The installation and configuration will begin with the Elastic stack components, followed by Fleet and its dependencies. For this guide, they will all be installed on a single server; however, for larger deployments or requirements of higher availability and scalability, a more distributed approach across multiple servers and geographical regions is recommended.
 
@@ -230,7 +230,7 @@ exit
 
 ## Install & configure Redis
 
-Redis is used for the Live Query functionality. Let's get it installed.
+Redis is used for the live report functionality. Let's get it installed.
 
 ```sh
 sudo apt-get install redis-server -y
@@ -268,7 +268,7 @@ server:
   address: 0.0.0.0:4443
   cert: /etc/letsencrypt/live/fleet.localhost.invalid/fullchain.pem
   key: /etc/letsencrypt/live/fleet.localhost.invalid/privkey.pem
-  websockets_allow_unsafe_origin: true # This is needed for Live Query functionality to work with the nginx reverse proxy we are using
+  websockets_allow_unsafe_origin: true # This is needed for live report functionality to work with the nginx reverse proxy we are using
 ```
 
 Next, let's run the `prepare db` command to complete the necessary database prep.
@@ -326,9 +326,9 @@ Fleet ships with support for Orbit, a wrapper around osquery. Orbit makes config
 
 You can start the process of generating Orbit agent packages from the Fleet interface - click on the  `Add Hosts` button. You can generate the packages anywhere that you have `fleetctl`, including on the server itself. Be sure to install the Docker engine if you need to generate installers for Windows.
 
-## Load Fleet standard query library
+## Load Fleet's library
 
-Fleet has a library of queries that are useful in many different situations - https://fleetdm.com/docs/using-fleet/standard-query-library
+Fleet has a library of report that are useful in many different situations - https://fleetdm.com/docs/using-fleet/standard-query-library
 
 Let's go ahead and load them - once this is complete, you can find them in the web interface under Queries.
 

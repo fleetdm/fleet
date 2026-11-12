@@ -1,0 +1,10 @@
+{
+  "name": "ColorSnapper 2",
+  "unique_identifier": "com.koolesache.ColorSnapper2",
+  "token": "colorsnapper",
+  "installer_format": "zip",
+  "slug": "colorsnapper/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

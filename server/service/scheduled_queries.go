@@ -17,33 +17,17 @@ import (
 // Get Scheduled Queries In Pack
 ////////////////////////////////////////////////////////////////////////////////
 
-type getScheduledQueriesInPackRequest struct {
-	ID          uint              `url:"id"`
-	ListOptions fleet.ListOptions `url:"list_options"`
-}
-
-type scheduledQueryResponse struct {
-	fleet.ScheduledQuery
-}
-
-type getScheduledQueriesInPackResponse struct {
-	Scheduled []scheduledQueryResponse `json:"scheduled"`
-	Err       error                    `json:"error,omitempty"`
-}
-
-func (r getScheduledQueriesInPackResponse) Error() error { return r.Err }
-
 func getScheduledQueriesInPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getScheduledQueriesInPackRequest)
-	resp := getScheduledQueriesInPackResponse{Scheduled: []scheduledQueryResponse{}}
+	req := request.(*fleet.GetScheduledQueriesInPackRequest)
+	resp := fleet.GetScheduledQueriesInPackResponse{Scheduled: []fleet.ScheduledQueryResponse{}}
 
 	queries, err := svc.GetScheduledQueriesInPack(ctx, req.ID, req.ListOptions)
 	if err != nil {
-		return getScheduledQueriesInPackResponse{Err: err}, nil
+		return fleet.GetScheduledQueriesInPackResponse{Err: err}, nil
 	}
 
 	for _, q := range queries {
-		resp.Scheduled = append(resp.Scheduled, scheduledQueryResponse{
+		resp.Scheduled = append(resp.Scheduled, fleet.ScheduledQueryResponse{
 			ScheduledQuery: *q,
 		})
 	}
@@ -63,26 +47,8 @@ func (svc *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts
 // Schedule Query
 ////////////////////////////////////////////////////////////////////////////////
 
-type scheduleQueryRequest struct {
-	PackID   uint    `json:"pack_id"`
-	QueryID  uint    `json:"query_id"`
-	Interval uint    `json:"interval"`
-	Snapshot *bool   `json:"snapshot"`
-	Removed  *bool   `json:"removed"`
-	Platform *string `json:"platform"`
-	Version  *string `json:"version"`
-	Shard    *uint   `json:"shard"`
-}
-
-type scheduleQueryResponse struct {
-	Scheduled *scheduledQueryResponse `json:"scheduled,omitempty"`
-	Err       error                   `json:"error,omitempty"`
-}
-
-func (r scheduleQueryResponse) Error() error { return r.Err }
-
 func scheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*scheduleQueryRequest)
+	req := request.(*fleet.ScheduleQueryRequest)
 
 	scheduled, err := svc.ScheduleQuery(ctx, &fleet.ScheduledQuery{
 		PackID:   req.PackID,
@@ -95,9 +61,9 @@ func scheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.S
 		Shard:    req.Shard,
 	})
 	if err != nil {
-		return scheduleQueryResponse{Err: err}, nil
+		return fleet.ScheduleQueryResponse{Err: err}, nil
 	}
-	return scheduleQueryResponse{Scheduled: &scheduledQueryResponse{
+	return fleet.ScheduleQueryResponse{Scheduled: &fleet.ScheduledQueryResponse{
 		ScheduledQuery: *scheduled,
 	}}, nil
 }
@@ -158,27 +124,16 @@ func findNextNameForQuery(name string, scheduled []*fleet.ScheduledQuery) string
 // Get Scheduled Query
 ////////////////////////////////////////////////////////////////////////////////
 
-type getScheduledQueryRequest struct {
-	ID uint `url:"id"`
-}
-
-type getScheduledQueryResponse struct {
-	Scheduled *scheduledQueryResponse `json:"scheduled,omitempty"`
-	Err       error                   `json:"error,omitempty"`
-}
-
-func (r getScheduledQueryResponse) Error() error { return r.Err }
-
 func getScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getScheduledQueryRequest)
+	req := request.(*fleet.GetScheduledQueryRequest)
 
 	sq, err := svc.GetScheduledQuery(ctx, req.ID)
 	if err != nil {
-		return getScheduledQueryResponse{Err: err}, nil
+		return fleet.GetScheduledQueryResponse{Err: err}, nil
 	}
 
-	return getScheduledQueryResponse{
-		Scheduled: &scheduledQueryResponse{
+	return fleet.GetScheduledQueryResponse{
+		Scheduled: &fleet.ScheduledQueryResponse{
 			ScheduledQuery: *sq,
 		},
 	}, nil
@@ -197,28 +152,16 @@ func (svc *Service) GetScheduledQuery(ctx context.Context, id uint) (*fleet.Sche
 // Modify Scheduled Query
 ////////////////////////////////////////////////////////////////////////////////
 
-type modifyScheduledQueryRequest struct {
-	ID uint `json:"-" url:"id"`
-	fleet.ScheduledQueryPayload
-}
-
-type modifyScheduledQueryResponse struct {
-	Scheduled *scheduledQueryResponse `json:"scheduled,omitempty"`
-	Err       error                   `json:"error,omitempty"`
-}
-
-func (r modifyScheduledQueryResponse) Error() error { return r.Err }
-
 func modifyScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*modifyScheduledQueryRequest)
+	req := request.(*fleet.ModifyScheduledQueryRequest)
 
 	sq, err := svc.ModifyScheduledQuery(ctx, req.ID, req.ScheduledQueryPayload)
 	if err != nil {
-		return modifyScheduledQueryResponse{Err: err}, nil
+		return fleet.ModifyScheduledQueryResponse{Err: err}, nil
 	}
 
-	return modifyScheduledQueryResponse{
-		Scheduled: &scheduledQueryResponse{
+	return fleet.ModifyScheduledQueryResponse{
+		Scheduled: &fleet.ScheduledQueryResponse{
 			ScheduledQuery: *sq,
 		},
 	}, nil
@@ -289,25 +232,15 @@ func (svc *Service) unauthorizedModifyScheduledQuery(ctx context.Context, id uin
 // Delete Scheduled Query
 ////////////////////////////////////////////////////////////////////////////////
 
-type deleteScheduledQueryRequest struct {
-	ID uint `url:"id"`
-}
-
-type deleteScheduledQueryResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r deleteScheduledQueryResponse) Error() error { return r.Err }
-
 func deleteScheduledQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*deleteScheduledQueryRequest)
+	req := request.(*fleet.DeleteScheduledQueryRequest)
 
 	err := svc.DeleteScheduledQuery(ctx, req.ID)
 	if err != nil {
-		return deleteScheduledQueryResponse{Err: err}, nil
+		return fleet.DeleteScheduledQueryResponse{Err: err}, nil
 	}
 
-	return deleteScheduledQueryResponse{}, nil
+	return fleet.DeleteScheduledQueryResponse{}, nil
 }
 
 func (svc *Service) DeleteScheduledQuery(ctx context.Context, id uint) error {

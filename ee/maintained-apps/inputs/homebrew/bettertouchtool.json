@@ -1,0 +1,10 @@
+{
+  "name": "BetterTouchTool",
+  "unique_identifier": "com.hegenberg.BetterTouchTool",
+  "token": "bettertouchtool",
+  "installer_format": "zip",
+  "slug": "bettertouchtool/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

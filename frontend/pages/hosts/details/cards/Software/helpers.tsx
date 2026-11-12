@@ -1,19 +1,89 @@
-import { QueryParams } from "utilities/url";
+import { flatMap, isEqual } from "lodash";
 import { Row } from "react-table";
-import { flatMap } from "lodash";
-import { HostPlatform, isIPadOrIPhone } from "interfaces/platform";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
+
+import { IconNames } from "components/icons";
+import {
+  isBYODAccountDrivenUserEnrollment,
+  isBYODManualEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
+import { HostPlatform, isIPadOrIPhone, isMacOS } from "interfaces/platform";
 import {
   IHostSoftware,
   IHostSoftwareUiStatus,
   IHostSoftwareWithUiStatus,
+  MACOS_APP_SOFTWARE_TYPE,
+  NO_VERSION_OR_HOST_DATA_SOURCES,
   SCRIPT_PACKAGE_SOURCES,
 } from "interfaces/software";
-import { IconNames } from "components/icons";
+import {
+  buildSoftwareFiltersQueryParams,
+  ISoftwareFilters,
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
+import { getNextLocationPath } from "utilities/helpers";
+import { QueryParams } from "utilities/url";
+
 import {
   getLastInstall,
   getLastUninstall,
 } from "../HostSoftwareLibrary/helpers";
+
+/** Written as `types` on a macOS host when nothing is selected, since an absent
+ * `types` re-applies the "App (macOS)" default. parseSoftwareTypesParam drops it
+ * as an unknown key, leaving an empty selection. */
+export const CLEARED_SOFTWARE_TYPES_PARAM = "none";
+
+interface IHostSoftwareLocationParams {
+  pathname: string;
+  platform: string;
+  query: string;
+  orderKey: string;
+  orderDirection: string;
+  page: number;
+  fleetId?: number;
+  macosApplications?: boolean;
+  filters: ISoftwareFilters;
+}
+
+/** Host software Inventory URL. Every change to the table, filters or Show
+ * helpers goes through here so none of them drops another's params. */
+export const getHostSoftwareLocationPath = ({
+  pathname,
+  platform,
+  query,
+  orderKey,
+  orderDirection,
+  page,
+  fleetId,
+  macosApplications,
+  filters,
+}: IHostSoftwareLocationParams) =>
+  getNextLocationPath({
+    pathPrefix: pathname,
+    routeTemplate: "",
+    queryParams: {
+      query,
+      order_direction: orderDirection,
+      order_key: orderKey,
+      page,
+      fleet_id: fleetId,
+      macos_applications: macosApplications,
+      ...buildSoftwareFiltersQueryParams(filters),
+      ...(isMacOS(platform) &&
+        !filters.types?.length && { types: CLEARED_SOFTWARE_TYPES_PARAM }),
+    },
+  });
+
+/** The macOS default selection narrows nothing the user asked for, so a zero
+ * count under it still means the host reported no software. */
+export const isDefaultTypeSelection = (
+  platform: string,
+  filters: ISoftwareFilters
+) =>
+  isMacOS(platform) &&
+  !filters.vulnerable &&
+  !filters.aiTool &&
+  isEqual(filters.types, [MACOS_APP_SOFTWARE_TYPE]);
 
 // available_for_install string > boolean conversion in parseHostSoftwareQueryParams
 export const getHostSoftwareFilterFromQueryParams = (
@@ -30,9 +100,38 @@ export const getHostSoftwareFilterFromQueryParams = (
 const PRE_RELEASE_ORDER = ["alpha", "beta", "rc", ""];
 
 /**
- * Removes build metadata from a version string (e.g., "1.0.0+build" -> "1.0.0").
+ * Removes build metadata, edition markers, and distribution tags from a
+ * version string so that comparisons use only the semantic core.
+ * Examples:
+ *   "1.0.0+build.1"           -> "1.0.0"
+ *   "8.0 (build 6300)"        -> "8.0"
+ *   "8.1.2 (Build 6300)"      -> "8.1.2"
+ *   "Build 4200"              -> "4200"
+ *   "8.0.46.CE"               -> "8.0.46"
+ *   "2026.3.251250-latest"    -> "2026.3.251250"
  */
-const stripBuildMetadata = (version: string): string => version.split("+")[0];
+const stripBuildMetadata = (version: string): string => {
+  if (typeof version !== "string") {
+    return "";
+  }
+
+  // Strip leading "Build " prefix, e.g. "Build 4200" -> "4200" (Sublime Text/Merge)
+  let cleaned = version.replace(/^Build\s+/i, "");
+
+  // Drop any parenthesized "build ..." suffix, e.g. "8.0 (build 6300)" -> "8.0"
+  cleaned = cleaned.replace(/\s*\(build\s+[^)]+\)\s*$/i, "");
+
+  // Drop standard SemVer +build metadata, e.g. "1.0.0+build.1" -> "1.0.0"
+  cleaned = cleaned.split("+")[0];
+
+  // Strip trailing edition suffixes like ".CE" (MySQL Workbench Community Edition)
+  cleaned = cleaned.replace(/\.CE$/i, "");
+
+  // Strip trailing "-latest" distribution channel tag (Lens)
+  cleaned = cleaned.replace(/-latest$/i, "");
+
+  return cleaned;
+};
 
 /**
  * Splits a version string into an array of numeric and string segments.
@@ -152,7 +251,7 @@ export const compareVersions = (v1: string, v2: string): number => {
 
 // INSTALLER UTILITIES
 
-const getInstallerVersion = (software: IHostSoftware) => {
+export const getInstallerVersion = (software: IHostSoftware) => {
   if (software.software_package && software.software_package.version) {
     return software.software_package.version;
   }
@@ -172,7 +271,12 @@ export const getUiStatus = (
   software: IHostSoftware,
   isHostOnline: boolean,
   hostSoftwareUpdatedAt?: string | null,
-  recentlyUpdatedIds?: Set<number>
+  recentlyUpdatedIds?: Set<number>,
+  // Self-service (end-user My device view) omits the "Patch skipped" state
+  // because patch policies are an admin concept, and the end user can already
+  // retry the install directly. Callers there pass true so a skip collapses
+  // back into the ordinary failed_install family.
+  suppressSkippedInstall = false
 ): IHostSoftwareUiStatus => {
   const { status, installed_versions, source } = software;
 
@@ -180,18 +284,30 @@ export const getUiStatus = (
   const lastUninstallDate = getLastUninstall(software)?.uninstalled_at;
   const installerVersion = getInstallerVersion(software);
   const isScriptPackage = SCRIPT_PACKAGE_SOURCES.includes(source);
+  // Some sources (e.g. tarballs, scripts) do not map to software inventory, so we will always skip
+  // inventory-based checks (e.g. recently_installed/recently_uninstalled) for these software sources
+  // This guard allows the switch to 'installed' or 'uninstalled' immediately after a tarball action succeeds.
+  const isInventoryDetectableSource = !NO_VERSION_OR_HOST_DATA_SOURCES.includes(
+    source
+  );
   /** True if a recent user-initiated action (install/uninstall) was detected for this software */
   const recentUserActionDetected =
     recentlyUpdatedIds && recentlyUpdatedIds.has(software.id);
 
-  // 0. Script Packages states
-  if (isScriptPackage) {
+  // 0. Script Packages states — only when there's no uninstall script.
+  // Script packages with an uninstall script fall through to the regular
+  // install statuses so the UI shows Install/Reinstall/Uninstall/Installed
+  // instead of Run/Rerun/Ran.
+  if (isScriptPackage && !software.software_package?.has_uninstall_script) {
     if (status === "failed_install") {
       return "failed_script";
     }
     if (status === "pending_install") {
       return isHostOnline ? "running_script" : "pending_script";
     }
+    // We never show recently installed/updated or waiting for inventory for script packages
+    // Since version won't be retreived from inventory, we are not waiting on a refetch
+    // UI status immediately changes to "Ran" status after a successful install
     if (status === "installed") {
       return "ran_script";
     }
@@ -199,15 +315,32 @@ export const getUiStatus = (
   }
 
   // 1. Failed install states
+  // Require length > 0: empty array is truthy, so `installed_versions: []`
+  // would otherwise render "Installed" for a package that was never installed
+  // (matters for script packages, which never populate installed_versions).
   if (status === "failed_install") {
+    // A patch-when-closed skip is stored as failed_install; surface it as its
+    // own status instead of "Failed" (matches the policy status page). The
+    // Self-service view opts out via suppressSkippedInstall so an end user
+    // never sees the admin-oriented "Patch skipped" label.
+    if (software.skipped_install && !suppressSkippedInstall) {
+      return "skipped_install";
+    }
     if (
       installerVersion &&
       installed_versions &&
-      installed_versions.some(
-        (iv) => compareVersions(iv.version, installerVersion) === -1
-      )
+      installed_versions.length > 0
     ) {
-      return "failed_install_update_available";
+      if (
+        installed_versions.some(
+          (iv) => compareVersions(iv.version, installerVersion) === -1
+        )
+      ) {
+        return "failed_install_update_available";
+      }
+      // Treat failed install as installed if versions still present as of 4.82 #31663
+      // UI tooltip indicates failure info in host activity logs, but shows the "Installed" status along with the install details modal
+      return "failed_install_installed";
     }
     return "failed_install";
   }
@@ -217,11 +350,18 @@ export const getUiStatus = (
     if (
       installerVersion &&
       installed_versions &&
-      installed_versions.some(
-        (iv) => compareVersions(iv.version, installerVersion) === -1
-      )
+      installed_versions.length > 0
     ) {
-      return "failed_uninstall_update_available";
+      if (
+        installed_versions.some(
+          (iv) => compareVersions(iv.version, installerVersion) === -1
+        )
+      ) {
+        return "failed_uninstall_update_available";
+      }
+      // Treat failed uninstall as installed if versions still present as of 4.82 #31663
+      // UI tooltip indicates failure info in host activity logs, but shows the "Installed" status along with the install details modal
+      return "failed_uninstall_installed";
     }
     return "failed_uninstall";
   }
@@ -248,8 +388,13 @@ export const getUiStatus = (
     return isHostOnline ? "uninstalling" : "pending_uninstall";
   }
 
-  // **Recently_uninstalled check comes BEFORE update_available**
-  if (status === null && lastUninstallDate && hostSoftwareUpdatedAt) {
+  // Recently_uninstalled check comes BEFORE update_available
+  if (
+    status === null &&
+    lastUninstallDate &&
+    hostSoftwareUpdatedAt &&
+    isInventoryDetectableSource // Only wait for inventory updates for sources that appear in software inventory
+  ) {
     const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastUninstallDate);
     if (newerDate === lastUninstallDate || recentUserActionDetected) {
       return "recently_uninstalled";
@@ -277,7 +422,11 @@ export const getUiStatus = (
 
   // 6. Recently installed (not an update)
   if (status === "installed") {
-    if (lastInstallDate && hostSoftwareUpdatedAt) {
+    if (
+      lastInstallDate &&
+      hostSoftwareUpdatedAt &&
+      isInventoryDetectableSource // Only wait for inventory updates for sources that appear in software inventory
+    ) {
       const newerDate = getNewerDate(hostSoftwareUpdatedAt, lastInstallDate);
       if (newerDate === lastInstallDate || recentUserActionDetected) {
         return "recently_installed";
@@ -326,29 +475,35 @@ export const getInstallerActionButtonConfig = (
     switch (status) {
       // Script statuses
       case "failed_script":
-        return { text: "Retry", icon: "refresh" };
+        return { text: "Retry", icon: "retry" };
       case "ran_script":
-        return { text: "Rerun", icon: "refresh" };
+        return { text: "Rerun", icon: "retry" };
       case "running_script":
       case "pending_script":
       case "never_ran_script":
         return { text: "Run", icon: "install" };
       // Normal install statuses
       case "failed_install":
+      case "failed_install_installed":
       case "failed_install_update_available":
-        return { text: "Retry", icon: "refresh" };
+        return { text: "Retry", icon: "retry" };
       case "installed":
       case "pending_uninstall":
       case "uninstalling":
       case "failed_uninstall":
+      case "failed_uninstall_installed":
       case "recently_installed":
       case "recently_updated":
-        return { text: "Reinstall", icon: "refresh" };
+        return { text: "Reinstall", icon: "retry" };
+      // skipped_install joins the update family: a patch-when-closed skip is
+      // a deferred update, so the action button reads "Update" even though the
+      // label column says "Patch skipped".
       case "pending_update":
       case "updating":
       case "update_available":
       case "failed_uninstall_update_available":
-        return { text: "Update", icon: "refresh" };
+      case "skipped_install":
+        return { text: "Update", icon: "update" };
       default:
         return { text: "Install", icon: "install" };
     }
@@ -356,8 +511,9 @@ export const getInstallerActionButtonConfig = (
     // uninstall
     switch (status) {
       case "failed_uninstall":
+      case "failed_uninstall_installed":
       case "failed_uninstall_update_available":
-        return { text: "Retry uninstall", icon: "refresh" };
+        return { text: "Retry uninstall", icon: "retry" };
       default:
         return { text: "Uninstall", icon: "trash" };
     }
@@ -368,11 +524,12 @@ export const getInstallerActionButtonConfig = (
 
 const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "failed_install", // Failed
-  "failed_install_update_available", // Failed install with update available
   "failed_script", // Failed to run (for script packages)
   "failed_uninstall", // Failed uninstall
-  "failed_uninstall_update_available", // Failed uninstall with update available
-  "update_available", // Update available
+  "failed_install_update_available", // (Shows "Failed") Failed install with update available
+  "failed_uninstall_update_available", // (Shows "Update available")  Failed uninstall with update available
+  "skipped_install", // Patch skipped (deferred update)
+  "update_available", // // Update available
   "updating", // Updating...
   "pending_update", // Update (pending)
   "running_script", // Running... (for script packages)
@@ -383,6 +540,8 @@ const INSTALL_STATUS_SORT_ORDER: IHostSoftwareUiStatus[] = [
   "pending_uninstall", // Uninstall (pending)
   "ran_script", // Ran (for script packages)
   "installed", // Installed
+  "failed_install_installed", // (Shows "Installed") Installed with a recent failed install decected
+  "failed_uninstall_installed", // (Shows "Installed") Installed with a recent failed uninstall detected
   "uninstalled", // Empty (---)
   "never_ran_script", // Empty (---) for script packages
 ];
@@ -429,15 +588,16 @@ export const getSoftwareSubheader = ({
   isMyDevicePage,
 }: IGetSoftwareSubheader): string => {
   if (isIPadOrIPhone(platform)) {
-    if (hostMdmEnrollmentStatus === "On (personal)") {
+    if (isBYODAccountDrivenUserEnrollment(hostMdmEnrollmentStatus)) {
       return isMyDevicePage
         ? "Software installed on your work profile (Managed Apple Account)."
         : "Software installed on work profile (Managed Apple Account).";
     }
-    if (hostMdmEnrollmentStatus === "On (manual)") {
-      return isMyDevicePage
-        ? "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
-        : "Software installed on this host. Built-in apps (e.g. Calculator) aren't included.";
+    if (
+      hostMdmEnrollmentStatus === "On (manual)" ||
+      isBYODManualEnrollment(hostMdmEnrollmentStatus)
+    ) {
+      return "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included.";
     }
   }
   return isMyDevicePage

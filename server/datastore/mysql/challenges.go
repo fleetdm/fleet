@@ -15,13 +15,19 @@ import (
 // NewChallenge generates a random, base64-encoded challenge and inserts it into the challenges
 // table. It returns the generated challenge or an error if the insertion fails.
 func (ds *Datastore) NewChallenge(ctx context.Context) (string, error) {
+	return newChallenge(ctx, ds.writer(ctx))
+}
+
+// newChallenge is a helper that generates and inserts a challenge using the provided executor.
+// This allows challenge creation within transactions.
+func newChallenge(ctx context.Context, exec sqlx.ExecerContext) (string, error) {
 	key := make([]byte, 24)
 	_, err := rand.Read(key)
 	if err != nil {
 		return "", err
 	}
 	challenge := base64.URLEncoding.EncodeToString(key)
-	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO challenges (challenge) VALUES (?)`, challenge)
+	_, err = exec.ExecContext(ctx, `INSERT INTO challenges (challenge) VALUES (?)`, challenge)
 	if err != nil {
 		return "", err
 	}

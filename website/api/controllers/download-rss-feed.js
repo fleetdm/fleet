@@ -23,6 +23,8 @@ module.exports = {
         'podcasts',
         'report',
         'articles',
+        'newsletters',
+        'industry-news',
       ],
     }
 
@@ -44,7 +46,7 @@ module.exports = {
     }
 
     // Start building the rss feed
-    let rssFeedXml = '<rss version="2.0"><channel>';
+    let rssFeedXml = '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>';
 
     // Build the description and title for this RSS feed.
     let articleCategoryTitle = '';
@@ -86,6 +88,14 @@ module.exports = {
         articleCategoryTitle = 'Reports | Fleet blog';
         categoryDescription = '';
         break;
+      case 'newsletters':
+        articleCategoryTitle = 'Newsletters | Fleet blog';
+        categoryDescription = 'Catch up on past issues of the Fleet newsletter.';
+        break;
+      case 'industry-news':
+        articleCategoryTitle = 'Industry news | Fleet blog';
+        categoryDescription = 'Device management and security news, and what it means for the devices you manage.';
+        break;
       case 'articles':
         articleCategoryTitle = 'Fleet blog | Fleet';
         categoryDescription = 'Read all articles from Fleet\'s blog.';
@@ -93,10 +103,12 @@ module.exports = {
 
     let rssFeedTitle = `<title>${_.escape(articleCategoryTitle)}</title>`;
     let rssFeedDescription = `<description>${_.escape(categoryDescription)}</description>`;
-    let rsslastBuildDate = `<lastBuildDate>${_.escape(new Date(Date.now()))}</lastBuildDate>`;
-    let rssFeedImage = `<image><link>${_.escape('https://fleetdm.com'+categoryName)}</link><title>${_.escape(articleCategoryTitle)}</title><url>${_.escape('https://fleetdm.com/images/fleet-logo-square@2x.png')}</url></image>`;
+    let rssFeedLink = `<link>${_.escape('https://fleetdm.com/'+categoryName)}</link>`;
+    let rssFeedAtomLink = `<atom:link href="${_.escape('https://fleetdm.com/rss/'+categoryName)}" rel="self" type="application/rss+xml"/>`;
+    let rsslastBuildDate = `<lastBuildDate>${_.escape(new Date().toUTCString())}</lastBuildDate>`;
+    let rssFeedImage = `<image><link>${_.escape('https://fleetdm.com/'+categoryName)}</link><title>${_.escape(articleCategoryTitle)}</title><url>${_.escape('https://fleetdm.com/images/fleet-logo-square@2x.png')}</url></image>`;
 
-    rssFeedXml += `${rssFeedTitle}${rssFeedDescription}${rsslastBuildDate}${rssFeedImage}`;
+    rssFeedXml += `${rssFeedTitle}${rssFeedDescription}${rssFeedLink}${rssFeedAtomLink}${rsslastBuildDate}${rssFeedImage}`;
 
 
     // Determine the subset of articles that will be used to squirt out an XML string.
@@ -116,15 +128,17 @@ module.exports = {
         }
       });//∞
     }
-
+    articlesToAddToFeed = _.sortByOrder(articlesToAddToFeed, 'meta.publishedOn', 'ASC');
     // Iterate through the filtered array of articles, adding <item> elements for each article.
     for (let pageInfo of articlesToAddToFeed) {
+      let articleUrl = 'https://fleetdm.com'+pageInfo.url;
       let rssItemTitle = `<title>${_.escape(pageInfo.meta.articleTitle)}</title>`;
       let rssItemDescription = `<description>${_.escape(pageInfo.meta.description)}</description>`;
-      let rssItemLink = `<link>${_.escape('https://fleetdm.com'+pageInfo.url)}</link>`;
-      let rssItemPublishDate = `<pubDate>${_.escape(new Date(pageInfo.meta.publishedOn).toJSON())}</pubDate>`;
+      let rssItemLink = `<link>${_.escape(articleUrl)}</link>`;
+      let rssItemGuid = `<guid isPermaLink="true">${_.escape(articleUrl)}</guid>`;
+      let rssItemPublishDate = `<pubDate>${_.escape(new Date(pageInfo.meta.publishedOn).toUTCString())}</pubDate>`;
       // Add the article to the feed.
-      rssFeedXml += `<item>${rssItemTitle}${rssItemDescription}${rssItemLink}${rssItemPublishDate}</item>`;
+      rssFeedXml += `<item>${rssItemTitle}${rssItemDescription}${rssItemLink}${rssItemGuid}${rssItemPublishDate}</item>`;
     }
 
     rssFeedXml += `</channel></rss>`;

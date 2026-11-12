@@ -1,0 +1,10 @@
+{
+  "name": "LaunchBar",
+  "unique_identifier": "at.obdev.LaunchBar",
+  "token": "launchbar",
+  "installer_format": "dmg",
+  "slug": "launchbar/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

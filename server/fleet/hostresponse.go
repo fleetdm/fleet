@@ -10,12 +10,17 @@ import (
 // rendering in the UI.
 type HostResponse struct {
 	*Host
-	Status           HostStatus   `json:"status" csv:"status"`
-	DisplayText      string       `json:"display_text" csv:"display_text"`
-	DisplayName      string       `json:"display_name" csv:"display_name"`
-	Labels           []*Label     `json:"labels,omitempty" csv:"-"`
-	Geolocation      *GeoLocation `json:"geolocation,omitempty" csv:"-"`
-	CSVDeviceMapping string       `json:"-" db:"-" csv:"device_mapping"`
+	// Add alias fields for team name and ID for use in CSV reports.
+	// TODO: clean up in Fleet 5.
+	FleetID               *uint        `json:"-" csv:"fleet_id"`
+	FleetName             *string      `json:"-" csv:"fleet_name"`
+	Status                HostStatus   `json:"status" csv:"status"`
+	DisplayText           string       `json:"display_text" csv:"display_text"`
+	DisplayName           string       `json:"display_name" csv:"display_name"`
+	Labels                []*Label     `json:"labels,omitempty" csv:"-"`
+	Geolocation           *GeoLocation `json:"geolocation,omitempty" csv:"-"`
+	CSVDeviceMapping      string       `json:"-" db:"-" csv:"device_mapping"`
+	HardwareMarketingName string       `json:"hardware_marketing_name" csv:"hardware_marketing_name"`
 }
 
 // HostResponseForHost returns a HostResponse from Host with Geolocation.
@@ -28,10 +33,11 @@ func HostResponseForHost(ctx context.Context, svc Service, host *Host) *HostResp
 // HostResponseForHostCheap returns a new HostResponse from a Host without computing Geolocation.
 func HostResponseForHostCheap(host *Host) *HostResponse {
 	return &HostResponse{
-		Host:        host,
-		Status:      host.Status(time.Now()),
-		DisplayText: host.Hostname,
-		DisplayName: host.DisplayName(),
+		Host:                  host,
+		Status:                host.Status(time.Now()),
+		DisplayText:           host.Hostname,
+		DisplayName:           host.DisplayName(),
+		HardwareMarketingName: host.HardwareMarketingName(),
 	}
 }
 
@@ -43,4 +49,15 @@ func HostResponsesForHostsCheap(hosts []Host) []HostResponse {
 		hrs[i] = *HostResponseForHostCheap(&h)
 	}
 	return hrs
+}
+
+// HostDetailResponse is the response struct that contains the full host information
+// with the HostDetail details.
+type HostDetailResponse struct {
+	HostDetail
+	Status                HostStatus   `json:"status"`
+	DisplayText           string       `json:"display_text"`
+	DisplayName           string       `json:"display_name"`
+	Geolocation           *GeoLocation `json:"geolocation,omitempty"`
+	HardwareMarketingName string       `json:"hardware_marketing_name"`
 }

@@ -1,15 +1,15 @@
+import classnames from "classnames";
 import React from "react";
 import { InjectedRouter } from "react-router";
 
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
+import { IFleetMaintainedApp } from "interfaces/software";
+import { softwareAlreadyAddedTipContent } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
-import { IFleetMaintainedApp } from "interfaces/software";
 
-import { softwareAlreadyAddedTipContent } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetAppDetailsForm/FleetAppDetailsForm";
-import classnames from "classnames";
-import Icon from "components/Icon";
-import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
 import TextCell from "../TextCell";
 
 const baseClass = "installer-action-cell";
@@ -44,7 +44,7 @@ const InstallerActionCell = ({
   const onClick = () => {
     const path = getPathWithQueryParams(
       PATHS.SOFTWARE_FLEET_MAINTAINED_DETAILS(id),
-      { team_id: teamId }
+      { fleet_id: teamId }
     );
     if (router && path) {
       router?.push(path);

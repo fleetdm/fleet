@@ -6,7 +6,6 @@ export FLEET_ROOT_PASSPHRASE=p4ssphr4s3
 export FLEET_TARGETS_PASSPHRASE=p4ssphr4s3
 export FLEET_SNAPSHOT_PASSPHRASE=p4ssphr4s3
 export FLEET_TIMESTAMP_PASSPHRASE=p4ssphr4s3
-export NUDGE=1
 
 if [ -z "$TUF_PATH" ]; then
   TUF_PATH=test_tuf

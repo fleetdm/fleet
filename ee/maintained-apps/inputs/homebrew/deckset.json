@@ -1,0 +1,10 @@
+{
+  "name": "Deckset",
+  "unique_identifier": "com.unsignedinteger.Deckset-Paddle",
+  "token": "deckset",
+  "installer_format": "dmg",
+  "slug": "deckset/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

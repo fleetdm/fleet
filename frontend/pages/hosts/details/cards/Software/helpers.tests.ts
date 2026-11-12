@@ -2,7 +2,15 @@ import {
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
-import { compareVersions, getUiStatus, getSoftwareSubheader } from "./helpers";
+
+import {
+  compareVersions,
+  getUiStatus,
+  getSoftwareSubheader,
+  getHostSoftwareLocationPath,
+  getInstallerActionButtonConfig,
+  isDefaultTypeSelection,
+} from "./helpers";
 
 describe("compareVersions", () => {
   it("correctly compares patch increments", () => {
@@ -59,8 +67,19 @@ describe("compareVersions", () => {
     expect(compareVersions("v2.0.0", "v1.0.0")).toBe(1);
   });
 
-  it("treats build metadata as equal (if supported)", () => {
+  it("treats build metadata as equal", () => {
     expect(compareVersions("1.0.0+20130313144700", "1.0.0")).toBe(0);
+    expect(compareVersions("1.0.0+exp.sha.5114f85", "1.0.0+21AF26D3")).toBe(0);
+  });
+
+  it("treats build metadata as equal even with prerelease", () => {
+    expect(compareVersions("1.0.0-alpha+001", "1.0.0-alpha+exp.sha")).toBe(0);
+  });
+
+  it("orders prerelease regardless of build metadata", () => {
+    // same core, prerelease different, builds ignored
+    expect(compareVersions("1.0.0-alpha+001", "1.0.0-beta+exp.sha")).toBe(-1);
+    expect(compareVersions("1.0.0-rc+build.1", "1.0.0+build.2")).toBe(-1);
   });
 
   it("is case-insensitive for pre-release tags", () => {
@@ -73,8 +92,51 @@ describe("compareVersions", () => {
     expect(compareVersions("01.1.0", "1.1.0")).toBe(0);
   });
 
-  it("compares build number in parentheses", () => {
-    expect(compareVersions("6.1.11 (39163)", "6.1.11 (30000)")).toBe(1);
+  // Parenthesized build metadata cases
+  it("treats parenthesized build number as metadata (same core)", () => {
+    expect(compareVersions("8.0 (build 6300)", "8.0")).toBe(0);
+    expect(compareVersions("8.0 (build 6300)", "8.0 (build 7000)")).toBe(0);
+  });
+
+  it("compares different core versions ignoring parenthesized build", () => {
+    expect(compareVersions("8.1 (build 6300)", "8.0")).toBe(1);
+    expect(compareVersions("8.0", "8.1 (build 6300)")).toBe(-1);
+    expect(compareVersions("6.1.12 (39163)", "6.1.11 (30000)")).toBe(1);
+  });
+
+  it("handles mixed +build and parenthesized build metadata", () => {
+    expect(compareVersions("1.0.0+20130313144700", "1.0.0 (build 1234)")).toBe(
+      0
+    );
+    expect(
+      compareVersions("2.3.4-beta+exp.sha", "2.3.4-beta (build 9999)")
+    ).toBe(0);
+  });
+
+  it("handles unexpected parenthesis content as build metadata suffix", () => {
+    // ignore any trailing `(build ...)` suffix
+    expect(compareVersions("1.2.3 (Build 5)", "1.2.3")).toBe(0);
+    expect(compareVersions("1.2.3 (build foo-bar)", "1.2.3")).toBe(0);
+  });
+
+  // https://github.com/fleetdm/fleet/issues/42673
+  it('strips leading "Build " prefix (Sublime Text/Merge)', () => {
+    expect(compareVersions("Build 4200", "4200")).toBe(0);
+    expect(compareVersions("Build 2123", "2123")).toBe(0);
+    expect(compareVersions("Build 4200", "4199")).toBe(1);
+    expect(compareVersions("Build 4200", "4201")).toBe(-1);
+  });
+
+  it('strips trailing ".CE" edition suffix (MySQL Workbench)', () => {
+    expect(compareVersions("8.0.46.CE", "8.0.46")).toBe(0);
+    expect(compareVersions("8.0.46", "8.0.46.CE")).toBe(0);
+    expect(compareVersions("8.0.46.CE", "8.0.45")).toBe(1);
+  });
+
+  it('strips trailing "-latest" channel tag (Lens)', () => {
+    expect(compareVersions("2026.3.251250-latest", "2026.3.251250")).toBe(0);
+    expect(compareVersions("2026.3.251250", "2026.3.251250-latest")).toBe(0);
+    expect(compareVersions("2026.3.251250-latest", "2026.3.251249")).toBe(1);
   });
 });
 
@@ -86,13 +148,37 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("failed_install_update_available");
   });
-
-  it("returns 'failed_install' when failed_install and no update available", () => {
+  // As of 4.81 shows install details modal with installed status if versions still present #31663
+  // Users can hover over installed in InstallStatusCell for more info to see failure logs in host activity
+  it("returns 'failed_install_installed' when failed_install and no update available but there's installed versions", () => {
     const sw = createMockHostSoftware({
       status: "failed_install",
       // version equal to installed version
     });
-    expect(getUiStatus(sw, true)).toBe("failed_install");
+    expect(getUiStatus(sw, true)).toBe("failed_install_installed");
+  });
+
+  it("returns 'skipped_install' when the install was a patch-when-closed skip, even if an update would otherwise apply", () => {
+    const sw = createMockHostSoftware({
+      status: "failed_install",
+      skipped_install: true,
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }),
+    });
+    expect(getUiStatus(sw, true)).toBe("skipped_install");
+  });
+
+  it("collapses a patch-when-closed skip back into the failed_install family when suppressed (Self-service view)", () => {
+    // With an installer version newer than the installed version, the row would
+    // otherwise degrade to failed_install_update_available for admin views;
+    // Self-service passes suppressSkippedInstall=true to keep that behavior.
+    const sw = createMockHostSoftware({
+      status: "failed_install",
+      skipped_install: true,
+      software_package: createMockHostSoftwarePackage({ version: "2.0.0" }),
+    });
+    expect(getUiStatus(sw, true, null, undefined, true)).toBe(
+      "failed_install_update_available"
+    );
   });
 
   it("returns 'failed_uninstall_update_available' when failed_uninstall and update available", () => {
@@ -102,13 +188,14 @@ describe("getUiStatus", () => {
     });
     expect(getUiStatus(sw, true)).toBe("failed_uninstall_update_available");
   });
-
-  it("returns 'failed_uninstall' when failed_uninstall and no update available", () => {
+  // As of 4.81 shows install details modal with installed status if versions still present #31663
+  // Users can hover over installed in InstallStatusCell for more info to see failure logs in host activity
+  it("returns 'failed_uninstall_installed' when failed_uninstall and no update available but there's installed versions", () => {
     const sw = createMockHostSoftware({
       status: "failed_uninstall",
       // version equal to installed version
     });
-    expect(getUiStatus(sw, true)).toBe("failed_uninstall");
+    expect(getUiStatus(sw, true)).toBe("failed_uninstall_installed");
   });
 
   it("returns 'updating' if pending_install and update is available, host online", () => {
@@ -250,6 +337,54 @@ describe("getUiStatus", () => {
     );
   });
 
+  it("does not return 'recently_installed' for tgz_packages even when lastInstallDate is newer than hostSoftwareUpdatedAt", () => {
+    const now = new Date();
+    const lastInstallDate = new Date(now.getTime() + 60 * 1000).toISOString();
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    const sw = createMockHostSoftware({
+      status: "installed",
+      source: "tgz_packages",
+      // Tarballs never return a version in software_package, and don't participate in inventory-based checks
+      software_package: createMockHostSoftwarePackage({
+        version: undefined,
+        last_install: {
+          install_uuid: "abc",
+          installed_at: lastInstallDate,
+        },
+      }),
+      installed_versions: [], // inventory wouldn't show this anyway for tarballs
+    });
+
+    // Even though lastInstallDate is newer than hostSoftwareUpdatedAt,
+    // tarballs should not show 'recently_installed' and immediately show 'installed' since they don't participate in inventory-based update checks.
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe("installed");
+  });
+
+  it("does not return 'recently_uninstalled' for tgz_packages even when lastUninstallDate is newer than hostSoftwareUpdatedAt", () => {
+    const now = new Date();
+    const lastUninstallDate = new Date(now.getTime() + 60 * 1000).toISOString();
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    const sw = createMockHostSoftware({
+      status: null,
+      source: "tgz_packages",
+      // Tarballs never return a version in software_package, and don't participate in inventory-based checks
+      software_package: createMockHostSoftwarePackage({
+        version: undefined,
+        last_uninstall: {
+          script_execution_id: "def",
+          uninstalled_at: lastUninstallDate,
+        },
+      }),
+      installed_versions: [],
+    });
+
+    // Even though lastUninstallDate is newer than hostSoftwareUpdatedAt,
+    // tarballs should not show 'recently_uninstalled' and immediately show 'uninstalled' since they don't participate in inventory-based update checks.
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe("uninstalled");
+  });
+
   // Extra verification: recently_uninstalled takes precedence over update_available
   it("does NOT return 'update_available' if status is null and recently uninstalled, even if update available", () => {
     const now = new Date();
@@ -333,11 +468,16 @@ describe("getUiStatus", () => {
     expect(getUiStatus(sw, true)).toBe("uninstalled");
   });
 
-  describe("Script packages UI statuses", () => {
+  describe("Script packages UI statuses (no uninstall script)", () => {
+    const scriptOnlyPackage = createMockHostSoftwarePackage({
+      has_uninstall_script: false,
+    });
+
     it("returns 'failed_script' when status is failed_install and isScriptPackage", () => {
       const sw = createMockHostSoftware({
         status: "failed_install",
         source: "sh_packages",
+        software_package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("failed_script");
     });
@@ -346,6 +486,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "pending_install",
         source: "sh_packages",
+        software_package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("running_script");
     });
@@ -354,6 +495,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "pending_install",
         source: "sh_packages",
+        software_package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, false)).toBe("pending_script");
     });
@@ -362,6 +504,7 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: "installed",
         source: "sh_packages",
+        software_package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("ran_script");
     });
@@ -370,8 +513,75 @@ describe("getUiStatus", () => {
       const sw = createMockHostSoftware({
         status: null,
         source: "sh_packages",
+        software_package: scriptOnlyPackage,
       });
       expect(getUiStatus(sw, true)).toBe("never_ran_script");
+    });
+  });
+
+  describe("Script packages with uninstall script use install statuses", () => {
+    const scriptPackageWithUninstall = createMockHostSoftwarePackage({
+      has_uninstall_script: true,
+    });
+
+    it("returns 'installed' (not 'ran_script') when a script-only package with an uninstall script is installed", () => {
+      const sw = createMockHostSoftware({
+        status: "installed",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: null,
+      });
+      expect(getUiStatus(sw, true)).toBe("installed");
+    });
+
+    it("returns 'failed_install' (not 'failed_script') when a script-only package with an uninstall script fails to install", () => {
+      const sw = createMockHostSoftware({
+        status: "failed_install",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: null,
+      });
+      expect(getUiStatus(sw, true)).toBe("failed_install");
+    });
+
+    it("returns 'installing' (not 'running_script') when a script-only package with an uninstall script is pending on an online host", () => {
+      const sw = createMockHostSoftware({
+        status: "pending_install",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: null,
+      });
+      expect(getUiStatus(sw, true)).toBe("installing");
+    });
+
+    it("returns 'uninstalled' (not 'never_ran_script') when a script-only package with an uninstall script has no install record", () => {
+      const sw = createMockHostSoftware({
+        status: null,
+        source: "sh_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: null,
+      });
+      expect(getUiStatus(sw, true)).toBe("uninstalled");
+    });
+
+    it("returns 'failed_install' (not 'failed_install_installed') when installed_versions is an empty array", () => {
+      const sw = createMockHostSoftware({
+        status: "failed_install",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: [],
+      });
+      expect(getUiStatus(sw, true)).toBe("failed_install");
+    });
+
+    it("returns 'failed_uninstall' (not 'failed_uninstall_installed') when installed_versions is an empty array", () => {
+      const sw = createMockHostSoftware({
+        status: "failed_uninstall",
+        source: "ps1_packages",
+        software_package: scriptPackageWithUninstall,
+        installed_versions: [],
+      });
+      expect(getUiStatus(sw, true)).toBe("failed_uninstall");
     });
   });
 });
@@ -399,6 +609,17 @@ describe("getSoftwareSubheader", () => {
     );
   });
 
+  test("iOS device, MDM status 'On (manual - personal)'", () => {
+    const result = getSoftwareSubheader({
+      platform: "ios",
+      hostMdmEnrollmentStatus: "On (manual - personal)",
+      isMyDevicePage: false,
+    });
+    expect(result).toBe(
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
+    );
+  });
+
   test("iOS device, MDM status 'On (manual)', my device page", () => {
     const result = getSoftwareSubheader({
       platform: "ios",
@@ -406,7 +627,7 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: true,
     });
     expect(result).toBe(
-      "Software installed on your device. Built-in apps (e.g. Calculator) aren't included."
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
     );
   });
 
@@ -417,7 +638,7 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: false,
     });
     expect(result).toBe(
-      "Software installed on this host. Built-in apps (e.g. Calculator) aren't included."
+      "Software installed by Fleet. Built-in apps (e.g. Calculator) and apps installed by the end user aren't included."
     );
   });
 
@@ -455,5 +676,107 @@ describe("getSoftwareSubheader", () => {
       isMyDevicePage: false,
     });
     expect(result).toBe("Software installed on this host.");
+  });
+});
+
+describe("getHostSoftwareLocationPath", () => {
+  const base = {
+    pathname: "/hosts/1/software",
+    query: "",
+    orderKey: "name",
+    orderDirection: "asc",
+    page: 0,
+  };
+  const typesParam = (path: string) =>
+    new URL(path, "http://fleet").searchParams.get("types");
+
+  it("writes a cleared selection on a macOS host as types=none", () => {
+    expect(
+      typesParam(
+        getHostSoftwareLocationPath({
+          ...base,
+          platform: "darwin",
+          filters: { types: [] },
+        })
+      )
+    ).toBe("none");
+  });
+
+  it("omits types for a cleared selection on other platforms", () => {
+    expect(
+      typesParam(
+        getHostSoftwareLocationPath({
+          ...base,
+          platform: "windows",
+          filters: { types: [] },
+        })
+      )
+    ).toBeNull();
+  });
+
+  it("writes selected types sorted", () => {
+    expect(
+      typesParam(
+        getHostSoftwareLocationPath({
+          ...base,
+          platform: "darwin",
+          filters: { types: ["macos_app", "chrome_extension"] },
+        })
+      )
+    ).toBe("chrome_extension,macos_app");
+  });
+});
+
+describe("isDefaultTypeSelection", () => {
+  it("is true for a macOS host with only macOS app selected", () => {
+    expect(isDefaultTypeSelection("darwin", { types: ["macos_app"] })).toBe(
+      true
+    );
+  });
+
+  it("is false once another type is selected", () => {
+    expect(
+      isDefaultTypeSelection("darwin", {
+        types: ["macos_app", "chrome_extension"],
+      })
+    ).toBe(false);
+  });
+
+  it.each([
+    { name: "vulnerable", filter: { vulnerable: true } },
+    { name: "AI tools", filter: { aiTool: true } },
+  ])("is false when the $name filter is on", ({ filter }) => {
+    expect(
+      isDefaultTypeSelection("darwin", { types: ["macos_app"], ...filter })
+    ).toBe(false);
+  });
+
+  it("is false when the selection was cleared", () => {
+    expect(isDefaultTypeSelection("darwin", { types: [] })).toBe(false);
+    expect(isDefaultTypeSelection("darwin", {})).toBe(false);
+  });
+
+  it("is false on other platforms", () => {
+    expect(isDefaultTypeSelection("windows", { types: ["macos_app"] })).toBe(
+      false
+    );
+  });
+});
+
+describe("getInstallerActionButtonConfig", () => {
+  it("returns 'Update' for a skipped_install row (a deferred update)", () => {
+    expect(
+      getInstallerActionButtonConfig("install", "skipped_install")
+    ).toEqual({ text: "Update", icon: "update" });
+  });
+
+  it.each([
+    { status: "failed_script" as const, text: "Retry" },
+    { status: "ran_script" as const, text: "Rerun" },
+  ])("returns the retry icon for $status", ({ status, text }) => {
+    expect(getInstallerActionButtonConfig("install", status)).toEqual({
+      text,
+      icon: "retry",
+    });
   });
 });

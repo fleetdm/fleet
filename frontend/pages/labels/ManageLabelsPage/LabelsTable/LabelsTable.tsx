@@ -1,12 +1,10 @@
 import React, { memo } from "react";
 
-import { ILabel } from "interfaces/label";
-
-import { IUser } from "interfaces/user";
-
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
+import { ILabel } from "interfaces/label";
+import { IUser } from "interfaces/user";
 
 import { generateDataSet, generateTableHeaders } from "./LabelsTableConfig";
 
@@ -16,10 +14,23 @@ interface ILabelsTable {
   labels: ILabel[];
   onClickAction: (action: string, label: ILabel) => void;
   currentUser: IUser;
+  labelsGitOpsManaged?: boolean;
+  repoURL?: string;
 }
 
-const LabelsTable = ({ labels, onClickAction, currentUser }: ILabelsTable) => {
-  const tableHeaders = generateTableHeaders(currentUser, onClickAction);
+const LabelsTable = ({
+  labels,
+  onClickAction,
+  currentUser,
+  labelsGitOpsManaged = false,
+  repoURL,
+}: ILabelsTable) => {
+  const tableHeaders = generateTableHeaders(
+    currentUser,
+    onClickAction,
+    labelsGitOpsManaged,
+    repoURL
+  );
 
   const tableData = generateDataSet(labels);
 
@@ -40,12 +51,12 @@ const LabelsTable = ({ labels, onClickAction, currentUser }: ILabelsTable) => {
           <TableCount name="labels" count={tableData.length} />
         ) : null
       }
-      emptyComponent={() =>
-        EmptyTable({
-          header: "No labels",
-          info: "Labels you create will appear here.",
-        })
-      }
+      emptyComponent={() => (
+        <EmptyState
+          header="No labels"
+          info="Labels you create will appear here."
+        />
+      )}
     />
   );
 };

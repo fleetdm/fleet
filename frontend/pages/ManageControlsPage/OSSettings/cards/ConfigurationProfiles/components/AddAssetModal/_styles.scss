@@ -1,0 +1,16 @@
+.add-asset-modal {
+  &__modal-content-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  // Keep the drag-active highlight from FileUploader.
+  &__file-uploader:not(.file-uploader__drag-active) {
+    background-color: $ui-off-white;
+  }
+}

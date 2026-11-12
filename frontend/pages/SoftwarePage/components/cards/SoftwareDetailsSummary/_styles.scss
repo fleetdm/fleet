@@ -1,37 +1,82 @@
 .software-details-summary {
-  display: flex;
-  gap: $pad-medium;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "icon  title  actions"
+    "icon  data   data";
+  align-items: center;
+  column-gap: $pad-small;
+  row-gap: $pad-small;
+
+  // Pills sit inline with the title row (between the name and Actions) at
+  // every width — the title's `minmax(0, 1fr)` track absorbs the squeeze by
+  // truncating further, rather than pushing pills to their own row below.
+  &--has-pills {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      "icon  title  pills  actions"
+      "icon  data   data   data";
+  }
 
   .software-icon {
     width: 96px;
     height: 96px;
   }
 
-  &__info {
-    flex-grow: 1;
+  &__icon-wrap {
+    grid-area: icon;
     align-self: center;
-    min-width: 0; // Required to truncate name with edit icon
+    // Adds 8px to the existing 8px column-gap so the visible gap between
+    // the icon and the title / data columns is 16px, while pills <-> actions
+    // stays at the single 8px column-gap.
+    margin-right: $pad-small;
+  }
+
+  // `__info` is a flat wrapper around the title row, action button, data list,
+  // and pills. We use `display: contents` so its children (title, pills,
+  // actions, data) participate directly in the outer grid instead of being
+  // laid out as one nested box.
+  &__info {
+    display: contents;
 
     .truncated-tooltip {
       font-weight: $regular;
     }
   }
 
-  &__title-actions {
+  &__title {
+    grid-area: title;
+  }
+
+  &__actions-wrapper {
+    grid-area: actions;
+    justify-self: end;
+  }
+
+  &__header-pills {
+    grid-area: pills;
     display: flex;
+    flex-wrap: nowrap;
     align-items: center;
-    justify-content: space-between;
+    gap: $pad-small;
+    // Push pills toward the actions column now that they're always inline
+    // with the title.
+    justify-self: end;
   }
 
   h1 {
     font-size: $pad-large;
     font-weight: bold;
     overflow: hidden; // Required to truncate name with edit icon
+    margin: 0;
   }
 
   &__description-list {
+    grid-area: data;
     display: flex;
     flex-direction: row;
-    gap: $pad-xxlarge;
+    flex-wrap: wrap;
+    gap: $pad-medium $pad-xxlarge;
+    margin: 0;
   }
 }

@@ -2,11 +2,6 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
 
   &__name-wrapper {
     display: flex;
@@ -25,8 +20,6 @@
     }
 
     .component__tooltip-wrapper__underline {
-      border-bottom: none;
-      text-decoration: underline dashed $ui-fleet-black-50;
       text-underline-offset: 5px;
     }
   }

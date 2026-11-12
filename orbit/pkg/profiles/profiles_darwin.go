@@ -127,10 +127,13 @@ func IsEnrolledInMDM() (bool, string, error) {
 	return true, enrollmentURL, nil
 }
 
-func IsManuallyEnrolledInMDM() (bool, error) {
+// ParseMDMEnrollmentStatus runs the `profiles` command to get the current MDM
+// enrollment information and reports if the host is enrolled via DEP or not.
+// Which is used to check for manual enrollment or not.
+func ParseMDMEnrollmentStatus() (enrolledViaDEP bool, isEnrolled bool, err error) {
 	out, err := getMDMInfoFromProfilesCmd()
 	if err != nil {
-		return false, fmt.Errorf("calling /usr/bin/profiles: %w", err)
+		return false, false, fmt.Errorf("calling /usr/bin/profiles: %w", err)
 	}
 
 	// The output of the command is in the form:
@@ -141,21 +144,27 @@ func IsManuallyEnrolledInMDM() (bool, error) {
 	// MDM server: https://test.example.com/mdm/apple/mdm
 	// ```
 	//
-	// If the host is not enrolled into an MDM, the last line is ommitted,
+	// If the host is not enrolled into an MDM, the last line is omitted,
 	// so we need to check that:
 	//
-	// 1. We've got three rows
-	// 2. Whether the first line contains "Yes" or "No"
+	// 1. We've got two rows
+	// 2. The first row contains "Yes" or "No"
 	lines := bytes.Split(bytes.TrimSpace(out), []byte("\n"))
-	if len(lines) < 3 {
-		return false, nil
+	if len(lines) < 2 {
+		return false, false, fmt.Errorf("Got %d lines of output, when expected at least 2 or more", len(lines))
 	}
 
+	var isDepEnrolled bool
 	if strings.Contains(string(lines[0]), "Yes") {
-		return false, nil
+		isDepEnrolled = true
 	}
 
-	return true, nil
+	var isMDMEnrolled bool
+	if strings.Contains(string(lines[1]), "Yes") {
+		isMDMEnrolled = true
+	}
+
+	return isDepEnrolled, isMDMEnrolled, nil
 }
 
 // getMDMInfoFromProfilesCmd is declared as a variable so it can be overwritten by tests.

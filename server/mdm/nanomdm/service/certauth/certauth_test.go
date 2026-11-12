@@ -202,8 +202,10 @@ func TestCertAuthService_ErrorWrapping(t *testing.T) {
 
 			// Test with TokenUpdate (existing enrollment)
 			msg := &mdm.TokenUpdate{
-				Enrollment: mdm.Enrollment{
-					UDID: "test-device",
+				TokenUpdateEnrollment: mdm.TokenUpdateEnrollment{
+					Enrollment: mdm.Enrollment{
+						UDID: "test-device",
+					},
 				},
 			}
 

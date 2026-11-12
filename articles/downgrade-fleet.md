@@ -2,32 +2,50 @@
 
 Follow these steps to downgrade your Fleet instance from Fleet Premium.
 
-> If you'd like to renew your Fleet Premium license key, please [contact us](https://fleetdm.com/company/contact).
+> If you'd like to renew your Fleet Premium license key, ensure your payment details and host count is up-to-date on your [self-service dashboard](https://fleetdm.com/customers/dashboard). If it has expired, please [contact us](https://fleetdm.com/company/contact).
 
-## Back up your users and update all team-level users to global users
+## Back up your users and update all fleet-level users to global users
 
-1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that you can restore user roles if you decide to upgrade later.
+1. Run the `fleetctl get user_roles > user_roles.yml` command. Save the `user_roles.yml` file so that you have a record of each user's roles if you decide to upgrade later. To restore them, edit each user in the Fleet UI or use the [Update user](https://fleetdm.com/docs/rest-api/rest-api#update-user) API endpoint.
 2. Head to the **Settings > Users** page in the Fleet UI.
-3. For each user that has any team listed under the **Teams** column, select **Actions > Edit**, then select **Global user**, and then **Save**. Delete any users that shouldn't have global access.
+3. For each user that has any fleet listed under the **Fleets** column, select **Actions > Edit**, then select **Global user**, and then **Save**. Delete any users that shouldn't have global access.
 
-## Move all team-level queries to the global level
+## Move all fleet-level reports to the global level
 
-1. Head to the **Queries** page in the Fleet UI and select a team from the teams dropdown at the top of the page. 
-2. For each query that belongs to a team, select the query and select **Edit query** and copy the **Name**, **Description**, **Query**. Then expand the "advanced options" and take note of the values in the **Platforms**, **Minimum osquery version**, and **Logging** dropdowns.
-3. On the Queries page select **All teams** in the top dropdown, select **Add query**, paste each item in the appropriate field, select the correct values from the advanced options dropdowns, and select **Save**.
-4. **Optional:** Delete each query that belongs to a team because they will no longer be accessible in the Fleet UI following the downgrade process.
+1. Head to the **Reports** page in the Fleet UI and select a fleet from the fleets dropdown at the top of the page. 
+2. For each report that belongs to a fleet, select the report and select **Edit report** and copy the **Name**, **Description**, **Query**. Then expand the "advanced options" and take note of the values in the **Platforms**, **Minimum osquery version**, and **Logging** dropdowns.
+3. On the **Reports** page select **All fleets** in the top dropdown, select **Add report**, paste each item in the appropriate field, select the correct values from the advanced options dropdowns, and select **Save**.
+4. **Optional:** Delete each report that belongs to a fleet because they will no longer be accessible in the Fleet UI following the downgrade process.
 
-## Move all team-level policies to the global level
+## Move all fleet-level policies to the global level
 
 1. Head to the **Policies** page in the Fleet UI.
-2. For each policy that belongs to a team, copy the **Name**, **Description**, **Resolve**, and **Query**. Then, select **All teams** in the top dropdown, select **Add a policy**, select **Create your own policy**, paste each item in the appropriate field, and select **Save**.
-3. Delete each policy that belongs to a team because they will no longer run on any hosts following the downgrade process.
+2. For each policy that belongs to a fleet, copy the **Name**, **Description**, **Resolve**, and **Query**. Then, select **All fleets** in the top dropdown, select **Add a policy**, select **Create your own policy**, paste each item in the appropriate field, and select **Save**.
+3. Delete each policy that belongs to a fleet because they will no longer run on any hosts following the downgrade process.
 
-## Back up your teams
+## Move all fleet-level scripts to "Unassigned"
 
-1. Run the `fleetctl get teams > teams.yml` command. Save the `teams.yml` file so you can restore your teams if you upgrade again later.
-2. Head to the **Settings > Teams** page in the Fleet UI.
-3. Delete all teams. This will move all hosts to the global level.
+Scripts are configured per fleet and won't be accessible after your fleets are deleted. Move them to "Unassigned" so they remain available following the downgrade.
+
+1. Head to the **Controls > Scripts** page in the Fleet UI and select a fleet from the dropdown at the top of the page.
+2. For each script that belongs to a fleet, select the download icon to save a copy.
+3. Select **Unassigned** in the top dropdown, then select **Add script** and upload each script you saved.
+4. **Optional:** Delete each script that belongs to a fleet because they will no longer be accessible in the Fleet UI following the downgrade process.
+
+## Move all fleet-level configuration profiles and assets to "Unassigned"
+
+Configuration profiles and assets are configured per fleet and won't be applied after your fleets are deleted. Move them to "Unassigned" so they continue to apply to your hosts following the downgrade.
+
+1. Head to the **Controls > OS settings > Configuration profiles** page in the Fleet UI. Select either **Profiles** or **Assets** in the menu, and select a fleet from the dropdown at the top of the page.
+2. For each configuration profile or assset that belongs to a fleet, select the download icon to save a copy.
+3. Select **Unassigned** in the top dropdown, then upload each configuration profile and/or asset you saved.
+4. **Optional:** Delete each configuration profile and asset that belongs to a fleet because they will no longer be applied following the downgrade process.
+
+## Back up your fleets
+
+1. Run the `fleetctl get fleets > fleets.yml` command. Save the `fleets.yml` file so you can restore your fleets if you upgrade again later.
+2. Head to the **Settings > Fleets** page in the Fleet UI.
+3. Delete all fleets. This will move all hosts to the global level.
 
 ## Remove your Fleet Premium license key
 

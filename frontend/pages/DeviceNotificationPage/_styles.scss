@@ -1,0 +1,130 @@
+// The native ToastWindow supplies the outer shadow and rounded corners, so
+// the card adds no shadow and the page stays transparent.
+
+.device-notification-page {
+  background: transparent;
+  margin: 0;
+  padding: 0;
+
+  &__card {
+    background-color: $core-fleet-white;
+    color: $core-fleet-black;
+    border-radius: $border-radius-large;
+    padding: $pad-large;
+    @include flex-column-24px-gap;
+  }
+
+  &__header {
+    @include flex-column-8px-gap;
+  }
+
+  &__logo.org-logo-icon {
+    margin-right: auto;
+    flex-shrink: 0;
+    width: auto;
+    max-width: 155px;
+    object-fit: contain;
+    height: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    padding: 0;
+
+    &.default-fleet-logo {
+      transform: none;
+    }
+  }
+
+  &__title {
+    font-size: $small;
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__description {
+    font-size: $x-small;
+    margin: 0;
+    color: $ui-fleet-black-75;
+  }
+
+  // Cap at 4.5 rows for a "more below" affordance; suppress hover (rows aren't clickable).
+  // The error state can tighten the cap via --list-max-height-override on
+  // the card (set by DeviceNotificationCard when there are 4+ items).
+  .list__list {
+    max-height: var(--list-max-height-override, calc(4.5 * 48px));
+    overflow-y: auto;
+  }
+
+  .list__row {
+    height: 32px;
+
+    &:hover {
+      background: $core-fleet-white;
+    }
+
+    .software-icon {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+
+      > svg,
+      > img {
+        width: 32px;
+        height: 32px;
+      }
+    }
+  }
+
+  &__item-left {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    min-width: 0;
+    flex: 1;
+  }
+
+  &__item-name {
+    flex: 1;
+    min-width: 0;
+    font-size: $x-small;
+  }
+
+  &__item-status {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    font-size: $x-small;
+    color: $ui-fleet-black-75;
+    flex-shrink: 0;
+  }
+
+  // Groups the actions row and the error banner so they share a tighter
+  // 16px gap. The banner plus this gap totals ~48px — matched by the list
+  // cap shrink below — so the toast window height stays stable when a list
+  // is at its scroll cap.
+  &__footer {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  // One-off color tweaks on top of the compact InfoBanner variant: soften
+  // the border from vibrant-red to ui-error and layer a faint diagonal red
+  // gradient over the white base.
+  &__error {
+    border-color: $ui-error;
+    background: linear-gradient(
+        141deg,
+        rgba(214, 108, 123, 0.05) 6.69%,
+        rgba(0, 0, 0, 0) 93.68%
+      ),
+      $core-fleet-white;
+  }
+
+}

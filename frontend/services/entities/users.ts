@@ -1,22 +1,30 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
+
+import { IApiEndpointRef } from "interfaces/api_endpoint";
+import { IUserSettings } from "interfaces/config";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
+import { ITeamSummary, INewTeamUser } from "interfaces/team";
+import {
+  ICreateUserFormData,
+  IResetPasswordForm,
+  IUpdateUserFormData,
+  IUser,
+  ICreateUserWithInvitationFormData,
+} from "interfaces/user";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
 import { buildQueryStringFromParams } from "utilities/url";
 
-import {
-  ICreateUserFormData,
-  IUpdateUserFormData,
-  IUser,
-  ICreateUserWithInvitationFormData,
-} from "interfaces/user";
-import { ITeamSummary } from "interfaces/team";
-import { IUserSettings } from "interfaces/config";
-
 export interface ISortOption {
   id: number;
   desc: boolean;
 }
+
+/** The API only needs a fleet's id and role. Sending back the whole fleet carries both names of renamed settings. */
+export const toFleetRoles = <T extends { id: number; role?: string }>(
+  fleets?: T[]
+) => fleets?.map(({ id, role }) => ({ id, role }));
 
 interface IUserSearchOptions {
   page?: number;
@@ -41,7 +49,7 @@ interface IRequirePasswordReset {
 
 export interface IGetMeResponse {
   user: IUser;
-  available_teams: ITeamSummary[];
+  available_fleets: ITeamSummary[];
   settings: IUserSettings;
 }
 
@@ -65,10 +73,45 @@ export default {
       helpers.addGravatarUrlToResource(response.user)
     );
   },
-  createUserWithoutInvitation: (formData: ICreateUserFormData) => {
+  createUserWithoutInvitation: (
+    formData: ICreateUserFormData
+  ): Promise<{ user: IUser; token?: string }> => {
     const { USERS_ADMIN } = endpoints;
 
-    return sendRequest("POST", USERS_ADMIN, formData).then((response) =>
+    return sendRequest("POST", USERS_ADMIN, formData).then((response) => ({
+      user: helpers.addGravatarUrlToResource(response.user),
+      token: response.token,
+    }));
+  },
+  createApiOnlyUser: (formData: {
+    name: string;
+    global_role?: string | null;
+    fleets?: INewTeamUser[];
+    api_endpoints?: IApiEndpointRef[] | null;
+  }): Promise<{ user: IUser; token?: string }> => {
+    const { USERS_API_ONLY } = endpoints;
+
+    return sendRequest("POST", USERS_API_ONLY, formData).then((response) => ({
+      user: response.user,
+      token: response.token,
+    }));
+  },
+  updateApiOnlyUser: (
+    userId: number,
+    formData: Record<string, unknown>
+  ): Promise<IUser> => {
+    const { USERS_API_ONLY } = endpoints;
+    const path = `${USERS_API_ONLY}/${userId}`;
+
+    return sendRequest("PATCH", path, formData).then(
+      (response) => response.user
+    );
+  },
+  getUserById: (userId: number): Promise<IUser> => {
+    const { USERS } = endpoints;
+    const path = `${USERS}/${userId}`;
+
+    return sendRequest("GET", path).then((response) =>
       helpers.addGravatarUrlToResource(response.user)
     );
   },
@@ -99,7 +142,7 @@ export default {
   loadAll: ({ globalFilter = "", teamId }: IUserSearchOptions = {}) => {
     const queryParams = {
       query: globalFilter,
-      team_id: teamId,
+      fleet_id: teamId,
     };
 
     const queryString = buildQueryStringFromParams(queryParams);
@@ -116,10 +159,10 @@ export default {
     // include the user's settings when calling from the UI
     const path = `${endpoints.ME}?include_ui_settings=true`;
     return sendRequest("GET", path).then(
-      ({ user, available_teams, settings }) => {
+      ({ user, available_fleets, settings }) => {
         return {
           user: helpers.addGravatarUrlToResource(user),
-          available_teams,
+          available_fleets,
           settings,
         };
       }
@@ -143,12 +186,14 @@ export default {
       helpers.addGravatarUrlToResource(response.user)
     );
   },
-  resetPassword: (formData: any) => {
+  resetPassword: (
+    formData: IResetPasswordForm & { password_reset_token: string }
+  ) => {
     const { RESET_PASSWORD } = endpoints;
 
     return sendRequest("POST", RESET_PASSWORD, formData);
   },
-  setup: (formData: any) => {
+  setup: (formData: IRegistrationFormData) => {
     const { SETUP } = endpoints;
     const setupData = helpers.setupData(formData);
 
@@ -157,8 +202,11 @@ export default {
   update: (userId: number, formData: IUpdateUserFormData) => {
     const { USERS } = endpoints;
     const path = `${USERS}/${userId}`;
+    const body = formData.fleets
+      ? { ...formData, fleets: toFleetRoles(formData.fleets) }
+      : formData;
 
-    return sendRequest("PATCH", path, formData).then((response) =>
+    return sendRequest("PATCH", path, body).then((response) =>
       helpers.addGravatarUrlToResource(response.user)
     );
   },

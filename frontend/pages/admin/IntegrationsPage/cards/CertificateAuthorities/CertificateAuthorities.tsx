@@ -1,25 +1,24 @@
 import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
+import SettingsSection from "pages/admin/components/SettingsSection";
 import certificatesAPI from "services/entities/certificates";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import SettingsSection from "pages/admin/components/SettingsSection";
-import PageDescription from "components/PageDescription";
-import CustomLink from "components/CustomLink";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import Spinner from "components/Spinner";
-import DataError from "components/DataError";
-
-import CertificateAuthorityList from "./components/CertificateAuthorityList";
-import AddCertAuthorityCard from "./components/AddCertAuthorityCard";
-import DeleteCertificateAuthorityModal from "./components/DeleteCertificateAuthorityModal";
 import AddCertAuthorityModal from "./components/AddCertAuthorityModal";
+import CertificateAuthorityList from "./components/CertificateAuthorityList";
+import DeleteCertificateAuthorityModal from "./components/DeleteCertificateAuthorityModal";
 import EditCertAuthorityModal from "./components/EditCertAuthorityModal";
-
-const baseClass = "certificate-authorities";
 
 const CertificateAuthorities = () => {
   const { isPremiumTier } = useContext(AppContext);
@@ -119,7 +118,23 @@ const CertificateAuthorities = () => {
       return (
         <>
           {pageDescription}
-          <AddCertAuthorityCard onAddCertAuthority={onAddCertAuthority} />
+          <EmptyState
+            variant="header-list"
+            header="No certificate authorities"
+            info="Add a certificate authority (CA) to help end users connect to Wi-Fi or VPNs."
+            primaryButton={
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button
+                    disabled={disableChildren}
+                    onClick={onAddCertAuthority}
+                  >
+                    Add certificate authority
+                  </Button>
+                )}
+              />
+            }
+          />
         </>
       );
     }
@@ -151,6 +166,7 @@ const CertificateAuthorities = () => {
         certAuthorities && (
           <EditCertAuthorityModal
             certAuthority={selectedCertAuthority}
+            certAuthorities={certAuthorities}
             onExit={onEditedCertAuthority}
           />
         )}

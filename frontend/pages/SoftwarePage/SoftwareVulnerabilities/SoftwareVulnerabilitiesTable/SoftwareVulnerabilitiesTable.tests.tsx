@@ -1,9 +1,9 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import React from "react";
 
-import { createMockVulnerabilitiesResponse } from "__mocks__/vulnerabilitiesMock";
 import createMockUser from "__mocks__/userMock";
+import { createMockVulnerabilitiesResponse } from "__mocks__/vulnerabilitiesMock";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import SoftwareVulnerabilitiesTable from "./SoftwareVulnerabilitiesTable";
 
@@ -83,7 +83,9 @@ describe("Software Vulnerabilities table", () => {
     expect(screen.getByText("No vulnerabilities detected")).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(
-      screen.getByText("Expecting to see vulnerabilities? Check back later.")
+      screen.getByText(
+        "Vulnerability data will appear after the next scheduled check-in."
+      )
     ).toBeInTheDocument();
     expect(screen.queryByText("Vulnerability")).toBeNull();
   });

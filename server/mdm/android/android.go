@@ -38,8 +38,19 @@ type EnterpriseDetails struct {
 }
 
 type EnrollmentToken struct {
-	EnrollmentToken string `json:"android_enrollment_token"`
-	EnrollmentURL   string `json:"android_enrollment_url"`
+	EnrollmentToken  string `json:"android_enrollment_token"`
+	EnrollmentURL    string `json:"android_enrollment_url"`
+	EnrollmentQRCode string `json:"android_enrollment_qr_code"`
+}
+
+type ZeroTouchToken struct {
+	ID         uint      `db:"id" json:"id"`
+	TeamID     *uint     `db:"team_id" json:"fleet_id"`
+	TokenName  string    `db:"token_name" json:"token_name"`
+	TokenValue string    `db:"token_value" json:"token_value"`
+	ExpiresAt  time.Time `db:"expires_at" json:"expires_at"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
 }
 
 type Device struct {
@@ -60,7 +71,10 @@ type AgentManagedConfiguration struct {
 }
 
 type AgentCertificateTemplate struct {
-	ID uint `json:"id"`
+	ID        uint   `json:"id"`
+	Status    string `json:"status"`
+	Operation string `json:"operation"`
+	UUID      string `json:"uuid"`
 }
 
 // MDMAndroidPolicyRequest represents a request made to the Android Management
@@ -77,4 +91,62 @@ type MDMAndroidPolicyRequest struct {
 	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
 }
 
-const AppStatusAvailable = "AVAILABLE"
+const (
+	AppStatusAvailable      = "AVAILABLE"
+	AppStatusPreinstalled   = "PREINSTALLED"
+	AppStatusForceInstalled = "FORCE_INSTALLED"
+)
+
+// MDMAndroidCommand represents a single AMAPI command Fleet issued via EnterprisesDevicesService.IssueCommand (Lock,
+// Wipe, Clear passcode). One row is inserted at issue time and updated by the Pub/Sub COMMAND handler when the device
+// acks or AMAPI rejects. CommandUUID is the Fleet-generated identifier that host_mdm_actions.{lock_ref, wipe_ref}
+// points to for Android hosts; OperationName is the AMAPI-assigned operation name used to correlate Pub/Sub
+// notifications back to the originating command.
+type MDMAndroidCommand struct {
+	CommandUUID   string           `db:"command_uuid"`
+	HostUUID      string           `db:"host_uuid"`
+	OperationName string           `db:"operation_name"`
+	CommandType   string           `db:"command_type"`
+	RawCommand    sql.Null[string] `db:"raw_command"`
+	Status        string           `db:"status"`
+	ErrorCode     sql.Null[string] `db:"error_code"`
+	ErrorMessage  sql.Null[string] `db:"error_message"`
+	RawResult     sql.Null[string] `db:"raw_result"`
+	CreatedAt     time.Time        `db:"created_at"`
+	UpdatedAt     time.Time        `db:"updated_at"`
+}
+
+// MDMAndroidCommandType is the AMAPI command type for an MDMAndroidCommand row. Values are the strings AMAPI uses on
+// the wire (Command.type), so they double as the value we send in IssueCommand and the value we read back from Pub/Sub
+// COMMAND notifications.
+type MDMAndroidCommandType string
+
+const (
+	MDMAndroidCommandTypeLock                MDMAndroidCommandType = "LOCK"
+	MDMAndroidCommandTypeResetPassword       MDMAndroidCommandType = "RESET_PASSWORD"
+	MDMAndroidCommandTypeWipe                MDMAndroidCommandType = "WIPE"
+	MDMAndroidCommandTypeReboot              MDMAndroidCommandType = "REBOOT"
+	MDMAndroidCommandTypeRelinquishOwnership MDMAndroidCommandType = "RELINQUISH_OWNERSHIP"
+	MDMAndroidCommandTypeStartLostMode       MDMAndroidCommandType = "START_LOST_MODE"
+	MDMAndroidCommandTypeStopLostMode        MDMAndroidCommandType = "STOP_LOST_MODE"
+)
+
+// AndroidMDMRequiresPremiumCmdMessage is the error message displayed by fleetctl mdm
+// run-command when a Premium license is required for an Android command. Keep in sync
+// with the androidMDMPremiumCommands set in server/service/mdm.go.
+const AndroidMDMRequiresPremiumCmdMessage = "Missing or invalid license. LOCK and RESET_PASSWORD commands are available in Fleet Premium only."
+
+// MDMAndroidCommandStatus is the lifecycle state of an MDMAndroidCommand row.
+type MDMAndroidCommandStatus string
+
+const (
+	// MDMAndroidCommandStatusPending — Fleet has called IssueCommand and AMAPI accepted, but the Pub/Sub COMMAND
+	// notification with the device-side result has not yet arrived.
+	MDMAndroidCommandStatusPending MDMAndroidCommandStatus = "Pending"
+	// MDMAndroidCommandStatusAcknowledged — Pub/Sub COMMAND notification arrived and the device successfully executed the
+	// command (no AMAPI error_code). server/fleet imports this constant in HostLockWipeStatus.IsLocked/IsWiped.
+	MDMAndroidCommandStatusAcknowledged MDMAndroidCommandStatus = "Acknowledged"
+	// MDMAndroidCommandStatusError — Pub/Sub COMMAND notification arrived with a non-empty AMAPI error_code (e.g.
+	// UNSUPPORTED, API_LEVEL, INVALID_VALUE).
+	MDMAndroidCommandStatusError MDMAndroidCommandStatus = "Error"
+)

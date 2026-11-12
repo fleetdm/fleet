@@ -6,7 +6,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 type translatorRequest struct {
@@ -86,7 +86,7 @@ func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePay
 				return nil, err
 			}
 			translateFunc = translateLabelToID
-		case fleet.TranslatorTypeTeam:
+		case fleet.TranslatorTypeTeam, fleet.TranslatorTypeFleet:
 			if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 				return nil, err
 			}
@@ -99,7 +99,7 @@ func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePay
 		default:
 			// if no supported payload type, this is bad regardless of authorization
 			svc.authz.SkipAuthorization(ctx)
-			return nil, endpoint_utils.BadRequestErr(
+			return nil, endpointer.BadRequestErr(
 				fmt.Sprintf("Type %s is unknown. ", payload.Type),
 				fleet.NewErrorf(
 					fleet.ErrNoUnknownTranslate,

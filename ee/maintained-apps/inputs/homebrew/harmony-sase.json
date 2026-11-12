@@ -1,0 +1,11 @@
+{
+  "name": "Harmony SASE",
+  "unique_identifier": "com.safervpn.osx.smb",
+  "token": "perimeter81",
+  "installer_format": "pkg",
+  "slug": "harmony-sase/darwin",
+  "default_categories": [
+    "Security"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/harmony-sase-install.sh"
+}

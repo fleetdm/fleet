@@ -3,6 +3,9 @@
 
 .radio {
   font-size: $x-small;
+  display: flex;
+  flex-direction: column;
+  gap: $pad-xsmall;
 
   // this includes the control button and the radio label text
   &__radio-control {
@@ -72,8 +75,8 @@
 
   &__help-text {
     @include help-text;
-    margin-top: $pad-xxsmall;
-    margin-left: calc(20px + #{$pad-small});
+    // aligns helper text with the radio label instead of the radio control
+    padding-left: px-to-rem(28);
   }
 
   &__disabled {
@@ -83,6 +86,13 @@
 
     .radio__help-text {
       color: $ui-fleet-black-50;
+    }
+
+    // Mirror Checkbox's filled-indicator pattern: fill reads as $ui-fleet-black-25
+    // so the selected state stays visible but muted.
+    .radio__input input + .radio__control-button::before {
+      background-color: $ui-fleet-black-25;
+      box-shadow: inset 1em 1em $ui-fleet-black-25;
     }
 
     .radio__input,

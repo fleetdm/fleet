@@ -1,6 +1,17 @@
 .vitals-card {
   @include vertical-card-layout;
 
+  &__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: $pad-medium;
+  }
+
+  .date-tooltip {
+    cursor: pointer;
+  }
+
   .truncated-tooltip {
     .vitals-card__device-mapping__source {
       color: inherit;
@@ -50,6 +61,107 @@
     // at the larger screen widths we want to have 6 columns.
     @media (min-width: $break-xxl) {
       grid-template-columns: repeat(6, minmax(150px, 1fr));
+    }
+  }
+
+  // OS version with requirement icon + tooltip truncation
+  // MDM status may have an error icon if status is off
+  &__os-version,
+  &__mdm-status {
+    display: flex;
+    gap: $pad-xsmall;
+    min-width: 0;
+
+    // Prevent the error icon from shrinking
+    // and keep it on the first line when the value wraps
+    .icon {
+      flex-shrink: 0;
+      align-self: flex-start;
+      align-items: center;
+      height: 1lh;
+    }
+  }
+
+  // TooltipWrapper pulls its dashed underline into the element's last pixel
+  // with a negative margin, which DataSet's `dd` then clips away. Keep the
+  // border inside the box so the hover affordance survives on every vital.
+  .component__tooltip-wrapper__underline {
+    margin-bottom: 0;
+  }
+
+  // Shared by any TooltipWrapper-based vital value (rather than
+  // TooltipTruncatedText) that still needs to truncate with an ellipsis —
+  // e.g. Operating system, Hardware model. TooltipWrapper's own element has
+  // no overflow handling, so this class chain overrides the flex item's
+  // default min-width so it can shrink, and the inner text span does the
+  // actual ellipsis truncation.
+  &__ellipsis-tooltip {
+    min-width: 0;
+
+    > .component__tooltip-wrapper__element {
+      overflow: hidden;
+    }
+  }
+
+  &__ellipsis-tooltip-text {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__os-version {
+    display: flex;
+    gap: $pad-xsmall;
+
+    .component__tooltip-wrapper__element {
+      line-height: inherit;
+    }
+  }
+
+  &__mdm-status,
+  &__location {
+    dd {
+      display: flex;
+      gap: $pad-xsmall;
+      margin: -6px; // See underline under link and border with keyboard nav
+      padding: 6px; // See underline under link and border with keyboard nav
+    }
+
+    // <button> centers wrapped text by default
+    .button--link {
+      text-align: left;
+    }
+  }
+
+  &__location {
+    // The value is a link button on host details and a plain string on My
+    // Device. Every box between the grid track and the text defaults to
+    // `min-width: auto`, so without this the text pushes the card wide instead
+    // of letting TooltipTruncatedText ellipsize it.
+    min-width: 0;
+
+    dd,
+    .button--link,
+    .children-wrapper {
+      min-width: 0;
+    }
+
+    // TooltipWrapper sets `cursor: default` on its element, which would
+    // otherwise beat the link button's pointer.
+    .component__tooltip-wrapper__element {
+      cursor: inherit;
+    }
+  }
+
+  &__custom-vital-title {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
+
+    // Cancel the pencil icon's vertical padding to keep the custom vital aligned with the rest of the grid.
+    .button {
+      margin-block: -$pad-xsmall;
     }
   }
 

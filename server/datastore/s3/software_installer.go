@@ -21,8 +21,6 @@ func NewSoftwareInstallerStore(config config.S3Config) (*SoftwareInstallerStore,
 			s3store:    s3store,
 			pathPrefix: softwareInstallersPrefix,
 			fileLabel:  "software installer",
-
-			gcs: isGCS(config.EndpointURL),
 		},
 	}, nil
 }
@@ -36,14 +34,13 @@ func NewTestSoftwareInstallerStore(conf config.S3Config) (*SoftwareInstallerStor
 			SigningPublicKeyID: conf.SoftwareInstallersCloudFrontURLSigningPublicKeyID,
 			Signer:             conf.SoftwareInstallersCloudFrontSigner,
 		},
+		gcs: isGCS(conf.EndpointURL),
 	}
 	return &SoftwareInstallerStore{
 		&commonFileStore{
 			s3store:    store,
 			pathPrefix: softwareInstallersPrefix,
 			fileLabel:  "software installer",
-
-			gcs: isGCS(conf.EndpointURL),
 		},
 	}, nil
 }

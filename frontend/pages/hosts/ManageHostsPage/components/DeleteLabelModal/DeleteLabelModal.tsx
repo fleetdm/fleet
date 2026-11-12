@@ -1,9 +1,8 @@
 import React, { useContext } from "react";
 
-import { AppContext } from "context/app";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
+import { AppContext } from "context/app";
 
 const baseClass = "delete-label-modal";
 
@@ -26,34 +25,36 @@ const DeleteLabelModal = ({
       onEnter={onSubmit}
       className={baseClass}
     >
-      <>
-        <p>Are you sure you wish to delete this label?</p>
-        {isPremiumTier && (
-          <ul>
-            <li>
-              Configuration profiles that target this label will not be applied
-              to new hosts.
-            </li>
-            <li>
-              Queries and policies that target this label will continue to run,
-              but may target different hosts.
-            </li>
-          </ul>
-        )}
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={onSubmit}
-            variant="alert"
-            className="delete-loading"
-            isLoading={isUpdatingLabel}
-          >
-            Delete
-          </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>Are you sure you wish to delete this label?</p>
+      {isPremiumTier && (
+        <ul>
+          <li>
+            Labels that are targeted in a configuration profile will not be
+            deleted. You will need to delete the configuration profile first.
+          </li>
+          <li>
+            Labels that are used in custom software targets will not be deleted.
+            You will need to remove the label from the software targets first.
+          </li>
+          <li>
+            Reports and policies that target this label will continue to run,
+            but may target different hosts.
+          </li>
+        </ul>
+      )}
+      <div className="modal-cta-wrap">
+        <Button
+          onClick={onSubmit}
+          variant="alert"
+          className="delete-loading"
+          isLoading={isUpdatingLabel}
+        >
+          Delete
+        </Button>
+        <Button onClick={onCancel} variant="secondary">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

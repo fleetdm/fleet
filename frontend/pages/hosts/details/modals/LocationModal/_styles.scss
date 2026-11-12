@@ -1,0 +1,19 @@
+.location-modal {
+  .modal__content {
+    @include vertical-modal-layout;
+  }
+
+  &__location {
+    display: flex;
+    align-items: baseline;
+    gap: $pad-small;
+  }
+
+  &__message {
+    @include vertical-modal-layout;
+
+    p {
+      margin: 0;
+    }
+  }
+}

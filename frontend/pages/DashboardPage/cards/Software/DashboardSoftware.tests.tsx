@@ -1,8 +1,11 @@
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import { createMockRouter } from "test/test-utils";
 
-import { ISoftwareResponse } from "interfaces/software";
+import {
+  createMockSoftwareVersion,
+  createMockSoftwareVersionsResponse,
+} from "__mocks__/softwareMock";
+import { createMockRouter } from "test/test-utils";
 
 import Software from "./Software";
 
@@ -19,48 +22,30 @@ describe("Dashboard software card", () => {
   };
 
   it("renders all software normally when present", () => {
-    const allSwResponse: ISoftwareResponse = {
+    const allSwResponse = createMockSoftwareVersionsResponse({
       counts_updated_at: "2024-08-21T21:01:31Z",
+      count: 2,
       software: [
-        {
+        createMockSoftwareVersion({
           id: 784,
           name: vulnSwInfo.name,
           version: vulnSwInfo.version,
           source: "vscode_extensions",
           extension_for: "vscode",
           vendor: "Microsoft",
-          generated_cpe:
-            "cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*",
-          vulnerabilities: [
-            {
-              cve: "CVE-2023-36018",
-              details_link: "https://nvd.nist.gov/vuln/detail/CVE-2023-36018",
-              created_at: "2024-07-12T04:00:56Z",
-              cvss_score: 9.8,
-              epss_probability: 0.00162,
-              cisa_known_exploit: false,
-              cve_published: "2023-11-14T18:15:00Z",
-              cve_description:
-                "Visual Studio Code Jupyter Extension Spoofing Vulnerability",
-              resolved_in_version: "2023.10.1100000000",
-            },
-          ],
           hosts_count: vulnSwInfo.hostsCount,
-          icon_url: null,
-        },
-        {
+        }),
+        createMockSoftwareVersion({
           id: 758,
           name: noVulnSwInfo.name,
           version: noVulnSwInfo.version,
           source: "vscode_extensions",
           extension_for: "cursor",
-          generated_cpe: "",
           vulnerabilities: null,
           hosts_count: noVulnSwInfo.hostsCount,
-          icon_url: null,
-        },
+        }),
       ],
-    };
+    });
     render(
       <Software
         errorSoftware={null}
@@ -89,37 +74,21 @@ describe("Dashboard software card", () => {
     });
   });
   it("renders vulnerable software normally when present", () => {
-    const vulnSwResponse: ISoftwareResponse = {
+    const vulnSwResponse = createMockSoftwareVersionsResponse({
       counts_updated_at: "2024-08-21T21:01:31Z",
+      count: 1,
       software: [
-        {
+        createMockSoftwareVersion({
           id: 784,
           name: vulnSwInfo.name,
           version: vulnSwInfo.version,
           source: "vscode_extensions",
           extension_for: "vscode",
           vendor: "Microsoft",
-          generated_cpe:
-            "cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*",
-          vulnerabilities: [
-            {
-              cve: "CVE-2023-36018",
-              details_link: "https://nvd.nist.gov/vuln/detail/CVE-2023-36018",
-              created_at: "2024-07-12T04:00:56Z",
-              cvss_score: 9.8,
-              epss_probability: 0.00162,
-              cisa_known_exploit: false,
-              cve_published: "2023-11-14T18:15:00Z",
-              cve_description:
-                "Visual Studio Code Jupyter Extension Spoofing Vulnerability",
-              resolved_in_version: "2023.10.1100000000",
-            },
-          ],
           hosts_count: vulnSwInfo.hostsCount,
-          icon_url: null,
-        },
+        }),
       ],
-    };
+    });
     render(
       <Software
         errorSoftware={null}
@@ -146,5 +115,45 @@ describe("Dashboard software card", () => {
       });
       expect(elements.length).toBeGreaterThan(0);
     });
+  });
+
+  it("links card rows by software_version_id, not the removed software_id", () => {
+    const router = createMockRouter();
+    const response = createMockSoftwareVersionsResponse({
+      counts_updated_at: "2024-08-21T21:01:31Z",
+      count: 1,
+      software: [
+        createMockSoftwareVersion({
+          id: 784,
+          name: vulnSwInfo.name,
+          version: vulnSwInfo.version,
+          hosts_count: vulnSwInfo.hostsCount,
+        }),
+      ],
+    });
+    render(
+      <Software
+        errorSoftware={null}
+        isSoftwareFetching={false}
+        isSoftwareEnabled
+        navTabIndex={0}
+        onTabChange={jest.fn()}
+        onQueryChange={jest.fn()}
+        software={response}
+        teamId={7}
+        router={router}
+        softwarePageIndex={0}
+      />
+    );
+
+    // hosts_count is unique to this row, so use it to anchor.
+    const row = screen
+      .getByText(String(vulnSwInfo.hostsCount))
+      .closest("tr") as HTMLElement;
+    expect(row).toBeInTheDocument();
+    fireEvent.click(row);
+    expect(router.push).toHaveBeenCalledWith(
+      "/hosts/manage?software_version_id=784&fleet_id=7"
+    );
   });
 });

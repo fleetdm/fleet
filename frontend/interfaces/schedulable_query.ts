@@ -2,13 +2,13 @@
 import PropTypes from "prop-types";
 
 import { IFormField } from "./form_field";
+import { ILabelQuery } from "./label";
 import { IPack } from "./pack";
 import {
   CommaSeparatedPlatformString,
   QueryablePlatform,
   SelectedPlatform,
 } from "./platform";
-import { ILabelQuery } from "./label";
 
 // Query itself
 export interface ISchedulableQuery {
@@ -18,7 +18,7 @@ export interface ISchedulableQuery {
   name: string;
   description: string;
   query: string;
-  team_id: number | null;
+  fleet_id: number | null;
   interval: number;
   platform: CommaSeparatedPlatformString; // Might more accurately be called `platforms_to_query` or `targeted_platforms` – comma-separated string of platforms to query, default all platforms if omitted
   min_osquery_version: string;
@@ -34,10 +34,11 @@ export interface ISchedulableQuery {
   stats: ISchedulableQueryStats;
   editingExistingQuery?: boolean;
   labels_include_any?: ILabelQuery[];
+  labels_include_all?: ILabelQuery[];
 }
 
 export interface IEnhancedQuery extends ISchedulableQuery {
-  performance: string;
+  performance: PerformanceImpactIndicator;
   targetedPlatforms: QueryablePlatform[];
 }
 export interface ISchedulableQueryStats {
@@ -47,6 +48,24 @@ export interface ISchedulableQueryStats {
   system_time_p95?: number | null;
   total_executions?: number;
 }
+
+export const PerformanceImpactIndicatorValue = {
+  MINIMAL: "Minimal",
+  CONSIDERABLE: "Considerable",
+  EXCESSIVE: "Excessive",
+  UNDETERMINED: "Undetermined",
+  DENYLISTED: "Denylisted",
+} as const;
+
+export type PerformanceImpactIndicator = typeof PerformanceImpactIndicatorValue[keyof typeof PerformanceImpactIndicatorValue];
+
+export const isPerformanceImpactIndicator = (
+  value: unknown
+): value is PerformanceImpactIndicator => {
+  return Object.values(PerformanceImpactIndicatorValue).includes(
+    value as PerformanceImpactIndicator
+  );
+};
 
 // legacy
 export default PropTypes.shape({
@@ -66,7 +85,7 @@ export interface IGetQueryResponse {
 }
 
 // List global or team queries
-/**  GET /api/v1/fleet/queries?order_key={column_from_queries_table}&order_direction={asc|desc}&team_id={team_id} */
+/**  GET /api/v1/fleet/queries?order_key={column_from_queries_table}&order_direction={asc|desc}&fleet_id={fleet_id} */
 export interface IListQueriesResponse {
   queries: ISchedulableQuery[];
 }
@@ -84,27 +103,28 @@ export interface IQueryKeyQueriesLoadAll {
 }
 // Create a new query
 /** POST /api/v1/fleet/queries */
-export interface ICreateQueryRequestBody {
+export interface ICreateQueryFormData {
   name: string;
   query: string;
   description?: string;
   observer_can_run?: boolean;
   discard_data?: boolean;
-  team_id?: number; // global query if undefined
+  fleet_id?: number; // global query if undefined
   interval?: number; // default 0 means never run
   platform?: CommaSeparatedPlatformString; // Might more accurately be called `platforms_to_query` – comma-separated string of platforms to query, default all platforms if omitted
   min_osquery_version?: string; // default all versions if ommitted
   automations_enabled?: boolean; // whether to send data to the configured log destination according to the query's `interval`. Default false if ommitted.
   logging?: QueryLoggingOption;
   labels_include_any?: string[];
+  labels_include_all?: string[];
 }
 
 // response is ISchedulableQuery
 
-// Modify a query by id
+// Edit a query by id
 /** PATCH /api/v1/fleet/queries/{id} */
-export interface IModifyQueryRequestBody
-  extends Omit<ICreateQueryRequestBody, "name" | "query" | "team_id"> {
+export interface IEditQueryFormData
+  extends Omit<ICreateQueryFormData, "name" | "query" | "fleet_id"> {
   id?: number;
   name?: string;
   query?: string;
@@ -121,8 +141,8 @@ export interface IModifyQueryRequestBody
 
 // Delete a query by name
 /** DELETE /api/v1/fleet/queries/{name} */
-export interface IDeleteQueryRequestBody {
-  team_id?: number; // searches for a global query if omitted
+export interface IDeleteQueryFormData {
+  fleet_id?: number; // searches for a global query if omitted
 }
 
 // Delete a query by id
@@ -131,7 +151,7 @@ export interface IDeleteQueryRequestBody {
 
 // Delete queries by id
 /** POST /api/v1/fleet/queries/delete */
-export interface IDeleteQueriesRequestBody {
+export interface IDeleteQueriesFormData {
   ids: number[];
 }
 

@@ -12,18 +12,32 @@ module.exports = {
       description: 'A boolean that determines whether or not to display the talk to us form when the contact page loads.',
       defaultsTo: false,
     },
+
+    talkToUs: {
+      type: 'boolean',
+      description: 'A boolean that determines whether or not to *only* display the talk to us form when the contact page loads.',
+      defaultsTo: false,
+    },
   },
 
   exits: {
 
     success: {
       viewTemplatePath: 'pages/contact'
-    }
+    },
+
+    badConfig: {
+      responseType: 'badConfig'
+    },
 
   },
 
 
-  fn: async function ({sendMessage}) {
+  fn: async function ({sendMessage, talkToUs}) {
+
+    if (!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.openPositions)) {
+      throw {badConfig: 'builtStaticContent.openPositions'};
+    }
 
     let formToShow = 'talk-to-us';
 
@@ -37,14 +51,25 @@ module.exports = {
       }
     }
 
+    let onlyShowTalkToUsForm = false;
+    if(talkToUs){
+      onlyShowTalkToUsForm = true;
+    }
+
     if(sendMessage) {
       formToShow = 'contact';
     }
+
+    let currentOpenPositionsForApplicationDropdown = _.pluck(sails.config.builtStaticContent.openPositions, 'jobTitle');
+
+
     // Respond with view.
     return {
       formToShow,
       userIsLoggedIn,
-      userHasPremiumSubscription
+      userHasPremiumSubscription,
+      currentOpenPositionsForApplicationDropdown,
+      onlyShowTalkToUsForm,
     };
 
   }

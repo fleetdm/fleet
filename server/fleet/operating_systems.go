@@ -1,10 +1,7 @@
 package fleet
 
 import (
-	"fmt"
 	"strings"
-
-	"github.com/Masterminds/semver/v3"
 )
 
 // OperatingSystem is an operating system uniquely identified according to its name and version.
@@ -24,6 +21,8 @@ type OperatingSystem struct {
 	Platform string `json:"platform" db:"platform"`
 	// DisplayVersion is the display version of a Windows operating system, e.g. "22H2"
 	DisplayVersion string `json:"display_version" db:"display_version"`
+	// InstallationType is the Windows installation type, e.g. "Client", "Server", or "Server Core"
+	InstallationType string `json:"installation_type" db:"installation_type"`
 	// OSVersionID is a unique Name/Version combination for the operating system
 	OSVersionID uint `json:"os_version_id" db:"os_version_id"`
 }
@@ -33,25 +32,59 @@ func (os OperatingSystem) IsWindows() bool {
 	return strings.ToLower(os.Platform) == "windows"
 }
 
-var macOSNudgeLastVersion = semver.MustParse("14")
+// archGroupedOSNames are the OS names the OS inventory records as "Arch Linux", so these Arch-based distributions group
+// with it in the OS list and on the dashboard. The value is whether the version is recorded as "rolling" no matter what
+// the host reports: Omarchy reports its own release number (e.g. "4.0.0"), which Arch Linux doesn't have.
+var archGroupedOSNames = map[string]bool{
+	"Arch Linux ARM": false,
+	"CachyOS Linux":  false,
+	"Omarchy":        true,
+}
 
-// RequiresNudge returns whether the target platform is darwin and
-// below version 14. Starting at macOS 14 nudge is no longer required,
-// as the mechanism to notify users about updates is built in.
-func (os *OperatingSystem) RequiresNudge() (bool, error) {
-	if os.Platform != "darwin" {
-		return false, nil
+// InventoryOSName returns the name the OS inventory records for an operating system that reports name, and whether its
+// version is recorded as "rolling" instead of the reported one.
+func InventoryOSName(name string) (inventoryName string, forceRollingVersion bool) {
+	if forceRolling, ok := archGroupedOSNames[name]; ok {
+		return "Arch Linux", forceRolling
 	}
+	return name, false
+}
 
-	// strip Rapid Security Response suffix (e.g. version 13.3.7 (a)) if any
-	version, err := VersionToSemverVersion(os.Version)
-	if err != nil {
-		return false, fmt.Errorf("parsing macos version \"%s\": %w", os.Version, err)
+// HostAPIOS returns the os_name and os_version host API responses carry, from the host's OS inventory row and its stored
+// display string (hosts.os_version). Hosts the inventory groups under "Arch Linux" keep their own reported name and
+// version, which the display string holds as "<name> <version>".
+func HostAPIOS(inventoryName, inventoryVersion, display string) (name, version string) {
+	if inventoryName == "Arch Linux" {
+		for reported := range archGroupedOSNames {
+			if v, ok := strings.CutPrefix(display, reported+" "); ok {
+				return reported, v
+			}
+		}
 	}
+	return APIOSName(inventoryName), inventoryVersion
+}
 
-	if version.LessThan(macOSNudgeLastVersion) {
-		return true, nil
+// APIOSName returns an OS inventory name the way the API shows it. Windows names drop the "Microsoft " prefix that the
+// inventory keeps, because OS vulnerabilities are matched on the stored name.
+func APIOSName(inventoryName string) string {
+	if strings.HasPrefix(inventoryName, "Microsoft Windows") {
+		return strings.TrimPrefix(inventoryName, "Microsoft ")
 	}
+	return inventoryName
+}
 
-	return false, nil
+// InventoryOSNames returns the OS inventory names that an os_name filter value matches. A Windows name matches with or
+// without "Microsoft ", so filters written before Windows names dropped it keep working. The prefix check ignores case,
+// like the name column does.
+func InventoryOSNames(name string) []string {
+	if strings.HasPrefix(strings.ToLower(name), "windows") {
+		return []string{name, "Microsoft " + name}
+	}
+	return []string{name}
+}
+
+// IsArchGroupedOSName reports whether name is a reported OS name the OS inventory records as "Arch Linux".
+func IsArchGroupedOSName(name string) bool {
+	_, ok := archGroupedOSNames[name]
+	return ok
 }

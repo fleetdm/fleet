@@ -1,23 +1,18 @@
-import React, { useContext, useState } from "react";
 import classnames from "classnames";
+import React, { useState } from "react";
 
-import { AppContext } from "context/app";
-
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import FileDetails from "components/FileDetails";
+import Radio from "components/forms/fields/Radio";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import { IAppStoreApp } from "interfaces/software";
-import { IVppApp } from "services/entities/mdm_apple";
-
-import Card from "components/Card";
-import CustomLink from "components/CustomLink";
-import Radio from "components/forms/fields/Radio";
-import Button from "components/buttons/Button";
-import FileDetails from "components/FileDetails";
+import { IAppStoreApp, isIpadOrIphoneSoftware } from "interfaces/software";
 import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
-import TargetLabelSelector from "components/TargetLabelSelector";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-
 import {
   CUSTOM_TARGET_OPTIONS,
   generateHelpText,
@@ -25,6 +20,9 @@ import {
   getCustomTarget,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
+import { IVppApp } from "services/entities/mdm_apple";
+
+import SoftwareDeploySlider from "../SoftwareDeploySlider";
 
 import { generateFormValidation, getUniqueAppId } from "./helpers";
 
@@ -35,6 +33,7 @@ interface IVppAppListItemProps {
   selected: boolean;
   uniqueAppId: string;
   onSelect: (software: IVppApp) => void;
+  disabled?: boolean;
 }
 
 const VppAppListItem = ({
@@ -42,6 +41,7 @@ const VppAppListItem = ({
   selected,
   uniqueAppId,
   onSelect,
+  disabled,
 }: IVppAppListItemProps) => {
   return (
     <li className={`${baseClass}__list-item`}>
@@ -57,6 +57,7 @@ const VppAppListItem = ({
         value={uniqueAppId}
         name="vppApp"
         onChange={() => onSelect(app)}
+        disabled={disabled}
       />
       {app.platform && (
         <div className="app-platform">
@@ -71,9 +72,15 @@ interface IVppAppListProps {
   apps: IVppApp[];
   selectedApp: IVppApp | null;
   onSelect: (app: IVppApp) => void;
+  disabled?: boolean;
 }
 
-const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
+const VppAppList = ({
+  apps,
+  selectedApp,
+  onSelect,
+  disabled,
+}: IVppAppListProps) => {
   const uniqueSelectedAppId = selectedApp ? getUniqueAppId(selectedApp) : null;
   return (
     <div className={`${baseClass}__list-container`}>
@@ -87,6 +94,7 @@ const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
               selected={uniqueSelectedAppId === uniqueAppId}
               uniqueAppId={uniqueAppId}
               onSelect={onSelect}
+              disabled={disabled}
             />
           );
         })}
@@ -103,6 +111,7 @@ export interface ISoftwareVppFormData {
   labelTargets: Record<string, boolean>;
   selectedApp?: IVppApp | null;
   categories: string[];
+  vppTokenId?: number;
 }
 
 export interface IFormValidation {
@@ -118,6 +127,8 @@ interface ISoftwareVppFormProps {
   isLoading?: boolean;
   onCancel: () => void;
   onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
+  /** When provided, the categories list is fetched dynamically for this fleet. */
+  teamId?: number;
 }
 
 const SoftwareVppForm = ({
@@ -128,9 +139,9 @@ const SoftwareVppForm = ({
   isLoading = false,
   onCancel,
   onClickPreviewEndUserExperience,
+  teamId,
 }: ISoftwareVppFormProps) => {
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const [formData, setFormData] = useState<ISoftwareVppFormData>(
     softwareVppForEdit
@@ -181,8 +192,8 @@ const SoftwareVppForm = ({
     }
   };
 
-  const onToggleSelfServiceCheckbox = (value: boolean) => {
-    const newData = { ...formData, selfService: value };
+  const onToggleSelfService = () => {
+    const newData = { ...formData, selfService: !formData.selfService };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
@@ -215,8 +226,11 @@ const SoftwareVppForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
-  const onToggleAutomaticInstall = (value: boolean) => {
-    const newData = { ...formData, automaticInstall: value };
+  const onToggleAutomaticInstall = () => {
+    const newData = {
+      ...formData,
+      automaticInstall: !formData.automaticInstall,
+    };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
   };
@@ -247,6 +261,7 @@ const SoftwareVppForm = ({
   const renderContent = () => {
     // Edit VPP form
     if (softwareVppForEdit) {
+      const isAppleMobile = isIpadOrIphoneSoftware(softwareVppForEdit.platform);
       return (
         <div className={`${baseClass}__form-fields`}>
           <FileDetails
@@ -258,44 +273,51 @@ const SoftwareVppForm = ({
             canEdit={false}
           />
           <div className={`${baseClass}__form-frame`}>
-            <Card paddingSize="medium" borderRadiusSize="medium">
-              <SoftwareOptionsSelector
-                platform={softwareVppForEdit.platform}
-                formData={formData}
-                onToggleAutomaticInstall={onToggleAutomaticInstall}
-                onToggleSelfService={onToggleSelfServiceCheckbox}
-                onSelectCategory={onSelectCategory}
-                isEditingSoftware
-                onClickPreviewEndUserExperience={() =>
-                  onClickPreviewEndUserExperience(
-                    softwareVppForEdit.platform === "ios" ||
-                      softwareVppForEdit.platform === "ipados"
-                  )
-                }
-              />
-            </Card>
-            <Card paddingSize="medium" borderRadiusSize="medium">
-              <TargetLabelSelector
-                selectedTargetType={formData.targetType}
-                selectedCustomTarget={formData.customTarget}
-                selectedLabels={formData.labelTargets}
-                customTargetOptions={CUSTOM_TARGET_OPTIONS}
-                className={`${baseClass}__target`}
-                onSelectTargetType={onSelectTargetType}
-                onSelectCustomTarget={onSelectCustomTargetOption}
-                onSelectLabel={onSelectLabel}
-                labels={labels || []}
-                dropdownHelpText={
-                  generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
-                }
-              />
-            </Card>
+            <SoftwareOptionsSelector
+              platform={softwareVppForEdit.platform}
+              formData={formData}
+              onToggleSelfService={onToggleSelfService}
+              onSelectCategory={onSelectCategory}
+              isEditingSoftware
+              onClickPreviewEndUserExperience={() =>
+                onClickPreviewEndUserExperience(isAppleMobile)
+              }
+              teamId={teamId}
+              disableOptions={gitOpsModeEnabled}
+            />
+            <DropdownTargetLabelSelector
+              selectedTargetType={formData.targetType}
+              selectedCustomTarget={formData.customTarget}
+              selectedLabels={formData.labelTargets}
+              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              className={`${baseClass}__target`}
+              onSelectTargetType={onSelectTargetType}
+              onSelectCustomTarget={onSelectCustomTargetOption}
+              onSelectLabel={onSelectLabel}
+              labels={labels || []}
+              dropdownHelpText={
+                generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+              }
+              subTitle={
+                isAppleMobile
+                  ? "Changing this will also apply to targets for auto-updates."
+                  : ""
+              }
+              disableOptions={gitOpsModeEnabled}
+            />
           </div>
         </div>
       );
     }
 
+    // Hides deploy slider until app is selected
+    // Hides deploy slider for iOS/iPadOS apps
+    const showDeploySoftwareSlider =
+      !!formData.selectedApp &&
+      !isIpadOrIphoneSoftware(formData.selectedApp.platform);
+
     // Add VPP form
+    // 4.83+ has no additional options to select beyond the app
     if (vppApps) {
       return (
         <div className={`${baseClass}__form-fields`}>
@@ -303,50 +325,34 @@ const SoftwareVppForm = ({
             apps={vppApps}
             selectedApp={formData.selectedApp || null}
             onSelect={onSelectApp}
+            disabled={gitOpsModeEnabled}
           />
           <div className={`${baseClass}__help-text`}>
-            These apps were added in Apple Business Manager (ABM). To add more
-            apps, head to{" "}
-            <CustomLink url="https://business.apple.com" text="ABM" newTab />
+            These apps were added in Apple Business (AB). To add more apps, head
+            to <CustomLink url="https://business.apple.com" text="AB" newTab />
           </div>
-          <div className={`${baseClass}__form-frame`}>
-            <Card paddingSize="medium" borderRadiusSize="large">
-              <SoftwareOptionsSelector
-                platform={
-                  ("selectedApp" in formData &&
-                    formData.selectedApp &&
-                    formData.selectedApp.platform) ||
-                  ""
-                }
-                formData={formData}
-                onToggleAutomaticInstall={onToggleAutomaticInstall}
-                onToggleSelfService={onToggleSelfServiceCheckbox}
-                onSelectCategory={onSelectCategory}
-                onClickPreviewEndUserExperience={() =>
-                  onClickPreviewEndUserExperience(
-                    formData.selectedApp?.platform === "ios" ||
-                      formData.selectedApp?.platform === "ipados"
-                  )
-                }
-              />
-            </Card>
-            <Card paddingSize="medium" borderRadiusSize="large">
-              <TargetLabelSelector
-                selectedTargetType={formData.targetType}
-                selectedCustomTarget={formData.customTarget}
-                selectedLabels={formData.labelTargets}
-                customTargetOptions={CUSTOM_TARGET_OPTIONS}
-                className={`${baseClass}__target`}
-                onSelectTargetType={onSelectTargetType}
-                onSelectCustomTarget={onSelectCustomTargetOption}
-                onSelectLabel={onSelectLabel}
-                labels={labels || []}
-                dropdownHelpText={
-                  generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
-                }
-              />
-            </Card>
-          </div>
+          {formData.selectedApp && (
+            <SoftwareOptionsSelector
+              platform={formData.selectedApp.platform}
+              formData={formData}
+              onToggleSelfService={onToggleSelfService}
+              onSelectCategory={onSelectCategory}
+              onClickPreviewEndUserExperience={() =>
+                onClickPreviewEndUserExperience(
+                  isIpadOrIphoneSoftware(formData.selectedApp?.platform || "")
+                )
+              }
+              teamId={teamId}
+              disableOptions={gitOpsModeEnabled}
+            />
+          )}
+          {showDeploySoftwareSlider && (
+            <SoftwareDeploySlider
+              deploySoftware={formData.automaticInstall}
+              onToggleDeploySoftware={onToggleAutomaticInstall}
+              disabled={gitOpsModeEnabled}
+            />
+          )}
         </div>
       );
     }
@@ -358,20 +364,17 @@ const SoftwareVppForm = ({
     [`${baseClass}__content-disabled`]: isLoading,
   });
 
-  const formContentClasses = classnames(`${baseClass}__form-content`, {
-    [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
-  });
-
   return (
     <form className={baseClass} onSubmit={onFormSubmit}>
       {isLoading && <div className={`${baseClass}__overlay`} />}
       <div className={contentWrapperClasses}>
-        <div className={formContentClasses}>
+        <div className={`${baseClass}__form-content`}>
           <>{renderContent()}</>
         </div>
         <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
-            position="bottom"
+            entityType="software"
+            position="top"
             tipOffset={8}
             renderChildren={(disableChildren) => (
               <Button
@@ -384,7 +387,7 @@ const SoftwareVppForm = ({
               </Button>
             )}
           />
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
         </div>

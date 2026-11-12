@@ -1,17 +1,28 @@
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { noop } from "lodash";
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import { renderWithSetup, createCustomRenderer } from "test/test-utils";
-import { createMockHostSoftware } from "__mocks__/hostMock";
+
+import {
+  createMockHostSoftware,
+  createMockHostSoftwarePackage,
+  DEFAULT_INSTALLED_VERSION,
+} from "__mocks__/hostMock";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
 import {
   getDefaultSoftwareInstallHandler,
+  getDeviceSoftwareInstallHandlerFailedWithPreInstall,
   getSoftwareInstallHandlerNoOutputs,
   getSoftwareInstallHandlerOnlyInstallOutput,
+  getSoftwareInstallHandlerWithHash,
   getSoftwareInstallHandlerWithPreInstall,
   getSoftwareInstallHandlerOnlyPreInstallOutput,
+  getSoftwareInstallHandlerAppOpen,
+  getSoftwareInstallHandlerNotifyBeforePatchingSkip,
+  getSoftwareInstallResultHandlerPremiumRequired,
 } from "test/handlers/software-handlers";
 import mockServer from "test/mock-server";
-import { noop } from "lodash";
+import { renderWithSetup, createCustomRenderer } from "test/test-utils";
 
 import SoftwareInstallDetailsModal, {
   StatusMessage,
@@ -20,6 +31,8 @@ import SoftwareInstallDetailsModal, {
 
 describe("SoftwareInstallDetailsModal", () => {
   describe("StatusMessage component", () => {
+    afterEach(() => jest.useRealTimers());
+
     it("renders basic 'is installed' message when not installed by fleet (no installResult provided)", () => {
       render(<StatusMessage softwareName="CoolApp" isMyDevicePage={false} />);
       expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
@@ -37,7 +50,7 @@ describe("SoftwareInstallDetailsModal", () => {
         />
       );
 
-      expect(screen.queryByTestId("pending-outline-icon")).toBeInTheDocument();
+      expect(screen.queryByTestId("pending-icon")).toBeInTheDocument();
       expect(
         screen.getByText(/is installing or will install/)
       ).toBeInTheDocument();
@@ -95,6 +108,25 @@ describe("SoftwareInstallDetailsModal", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("treats failed_install as installed when host still reports installed versions", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+          })}
+          isMyDevicePage={false}
+          canOverrideFailureWithInstalled
+        />
+      );
+
+      expect(screen.getByText(/CoolApp/)).toBeInTheDocument();
+      expect(screen.getByText(/is installed\./i)).toBeInTheDocument();
+      expect(screen.getByTestId("success-icon")).toBeInTheDocument();
+      expect(screen.queryByText(/failed to install/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId("failed-icon")).not.toBeInTheDocument();
+    });
+
     it("on host details page, renders failed install without retry", () => {
       render(
         <StatusMessage
@@ -114,6 +146,156 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
     });
 
+    it("renders app-open skipped copy for a patch_when_closed variant", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+            pre_install_query_output:
+              "Query didn't return result or failed\nThe app was open.",
+          })}
+          isMyDevicePage={false}
+          skippedInstall
+        />
+      );
+
+      expect(screen.getByText(/Fleet skipped install of/)).toBeInTheDocument();
+      expect(screen.getByText(/The app was open/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/It will update once the user closes it and the/)
+      ).toBeInTheDocument();
+      // Notify sentence must not leak into the patch_when_closed path.
+      expect(
+        screen.queryByText(/Fleet notifies the end user/)
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
+      // Grey "!" (error), not the red failure icon.
+      expect(
+        screen
+          .getByTestId("error-icon")
+          .querySelector("path")
+          ?.getAttribute("fill")
+      ).toContain("ui-fleet-black-50");
+    });
+
+    it("renders the notify-variant trailing sentence when pre-install output carries the notify marker", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+            pre_install_query_output:
+              "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch is forced.",
+          })}
+          isMyDevicePage={false}
+          skippedInstall
+        />
+      );
+
+      expect(screen.getByText(/Fleet skipped install of/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Fleet notifies the end user 1 hour before the patch is forced\./
+        )
+      ).toBeInTheDocument();
+      // patch_when_closed copy is misleading here and must not render.
+      expect(
+        screen.queryByText(/It will update once the user closes it/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders the deadline-variant sentence when pre-install output carries the deadline marker", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+            pre_install_query_output:
+              "Query didn't return result or failed\nThe app was open. Fleet notifies the end user 1 hour before the patch deadline.",
+          })}
+          isMyDevicePage={false}
+          skippedInstall
+        />
+      );
+
+      expect(screen.getByText(/Fleet skipped install of/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Fleet will notify the end user 1 hour before the patch deadline\./
+        )
+      ).toBeInTheDocument();
+      // Notify-forced copy mentions "patch is forced"; deadline mustn't leak
+      // into that wording.
+      expect(
+        screen.queryByText(/1 hour before the patch is forced/)
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(/It will update once the user closes it/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders app-open skipped copy with a policy-automations link on the admin activity feed", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+          })}
+          isMyDevicePage={false}
+          skippedInstall
+        />
+      );
+
+      expect(screen.getByText(/Fleet skipped install of/)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /The app was open\. It will update once the user closes it and the/
+        )
+      ).toBeInTheDocument();
+      // "policy runs again" is the external CustomLink to the cadence docs.
+      const link = screen.getByRole("link", { name: /policy runs again/ });
+      expect(link).toHaveAttribute(
+        "href",
+        "https://fleetdm.com/learn-more-about/policy-automations"
+      );
+      expect(link).toHaveAttribute("target", "_blank");
+      // Self-service tail should be gone.
+      expect(
+        screen.queryByText(/update via self service/)
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/failed to install/)).not.toBeInTheDocument();
+      // Grey "!" (error), not the red failure icon.
+      expect(
+        screen
+          .getByTestId("error-icon")
+          .querySelector("path")
+          ?.getAttribute("fill")
+      ).toContain("ui-fleet-black-50");
+    });
+
+    it("renders skipped copy as plain text (no policy-automations link) on the My device page", () => {
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "failed_install",
+          })}
+          isMyDevicePage
+          skippedInstall
+        />
+      );
+
+      expect(
+        screen.getByText(
+          /It will update once the user closes it and the policy runs again\./
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("link", { name: /policy runs again/ })
+      ).not.toBeInTheDocument();
+    });
+
     it("on host details page/install activity, renders installed message with timestamp", () => {
       render(
         <StatusMessage
@@ -131,6 +313,59 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(screen.getByText(/Test Host/)).toBeInTheDocument();
       expect(screen.getByText(/\(com\.cool\.app\)/)).toBeInTheDocument();
       expect(screen.getByText(/\d+.*ago/)).toBeInTheDocument();
+    });
+
+    it("on activity feed, renders installed message with the activity's timestamp instead of the install's", async () => {
+      jest.useFakeTimers();
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      render(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "installed",
+          })}
+          isMyDevicePage={false}
+          activityCreatedAt={fiveMinutesAgo}
+        />
+      );
+      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+      expect(screen.getByText(/5 minutes ago/)).toBeInTheDocument();
+
+      await user.hover(screen.getByText(/5 minutes ago/));
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      expect(
+        screen.queryByText(/Time when Fleet sent install command/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("on host software page, renders installed message with the install's created_at instead of a newer updated_at", async () => {
+      const threeDaysAgo = new Date(
+        Date.now() - 3 * 24 * 60 * 60 * 1000
+      ).toISOString();
+      const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+      const { user } = renderWithSetup(
+        <StatusMessage
+          softwareName="CoolApp"
+          installResult={createMockSoftwareInstallResult({
+            status: "installed",
+            created_at: threeDaysAgo,
+            updated_at: oneMinuteAgo,
+          })}
+          isMyDevicePage={false}
+        />
+      );
+
+      expect(screen.getByText(/3 days ago/)).toBeInTheDocument();
+
+      await user.hover(screen.getByText(/3 days ago/));
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Time when Fleet sent install command/)
+        ).toBeInTheDocument();
+      });
     });
   });
 
@@ -161,16 +396,16 @@ describe("SoftwareInstallDetailsModal", () => {
       expect(onCancel).toHaveBeenCalledTimes(2);
     });
 
-    it("shows Done button for pending install", () => {
+    it("shows Close button for pending install", () => {
       const onCancel = jest.fn();
       render(<ModalButtons status="pending_install" onCancel={onCancel} />);
-      expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
       expect(
         screen.queryByRole("button", { name: "Retry" })
       ).not.toBeInTheDocument();
     });
 
-    it("on device user page, shows Done button for installed software", () => {
+    it("on device user page, shows Close button for installed software", () => {
       const onCancel = jest.fn();
       render(
         <ModalButtons
@@ -179,7 +414,7 @@ describe("SoftwareInstallDetailsModal", () => {
           onCancel={onCancel}
         />
       );
-      expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     });
   });
 
@@ -289,6 +524,82 @@ describe("SoftwareInstallDetailsModal", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("renders the app-open pre-install output for a patch_when_closed skip", async () => {
+      mockServer.use(getSoftwareInstallHandlerAppOpen);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+      const { user } = renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={{
+            ...baseDetails,
+            skipped_install: true,
+          }}
+          onCancel={noop}
+        />
+      );
+
+      await screen.findByText(/Fleet skipped install of/);
+      await user.click(screen.getByRole("button", { name: /Details/i }));
+
+      expect(screen.getByText("Pre-install query output:")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Query didn't return result or failed\s+The app was open\./
+        )
+      ).toBeInTheDocument();
+      // patch_when_closed has no notify sentence.
+      expect(
+        screen.queryByText(/Fleet notifies the end user/)
+      ).not.toBeInTheDocument();
+    });
+
+    it("renders the notify-before-patching sentence in the pre-install output when the payload carries it", async () => {
+      mockServer.use(getSoftwareInstallHandlerNotifyBeforePatchingSkip);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+      const { user } = renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={{
+            ...baseDetails,
+            skipped_install: true,
+          }}
+          onCancel={noop}
+        />
+      );
+
+      await screen.findByText(/Fleet skipped install of/);
+      await user.click(screen.getByRole("button", { name: /Details/i }));
+
+      expect(screen.getByText("Pre-install query output:")).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Query didn't return result or failed\s+The app was open\. Fleet notifies the end user 1 hour before the patch is forced\./
+        )
+      ).toBeInTheDocument();
+    });
+
+    it("keeps the Details button on a skip whose host inventory reports an installed version (regression)", async () => {
+      mockServer.use(getSoftwareInstallHandlerAppOpen);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={{
+            ...baseDetails,
+            skipped_install: true,
+          }}
+          hostSoftware={createMockHostSoftware({
+            id: 99,
+            name: "CoolApp",
+            installed_versions: [DEFAULT_INSTALLED_VERSION],
+          })}
+          onCancel={noop}
+        />
+      );
+
+      await screen.findByText(/Fleet skipped install of/);
+      expect(
+        await screen.findByRole("button", { name: /Details/i })
+      ).toBeInTheDocument();
+    });
+
     it("shows install and post-install outputs after clicking Details (no pre-install)", async () => {
       mockServer.use(getDefaultSoftwareInstallHandler);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
@@ -361,6 +672,183 @@ describe("SoftwareInstallDetailsModal", () => {
         screen.queryByRole("button", {
           name: /Details/i,
         })
+      ).not.toBeInTheDocument();
+    });
+
+    // #52017: on the end-user My device page, clicking "Failed" opened the modal
+    // but showed "is installed" because the host inventory still reported an
+    // older version. The override is meant for the admin Host details page;
+    // My device (deviceAuthToken) must show the failure so the user can see
+    // Details + Retry.
+    it("on My device, does not override a failed install to 'is installed' even when the host reports an older installed version", async () => {
+      mockServer.use(getDeviceSoftwareInstallHandlerFailedWithPreInstall);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={createMockHostSoftware({
+            id: 99,
+            name: "CoolApp",
+          })}
+          deviceAuthToken="token123"
+          onCancel={noop}
+        />
+      );
+
+      expect(await screen.findByText(/failed to install/)).toBeInTheDocument();
+      expect(screen.queryByText(/is installed\./i)).not.toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: /Details/i })
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    });
+
+    // A failed_install with an available update reads "Failed" in the cell on
+    // both admin and self-service surfaces, so the admin modal must also
+    // surface the failure instead of overriding to "is installed." The
+    // installed-override still applies when inventory matches the installer
+    // version (no update available); that case is covered elsewhere.
+    it("on admin, does not override a failed install to 'is installed' when the host reports an older installed version with an update available", async () => {
+      mockServer.use(getSoftwareInstallHandlerOnlyPreInstallOutput);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={createMockHostSoftware({
+            id: 99,
+            name: "CoolApp",
+            software_package: createMockHostSoftwarePackage({
+              version: "2.0.0",
+            }),
+            installed_versions: [
+              { ...DEFAULT_INSTALLED_VERSION, version: "1.0.0" },
+            ],
+          })}
+          onCancel={noop}
+        />
+      );
+
+      expect(await screen.findByText(/failed to install/)).toBeInTheDocument();
+      expect(screen.queryByText(/is installed\./i)).not.toBeInTheDocument();
+      expect(
+        await screen.findByRole("button", { name: /Details/i })
+      ).toBeInTheDocument();
+    });
+
+    it("renders the patch-skipped message even when the host reports the app as installed (skip beats the installed-override)", async () => {
+      mockServer.use(getSoftwareInstallHandlerAppOpen);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      // Host DOES report an installed version, which would normally collapse a
+      // failed_install to "is installed." on the admin surface (4.82 #31663). A
+      // patch-when-closed skip must beat that override so the deferred state
+      // isn't masked (#52297).
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={{
+            ...baseDetails,
+            skipped_install: true,
+          }}
+          hostSoftware={createMockHostSoftware({
+            id: 99,
+            name: "CoolApp",
+          })}
+          onCancel={noop}
+        />
+      );
+
+      expect(
+        await screen.findByText(/Fleet skipped install of/)
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/is installed\./i)).not.toBeInTheDocument();
+    });
+  });
+
+  describe("API error states", () => {
+    afterEach(() => {
+      mockServer.resetHandlers();
+    });
+
+    it("renders the Fleet Premium upsell when the results request returns 402", async () => {
+      mockServer.use(getSoftwareInstallResultHandlerPremiumRequired);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      expect(
+        await screen.findByText("Couldn't get install details.")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/This feature is included in Fleet Premium/i)
+      ).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Learn more/i })).toHaveAttribute(
+        "href",
+        "https://fleetdm.com/upgrade"
+      );
+    });
+  });
+
+  // The Package SHA-256 hash row is guarded on the payload's `hash_sha256`
+  // field. Backend hydrates it for package-backed installs; VPP / older
+  // results carry no hash and the row must stay out of the DOM.
+  describe("Package SHA-256 hash row", () => {
+    afterEach(() => {
+      mockServer.resetHandlers();
+    });
+
+    it("renders the label, hash, and a copy button when the install result carries hash_sha256", async () => {
+      mockServer.use(getSoftwareInstallHandlerWithHash);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      expect(
+        await screen.findByText("Package SHA-256 hash:")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          "e6ddb2dd089ecea38ab73ed12812df269f1447e750cf4355703340bb8aa1ad"
+        )
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Copy hash to clipboard/i })
+      ).toBeInTheDocument();
+    });
+
+    it("does not render the hash row when the install result has no hash_sha256", async () => {
+      mockServer.use(getDefaultSoftwareInstallHandler);
+      const renderWithServer = createCustomRenderer({ withBackendMock: true });
+
+      renderWithServer(
+        <SoftwareInstallDetailsModal
+          details={baseDetails}
+          hostSoftware={baseHostSoftware}
+          onCancel={noop}
+        />
+      );
+
+      // Wait for the modal to finish loading (status message is a good
+      // anchor — it renders after the useQuery resolves).
+      await screen.findByText(/Fleet installed/);
+      expect(
+        screen.queryByText("Package SHA-256 hash:")
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Copy hash to clipboard/i })
       ).not.toBeInTheDocument();
     });
   });

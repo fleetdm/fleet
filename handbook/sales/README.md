@@ -7,30 +7,42 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------|
-| Head of Customers                     | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
-| Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_
-| VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
-| Account Executive (AE)                | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
-| Solutions Specialist                  | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/go-to-market-groups#current-gtm-groups)
+| SVP of Global Sales                   | [Chaz MacLaughlin](https://www.linkedin.com/in/chazmaclaughlin/) _([@chazmac6](https://github.com/chazmac6))_
+| Head of Strategic Growth               | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
+| Director of Sales & Channel, EMEA     | [Damon Sabrkesh](https://www.linkedin.com/in/damon-sabrkesh/) _([@Nine9one](https://github.com/Nine9one))_
+| Channel Manager, North America        | [Eric Comeau](https://www.linkedin.com/in/escomeau/) _([@escomeau](https://github.com/escomeau))_ <br> [Suzy Beck](https://www.linkedin.com/in/suzy-beck/) _([@SuzyBeck](https://github.com/suzybeck))_
+| Account Executive (AE)                | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
+| Solutions Consultant (SC)             | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
+| Solutions Specialist                  | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (if urgent, mention a [team member](#team) in the [#g-sales](https://fleetdm.slack.com/archives/C030A767HQV)).
-  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/74) for this department, including pending tasks and the status of new requests.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-gtm-ops&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [help-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel.)
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/81) for this department, including pending tasks and the status of new requests.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
+
+
+## Sales forecast
+
+To maintain an accurate picture of our performance and make sure our weekly forecast calls are as productive as possible, every Account Executive (AE) is required to update the AE weekly sales forecast spreadsheet (CONFIDENTIAL DOC - see agenda in calendar event) by **Thursday, 5:00 PM PT**. This data enables leadership to identify risks early and provide the support needed to close deals. Data is reviewed Friday mornings during the weekly **"☕️ Forecast call"**.
+
+
+## Sales territory assignments
+
+For current sales territory assignments, see the ["GTM territory assignments"](https://fleetdm.com/handbook/company/go-to-market-operations#gtm-territory assignments).
 
 
 ## Responsibilities
 
-The Sales department is directly responsible for attaining the revenue goals of Fleet and helping to deliver upon our customers' objectives.
+The Sales department is directly responsible for attaining the revenue goals of Fleet, solutions consulting, and helping to deliver upon our customers' objectives.
 
 
 ### Add an account to your patch
 
 Use the following steps to add an account to Salesforce if one doesn't exist already:
 1. Obtain the company name, website, and LinkedIn company url of the account you would like to create and search Salesforce to be sure a duplicate, parent, or child account doesn't already exist. 
-2. If the account already exists, reach out to the [Head of Digital Workspace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
+2. If the account already exists, reach out to the [Head of GTM Architecture](https://fleetdm.com/handbook/finance#team) in the [:help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR) with the account data and request the account be created and/or added to your patch.
 
 
 ### Respond to a customer feature comparison request
@@ -44,9 +56,23 @@ AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spr
 
 To run a demo for a prospect, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
 
+
 ### Introduce Fleet's CEO
 
-To get the CEO's attention and introduce him to an account, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
+To get the CEO's attention and introduce him to an account, @-mention his Executive Assistant (`@SFriendLee`) in the [#help-ea Slack channel](https://fleetdm.slack.com/archives/C08HKQ84UCD) with the LinkedIn URL(s) of the people you would like the CEO to connect with. The EA will send all connect requests within the same business day. 
+
+
+### Request executive involvement in an opportunity
+
+When executive involvement (e.g., from the CEO, Customer Success leader, or another Fleet executive) would meaningfully increase the likelihood of closing a deal, the AE can request that a specific executive join a prospect call for an already-qualified opportunity. Executive involvement is meant to accelerate deals, not create qualification. The AE will submit a request in the [#help-sales](https://fleetdm.slack.com/archives/C030A767HQV) Slack channel at least 48 hours before the requested call. Use the following template to submit your request:
+
+```
+- Who are you requesting: @REQUESTED_EXECUTIVE
+- Clear objective: Be explicit about what decision, commitment, or alignment we’re seeking.
+- A brief opportunity overview: company name, incumbent solution, objective, what the AE needs the executive to say, and what the executive should **not** say.
+- Confirmed attendees: We match executive-level (jerseys) on both sides, no title mismatch.
+- Opportunity URL:
+```
 
 
 ### Track an objection
@@ -67,7 +93,7 @@ Use the following steps to change a contact's organization in Salesforce:
 
 ### Review Salesforce opportunities
 
-Every week, the sales manager will review the necessary opportunities with internal stakeholders. The AE or CSM who owned the deal, their manager, the Head of Marketing, Head of Digital Workplace & GTM Systems, and the CEO will review all opportunities on the "[Ω Ops for review](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001qyE12AI/view?queryScope=userFolders)" report in Salesforce. Opportunities will be reviewed for a number of reasons, including: 
+Every week, the sales manager will review the necessary opportunities with internal stakeholders. The AE or CSM who owned the deal, their manager, the Head of Marketing, GTM Systems Architect, and the CEO will review all opportunities on the "[Ω Ops for review](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001qyE12AI/view?queryScope=userFolders)" report in Salesforce. Opportunities will be reviewed for a number of reasons, including: 
 - If the opportunity is older than 30 days, but the prospect hasn't been sent an order form yet.
 - Any closed-lost new business or expansion opportunity from the previous week.
 - Any opportunity with a closed date pushed into a different quarter.
@@ -78,38 +104,24 @@ If no opportunities meet these criteria, the meeting is used to discuss the olde
 ### Communicate Gross new ARR added
 
 Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, the CEO and CRO will measure the amount of "Gross new ARR" added towards the goal set forth by the CEO. To do this:
-1. Before the meeting, the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) will copy the goal from the gross new ARR goal from ["OCV GOH: Fleet" doc (confidential document)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) and add it to the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0). 
+1. Before the meeting, the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) will copy the goal from the gross new ARR goal from ["OCV GOH: Fleet" doc (confidential document)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) and add it to the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0). 
 2. Before the meeting, the Executive Assistant will take a screenshot of the [Ω Open ops (Next 45 days) oppty list](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Open_ops_Next_45_days) that includes the next 5+ deals set to close based on "Close date" and add it to the doc. 
 3. Using the ["Ω ∆ARR won + open pipeline (current Q)" Salesforce report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000019LuH2AU/view) (and adjusting the filters if needed), the Executive Assistant will calculate the progress toward the goal and "Amount left to close" and add it to the doc. 
-4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
+4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [:help-gtm-ops Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
 
 
-### Send a reseller subscription quote
+### Send a quote
 
-Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
-1. Navigate to the [Google Docs template gallery](https://docs.google.com/document/u/0/?ftv=1&tgif=d) and make a copy of the "TEMPLATE - 3EYE - Subscription quote" document.
-2. Assign the "Quote #" by combining the "ISO date" (YYYYMMDD) and "Total amount" (e.g. "YYYYMMDD-000000" or "20250212-128400").
-3. Make sure the "Customer", "Customer contact", "Total term", "Effective dates", "Billing frequency/timing", and "Payment terms" fields are correctly reflected on the subscription quote.
-4. Insert the correct "Quantity", "Total list price", "Distributor price", and "Effective price" in the table. If a discount is applied to the quote, insert the appropriate ISO date in the "**Discount.**" term at the bottom of the page.
-5. Insert the total effective price in the "Total amount (USD)" field and send the quote. 
+In order to be transparent, Fleet sends quotes within 30 days of opportunity creation in most cases. Often, Sales will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription quote, the Fleet owner of the opportunity (usually AE or CSM) will:
 
+1. Follow the process to [create a quote](https://fleetdm.com/handbook/company/go-to-market-operations#create-a-quote) in Salesforce. The quote is automatically routed to the appropriate approver.
 
-### Send an order form
+> **IMPORTANT** To ensure product language is consistent, any changes to the standard quote template (including subscription appendix) must be submitted to ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval.
 
-In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 💸 [Deal Desk](https://fleetdm.com/handbook/finance#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will: 
+2. Once the quote is approved, generate the PDF in Salesforce and send it to the prospect.
+3. Copy the quote URL to the "Order form URL" field on the Salesforce opportunity.
 
-> Check out this example of an [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A)!
-
-1. Navigate to the Salesforce opportunity and click the "Create a subscription order form" link (top-right corner of the op page) to copy the "[TEMPLATE - Order form](https://docs.google.com/document/u/0/?tgif=d&ftv=1). 
-2. Move the order for to the "[Contract drafts](https://drive.google.com/drive/u/0/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c)" folder in Google Drive.
-3. Edit the order form to be specific to the customer (e.g. add/remove table rows as needed for multi-year deals). Where possible, include a graphic of the customer's logo. Use good judgment and omit if a high-quality graphic is unavailable. If in doubt, ask IT & Enablement for help.
-
-> **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval. 
-
-4. In the [#help-order-forms Slack channel](https://fleetdm.slack.com/archives/C09G32R99M2) `@`-mention the VP of Customer Success (for post-sale), or the CRO (pre-sale), and [Deal Desk](https://fleetdm.com/handbook/finance#team) with a link to the docx version of the order and ask them to approve the order form.
-5. Once approved, copy the Google Doc URL to the "Order form URL" field on the Salesforce opportunity and send the order to the prospect. 
-
-> Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and "Closed lost". The review of these opportunities and exceptions for them of one (1) week or less is the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.
+> Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and "Closed lost". The review of these opportunities and exceptions for them of one (1) week or less is the responsibility of the sales manager. For exceptions of more than one week, escalate to the CEO.
 
 
 ### Send an NDA
@@ -117,12 +129,12 @@ In order to be transparent, Fleet sends order forms within 30 days of opportunit
 Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the companies we collaborate with. Always offer to send Fleet's NDA and, whenever possible, default to using the company's version. To send an NDA to a customer, follow these steps: 
 1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home). If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
 2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
-3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/go-to-market-groups#getting-a-contract-reviewed) so that Finance can look over any proposed changes and provide guidance on how to proceed.
+3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/go-to-market-operations#getting-a-contract-reviewed) so that Finance can look over any proposed changes and provide guidance on how to proceed.
 
 
 ### Close a new customer deal
 
-Once an order form has been signed by both Fleet and the new customer, create and complete a ["🤝 Sale" issue](https://github.com/fleetdm/confidential/issues/new?assignees=alexmitchelliii&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
+Once an order form has been signed by both Fleet and the new customer, create and complete a ["🤝 Sale" issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-sales&projects=&template=3-sale.md&title=New+customer%3A+_____________).
 
 
 ### Process a security questionnaire
@@ -134,7 +146,7 @@ Account Executives (AEs) are responsible for the project management and completi
 To complete a security questionnaire, the AE assigned to the account will:
 
 1. Create an issue linking the questionnaire and any other context needed. 
-2. [Use the handbook](https://fleetdm.com/handbook/finance/security#vendor-questionnaires) to answer the questions with links to appropriate sections in the handbook.
+2. [Use the handbook](https://fleetdm.com/handbook/it/security#vendor-questionnaires) to answer the questions with links to appropriate sections in the handbook.
 3. If there are outstanding questions, the AE will assign the issue to the Solutions Consultant (SC) associated with the opportunity.
 4. The SC will search for unanswered questions and confirm again that nothing was missed from the handbook. Content missing from the handbook will need to be added via PR by the AE.
 5. If there are still unanswered questions, the AE will route the issue to the relevant department. Once complete, the team will leave a comment in the issue, @`mentioning the AE with the requested information. Any questions answered by other departments will be added to the handbook by the AE.
@@ -145,13 +157,84 @@ To complete a security questionnaire, the AE assigned to the account will:
 The “Attributed to” field in the Salesforce opportunity page will be used to track where each new business opportunity created can be attributed to. This is a temporary solution put in place until we have built out the process that would automate how we track attribution and measure ROI associated with our program spend.  
 
 The “Attributed to” field is associated with a Salesforce user. The opportunity owner will have to determine the correct user to add to the field when the opportunity is created. The rule to determine which user to add to the field:
-
-- Inbound: For all opportunities created based on inbound leads (e.g., digital ads, brand, events, GitOps workshops, organic web traffic, etc), update the field with the CMO’s name
 - Outbound-AE: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the AE's name.
-- Outbound-SDR: If the opportunity was created as a result of the AE’s outbound efforts, update the field with the SDR’s name
+- Outbound-Specialist: If the opportunity was created as a result of the Solutions Specialist’s outbound efforts, update the field with the Specialist’s name.
 - Channel: If a deal was referred to us from a Channel Partner (deal-reg approved by Channel Manager), update the field with the Channel Manager’s name.
-- All other sources: For opportunities that do not fall under any of the above categories, update the field with the CMO's name
+- All other sources: For opportunities that do not fall under any of the above categories, e.g., opportunities created based on inbound leads, digital ads, brand, events, GitOps workshops, organic web traffic, etc, update the field with the Integrations Admin user.
 
+
+### Record Solutions Specialist-attributed meetings delivered
+
+The Solutions Specialist is responsible for recording partner and prospect meetings they've booked through outbound efforts. 
+
+To record first meetings related to opportunities [attributed to](#update-salesforce-attributed-to-field-on-an-opportunity) a Solutions Specialist, the Specialist will: 
+
+1. Navigate to the relavent opportunity and record the date and time of the first meeting in the "First meeting date" field.
+
+2. If the prospect attends the meeting, check the "First meeting attended?" checkbox on the Salesforce opportunity. 
+
+To record Partner meetings:
+
+1. Navigate to the relavent partner account and record the date and time of the first meeting in the "Partner meeting date" field.
+
+2. Add the contact that booked the meeting to the "Converting attendee" field.
+
+3. If the Partner attends the meeting, check the "Partner meeting attended?" checkbox on the Salesforce account.
+
+
+### Process the help-solutions-specialist Slack channel
+
+Make sure all requests posted in the BDR Slack channel are acknowledged quickly, executed with clear timelines, thoughtfully evaluated (not blindly followed), and closed with visible outcomes. Applies to all Fleetie requests related to:
+- Lead creation
+- LinkedIn connections and outreach
+- Target accounts
+- Messaging or outbound strategy
+
+When the CEO, or Fleetie, reaches out in #help-solutions-specialist, the solutions specialist who owns the relevant territory is responsible for responding, acknowledging, and taking action per this process. Ultimately, the DRI for the Channel owns the follow-through and outcome.
+
+1. Acknowledge: Reply in-thread in #help-solutions-specialist within 1 hour. Confirm you've seen the request and commit to a specific time by which you'll respond with your plan.
+
+2. Respond: Choose one of three paths:
+- **Execute** — Define the actions you will take and provide a clear ETA.
+- **Clarify** — Ask specific questions and propose a provisional approach while awaiting answers.
+- **Challenge** — Provide clear reasoning if the request is not effective and suggest a better alternative.
+
+3. Close the loop: Reply in-thread immediately after completion with:
+- Actions taken
+- Results achieved
+- Key observations
+- Recommended next steps (if applicable)
+
+All leads generated as a result of the CEO and Fleetie requests must be logged in the CEO request lead tracking sheet the same day. Do not batch-update at the end of the week. Log the following for each lead:
+- Date of CEO request
+- CEO Slack message or request summary
+- Solutions specialist assigned (territory owner)
+- Lead name and company
+- Action taken (LinkedIn connection, outreach sent, lead created in CRM, etc.)
+- Current status (sent, accepted, replied, meeting booked, etc.)
+- Outcome and notes
+- Follow-up date (if applicable)
+
+### Submit a contract for legal review
+
+When needing a contract to undergo legal review, we use the following processes for different types of agreements.
+
+_*NDAs*_
+
+- NDAs are emailed to deal desk for review, cc CFO.
+- Nate will review and either give the ok for signature or send to outside counsel if necessary.
+
+_*MSAs, DPAs, and reseller agreements*_
+
+- Email these to outside counsel and cc Deal Desk.
+- Once outside counsel returns a draft, deal desk or CFO will review and approve it is ready to be sent back to the customer or reseller.
+- When all negotiations are concluded and terms are agreed upon, Nate will make sure the document is clean and ready for signature.
+- Final drafts will be indicated in the naming convention, using "YYYY-MM-DD [Customer Name] FINAL" to indicate the document is ready to be sent for signature.  
+
+_*All other agreements*_
+
+- Email to deal desk and cc CFO
+- Nate or Tina will either ok it for signature or send to outside counsel if necessary.
 
 ## Rituals
 
@@ -164,7 +247,7 @@ The following stubs are included only to make links backward compatible.
 ##### Fleet Premium
 ##### Fleet Free
 ##### Emergency (P0) request communications
-Please see [handbook/company/communications#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-groups#customer-support-service-level-objectives-slos) for all sections above.
+Please see [handbook/company/communications#customer-support-service-level-objectives-slos](https://fleetdm.com/handbook/company/go-to-market-operations#customer-support-service-level-objectives-slos) for all sections above.
 ##### Submit a customer contract for legal review
 ##### Standard terms
 ##### Non-standard NDAs
@@ -173,5 +256,5 @@ Please see [handbook/company/communications#customer-support-service-level-objec
 Please see [handbook/sales#create-a-customer-agreement](https://fleetdm.com/handbook/sales#create-a-customer-agreement) for all sections above.
 
 
-<meta name="maintainedBy" value="alexmitchelliii">
+<meta name="maintainedBy" value="chazmac6">
 <meta name="title" value="🐋 Sales">

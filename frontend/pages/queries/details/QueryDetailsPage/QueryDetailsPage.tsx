@@ -1,49 +1,57 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, {
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
+import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
-import { useErrorHandler } from "react-error-boundary";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
 
-import PATHS from "router/paths";
+import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import DataError from "components/DataError/DataError";
+import InfoBanner from "components/InfoBanner";
+import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
+import MainContent from "components/MainContent";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner/Spinner";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import { AppContext } from "context/app";
-import { QueryContext } from "context/query";
-
+import useTeamIdParam from "hooks/useTeamIdParam";
+import { IQueryReport } from "interfaces/query_report";
 import {
   IGetQueryResponse,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import { IQueryReport } from "interfaces/query_report";
-
+import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
+import PATHS from "router/paths";
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
+import {
+  DOCUMENT_TITLE_SUFFIX,
+  FREQUENCY_DROPDOWN_OPTIONS,
+  SUPPORT_LINK,
+} from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
 import {
   isGlobalObserver,
   isTeamObserver,
 } from "utilities/permissions/permissions";
-import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
-import useTeamIdParam from "hooks/useTeamIdParam";
 
-import Icon from "components/Icon";
-import Spinner from "components/Spinner/Spinner";
-import Button from "components/buttons/Button";
-import BackButton from "components/BackButton";
-import MainContent from "components/MainContent";
-import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
-import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
-import DataError from "components/DataError/DataError";
-import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
-import CustomLink from "components/CustomLink";
-import InfoBanner from "components/InfoBanner";
-import ShowQueryModal from "components/modals/ShowQueryModal";
-import PageDescription from "components/PageDescription";
-import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
+import QueryReport from "../components/QueryReport/QueryReport";
 
 import {
   DEFAULT_SORT_HEADER,
   DEFAULT_SORT_DIRECTION,
+  DEFAULT_PAGE_SIZE,
 } from "./QueryDetailsPageConfig";
 
 interface IQueryDetailsPageProps {
@@ -52,10 +60,12 @@ interface IQueryDetailsPageProps {
   location: {
     pathname: string;
     query: {
-      team_id?: string;
+      fleet_id?: string;
       order_key?: string;
       order_direction?: string;
       host_id?: string;
+      page?: string;
+      query?: string;
     };
     search: string;
   };
@@ -70,7 +80,7 @@ const QueryDetailsPage = ({
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
   if (isNaN(queryId)) {
-    router.push(PATHS.MANAGE_QUERIES);
+    router.push(PATHS.MANAGE_REPORTS);
   }
   const queryParams = location.query;
 
@@ -96,6 +106,10 @@ const QueryDetailsPage = ({
       },
     ];
   })();
+  const parsedPage = parseInt(queryParams?.page ?? "0", 10);
+  const page = isNaN(parsedPage) || parsedPage < 0 ? 0 : parsedPage;
+  const searchQuery: string = queryParams?.query ?? "";
+  const isFirstNavigation = useRef(true);
 
   const handlePageError = useErrorHandler();
   const {
@@ -109,26 +123,9 @@ const QueryDetailsPage = ({
     availableTeams,
     setCurrentTeam,
     isOnGlobalTeam,
+    isGlobalTechnician,
+    isTeamTechnician,
   } = useContext(AppContext);
-  const {
-    lastEditedQueryName,
-    lastEditedQueryDescription,
-    lastEditedQueryBody,
-    lastEditedQueryObserverCanRun,
-    lastEditedQueryDiscardData,
-    lastEditedQueryLoggingType,
-    setLastEditedQueryId,
-    setLastEditedQueryName,
-    setLastEditedQueryDescription,
-    setLastEditedQueryBody,
-    setLastEditedQueryObserverCanRun,
-    setLastEditedQueryFrequency,
-    setLastEditedQueryLoggingType,
-    setLastEditedQueryMinOsqueryVersion,
-    setLastEditedQueryPlatforms,
-    setLastEditedQueryDiscardData,
-  } = useContext(QueryContext);
-
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
 
@@ -138,8 +135,6 @@ const QueryDetailsPage = ({
     }
   }, [config]);
 
-  // disabled on page load so we can control the number of renders
-  // else it will re-populate the context on occasion
   const {
     isLoading: isStoredQueryLoading,
     data: storedQuery,
@@ -149,20 +144,7 @@ const QueryDetailsPage = ({
     () => queryAPI.load(queryId),
     {
       enabled: !!queryId,
-      refetchOnWindowFocus: false,
       select: (data) => data.query,
-      onSuccess: (returnedQuery) => {
-        setLastEditedQueryId(returnedQuery.id);
-        setLastEditedQueryName(returnedQuery.name);
-        setLastEditedQueryDescription(returnedQuery.description);
-        setLastEditedQueryBody(returnedQuery.query);
-        setLastEditedQueryObserverCanRun(returnedQuery.observer_can_run);
-        setLastEditedQueryFrequency(returnedQuery.interval);
-        setLastEditedQueryPlatforms(returnedQuery.platform);
-        setLastEditedQueryLoggingType(returnedQuery.logging);
-        setLastEditedQueryMinOsqueryVersion(returnedQuery.min_osquery_version);
-        setLastEditedQueryDiscardData(returnedQuery.discard_data);
-      },
       onError: (error) => handlePageError(error),
     }
   );
@@ -177,52 +159,122 @@ const QueryDetailsPage = ({
   if (
     !isOnGlobalTeam &&
     !isStoredQueryLoading &&
-    storedQuery?.team_id &&
-    !(storedQuery?.team_id?.toString() === location.query.team_id)
+    storedQuery?.fleet_id &&
+    !(storedQuery?.fleet_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        team_id: storedQuery?.team_id?.toString(),
+        fleet_id: storedQuery?.fleet_id?.toString(),
       })
     );
   }
 
+  const discardData = !!storedQuery?.discard_data;
+  const loggingSnapshot = storedQuery?.logging === "snapshot";
+  const reportCachingDisabled =
+    disabledCachingGlobally || discardData || !loggingSnapshot;
+
   const {
     isLoading: isQueryReportLoading,
+    isFetching: isQueryReportFetching,
     data: queryReport,
     error: queryReportError,
   } = useQuery<IQueryReport, Error, IQueryReport>(
-    [],
+    // Key must include every queryFn parameter; an empty key bled one report's
+    // cached rows into another on revisit (and suppressed refetch on sort).
+    ["queryReport", queryId, currentTeamId, serverSortBy, page, searchQuery],
     () =>
       queryReportAPI.load({
         teamId: currentTeamId,
         sortBy: serverSortBy,
         id: queryId,
+        page,
+        perPage: DEFAULT_PAGE_SIZE,
+        query: searchQuery,
       }),
     {
       enabled: !!queryId,
-      refetchOnWindowFocus: false,
+      keepPreviousData: true,
+      refetchOnWindowFocus: !reportCachingDisabled,
+      // Poll only while the report has no results at all, not when a search
+      // happens to match nothing.
+      refetchInterval: (data) =>
+        !reportCachingDisabled && !searchQuery && (data?.count ?? 0) === 0
+          ? 5000
+          : false,
       onError: (error) => handlePageError(error),
     }
   );
 
+  // Pagination, sorting and search live in the URL so the report endpoint
+  // does the work server-side and the state survives reloads.
+  const onReportQueryChange = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      const {
+        pageIndex: newPageIndex,
+        searchQuery: newSearchQuery,
+        sortDirection: newSortDirection,
+        sortHeader: newSortHeader,
+      } = newTableQuery;
+
+      const newQueryParams: Record<string, string | number | undefined> = {
+        ...queryParams,
+        order_key: newSortHeader,
+        order_direction: newSortDirection,
+        query: newSearchQuery || undefined,
+        page: newPageIndex,
+      };
+      // Reset to the first page when the sort or search changes.
+      if (
+        newSortHeader !== serverSortBy[0].key ||
+        newSortDirection !== serverSortBy[0].direction ||
+        (newSearchQuery ?? "") !== searchQuery
+      ) {
+        newQueryParams.page = 0;
+      }
+
+      const locationPath = getNextLocationPath({
+        pathPrefix: PATHS.REPORT_DETAILS(queryId),
+        queryParams: newQueryParams,
+      });
+      if (isFirstNavigation.current) {
+        isFirstNavigation.current = false;
+        router.replace(locationPath);
+      } else {
+        router.push(locationPath);
+      }
+    },
+    [queryParams, serverSortBy, searchQuery, queryId, router]
+  );
+
+  const loadAllReportResults = useCallback(
+    () =>
+      queryReportAPI.loadAll({
+        teamId: currentTeamId,
+        sortBy: serverSortBy,
+        id: queryId,
+        query: searchQuery,
+      }),
+    [currentTeamId, serverSortBy, queryId, searchQuery]
+  );
+
   // Used to set host's team in AppContext for RBAC action buttons
   useEffect(() => {
-    if (storedQuery?.team_id) {
+    if (storedQuery?.fleet_id) {
       const querysTeam = availableTeams?.find(
-        (team) => team.id === storedQuery.team_id
+        (team) => team.id === storedQuery.fleet_id
       );
       setCurrentTeam(querysTeam);
     }
-  }, [storedQuery]);
+  }, [storedQuery, availableTeams, setCurrentTeam]);
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // e.g., Discover TLS certificates | Queries | Fleet
     if (storedQuery?.name) {
-      document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `${storedQuery.name} | Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     } else {
-      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, storedQuery?.name]);
 
@@ -235,48 +287,65 @@ const QueryDetailsPage = ({
   const isClipped = queryReport?.report_clipped;
   const isLiveQueryDisabled = config?.server_settings.live_query_disabled;
 
+  const canLiveQuery =
+    storedQuery?.observer_can_run ||
+    isObserverPlus ||
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamMaintainerOrTeamAdmin ||
+    isGlobalTechnician ||
+    isTeamTechnician;
+
+  const canRunLiveReport = canLiveQuery && !isLiveQueryDisabled;
+
+  // Team admins/maintainers can only edit queries assigned to a team
+  const canEditQuery =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    (isTeamMaintainerOrTeamAdmin && storedQuery?.fleet_id);
+
   const renderHeader = () => {
-    // Team admins/maintainers can only edit queries assigned to a team
-    const canEditQuery =
-      isGlobalAdmin ||
-      isGlobalMaintainer ||
-      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
-
-    const canLiveQuery =
-      lastEditedQueryObserverCanRun ||
-      isObserverPlus ||
-      isGlobalAdmin ||
-      isGlobalMaintainer ||
-      isTeamMaintainerOrTeamAdmin;
-
+    const intervalLabel = FREQUENCY_DROPDOWN_OPTIONS.find(
+      (option) => option.value && option.value === storedQuery?.interval
+    )?.label;
     // Function instead of constant eliminates race condition with filteredQueriesPath
-    const backToQueriesPath = () => {
-      return (
-        filteredQueriesPath ||
-        getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
-          team_id: currentTeamId,
-        })
-      );
+    const backPath = () => {
+      if (hostId)
+        return getPathWithQueryParams(
+          PATHS.HOST_DETAILS(hostId, currentTeamId)
+        );
+
+      if (filteredQueriesPath) return filteredQueriesPath;
+
+      return getPathWithQueryParams(PATHS.MANAGE_REPORTS, {
+        fleet_id: currentTeamId,
+      });
     };
 
     return (
       <>
         <div className={`${baseClass}__header-links`}>
-          <BackButton text="Back to queries" path={backToQueriesPath()} />
+          <BackButton
+            text={hostId ? "Back to host details" : "Back to reports"}
+            path={backPath()}
+          />
         </div>
         {!isLoading && !isApiError && (
           <>
             <div className={`${baseClass}__title-bar`}>
-              <div className="name-description">
+              <div className={`${baseClass}__name-description`}>
                 <h1 className={`${baseClass}__query-name`}>
-                  {lastEditedQueryName}
+                  <TooltipTruncatedText
+                    value={storedQuery?.name}
+                    fixedPositionStrategy
+                  />
                 </h1>
               </div>
               <div className={`${baseClass}__action-button-container`}>
                 <Button
                   className={`${baseClass}__show-query-btn`}
                   onClick={onShowQueryModal}
-                  variant="inverse"
+                  variant="secondary"
                 >
                   Show query
                 </Button>
@@ -284,42 +353,37 @@ const QueryDetailsPage = ({
                   <div
                     className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
-                    <div
-                      data-tip
-                      data-for="live-query-button"
-                      // Tooltip shows when live queries are globally disabled
-                      data-tip-disable={!isLiveQueryDisabled}
+                    <TooltipWrapper
+                      tipContent="Live reports are disabled in organization settings."
+                      position="top"
+                      disableTooltip={!isLiveQueryDisabled}
+                      underline={false}
+                      showArrow
                     >
-                      <Button
-                        className={`${baseClass}__run`}
-                        variant="inverse"
-                        onClick={() => {
-                          queryId &&
-                            router.push(
-                              getPathWithQueryParams(
-                                PATHS.LIVE_QUERY(queryId),
-                                {
-                                  host_id: hostId,
-                                  team_id: currentTeamId,
-                                }
-                              )
-                            );
-                        }}
-                        disabled={isLiveQueryDisabled}
-                      >
-                        Live query <Icon name="run" />
-                      </Button>
-                    </div>
-                    <ReactTooltip
-                      className="live-query-button-tooltip"
-                      place="top"
-                      effect="solid"
-                      backgroundColor={COLORS["tooltip-bg"]}
-                      id="live-query-button"
-                      data-html
-                    >
-                      Live queries are disabled in organization settings
-                    </ReactTooltip>
+                      <div>
+                        <Button
+                          className={`${baseClass}__run`}
+                          variant="secondary"
+                          onClick={() => {
+                            queryId &&
+                              router.push(
+                                getPathWithQueryParams(
+                                  PATHS.LIVE_REPORT(queryId),
+                                  {
+                                    host_id: hostId,
+                                    fleet_id: currentTeamId,
+                                  }
+                                )
+                              );
+                          }}
+                          disabled={isLiveQueryDisabled}
+                          icon="run"
+                          iconPosition="right"
+                        >
+                          Live report
+                        </Button>
+                      </div>
+                    </TooltipWrapper>
                   </div>
                 )}
                 {canEditQuery && (
@@ -327,32 +391,37 @@ const QueryDetailsPage = ({
                     onClick={() => {
                       queryId &&
                         router.push(
-                          getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
-                            team_id: currentTeamId,
+                          getPathWithQueryParams(PATHS.EDIT_REPORT(queryId), {
+                            fleet_id: currentTeamId,
+                            host_id: hostId,
                           })
                         );
                     }}
                     className={`${baseClass}__manage-automations button`}
                   >
-                    Edit query
+                    Edit report
                   </Button>
                 )}
               </div>
             </div>
             <PageDescription
               className={`${baseClass}__query-description`}
-              content={lastEditedQueryDescription}
+              content={storedQuery?.description}
             />
             <div className={`${baseClass}__settings`}>
               <div className={`${baseClass}__automations`}>
                 <TooltipWrapper
                   tipContent={
                     <>
-                      Query automations let you send data to your log <br />
-                      destination on a schedule. When automations are <b>
-                        on
-                      </b>, <br />
-                      data is sent according to a query&apos;s interval.
+                      Automations let you send data to your log destination (
+                      <LogDestinationIndicator
+                        logDestination={config?.logging.result.plugin || ""}
+                        excludeTooltip
+                      />
+                      ) on a schedule
+                      {intervalLabel &&
+                        ` (${String(intervalLabel).toLowerCase()})`}
+                      .
                     </>
                   }
                 >
@@ -363,16 +432,20 @@ const QueryDetailsPage = ({
                   interval={storedQuery?.interval || 0}
                 />
               </div>
-              <div className={`${baseClass}__log-destination`}>
-                <strong>Log destination:</strong>{" "}
-                <LogDestinationIndicator
-                  logDestination={config?.logging.result.plugin || ""}
-                  filesystemDestination={
-                    config?.logging.result.config?.result_log_file
-                  }
-                  webhookDestination={config?.logging.result.config?.result_url}
-                />
-              </div>
+              {storedQuery?.automations_enabled && (
+                <div className={`${baseClass}__log-destination`}>
+                  <strong>Log destination:</strong>{" "}
+                  <LogDestinationIndicator
+                    logDestination={config?.logging.result.plugin || ""}
+                    filesystemDestination={
+                      config?.logging.result.config?.result_log_file
+                    }
+                    webhookDestination={
+                      config?.logging.result.config?.result_url
+                    }
+                  />
+                </div>
+              )}
             </div>
           </>
         )}
@@ -386,25 +459,25 @@ const QueryDetailsPage = ({
       cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
     >
       <div>
-        <b>Report clipped.</b> A sample of this query&apos;s results is included
-        below.
+        <b>Report clipped.</b> This report is full. Hosts already in the report
+        keep updating, but results from other hosts aren&apos;t saved. Once
+        there&apos;s room, this clears after the report&apos;s next run.
         {
           // Exclude below message for global and team observers/observer+s
           !(
             (currentUser && isGlobalObserver(currentUser)) ||
             isTeamObserver(currentUser, currentTeamId ?? null)
           ) &&
-            " You can still use query automations to complete this report in your log destination."
+            " You can still use automations to complete this report in your log destination."
         }
       </div>
     </InfoBanner>
   );
 
   const renderReport = () => {
-    const loggingSnapshot = lastEditedQueryLoggingType === "snapshot";
-    const disabledCaching =
-      disabledCachingGlobally || lastEditedQueryDiscardData || !loggingSnapshot;
-    const emptyCache = (queryReport?.results?.length ?? 0) === 0;
+    // A search that matches nothing is not an empty report; the table shows
+    // its own empty state for that.
+    const emptyCache = (queryReport?.count ?? 0) === 0 && !searchQuery;
 
     if (isLoading) {
       return <Spinner />;
@@ -415,19 +488,38 @@ const QueryDetailsPage = ({
     }
 
     // Empty state with varying messages explaining why there's no results
-    if (emptyCache || lastEditedQueryDiscardData) {
+    if (emptyCache || discardData) {
       return (
         <NoResults
+          queryId={queryId}
           queryInterval={storedQuery?.interval}
           queryUpdatedAt={storedQuery?.updated_at}
-          disabledCaching={disabledCaching}
+          disabledCaching={reportCachingDisabled}
           disabledCachingGlobally={disabledCachingGlobally}
-          discardDataEnabled={lastEditedQueryDiscardData}
+          discardDataEnabled={discardData}
           loggingSnapshot={loggingSnapshot}
+          canLiveQuery={canRunLiveReport}
+          canEditQuery={!!canEditQuery}
         />
       );
     }
-    return <QueryReport {...{ queryReport, isClipped }} />;
+    return (
+      <QueryReport
+        queryReport={queryReport}
+        queryId={queryId}
+        queryName={storedQuery?.name}
+        isClipped={isClipped}
+        canLiveQuery={canRunLiveReport}
+        isFetching={isQueryReportFetching}
+        pageIndex={page}
+        pageSize={DEFAULT_PAGE_SIZE}
+        searchQuery={searchQuery}
+        sortHeader={serverSortBy[0].key}
+        sortDirection={serverSortBy[0].direction}
+        onQueryChange={onReportQueryChange}
+        loadAllResults={loadAllReportResults}
+      />
+    );
   };
 
   return (
@@ -438,7 +530,7 @@ const QueryDetailsPage = ({
         {renderReport()}
         {showQueryModal && (
           <ShowQueryModal
-            query={lastEditedQueryBody}
+            query={storedQuery?.query}
             onCancel={onShowQueryModal}
           />
         )}

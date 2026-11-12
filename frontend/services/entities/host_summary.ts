@@ -12,7 +12,7 @@ interface ISummaryProps {
 export default {
   getSummary: ({ teamId, platform, lowDiskSpace }: ISummaryProps) => {
     const queryParams = {
-      team_id: teamId,
+      fleet_id: teamId,
       platform,
       low_disk_space: lowDiskSpace,
     };

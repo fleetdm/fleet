@@ -2,6 +2,7 @@ import { IHostMdmData } from "interfaces/host";
 import {
   IMdmSolution,
   IMdmProfile,
+  IMdmVppToken,
   IMdmSummaryMdmSolution,
 } from "interfaces/mdm";
 
@@ -33,13 +34,15 @@ export const createMockMdmSummaryMdmSolution = (
 
 const DEFAULT_MDM_PROFILE_DATA: IMdmProfile = {
   profile_uuid: "123-abc",
-  team_id: 0,
+  fleet_id: 0,
   name: "Test Profile",
   platform: "darwin",
   identifier: "com.test.profile",
   created_at: "2021-01-01T00:00:00Z",
   updated_at: "2021-01-01T00:00:00Z",
   checksum: "123abc",
+  self_service: false,
+  hidden: false,
 };
 
 export const createMockMdmProfile = (
@@ -48,9 +51,26 @@ export const createMockMdmProfile = (
   return { ...DEFAULT_MDM_PROFILE_DATA, ...overrides };
 };
 
+const DEFAULT_VPP_TOKEN_MOCK: IMdmVppToken = {
+  id: 1,
+  org_name: "Acme Inc.",
+  location: "Acme location",
+  renew_date: "2030-01-01T00:00:00Z",
+  country_code: "us",
+  created_at: null,
+  fleets: [],
+};
+
+export const createMockVppToken = (
+  overrides?: Partial<IMdmVppToken>
+): IMdmVppToken => {
+  return { ...DEFAULT_VPP_TOKEN_MOCK, ...overrides };
+};
+
 const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
   encryption_key_available: false,
   enrollment_status: "On (automatic)",
+  is_personal_enrollment: false,
   server_url: "http://mdmsolution.com",
   name: "MDM Solution",
   id: 1,
@@ -62,11 +82,11 @@ const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
     },
     certificates: [],
   },
-  macos_settings: {
+  apple_settings: {
     disk_encryption: null,
     action_required: null,
   },
-  macos_setup: {
+  setup_experience: {
     bootstrap_package_status: "",
     details: "",
     bootstrap_package_name: "",

@@ -1,10 +1,9 @@
 import React from "react";
 
-import { SetupStepStatus } from "interfaces/setup";
-
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import Spinner from "components/Spinner";
+import { SetupStepStatus } from "interfaces/setup";
 
 const baseClass = "setup-script-status-cell";
 
@@ -17,7 +16,7 @@ const serverToUiStatus = (
 ): { label: string; icon: IconNames | "spinner" } => {
   switch (status) {
     case "pending":
-      return { label: "Pending", icon: "pending-outline" };
+      return { label: "Pending", icon: "pending" };
     case "running":
       return { label: "Running", icon: "spinner" };
     case "success":
@@ -26,7 +25,7 @@ const serverToUiStatus = (
     case "cancelled":
       return { label: "Failed", icon: "error" };
     default:
-      return { label: "Pending", icon: "pending-outline" };
+      return { label: "Pending", icon: "pending" };
   }
 };
 
@@ -34,8 +33,14 @@ const SetupScriptStatusCell = ({ status }: ISetupScriptStatusCell) => {
   const { label, icon } = serverToUiStatus(status);
   return (
     <div className={baseClass}>
-      {icon === "spinner" ? <Spinner size="x-small" /> : <Icon name={icon} />}
-      {label}
+      <div className={`${baseClass}__icon`}>
+        {icon === "spinner" ? (
+          <Spinner size="x-small" delay={0} />
+        ) : (
+          <Icon name={icon} />
+        )}
+      </div>
+      <span className={`${baseClass}__label`}>{label}</span>
     </div>
   );
 };

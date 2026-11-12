@@ -1,0 +1,10 @@
+{
+  "name": "4K YouTube to MP3",
+  "unique_identifier": "com.openmedia.4kyoutubetomp3",
+  "token": "4k-youtube-to-mp3",
+  "installer_format": "dmg",
+  "slug": "4k-youtube-to-mp3/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

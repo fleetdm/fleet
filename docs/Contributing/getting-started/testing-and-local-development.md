@@ -19,8 +19,8 @@
     - [Command line](#command-line)
   - [Test hosts](#test-hosts)
   - [Email](#email)
-    - [Manually testing email with MailHog and Mailpit](#manually-testing-email-with-mailhog-and-mailpit)
-      - [MailHog SMTP server without authentication](#mailhog-smtp-server-without-authentication)
+    - [Manually testing email with Mailpit](#manually-testing-email-with-mailpit)
+      - [Mailpit SMTP server without authentication](#mailpit-smtp-server-without-authentication)
       - [Mailpit SMTP server with plain authentication](#mailpit-smtp-server-with-plain-authentication)
   - [Development database management](#development-database-management)
   - [MySQL shell](#mysql-shell)
@@ -42,7 +42,6 @@
       - [Testing manual enrollment](#testing-manual-enrollment)
       - [Testing DEP enrollment](#testing-dep-enrollment)
         - [Gating the DEP profile behind SSO](#gating-the-dep-profile-behind-sso)
-    - [Nudge](#nudge)
       - [Debugging tips](#debugging-tips)
     - [Bootstrap package](#bootstrap-package)
     - [Puppet module](#puppet-module)
@@ -66,14 +65,14 @@ For example:
 
 It can be helpful to quickly populate the UI with simulated hosts when developing or testing features that require host information.
 
-Check out [`/tools/osquery` directory instructions](https://github.com/fleetdm/fleet/tree/main/tools/osquery) for starting up simulated hosts in your development environment.
+Check out the [instructions](https://github.com/fleetdm/fleet/tree/main/tools/osquery#usage) for starting up simulated hosts in your development environment.
 
 ## Test suite
 
 You must install the [`golangci-lint`](https://golangci-lint.run/) command to run `make test[-go]` or `make lint[-go]`, using:
 
 ```sh
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@a4b55ebc3471c9fbb763fd56eefede8050f99887
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@114493f9b3e7257d29e4130f2b4a4aadefbb6845
 ```
 
 This installs the version of `golangci-lint` used in our CI environment (currently 2.7.1). Make sure it is available in your `PATH`. To execute the basic unit and integration tests, run the following from the root of the repository:
@@ -178,7 +177,7 @@ MYSQL_TEST=1 make test-go
 
 ### Email tests
 
-To run email related integration tests using MailHog set environment as follows:
+To run email related integration tests using the Mailpit and smtp4dev services, set environment as follows:
 
 ```sh
 MAIL_TEST=1 make test-go
@@ -288,9 +287,11 @@ The Fleet repo includes tools to start testing osquery hosts. Please see the doc
 
 ## Email
 
-### Manually testing email with MailHog and Mailpit
+### Manually testing email with Mailpit
 
-#### MailHog SMTP server without authentication
+#### Mailpit SMTP server without authentication
+
+This runs as the `mailhog` service in `docker-compose.yml`. The service name is kept for backwards compatibility, but it runs Mailpit.
 
 To intercept sent emails while running a Fleet development environment, first, as an Admin in the Fleet UI, navigate to the Organization settings.
 
@@ -300,7 +301,7 @@ Then, in the "SMTP options" section, set:
 - "Use SSL/TLS to connect (recommended)" to unchecked. 
 - "Authentication type" to `None`.
 
-Visit [localhost:8025](http://localhost:8025) to view MailHog's admin interface displaying all emails sent using the simulated mail server.
+Visit [localhost:8025](http://localhost:8025) to view Mailpit's admin interface displaying all emails sent using the simulated mail server.
 
 #### Mailpit SMTP server with plain authentication
 
@@ -399,15 +400,15 @@ Email: sso_user_3_global_admin@example.com
 Password: user123#
 Display name: SSO User 3
 
-# sso_user_4_team_maintainer is automatically added as maintainer of Team with ID = 1.
-# If a team with ID 1 doesn't exist then the login with this user will fail.
-Username: sso_user_4_team_maintainer
-Email: sso_user_4_team_maintainer@example.com
+# sso_user_4_fleet_maintainer is automatically added as maintainer of Fleet with ID = 1.
+# If a fleet with ID 1 doesn't exist then the login with this user will fail.
+Username: sso_user_4_fleet_maintainer
+Email: sso_user_4_fleet_maintainer@example.com
 Password: user123#
 Display name: SSO User 4
 
-Username: sso_user_5_team_admin
-Email: sso_user_5_team_admin@example.com
+Username: sso_user_5_fleet_admin
+Email: sso_user_5_fleet_admin@example.com
 Password: user123#
 Display name: SSO User 5
 
@@ -433,9 +434,9 @@ After login, SimpleSAML should redirect the user to Fleet.
 
 <meta name="pageOrderInSection" value="200">
 
-## Testing End-User Authentication
+## Testing IdP authentication (setup experience)
 
-The SimpleSAML identity provider can also be used to test end-user authentication during the device setup experience.
+The SimpleSAML identity provider can also be used to test IdP authentication during the device setup experience.
 
 ### Configuration
 
@@ -452,7 +453,7 @@ This allows devices to connect using `host.docker.internal` as the server addres
 
 2. Add an entry in the candidate device's `/etc/hosts` (or for Windows, `\WINDOWS\system32\drivers\etc\hosts`) pointing `host.docker.internal` to the IP address of the computer running your Fleet instance.
 
-3. Configure End-User Authentication on the **Integration settings -> Single Sign On -> End Users** page with the following:
+3. Configure IdP authentication on the **Integration settings -> Single Sign On -> End Users** page with the following:
 
 ```
 Identity Provider Name: SimpleSAML
@@ -479,7 +480,7 @@ awslocal='AWS_ACCESS_KEY_ID=default AWS_SECRET_ACCESS_KEY=default AWS_DEFAULT_RE
 
 The following guide assumes you have server dependencies running:
 ```sh
-docker-compose up
+docker compose --profile localstack up
 #
 # (Starts LocalStack with kinesis enabled.)
 #
@@ -726,6 +727,112 @@ FLEET_FIREHOSE_STATUS_STREAM=s3-stream-status
 
 You can inspect logs by visiting `http://localhost:4566/s3-firehose` on your browser.
 
+## Testing NATS logging
+
+1. Install the `nats` CLI:
+
+```sh
+$ go install github.com/nats-io/natscli/nats@latest
+```
+
+2. Install the `nats-server` executable:
+
+```sh
+$ curl -fsSL https://binaries.nats.dev/nats-io/nats-server/v2@latest | sh
+```
+
+3. Open a terminal and run the `nats-server`:
+
+```sh
+$ ./nats-server
+```
+
+4. Run Fleet with the following flags:
+
+```sh
+$ FLEET_ACTIVITY_ENABLE_AUDIT_LOG=true \
+FLEET_ACTIVITY_AUDIT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_RESULT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_STATUS_LOG_PLUGIN=nats \
+FLEET_NATS_SERVER=nats://localhost:4222 \
+FLEET_NATS_STATUS_SUBJECT=osquery_status \
+FLEET_NATS_RESULT_SUBJECT=osquery_result \
+FLEET_NATS_AUDIT_SUBJECT=fleet_audit \
+./build/fleet serve --dev
+```
+
+5. Open another terminal and run the following command to subscribe to all subjects.
+This will print all messages received by the NATS server.
+
+```sh
+$ ./nats --server=nats://localhost:4222 subscribe ">"
+```
+
+### Using NKey authentication
+
+One authentication mechanism allowed by nats is using an [NKey](https://docs.nats.io/running-a-nats-service/configuration/securing_nats/auth_intro/nkey_auth).
+
+
+1. Install `nkey`:
+
+```sh
+$ go install github.com/nats-io/nkeys/nk@latest
+```
+
+2. Generate a `User NKey`:
+
+```sh
+$ nk -gen user -pubout
+```
+
+You should see an output with the following format:
+
+```
+SUxxx
+Uyyy
+```
+
+The first output line starts with the letter `S` for `Seed`. The second letter, `U` stands for `User`. Seeds are private keys; you should treat them as secrets and guard them with care.
+
+The second line starts with the letter U for User and is a public key which can be safely shared.
+
+3. Copy the keys to a txt file, e.g. `nkey-cred-file.txt`.
+
+Create a new NATS server config file, e.g. `nats-server-config.conf`, with this content:
+
+```
+authorization {
+  users = [
+    {
+      nkey: "Uyyy"
+    }
+  ]
+}
+```
+
+4. Run the NATS server providing the config file above:
+
+```sh
+$ ./nats-server -config nats-server-config.conf
+```
+
+You should see a log saying `Using configuration file: nats-server-config.conf`.
+
+5. Start Fleet with the following flags:
+
+```sh
+$ FLEET_ACTIVITY_ENABLE_AUDIT_LOG=true \
+FLEET_ACTIVITY_AUDIT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_RESULT_LOG_PLUGIN=nats \
+FLEET_OSQUERY_STATUS_LOG_PLUGIN=nats \
+FLEET_NATS_SERVER=nats://localhost:4222 \
+FLEET_NATS_STATUS_SUBJECT=osquery_status \
+FLEET_NATS_RESULT_SUBJECT=osquery_result \
+FLEET_NATS_AUDIT_SUBJECT=fleet_audit \
+FLEET_NATS_NKEY_FILE="nkey-cred-file.txt" \
+./build/fleet serve --dev
+```
+
 ## Telemetry
 
 You can configure the server to record and report trace data using OpenTelemetry or Elastic APM and use a tracing system like [Jaeger](https://www.jaegertracing.io/) to consume this data and inspect the traces locally.
@@ -897,7 +1004,7 @@ described below.
 
 For Autopilot, Azure requires the Fleet server instance to have a proper domain name with some TXT/MX records added (see `/settings/integrations/automatic-enrollment/windows` on your Fleet instance).
 For that reason, currently the only way to test this flow is to use Dogfood or the QA fleet server,
-which already have this configured, or to configure an alternate server for this workflow.
+which already have this configured, or to [configure an alternate server for this workflow](../mdm/windows/windows-autopilot.md#setting-up-a-custom-domain-with-ngrok).
 
 #### Pre-requisites
 
@@ -965,11 +1072,21 @@ mkdir -p ./tmp/fleetd-base-dir/stable
 4. Start up an HTTP file server from the Fleet repo root directory using the [`tools/file-server`](../../tools/file-server/README.md) tool: `go run ./tools/file-server 8085 ./tmp/fleetd-base-dir`
 5. Start your "installers" ngrok tunnel and forward to http://localhost:8085.
 	- Example: `ngrok http --domain=installers.fleetdm-example.ngrok.app http://localhost:8085`
-6. Perform a Fleet deployment(to Dogfood, QA or your own instance) with
-   `FLEET_DEV_DOWNLOAD_FLEETDM_URL` set to the "installers" ngrok URL (if using Terraform, the environment variable is set on
-   `infrastructure/dogfood/terraform/aws-tf-module/main.tf`).
-	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://installers.fleetdm-example.ngrok.app"`
-7. Enroll your Windows device with Autopilot. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
+6. Start your Fleet server with `FLEET_DEV_DOWNLOAD_FLEETDM_URL` set to the "installers" ngrok URL. For a local dev server:
+	- Example: `FLEET_DEV_DOWNLOAD_FLEETDM_URL="https://installers.fleetdm-example.ngrok.app" ./build/fleet serve --dev`
+	- For Dogfood/QA deployments using Terraform, set the environment variable on `infrastructure/dogfood/terraform/aws-tf-module/main.tf`.
+	- Note: This variable is only read when dev mode is enabled (`--dev` flag).
+7. Enroll your Windows device with Autopilot. See the [Windows Autopilot guide](../mdm/windows/windows-autopilot.md#enrolling-the-device) for detailed enrollment steps, including prerequisites like custom domain setup and required licenses. Tip: You can watch ngrok traffic via the inspect web interface url to ensure the two hosted packages are in the correct place and successfully reached by the host.
+
+## AI configuration profile autofill
+
+The autofill configuration profile endpoints call the configuration profile generator on `https://fleetdm.com`. To test against a local or preview website instead, start the server in dev mode with `FLEET_DEV_AI_AUTOFILL_BASE_URL` set to the website's base URL:
+
+```sh
+FLEET_DEV_AI_AUTOFILL_BASE_URL="http://localhost:2024" ./build/fleet serve --dev
+```
+
+The variable is ignored without `--dev`. Pointing it at an unreachable URL exercises the AI service failure path.
 
 ## MDM setup and testing
 
@@ -1071,36 +1188,6 @@ mdm:
 > Note: if you're using a cloud provider, fill in the details provided by them for the app config settings above.
 
 The next time you go through the DEP flow, you should be prompted to authenticate before enrolling.
-
-### Nudge
-
-We use [Nudge](https://github.com/macadmins/nudge) to enforce macOS updates. Our integration is tightly managed by Fleetd:
-
-1. When Orbit pings the server for a config (every 30 seconds,) we send the corresponding Nudge configuration for the host. Orbit then saves this config at `<ORBIT_ROOT_DIR>/nudge-config.json`
-2. If Orbit gets a Nudge config, it downloads Nudge from TUF.
-3. Periodically, Orbit runs `open` to start Nudge, this is a direct replacement of Nudge's [LaunchAgent](https://github.com/macadmins/nudge/wiki#scheduling-nudge-to-run).
-
-#### Debugging tips
-
-- Orbit launches Nudge using the following command, you can try and run the command yourself to see if you spot anything suspicious:
-
-```sh
-open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json
-```
-
-- Make sure that the `fleet-osquery.pkg` package you build to install `fleetd` has the `--debug` flag, there are many Nudge logs at the debug level.
-
-- Nudge has a great [guide](https://github.com/macadmins/nudge/wiki/Logging) to stream/parse their logs, the TL;DR version is that you probably want a terminal running:
-
-```sh
-log stream --predicate 'subsystem == "com.github.macadmins.Nudge"' --info --style json --debug
-```
-
-- Nudge has a couple of flags that you can provide to see what config values are actually being used. You can try launching Nudge with `-print-json-config` or `-print-profile-config` like this:
-
-```sh
-open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/orbit/nudge-config.json -print-json-config
-```
 
 ### Bootstrap package
 

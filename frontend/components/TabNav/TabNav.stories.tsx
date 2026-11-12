@@ -1,27 +1,14 @@
-import React, { useState } from "react";
 import { Meta, StoryObj } from "@storybook/react";
+import React, { useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+
 import TabText from "components/TabText";
+
 import TabNav from "./TabNav";
 
 const meta: Meta<typeof TabNav> = {
   component: TabNav,
   title: "Components/TabNav",
-  parameters: {
-    backgrounds: {
-      default: "light",
-      values: [
-        {
-          name: "light",
-          value: "#ffffff",
-        },
-        {
-          name: "dark",
-          value: "#333333",
-        },
-      ],
-    },
-  },
 };
 
 export default meta;

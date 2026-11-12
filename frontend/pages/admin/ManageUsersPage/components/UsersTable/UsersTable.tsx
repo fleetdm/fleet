@@ -1,0 +1,374 @@
+import React, { useState, useCallback, useContext, useMemo } from "react";
+import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
+
+import ActionsDropdown from "components/ActionsDropdown";
+import TableDataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import TableContainer from "components/TableContainer";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IInvite } from "interfaces/invite";
+import { IUser } from "interfaces/user";
+import PATHS from "router/paths";
+import invitesAPI from "services/entities/invites";
+import usersAPI from "services/entities/users";
+import authToken from "utilities/auth_token";
+
+import DeleteUserModal from "../DeleteUserModal";
+import ResetPasswordModal from "../ResetPasswordModal";
+import ResetSessionsModal from "../ResetSessionsModal";
+
+import {
+  generateTableHeaders,
+  combineDataSets,
+  IUserTableData,
+} from "./UsersTableConfig";
+
+const ADD_USER_OPTIONS: IDropdownOption[] = [
+  {
+    label: "Regular user",
+    value: "human",
+    helpText: "A human with access to Fleet",
+  },
+  {
+    label: "API-only user",
+    value: "api",
+    helpText: "For GitOps or Fleet API automations",
+  },
+];
+
+const EmptyUsersTable = () => (
+  <EmptyState
+    header="No users match the current criteria"
+    info="Expecting to see users? Try again in a few seconds as the system catches up."
+  />
+);
+
+interface IRowProps extends Row {
+  original: IUserTableData;
+}
+
+interface IUsersTableProps {
+  router: InjectedRouter; // v3
+}
+const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
+  const { currentUser, isPremiumTier } = useContext(AppContext);
+
+  // STATES
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [showResetSessionsModal, setShowResetSessionsModal] = useState(false);
+  const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
+  const [userEditing, setUserEditing] = useState<IUserTableData | null>(null);
+  const [querySearchText, setQuerySearchText] = useState("");
+
+  // API CALLS
+  const {
+    data: users,
+    isFetching: isFetchingUsers,
+    error: loadingUsersError,
+    refetch: refetchUsers,
+  } = useQuery<IUser[], Error, IUser[]>(
+    ["users", querySearchText],
+    () => usersAPI.loadAll({ globalFilter: querySearchText }),
+    {
+      select: (data: IUser[]) => data,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  const {
+    data: invites,
+    isFetching: isFetchingInvites,
+    error: loadingInvitesError,
+    refetch: refetchInvites,
+  } = useQuery<IInvite[], Error, IInvite[]>(
+    ["invites", querySearchText],
+    () => invitesAPI.loadAll({ globalFilter: querySearchText }),
+    {
+      select: (data: IInvite[]) => {
+        return data;
+      },
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  // TOGGLE MODALS
+
+  const toggleDeleteUserModal = useCallback(
+    (user?: IUserTableData) => {
+      setShowDeleteUserModal(!showDeleteUserModal);
+      setUserEditing(!showDeleteUserModal ? user ?? null : null);
+    },
+    [showDeleteUserModal, setShowDeleteUserModal, setUserEditing]
+  );
+
+  const toggleResetPasswordUserModal = useCallback(
+    (user?: IUserTableData) => {
+      setShowResetPasswordModal(!showResetPasswordModal);
+      setUserEditing(!showResetPasswordModal ? user ?? null : null);
+    },
+    [showResetPasswordModal, setShowResetPasswordModal, setUserEditing]
+  );
+
+  const toggleResetSessionsUserModal = useCallback(
+    (user?: IUserTableData) => {
+      setShowResetSessionsModal(!showResetSessionsModal);
+      setUserEditing(!showResetSessionsModal ? user ?? null : null);
+    },
+    [showResetSessionsModal, setShowResetSessionsModal, setUserEditing]
+  );
+
+  // FUNCTIONS
+
+  const goToEditUser = useCallback(
+    (user: IUserTableData) => {
+      if (user.type === "user" && user.apiId === currentUser?.id) {
+        router.push(PATHS.ACCOUNT);
+        return;
+      }
+      const editPath = PATHS.ADMIN_USERS_EDIT(user.apiId);
+      router.push(
+        user.type === "invite" ? `${editPath}?type=invite` : editPath
+      );
+    },
+    [router, currentUser?.id]
+  );
+
+  const onActionSelect = useCallback(
+    (value: string, user: IUserTableData) => {
+      switch (value) {
+        case "edit":
+        case "editMyAccount":
+          goToEditUser(user);
+          break;
+        case "delete":
+          toggleDeleteUserModal(user);
+          break;
+        case "passwordReset":
+          toggleResetPasswordUserModal(user);
+          break;
+        case "resetSessions":
+          toggleResetSessionsUserModal(user);
+          break;
+        default:
+          return null;
+      }
+      return null;
+    },
+    [
+      goToEditUser,
+      toggleDeleteUserModal,
+      toggleResetPasswordUserModal,
+      toggleResetSessionsUserModal,
+    ]
+  );
+
+  const onTableQueryChange = useCallback(
+    (queryData: ITableQueryData) => {
+      const { searchQuery } = queryData;
+
+      setQuerySearchText(searchQuery);
+
+      refetchUsers();
+      refetchInvites();
+    },
+    [refetchUsers, refetchInvites]
+  );
+
+  const onDeleteUser = () => {
+    if (!userEditing) return;
+    setIsUpdatingUsers(true);
+    if (userEditing.type === "invite") {
+      invitesAPI
+        .destroy(userEditing.apiId)
+        .then(() => {
+          notify.success(`Successfully deleted ${userEditing?.name}.`);
+        })
+        .catch(() => {
+          notify.error(
+            `Could not delete ${userEditing?.name}. Please try again.`
+          );
+        })
+        .finally(() => {
+          toggleDeleteUserModal();
+          refetchInvites();
+          setIsUpdatingUsers(false);
+        });
+    } else {
+      usersAPI
+        .destroy(userEditing.apiId)
+        .then(() => {
+          notify.success(`Successfully deleted ${userEditing?.name}.`);
+        })
+        .catch(() => {
+          notify.error(
+            `Could not delete ${userEditing?.name}. Please try again.`
+          );
+        })
+        .finally(() => {
+          toggleDeleteUserModal();
+          refetchUsers();
+          setIsUpdatingUsers(false);
+        });
+    }
+  };
+
+  const onResetSessions = () => {
+    if (!userEditing) return;
+    const isResettingCurrentUser =
+      userEditing.type === "user" && currentUser?.id === userEditing.apiId;
+
+    usersAPI
+      .deleteSessions(userEditing.apiId)
+      .then(() => {
+        if (isResettingCurrentUser) {
+          authToken.remove();
+          setTimeout(() => {
+            window.location.href = PATHS.ROOT;
+          }, 500);
+          return;
+        }
+        notify.success("Successfully reset sessions.");
+      })
+      .catch(() => {
+        notify.error("Could not reset sessions. Please try again.");
+      })
+      .finally(() => {
+        toggleResetSessionsUserModal();
+      });
+  };
+
+  const resetPassword = () => {
+    if (!userEditing) return;
+    usersAPI
+      .requirePasswordReset(userEditing.apiId, { require: true })
+      .then(() => {
+        notify.success("Successfully required a password reset.");
+      })
+      .catch(() => {
+        notify.error("Could not require a password reset. Please try again.");
+      })
+      .finally(() => {
+        toggleResetPasswordUserModal();
+      });
+  };
+
+  const renderDeleteUserModal = () => {
+    if (!userEditing) return null;
+    return (
+      <DeleteUserModal
+        name={userEditing.name}
+        onDelete={onDeleteUser}
+        onCancel={toggleDeleteUserModal}
+        isUpdatingUsers={isUpdatingUsers}
+      />
+    );
+  };
+
+  const renderResetPasswordModal = () => {
+    return (
+      <ResetPasswordModal
+        onResetConfirm={resetPassword}
+        onResetCancel={toggleResetPasswordUserModal}
+      />
+    );
+  };
+
+  const renderResetSessionsModal = () => {
+    return (
+      <ResetSessionsModal
+        onResetConfirm={onResetSessions}
+        onResetCancel={toggleResetSessionsUserModal}
+      />
+    );
+  };
+
+  const tableHeaders = useMemo(
+    () => generateTableHeaders(onActionSelect, isPremiumTier || false),
+    [onActionSelect, isPremiumTier]
+  );
+
+  const loadingTableData = isFetchingUsers || isFetchingInvites;
+  const tableDataError = loadingUsersError || loadingInvitesError;
+
+  const tableData = useMemo(
+    () =>
+      !loadingTableData &&
+      !tableDataError &&
+      users &&
+      invites &&
+      currentUser?.id
+        ? combineDataSets(users, invites, currentUser.id)
+        : [],
+    [loadingTableData, tableDataError, users, invites, currentUser?.id]
+  );
+
+  const renderUsersCount = useCallback(() => {
+    return <TableCount name="users" count={tableData?.length} />;
+  }, [tableData?.length]);
+
+  const onAddUserSelect = useCallback(
+    (value: string) => {
+      if (value === "human") {
+        router.push(PATHS.ADMIN_USERS_NEW_HUMAN);
+      } else if (value === "api") {
+        router.push(PATHS.ADMIN_USERS_NEW_API);
+      }
+    },
+    [router]
+  );
+
+  const renderAddUserControl = useCallback(
+    () => (
+      <ActionsDropdown
+        options={ADD_USER_OPTIONS}
+        onChange={onAddUserSelect}
+        placeholder="Add user"
+        variant="primary"
+        buttonLabel="Add user"
+        className="add-user-dropdown"
+        menuAlign="left"
+      />
+    ),
+    [onAddUserSelect]
+  );
+
+  return (
+    <>
+      {tableDataError ? (
+        <TableDataError verticalPaddingSize="pad-xxxlarge" />
+      ) : (
+        <TableContainer
+          columnConfigs={tableHeaders}
+          data={tableData}
+          isLoading={loadingTableData}
+          defaultSortHeader="name"
+          defaultSortDirection="asc"
+          inputPlaceHolder="Search by name or email"
+          customControl={renderAddUserControl}
+          onQueryChange={onTableQueryChange}
+          resultsTitle="users"
+          emptyComponent={EmptyUsersTable}
+          searchable
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          isClientSidePagination
+          renderCount={renderUsersCount}
+          disableMultiRowSelect
+          onClickRow={(row: IRowProps) => goToEditUser(row.original)}
+        />
+      )}
+      {showDeleteUserModal && renderDeleteUserModal()}
+      {showResetSessionsModal && renderResetSessionsModal()}
+      {showResetPasswordModal && renderResetPasswordModal()}
+    </>
+  );
+};
+
+export default UsersTable;

@@ -3,6 +3,8 @@ package homebrew
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,7 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/stretchr/testify/require"
 )
 
@@ -86,12 +88,80 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post":
+		case "ok", "1password", "docker-desktop", "microsoft-edge", "google-chrome", "webex", "i1profiler", "steam", "logitech-g-hub", "wezterm", "swiftdialog", "teleport-suite", "syncovery", "r-app", "qgis", "qgis@ltr", "kicad", "mindmanager", "elgato-wave-link", "chatgpt", "xquartz", "tableau", "tableau-prep", "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "syncmate", "google-earth-pro", "disk-drill", "enpass", "gog-galaxy", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path", "open-query":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
 				URL:     "https://example.com",
 				Version: "1.0",
+			}
+
+		case "quit-injection", "zap-quit-injection", "pale-moon":
+			// The injection value breaks out of an AppleScript string to run
+			// do shell script.
+			quit := "com.x\" to quit\ndo shell script \"id > /tmp/p\"\ntell application \"x"
+			if appToken == "pale-moon" {
+				quit = "org.mozilla.pale moon"
+			}
+			stanza := []*brewUninstall{{Quit: optjson.StringOr[[]string]{String: quit}}}
+			artifact := &brewArtifact{Uninstall: stanza}
+			if appToken == "zap-quit-injection" { //nolint:gosec // G101: cask token, not a credential
+				artifact = &brewArtifact{Zap: stanza}
+			}
+			cask = brewCask{
+				Token:     appToken,
+				Name:      []string{appToken},
+				URL:       "https://example.com",
+				Version:   "1.0",
+				Artifacts: []*brewArtifact{artifact},
+			}
+
+		case "lm-studio":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{appToken},
+				URL:     "https://example.com",
+				Version: "0.4.26,4",
+			}
+
+		case "wechat":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{appToken},
+				URL:     "https://example.com",
+				Version: "4.2.0.16,270352",
+			}
+
+		case "zen":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{"Zen"},
+				URL:     "https://example.com",
+				Version: "1.24.1b",
+			}
+
+		case "updf":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{"UPDF"},
+				URL:     "https://download.updf.com/updf/basic/mac/apple/updf-mac-full.dmg",
+				Version: "1.0",
+			}
+
+		case "firefox@developer-edition":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{"Mozilla Firefox Developer Edition"},
+				URL:     "https://example.com",
+				Version: "153.0b13",
+			}
+
+		case "firefox@nightly":
+			cask = brewCask{
+				Token:   appToken,
+				Name:    []string{"Mozilla Firefox Nightly"},
+				URL:     "https://example.com",
+				Version: "154.0a1,2026-07-17-09-27-13",
 			}
 
 		default:
@@ -103,6 +173,12 @@ func TestIngestValidations(t *testing.T) {
 		require.NoError(t, err)
 	}))
 	t.Cleanup(srv.Close)
+
+	// buildhub stub: DevEd 153.0b13 build id -> CFBundleVersion "15326.7.15".
+	buildhubSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"hits":{"hits":[{"_source":{"build":{"id":"20260715125817"}}}]}}`))
+	}))
+	t.Cleanup(buildhubSrv.Close)
 
 	ctx := context.Background()
 
@@ -118,18 +194,66 @@ func TestIngestValidations(t *testing.T) {
 		{"missing version for cask noversion", inputApp{Token: "noversion", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"missing URL for cask nourl", inputApp{Token: "nourl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
 		{"parse URL for cask invalidurl", inputApp{Token: "invalidurl", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"invalid uninstall quit for cask quit-injection", inputApp{Token: "quit-injection", UniqueIdentifier: "com.x", InstallerFormat: "pkg"}},
+		{"invalid uninstall quit for cask zap-quit-injection", inputApp{Token: "zap-quit-injection", UniqueIdentifier: "com.x", InstallerFormat: "pkg"}}, //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "pale-moon", UniqueIdentifier: "org.mozilla.pale moon", InstallerFormat: "dmg", Name: "Pale Moon", Slug: "pale-moon/darwin"}},
 		{"", inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"}},
+		{"", inputApp{Token: "1password", UniqueIdentifier: "com.1password.1password", InstallerFormat: "pkg", Name: "1Password", Slug: "1password/darwin"}},
+		{"", inputApp{Token: "docker-desktop", UniqueIdentifier: "com.docker.docker", InstallerFormat: "dmg", Name: "Docker Desktop", Slug: "docker-desktop/darwin"}},
+		{"", inputApp{Token: "webex", UniqueIdentifier: "Cisco-Systems.Spark", InstallerFormat: "dmg", Name: "Webex", Slug: "webex/darwin"}},
+		{"", inputApp{Token: "firefox@developer-edition", UniqueIdentifier: "org.mozilla.firefoxdeveloperedition", InstallerFormat: "dmg", Name: "Mozilla Firefox Developer Edition", Slug: "firefox@developer-edition/darwin"}},
+		{"", inputApp{Token: "microsoft-edge", UniqueIdentifier: "com.microsoft.edgemac", InstallerFormat: "dmg", Name: "Microsoft Edge", Slug: "microsoft-edge/darwin"}},
+		{"", inputApp{Token: "google-chrome", UniqueIdentifier: "com.google.Chrome", InstallerFormat: "pkg", Name: "Google Chrome", Slug: "google-chrome/darwin"}},
+		{"", inputApp{Token: "firefox@nightly", UniqueIdentifier: "org.mozilla.nightly", InstallerFormat: "dmg", Name: "Mozilla Firefox Nightly", Slug: "firefox@nightly/darwin"}},
+		{"", inputApp{Token: "i1profiler", UniqueIdentifier: "com.x-rite.i1Profiler", InstallerFormat: "zip", Name: "i1Profiler", Slug: "i1profiler/darwin"}},
+		{"", inputApp{Token: "steam", UniqueIdentifier: "com.valvesoftware.steam", InstallerFormat: "dmg", Name: "Steam", Slug: "steam/darwin"}},
+		{"", inputApp{Token: "lm-studio", UniqueIdentifier: "ai.elementlabs.lmstudio", InstallerFormat: "dmg", Name: "LM Studio", Slug: "lm-studio/darwin"}},
+		{"", inputApp{Token: "wechat", UniqueIdentifier: "com.tencent.xinWeChat", InstallerFormat: "dmg", Name: "WeChat for Mac", Slug: "wechat/darwin"}},
+		{"", inputApp{Token: "logitech-g-hub", UniqueIdentifier: "com.logi.ghub", InstallerFormat: "zip", Name: "Logitech G HUB", Slug: "logitech-g-hub/darwin"}},
+		{"", inputApp{Token: "wezterm", UniqueIdentifier: "com.github.wez.wezterm", InstallerFormat: "zip", Name: "WezTerm", Slug: "wezterm/darwin"}},
+		{"", inputApp{Token: "swiftdialog", UniqueIdentifier: "au.csiro.dialog", InstallerFormat: "pkg", Name: "swiftDialog", Slug: "swiftdialog/darwin"}},
+		{"", inputApp{Token: "teleport-suite", UniqueIdentifier: "com.gravitational.teleport.tsh", InstallerFormat: "pkg", Name: "Teleport Suite", Slug: "teleport-suite/darwin"}},
+		{"", inputApp{Token: "syncovery", UniqueIdentifier: "com.company.Syncovery", InstallerFormat: "dmg", Name: "Syncovery", Slug: "syncovery/darwin"}},
+		{"", inputApp{Token: "r-app", UniqueIdentifier: "org.R-project.R", InstallerFormat: "pkg", Name: "R for macOS", Slug: "r/darwin"}},
+		{"", inputApp{Token: "qgis", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS", Slug: "qgis/darwin"}},
+		{"", inputApp{Token: "qgis@ltr", UniqueIdentifier: "org.qgis.qgis3", InstallerFormat: "dmg", Name: "QGIS LTR", Slug: "qgis@ltr/darwin"}},
+		{"", inputApp{Token: "kicad", UniqueIdentifier: "org.kicad.kicad", InstallerFormat: "dmg", Name: "KiCad", Slug: "kicad/darwin"}},
+		{"", inputApp{Token: "mindmanager", UniqueIdentifier: "com.mindjet.mindmanager.26", InstallerFormat: "dmg", Name: "MindManager", Slug: "mindmanager/darwin"}},
+		{"", inputApp{Token: "elgato-wave-link", UniqueIdentifier: "com.elgato.WaveLink3", InstallerFormat: "dmg", Name: "Elgato Wave Link", Slug: "elgato-wave-link/darwin"}}, //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "chatgpt", UniqueIdentifier: "com.openai.chat", InstallerFormat: "zip", Name: "ChatGPT Desktop", Slug: "chatgpt/darwin"}},
+		{"", inputApp{Token: "xquartz", UniqueIdentifier: "org.xquartz.X11", InstallerFormat: "pkg", Name: "XQuartz", Slug: "xquartz/darwin"}},
+		{"", inputApp{Token: "updf", UniqueIdentifier: "com.superace.updf.mac", InstallerFormat: "dmg", Name: "UPDF", Slug: "updf/darwin"}},
+		{"", inputApp{Token: "zen", UniqueIdentifier: "app.zen-browser.zen", InstallerFormat: "dmg", Name: "Zen Browser", Slug: "zen/darwin"}},
+		{"", inputApp{Token: "tableau", UniqueIdentifier: "com.tableausoftware.tableaudesktop", InstallerFormat: "dmg", Name: "Tableau Desktop", Slug: "tableau/darwin"}},
+		{"", inputApp{Token: "tableau-prep", UniqueIdentifier: "com.tableausoftware.tableauprep", InstallerFormat: "dmg", Name: "Tableau Prep", Slug: "tableau-prep/darwin"}},
+		{"", inputApp{Token: "4k-slideshow-maker", UniqueIdentifier: "com.openmedia.4kslideshowmaker", InstallerFormat: "dmg", Name: "4K Slideshow Maker", Slug: "4k-slideshow-maker/darwin"}}, //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "4k-stogram", UniqueIdentifier: "com.openmedia.4kstogram", InstallerFormat: "dmg", Name: "4K Stogram", Slug: "4k-stogram/darwin"}},
+		{"", inputApp{Token: "4k-video-downloader", UniqueIdentifier: "com.openmedia.4kvideodownloader", InstallerFormat: "dmg", Name: "4K Video Downloader", Slug: "4k-video-downloader/darwin"}}, //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "4k-video-to-mp3", UniqueIdentifier: "com.openmedia.4kvideotomp3", InstallerFormat: "dmg", Name: "4K Video to MP3", Slug: "4k-video-to-mp3/darwin"}},                  //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "4k-youtube-to-mp3", UniqueIdentifier: "com.openmedia.4kyoutubetomp3", InstallerFormat: "dmg", Name: "4K YouTube to MP3", Slug: "4k-youtube-to-mp3/darwin"}},          //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "jasp", UniqueIdentifier: "org.jaspstats.jasp", InstallerFormat: "dmg", Name: "JASP", Slug: "jasp/darwin"}},
+		{"", inputApp{Token: "malwarebytes", UniqueIdentifier: "com.malwarebytes.mbam.frontend.application", InstallerFormat: "pkg", Name: "Malwarebytes", Slug: "malwarebytes/darwin"}}, //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "macvim-app", UniqueIdentifier: "org.vim.MacVim", InstallerFormat: "dmg", Name: "MacVim", Slug: "macvim-app/darwin"}},                                       //nolint:gosec // G101: cask token, not a credential
+		{"", inputApp{Token: "syncmate", UniqueIdentifier: "com.eltima.SyncMate", InstallerFormat: "zip", Name: "SyncMate", Slug: "syncmate/darwin"}},
+		{"", inputApp{Token: "google-earth-pro", UniqueIdentifier: "com.Google.GoogleEarthPro", InstallerFormat: "dmg", Name: "Google Earth Pro", Slug: "google-earth-pro/darwin"}},
+		{"", inputApp{Token: "disk-drill", UniqueIdentifier: "com.cleverfiles.DiskDrill", InstallerFormat: "dmg", Name: "Disk Drill", Slug: "disk-drill/darwin"}},
+		{"", inputApp{Token: "enpass", UniqueIdentifier: "in.sinew.Enpass-Desktop", InstallerFormat: "pkg", Name: "Enpass", Slug: "enpass/darwin"}},
+		{"", inputApp{Token: "gog-galaxy", UniqueIdentifier: "com.gog.galaxy", InstallerFormat: "pkg", Name: "GOG Galaxy", Slug: "gog-galaxy/darwin"}},
 		{"", inputApp{Token: "install_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", InstallScriptPath: path.Join(tempDir, "install_script.sh")}},
 		{"", inputApp{Token: "uninstall_script_path", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh")}},
+		{"", inputApp{Token: "open-query", UniqueIdentifier: "com.example.app", InstallerFormat: "pkg", Name: "Example App"}},
 		{"cannot provide pre-uninstall scripts if uninstall script is provided", inputApp{Token: "uninstall_script_path_with_pre", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PreUninstallScripts: []string{"foo", "bar"}}},
 		{"cannot provide post-uninstall scripts if uninstall script is provided", inputApp{Token: "uninstall_script_path_with_post", UniqueIdentifier: "abc", InstallerFormat: "pkg", UninstallScriptPath: path.Join(tempDir, "uninstall_script.sh"), PostUninstallScripts: []string{"foo", "bar"}}},
 	}
 	for _, c := range cases {
 		t.Run(c.inputApp.Token, func(t *testing.T) {
 			i := &brewIngester{
-				logger:  log.NewNopLogger(),
-				client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
-				baseURL: srv.URL + "/",
+				logger:           slog.New(slog.DiscardHandler),
+				client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+				baseURL:          srv.URL + "/",
+				buildhubURL:      buildhubSrv.URL,
+				retryInterval:    time.Millisecond,
+				retryMaxAttempts: 3,
 			}
 
 			out, err := i.ingestOne(ctx, c.inputApp)
@@ -148,6 +272,649 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, testUninstallScriptContents, out.UninstallScript)
 			}
 
+			switch c.inputApp.Token {
+			case "docker-desktop":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.docker.docker' AND path NOT LIKE '%.back%' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "microsoft-edge":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.edgemac' AND path NOT LIKE '%/Library/Application Support/Microsoft/EdgeUpdater/%' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "webex":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'Cisco-Systems.Spark';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'Cisco-Systems.Spark' AND path NOT LIKE '%/Library/Application Support/Cisco Spark/Webexteams\\_upgrades\\_%' ESCAPE '\\' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "teleport-suite":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.gravitational.teleport.tsh';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.gravitational.teleport.tsh' AND path NOT LIKE '%/.tsh/bin/%' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "syncovery":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND path NOT LIKE '%.app/Contents/%';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.company.Syncovery' AND path NOT LIKE '%.app/Contents/%' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "firefox@developer-edition":
+				// Patched query compares the buildhub-resolved CFBundleVersion.
+				require.Equal(t, "153.0b13", out.Version)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefoxdeveloperedition' AND version_compare(bundle_version, '15326.7.15') < 0);",
+					out.Queries.Patched,
+				)
+			case "firefox@nightly":
+				// Patched query compares the CFBundleVersion derived from the cask
+				// version's build timestamp.
+				require.Equal(t, "154.0a1", out.Version)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.nightly' AND version_compare(bundle_version, '15426.7.17') < 0);",
+					out.Queries.Patched,
+				)
+			case "i1profiler":
+				// i1Profiler.app's CFBundleShortVersionString is the marketing version
+				// ("3.8.7") rather than the cask version, so the patched query compares
+				// CFBundleVersion, which the cask version tracks.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.x-rite.i1Profiler';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.x-rite.i1Profiler' AND version_compare(bundle_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "steam":
+				// Steam.app has no CFBundleShortVersionString, so the patched query
+				// compares CFBundleVersion; the exists query is unaffected because it
+				// only matches on bundle identifier.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.valvesoftware.steam';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.valvesoftware.steam' AND version_compare(bundle_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "wezterm":
+				// The bundle version is a placeholder, so the patched query pins the
+				// frozen release's code-directory hashes instead of comparing versions.
+				require.Equal(t,
+					"SELECT 1 FROM signature WHERE path = '/Applications/WezTerm.app' AND cdhash IN ('7e667fe9270e8f3dad1f069eb2516e0c1909ed29', '08b4bb671055310999a7ad18df389cdcffda5c3a');",
+					out.Queries.Patched,
+				)
+			case "lm-studio":
+				require.Equal(t, "0.4.26+4", out.Version)
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'ai.elementlabs.lmstudio' AND version_compare(bundle_short_version, '0.4.26+4') < 0);",
+					out.Queries.Patched,
+				)
+			case "wechat":
+				// WeChat's CFBundleShortVersionString drops the cask's fourth part, so
+				// the patched query compares CFBundleVersion against the cask build.
+				require.Equal(t, "4.2.0.16", out.Version)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tencent.xinWeChat' AND version_compare(bundle_version, '270352') < 0);",
+					out.Queries.Patched,
+				)
+			case "tableau", "tableau-prep":
+				// Tableau releases install side by side, so any current copy counts
+				// as patched even when older releases remain.
+				id := c.inputApp.UniqueIdentifier
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = '"+id+"';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '"+id+"') OR EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '"+id+"' AND version_compare(bundle_short_version, '1.0') >= 0);",
+					out.Queries.Patched,
+				)
+			case "logitech-g-hub":
+				// lghub.app has no CFBundleShortVersionString, so the patched query
+				// compares CFBundleVersion, which the cask version tracks.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.ghub';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.ghub' AND version_compare(bundle_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "swiftdialog":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog' AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'au.csiro.dialog' AND path != '/opt/orbit/bin/swiftDialog/macos/stable/Dialog.app' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "r-app":
+				// R.app's bundle_short_version is a descriptive string, not a bare
+				// version, so the patched query extracts it with REGEX_MATCH first.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.R-project.R';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.R-project.R' AND version_compare(REGEX_MATCH(bundle_short_version, 'R (?:R )?([0-9]+(?:\\.[0-9]+)+) GUI', 1), '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "zen":
+				// The channel letter is trimmed from both sides so "1.24b" sorts below "1.24.1b".
+				require.Equal(t, "1.24.1b", out.Version)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'app.zen-browser.zen' AND version_compare(rtrim(bundle_short_version, 'abcdefghijklmnopqrstuvwxyz'), '1.24.1') < 0);",
+					out.Queries.Patched,
+				)
+			case "mindmanager":
+				// The bundle ID carries the major version, so the patched query matches
+				// every major while exists stays on the current one.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.mindjet.mindmanager.26';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "elgato-wave-link":
+				// Wave Link 2 counts as outdated only at the path the install replaces, on macOS 15+.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.elgato.WaveLink3';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.elgato.WaveLink3' AND version_compare(bundle_short_version, '1.0') < 0) OR (bundle_identifier = 'com.elgato.WaveLink' AND path = '/Applications/Elgato Wave Link.app' AND (SELECT major FROM os_version) >= 15));",
+					out.Queries.Patched,
+				)
+			case "qgis":
+				// QGIS and QGIS LTR share a bundle identifier, so each is scoped to its install path.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path LIKE '/Applications/QGIS-final-%.app' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "qgis@ltr":
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path = '/Applications/QGIS-LTR.app';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.qgis.qgis3' AND path = '/Applications/QGIS-LTR.app' AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "chatgpt":
+				// ChatGPT reports com.openai.codex since OpenAI rebuilt it on the Codex app;
+				// older installs still report com.openai.chat, so both are matched. The
+				// patched query is generated from the exists query.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT');", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.openai.chat' OR (bundle_identifier = 'com.openai.codex' AND bundle_name = 'ChatGPT')) AND version_compare(bundle_short_version, '1.0') < 0);",
+					out.Queries.Patched,
+				)
+			case "xquartz":
+				// XQuartz 2.7.x at the pkg's install path still reports the legacy bundle ID.
+				require.Equal(t, "SELECT 1 FROM apps WHERE bundle_identifier = 'org.xquartz.X11';", out.Queries.Exists)
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'org.macosforge.xquartz.X11' AND path = '/Applications/Utilities/XQuartz.app') OR (bundle_identifier = 'org.xquartz.X11' AND version_compare(bundle_short_version, '1.0') < 0));",
+					out.Queries.Patched,
+				)
+			case "enpass", "gog-galaxy":
+				// The cask version is CFBundleShortVersionString plus CFBundleVersion.
+				require.Equal(t,
+					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version || '.' || bundle_version, '1.0') < 0);", c.inputApp.UniqueIdentifier),
+					out.Queries.Patched,
+				)
+			case "4k-slideshow-maker", "4k-stogram", "4k-video-downloader", "4k-video-to-mp3", "4k-youtube-to-mp3", "jasp", "malwarebytes", "macvim-app", "syncmate", "google-earth-pro", "disk-drill":
+				// CFBundleShortVersionString drops part of the cask version or isn't it; CFBundleVersion tracks the cask.
+				require.Equal(t, fmt.Sprintf("SELECT 1 FROM apps WHERE bundle_identifier = '%s';", c.inputApp.UniqueIdentifier), out.Queries.Exists)
+				require.Equal(t,
+					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '1.0') < 0);", c.inputApp.UniqueIdentifier),
+					out.Queries.Patched,
+				)
+			default:
+				require.Equal(t,
+					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);", c.inputApp.UniqueIdentifier, out.Version),
+					out.Queries.Patched,
+				)
+			}
+
+			switch c.inputApp.Token {
+			case "google-chrome", "microsoft-edge":
+				// Ingest a Chromium browser, the open query should also match the executable in the browser's code sign clone.
+				require.Equal(t,
+					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat('%%/', a.bundle_identifier, '.code_sign_clone/%%/Contents/MacOS/', a.bundle_executable)) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');", out.UniqueIdentifier),
+					out.Queries.Open,
+				)
+			case "qgis":
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.qgis.qgis3' AND a.path LIKE '/Applications/QGIS-final-%.app' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "qgis@ltr":
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.qgis.qgis3' AND a.path = '/Applications/QGIS-LTR.app' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "updf":
+				// download.updf.com is behind a Cloudflare challenge; the same path is
+				// served without one from the vendor's download.superace.com.
+				require.Equal(t, "https://download.superace.com/updf/basic/mac/apple/updf-mac-full.dmg", out.InstallerURL)
+			case "kicad":
+				// KiCad's editors also run as standalone apps nested in KiCad.app, so they count as open too.
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON (p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) OR p.path LIKE concat(a.path, '/Contents/Applications/%.app/Contents/MacOS/%')) WHERE a.bundle_identifier = 'org.kicad.kicad' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "mindmanager":
+				// A running older major must defer patching, same as the current one.
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier GLOB 'com.mindjet.mindmanager.[0-9][0-9]' AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "elgato-wave-link":
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier IN ('com.elgato.WaveLink3', 'com.elgato.WaveLink') AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "xquartz":
+				// A running XQuartz is the X11.bin server, not the X11 launcher.
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path IN (concat(a.path, '/Contents/MacOS/', a.bundle_executable), concat(a.path, '/Contents/MacOS/X11.bin')) WHERE a.bundle_identifier IN ('org.xquartz.X11', 'org.macosforge.xquartz.X11') AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			case "chatgpt":
+				require.Equal(t,
+					"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE (a.bundle_identifier = 'com.openai.chat' OR (a.bundle_identifier = 'com.openai.codex' AND a.bundle_name = 'ChatGPT')) AND a.bundle_executable != '');",
+					out.Queries.Open,
+				)
+			default:
+				// The managed "is app open" query matches only the app's own executable, so
+				// in-bundle login items and helpers that outlive the app don't count as open.
+				require.Equal(t,
+					fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = '%s' AND a.bundle_executable != '');", out.UniqueIdentifier),
+					out.Queries.Open,
+				)
+			}
+		})
+	}
+}
+
+// TestIngestRetriesTransientErrors verifies that transient brew API failures
+// (e.g. the 503s GitHub Pages intermittently returns for formulae.brew.sh) are
+// retried instead of aborting the whole ingestion run, while permanent failures
+// still return after exhausting attempts.
+func TestIngestRetriesTransientErrors(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("recovers after transient 503s", func(t *testing.T) {
+		var hits int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			hits++
+			// Fail the first two attempts, then succeed.
+			if hits < 3 {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(brewCask{
+				Token:   "ok",
+				Name:    []string{"ok"},
+				URL:     "https://example.com",
+				Version: "1.0",
+			})
+		}))
+		t.Cleanup(srv.Close)
+
+		i := &brewIngester{
+			logger:           slog.New(slog.DiscardHandler),
+			client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			baseURL:          srv.URL + "/",
+			retryInterval:    time.Millisecond,
+			retryMaxAttempts: 5,
+		}
+
+		out, err := i.ingestOne(ctx, inputApp{Token: "ok", UniqueIdentifier: "abc", InstallerFormat: "pkg"})
+		require.NoError(t, err)
+		require.Equal(t, "1.0", out.Version)
+		require.Equal(t, 3, hits, "should have retried until success")
+	})
+
+	t.Run("gives up after exhausting attempts", func(t *testing.T) {
+		var hits int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			hits++
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}))
+		t.Cleanup(srv.Close)
+
+		i := &brewIngester{
+			logger:           slog.New(slog.DiscardHandler),
+			client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			baseURL:          srv.URL + "/",
+			retryInterval:    time.Millisecond,
+			retryMaxAttempts: 3,
+		}
+
+		_, err := i.ingestOne(ctx, inputApp{Token: "fail", UniqueIdentifier: "abc", InstallerFormat: "pkg"})
+		require.ErrorContains(t, err, "brew API returned status 503")
+		require.Equal(t, 3, hits, "should have attempted exactly retryMaxAttempts times")
+	})
+
+	t.Run("does not retry 404", func(t *testing.T) {
+		var hits int
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			hits++
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		t.Cleanup(srv.Close)
+
+		i := &brewIngester{
+			logger:           slog.New(slog.DiscardHandler),
+			client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+			baseURL:          srv.URL + "/",
+			retryInterval:    time.Millisecond,
+			retryMaxAttempts: 5,
+		}
+
+		_, err := i.ingestOne(ctx, inputApp{Token: "notfound", UniqueIdentifier: "abc", InstallerFormat: "pkg"})
+		require.ErrorContains(t, err, "app not found in brew API")
+		require.Equal(t, 1, hits, "404 is permanent and must not be retried")
+	})
+}
+
+// TestIngestCaskPath verifies that when an input app sets cask_path, the
+// ingester reads cask JSON from that local file and makes no HTTP call.
+// This is the path used for casks committed into inputs/homebrew/custom-tap/.
+func TestIngestCaskPath(t *testing.T) {
+	tempDir := t.TempDir()
+
+	caskJSON, err := json.Marshal(brewCask{
+		Token:   "local-cask",
+		Name:    []string{"Local Cask"},
+		URL:     "https://example.com/local/installer.pkg",
+		Version: "9.9.9",
+		SHA256:  "deadbeef",
+	})
+	require.NoError(t, err)
+
+	caskPath := path.Join(tempDir, "local-cask.json")
+	require.NoError(t, os.WriteFile(caskPath, caskJSON, 0o644))
+
+	// Server that should never be called when cask_path is set; any hit is a
+	// bug because it means the ingester fell back to HTTP.
+	var httpHits int
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		httpHits++
+	}))
+	t.Cleanup(srv.Close)
+
+	ctx := context.Background()
+	i := &brewIngester{
+		logger:  slog.New(slog.DiscardHandler),
+		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		baseURL: srv.URL + "/",
+	}
+
+	out, err := i.ingestOne(ctx, inputApp{
+		Token:            "local-cask",
+		UniqueIdentifier: "com.example.localcask",
+		InstallerFormat:  "pkg",
+		Name:             "Local Cask",
+		CaskPath:         caskPath,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/local/installer.pkg", out.InstallerURL)
+	require.Equal(t, "9.9.9", out.Version)
+	require.Equal(t, "deadbeef", out.SHA256)
+	require.Equal(t, 0, httpHits, "cask_path path must not make an HTTP call")
+
+	// Missing file yields an actionable error.
+	_, err = i.ingestOne(ctx, inputApp{
+		Token:            "missing",
+		UniqueIdentifier: "com.example.missing",
+		InstallerFormat:  "pkg",
+		Name:             "Missing",
+		CaskPath:         path.Join(tempDir, "does-not-exist.json"),
+	})
+	require.ErrorContains(t, err, "reading local cask JSON file")
+	require.Equal(t, 0, httpHits)
+
+	// Token mismatch between input and cask file is rejected so a misconfigured
+	// cask_path can't silently ingest the wrong app.
+	mismatchPath := path.Join(tempDir, "mismatch.json")
+	mismatchJSON, err := json.Marshal(brewCask{
+		Token:   "some-other-cask",
+		Name:    []string{"Some Other Cask"},
+		URL:     "https://example.com/other/installer.pkg",
+		Version: "1.0.0",
+		SHA256:  "cafebabe",
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(mismatchPath, mismatchJSON, 0o644))
+
+	_, err = i.ingestOne(ctx, inputApp{
+		Token:            "local-cask",
+		UniqueIdentifier: "com.example.localcask",
+		InstallerFormat:  "pkg",
+		Name:             "Local Cask",
+		CaskPath:         mismatchPath,
+	})
+	require.ErrorContains(t, err, "does not match input token")
+	require.Equal(t, 0, httpHits)
+
+	// Cask file with an empty name is rejected.
+	emptyNamePath := path.Join(tempDir, "empty-name.json")
+	emptyNameJSON, err := json.Marshal(brewCask{
+		Token:   "local-cask",
+		Name:    []string{},
+		URL:     "https://example.com/local/installer.pkg",
+		Version: "9.9.9",
+		SHA256:  "deadbeef",
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(emptyNamePath, emptyNameJSON, 0o644))
+
+	_, err = i.ingestOne(ctx, inputApp{
+		Token:            "local-cask",
+		UniqueIdentifier: "com.example.localcask",
+		InstallerFormat:  "pkg",
+		Name:             "Local Cask",
+		CaskPath:         emptyNamePath,
+	})
+	require.ErrorContains(t, err, "empty name")
+	require.Equal(t, 0, httpHits)
+}
+
+func TestFirefoxBetaBaseVersion(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"153.0b13", "153.0"},
+		{"154.0b1", "154.0"},
+		{"153.0.1b2", "153.0.1"},
+		{"153.0", "153.0"},
+		{"152.0.6", "152.0.6"},
+		{"154.0a1", "154.0a1"},
+		{"", ""},
+	}
+	for _, c := range cases {
+		require.Equal(t, c.want, firefoxBetaBaseVersion(c.in), "input %q", c.in)
+	}
+}
+
+func TestFirefoxMacBundleVersion(t *testing.T) {
+	cases := []struct {
+		version   string
+		buildDate string
+		want      string
+		wantErr   bool
+	}{
+		{"153.0b13", "20260715125817", "15326.7.15", false},
+		{"154.0a1", "20260717", "15426.7.17", false},
+		{"153.0.1b2", "20261201000000", "15326.12.1", false},
+		{"153.0b13", "2026071", "", true},        // build date too short
+		{"153.0b13", "2026x715", "", true},       // build date not numeric
+		{"153.0b13", "20261315000000", "", true}, // month out of range
+		{"153.0b13", "20260732000000", "", true}, // day out of range
+		{"153.0b13", "20260231000000", "", true}, // impossible calendar date
+		{"x.0b13", "20260715125817", "", true},   // non-numeric major
+		{"", "20260715125817", "", true},
+	}
+	for _, c := range cases {
+		got, err := firefoxMacBundleVersion(c.version, c.buildDate)
+		if c.wantErr {
+			require.Error(t, err, "version %q buildDate %q", c.version, c.buildDate)
+			continue
+		}
+		require.NoError(t, err, "version %q buildDate %q", c.version, c.buildDate)
+		require.Equal(t, c.want, got, "version %q buildDate %q", c.version, c.buildDate)
+	}
+}
+
+func TestFirefoxNightlyMacBundleVersion(t *testing.T) {
+	cases := []struct {
+		caskVersion string
+		want        string
+		wantErr     bool
+	}{
+		{"154.0a1,2026-07-17-09-27-13", "15426.7.17", false},
+		{"154.0a1,2026-07-17", "15426.7.17", false},
+		{"154.0a1", "", true},                     // no build timestamp
+		{"154.0a1,not-a-date", "", true},          // malformed timestamp
+		{"154.0a1,2026-13-17-09-27-13", "", true}, // month out of range
+	}
+	for _, c := range cases {
+		got, err := firefoxNightlyMacBundleVersion(c.caskVersion)
+		if c.wantErr {
+			require.Error(t, err, "caskVersion %q", c.caskVersion)
+			continue
+		}
+		require.NoError(t, err, "caskVersion %q", c.caskVersion)
+		require.Equal(t, c.want, got, "caskVersion %q", c.caskVersion)
+	}
+}
+
+func TestWeChatPatchedQueryBuild(t *testing.T) {
+	const fallback = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tencent.xinWeChat' AND version_compare(bundle_short_version, '4.2.0.16') < 0);"
+	cases := []struct {
+		caskVersion string
+		want        string
+	}{
+		{"4.2.0.16,270352", "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tencent.xinWeChat' AND version_compare(bundle_version, '270352') < 0);"},
+		{"4.2.0.16", fallback},
+		{"4.2.0.16,", fallback},
+		{"4.2.0.16,270352') OR ('1", fallback},
+	}
+	tempDir := t.TempDir()
+	i := &brewIngester{logger: slog.New(slog.DiscardHandler)}
+	for _, c := range cases {
+		caskJSON, err := json.Marshal(brewCask{
+			Token:   "wechat",
+			Name:    []string{"WeChat"},
+			URL:     "https://example.com/wechat.dmg",
+			Version: c.caskVersion,
+		})
+		require.NoError(t, err)
+		caskPath := path.Join(tempDir, "wechat.json")
+		require.NoError(t, os.WriteFile(caskPath, caskJSON, 0o644))
+
+		out, err := i.ingestOne(t.Context(), inputApp{
+			Token:            "wechat",
+			UniqueIdentifier: "com.tencent.xinWeChat",
+			InstallerFormat:  "dmg",
+			Name:             "WeChat for Mac",
+			CaskPath:         caskPath,
+		})
+		require.NoError(t, err, "caskVersion %q", c.caskVersion)
+		require.Equal(t, c.want, out.Queries.Patched, "caskVersion %q", c.caskVersion)
+	}
+}
+
+// TestBundleVersionPatchedQueryUsesCaskVersion verifies that the bundle_version
+// patched query keeps the full cask version when a shortener cuts the manifest
+// version down to bundle_short_version.
+func TestBundleVersionPatchedQueryUsesCaskVersion(t *testing.T) {
+	cases := []struct {
+		token       string
+		bundleID    string
+		caskVersion string
+		wantVersion string
+		wantPatched string
+	}{
+		{"sigmaos", "com.sigmaos.sigmaos.macos", "1.19.0.4", "1.19.0", "1.19.0.4"},
+		{"malwarebytes", "com.malwarebytes.mbam.frontend.application", "5.29.2.4310", "5.29.2", "5.29.2.4310"},
+		{"plex-media-server", "com.plexapp.plexmediaserver", "1.43.5.11079,b3b13e506", "1.43.5", "1.43.5.11079"},
+		{"axure-rp", "com.axure.AxureRP11", "11.0.0.4150", "11.0.0.4150", "11.0.0.4150"},
+		{"redcine-x-pro", "com.red.RedCineX", "65.2.1", "65.2", "65.2.1"},
+	}
+	tempDir := t.TempDir()
+	i := &brewIngester{logger: slog.New(slog.DiscardHandler)}
+	for _, c := range cases {
+		t.Run(c.token, func(t *testing.T) {
+			caskJSON, err := json.Marshal(brewCask{
+				Token:   c.token,
+				Name:    []string{c.token},
+				URL:     "https://example.com/app.dmg",
+				Version: c.caskVersion,
+			})
+			require.NoError(t, err)
+			caskPath := path.Join(tempDir, c.token+".json")
+			require.NoError(t, os.WriteFile(caskPath, caskJSON, 0o644))
+
+			out, err := i.ingestOne(t.Context(), inputApp{
+				Token:            c.token,
+				Slug:             c.token + "/darwin",
+				UniqueIdentifier: c.bundleID,
+				InstallerFormat:  "dmg",
+				Name:             c.token,
+				CaskPath:         caskPath,
+			})
+			require.NoError(t, err)
+			require.Equal(t, c.wantVersion, out.Version)
+			require.Equal(t, fmt.Sprintf(
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_version, '%s') < 0);",
+				c.bundleID, c.wantPatched,
+			), out.Queries.Patched)
+		})
+	}
+}
+
+// TestFirefoxDevEditionBuildhubFallback verifies that a buildhub failure falls
+// back to a base-version patch comparison instead of failing ingestion.
+func TestFirefoxDevEditionBuildhubFallback(t *testing.T) {
+	brewSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := json.NewEncoder(w).Encode(brewCask{
+			Token:   "firefox@developer-edition",
+			Name:    []string{"Mozilla Firefox Developer Edition"},
+			URL:     "https://example.com",
+			Version: "153.0b13",
+		})
+		if err != nil {
+			t.Errorf("encoding fixture: %v", err)
+		}
+	}))
+	t.Cleanup(brewSrv.Close)
+
+	cases := []struct {
+		name    string
+		handler http.HandlerFunc
+	}{
+		{"buildhub has no matching build", func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`{"hits":{"hits":[]}}`))
+		}},
+		{"buildhub is unavailable", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			buildhubSrv := httptest.NewServer(c.handler)
+			t.Cleanup(buildhubSrv.Close)
+
+			i := &brewIngester{
+				logger:           slog.New(slog.DiscardHandler),
+				client:           fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+				baseURL:          brewSrv.URL + "/",
+				buildhubURL:      buildhubSrv.URL,
+				retryInterval:    time.Millisecond,
+				retryMaxAttempts: 2,
+			}
+
+			out, err := i.ingestOne(context.Background(), inputApp{
+				Token:            "firefox@developer-edition",
+				UniqueIdentifier: "org.mozilla.firefoxdeveloperedition",
+				InstallerFormat:  "dmg",
+				Name:             "Mozilla Firefox Developer Edition",
+				Slug:             "firefox@developer-edition/darwin",
+			})
+			require.NoError(t, err)
+			require.Equal(t, "153.0b13", out.Version)
+			require.Equal(t,
+				"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefoxdeveloperedition' AND version_compare(bundle_short_version, '153.0') < 0);",
+				out.Queries.Patched,
+			)
 		})
 	}
 }

@@ -1,5 +1,5 @@
-import React, { useRef, useMemo } from "react";
 import classnames from "classnames";
+import React, { useRef, useMemo } from "react";
 import Select, {
   components,
   MenuListProps,
@@ -11,21 +11,19 @@ import Select, {
 } from "react-select-5";
 
 import {
-  ACTIVITY_TYPE_TO_FILTER_LABEL,
-  ActivityType,
-} from "interfaces/activity";
-
-import {
   CustomOptionType,
   CustomDropdownIndicator,
   generateCustomDropdownStyles,
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import Icon from "components/Icon";
 import FormField from "components/forms/FormField";
-
-import { PADDING } from "styles/var/padding";
-import { FONT_SIZES } from "styles/var/fonts";
+import Icon from "components/Icon";
+import {
+  ACTIVITY_TYPE_TO_FILTER_LABEL,
+  ActivityType,
+} from "interfaces/activity";
 import { COLORS } from "styles/var/colors";
+import { FONT_SIZES } from "styles/var/fonts";
+import { PADDING } from "styles/var/padding";
 
 declare module "react-select-5/dist/declarations/src/Select" {
   export interface Props<
@@ -203,7 +201,8 @@ const ActivityTypeDropdown = ({
     ...generateCustomDropdownStyles(),
     menu: (provided) => ({
       ...provided,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: COLORS["core-fleet-white"],
+      boxShadow: `0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "4px",
       zIndex: 6,
       overflow: "hidden",

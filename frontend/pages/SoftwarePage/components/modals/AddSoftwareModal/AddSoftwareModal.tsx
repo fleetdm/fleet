@@ -1,7 +1,7 @@
 import React from "react";
 
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Modal from "components/Modal";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 
 const baseClass = "add-software-modal";
@@ -14,11 +14,11 @@ const AllTeamsMessage = ({ onExit }: IAllTeamsMessageProps) => {
   return (
     <>
       <p>
-        Please select a team first. Software can&apos;t be added when{" "}
-        <b>All teams</b> is selected.
+        Please select a fleet first. Software can&apos;t be added when{" "}
+        <b>All fleets</b> is selected.
       </p>
       <div className="modal-cta-wrap">
-        <Button onClick={onExit}>Done</Button>
+        <Button onClick={onExit}>Close</Button>
       </div>
     </>
   );
@@ -34,9 +34,9 @@ const AddSoftwareModal = ({ onExit, isFreeTier }: IAddSoftwareModalProps) => {
     if (isFreeTier) {
       return (
         <>
-          <PremiumFeatureMessage alignment="left" />{" "}
+          <PremiumFeatureMessage />
           <div className="modal-cta-wrap">
-            <Button onClick={onExit}>Done</Button>
+            <Button onClick={onExit}>Close</Button>
           </div>
         </>
       );

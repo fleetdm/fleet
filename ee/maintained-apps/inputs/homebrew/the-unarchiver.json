@@ -1,0 +1,8 @@
+{
+  "name": "The Unarchiver",
+  "unique_identifier": "com.macpaw.site.theunarchiver",
+  "token": "the-unarchiver",
+  "installer_format": "zip",
+  "slug": "the-unarchiver/darwin",
+  "default_categories": ["Utilities"]
+}

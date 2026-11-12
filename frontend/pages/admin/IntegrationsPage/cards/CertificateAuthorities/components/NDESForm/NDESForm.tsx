@@ -1,13 +1,10 @@
-import React, { useState } from "react";
+import React from "react";
 
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import InputField from "components/forms/fields/InputField";
 import TooltipWrapper from "components/TooltipWrapper";
 
-import { INDESFormValidation, validateFormData } from "./helpers";
-
-const baseClass = "ndes-form";
+import { validateFormData } from "./helpers";
 
 export interface INDESFormData {
   scepURL: string;
@@ -20,7 +17,6 @@ interface INDESFormProps {
   formData: INDESFormData;
   submitBtnText: string;
   isSubmitting: boolean;
-  isEditing?: boolean;
   isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
@@ -36,22 +32,16 @@ const NDESForm = ({
   onSubmit,
   onCancel,
 }: INDESFormProps) => {
-  const [formValidation, setFormValidation] = useState<INDESFormValidation>(
-    () => validateFormData(formData)
-  );
+  // derived from the formData prop (not kept in state) because the parent can
+  // change fields this form didn't touch, e.g. the edit modal clears an
+  // unchanged password when the SCEP URL, admin URL, or username changes
+  const formValidation = validateFormData(formData);
 
   const { scepURL, adminURL, username, password } = formData;
 
   const onSubmitForm = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
     onSubmit();
-  };
-
-  const onInputChange = (update: { name: string; value: string }) => {
-    setFormValidation(
-      validateFormData({ ...formData, [update.name]: update.value })
-    );
-    onChange(update);
   };
 
   return (
@@ -61,7 +51,7 @@ const NDESForm = ({
         name="scepURL"
         value={scepURL}
         error={formValidation.scepURL?.message}
-        onChange={onInputChange}
+        onChange={onChange}
         parseTarget
         placeholder="https://example.com/certsrv/mscep/mscep.dll"
         helpText="The URL used by client devices to request and retrieve certificates."
@@ -71,29 +61,42 @@ const NDESForm = ({
         name="adminURL"
         value={adminURL}
         error={formValidation.adminURL?.message}
-        onChange={onInputChange}
+        onChange={onChange}
         parseTarget
         placeholder="https://example.com/certsrv/mscep_admin/"
-        helpText="The admin interface for managing the SCEP service and viewing configuration details."
+        helpText={
+          <>
+            The URL for the <b>Network Device Enrollment Service</b> page to
+            view configuration details. Okta calls this the <b>Challenge URL</b>
+            .
+          </>
+        }
       />
       <InputField
         label="Username"
         name="username"
         value={username}
-        onChange={onInputChange}
+        onChange={onChange}
         parseTarget
         placeholder="username@example.microsoft.com"
-        helpText="The username in the down-level logon name format required to log in to the SCEP admin page."
+        helpText="For NDES, this is the username in the down-level logon name
+        format required to log in to the SCEP admin page. Okta generates this for you."
       />
       <InputField
         label="Password"
         name="password"
         value={password}
         type="password"
-        onChange={onInputChange}
+        onChange={onChange}
         parseTarget
         blockAutoComplete
-        helpText="The password required to log in to the SCEP admin page."
+        helpText={
+          <>
+            For NDES, the password required to log in to the{" "}
+            <b>Network Device Enrollment Service</b> page. Okta generates this
+            for you.
+          </>
+        }
       />
       <div className="modal-cta-wrap">
         <TooltipWrapper
@@ -111,7 +114,7 @@ const NDESForm = ({
             {submitBtnText}
           </Button>
         </TooltipWrapper>
-        <Button variant="inverse" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
       </div>

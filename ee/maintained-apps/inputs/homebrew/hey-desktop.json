@@ -1,0 +1,10 @@
+{
+  "name": "HEY",
+  "unique_identifier": "com.hey.app.desktop",
+  "token": "hey-desktop",
+  "installer_format": "zip",
+  "slug": "hey-desktop/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

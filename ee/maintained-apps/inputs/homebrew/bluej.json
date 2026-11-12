@@ -1,0 +1,8 @@
+{
+  "name": "BlueJ",
+  "slug": "bluej/darwin",
+  "unique_identifier": "org.bluej.BlueJ",
+  "token": "bluej",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

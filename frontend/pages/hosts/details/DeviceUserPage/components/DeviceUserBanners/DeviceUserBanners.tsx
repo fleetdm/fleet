@@ -1,17 +1,25 @@
+import { addHours, isPast } from "date-fns";
 import React from "react";
 
-import InfoBanner from "components/InfoBanner";
 import Button from "components/buttons/Button";
-import { MacDiskEncryptionActionRequired } from "interfaces/host";
-import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 import CustomLink from "components/CustomLink";
-import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
+import InfoBanner from "components/InfoBanner";
+import { IDeviceDiskEncryptionSetting } from "interfaces/host";
+import {
+  isAppleDevice,
+  isDiskEncryptionSupportedLinuxPlatform,
+} from "interfaces/platform";
+import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
+import {
+  INITIAL_FLEET_DATE,
+  LEARN_MORE_ABOUT_BASE_LINK,
+} from "utilities/constants";
 
 const baseClass = "device-user-banners";
 
 interface IDeviceUserBannersProps extends IHostBannersBaseProps {
+  diskEncryptionOSSetting?: IDeviceDiskEncryptionSetting;
   mdmEnabledAndConfigured: boolean;
-  diskEncryptionActionRequired: MacDiskEncryptionActionRequired | null;
   mdmManualEnrolmentUrl?: string;
   onClickCreatePIN: () => void;
   onClickTurnOnMdm: () => void;
@@ -32,7 +40,11 @@ const DeviceUserBanners = ({
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
+  onlyAllowAppleBusinessEnrollment,
   onTriggerEscrowLinuxKey,
+  lastMdmEnrolledAt,
+  detailUpdatedAt,
+  depAssignedToFleet,
 }: IDeviceUserBannersProps) => {
   const isMdmUnenrolled =
     mdmEnrollmentStatus === "Off" || mdmEnrollmentStatus === null;
@@ -40,12 +52,24 @@ const DeviceUserBanners = ({
   const mdmEnabledAndConnected = mdmEnabledAndConfigured && connectedToFleetMdm;
 
   const showTurnOnAppleMdmBanner =
-    hostPlatform === "darwin" && isMdmUnenrolled && mdmEnabledAndConfigured;
+    hostPlatform === "darwin" &&
+    isMdmUnenrolled &&
+    mdmEnabledAndConfigured &&
+    detailUpdatedAt &&
+    detailUpdatedAt > INITIAL_FLEET_DATE;
 
-  const showMacDiskEncryptionKeyResetRequired =
+  const isNewMdmEnrollment =
+    !isMdmUnenrolled &&
+    !!lastMdmEnrolledAt &&
+    // if less than an hour has passed since the last MDM enrollment, we consider it a new
+    // enrollment and won't show the disk encryption action required banner, as it's possible the
+    // host just hasn't sent its disk encryption status to Fleet yet
+    !isPast(addHours(lastMdmEnrolledAt, 1));
+
+  const showMacDiskEncryptionActionRequired =
     mdmEnabledAndConnected &&
     macDiskEncryptionStatus === "action_required" &&
-    diskEncryptionActionRequired === "rotate_key";
+    !isNewMdmEnrollment;
 
   const turnOnMdmButton = mdmManualEnrolmentUrl ? (
     <CustomLink
@@ -55,12 +79,28 @@ const DeviceUserBanners = ({
       variant="banner-link"
     />
   ) : (
-    <Button variant="text-link-dark" onClick={onClickTurnOnMdm}>
+    <Button variant="link" onClick={onClickTurnOnMdm}>
       Turn on MDM
     </Button>
   );
 
   const renderBanner = () => {
+    if (
+      onlyAllowAppleBusinessEnrollment &&
+      !depAssignedToFleet &&
+      isAppleDevice(hostPlatform) &&
+      isMdmUnenrolled
+    ) {
+      return (
+        <InfoBanner color="yellow">
+          Mobile device management (MDM) is off. This device isn&apos;t eligible
+          for MDM because it isn&apos;t assigned to your organization by Apple
+          Business. Contact your IT administrator if you believe this is an
+          error.
+        </InfoBanner>
+      );
+    }
+
     if (showTurnOnAppleMdmBanner) {
       return (
         <InfoBanner color="yellow" cta={turnOnMdmButton}>
@@ -71,12 +111,21 @@ const DeviceUserBanners = ({
       );
     }
 
-    if (showMacDiskEncryptionKeyResetRequired) {
+    if (showMacDiskEncryptionActionRequired) {
       return (
         <InfoBanner color="yellow">
-          Disk encryption: Log out of your device or restart it to safeguard
-          your data in case your device is lost or stolen. After, select{" "}
-          <strong>Refetch</strong> to clear this banner.
+          {diskEncryptionActionRequired === "turn_on_encryption" ? (
+            <>
+              Disk encryption: Disk encryption is turned off. Contact your IT
+              admin for additional instructions.
+            </>
+          ) : (
+            <>
+              Disk encryption: Log out of your device or restart it to safeguard
+              your data in case your device is lost or stolen. After, select{" "}
+              <strong>Refetch</strong> to clear this banner.
+            </>
+          )}
         </InfoBanner>
       );
     }
@@ -97,8 +146,9 @@ const DeviceUserBanners = ({
           <InfoBanner
             cta={
               <CustomLink
-                url="https://fleetdm.com/learn-more-about/encrypt-linux-device"
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/encrypt-linux-device`}
                 text="Guide"
+                newTab
                 variant="banner-link"
               />
             }
@@ -117,7 +167,7 @@ const DeviceUserBanners = ({
           <InfoBanner
             cta={
               <Button
-                variant="inverse"
+                variant="secondary"
                 onClick={onTriggerEscrowLinuxKey}
                 className="create-key-button"
               >
@@ -138,20 +188,40 @@ const DeviceUserBanners = ({
       hostPlatform === "windows" &&
       diskEncryptionOSSetting?.status === "action_required"
     ) {
-      return (
-        <InfoBanner
-          color="yellow"
-          cta={
-            <Button variant="text-link-dark" onClick={onClickCreatePIN}>
-              Create PIN
-            </Button>
-          }
-        >
-          Disk encryption: Create a BitLocker PIN to safeguard your data in case
-          your device is lost or stolen. After, select <strong>Refetch</strong>{" "}
-          to clear this banner.
-        </InfoBanner>
-      );
+      // Fleet is holding the repair until the host restarts, so the restart is the only thing that moves it along.
+      if (diskEncryptionOSSetting?.action_required === "restart") {
+        return (
+          <InfoBanner color="yellow">
+            Disk encryption: Restart your device to finish protecting your data.
+            Your organization will turn disk encryption protection back on after
+            the restart.
+          </InfoBanner>
+        );
+      }
+
+      // Gate on action_required naming the PIN.
+      if (diskEncryptionOSSetting?.action_required === "create_pin") {
+        return (
+          <InfoBanner
+            color="yellow"
+            cta={
+              <Button variant="link" onClick={onClickCreatePIN}>
+                Create PIN
+              </Button>
+            }
+          >
+            Disk encryption: Create a BitLocker PIN to protect your data if your
+            device is lost or stolen.
+            {/* Fleet clears the banner on its own once its agent applies the PIN. */}
+            {!diskEncryptionOSSetting.fleetd_can_set_pin && (
+              <>
+                {" "}
+                After, select <strong>Refetch</strong> to clear this banner.
+              </>
+            )}
+          </InfoBanner>
+        );
+      }
     }
 
     return null;

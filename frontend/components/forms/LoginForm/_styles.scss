@@ -9,7 +9,6 @@
     vertical-align: middle;
     height: 20px;
     width: 20px;
-    margin-right: 10px;
     border-radius: 20%;
   }
 
@@ -47,7 +46,19 @@
     border: 1px solid $core-fleet-black;
     white-space: nowrap;
   }
-  // End login button styles
+
+  &__sso-tooltip.component__tooltip-wrapper {
+    display: block;
+    width: 100%;
+
+    .component__tooltip-wrapper__element {
+      display: flex;
+
+      > .button {
+        flex: 1;
+      }
+    }
+  }
 }
 
 .two-factor-check-email {

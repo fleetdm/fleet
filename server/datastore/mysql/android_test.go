@@ -1,16 +1,20 @@
 package mysql
 
 import (
+	"cmp"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -28,39 +32,59 @@ func TestAndroid(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"NewAndroidHost", testNewAndroidHost},
+		{"NewAndroidHostDedupesOrbitEnrolled", testNewAndroidHostDedupesOrbitEnrolled},
 		{"UpdateAndroidHost", testUpdateAndroidHost},
+		{"UpdateAndroidHostEnrollmentTimes", testUpdateAndroidHostEnrollmentTimes},
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
+		{"UpdateAndroidHostKeepsDiskMeasurement", testUpdateAndroidHostKeepsDiskMeasurement},
 		{"NewMDMAndroidConfigProfile", testNewMDMAndroidConfigProfile},
 		{"GetMDMAndroidConfigProfile", testGetMDMAndroidConfigProfile},
+		{"UpdateMDMAndroidConfigProfile", testUpdateMDMAndroidConfigProfile},
 		{"DeleteMDMAndroidConfigProfile", testDeleteMDMAndroidConfigProfile},
 		{"GetMDMAndroidProfilesSummary", testMDMAndroidProfilesSummary},
 		{"ListMDMAndroidProfilesToSend", testListMDMAndroidProfilesToSend},
 		{"ListMDMAndroidProfilesToSend_WithExcludeAny", testListMDMAndroidProfilesToSendWithExcludeAny},
+		{"ListMDMAndroidProfilesToSend_WithCombinedLabels", testListMDMAndroidProfilesToSendWithCombinedLabels},
+		{"ListMDMAndroidProfilesToSend_ExcludeAnyUnknownLabelPreservation", testListMDMAndroidProfilesToSendExcludeAnyUnknownLabelPreservation},
+		{"ListMDMAndroidProfilesToSend_IncludeAllUnknownLabelPreservation", testListMDMAndroidProfilesToSendIncludeAllUnknownLabelPreservation},
+		{"ListMDMAndroidProfilesToSend_CombinedUnknownLabelPreservation", testListMDMAndroidProfilesToSendCombinedUnknownLabelPreservation},
+		{"ListMDMAndroidProfilesToSend_Cursor", testListMDMAndroidProfilesToSendCursor},
 		{"GetMDMAndroidProfilesContents", testGetMDMAndroidProfilesContents},
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles},
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles2},
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles3},
 		{"GetHostMDMAndroidProfiles", testGetHostMDMAndroidProfiles},
 		{"GetAndroidPolicyRequestByUUID", testGetAndroidPolicyRequestByUUID},
+		{"MDMAndroidCommandCRUD", testMDMAndroidCommandCRUD},
+		{"ListPendingMDMAndroidCommands", testListPendingMDMAndroidCommands},
+		{"FailPendingMDMAndroidCommandsOutsidePrefix", testFailPendingMDMAndroidCommandsOutsidePrefix},
+		{"LockWipeHostViaAndroidMDM", testLockWipeHostViaAndroidMDM},
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
+		{"ResetMDMAndroidHostProfilesForRedelivery", testResetMDMAndroidHostProfilesForRedelivery},
+		{"BulkUpsertMDMAndroidHostProfilesUnlessResetSince", testBulkUpsertMDMAndroidHostProfilesUnlessResetSince},
 		{"BatchSetMDMAndroidProfiles_Associations", testBatchSetMDMAndroidProfiles_Associations},
 		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
 		{"AndroidBYODDetection", testAndroidBYODDetection},
 		{"SetAndroidHostUnenrolled", testSetAndroidHostUnenrolled},
+		{"AndroidPersonalEnrollmentSurvivesUnenroll", testAndroidPersonalEnrollmentSurvivesUnenroll},
+		{"SetAndroidHostEnrolled", testSetAndroidHostEnrolled},
+		{"AndroidPubSubDedupState", testAndroidPubSubDedupState},
 		{"BulkSetAndroidHostsUnenrolled", testBulkSetAndroidHostsUnenrolled},
 		{"InsertAndGetAndroidAppConfiguration", testInsertAndGetAndroidAppConfiguration},
 		{"UpdateAndroidAppConfiguration", testUpdateAndroidAppConfiguration},
-		{"DeleteAndroidAppConfiguration", testDeleteAndroidAppConfiguration},
-		{"GetAndroidAppConfiguration_NotFound", testGetAndroidAppConfigurationNotFound},
-		{"UpdateAndroidAppConfiguration_NotFound", testUpdateAndroidAppConfigurationNotFound},
-		{"DeleteAndroidAppConfiguration_NotFound", testDeleteAndroidAppConfigurationNotFound},
-		{"InsertAndroidAppConfiguration_Duplicate", testInsertAndroidAppConfigurationDuplicate},
 		{"AndroidAppConfiguration_CascadeDeleteTeam", testAndroidAppConfigurationCascadeDeleteTeam},
 		{"AndroidAppConfiguration_GlobalVsTeam", testAndroidAppConfigurationGlobalVsTeam},
 		{"AddDeleteAndroidAppWithConfiguration", testAddDeleteAndroidAppWithConfiguration},
 		{"HasAndroidAppConfigurationChanged", testHasAndroidAppConfigurationChanged},
+		{"UpdateTeamIDOnAndroidDevices", testUpdateTeamIDOnAndroidDevices},
+		{"GetAndroidDeviceLastTeamID", testGetAndroidDeviceLastTeamID},
+		{"AndroidResetOnReenrollment", testAndroidResetOnReenrollment},
+		{"ListAndroidHostsForAppReconcile", testListAndroidHostsForAppReconcile},
+		{"HostAndroidSoftwareInstallsLifecycle", testHostAndroidSoftwareInstallsLifecycle},
+		{"UpdateAndroidAppConfigurationSetsConfigurationUpdatedAt", testUpdateAndroidAppConfigurationSetsConfigurationUpdatedAt},
+		{"GetAndroidAppStoreAppVersionsByID", testGetAndroidAppStoreAppVersionsByID},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -76,7 +100,7 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	const enterpriseSpecificID = "enterprise_specific_id"
 	host := createAndroidHost(enterpriseSpecificID)
 
-	result, err := ds.NewAndroidHost(testCtx(), host)
+	result, err := ds.NewAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 	assert.NotZero(t, result.Host.ID)
 	assert.NotZero(t, result.Device.ID)
@@ -104,7 +128,7 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 
 	// Inserting the same host again should be fine.
 	// This may occur when 2 Fleet servers received the same host information via pubsub.
-	resultCopy, err := ds.NewAndroidHost(testCtx(), host)
+	resultCopy, err := ds.NewAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 	assert.Equal(t, result.Host.ID, resultCopy.Host.ID)
 	assert.Equal(t, result.Device.ID, resultCopy.Device.ID)
@@ -118,12 +142,197 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	host2 := createAndroidHost(enterpriseSpecificID2)
 
 	// still passes, but no label membership was recorded
-	result, err = ds.NewAndroidHost(testCtx(), host2)
+	result, err = ds.NewAndroidHost(testCtx(), host2, false)
 	require.NoError(t, err)
 
 	lbls, err = ds.ListLabelsForHost(testCtx(), result.Host.ID)
 	require.NoError(t, err)
 	require.Empty(t, lbls)
+}
+
+// testNewAndroidHostDedupesOrbitEnrolled covers the duplicate-Android-hosts fix.
+// The Fleet Android agent enrolls first via /api/fleet/orbit/enroll,
+// then later the AMAPI pubsub flow delivers a STATUS_REPORT that lands in
+// NewAndroidHost. The dedupe works whether the agent also sends
+// platform="android" (newer agents) or leaves it blank (older agents).
+func testNewAndroidHostDedupesOrbitEnrolled(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
+	cases := []struct {
+		name       string
+		platform   string
+		mdmEnabled bool
+	}{
+		{"agent sends no platform", "", true},
+		{"agent sends platform=android", "android", true},
+		{"agent sends platform=android, Apple MDM disabled", "android", false},
+		{"agent sends no platform, Apple MDM disabled", "", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := testCtx()
+			enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+
+			orbitHost, err := ds.EnrollOrbit(ctx,
+				fleet.WithEnrollOrbitMDMEnabled(tc.mdmEnabled),
+				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+					HardwareUUID:   enterpriseSpecificID,
+					HardwareSerial: enterpriseSpecificID,
+					Platform:       tc.platform,
+					Hostname:       "Samsung TestDevice",
+					ComputerName:   "Samsung TestDevice",
+					HardwareModel:  "TestModel",
+				}),
+				fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+			)
+			require.NoError(t, err)
+			require.NotZero(t, orbitHost.ID)
+
+			// Orbit enroll alone does not write an android_devices row; AndroidHostLite misses.
+			_, err = ds.AndroidHostLite(ctx, enterpriseSpecificID)
+			require.True(t, fleet.IsNotFound(err),
+				"before AMAPI arrives there is no android_devices row, so AndroidHostLite should miss")
+
+			// Simulate the AMAPI pubsub path calling NewAndroidHost. The fix makes
+			// NewAndroidHost find the existing orbit-enrolled hosts row by uuid and
+			// reuse it instead of inserting a duplicate.
+			newHost := createAndroidHost(enterpriseSpecificID)
+			returned, err := ds.NewAndroidHost(ctx, newHost, false)
+			require.NoError(t, err)
+			require.NotNil(t, returned)
+			require.Equal(t, orbitHost.ID, returned.Host.ID,
+				"NewAndroidHost must reuse the orbit-enrolled hosts row, not insert a duplicate")
+
+			// AndroidHostLite now finds the host via the newly-created android_devices row.
+			androidHost, err := ds.AndroidHostLite(ctx, enterpriseSpecificID)
+			require.NoError(t, err)
+			require.NotNil(t, androidHost)
+			require.Equal(t, orbitHost.ID, androidHost.Host.ID)
+			require.Equal(t, enterpriseSpecificID, androidHost.Host.UUID)
+
+			// Exactly one hosts row and one android_devices row for this device.
+			var hostCount, deviceCount int
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &hostCount,
+				`SELECT COUNT(*) FROM hosts WHERE uuid = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, hostCount)
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &deviceCount,
+				`SELECT COUNT(*) FROM android_devices WHERE enterprise_specific_id = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, deviceCount)
+
+			// Subsequent orbit re-enroll (agent node-key wipe, reinstall) stays idempotent.
+			_, err = ds.EnrollOrbit(ctx,
+				fleet.WithEnrollOrbitMDMEnabled(tc.mdmEnabled),
+				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+					HardwareUUID:   enterpriseSpecificID,
+					HardwareSerial: enterpriseSpecificID,
+					Platform:       tc.platform,
+					Hostname:       "Samsung TestDevice",
+					ComputerName:   "Samsung TestDevice",
+					HardwareModel:  "TestModel",
+				}),
+				fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+			)
+			require.NoError(t, err)
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &hostCount,
+				`SELECT COUNT(*) FROM hosts WHERE uuid = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, hostCount)
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &deviceCount,
+				`SELECT COUNT(*) FROM android_devices WHERE enterprise_specific_id = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, deviceCount)
+		})
+	}
+
+	// Test the reverse flow: AMAPI enrolls first, then orbit joins. When Apple MDM is
+	// disabled, matchHostDuringEnrollment must still find the AMAPI-created host by UUID
+	// so orbit updates the existing row instead of inserting a duplicate.
+	for _, mdmEnabled := range []bool{true, false} {
+		name := "AMAPI first then orbit, Apple MDM enabled"
+		if !mdmEnabled {
+			name = "AMAPI first then orbit, Apple MDM disabled"
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx := testCtx()
+			enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+
+			// AMAPI creates the Android host first.
+			newHost := createAndroidHost(enterpriseSpecificID)
+			amAPIHost, err := ds.NewAndroidHost(ctx, newHost, false)
+			require.NoError(t, err)
+			require.NotZero(t, amAPIHost.Host.ID)
+
+			// Orbit enrollment should find the AMAPI-created host by UUID, not create a duplicate.
+			orbitHost, err := ds.EnrollOrbit(ctx,
+				fleet.WithEnrollOrbitMDMEnabled(mdmEnabled),
+				fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+					HardwareUUID:   enterpriseSpecificID,
+					HardwareSerial: enterpriseSpecificID,
+					Platform:       "android",
+					Hostname:       "Samsung TestDevice",
+					ComputerName:   "Samsung TestDevice",
+					HardwareModel:  "TestModel",
+				}),
+				fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+			)
+			require.NoError(t, err)
+			require.Equal(t, amAPIHost.Host.ID, orbitHost.ID,
+				"orbit enroll must reuse the AMAPI-created hosts row, not insert a duplicate")
+
+			// Still exactly one hosts row.
+			var hostCount int
+			require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &hostCount,
+				`SELECT COUNT(*) FROM hosts WHERE uuid = ?`, enterpriseSpecificID))
+			require.Equal(t, 1, hostCount)
+		})
+	}
+
+	// Two hosts already exist with the same uuid -- one orbit-enrolled
+	// (node_key=orbitKey) and one Android (node_key=android/<id>). A NewAndroidHost call
+	// with node_key=android/<id> must pick the Android row (not the orbit-enrolled one),
+	// otherwise the UPDATE would try to flip the orbit row's node_key to a value already
+	// held by the Android row and hit idx_host_unique_nodekey.
+	t.Run("Android orphan duplicates, prefers matching node_key", func(t *testing.T) {
+		ctx := testCtx()
+		enterpriseSpecificID := strings.ToUpper(uuid.New().String())
+
+		orbitHost, err := ds.EnrollOrbit(ctx,
+			fleet.WithEnrollOrbitMDMEnabled(true),
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   enterpriseSpecificID,
+				HardwareSerial: enterpriseSpecificID,
+				Platform:       "android",
+				Hostname:       "orbit",
+				ComputerName:   "orbit",
+				HardwareModel:  "TestModel",
+			}),
+			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+		)
+		require.NoError(t, err)
+
+		// Insert a second hosts row directly, with the same uuid but the Android-derived
+		// node_key, to simulate the duplicate state the dedupe must handle.
+		androidNodeKey := "android/" + enterpriseSpecificID
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO hosts (node_key, uuid, platform, hostname, computer_name, hardware_serial,
+				detail_updated_at, label_updated_at, policy_updated_at)
+			 VALUES (?, ?, 'android', 'android-dup', 'android-dup', 'serial-dup', NOW(), NOW(), NOW())`,
+			androidNodeKey, enterpriseSpecificID,
+		)
+		require.NoError(t, err)
+		androidDupID, err := res.LastInsertId()
+		require.NoError(t, err)
+
+		// NewAndroidHost must pick the existing Android row (not the orbit-enrolled one
+		// with the lower id). Otherwise the UPDATE would hit the UNIQUE node_key index.
+		newHost := createAndroidHost(enterpriseSpecificID)
+		require.Equal(t, androidNodeKey, *newHost.NodeKey,
+			"createAndroidHost is expected to build node_key=android/<uuid>")
+		returned, err := ds.NewAndroidHost(ctx, newHost, false)
+		require.NoError(t, err, "must not violate UNIQUE node_key when duplicate hosts share this uuid")
+		require.EqualValues(t, androidDupID, returned.Host.ID,
+			"NewAndroidHost should pick the row whose node_key matches, leaving the orbit-enrolled row alone")
+		require.NotEqual(t, orbitHost.ID, returned.Host.ID)
+	})
 }
 
 func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
@@ -164,13 +373,13 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	const enterpriseSpecificID = "es_id_update"
 	host := createAndroidHost(enterpriseSpecificID)
 
-	result, err := ds.NewAndroidHost(testCtx(), host)
+	result, err := ds.NewAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 	assert.NotZero(t, result.Host.ID)
 	assert.NotZero(t, result.Device.ID)
 
 	// Dummy update
-	err = ds.UpdateAndroidHost(testCtx(), result, false)
+	err = ds.UpdateAndroidHost(testCtx(), result, false, false)
 	require.NoError(t, err)
 
 	host = result
@@ -191,7 +400,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	// Make sure host UUID is preserved during update
 	host.Host.UUID = enterpriseSpecificID
 
-	err = ds.UpdateAndroidHost(testCtx(), host, false)
+	err = ds.UpdateAndroidHost(testCtx(), host, false, false)
 	require.NoError(t, err)
 
 	resultLite, err := ds.AndroidHostLite(testCtx(), enterpriseSpecificID)
@@ -207,7 +416,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	t.Run("Empty UUID regression test", func(t *testing.T) {
 		const regressionESID = "regression-uuid-test"
 		regressionHost := createAndroidHost(regressionESID)
-		createdHost, err := ds.NewAndroidHost(testCtx(), regressionHost)
+		createdHost, err := ds.NewAndroidHost(testCtx(), regressionHost, false)
 		require.NoError(t, err)
 		require.Equal(t, regressionESID, createdHost.Host.UUID)
 
@@ -217,7 +426,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 		hostWithEmptyUUID.Host.Hostname = "regression-hostname"
 
 		// This should still work but UUID should be empty
-		err = ds.UpdateAndroidHost(testCtx(), hostWithEmptyUUID, false)
+		err = ds.UpdateAndroidHost(testCtx(), hostWithEmptyUUID, false, false)
 		require.NoError(t, err)
 
 		// UUID is now empty
@@ -230,7 +439,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 		hostWithUUID.Host.UUID = regressionESID
 		hostWithUUID.Host.Hostname = "fixed-hostname"
 
-		err = ds.UpdateAndroidHost(testCtx(), hostWithUUID, false)
+		err = ds.UpdateAndroidHost(testCtx(), hostWithUUID, false, false)
 		require.NoError(t, err)
 
 		// UUID is restored
@@ -238,6 +447,153 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Equal(t, regressionESID, resultAfterFix.Host.UUID, "UUID should be restored after fix")
 	})
+
+	t.Run("COBO re-enroll restores installed_from_dep", func(t *testing.T) {
+		ctx := testCtx()
+		cobo, err := ds.NewAndroidHost(ctx, createAndroidHost("cobo-reenroll-installed-from-dep"), true /*companyOwned*/)
+		require.NoError(t, err)
+
+		hostMDM, err := ds.GetHostMDM(ctx, cobo.Host.ID)
+		require.NoError(t, err)
+		require.True(t, hostMDM.InstalledFromDep, "fresh COBO enrollment must set installed_from_dep")
+
+		// Simulate the unenroll cleanup that clears installed_from_dep so enrollment_status drops to "Off".
+		didUnenroll, err := ds.SetAndroidHostUnenrolled(ctx, cobo.Host.ID)
+		require.NoError(t, err)
+		require.True(t, didUnenroll)
+		hostMDM, err = ds.GetHostMDM(ctx, cobo.Host.ID)
+		require.NoError(t, err)
+		require.False(t, hostMDM.InstalledFromDep, "unenroll must clear installed_from_dep")
+
+		// Re-enroll via the same upsert path that fires from updateHost(fromEnroll=true).
+		cobo.Host.UUID = "cobo-reenroll-installed-from-dep"
+		require.NoError(t, ds.UpdateAndroidHost(ctx, cobo, true /*fromEnroll*/, true /*companyOwned*/))
+
+		hostMDM, err = ds.GetHostMDM(ctx, cobo.Host.ID)
+		require.NoError(t, err)
+		require.True(t, hostMDM.Enrolled)
+		require.True(t, hostMDM.InstalledFromDep, "re-enroll must refresh installed_from_dep so COBO lands at 'On (automatic)'")
+		require.False(t, hostMDM.IsPersonalEnrollment)
+	})
+
+	t.Run("does not overwrite admin team transfer", func(t *testing.T) {
+		test.AddBuiltinLabels(t, ds)
+
+		h := createAndroidHost("team-race-" + fmt.Sprintf("%d", time.Now().UnixNano()))
+		created, err := ds.NewAndroidHost(testCtx(), h, false)
+		require.NoError(t, err)
+
+		team, err := ds.NewTeam(testCtx(), &fleet.Team{Name: fmt.Sprintf("android-team-%d", time.Now().UnixNano())})
+		require.NoError(t, err)
+
+		// Admin transfers host to the team.
+		require.NoError(t, ds.AddHostsToTeam(testCtx(),
+			fleet.NewAddHostsToTeamParams(&team.ID, []uint{created.Host.ID})))
+
+		// The in-memory host still has TeamID=nil (loaded before the transfer).
+		created.TeamID = nil
+		require.NoError(t, ds.UpdateAndroidHost(testCtx(), created, false, false))
+
+		reloaded, err := ds.AndroidHostLite(testCtx(), created.Host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, reloaded.TeamID, "UpdateAndroidHost must not clobber team_id set by a concurrent transfer")
+		assert.Equal(t, team.ID, *reloaded.TeamID)
+
+		// Reverse: host is transferred off team while stale struct still carries old team_id.
+		require.NoError(t, ds.AddHostsToTeam(testCtx(),
+			fleet.NewAddHostsToTeamParams(nil, []uint{created.Host.ID})))
+		created.TeamID = &team.ID
+		require.NoError(t, ds.UpdateAndroidHost(testCtx(), created, false, false))
+
+		reloaded, err = ds.AndroidHostLite(testCtx(), created.Host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, reloaded.TeamID, "UpdateAndroidHost must not resurrect a team_id that was cleared by a concurrent transfer")
+	})
+}
+
+func testUpdateAndroidHostEnrollmentTimes(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	const enterpriseSpecificID = "es_id_enrollment_times"
+
+	created, err := ds.NewAndroidHost(ctx, createAndroidHost(enterpriseSpecificID), false)
+	require.NoError(t, err)
+
+	longAgo := time.Now().UTC().Add(-48 * time.Hour).Truncate(time.Second)
+	backdate := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(ctx,
+				`UPDATE hosts SET created_at = ?, last_enrolled_at = ? WHERE id = ?`,
+				longAgo, longAgo, created.Host.ID,
+			); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)
+				ON DUPLICATE KEY UPDATE seen_time = VALUES(seen_time)`,
+				created.Host.ID, longAgo,
+			)
+			return err
+		})
+	}
+
+	backdate()
+	beforeReport, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	require.WithinDuration(t, longAgo, beforeReport.SeenTime, time.Second)
+	require.WithinDuration(t, longAgo, beforeReport.LastEnrolledAt, time.Second)
+
+	// A status report is not an enrollment: it refreshes the last-seen time only.
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	afterReport, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now(), afterReport.SeenTime, time.Minute,
+		"a status report must refresh the host's last-seen time")
+	assert.WithinDuration(t, longAgo, afterReport.LastEnrolledAt, time.Second,
+		"a status report must not move the enrollment time")
+
+	backdate()
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, true, false))
+
+	afterEnroll, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, time.Now(), afterEnroll.LastEnrolledAt, time.Minute,
+		"a re-enrollment must refresh the enrollment time")
+	assert.WithinDuration(t, time.Now(), afterEnroll.SeenTime, time.Minute,
+		"a re-enrollment must refresh the last-seen time")
+	assert.WithinDuration(t, longAgo, afterEnroll.CreatedAt, time.Second,
+		"a re-enrollment reuses the host row, so its creation time must not move")
+
+	backdate()
+	reportedAt := time.Now().UTC().Add(-10 * time.Minute).Truncate(time.Second)
+	created.DetailUpdatedAt = reportedAt
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	delayed, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, reportedAt, delayed.SeenTime, time.Second,
+		"a delayed delivery must be seen at the device's report time, not when Fleet processed it")
+
+	// Two overlapping deliveries can both pass the stale check, so the older one may commit last.
+	created.DetailUpdatedAt = reportedAt.Add(-5 * time.Minute)
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	outOfOrder, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, reportedAt, outOfOrder.SeenTime, time.Second,
+		"an older report committing last must not move the last-seen time backwards")
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_seen_times SET seen_time = NULL WHERE host_id = ?`, created.Host.ID)
+		return err
+	})
+	created.DetailUpdatedAt = reportedAt
+	require.NoError(t, ds.UpdateAndroidHost(ctx, created, false, false))
+
+	fromNull, err := ds.Host(ctx, created.Host.ID)
+	require.NoError(t, err)
+	assert.WithinDuration(t, reportedAt, fromNull.SeenTime, time.Second,
+		"a NULL seen time must still be replaced by the report time")
 }
 
 func testAndroidMDMStats(t *testing.T, ds *Datastore) {
@@ -257,7 +613,7 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	var androidHost0 *fleet.AndroidHost
 	for i := range hosts {
 		host := createAndroidHost(uuid.NewString())
-		result, err := ds.NewAndroidHost(testCtx(), host)
+		result, err := ds.NewAndroidHost(testCtx(), host, false)
 		require.NoError(t, err)
 		hosts[i] = result.Host
 
@@ -277,7 +633,7 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, macHost, false)
-	err = ds.MDMAppleUpsertHost(testCtx(), macHost, false)
+	err = ds.MDMAppleUpsertHost(testCtx(), macHost, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
 
 	// create a non-mdm host
@@ -367,7 +723,7 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	require.Len(t, solutionsStats, 0)
 
 	// simulate an android host that re-enrolls
-	err = ds.UpdateAndroidHost(testCtx(), androidHost0, true)
+	err = ds.UpdateAndroidHost(testCtx(), androidHost0, true, false)
 	require.NoError(t, err)
 
 	// compute stats
@@ -467,7 +823,7 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	host.SetNodeKey(enterpriseSpecificID)
 
 	// NewAndroidHost with storage data
-	result, err := ds.NewAndroidHost(testCtx(), host)
+	result, err := ds.NewAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 	require.NotZero(t, result.Host.ID)
 
@@ -488,7 +844,7 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	updatedHost.Host.GigsDiskSpaceAvailable = 64.0    // Updated: 20GB + 44GB available
 	updatedHost.Host.PercentDiskSpaceAvailable = 25.0 // Updated: 64/256 * 100
 
-	err = ds.UpdateAndroidHost(testCtx(), updatedHost, false)
+	err = ds.UpdateAndroidHost(testCtx(), updatedHost, false, false)
 	require.NoError(t, err)
 
 	// verify updated host data via host query (includes storage from host_disks)
@@ -502,6 +858,134 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 256.0, updatedFullHost.GigsTotalDiskSpace, "Updated total disk space should be saved in host_disks")
 	assert.Equal(t, 64.0, updatedFullHost.GigsDiskSpaceAvailable, "Updated available disk space should be saved in host_disks")
 	assert.Equal(t, 25.0, updatedFullHost.PercentDiskSpaceAvailable, "Updated disk space percentage should be saved in host_disks")
+}
+
+func testUpdateAndroidHostKeepsDiskMeasurement(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
+	type diskReport struct {
+		available, percent, total float64
+	}
+	measured := diskReport{available: 95.3, percent: 86.4, total: 110.3}
+	remeasured := diskReport{available: 50, percent: 25, total: 200}
+	notMeasured := diskReport{available: -1, percent: -1, total: 128}
+
+	// A step is a status report or a re-enrollment, each carrying a disk report.
+	type step struct {
+		report     diskReport
+		fromEnroll bool
+	}
+	status := func(r diskReport) step { return step{report: r} }
+	reenroll := func(r diskReport) step { return step{report: r, fromEnroll: true} }
+
+	cases := []struct {
+		name  string
+		steps []step
+		// encryptionOnlyRow seeds a host_disks row holding only encryption data, so its disk
+		// columns are at their 0 defaults rather than a measurement.
+		encryptionOnlyRow bool
+		want              diskReport
+	}{
+		{
+			name:  "re-enrollment without a measurement keeps the last one with its total",
+			steps: []step{status(measured), reenroll(notMeasured)},
+			want:  measured,
+		},
+		{
+			name:  "status reports after a re-enrollment keep it until the device measures",
+			steps: []step{status(measured), reenroll(notMeasured), status(notMeasured), status(notMeasured)},
+			want:  measured,
+		},
+		{
+			name:  "a status report without a measurement keeps the last one",
+			steps: []step{status(measured), status(notMeasured)},
+			want:  measured,
+		},
+		{
+			name:  "a full disk is a measurement and is kept",
+			steps: []step{status(diskReport{available: 0, percent: 0, total: 64}), reenroll(notMeasured)},
+			want:  diskReport{available: 0, percent: 0, total: 64},
+		},
+		{
+			name:  "a measurement after a re-enrollment replaces the kept one and is then kept",
+			steps: []step{status(measured), reenroll(notMeasured), status(remeasured), status(notMeasured)},
+			want:  remeasured,
+		},
+		{
+			name:  "host with no stored disk data records not supported",
+			steps: []step{reenroll(notMeasured)},
+			want:  notMeasured,
+		},
+		{
+			name:              "a row without disk data records not supported and keeps its other columns",
+			steps:             []step{reenroll(notMeasured)},
+			encryptionOnlyRow: true,
+			want:              notMeasured,
+		},
+		{
+			name:  "host that has only reported not supported keeps reporting it",
+			steps: []step{status(notMeasured), reenroll(diskReport{available: -1, percent: -1, total: 256})},
+			want:  diskReport{available: -1, percent: -1, total: 256},
+		},
+		{
+			name:  "a measurement replaces not supported",
+			steps: []step{status(notMeasured), status(measured)},
+			want:  measured,
+		},
+		{
+			name:  "a new measurement replaces the stored one",
+			steps: []step{status(measured), reenroll(remeasured)},
+			want:  remeasured,
+		},
+	}
+
+	for i, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := t.Context()
+
+			newHost := func(enterpriseSpecificID string) *fleet.AndroidHost {
+				created, err := ds.NewAndroidHost(ctx, createAndroidHost(enterpriseSpecificID), false)
+				require.NoError(t, err)
+				return created
+			}
+			report := func(host *fleet.AndroidHost, r diskReport, fromEnroll bool) {
+				host.Host.GigsDiskSpaceAvailable = r.available
+				host.Host.PercentDiskSpaceAvailable = r.percent
+				host.Host.GigsTotalDiskSpace = r.total
+				require.NoError(t, ds.UpdateAndroidHost(ctx, host, fromEnroll, false))
+			}
+			requireDisk := func(hostID uint, want diskReport) {
+				got, err := ds.Host(ctx, hostID)
+				require.NoError(t, err)
+				assert.InDelta(t, want.available, got.GigsDiskSpaceAvailable, 0.01)
+				assert.InDelta(t, want.percent, got.PercentDiskSpaceAvailable, 0.01)
+				assert.InDelta(t, want.total, got.GigsTotalDiskSpace, 0.01)
+			}
+
+			host := newHost(fmt.Sprintf("keep-disk-%d", i))
+			// Another host with a measurement, so a write that isn't scoped to the host shows up.
+			otherHost := newHost(fmt.Sprintf("keep-disk-other-%d", i))
+			report(otherHost, measured, false)
+
+			if c.encryptionOnlyRow {
+				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, host.Host.ID, true, nil))
+			}
+
+			for _, s := range c.steps {
+				report(host, s.report, s.fromEnroll)
+			}
+
+			requireDisk(host.Host.ID, c.want)
+			requireDisk(otherHost.Host.ID, measured)
+
+			if c.encryptionOnlyRow {
+				got, err := ds.Host(ctx, host.Host.ID)
+				require.NoError(t, err)
+				require.NotNil(t, got.DiskEncryptionEnabled)
+				assert.True(t, *got.DiskEncryptionEnabled)
+			}
+		})
+	}
 }
 
 func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
@@ -540,7 +1024,7 @@ func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	}
 
 	// Create the profile
-	result, err := ds.NewMDMAndroidConfigProfile(ctx, profile)
+	result, err := ds.NewMDMAndroidConfigProfile(ctx, profile, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.ProfileUUID)
 
@@ -550,7 +1034,7 @@ func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		TeamID:  nil,
 		RawJSON: []byte(`{"hello2": "world2"}`),
 	}
-	result2, err := ds.NewMDMAndroidConfigProfile(ctx, profile2)
+	result2, err := ds.NewMDMAndroidConfigProfile(ctx, profile2, nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result2.ProfileUUID)
 
@@ -582,7 +1066,7 @@ func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		TeamID:  nil,
 		RawJSON: []byte(`{"hello3": "world3"}`),
 	}
-	_, err = ds.NewMDMAndroidConfigProfile(ctx, androidProfile)
+	_, err = ds.NewMDMAndroidConfigProfile(ctx, androidProfile, nil)
 	require.ErrorContains(t, err, "already exists")
 
 	// Create that same conflicting android profile but on a different team
@@ -590,7 +1074,7 @@ func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, team)
 	androidProfile.TeamID = ptr.Uint(team.ID)
-	otherTeamProfile, err := ds.NewMDMAndroidConfigProfile(ctx, androidProfile)
+	otherTeamProfile, err := ds.NewMDMAndroidConfigProfile(ctx, androidProfile, nil)
 	require.NoError(t, err)
 
 	// Verify we can GET the newly created profile
@@ -623,7 +1107,7 @@ func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		RawJSON: []byte(`{"hello": "world"}`),
 	}
 
-	profile1, err = ds.NewMDMAndroidConfigProfile(ctx, *profile1)
+	profile1, err = ds.NewMDMAndroidConfigProfile(ctx, *profile1, nil)
 	require.NoError(t, err)
 	require.NotNil(t, profile1)
 
@@ -632,7 +1116,7 @@ func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 		TeamID:  nil,
 		RawJSON: []byte(`{"hello": "world"}`),
 	}
-	profile2, err = ds.NewMDMAndroidConfigProfile(ctx, *profile2)
+	profile2, err = ds.NewMDMAndroidConfigProfile(ctx, *profile2, nil)
 	require.NoError(t, err)
 	require.NotNil(t, profile2)
 
@@ -684,6 +1168,268 @@ func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, profile2)
 	require.Equal(t, "testAndroid2", profile2.Name)
+}
+
+func testUpdateMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+
+	// profile content update happens in place: the ProfileUUID is preserved
+	// (not a delete+recreate), and the new content is actually persisted --
+	// confirmed below by re-fetching from the DB, not just trusting the
+	// value UpdateMDMAndroidConfigProfile returns.
+	initial, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Update Test Profile",
+		RawJSON: []byte(`{"original": true}`),
+	}, nil)
+	require.NoError(t, err)
+
+	newRawJSON := []byte(`{"updated": true}`)
+	updated, err := ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+		RawJSON:     newRawJSON,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, initial.ProfileUUID, updated.ProfileUUID)
+	require.JSONEq(t, string(newRawJSON), string(updated.RawJSON))
+
+	// confirms values actually stored in the DB match what was returned from the update call
+	stored, err := ds.GetMDMAndroidConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.JSONEq(t, string(newRawJSON), string(stored.RawJSON))
+
+	// a different name renames the profile in place, keyed by UUID
+	renamed, err := ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        "A Different Name",
+		RawJSON:     newRawJSON,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, initial.ProfileUUID, renamed.ProfileUUID)
+	require.Equal(t, "A Different Name", renamed.Name)
+
+	// updating a nonexistent profile returns a not-found error
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: "g" + uuid.NewString(),
+		Name:        "Does Not Exist",
+		RawJSON:     newRawJSON,
+	}, nil)
+	require.True(t, fleet.IsNotFound(err))
+
+	// labels replace the previous set entirely rather than merging with it
+	label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-update-label-1", Query: "select 1"})
+	require.NoError(t, err)
+	label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-update-label-2", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: label1.Name, LabelID: label1.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, stored.LabelsIncludeAll, 1)
+	require.Equal(t, label1.Name, stored.LabelsIncludeAll[0].LabelName)
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: label2.Name, LabelID: label2.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, stored.LabelsIncludeAll, 1)
+	require.Equal(t, label2.Name, stored.LabelsIncludeAll[0].LabelName, "the previous label must be replaced, not merged with")
+
+	// labels can be cleared entirely, not just replaced with a different set --
+	// exercises the profsWithoutLabel branch, a distinct code path from "has
+	// labels".
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: initial.ProfileUUID,
+		Name:        initial.Name,
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, initial.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, stored.LabelsIncludeAll)
+	require.Empty(t, stored.LabelsIncludeAny)
+	require.Empty(t, stored.LabelsExcludeAny)
+
+	// LabelsIncludeAny and LabelsExcludeAny replace the same way LabelsIncludeAll
+	// does above -- each is a separate label list on the profile.
+	anyExcludeProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Any Exclude Labels Profile",
+		RawJSON: []byte(`{"anyExclude": true}`),
+	}, nil)
+	require.NoError(t, err)
+	includeAnyLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-update-include-any", Query: "select 1"})
+	require.NoError(t, err)
+	excludeAnyLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-update-exclude-any", Query: "select 1"})
+	require.NoError(t, err)
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: anyExcludeProfile.ProfileUUID,
+		Name:        anyExcludeProfile.Name,
+		LabelsIncludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelName: includeAnyLabel.Name, LabelID: includeAnyLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, anyExcludeProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, stored.LabelsIncludeAny, 1)
+	require.Equal(t, includeAnyLabel.Name, stored.LabelsIncludeAny[0].LabelName)
+	require.Empty(t, stored.LabelsExcludeAny)
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: anyExcludeProfile.ProfileUUID,
+		Name:        anyExcludeProfile.Name,
+		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelName: excludeAnyLabel.Name, LabelID: excludeAnyLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, anyExcludeProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, stored.LabelsIncludeAny, "the previous IncludeAny label must be replaced, not kept alongside ExcludeAny")
+	require.Len(t, stored.LabelsExcludeAny, 1)
+	require.Equal(t, excludeAnyLabel.Name, stored.LabelsExcludeAny[0].LabelName)
+
+	// content and labels updated together in a single call -- proves the two
+	// transactional steps (content UPDATE, label rebuild) compose correctly,
+	// not just each dimension on its own.
+	combined, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Combined Update Profile",
+		RawJSON: []byte(`{"combinedOriginal": true}`),
+	}, nil)
+	require.NoError(t, err)
+	combinedLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-combined-label", Query: "select 1"})
+	require.NoError(t, err)
+
+	combinedRawJSON := []byte(`{"combinedUpdated": true}`)
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: combined.ProfileUUID,
+		Name:        combined.Name,
+		RawJSON:     combinedRawJSON,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: combinedLabel.Name, LabelID: combinedLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, combined.ProfileUUID)
+	require.NoError(t, err)
+	require.JSONEq(t, string(combinedRawJSON), string(stored.RawJSON))
+	require.Len(t, stored.LabelsIncludeAll, 1)
+	require.Equal(t, combinedLabel.Name, stored.LabelsIncludeAll[0].LabelName)
+
+	// Fleet variables used in the new content are persisted, a labels-only
+	// edit (no new content) leaves them untouched, and a content edit that
+	// drops the last variable clears the stale association.
+	varNamesStmt := `
+		SELECT fv.name
+		FROM mdm_configuration_profile_variables mcpv
+		JOIN fleet_variables fv ON mcpv.fleet_variable_id = fv.id
+		WHERE mcpv.android_profile_uuid = ?
+		ORDER BY fv.name
+	`
+	varProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Android Fleet Vars Profile",
+		RawJSON: []byte(`{"managedConfiguration": {"platform": "$FLEET_VAR_HOST_PLATFORM"}}`),
+	}, []fleet.FleetVarName{fleet.FleetVarHostPlatform})
+	require.NoError(t, err)
+	varLabel, err := ds.NewLabel(ctx, &fleet.Label{Name: "android-labels-only-vars-label", Query: "select 1"})
+	require.NoError(t, err)
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: varProfile.ProfileUUID,
+		Name:        varProfile.Name,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{
+			{LabelName: varLabel.Name, LabelID: varLabel.ID},
+		},
+	}, nil)
+	require.NoError(t, err)
+	var varNames []string
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, varProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, []string{"FLEET_VAR_" + string(fleet.FleetVarHostPlatform)}, varNames,
+		"a labels-only edit must preserve the profile's variable associations")
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: varProfile.ProfileUUID,
+		Name:        varProfile.Name,
+		RawJSON:     []byte(`{"managedConfiguration": {"platform": "static"}}`),
+	}, nil)
+	require.NoError(t, err)
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, varNamesStmt, varProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "a content edit that drops the last Fleet variable must clear the stale association")
+
+	// uploaded_at is preserved on a no-op edit (identical content) and bumped
+	// on a real content change, matching the batch upsert's convention
+	uploadedAtRawJSON := []byte(`{"uploadedAt": true}`)
+	uploadedAtProfile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Uploaded At Profile",
+		RawJSON: uploadedAtRawJSON,
+	}, nil)
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_android_configuration_profiles SET uploaded_at = '2020-01-01 00:00:00' WHERE profile_uuid = ?`, uploadedAtProfile.ProfileUUID)
+		return err
+	})
+
+	noOp, err := ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		RawJSON:     uploadedAtRawJSON,
+	}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2020, noOp.UploadedAt.Year(), "a no-op edit must not bump uploaded_at")
+
+	contentChangedProf, err := ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		RawJSON:     []byte(`{"uploadedAt": false}`),
+	}, nil)
+	require.NoError(t, err)
+	require.Greater(t, contentChangedProf.UploadedAt.Year(), 2020, "a content change must bump uploaded_at")
+
+	// the description isn't part of the checksum, so changing it alone must
+	// not bump uploaded_at, while it is still written with a content change
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE mdm_android_configuration_profiles SET uploaded_at = '2020-01-01 00:00:00' WHERE profile_uuid = ?`, uploadedAtProfile.ProfileUUID)
+		return err
+	})
+	// the repeat covers the skipped write when the description is unchanged
+	for _, desc := range []string{"new description", "new description"} {
+		_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+			ProfileUUID: uploadedAtProfile.ProfileUUID,
+			Name:        uploadedAtProfile.Name,
+			Description: desc,
+		}, nil)
+		require.NoError(t, err)
+		stored, err = ds.GetMDMAndroidConfigProfile(ctx, uploadedAtProfile.ProfileUUID)
+		require.NoError(t, err)
+		require.Equal(t, desc, stored.Description)
+		require.Equal(t, 2020, stored.UploadedAt.Year(), "a description-only edit must not bump uploaded_at")
+	}
+
+	_, err = ds.UpdateMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		ProfileUUID: uploadedAtProfile.ProfileUUID,
+		Name:        uploadedAtProfile.Name,
+		Description: "description with content",
+		RawJSON:     []byte(`{"uploadedAt": "described"}`),
+	}, nil)
+	require.NoError(t, err)
+	stored, err = ds.GetMDMAndroidConfigProfile(ctx, uploadedAtProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, "description with content", stored.Description)
+	require.Greater(t, stored.UploadedAt.Year(), 2020, "a content change must bump uploaded_at")
 }
 
 func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
@@ -753,7 +1499,7 @@ func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
 	var hosts []*fleet.Host
 	for i := 0; i < 5; i++ {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(ctx, androidHost)
+		newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 		require.NoError(t, err)
 		require.NotNil(t, newHost)
 		hosts = append(hosts, newHost.Host)
@@ -794,7 +1540,7 @@ func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
 		// add some other android hosts that won't be be assigned any profiles
 		for i := 0; i < 5; i++ {
 			androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-other-%d", i))
-			newHost, err := ds.NewAndroidHost(ctx, androidHost)
+			newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 			require.NoError(t, err)
 			require.NotNil(t, newHost)
 		}
@@ -874,7 +1620,7 @@ func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
 		checkExpected(t, &t1.ID, expectedTeam1)
 
 		// set MDM to off for hosts[0]
-		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[0].ID, false, false, "", false, "", "", false))
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[0].ID, false, false, "", false, "", "", fleet.PersonalEnrollmentTypeNone))
 		// hosts[0] is no longer counted
 		expected = hostIDsByProfileStatus{
 			fleet.MDMDeliveryVerified: []uint{hosts[3].ID},
@@ -891,7 +1637,7 @@ func testGetHostMDMAndroidProfiles(t *testing.T, ds *Datastore) {
 
 	// Create a host
 	host := createAndroidHost("host-mdm-profiles-test")
-	newHost, err := ds.NewAndroidHost(ctx, host)
+	newHost, err := ds.NewAndroidHost(ctx, host, false)
 	require.NoError(t, err)
 	require.NotNil(t, newHost)
 
@@ -902,17 +1648,17 @@ func testGetHostMDMAndroidProfiles(t *testing.T, ds *Datastore) {
 
 	// Create some profiles
 	profile1 := androidProfileForTest("profile1")
-	profile1, err = ds.NewMDMAndroidConfigProfile(ctx, *profile1)
+	profile1, err = ds.NewMDMAndroidConfigProfile(ctx, *profile1, nil)
 	require.NoError(t, err)
 	require.NotNil(t, profile1)
 
 	profile2 := androidProfileForTest("profile2")
-	profile2, err = ds.NewMDMAndroidConfigProfile(ctx, *profile2)
+	profile2, err = ds.NewMDMAndroidConfigProfile(ctx, *profile2, nil)
 	require.NoError(t, err)
 	require.NotNil(t, profile2)
 
 	profile3 := androidProfileForTest("profile3")
-	profile3, err = ds.NewMDMAndroidConfigProfile(ctx, *profile3)
+	profile3, err = ds.NewMDMAndroidConfigProfile(ctx, *profile3, nil)
 	require.NoError(t, err)
 	require.NotNil(t, profile3)
 
@@ -988,6 +1734,15 @@ func androidProfileForTest(name string, labels ...*fleet.Label) *fleet.MDMAndroi
 	}
 
 	return profile
+}
+
+func getAndroidProfileChecksum(t *testing.T, ds *Datastore, profileUUID string) []byte {
+	var checksum []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &checksum,
+			`SELECT checksum FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, profileUUID)
+	})
+	return checksum
 }
 
 func upsertAndroidHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string, profUUID string, status *fleet.MDMDeliveryStatus) {
@@ -1081,13 +1836,13 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	hosts := make([]*fleet.Host, 2)
 	for i := range hosts {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(ctx, androidHost)
+		newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 		require.NoError(t, err)
 		hosts[i] = newHost.Host
 	}
 
 	// without any profile, should return empty
-	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, profs)
 	require.Empty(t, toRemoveProfs)
@@ -1096,25 +1851,28 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
 	require.NoError(t, err)
 
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-1"))
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-1"), nil)
 	require.NoError(t, err)
-	p2, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-2"))
+	p2, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-2"), nil)
 	require.NoError(t, err)
 	tmP3 := androidProfileForTest("team-1")
 	tmP3.TeamID = &tm.ID
-	p3, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP3)
+	p3, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP3, nil)
 	require.NoError(t, err)
 
+	// all profiles use the same raw JSON, so they share the same checksum
+	profChecksum := getAndroidProfileChecksum(t, ds, p1.ProfileUUID)
+
 	// both no-team profiles should be applicable to both hosts
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p2.Name, Checksum: profChecksum},
 	}, profs)
 
 	// transfer host 1 to the team
@@ -1122,14 +1880,14 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// profiles for host 1 change to p3
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 3)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	// test the include all labels condition
@@ -1137,18 +1895,18 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	lblIncAll2, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclall-2", Query: "select 1"})
 	require.NoError(t, err)
-	p4, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-4", lblIncAll1, lblIncAll2))
+	p4, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-4", lblIncAll1, lblIncAll2), nil)
 	require.NoError(t, err)
 
 	// no change, host is not a member of both labels
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 3)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	// make host[0] a member of only one of the labels
@@ -1156,14 +1914,14 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no change, host is not a member of both labels
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 3)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	// make host[0] a member of the other label
@@ -1171,15 +1929,15 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// now p4 is applicable to host 0
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	// test the include any labels condition
@@ -1187,19 +1945,19 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	lblIncAny2, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclany-2", Query: "select 1"})
 	require.NoError(t, err)
-	p5, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-5", lblIncAny1, lblIncAny2))
+	p5, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-5", lblIncAny1, lblIncAny2), nil)
 	require.NoError(t, err)
 
 	// no change, host 0 not a member yet
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	// make host[0] a member of one of the labels
@@ -1207,16 +1965,16 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// now p5 is applicable to host 0
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 5)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	// test the exclude any labels condition
@@ -1224,20 +1982,20 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	lblExclAny2, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-2", LabelMembershipType: fleet.LabelMembershipTypeManual})
 	require.NoError(t, err)
-	p6, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-6", lblExclAny1, lblExclAny2))
+	p6, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-6", lblExclAny1, lblExclAny2), nil)
 	require.NoError(t, err)
 
 	// no change, label membership was not updated after labels created
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 5)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	// update the timestamp of when host label membership was updated
@@ -1247,17 +2005,17 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// host 0 is _not_ a member of the excluded labels, so p6 is applicable
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 6)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
-		{ProfileUUID: p6.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p6.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name, Checksum: profChecksum},
+		{ProfileUUID: p6.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p6.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	// make host[0] a member of one of the exclude labels
@@ -1265,59 +2023,59 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// p6 is not applicable anymore
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 5)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	// add another host in team
 	androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", 2))
-	newHost, err := ds.NewAndroidHost(ctx, androidHost)
+	newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 	require.NoError(t, err)
 	hosts = append(hosts, newHost.Host)
 	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[2].ID}))
 	require.NoError(t, err)
 
 	// it is not included in noProfHosts as it has p3
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 6)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	// simulate that host 2 already has p3 installed
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_android_profiles
-			(host_uuid, profile_uuid, profile_name, included_in_policy_version, operation_type, status)
-			VALUES (?, ?, ?, ?, ?, ?)`, hosts[2].UUID, p3.ProfileUUID, p3.Name, 1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+			(host_uuid, profile_uuid, profile_name, included_in_policy_version, operation_type, status, checksum)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`, hosts[2].UUID, p3.ProfileUUID, p3.Name, 1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, profChecksum)
 		return err
 	})
 
 	// host 2 is not included in the results as it has p3 installed
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 5)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	// delete profile p3
@@ -1325,17 +2083,17 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// host 2 is now a host with no profile (profile 3 needs to be cleared), host 1 is unlisted as it didn't have p3 installed
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, toRemoveProfs)
 	require.Len(t, profs, 4)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name, Checksum: profChecksum},
 	}, profs)
 
 	// Turn off MDM on host 2 - it should no longer have any operations listed
@@ -1344,15 +2102,15 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 		return err
 	})
 
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name, Checksum: profChecksum},
 	}, profs)
 
 	// Turn off MDM on host 0 - no more profiles to send
@@ -1360,7 +2118,7 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 		_, err := q.ExecContext(ctx, `UPDATE host_mdm SET enrolled=0 WHERE host_id=?`, hosts[0].ID)
 		return err
 	})
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, profs)
 	require.Empty(t, toRemoveProfs)
@@ -1380,13 +2138,13 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	hosts := make([]*fleet.Host, 2)
 	for i := range hosts {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(ctx, androidHost)
+		newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 		require.NoError(t, err)
 		hosts[i] = newHost.Host
 	}
 
 	// without any profile, should return empty
-	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, profs)
 	require.Empty(t, toRemoveProfs)
@@ -1406,22 +2164,25 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 
 	// Dynamic exclude-any label
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-1", lblExclAny1))
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-1", lblExclAny1), nil)
 	require.NoError(t, err)
 	// Manual exclude-any label only
-	p2, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-2", lblExclAny2))
+	p2, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-2", lblExclAny2), nil)
 	require.NoError(t, err)
 	// Both manual and dynamic label exclusion
-	p3, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-3", lblExclAny1, lblExclAny2))
+	p3, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-3", lblExclAny1, lblExclAny2), nil)
 	require.NoError(t, err)
 
+	// all profiles use the same raw JSON, so they share the same checksum
+	profChecksum := getAndroidProfileChecksum(t, ds, p1.ProfileUUID)
+
 	// p2 becomes immediately applicable because it only has a manual label
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 1)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
 	}, profs)
 
 	// update the timestamp of when host label membership was updated
@@ -1431,14 +2192,14 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	require.NoError(t, err)
 
 	// host 0 dynamic labels now apply, and this host is _not_ a member of the excluded labels, so p1, p2 and p3 are now applicable
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 3)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p3.Name, Checksum: profChecksum},
 	}, profs)
 
 	tmP4 := androidProfileForTest("team-4", lblExclAny1)
@@ -1449,62 +2210,63 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	tmP6.TeamID = &tm.ID
 
 	// Dynamic exclude-any label
-	p4, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP4)
+	p4, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP4, nil)
 	require.NoError(t, err)
 
 	// Manual exclude-any label only
-	p5, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP5)
+	p5, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP5, nil)
 	require.NoError(t, err)
 
 	// Both manual and dynamic label exclusion
-	p6, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP6)
+	p6, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP6, nil)
 	require.NoError(t, err)
 
 	// p5 becomes immediately applicable to host 1 because it only has a manual label
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p3.Name},
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p5.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p3.Name, Checksum: profChecksum},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p5.Name, Checksum: profChecksum},
 	}, profs)
 
 	// Set the hosts label_updated_at causing p4-p6 to become applicable to host 1
 	hosts[1].LabelUpdatedAt = time.Now().UTC().Add(time.Second) // just to be extra safe in tests
 	hosts[1].PolicyUpdatedAt = time.Now().UTC()
-	hosts[1].TeamID = &tm.ID
 	err = ds.UpdateHost(ctx, hosts[1])
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[1].ID})))
+	hosts[1].TeamID = &tm.ID
 
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 6)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
-		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p3.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p5.Name},
-		{ProfileUUID: p6.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p6.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name, Checksum: profChecksum},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p3.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p5.Name, Checksum: profChecksum},
+		{ProfileUUID: p6.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p6.Name, Checksum: profChecksum},
 	}, profs)
 
 	// Make host 0 a member of labelExclAny2 which excludes everything except p1 for it
 	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclAny2, []uint{hosts[0].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 4)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
-		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p4.Name},
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p5.Name},
-		{ProfileUUID: p6.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p6.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name, Checksum: profChecksum},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p4.Name, Checksum: profChecksum},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p5.Name, Checksum: profChecksum},
+		{ProfileUUID: p6.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p6.Name, Checksum: profChecksum},
 	}, profs)
 
 	// Make hosts 0 and 1 members of labelExclAny1 which excludes everything except p5 for host p1. Android doesn't
@@ -1513,12 +2275,431 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclAny1, []uint{hosts[0].ID, hosts[1].ID}, fleet.TeamFilter{})
 	require.NoError(t, err)
 
-	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.Len(t, profs, 1)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p5.Name},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p5.Name, Checksum: profChecksum},
+	}, profs)
+}
+
+func testListMDMAndroidProfilesToSendCursor(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+	ctx := t.Context()
+
+	// Create 5 hosts with predictable UUIDs for cursor ordering.
+	hosts := make([]*fleet.Host, 5)
+	for i := range hosts {
+		androidHost := createAndroidHost(fmt.Sprintf("cursor-host-%02d", i))
+		newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
+		require.NoError(t, err)
+		hosts[i] = newHost.Host
+	}
+
+	// Sort by UUID so we can predict cursor order.
+	slices.SortFunc(hosts, func(a, b *fleet.Host) int {
+		return cmp.Compare(a.UUID, b.UUID)
+	})
+
+	// Add a profile so all 5 hosts have pending work.
+	_, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("cursor-test-profile"), nil)
+	require.NoError(t, err)
+
+	// No cursor, no limit — returns all 5 hosts.
+	allProfs, _, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	allHostUUIDs := make(map[string]struct{})
+	for _, p := range allProfs {
+		allHostUUIDs[p.HostUUID] = struct{}{}
+	}
+	require.Len(t, allHostUUIDs, 5)
+
+	// Batch 1: limit 2 hosts, no cursor.
+	batch1Profs, _, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 2)
+	require.NoError(t, err)
+	batch1Hosts := make(map[string]struct{})
+	for _, p := range batch1Profs {
+		batch1Hosts[p.HostUUID] = struct{}{}
+	}
+	require.Len(t, batch1Hosts, 2, "batch 1 should return exactly 2 hosts")
+
+	// Hosts should be the first 2 in sorted order.
+	sorted1 := slices.Sorted(maps.Keys(batch1Hosts))
+	require.Equal(t, hosts[0].UUID, sorted1[0])
+	require.Equal(t, hosts[1].UUID, sorted1[1])
+
+	// Batch 2: cursor past the last host of batch 1, limit 2.
+	cursor := sorted1[len(sorted1)-1]
+	batch2Profs, _, err := ds.ListMDMAndroidProfilesToSend(ctx, cursor, 2)
+	require.NoError(t, err)
+	batch2Hosts := make(map[string]struct{})
+	for _, p := range batch2Profs {
+		batch2Hosts[p.HostUUID] = struct{}{}
+	}
+	require.Len(t, batch2Hosts, 2, "batch 2 should return exactly 2 hosts")
+
+	// No overlap with batch 1, and all hosts should be > cursor.
+	sorted2 := slices.Sorted(maps.Keys(batch2Hosts))
+	for _, uuid := range sorted2 {
+		require.Greater(t, uuid, cursor, "batch 2 hosts must be after cursor")
+		_, overlap := batch1Hosts[uuid]
+		require.False(t, overlap, "batch 2 must not overlap with batch 1")
+	}
+
+	// Batch 3: cursor past batch 2, limit 2 — should return the remaining 1 host.
+	cursor = sorted2[len(sorted2)-1]
+	batch3Profs, _, err := ds.ListMDMAndroidProfilesToSend(ctx, cursor, 2)
+	require.NoError(t, err)
+	batch3Hosts := make(map[string]struct{})
+	for _, p := range batch3Profs {
+		batch3Hosts[p.HostUUID] = struct{}{}
+	}
+	require.Len(t, batch3Hosts, 1, "batch 3 should return the remaining 1 host")
+
+	sorted3 := slices.Sorted(maps.Keys(batch3Hosts))
+	require.Greater(t, sorted3[0], cursor, "batch 3 host must be after cursor")
+
+	// Batch 4: cursor past batch 3 — should return empty (end of pass).
+	cursor = sorted3[0]
+	batch4Profs, _, err := ds.ListMDMAndroidProfilesToSend(ctx, cursor, 2)
+	require.NoError(t, err)
+	require.Empty(t, batch4Profs, "no more hosts after end of universe")
+}
+
+func testListMDMAndroidProfilesToSendWithCombinedLabels(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+	ctx := t.Context()
+
+	host := createAndroidHost("enterprise-id-combined")
+	newHost, err := ds.NewAndroidHost(ctx, host, false)
+	require.NoError(t, err)
+	h := newHost.Host
+
+	// advance label_updated_at so dynamic labels are immediately evaluated
+	h.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
+	h.PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, h)
+	require.NoError(t, err)
+
+	inclAllLbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "incl-all-1", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	inclAllLbl2, err := ds.NewLabel(ctx, &fleet.Label{Name: "incl-all-2", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	inclAnyLbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclany-any-1", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	exclLbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-1", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+
+	// include-all + exclude-any profile (requires both incl-all-1 and incl-all-2)
+	pCombinedAll, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-incl-all", inclAllLbl, inclAllLbl2, exclLbl), nil)
+	require.NoError(t, err)
+	// include-any + exclude-any profile
+	pCombinedAny, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-incl-any", inclAnyLbl, exclLbl), nil)
+	require.NoError(t, err)
+
+	profChecksum := getAndroidProfileChecksum(t, ds, pCombinedAll.ProfileUUID)
+
+	// host is not a member of any label → neither profile applies
+	profs, toRemove, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemove)
+	require.Empty(t, profs)
+
+	// host joins include labels but not exclude → both profiles apply
+	err = ds.AddLabelsToHost(ctx, h.ID, []uint{inclAllLbl.ID, inclAllLbl2.ID, inclAnyLbl.ID})
+	require.NoError(t, err)
+
+	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemove)
+	require.Len(t, profs, 2)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pCombinedAll.ProfileUUID, HostUUID: h.UUID, ProfileName: pCombinedAll.Name, Checksum: profChecksum},
+		{ProfileUUID: pCombinedAny.ProfileUUID, HostUUID: h.UUID, ProfileName: pCombinedAny.Name, Checksum: profChecksum},
+	}, profs)
+
+	// host also joins exclude label → neither profile applies
+	err = ds.AddLabelsToHost(ctx, h.ID, []uint{exclLbl.ID})
+	require.NoError(t, err)
+
+	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemove)
+	require.Empty(t, profs)
+
+	// host leaves exclude label → both profiles apply again
+	err = ds.RemoveLabelsFromHost(ctx, h.ID, []uint{exclLbl.ID})
+	require.NoError(t, err)
+
+	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemove)
+	require.Len(t, profs, 2)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pCombinedAll.ProfileUUID, HostUUID: h.UUID, ProfileName: pCombinedAll.Name, Checksum: profChecksum},
+		{ProfileUUID: pCombinedAny.ProfileUUID, HostUUID: h.UUID, ProfileName: pCombinedAny.Name, Checksum: profChecksum},
+	}, profs)
+
+	// remove host from one include-all label → include-all profile no longer applies, include-any still does
+	err = ds.RemoveLabelsFromHost(ctx, h.ID, []uint{inclAllLbl2.ID})
+	require.NoError(t, err)
+
+	profs, toRemove, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemove)
+	require.Len(t, profs, 1)
+	require.Equal(t, pCombinedAny.ProfileUUID, profs[0].ProfileUUID)
+}
+
+// insertAndroidHostProfileInstalled simulates a profile fully installed on a host: install
+// operation, verified status, and the profile's current checksum so no change is detected.
+func insertAndroidHostProfileInstalled(t *testing.T, ds *Datastore, hostUUID string, prof *fleet.MDMAndroidConfigProfile, checksum []byte) {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `INSERT INTO host_mdm_android_profiles
+			(host_uuid, profile_uuid, profile_name, included_in_policy_version, operation_type, status, checksum)
+			VALUES (?, ?, ?, ?, ?, ?, ?)`, hostUUID, prof.ProfileUUID, prof.Name, 1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, checksum)
+		return err
+	})
+}
+
+// A dynamic exclude label whose membership is unknown for a host (label created after the
+// host's last label scan) must preserve the host's current profile state: the profile stays
+// applicable on hosts that already have it and stays withheld from hosts that don't, until the
+// host reports label results (see #47865). Host-vitals exclude labels are server-populated so
+// they evaluate immediately, like manual labels.
+func testListMDMAndroidProfilesToSendExcludeAnyUnknownLabelPreservation(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+	ctx := t.Context()
+
+	// hostWith will have the profile installed, hostWithout won't. Both keep their initial
+	// label_updated_at, which predates the labels created below, so dynamic membership is unknown.
+	newHostWith, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-0"), false)
+	require.NoError(t, err)
+	hostWith := newHostWith.Host
+	newHostWithout, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-1"), false)
+	require.NoError(t, err)
+	hostWithout := newHostWithout.Host
+
+	lblExclDyn, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-dyn", Query: "select 1"})
+	require.NoError(t, err)
+	lblExclHV, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-hv", LabelMembershipType: fleet.LabelMembershipTypeHostVitals})
+	require.NoError(t, err)
+
+	pExcDyn, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-exc-dyn", lblExclDyn), nil)
+	require.NoError(t, err)
+	pExcHV, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-exc-hv", lblExclHV), nil)
+	require.NoError(t, err)
+
+	profChecksum := getAndroidProfileChecksum(t, ds, pExcDyn.ProfileUUID)
+	insertAndroidHostProfileInstalled(t, ds, hostWith.UUID, pExcDyn, profChecksum)
+
+	// pExcDyn's label is unknown for both hosts: it stays applicable to hostWith (already
+	// installed) and withheld from hostWithout. pExcHV's host-vitals label evaluates
+	// immediately (neither host is a member), so it is applicable to both, which is also what
+	// flags both hosts as changed and surfaces their full applicable sets.
+	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pExcDyn.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcDyn.Name, Checksum: profChecksum},
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+	}, profs)
+
+	// hostWith reports label results and is a member of the exclude label: the preserved
+	// profile is now authoritatively excluded and must be removed.
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblExclDyn, []uint{hostWith.ID}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	hostWith.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
+	hostWith.PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, hostWith)
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pExcDyn.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcDyn.Name, Checksum: profChecksum},
+	}, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+	}, profs)
+
+	// hostWithout reports label results and is not a member: pExcDyn now becomes applicable to it.
+	hostWithout.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
+	hostWithout.PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, hostWithout)
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pExcDyn.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcDyn.Name, Checksum: profChecksum},
+	}, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+		{ProfileUUID: pExcDyn.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pExcDyn.Name, Checksum: profChecksum},
+		{ProfileUUID: pExcHV.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pExcHV.Name, Checksum: profChecksum},
+	}, profs)
+}
+
+// A dynamic include-all label with unknown membership counts as a member only for hosts that
+// already have the profile, so adding a label to an installed profile's scope doesn't strip the
+// profile while hosts haven't reported yet; a confirmed non-membership of any other include
+// label still removes it (see #47865).
+func testListMDMAndroidProfilesToSendIncludeAllUnknownLabelPreservation(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+	ctx := t.Context()
+
+	newHostWith, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-0"), false)
+	require.NoError(t, err)
+	hostWith := newHostWith.Host
+	newHostWithout, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-1"), false)
+	require.NoError(t, err)
+	hostWithout := newHostWithout.Host
+
+	// Both labels land in LabelsIncludeAll (no name prefix). Manual membership is always
+	// known; the dynamic label is unknown for both hosts (created after their last scan).
+	lblManual, err := ds.NewLabel(ctx, &fleet.Label{Name: "known-manual", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	lblDyn, err := ds.NewLabel(ctx, &fleet.Label{Name: "unknown-dyn", Query: "select 1"})
+	require.NoError(t, err)
+
+	err = ds.AddLabelsToHost(ctx, hostWith.ID, []uint{lblManual.ID})
+	require.NoError(t, err)
+	err = ds.AddLabelsToHost(ctx, hostWithout.ID, []uint{lblManual.ID})
+	require.NoError(t, err)
+
+	pInc, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-inc", lblManual, lblDyn), nil)
+	require.NoError(t, err)
+	profChecksum := getAndroidProfileChecksum(t, ds, pInc.ProfileUUID)
+	insertAndroidHostProfileInstalled(t, ds, hostWith.UUID, pInc, profChecksum)
+
+	// The dynamic label is unknown for both hosts: hostWith keeps the installed profile (no
+	// change at all), hostWithout keeps waiting for confirmed membership.
+	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.Empty(t, profs)
+
+	// hostWithout reports label results and is a member of the dynamic label: the profile
+	// becomes applicable to it.
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, *lblDyn, []uint{hostWithout.ID}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	hostWithout.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
+	hostWithout.PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, hostWithout)
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pInc.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pInc.Name, Checksum: profChecksum},
+	}, profs)
+
+	// hostWith is confirmed NOT a member of the other (manual) include label: the profile is
+	// removed even though the dynamic label is still unknown and the profile is installed.
+	err = ds.RemoveLabelsFromHost(ctx, hostWith.ID, []uint{lblManual.ID})
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pInc.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pInc.Name, Checksum: profChecksum},
+	}, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pInc.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pInc.Name, Checksum: profChecksum},
+	}, profs)
+}
+
+// Combined include+exclude branches: unknown dynamic labels on either side of a combined
+// (include-all + exclude-any, include-any + exclude-any) profile must preserve the host's
+// current profile state, same as the single-mode branches (see #47865).
+func testListMDMAndroidProfilesToSendCombinedUnknownLabelPreservation(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+	ctx := t.Context()
+
+	newHostWith, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-0"), false)
+	require.NoError(t, err)
+	hostWith := newHostWith.Host
+	newHostWithout, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-id-1"), false)
+	require.NoError(t, err)
+	hostWithout := newHostWithout.Host
+
+	// Manual labels are always known; the dynamic labels are unknown for both hosts (created
+	// after their last label scan). Label name prefixes drive the scope mode in
+	// androidProfileForTest: default -> include-all, "inclany-" -> include-any, "exclude-" -> exclude-any.
+	lblIncManual, err := ds.NewLabel(ctx, &fleet.Label{Name: "known-manual", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	lblAnyManual, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclany-manual", LabelMembershipType: fleet.LabelMembershipTypeManual})
+	require.NoError(t, err)
+	lblIncDyn, err := ds.NewLabel(ctx, &fleet.Label{Name: "unknown-dyn", Query: "select 1"})
+	require.NoError(t, err)
+	lblExclDyn, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-dyn", Query: "select 1"})
+	require.NoError(t, err)
+
+	err = ds.AddLabelsToHost(ctx, hostWith.ID, []uint{lblIncManual.ID, lblAnyManual.ID})
+	require.NoError(t, err)
+	err = ds.AddLabelsToHost(ctx, hostWithout.ID, []uint{lblIncManual.ID, lblAnyManual.ID})
+	require.NoError(t, err)
+
+	// include-all [manual, dyn] + exclude-any [dyn]
+	pAll, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-all", lblIncManual, lblIncDyn, lblExclDyn), nil)
+	require.NoError(t, err)
+	// include-any [manual] + exclude-any [dyn]
+	pAny, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("combined-any", lblAnyManual, lblExclDyn), nil)
+	require.NoError(t, err)
+
+	profChecksum := getAndroidProfileChecksum(t, ds, pAll.ProfileUUID)
+	insertAndroidHostProfileInstalled(t, ds, hostWith.UUID, pAll, profChecksum)
+	insertAndroidHostProfileInstalled(t, ds, hostWith.UUID, pAny, profChecksum)
+
+	// Both dynamic labels are unknown for both hosts: hostWith keeps both installed profiles
+	// (unknown include counts as member, unknown exclude as non-member) so nothing changes;
+	// hostWithout keeps waiting (pAll misses the unknown include label, pAny is blocked by the
+	// unknown exclude label).
+	profs, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.Empty(t, profs)
+
+	// hostWithout reports label results: member of the include label, not of the exclude
+	// label. Both combined profiles become applicable to it.
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{lblIncDyn.ID, hostWithout.ID}})
+	require.NoError(t, err)
+	hostWithout.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
+	hostWithout.PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, hostWithout)
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pAll.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pAll.Name, Checksum: profChecksum},
+		{ProfileUUID: pAny.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pAny.Name, Checksum: profChecksum},
+	}, profs)
+
+	// hostWith reports label results: member of both dynamic labels. The exclude label is now
+	// authoritative, so both preserved profiles are removed.
+	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{lblIncDyn.ID, hostWith.ID}, {lblExclDyn.ID, hostWith.ID}})
+	require.NoError(t, err)
+	hostWith.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
+	hostWith.PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, hostWith)
+	require.NoError(t, err)
+
+	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pAll.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pAll.Name, Checksum: profChecksum},
+		{ProfileUUID: pAny.ProfileUUID, HostUUID: hostWith.UUID, ProfileName: pAny.Name, Checksum: profChecksum},
+	}, toRemoveProfs)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: pAll.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pAll.Name, Checksum: profChecksum},
+		{ProfileUUID: pAny.ProfileUUID, HostUUID: hostWithout.UUID, ProfileName: pAny.Name, Checksum: profChecksum},
 	}, profs)
 }
 
@@ -1531,11 +2712,11 @@ func testGetMDMAndroidProfilesContents(t *testing.T, ds *Datastore) {
 	p3 := androidProfileForTest("p3")
 	p3.RawJSON = []byte(`{"v": 3}`)
 
-	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1, nil)
 	require.NoError(t, err)
-	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2, nil)
 	require.NoError(t, err)
-	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3)
+	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3, nil)
 	require.NoError(t, err)
 
 	cases := []struct {
@@ -1593,7 +2774,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 	hosts := make([]*fleet.Host, 3)
 	for i := range hosts {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
-		newHost, err := ds.NewAndroidHost(ctx, androidHost)
+		newHost, err := ds.NewAndroidHost(ctx, androidHost, false)
 		require.NoError(t, err)
 		hosts[i] = newHost.Host
 		if i == len(hosts)-1 {
@@ -1610,10 +2791,13 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 			// last profile is for a team
 			p.TeamID = &tm.ID
 		}
-		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p)
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p, nil)
 		require.NoError(t, err)
 		profiles[i] = p
 	}
+
+	// all profiles use the same raw JSON, so they share the same checksum
+	profChecksum := getAndroidProfileChecksum(t, ds, profiles[0].ProfileUUID)
 
 	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, nil)
 	require.NoError(t, err)
@@ -1621,15 +2805,15 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 	ds.testUpsertMDMDesiredProfilesBatchSize = batchSize
 	t.Cleanup(func() { ds.testUpsertMDMDesiredProfilesBatchSize = 0 })
 
-	hostProfiles, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	hostProfiles, toRemoveProfs, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name},
-		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name},
-		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[0].Name},
-		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[1].Name},
-		{ProfileUUID: profiles[2].ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: profiles[2].Name},
+		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name, Checksum: profChecksum},
+		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name, Checksum: profChecksum},
+		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[0].Name, Checksum: profChecksum},
+		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[1].Name, Checksum: profChecksum},
+		{ProfileUUID: profiles[2].ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: profiles[2].Name, Checksum: profChecksum},
 	}, hostProfiles)
 
 	// mark all installed for hosts 0, profile 1 failed for host 1
@@ -1641,6 +2825,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 			OperationType:           fleet.MDMOperationTypeInstall,
 			Status:                  &fleet.MDMDeliveryPending,
 			IncludedInPolicyVersion: ptr.Int(1),
+			Checksum:                profChecksum,
 		},
 		{
 			HostUUID:                hosts[0].UUID,
@@ -1649,6 +2834,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 			OperationType:           fleet.MDMOperationTypeInstall,
 			Status:                  &fleet.MDMDeliveryPending,
 			IncludedInPolicyVersion: ptr.Int(1),
+			Checksum:                profChecksum,
 		},
 		{
 			HostUUID:                hosts[1].UUID,
@@ -1657,18 +2843,19 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 			OperationType:           fleet.MDMOperationTypeInstall,
 			Status:                  &fleet.MDMDeliveryFailed,
 			IncludedInPolicyVersion: ptr.Int(1),
+			Checksum:                profChecksum,
 		},
 	})
 	require.NoError(t, err)
 
-	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		// because host 1 still has a missing profile, it must resend both (as it merged them)
-		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[0].Name},
-		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[1].Name},
-		{ProfileUUID: profiles[2].ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: profiles[2].Name},
+		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[0].Name, Checksum: profChecksum},
+		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[1].Name, Checksum: profChecksum},
+		{ProfileUUID: profiles[2].ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: profiles[2].Name, Checksum: profChecksum},
 	}, hostProfiles)
 
 	// mark host 0 profile 1 as NULL, host 1 profile 0 as installed (so both are now installed), and host 2 profile 2 as installed
@@ -1680,6 +2867,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 			OperationType:           fleet.MDMOperationTypeInstall,
 			Status:                  nil,
 			IncludedInPolicyVersion: ptr.Int(1),
+			Checksum:                profChecksum,
 		},
 		{
 			HostUUID:                hosts[1].UUID,
@@ -1688,6 +2876,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 			OperationType:           fleet.MDMOperationTypeInstall,
 			Status:                  &fleet.MDMDeliveryPending,
 			IncludedInPolicyVersion: ptr.Int(1),
+			Checksum:                profChecksum,
 		},
 		{
 			HostUUID:                hosts[2].UUID,
@@ -1696,17 +2885,18 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 			OperationType:           fleet.MDMOperationTypeInstall,
 			Status:                  &fleet.MDMDeliveryPending,
 			IncludedInPolicyVersion: ptr.Int(1),
+			Checksum:                profChecksum,
 		},
 	})
 	require.NoError(t, err)
 
-	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.Empty(t, toRemoveProfs)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		// host 0 now has a profile not installed, so it needs to resend both
-		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name},
-		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name},
+		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name, Checksum: profChecksum},
+		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name, Checksum: profChecksum},
 		// host 1 now has both delivered, nothing to resend
 		// host 2 profile is delivered, nothing to resend
 	}, hostProfiles)
@@ -1715,14 +2905,14 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 	err = ds.DeleteMDMAndroidConfigProfile(ctx, profiles[2].ProfileUUID)
 	require.NoError(t, err)
 
-	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	hostProfiles, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: profiles[2].ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: profiles[2].Name},
+		{ProfileUUID: profiles[2].ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: profiles[2].Name, Checksum: profChecksum},
 	}, toRemoveProfs)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name},
-		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name},
+		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name, Checksum: profChecksum},
+		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name, Checksum: profChecksum},
 	}, hostProfiles)
 }
 
@@ -1752,13 +2942,410 @@ func testGetAndroidPolicyRequestByUUID(t *testing.T, ds *Datastore) {
 	})
 }
 
+func testMDMAndroidCommandCRUD(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	t.Run("Not found returns typed NotFound error for both lookups", func(t *testing.T) {
+		_, err := ds.GetMDMAndroidCommandByUUID(ctx, "missing-uuid")
+		require.Contains(t, err.Error(), common_mysql.NotFound("MDMAndroidCommand").WithName("missing-uuid").Error())
+
+		_, err = ds.GetMDMAndroidCommandByOperationName(ctx, "missing-op")
+		require.Contains(t, err.Error(), common_mysql.NotFound("MDMAndroidCommand").WithName("missing-op").Error())
+	})
+
+	t.Run("Update on missing row returns NotFound", func(t *testing.T) {
+		err := ds.UpdateMDMAndroidCommandStatus(ctx, "missing-uuid", string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil)
+		require.Contains(t, err.Error(), common_mysql.NotFound("MDMAndroidCommand").WithName("missing-uuid").Error())
+	})
+
+	t.Run("Insert, read by both keys, then transition to acknowledged", func(t *testing.T) {
+		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      "host-uuid-1",
+			OperationName: "enterprises/E1/devices/D1/operations/100",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, cmd))
+
+		byUUID, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, cmd.HostUUID, byUUID.HostUUID)
+		require.Equal(t, cmd.OperationName, byUUID.OperationName)
+		require.Equal(t, string(android.MDMAndroidCommandTypeLock), byUUID.CommandType)
+		require.Equal(t, string(android.MDMAndroidCommandStatusPending), byUUID.Status)
+		require.False(t, byUUID.ErrorCode.Valid)
+		require.False(t, byUUID.ErrorMessage.Valid)
+
+		byOp, err := ds.GetMDMAndroidCommandByOperationName(ctx, cmd.OperationName)
+		require.NoError(t, err)
+		require.Equal(t, cmd.CommandUUID, byOp.CommandUUID)
+
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID,
+			string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
+
+		acked, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), acked.Status)
+		require.False(t, acked.ErrorCode.Valid)
+		require.False(t, acked.ErrorMessage.Valid)
+	})
+
+	t.Run("Update writes error_code and error_message when provided", func(t *testing.T) {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   cmdUUID,
+			HostUUID:      "host-uuid-2",
+			OperationName: "enterprises/E1/devices/D1/operations/200",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+
+		errCode := "UNSUPPORTED"
+		errMsg := "device does not support WIPE"
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
+			string(android.MDMAndroidCommandStatusError), &errCode, &errMsg, nil))
+
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandStatusError), got.Status)
+		require.True(t, got.ErrorCode.Valid)
+		require.Equal(t, errCode, got.ErrorCode.V)
+		require.True(t, got.ErrorMessage.Valid)
+		require.Equal(t, errMsg, got.ErrorMessage.V)
+	})
+
+	t.Run("Oversized error_message is truncated to fit VARCHAR(1024)", func(t *testing.T) {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   cmdUUID,
+			HostUUID:      "host-uuid-trim",
+			OperationName: "enterprises/E1/devices/D1/operations/trim",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+
+		huge := strings.Repeat("x", 5000)
+		errCode := "13"
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmdUUID,
+			string(android.MDMAndroidCommandStatusError), &errCode, &huge, nil))
+
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+		require.NoError(t, err)
+		require.True(t, got.ErrorMessage.Valid)
+		require.Len(t, got.ErrorMessage.V, 1024, "error_message should be truncated to the column's VARCHAR(1024) limit")
+	})
+
+	t.Run("raw_command and raw_result round-trip", func(t *testing.T) {
+		rawCmd := `{"type":"REBOOT","duration":"315360000s"}`
+		rawResult := `{"done":true,"name":"enterprises/E1/devices/D1/operations/rt"}`
+
+		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      "host-uuid-rt",
+			OperationName: "enterprises/E1/devices/D1/operations/rt",
+			CommandType:   "REBOOT",
+			RawCommand:    sql.Null[string]{V: rawCmd, Valid: true},
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.InsertMDMAndroidCommand(ctx, cmd))
+
+		// Read back via UUID — raw_command should be populated, raw_result still NULL
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.True(t, got.RawCommand.Valid)
+		require.JSONEq(t, rawCmd, got.RawCommand.V)
+		require.False(t, got.RawResult.Valid)
+
+		// Read back via operation_name — same result
+		gotByOp, err := ds.GetMDMAndroidCommandByOperationName(ctx, cmd.OperationName)
+		require.NoError(t, err)
+		require.True(t, gotByOp.RawCommand.Valid)
+		require.JSONEq(t, rawCmd, gotByOp.RawCommand.V)
+
+		// Update with raw_result
+		require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, cmd.CommandUUID,
+			string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, &rawResult))
+
+		got2, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.True(t, got2.RawCommand.Valid)
+		require.JSONEq(t, rawCmd, got2.RawCommand.V)
+		require.True(t, got2.RawResult.Valid)
+		require.JSONEq(t, rawResult, got2.RawResult.V)
+	})
+
+	t.Run("Duplicate operation_name fails", func(t *testing.T) {
+		// operation_name is UNIQUE so Pub/Sub COMMAND correlation can stay a single-row lookup.
+		opName := "enterprises/E1/devices/D1/operations/dup"
+		require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      "host-uuid-dup-1",
+			OperationName: opName,
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+
+		err := ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      "host-uuid-dup-2",
+			OperationName: opName,
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		})
+		require.Error(t, err)
+		require.True(t, IsDuplicate(err), "expected a Duplicate-entry error for the UNIQUE operation_name constraint")
+	})
+}
+
+func testListPendingMDMAndroidCommands(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	insertCommand := func(t *testing.T, status string, age time.Duration) string {
+		return insertAndroidCommandForReconcileTest(t, ds, "enterprises/E1/devices/D1/operations/", status, age)
+	}
+
+	oldest := insertCommand(t, string(android.MDMAndroidCommandStatusPending), 72*time.Hour)
+	middle := insertCommand(t, string(android.MDMAndroidCommandStatusPending), 48*time.Hour)
+	newest := insertCommand(t, string(android.MDMAndroidCommandStatusPending), 25*time.Hour)
+	tooRecent := insertCommand(t, string(android.MDMAndroidCommandStatusPending), time.Hour)
+	acknowledged := insertCommand(t, string(android.MDMAndroidCommandStatusAcknowledged), 48*time.Hour)
+	errored := insertCommand(t, string(android.MDMAndroidCommandStatusError), 48*time.Hour)
+	// E10 shares E1 as a string prefix, so it also checks the prefix is matched up to the trailing slash.
+	otherEnterprise := insertAndroidCommandForReconcileTest(t, ds, "enterprises/E10/devices/D1/operations/",
+		string(android.MDMAndroidCommandStatusPending), 96*time.Hour)
+
+	t.Run("returns only pending rows older than the cutoff, oldest first", func(t *testing.T) {
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, "enterprises/E1/", time.Now().Add(-24*time.Hour), 100)
+		require.NoError(t, err)
+		require.Equal(t, []string{oldest, middle, newest}, androidCommandUUIDs(cmds))
+		require.NotContains(t, androidCommandUUIDs(cmds), tooRecent)
+		require.NotContains(t, androidCommandUUIDs(cmds), acknowledged)
+		require.NotContains(t, androidCommandUUIDs(cmds), errored)
+		require.NotContains(t, androidCommandUUIDs(cmds), otherEnterprise)
+	})
+
+	t.Run("limit caps the batch to the oldest rows", func(t *testing.T) {
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, "enterprises/E1/", time.Now().Add(-24*time.Hour), 2)
+		require.NoError(t, err)
+		require.Equal(t, []string{oldest, middle}, androidCommandUUIDs(cmds))
+	})
+
+	t.Run("returns all fields needed to reconcile", func(t *testing.T) {
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, "enterprises/E1/", time.Now().Add(-24*time.Hour), 1)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		assert.Equal(t, oldest, cmds[0].CommandUUID)
+		assert.Equal(t, "host-"+oldest, cmds[0].HostUUID)
+		assert.Equal(t, "enterprises/E1/devices/D1/operations/"+oldest, cmds[0].OperationName)
+		assert.Equal(t, string(android.MDMAndroidCommandTypeLock), cmds[0].CommandType)
+		assert.Equal(t, string(android.MDMAndroidCommandStatusPending), cmds[0].Status)
+		// created_at drives the not-found grace period in the reconciler, so it has to come back
+		// populated. Only assert it predates the cutoff -- an exact age would be at the mercy of clock
+		// skew between the app and the database.
+		assert.False(t, cmds[0].CreatedAt.IsZero())
+		assert.True(t, cmds[0].CreatedAt.Before(time.Now().Add(-24*time.Hour)))
+	})
+
+	t.Run("no matching rows returns an empty slice", func(t *testing.T) {
+		cmds, err := ds.ListPendingMDMAndroidCommands(ctx, "enterprises/E1/", time.Now().Add(-365*24*time.Hour), 100)
+		require.NoError(t, err)
+		require.Empty(t, cmds)
+	})
+}
+
+func testFailPendingMDMAndroidCommandsOutsidePrefix(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	const grace = 7 * 24 * time.Hour
+	const msg = "sent under a previous enterprise"
+	pending := string(android.MDMAndroidCommandStatusPending)
+
+	oldestOrphan := insertAndroidCommandForReconcileTest(t, ds, "enterprises/OLD/devices/D1/operations/", pending, grace+3*time.Hour)
+	lookalikeOrphan := insertAndroidCommandForReconcileTest(t, ds, "enterprises/E10/devices/D1/operations/", pending, grace+2*time.Hour)
+	newestOrphan := insertAndroidCommandForReconcileTest(t, ds, "enterprises/OLD/devices/D1/operations/", pending, grace+time.Hour)
+	orphanInGrace := insertAndroidCommandForReconcileTest(t, ds, "enterprises/OLD/devices/D1/operations/", pending, grace-time.Hour)
+	current := insertAndroidCommandForReconcileTest(t, ds, "enterprises/E1/devices/D1/operations/", pending, grace+time.Hour)
+	acknowledgedOrphan := insertAndroidCommandForReconcileTest(t, ds, "enterprises/OLD/devices/D1/operations/",
+		string(android.MDMAndroidCommandStatusAcknowledged), grace+time.Hour)
+
+	statusOf := func(t *testing.T, cmdUUID string) *android.MDMAndroidCommand {
+		cmd, err := ds.GetMDMAndroidCommandByUUID(ctx, cmdUUID)
+		require.NoError(t, err)
+		return cmd
+	}
+
+	t.Run("limit fails the oldest rows first", func(t *testing.T) {
+		n, err := ds.FailPendingMDMAndroidCommandsOutsidePrefix(ctx, "enterprises/E1/", time.Now().Add(-grace), msg, 2)
+		require.NoError(t, err)
+		require.EqualValues(t, 2, n)
+		assert.Equal(t, string(android.MDMAndroidCommandStatusError), statusOf(t, oldestOrphan).Status)
+		assert.Equal(t, string(android.MDMAndroidCommandStatusError), statusOf(t, lookalikeOrphan).Status)
+		assert.Equal(t, pending, statusOf(t, newestOrphan).Status)
+	})
+
+	t.Run("fails only pending rows of other enterprises past the cutoff", func(t *testing.T) {
+		n, err := ds.FailPendingMDMAndroidCommandsOutsidePrefix(ctx, "enterprises/E1/", time.Now().Add(-grace), msg, 100)
+		require.NoError(t, err)
+		require.EqualValues(t, 1, n)
+
+		failed := statusOf(t, newestOrphan)
+		assert.Equal(t, string(android.MDMAndroidCommandStatusError), failed.Status)
+		assert.Equal(t, sql.Null[string]{V: msg, Valid: true}, failed.ErrorMessage)
+		assert.False(t, failed.ErrorCode.Valid)
+
+		assert.Equal(t, pending, statusOf(t, orphanInGrace).Status)
+		assert.Equal(t, pending, statusOf(t, current).Status)
+		assert.Equal(t, string(android.MDMAndroidCommandStatusAcknowledged), statusOf(t, acknowledgedOrphan).Status)
+	})
+
+	t.Run("nothing left to fail returns zero", func(t *testing.T) {
+		n, err := ds.FailPendingMDMAndroidCommandsOutsidePrefix(ctx, "enterprises/E1/", time.Now().Add(-grace), msg, 100)
+		require.NoError(t, err)
+		require.Zero(t, n)
+	})
+}
+
+// insertAndroidCommandForReconcileTest creates a command row under operationNamePrefix and backdates
+// created_at so age cutoffs can be exercised without waiting. Returns the command_uuid.
+func insertAndroidCommandForReconcileTest(t *testing.T, ds *Datastore, operationNamePrefix, status string, age time.Duration) string {
+	ctx := t.Context()
+	cmdUUID := uuid.NewString()
+	require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+		CommandUUID:   cmdUUID,
+		HostUUID:      "host-" + cmdUUID,
+		OperationName: operationNamePrefix + cmdUUID,
+		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		Status:        status,
+	}))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE mdm_android_commands SET created_at = NOW(6) - INTERVAL ? SECOND WHERE command_uuid = ?`,
+			int(age.Seconds()), cmdUUID)
+		return err
+	})
+	return cmdUUID
+}
+
+func androidCommandUUIDs(cmds []*android.MDMAndroidCommand) []string {
+	got := make([]string, 0, len(cmds))
+	for _, cmd := range cmds {
+		got = append(got, cmd.CommandUUID)
+	}
+	return got
+}
+
+// newBareAndroidHostForTest inserts a minimal android-platform host row. Use this for tests
+// that exercise the host_mdm_actions layer and don't need a populated android_devices row
+// (use createAndroidHost + ds.NewAndroidHost for that).
+func newBareAndroidHostForTest(t *testing.T, ds *Datastore, hostname string) *fleet.Host {
+	t.Helper()
+	h, err := ds.NewHost(t.Context(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(uuid.NewString()),
+		UUID:            uuid.NewString(),
+		Hostname:        hostname,
+		Platform:        "android",
+	})
+	require.NoError(t, err)
+	return h
+}
+
+func testLockWipeHostViaAndroidMDM(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := newBareAndroidHostForTest(t, ds, "android-lockwipe-helper-test")
+
+	t.Run("Lock writes both rows atomically and reports pending", func(t *testing.T) {
+		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      host.UUID,
+			OperationName: "enterprises/E/devices/D/operations/lock-1",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.LockHostViaAndroidMDM(ctx, host, cmd))
+
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandTypeLock), got.CommandType)
+		require.Equal(t, string(android.MDMAndroidCommandStatusPending), got.Status)
+
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		require.Equal(t, fleet.PendingActionLock, status.PendingAction())
+		require.Equal(t, "android", status.HostFleetPlatform)
+	})
+
+	t.Run("Wipe overwrites wipe_ref on subsequent calls (re-queue)", func(t *testing.T) {
+		first := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      host.UUID,
+			OperationName: "enterprises/E/devices/D/operations/wipe-1",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, host, first))
+
+		second := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      host.UUID,
+			OperationName: "enterprises/E/devices/D/operations/wipe-2",
+			CommandType:   string(android.MDMAndroidCommandTypeWipe),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.WipeHostViaAndroidMDM(ctx, host, second))
+
+		// Both command rows persist (audit trail).
+		_, err := ds.GetMDMAndroidCommandByUUID(ctx, first.CommandUUID)
+		require.NoError(t, err)
+		_, err = ds.GetMDMAndroidCommandByUUID(ctx, second.CommandUUID)
+		require.NoError(t, err)
+
+		// host_mdm_actions.wipe_ref points at the latest one.
+		status, err := ds.GetHostLockWipeStatus(ctx, host)
+		require.NoError(t, err)
+		require.NotNil(t, status.WipeMDMCommand)
+		require.Equal(t, second.CommandUUID, status.WipeMDMCommand.CommandUUID)
+	})
+	t.Run("ClearPasscode writes the row and reports pending clear-passcode", func(t *testing.T) {
+		// Fresh host: the parent test has Lock + Wipe pending on `host`, which would dominate
+		// PendingAction() priority over clear_passcode.
+		cpHost := newBareAndroidHostForTest(t, ds, "android-clear-passcode-helper-test")
+
+		cmd := &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      cpHost.UUID,
+			OperationName: "enterprises/E/devices/" + cpHost.UUID + "/operations/clear-passcode-1",
+			CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}
+		require.NoError(t, ds.ClearPasscodeHostViaAndroidMDM(ctx, cpHost, cmd))
+
+		got, err := ds.GetMDMAndroidCommandByUUID(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, string(android.MDMAndroidCommandTypeResetPassword), got.CommandType)
+		require.Equal(t, string(android.MDMAndroidCommandStatusPending), got.Status)
+
+		status, err := ds.GetHostLockWipeStatus(ctx, cpHost)
+		require.NoError(t, err)
+		require.NotNil(t, status.ClearPasscodeMDMCommand)
+		require.Equal(t, cmd.CommandUUID, status.ClearPasscodeMDMCommand.CommandUUID)
+		require.True(t, status.IsPendingClearPasscode())
+		require.Equal(t, fleet.PendingActionClearPasscode, status.PendingAction())
+	})
+}
+
 func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	profiles := make([]*fleet.MDMAndroidConfigProfile, 3)
 	for i := range profiles {
 		p := androidProfileForTest(fmt.Sprintf("profile-%d", i))
-		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p)
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p, nil)
 		require.NoError(t, err)
 		profiles[i] = p
 	}
@@ -1775,14 +3362,6 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 		// Arrange
 		policyVersion := ptr.Int(1)
 		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
-			{
-				HostUUID:                hostUUID,
-				ProfileUUID:             profiles[0].ProfileUUID,
-				ProfileName:             profiles[0].Name,
-				OperationType:           fleet.MDMOperationTypeInstall,
-				Status:                  &fleet.MDMDeliveryFailed,
-				IncludedInPolicyVersion: policyVersion,
-			},
 			{
 				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[1].ProfileUUID,
@@ -1803,7 +3382,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
-		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
 		require.NoError(t, err)
 		require.Len(t, hostProfiles, 0)
 	})
@@ -1824,7 +3403,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
-		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion-1))
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, int64(*policyVersion-1))
 		require.NoError(t, err)
 		require.Len(t, hostProfiles, 0)
 	})
@@ -1845,7 +3424,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
-		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
 		require.NoError(t, err)
 		require.Len(t, hostProfiles, 0)
 	})
@@ -1866,12 +3445,59 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
-		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
 		require.NoError(t, err)
 		require.Len(t, hostProfiles, 1)
 		require.Equal(t, &fleet.MDMDeliveryPending, hostProfiles[0].Status)
 		require.Equal(t, fleet.MDMOperationTypeInstall, hostProfiles[0].OperationType)
 		require.EqualValues(t, policyVersion, hostProfiles[0].IncludedInPolicyVersion)
+	})
+
+	t.Run("Does list pending install profiles and failed install profiles with can_reverify", func(t *testing.T) {
+		// Arrange
+		policyVersion := ptr.Int(1)
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[0].ProfileUUID,
+				ProfileName:             profiles[0].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryPending,
+				IncludedInPolicyVersion: policyVersion,
+			},
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[1].ProfileUUID,
+				ProfileName:             profiles[1].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryFailed,
+				IncludedInPolicyVersion: policyVersion,
+				CanReverify:             true,
+			},
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[2].ProfileUUID,
+				ProfileName:             profiles[2].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryFailed,
+				IncludedInPolicyVersion: policyVersion,
+				CanReverify:             false,
+			},
+		})
+		require.NoError(t, err)
+		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
+
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingOrFailedInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
+		require.NoError(t, err)
+		require.Len(t, hostProfiles, 2)
+		require.ElementsMatch(t,
+			[]*fleet.MDMDeliveryStatus{&fleet.MDMDeliveryPending, &fleet.MDMDeliveryFailed},
+			[]*fleet.MDMDeliveryStatus{hostProfiles[0].Status, hostProfiles[1].Status},
+		)
+		require.Equal(t, fleet.MDMOperationTypeInstall, hostProfiles[0].OperationType)
+		require.EqualValues(t, policyVersion, hostProfiles[0].IncludedInPolicyVersion)
+		require.Equal(t, fleet.MDMOperationTypeInstall, hostProfiles[1].OperationType)
+		require.EqualValues(t, policyVersion, hostProfiles[1].IncludedInPolicyVersion)
 	})
 }
 
@@ -1880,7 +3506,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 	profiles := make([]*fleet.MDMAndroidConfigProfile, 3)
 	for i := range profiles {
 		p := androidProfileForTest(fmt.Sprintf("profile-%d", i))
-		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p)
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p, nil)
 		require.NoError(t, err)
 		profiles[i] = p
 	}
@@ -2078,12 +3704,12 @@ func testNewAndroidHostWithIdP(t *testing.T, ds *Datastore) {
 	host := createAndroidHost(enterpriseSpecificID)
 	host.Host.UUID = "test-host-uuid" // Use a specific UUID for testing
 
-	result, err := ds.NewAndroidHost(ctx, host)
+	result, err := ds.NewAndroidHost(ctx, host, false)
 	require.NoError(t, err)
 	require.NotZero(t, result.Host.ID)
 
 	// associate host with IdP account, triggering reconciliation
-	err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
 	require.NoError(t, err)
 
 	// host_emails table has IdP email
@@ -2093,7 +3719,7 @@ func testNewAndroidHostWithIdP(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "john.doe@example.com", emails[0])
 
 	// is reconciliation idempotent?
-	err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
+	_, err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
 	require.NoError(t, err)
 
 	// still only one email (no duplicates)
@@ -2133,7 +3759,7 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 		require.NotEmpty(t, host.Host.UUID)
 		require.Equal(t, enterpriseID, host.Host.UUID)
 
-		result, err := ds.NewAndroidHost(ctx, host)
+		result, err := ds.NewAndroidHost(ctx, host, false)
 		require.NoError(t, err)
 		require.NotZero(t, result.Host.ID)
 
@@ -2147,13 +3773,11 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 	})
 
 	// Test 2: Android host without UUID (company-owned device)
-	t.Run("company enrollment without UUID", func(t *testing.T) {
+	t.Run("company enrollment", func(t *testing.T) {
 		const enterpriseID = "test-enterprise-id-company"
 		host := createAndroidHost(enterpriseID)
-		// Override UUID to be empty to simulate company-owned device
-		host.Host.UUID = ""
 
-		result, err := ds.NewAndroidHost(ctx, host)
+		result, err := ds.NewAndroidHost(ctx, host, true)
 		require.NoError(t, err)
 		require.NotZero(t, result.Host.ID)
 
@@ -2163,7 +3787,7 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 			`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`,
 			result.Host.ID)
 		require.NoError(t, err)
-		assert.False(t, isPersonalEnrollment, "Company device without UUID should have is_personal_enrollment = 0")
+		assert.False(t, isPersonalEnrollment, "Company device  should have is_personal_enrollment = 0")
 	})
 
 	// Test 3: Verify update path also sets personal enrollment correctly
@@ -2173,7 +3797,7 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 		host := createAndroidHost(enterpriseID)
 		host.Host.UUID = ""
 
-		result, err := ds.NewAndroidHost(ctx, host)
+		result, err := ds.NewAndroidHost(ctx, host, true)
 		require.NoError(t, err)
 		require.NotZero(t, result.Host.ID)
 
@@ -2187,7 +3811,7 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 
 		// Update the host with a UUID (simulating re-enrollment as BYOD)
 		result.Host.UUID = enterpriseID
-		err = ds.UpdateAndroidHost(ctx, result, true) // fromEnroll = true to trigger MDM info update
+		err = ds.UpdateAndroidHost(ctx, result, true, false) // fromEnroll = true to trigger MDM info update
 		require.NoError(t, err)
 
 		// Now should be marked as personal enrollment
@@ -2200,6 +3824,188 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 }
 
 // NEW TEST: verify single-host unenroll updates host_mdm correctly
+func testSetAndroidHostEnrolled(t *testing.T, ds *Datastore) {
+	appCfg, err := ds.AppConfig(testCtx())
+	require.NoError(t, err)
+	appCfg.ServerSettings.ServerURL = "https://mdm.example.com"
+	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
+
+	// Create a BYO Android host (companyOwned=false) -> enrolled host_mdm row.
+	esid := "enterprise-" + uuid.NewString()
+	res, err := ds.NewAndroidHost(testCtx(), createAndroidHost(esid), false)
+	require.NoError(t, err)
+
+	// Already enrolled: no-op, returns false.
+	didEnroll, err := ds.SetAndroidHostEnrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.False(t, didEnroll, "SetAndroidHostEnrolled must be a no-op when the host is already enrolled")
+
+	// Unenroll, then recover.
+	unenrolled, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.True(t, unenrolled)
+
+	didEnroll, err = ds.SetAndroidHostEnrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.True(t, didEnroll, "SetAndroidHostEnrolled must restore enrollment for an unenrolled host")
+
+	hostMDM, err := ds.GetHostMDM(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.True(t, hostMDM.Enrolled, "host_mdm.enrolled must be restored to 1")
+	require.Equal(t, "https://mdm.example.com", hostMDM.ServerURL, "server_url must be restored")
+	require.True(t, hostMDM.IsPersonalEnrollment, "BYO recovery must preserve is_personal_enrollment")
+
+	// Calling again is a no-op.
+	didEnroll, err = ds.SetAndroidHostEnrolled(testCtx(), res.Host.ID)
+	require.NoError(t, err)
+	require.False(t, didEnroll)
+
+	// Unknown host has no host_mdm row: no-op, no error.
+	didEnroll, err = ds.SetAndroidHostEnrolled(testCtx(), 999999)
+	require.NoError(t, err)
+	require.False(t, didEnroll)
+
+	// COBO recovery must preserve is_personal_enrollment=0 even though the recovery does
+	// not know the ownership (it is derived from the existing row, not the status payload).
+	coboESID := "enterprise-cobo-" + uuid.NewString()
+	cobo, err := ds.NewAndroidHost(testCtx(), createAndroidHost(coboESID), true /* companyOwned */)
+	require.NoError(t, err)
+	coboMDM, err := ds.GetHostMDM(testCtx(), cobo.Host.ID)
+	require.NoError(t, err)
+	require.False(t, coboMDM.IsPersonalEnrollment, "fresh COBO enrollment is not a personal enrollment")
+
+	unenrolled, err = ds.SetAndroidHostUnenrolled(testCtx(), cobo.Host.ID)
+	require.NoError(t, err)
+	require.True(t, unenrolled)
+
+	didEnroll, err = ds.SetAndroidHostEnrolled(testCtx(), cobo.Host.ID)
+	require.NoError(t, err)
+	require.True(t, didEnroll)
+	coboMDM, err = ds.GetHostMDM(testCtx(), cobo.Host.ID)
+	require.NoError(t, err)
+	require.True(t, coboMDM.Enrolled)
+	require.False(t, coboMDM.IsPersonalEnrollment, "COBO recovery must not reclassify the host as personal")
+}
+
+func testAndroidPubSubDedupState(t *testing.T, ds *Datastore) {
+	esid := "enterprise-" + uuid.NewString()
+	res, err := ds.NewAndroidHost(testCtx(), createAndroidHost(esid), false)
+	require.NoError(t, err)
+	hostID := res.Host.ID
+
+	// Fresh host: no recorded state.
+	messageID, eventTime, err := ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Empty(t, messageID)
+	require.Nil(t, eventTime)
+
+	// Record a messageId + event time.
+	t1 := time.Now().UTC().Truncate(time.Microsecond)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-1", &t1))
+
+	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Equal(t, "msg-1", messageID)
+	require.NotNil(t, eventTime)
+	require.WithinDuration(t, t1, *eventTime, time.Millisecond)
+
+	// Overwrite with a newer message.
+	t2 := t1.Add(time.Hour)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-2", &t2))
+	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Equal(t, "msg-2", messageID)
+	require.WithinDuration(t, t2, *eventTime, time.Millisecond)
+
+	// A nil event time records the messageId but preserves the timestamp baseline. Clearing
+	// it to NULL would disable staleness protection for the host until some later message
+	// happened to carry a parseable timestamp.
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-3", nil))
+	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Equal(t, "msg-3", messageID)
+	require.NotNil(t, eventTime, "a nil event time must not clear the recorded baseline")
+	require.WithinDuration(t, t2, *eventTime, time.Millisecond)
+
+	// An empty messageId advances only the timestamp — this is how ReconcileAndroidDevices
+	// records an out-of-band unenroll, which has no Pub/Sub message of its own.
+	t3 := t2.Add(time.Hour)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "", &t3))
+	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Equal(t, "msg-3", messageID, "an empty messageId must not clear the recorded messageId")
+	require.WithinDuration(t, t3, *eventTime, time.Millisecond)
+
+	// Writing the same values again still reports the row as found (clientFoundRows), so it
+	// must not be mistaken for a missing android_devices row.
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-3", &t3))
+
+	// t3 is two hours ahead, which no real event time can be, so an earlier time replaces it.
+	t4 := time.Now().UTC().Add(-time.Minute).Truncate(time.Microsecond)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-4", &t4))
+	messageID, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.Equal(t, "msg-4", messageID)
+	require.WithinDuration(t, t4, *eventTime, time.Millisecond, "a recorded time far in the future must be replaced")
+
+	// Once the recorded time is a real one, an older time no longer replaces it.
+	t5 := t4.Add(-time.Hour)
+	require.NoError(t, ds.SetAndroidPubSubDedupState(testCtx(), hostID, "msg-5", &t5))
+	_, eventTime, err = ds.GetAndroidPubSubDedupState(testCtx(), hostID)
+	require.NoError(t, err)
+	require.WithinDuration(t, t4, *eventTime, time.Millisecond)
+
+	// Unknown host -> NotFound (both get and set).
+	_, _, err = ds.GetAndroidPubSubDedupState(testCtx(), 999999)
+	require.True(t, fleet.IsNotFound(err), "expected NotFound for unknown host, got %v", err)
+
+	err = ds.SetAndroidPubSubDedupState(testCtx(), 999999, "msg-x", &t2)
+	require.True(t, fleet.IsNotFound(err), "set on a missing android_devices row must surface NotFound, got %v", err)
+}
+
+// The host details response must keep reporting a personal (BYOD) enrollment after the
+// host unenrolls: BYOD devices never report a serial number, so the UI identifies them by
+// their enrollment ID and has nothing to fall back on once enrollment_status flips to "Off".
+func testAndroidPersonalEnrollmentSurvivesUnenroll(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	test.AddBuiltinLabels(t, ds)
+
+	byod, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-byod-"+uuid.NewString()), false)
+	require.NoError(t, err)
+	companyOwned, err := ds.NewAndroidHost(ctx, createAndroidHost("enterprise-cobo-"+uuid.NewString()), true)
+	require.NoError(t, err)
+
+	loadMDM := func(hostID uint) *fleet.MDMHostData {
+		h, err := ds.Host(ctx, hostID)
+		require.NoError(t, err)
+		return &h.MDM
+	}
+
+	byodMDM := loadMDM(byod.Host.ID)
+	assert.True(t, byodMDM.IsPersonalEnrollment)
+	require.NotNil(t, byodMDM.EnrollmentStatus)
+	assert.Equal(t, fleet.MDMEnrollmentStatusPersonal, *byodMDM.EnrollmentStatus)
+
+	companyOwnedMDM := loadMDM(companyOwned.Host.ID)
+	assert.False(t, companyOwnedMDM.IsPersonalEnrollment)
+
+	for _, hostID := range []uint{byod.Host.ID, companyOwned.Host.ID} {
+		didUnenroll, err := ds.SetAndroidHostUnenrolled(ctx, hostID)
+		require.NoError(t, err)
+		require.True(t, didUnenroll)
+	}
+
+	byodMDM = loadMDM(byod.Host.ID)
+	assert.True(t, byodMDM.IsPersonalEnrollment)
+	require.NotNil(t, byodMDM.EnrollmentStatus)
+	assert.Equal(t, fleet.MDMEnrollmentStatusOff, *byodMDM.EnrollmentStatus)
+
+	companyOwnedMDM = loadMDM(companyOwned.Host.ID)
+	assert.False(t, companyOwnedMDM.IsPersonalEnrollment)
+	require.NotNil(t, companyOwnedMDM.EnrollmentStatus)
+	assert.Equal(t, fleet.MDMEnrollmentStatusOff, *companyOwnedMDM.EnrollmentStatus)
+}
+
 func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	// Set a non-empty server URL so initial enrolled row has data to clear
 	appCfg, err := ds.AppConfig(testCtx())
@@ -2210,7 +4016,7 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	// Create an Android host (this also upserts an enrolled host_mdm row)
 	esid := "enterprise-" + uuid.NewString()
 	h := createAndroidHost(esid)
-	res, err := ds.NewAndroidHost(testCtx(), h)
+	res, err := ds.NewAndroidHost(testCtx(), h, false)
 	require.NoError(t, err)
 
 	// Sanity check initial host_mdm values
@@ -2232,6 +4038,18 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 
 	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
 	upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
+
+	// Insert a certificate template record for this host to verify it gets deleted on unenroll.
+	err = ds.BulkInsertHostCertificateTemplates(testCtx(), []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              res.Host.UUID,
+			CertificateTemplateID: 1,
+			Status:                fleet.CertificateTemplateVerified,
+			OperationType:         fleet.MDMOperationTypeInstall,
+			Name:                  "test-cert",
+		},
+	})
+	require.NoError(t, err)
 
 	// Perform single-host unenroll
 	didUnenroll, err := ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID)
@@ -2255,7 +4073,7 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &mdmIDIsNull, `SELECT CASE WHEN mdm_id IS NULL THEN 1 ELSE 0 END FROM host_mdm WHERE host_id = ?`, res.Host.ID)
 	})
-	// validate profile records deleted
+	// Validate profile records deleted
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &profileCountForHost, `SELECT COUNT(*) FROM host_mdm_android_profiles WHERE host_uuid=?`, res.Host.UUID)
 	})
@@ -2263,6 +4081,11 @@ func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "", serverURL)
 	assert.Equal(t, 1, mdmIDIsNull)
 	assert.Equal(t, 0, profileCountForHost)
+
+	// Validate certificate template records deleted
+	certRecords, err := ds.GetHostCertificateTemplates(testCtx(), res.Host.UUID)
+	require.NoError(t, err)
+	assert.Empty(t, certRecords)
 }
 
 func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
@@ -2274,15 +4097,33 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	appCfg.ServerSettings.ServerURL = "https://mdm.example.com"
 	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
 
-	// Create 5 android hosts
+	// Create 5 android hosts, some company-owned (installed_from_dep = 1) and some personally-owned
+	isCompanyOwned := func(i int) bool { return i%2 == 0 }
+	var androidHostUUIDs []string
+	var androidHostIDs []uint
 	for i := 0; i < 5; i++ {
 		esid := "enterprise-" + uuid.NewString()
 		h := createAndroidHost(esid)
-		res, err := ds.NewAndroidHost(testCtx(), h)
+		companyOwned := isCompanyOwned(i)
+		res, err := ds.NewAndroidHost(testCtx(), h, companyOwned)
 		require.NoError(t, err)
+		androidHostIDs = append(androidHostIDs, res.Host.ID)
 
 		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-1", &fleet.MDMDeliveryPending)
 		upsertAndroidHostProfileStatus(t, ds, res.Host.UUID, "profile-2", &fleet.MDMDeliveryPending)
+
+		// Insert a certificate template record for each host.
+		err = ds.BulkInsertHostCertificateTemplates(testCtx(), []fleet.HostCertificateTemplate{
+			{
+				HostUUID:              res.Host.UUID,
+				CertificateTemplateID: 1,
+				Status:                fleet.CertificateTemplateVerified,
+				OperationType:         fleet.MDMOperationTypeInstall,
+				Name:                  "test-cert",
+			},
+		})
+		require.NoError(t, err)
+		androidHostUUIDs = append(androidHostUUIDs, res.Host.UUID)
 	}
 
 	// Create a macOS host (to verify we don't unenroll non-Android hosts)
@@ -2296,8 +4137,14 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	nanoEnroll(t, ds, macHost, false)
-	err = ds.MDMAppleUpsertHost(testCtx(), macHost, false)
+	err = ds.MDMAppleUpsertHost(testCtx(), macHost, fleet.PersonalEnrollmentTypeNone)
 	require.NoError(t, err)
+
+	// Make the macOS host DEP-assigned so the bulk update's platform scoping is exercised.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(testCtx(), `UPDATE host_mdm SET installed_from_dep = 1 WHERE host_id = ?`, macHost.ID)
+		return err
+	})
 
 	// Initial sanity check
 	enrolledCount := 0
@@ -2310,6 +4157,19 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	assert.Equal(t, 10, androidHostProfileCount)
 	require.Equal(t, 6, enrolledCount) // 5 android + 1 macOS
+	var fromDepCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &fromDepCount, `SELECT COUNT(*) FROM host_mdm WHERE installed_from_dep = 1`)
+	})
+	require.Equal(t, 4, fromDepCount) // 3 company-owned android hosts + 1 macOS
+	macHostMDMBefore, err := ds.GetHostMDM(testCtx(), macHost.ID)
+	require.NoError(t, err)
+	// Verify each android host has a certificate template record.
+	for _, hostUUID := range androidHostUUIDs {
+		records, err := ds.GetHostCertificateTemplates(testCtx(), hostUUID)
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+	}
 
 	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
 	require.NoError(t, err)
@@ -2318,20 +4178,422 @@ func testBulkSetAndroidHostsUnenrolled(t *testing.T, ds *Datastore) {
 	})
 	require.Equal(t, 1, enrolledCount)
 
-	// validate profile records deleted
+	// Company-owned hosts must report "Off", not "Pending", after unenrollment.
+	for i, hostID := range androidHostIDs {
+		hostMDM, err := ds.GetHostMDM(testCtx(), hostID)
+		require.NoError(t, err)
+		assert.False(t, hostMDM.Enrolled)
+		assert.False(t, hostMDM.InstalledFromDep)
+		assert.Equal(t, !isCompanyOwned(i), hostMDM.IsPersonalEnrollment)
+		assert.Equal(t, fleet.MDMEnrollmentStatusOff, hostMDM.EnrollmentStatus())
+
+		var dbStatus string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(testCtx(), q, &dbStatus, `SELECT enrollment_status FROM host_mdm WHERE host_id = ?`, hostID)
+		})
+		assert.Equal(t, fleet.MDMEnrollmentStatusOff, dbStatus)
+	}
+	macHostMDMAfter, err := ds.GetHostMDM(testCtx(), macHost.ID)
+	require.NoError(t, err)
+	assert.Equal(t, macHostMDMBefore, macHostMDMAfter)
+
+	// Validate profile records deleted
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(testCtx(), q, &androidHostProfileCount, `SELECT COUNT(*) FROM host_mdm_android_profiles`)
 	})
 	assert.Equal(t, 0, androidHostProfileCount)
+
+	// Validate certificate template records deleted for all android hosts
+	for _, hostUUID := range androidHostUUIDs {
+		records, err := ds.GetHostCertificateTemplates(testCtx(), hostUUID)
+		require.NoError(t, err)
+		assert.Empty(t, records)
+	}
 }
 
 // setupTestApp creates a test Android app in vpp_apps table
+func testListAndroidHostsForAppReconcile(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "list-on-host-policy"})
+	require.NoError(t, err)
+	setupTestApp(t, ds, "com.example.setup")
+	appTeamID := setupTestAppInFleet(t, ds, "com.example.setup", fleet.AndroidPlatform, 0)
+
+	// enroll an Unassigned host and a fleet host that are on their host policy
+	unassignedHost := createAndroidHost("on-policy-unassigned")
+	unassignedHost.Device.AppliedPolicyID = new("on-policy-unassigned")
+	unassignedHost, err = ds.NewAndroidHost(ctx, unassignedHost, false)
+	require.NoError(t, err)
+	fleetHost := createAndroidHost("on-policy-fleet")
+	fleetHost.Host.TeamID = &team.ID
+	fleetHost.Device.AppliedPolicyID = new("on-policy-fleet")
+	fleetHost, err = ds.NewAndroidHost(ctx, fleetHost, false)
+	require.NoError(t, err)
+
+	// enroll a host still on the default policy, and an unenrolled host on its host policy
+	_, err = ds.NewAndroidHost(ctx, createAndroidHost("on-default-policy"), false)
+	require.NoError(t, err)
+	unenrolledHost := createAndroidHost("unenrolled")
+	unenrolledHost.Device.AppliedPolicyID = new("unenrolled")
+	unenrolledHost, err = ds.NewAndroidHost(ctx, unenrolledHost, false)
+	require.NoError(t, err)
+	_, err = ds.SetAndroidHostUnenrolled(ctx, unenrolledHost.Host.ID)
+	require.NoError(t, err)
+
+	// enroll a re-enrolled host whose applied policy its enrollment status report reset
+	reenrolledHost := createAndroidHost("reenrolled")
+	reenrolledHost.Device.AppliedPolicyID = nil
+	_, err = ds.NewAndroidHost(ctx, reenrolledHost, false)
+	require.NoError(t, err)
+
+	// list the hosts, only the enrolled hosts on their host policy should be returned, in id order
+	hosts, err := ds.ListAndroidHostsOnHostPolicy(ctx)
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+	require.Equal(t, unassignedHost.Host.ID, hosts[0].ID)
+	require.Equal(t, fleetHost.Host.ID, hosts[1].ID)
+	require.Equal(t, "on-policy-fleet", hosts[1].UUID)
+	require.Equal(t, "hardware_serial", hosts[1].HardwareSerial)
+
+	// insert a pending setup experience install of an Unassigned app version for both listed hosts, and a failed one and
+	// one of a deleted app version for the Unassigned host
+	for _, commandUUID := range []string{"setup-unassigned", "setup-fleet", "setup-unassigned-failed", "setup-unassigned-deleted-version"} {
+		host := unassignedHost
+		if commandUUID == "setup-fleet" {
+			host = fleetHost
+		}
+		err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
+			HostID:            host.Host.ID,
+			AdamID:            "com.example.setup",
+			CommandUUID:       commandUUID,
+			AssociatedEventID: "1",
+			VPPAppTeamID:      appTeamID,
+		})
+		require.NoError(t, err)
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET verification_failed_at = NOW(6) WHERE command_uuid = 'setup-unassigned-failed'`)
+		if err != nil {
+			return err
+		}
+		_, err = q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET vpp_app_team_id = NULL WHERE command_uuid = 'setup-unassigned-deleted-version'`)
+		return err
+	})
+
+	// read the setup experience apps, only the Unassigned host's pending install should be returned, the fleet host's
+	// app version is in another fleet and the deleted app version's install has no version
+	setupAppsByHostID, err := ds.ListHostMDMAndroidVPPAppsFromSetupExperience(ctx, []uint{unassignedHost.Host.ID, fleetHost.Host.ID, unenrolledHost.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, setupAppsByHostID, 1)
+	setupApps := setupAppsByHostID[unassignedHost.Host.ID]
+	require.Len(t, setupApps, 1)
+	require.Equal(t, unassignedHost.Host.ID, setupApps[0].HostID)
+	require.Equal(t, "com.example.setup", setupApps[0].AdamID)
+	require.Equal(t, appTeamID, setupApps[0].VPPAppTeamID)
+
+	// verify the Unassigned host's pending install, it should still be returned
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_vpp_software_installs SET verification_at = NOW(6) WHERE command_uuid = 'setup-unassigned'`)
+		return err
+	})
+	setupAppsByHostID, err = ds.ListHostMDMAndroidVPPAppsFromSetupExperience(ctx, []uint{unassignedHost.Host.ID})
+	require.NoError(t, err)
+	setupApps = setupAppsByHostID[unassignedHost.Host.ID]
+	require.Len(t, setupApps, 1)
+	require.Equal(t, "com.example.setup", setupApps[0].AdamID)
+}
+
+func testHostAndroidSoftwareInstallsLifecycle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	setupTestApp(t, ds, "com.example.kept")
+	setupTestApp(t, ds, "com.example.removed")
+	keptVersionID := setupTestAppInFleet(t, ds, "com.example.kept", fleet.AndroidPlatform, 0)
+	var keptNewVersionID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO vpp_apps_teams (adam_id, platform, global_or_team_id, name) VALUES ('com.example.kept', 'android', 0, 'Second version')`)
+		if err != nil {
+			return err
+		}
+		id, err := res.LastInsertId()
+		keptNewVersionID = uint(id) //nolint:gosec // dismiss G115
+		return err
+	})
+	removedVersionID := setupTestAppInFleet(t, ds, "com.example.removed", fleet.AndroidPlatform, 0)
+	host, err := ds.NewAndroidHost(ctx, createAndroidHost("lifecycle-host"), false)
+	require.NoError(t, err)
+	otherHost, err := ds.NewAndroidHost(ctx, createAndroidHost("lifecycle-other-host"), false)
+	require.NoError(t, err)
+	builtAt := time.Now().UTC().Truncate(time.Microsecond)
+
+	// send two apps to the host in policy version 1, and one app to the other host
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.kept", VPPAppTeamID: &keptVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+		{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+		{HostID: otherHost.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+	}, nil)
+	require.NoError(t, err)
+
+	// upsert a failed request that sends the kept app on its new version and keeps the removed app, every row of the host
+	// should be request failed
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusRequestFailed, PolicyBuiltAt: builtAt},
+		{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusRequestFailed, InPolicyVersion: new(int64(1)), PolicyBuiltAt: builtAt},
+	}, nil)
+	require.NoError(t, err)
+	installsByHostID, err := ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 2)
+	for _, install := range installsByHostID[host.Host.ID] {
+		require.Equal(t, fleet.AndroidSoftwareInstallStatusRequestFailed, install.Status, install.AdamID)
+	}
+
+	// read the other host's row, it should be untouched
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{otherHost.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[otherHost.Host.ID], 1)
+	otherRemoved := installsByHostID[otherHost.Host.ID]["com.example.removed"]
+	require.NotNil(t, otherRemoved)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, otherRemoved.Status)
+	require.False(t, otherRemoved.NeedsResend)
+
+	// send the kept app on its new version in policy version 2 and remove the removed app, the removed app's row should be
+	// deleted and the kept app's flag cleared
+	newBuiltAt := builtAt.Add(time.Minute)
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.kept", VPPAppTeamID: &keptNewVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(2)), PolicyBuiltAt: newBuiltAt},
+	}, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.removed"},
+	})
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 1)
+	kept := installsByHostID[host.Host.ID]["com.example.kept"]
+	require.NotNil(t, kept)
+	require.Equal(t, &keptNewVersionID, kept.VPPAppTeamID)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, kept.Status)
+	require.Equal(t, new(int64(2)), kept.InPolicyVersion)
+	require.False(t, kept.NeedsResend)
+	require.True(t, newBuiltAt.Equal(kept.PolicyBuiltAt))
+
+	// report applied policy version 1, the kept app should stay pending
+	err = ds.SetHostAndroidSoftwareInstallsVerified(ctx, host.Host.ID, 1)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusPending, installsByHostID[host.Host.ID]["com.example.kept"].Status)
+
+	// report applied policy version 2 twice, the kept app should be verified with one log row
+	err = ds.SetHostAndroidSoftwareInstallsVerified(ctx, host.Host.ID, 2)
+	require.NoError(t, err)
+	err = ds.SetHostAndroidSoftwareInstallsVerified(ctx, host.Host.ID, 2)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusVerified, installsByHostID[host.Host.ID]["com.example.kept"].Status)
+
+	// move the kept app's row back to its first version, only the version should change
+	keptInstall := *installsByHostID[host.Host.ID]["com.example.kept"]
+	keptInstall.VPPAppTeamID = &keptVersionID
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 1)
+	kept = installsByHostID[host.Host.ID]["com.example.kept"]
+	require.Equal(t, &keptVersionID, kept.VPPAppTeamID)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusVerified, kept.Status)
+	require.True(t, newBuiltAt.Equal(kept.PolicyBuiltAt))
+
+	// send the kept app in policy version 3 and report applied policy version 5, the kept app should be verified
+	keptInstall = *kept
+	keptInstall.Status = fleet.AndroidSoftwareInstallStatusPending
+	keptInstall.InPolicyVersion = new(int64(3))
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
+	require.NoError(t, err)
+	err = ds.SetHostAndroidSoftwareInstallsVerified(ctx, host.Host.ID, 5)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Equal(t, fleet.AndroidSoftwareInstallStatusVerified, installsByHostID[host.Host.ID]["com.example.kept"].Status)
+
+	// delete the kept app's first version, the host's row should be kept with no version
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM vpp_apps_teams WHERE id = ?`, keptVersionID)
+		return err
+	})
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 1)
+	require.Nil(t, installsByHostID[host.Host.ID]["com.example.kept"].VPPAppTeamID)
+
+	// flag the host's apps for resend, the kept app's row should be flagged
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID}, nil, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.True(t, installsByHostID[host.Host.ID]["com.example.kept"].NeedsResend)
+
+	// upsert the kept app's row from a policy built before it was flagged, the kept app's row should still be flagged
+	keptInstall = *installsByHostID[host.Host.ID]["com.example.kept"]
+	keptInstall.NeedsResend = false
+	keptInstall.PolicyBuiltAt = builtAt.Add(-time.Hour)
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.True(t, installsByHostID[host.Host.ID]["com.example.kept"].NeedsResend)
+
+	// upsert the kept app's row from a policy built after it was flagged, the kept app's row should not be flagged
+	keptInstall.PolicyBuiltAt = newBuiltAt
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{keptInstall}, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.False(t, installsByHostID[host.Host.ID]["com.example.kept"].NeedsResend)
+
+	// flag the host's rows built after the kept app's policy, the kept app's row should not be flagged
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID}, &newBuiltAt, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.False(t, installsByHostID[host.Host.ID]["com.example.kept"].NeedsResend)
+
+	// flag the host's rows built after an earlier time, the kept app's row should be flagged
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID}, &builtAt, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.True(t, installsByHostID[host.Host.ID]["com.example.kept"].NeedsResend)
+
+	// replace the host's apps with only the removed app, the kept app's row should be deleted and the flag cleared
+	err = ds.ReplaceHostAndroidSoftwareInstalls(ctx, host.Host.ID, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusPending, InPolicyVersion: new(int64(6)), PolicyBuiltAt: newBuiltAt},
+	})
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 1)
+	removed := installsByHostID[host.Host.ID]["com.example.removed"]
+	require.NotNil(t, removed)
+	require.False(t, removed.NeedsResend)
+
+	// add the agent's row and flag only the agent for resend, the agent's row should be flagged and the removed app's row
+	// should not
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{
+		{HostID: host.Host.ID, AdamID: "com.fleetdm.agent", InstallType: android.AppStatusForceInstalled, Status: fleet.AndroidSoftwareInstallStatusPending, PolicyBuiltAt: newBuiltAt},
+	}, nil)
+	require.NoError(t, err)
+	err = ds.SetHostAndroidSoftwareInstallsNeedsResend(ctx, []uint{host.Host.ID}, nil, new("com.fleetdm.agent"))
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Len(t, installsByHostID[host.Host.ID], 2)
+	require.True(t, installsByHostID[host.Host.ID]["com.fleetdm.agent"].NeedsResend)
+	require.False(t, installsByHostID[host.Host.ID]["com.example.removed"].NeedsResend)
+
+	// write the same request failed row twice, the second write should update updated_at
+	requestFailedRemovedInstall := fleet.HostAndroidSoftwareInstall{HostID: host.Host.ID, AdamID: "com.example.removed", VPPAppTeamID: &removedVersionID, InstallType: android.AppStatusAvailable, Status: fleet.AndroidSoftwareInstallStatusRequestFailed, InPolicyVersion: new(int64(6)), PolicyBuiltAt: newBuiltAt}
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{requestFailedRemovedInstall}, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	firstUpdatedAt := installsByHostID[host.Host.ID]["com.example.removed"].UpdatedAt
+
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{requestFailedRemovedInstall}, nil)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.True(t, installsByHostID[host.Host.ID]["com.example.removed"].UpdatedAt.After(firstUpdatedAt))
+
+	// delete the host, its rows should be deleted
+	err = ds.DeleteHost(ctx, host.Host.ID)
+	require.NoError(t, err)
+	installsByHostID, err = ds.ListHostAndroidSoftwareInstalls(ctx, []uint{host.Host.ID})
+	require.NoError(t, err)
+	require.Empty(t, installsByHostID)
+}
+
+func testUpdateAndroidAppConfigurationSetsConfigurationUpdatedAt(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	setupTestApp(t, ds, "com.example.configured")
+	appTeamID := setupTestAppInFleet(t, ds, "com.example.configured", fleet.AndroidPlatform, 0)
+	readConfigurationUpdatedAt := func() *time.Time {
+		var updatedAt *time.Time
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &updatedAt, `SELECT configuration_updated_at FROM vpp_apps_teams WHERE id = ?`, appTeamID)
+		})
+		return updatedAt
+	}
+
+	// set a configuration, configuration_updated_at should be set
+	err := ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamID, json.RawMessage(`{"managedConfiguration":{"key":"1"}}`))
+	require.NoError(t, err)
+	firstUpdatedAt := readConfigurationUpdatedAt()
+	require.NotNil(t, firstUpdatedAt)
+
+	// save the same configuration, configuration_updated_at should not change
+	time.Sleep(10 * time.Millisecond)
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamID, json.RawMessage(`{"managedConfiguration":{"key":"1"}}`))
+	require.NoError(t, err)
+	require.Equal(t, firstUpdatedAt, readConfigurationUpdatedAt())
+
+	// change the configuration, configuration_updated_at should move forward
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), appTeamID, json.RawMessage(`{"managedConfiguration":{"key":"2"}}`))
+	require.NoError(t, err)
+	secondUpdatedAt := readConfigurationUpdatedAt()
+	require.True(t, secondUpdatedAt.After(*firstUpdatedAt))
+}
+
+func testGetAndroidAppStoreAppVersionsByID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "versions-by-id"})
+	require.NoError(t, err)
+	setupTestApp(t, ds, "com.example.versions")
+	unassignedVersionID := setupTestAppInFleet(t, ds, "com.example.versions", fleet.AndroidPlatform, 0)
+	fleetVersionID := setupTestAppInFleet(t, ds, "com.example.versions", fleet.AndroidPlatform, team.ID)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO vpp_apps (adam_id, platform, name) VALUES ('ios-versions', 'ios', 'iOS App')`)
+		return err
+	})
+	setupTestAppInFleet(t, ds, "ios-versions", fleet.IOSPlatform, 0)
+
+	// set a configuration on the fleet version
+	err = ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), fleetVersionID, json.RawMessage(`{"managedConfiguration":{"key":"1"}}`))
+	require.NoError(t, err)
+
+	// read the versions, both Android versions should be returned by id with only the fleet version's configuration, and
+	// the iOS version should not be returned
+	versionByID, err := ds.GetAndroidAppStoreAppVersionsByID(ctx)
+	require.NoError(t, err)
+	require.Len(t, versionByID, 2)
+	unassignedVersion := versionByID[unassignedVersionID]
+	require.NotNil(t, unassignedVersion)
+	require.Nil(t, unassignedVersion.Configuration)
+	require.Nil(t, unassignedVersion.ConfigurationUpdatedAt)
+	fleetVersion := versionByID[fleetVersionID]
+	require.NotNil(t, fleetVersion)
+	require.JSONEq(t, `{"managedConfiguration":{"key":"1"}}`, string(fleetVersion.Configuration))
+	require.NotNil(t, fleetVersion.ConfigurationUpdatedAt)
+}
+
 func setupTestApp(t *testing.T, ds *Datastore, appID string) {
 	_, err := ds.writer(testCtx()).ExecContext(testCtx(), `
 		INSERT INTO vpp_apps (adam_id, platform, bundle_identifier, name, latest_version, icon_url)
 		VALUES (?, 'android', ?, 'Test App', '1.0', 'http://example.com/icon.png')
 	`, appID, appID)
 	require.NoError(t, err)
+}
+
+func setupTestAppInFleet(t *testing.T, ds *Datastore, appID string, platform fleet.InstallableDevicePlatform, teamID uint) uint {
+	res, err := ds.writer(testCtx()).ExecContext(testCtx(), `
+		INSERT INTO vpp_apps_teams (adam_id, platform, team_id, global_or_team_id, name)
+		VALUES (?, ?, ?, ?, 'Default version')
+	`, appID, platform, ptr.UintOrNilIfZero(teamID), teamID)
+	require.NoError(t, err)
+	id, err := res.LastInsertId()
+	require.NoError(t, err)
+	return uint(id) //nolint:gosec // dismiss G115
 }
 
 // setupTestTeam creates a test team
@@ -2344,213 +4606,96 @@ func setupTestTeam(t *testing.T, ds *Datastore) uint {
 func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	appID := "com.example.testapp"
 	setupTestApp(t, ds, appID)
+	appTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, 0)
 
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {"key": "value"}}`),
-	}
+	configuration := json.RawMessage(`{"managedConfiguration": {"key": "value"}}`)
 
 	// Insert configuration
-	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
-
-	// Get configuration
-	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
-	require.NoError(t, err)
-	require.NotNil(t, retrieved)
-	require.Equal(t, appID, retrieved.ApplicationID)
-	require.Nil(t, retrieved.TeamID)
-	require.Equal(t, uint(0), retrieved.GlobalOrTeamID)
-	require.JSONEq(t, string(config.Configuration), string(retrieved.Configuration))
-	require.NotZero(t, retrieved.ID)
-	require.NotZero(t, retrieved.CreatedAt)
-	require.NotZero(t, retrieved.UpdatedAt)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, configuration))
 
 	// test bulk-get configuration
-	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID}, 0)
+	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []uint{appTeamID})
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
-	require.Equal(t, string(retrieved.Configuration), string(configsByAppID[appID]))
+	require.JSONEq(t, string(configuration), string(configsByAppID[appID]))
 
 	// bulk-get configuration returns any known app config, ignores others
-	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID, "no-such-app"}, 0)
+	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []uint{appTeamID, 999999})
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
-	require.Equal(t, string(retrieved.Configuration), string(configsByAppID[appID]))
+	require.JSONEq(t, string(configuration), string(configsByAppID[appID]))
 }
 
 func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	appID := "com.example.updateapp"
 	setupTestApp(t, ds, appID)
+	appTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, 0)
 
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {"key": "value1"}}`),
-	}
+	configuration := json.RawMessage(`{"managedConfiguration": {"key": "value1"}}`)
 
 	// Insert initial configuration
-	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, configuration))
 
 	// Update configuration
-	newConfig := json.RawMessage(`{"managedConfiguration": {"key": "value2"}, "workProfileWidgets": true}`)
-	config.Configuration = newConfig
-	err = ds.UpdateAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
+	newConfig := json.RawMessage(`{"managedConfiguration": {"key": "value2"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, newConfig))
 
 	// Verify update
-	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
+	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []uint{appTeamID})
 	require.NoError(t, err)
-	require.JSONEq(t, string(newConfig), string(retrieved.Configuration))
-}
-
-func testDeleteAndroidAppConfiguration(t *testing.T, ds *Datastore) {
-	appID := "com.example.deleteapp"
-	setupTestApp(t, ds, appID)
-
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
-	}
-
-	// Insert configuration
-	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
-
-	// Verify it exists
-	_, err = ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
-	require.NoError(t, err)
-
-	// Delete configuration
-	err = ds.DeleteAndroidAppConfiguration(testCtx(), appID, 0)
-	require.NoError(t, err)
-
-	// Verify it's deleted
-	_, err = ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "not found")
-}
-
-func testGetAndroidAppConfigurationNotFound(t *testing.T, ds *Datastore) {
-	_, err := ds.GetAndroidAppConfiguration(testCtx(), "nonexistent.app", 0)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "not found")
-}
-
-func testUpdateAndroidAppConfigurationNotFound(t *testing.T, ds *Datastore) {
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  "nonexistent.app",
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{}`),
-	}
-
-	err := ds.UpdateAndroidAppConfiguration(testCtx(), config)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "not found")
-}
-
-func testDeleteAndroidAppConfigurationNotFound(t *testing.T, ds *Datastore) {
-	err := ds.DeleteAndroidAppConfiguration(testCtx(), "nonexistent.app", 0)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "not found")
-}
-
-func testInsertAndroidAppConfigurationDuplicate(t *testing.T, ds *Datastore) {
-	appID := "com.example.duplicateapp"
-	setupTestApp(t, ds, appID)
-
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
-	}
-
-	// Insert first time - should succeed
-	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
-
-	// Insert duplicate - should fail due to unique constraint
-	err = ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "Duplicate")
+	require.JSONEq(t, string(newConfig), string(configsByAppID[appID]))
 }
 
 func testAndroidAppConfigurationCascadeDeleteTeam(t *testing.T, ds *Datastore) {
 	appID := "com.example.teamcascadeapp"
 	setupTestApp(t, ds, appID)
 	teamID := setupTestTeam(t, ds)
+	appTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, teamID)
 
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         ptr.Uint(teamID),
-		GlobalOrTeamID: teamID,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {}}`),
-	}
+	configuration := json.RawMessage(`{"managedConfiguration": {}}`)
 
 	// Insert configuration
-	err := ds.InsertAndroidAppConfiguration(testCtx(), config)
-	require.NoError(t, err)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, configuration))
 
 	// Verify it exists
-	_, err = ds.GetAndroidAppConfiguration(testCtx(), appID, teamID)
+	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []uint{appTeamID})
 	require.NoError(t, err)
+	require.Contains(t, configsByAppID, appID)
 
 	// Delete the team
 	err = ds.DeleteTeam(testCtx(), teamID)
 	require.NoError(t, err)
 
 	// Verify configuration is also deleted (CASCADE)
-	_, err = ds.GetAndroidAppConfiguration(testCtx(), appID, teamID)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "not found")
+	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []uint{appTeamID})
+	require.NoError(t, err)
+	require.Empty(t, configsByAppID)
 }
 
 func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 	appID := "com.example.globalvsteamapp"
 	setupTestApp(t, ds, appID)
 	teamID := setupTestTeam(t, ds)
+	globalAppTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, 0)
+	teamAppTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, teamID)
 
 	// Insert global configuration
-	globalConfig := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {"env": "global"}}`),
-	}
-	err := ds.InsertAndroidAppConfiguration(testCtx(), globalConfig)
-	require.NoError(t, err)
+	globalConfiguration := json.RawMessage(`{"managedConfiguration": {"env": "global"}}`)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), globalAppTeamID, globalConfiguration))
 
 	// Insert team configuration
-	teamConfig := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         ptr.Uint(teamID),
-		GlobalOrTeamID: teamID,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {"env": "team"}}`),
-	}
-	err = ds.InsertAndroidAppConfiguration(testCtx(), teamConfig)
-	require.NoError(t, err)
+	teamConfiguration := json.RawMessage(`{"managedConfiguration": {"env": "team"}}`)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), teamAppTeamID, teamConfiguration))
 
 	// Verify global configuration
-	retrievedGlobal, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
+	globalConfigsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []uint{globalAppTeamID})
 	require.NoError(t, err)
-	require.JSONEq(t, `{"managedConfiguration": {"env": "global"}}`, string(retrievedGlobal.Configuration))
-	require.Nil(t, retrievedGlobal.TeamID)
-	require.Equal(t, uint(0), retrievedGlobal.GlobalOrTeamID)
+	require.JSONEq(t, `{"managedConfiguration": {"env": "global"}}`, string(globalConfigsByAppID[appID]))
 
 	// Verify team configuration
-	retrievedTeam, err := ds.GetAndroidAppConfiguration(testCtx(), appID, teamID)
+	teamConfigsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []uint{teamAppTeamID})
 	require.NoError(t, err)
-	require.JSONEq(t, `{"managedConfiguration": {"env": "team"}}`, string(retrievedTeam.Configuration))
-	require.NotNil(t, retrievedTeam.TeamID)
-	require.Equal(t, teamID, *retrievedTeam.TeamID)
-	require.Equal(t, teamID, retrievedTeam.GlobalOrTeamID)
+	require.JSONEq(t, `{"managedConfiguration": {"env": "team"}}`, string(teamConfigsByAppID[appID]))
 }
 
 func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
@@ -2561,20 +4706,24 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
-	testConfig := json.RawMessage(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}}`)
+	testConfig := []byte(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}}`)
 	// Create android and VPP apps
 	app1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "android1", BundleIdentifier: "android1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "something_android_app_1", Platform: fleet.AndroidPlatform},
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID:      fleet.VPPAppID{AdamID: "something_android_app_1", Platform: fleet.AndroidPlatform},
 			Configuration: testConfig,
-		}}, &team1.ID)
+		},
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	app2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_forapple_1", Platform: fleet.IOSPlatform},
-			Configuration: json.RawMessage(`{"ManagedConfiguration": {"ios app shouldn't have configuration": true}}`),
-		}}, &team1.ID)
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID:      fleet.VPPAppID{AdamID: "adam_vpp_app_forapple_1", Platform: fleet.IOSPlatform},
+			Configuration: []byte(`<dict><key>FromIOSTest</key><true/></dict>`),
+		},
+	}, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// Get android app without team
@@ -2588,7 +4737,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	require.NotZero(t, meta.VPPAppsTeamsID)
 	require.NotZero(t, meta.Configuration)
 	require.Equal(t, "android1", meta.BundleIdentifier)
-	require.Equal(t, testConfig, meta.Configuration)
+	require.JSONEq(t, string(testConfig), string(meta.Configuration))
 
 	// Get ios app
 	meta2, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, app2.TitleID)
@@ -2596,29 +4745,30 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	require.NotZero(t, meta2.VPPAppsTeamsID)
 
 	// Edit android app
-	newConfig := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
+	newConfig := []byte(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
 	app1.VPPAppTeam.Configuration = newConfig
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.NoError(t, err)
 
 	// Check that configuration was changed
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
 	require.NoError(t, err)
 	require.NotZero(t, meta.VPPAppsTeamsID)
-	require.Equal(t, newConfig, meta.Configuration)
+	require.JSONEq(t, string(newConfig), string(meta.Configuration))
 
 	// Add invalid configuration
-	badConfig := json.RawMessage(`"-": "-"`)
+	badConfig := []byte(`"-": "-"`)
 	app1.VPPAppTeam.Configuration = badConfig
-	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID, nil)
 	require.Error(t, err)
 
 	// Delete app, should delete configuration
-	require.NoError(t, ds.DeleteVPPAppFromTeam(ctx, &team1.ID, app1.VPPAppID))
+	require.NoError(t, ds.DeleteVPPAppFromTeam(ctx, &team1.ID, app1.VPPAppID, nil))
 	_, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
 	require.ErrorContains(t, err, "not found")
-	_, err = ds.GetAndroidAppConfiguration(ctx, app1.AdamID, team1.ID)
-	require.ErrorContains(t, err, "not found")
+	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(ctx, []uint{meta.VPPAppsTeamsID})
+	require.NoError(t, err)
+	require.Empty(t, configsByAppID)
 }
 
 func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
@@ -2626,15 +4776,10 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 
 	appID := "com.example.testapp"
 	setupTestApp(t, ds, appID)
+	appTeamID := setupTestAppInFleet(t, ds, appID, fleet.AndroidPlatform, 0)
 
-	config := &fleet.AndroidAppConfiguration{
-		ApplicationID:  appID,
-		TeamID:         nil,
-		GlobalOrTeamID: 0,
-		Configuration:  json.RawMessage(`{"managedConfiguration": {"a": 1}}`),
-	}
-	err := ds.InsertAndroidAppConfiguration(ctx, config)
-	require.NoError(t, err)
+	configuration := json.RawMessage(`{"managedConfiguration": {"a": 1}}`)
+	require.NoError(t, ds.updateAndroidAppConfigurationTx(testCtx(), ds.writer(testCtx()), appTeamID, configuration))
 
 	cases := []struct {
 		desc         string
@@ -2705,9 +4850,571 @@ func testHasAndroidAppConfigurationChanged(t *testing.T, ds *Datastore) {
 	}
 	for _, c := range cases {
 		t.Run(c.desc, func(t *testing.T) {
-			got, err := ds.HasAndroidAppConfigurationChanged(ctx, c.compareAppID, 0, json.RawMessage(c.newConfig))
+			got, err := ds.HasAndroidAppConfigurationChanged(ctx, c.compareAppID, 0, nil, json.RawMessage(c.newConfig))
 			require.NoError(t, err)
 			require.Equal(t, c.changed, got)
 		})
 	}
+}
+
+func testUpdateTeamIDOnAndroidDevices(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	test.AddBuiltinLabels(t, ds)
+
+	// Create a team.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-update-test"})
+	require.NoError(t, err)
+
+	// Create two Android hosts with no team.
+	host1 := createAndroidHost("esid-update-1")
+	h1, err := ds.NewAndroidHost(ctx, host1, false)
+	require.NoError(t, err)
+
+	host2 := createAndroidHost("esid-update-2")
+	h2, err := ds.NewAndroidHost(ctx, host2, false)
+	require.NoError(t, err)
+
+	// Verify team_id starts as NULL.
+	var teamID1 *uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &teamID1, `SELECT team_id FROM android_devices WHERE host_id = ?`, h1.Host.ID)
+	})
+	require.Nil(t, teamID1)
+
+	// Update both devices to the team.
+	err = ds.UpdateTeamIDOnAndroidDevices(ctx, []string{h1.Host.UUID, h2.Host.UUID}, &team.ID)
+	require.NoError(t, err)
+
+	// Verify both were updated.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &teamID1, `SELECT team_id FROM android_devices WHERE host_id = ?`, h1.Host.ID)
+	})
+	require.NotNil(t, teamID1)
+	require.Equal(t, team.ID, *teamID1)
+
+	var teamID2 *uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &teamID2, `SELECT team_id FROM android_devices WHERE host_id = ?`, h2.Host.ID)
+	})
+	require.NotNil(t, teamID2)
+	require.Equal(t, team.ID, *teamID2)
+
+	// Update to no team (nil).
+	err = ds.UpdateTeamIDOnAndroidDevices(ctx, []string{h1.Host.UUID}, nil)
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &teamID1, `SELECT team_id FROM android_devices WHERE host_id = ?`, h1.Host.ID)
+	})
+	require.Nil(t, teamID1)
+
+	// Empty slice is a no-op.
+	err = ds.UpdateTeamIDOnAndroidDevices(ctx, []string{}, &team.ID)
+	require.NoError(t, err)
+}
+
+func testGetAndroidDeviceLastTeamID(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	test.AddBuiltinLabels(t, ds)
+
+	// Create a team and a host on that team.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-last-id-test"})
+	require.NoError(t, err)
+
+	host := createAndroidHost("esid-last-team")
+	host.Host.TeamID = &team.ID
+	h, err := ds.NewAndroidHost(ctx, host, false)
+	require.NoError(t, err)
+
+	// NewAndroidHost syncs team_id, so it should be set.
+	gotTeamID, found, err := ds.GetAndroidDeviceLastTeamID(ctx, "esid-last-team")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.NotNil(t, gotTeamID)
+	require.Equal(t, team.ID, *gotTeamID)
+
+	// Delete the host — android_devices row should survive.
+	err = ds.DeleteHosts(ctx, []uint{h.Host.ID})
+	require.NoError(t, err)
+
+	// Should still find the prior team.
+	gotTeamID, found, err = ds.GetAndroidDeviceLastTeamID(ctx, "esid-last-team")
+	require.NoError(t, err)
+	require.True(t, found)
+	require.NotNil(t, gotTeamID)
+	require.Equal(t, team.ID, *gotTeamID)
+
+	// Non-existent device returns not found.
+	_, found, err = ds.GetAndroidDeviceLastTeamID(ctx, "no-such-device")
+	require.NoError(t, err)
+	require.False(t, found)
+}
+
+func testAndroidResetOnReenrollment(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	test.AddBuiltinLabels(t, ds)
+
+	// The three label kinds the reset has to discriminate between. Only the dynamic one
+	// may be cleared: host-vitals membership is IdP-derived and is only re-populated by a
+	// 5-minute cron, and the builtin memberships ("All Hosts" is dynamic-typed) are never
+	// re-added for Android outside NewAndroidHost.
+	newLabel := func(name string, membershipType fleet.LabelMembershipType) uint {
+		var labelID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx, `
+				INSERT INTO labels (name, description, query, platform, label_type, label_membership_type)
+				VALUES (?, '', '', '', ?, ?)`, name, fleet.LabelTypeRegular, membershipType)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			labelID = uint(id) //nolint:gosec // test-only, ids are small
+			return nil
+		})
+		return labelID
+	}
+	manualLabelID := newLabel("manual-label", fleet.LabelMembershipTypeManual)
+	dynamicLabelID := newLabel("dynamic-label", fleet.LabelMembershipTypeDynamic)
+	vitalsLabelID := newLabel("vitals-label", fleet.LabelMembershipTypeHostVitals)
+
+	vppApp, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.app.vpp1", Platform: fleet.AndroidPlatform}},
+	}, nil, nil)
+	require.NoError(t, err)
+
+	// installKinds are seeded for both hosts; only "pending" may be failed by the reset.
+	installKinds := []string{"pending", "removed", "canceled", "verified", "verification-failed"}
+
+	// seedHost creates an Android host with one row of every kind of state the reset
+	// touches, and returns it.
+	seedHost := func(esid string) *fleet.AndroidHost {
+		host, err := ds.NewAndroidHost(ctx, createAndroidHost(esid), false)
+		require.NoError(t, err)
+		hostID := host.Host.ID
+
+		for _, labelID := range []uint{manualLabelID, dynamicLabelID, vitalsLabelID} {
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `INSERT INTO label_membership (host_id, label_id) VALUES (?, ?)`, hostID, labelID)
+				return err
+			})
+		}
+
+		require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, hostID, 10, 50, 20, nil))
+		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, hostID, fleet.OperatingSystem{
+			Name: "Android", Version: "14", Platform: "android",
+		}))
+
+		// A pending lock command, which also writes host_mdm_actions.lock_ref.
+		require.NoError(t, ds.LockHostViaAndroidMDM(ctx, host.Host, &android.MDMAndroidCommand{
+			CommandUUID:   uuid.NewString(),
+			HostUUID:      host.Host.UUID,
+			OperationName: "operations/" + esid + "-lock",
+			CommandType:   string(android.MDMAndroidCommandTypeLock),
+			Status:        string(android.MDMAndroidCommandStatusPending),
+		}))
+		for _, status := range []android.MDMAndroidCommandStatus{
+			android.MDMAndroidCommandStatusAcknowledged,
+			android.MDMAndroidCommandStatusError,
+		} {
+			require.NoError(t, ds.NewMDMAndroidCommand(ctx, &android.MDMAndroidCommand{
+				CommandUUID:   uuid.NewString(),
+				HostUUID:      host.Host.UUID,
+				OperationName: fmt.Sprintf("operations/%s-%s", esid, status),
+				CommandType:   string(android.MDMAndroidCommandTypeLock),
+				Status:        string(status),
+			}))
+		}
+
+		for _, kind := range installKinds {
+			cmdUUID := fmt.Sprintf("%s-%s", esid, kind)
+			require.NoError(t, ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
+				HostID:            hostID,
+				AdamID:            vppApp.AdamID,
+				CommandUUID:       cmdUUID,
+				AssociatedEventID: "1",
+			}))
+			var set string
+			switch kind {
+			case "pending":
+				continue
+			case "removed":
+				set = "removed = 1"
+			case "canceled":
+				set = "canceled = 1"
+			case "verified":
+				set = "verification_at = CURRENT_TIMESTAMP(6)"
+			case "verification-failed":
+				set = "verification_failed_at = CURRENT_TIMESTAMP(6)"
+			}
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, "UPDATE host_vpp_software_installs SET "+set+" WHERE command_uuid = ?", cmdUUID)
+				return err
+			})
+		}
+
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			res, err := q.ExecContext(ctx,
+				`INSERT INTO activity_past (user_name, activity_type, details) VALUES ('admin', 'ran_script', '{}')`)
+			if err != nil {
+				return err
+			}
+			activityID, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			_, err = q.ExecContext(ctx, `INSERT INTO activity_host_past (host_id, activity_id) VALUES (?, ?)`, hostID, activityID)
+			return err
+		})
+
+		return host
+	}
+
+	countFor := func(query string, args ...any) int {
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count, query, args...)
+		})
+		return count
+	}
+	labelNamesFor := func(hostID uint) []string {
+		labels, err := ds.ListLabelsForHost(ctx, hostID)
+		require.NoError(t, err)
+		names := make([]string, 0, len(labels))
+		for _, label := range labels {
+			names = append(names, label.Name)
+		}
+		return names
+	}
+	// requireSeededState asserts the host still has every row seedHost created, which is
+	// how the untouched control host is checked.
+	requireSeededState := func(t *testing.T, host *fleet.AndroidHost) {
+		hostID, hostUUID := host.Host.ID, host.Host.UUID
+		require.ElementsMatch(t, []string{
+			fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameAndroid,
+			"manual-label", "dynamic-label", "vitals-label",
+		}, labelNamesFor(hostID))
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_disks WHERE host_id = ?`, hostID))
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_operating_system WHERE host_id = ?`, hostID))
+		require.Equal(t, 3, countFor(`SELECT COUNT(*) FROM mdm_android_commands WHERE host_uuid = ?`, hostUUID))
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_mdm_actions WHERE host_id = ?`, hostID))
+		require.Equal(t, 1, countFor(
+			`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ? AND canceled = 1`, hostID))
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?`, hostID))
+		// Every install that has not reached a verification verdict is still listed as
+		// awaiting one. This is the positive control for the "no longer pending"
+		// assertions below: without it, a WHERE clause that matched nothing would pass.
+		pending, err := ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, hostUUID, 100)
+		require.NoError(t, err)
+		require.Len(t, pending, 3, "pending, removed and canceled installs all still await verification")
+	}
+
+	hostA := seedHost("esid-reset-a")
+	hostB := seedHost("esid-reset-b")
+	requireSeededState(t, hostA)
+	requireSeededState(t, hostB)
+
+	// Reset host A, preserving its activities.
+	users, activities, err := ds.AndroidResetOnReenrollment(ctx, hostA.Host.ID, hostA.Host.UUID, true)
+	require.NoError(t, err)
+
+	t.Run("rejects a zero host id or uuid", func(t *testing.T) {
+		_, _, err := ds.AndroidResetOnReenrollment(ctx, 0, hostA.Host.UUID, true)
+		require.Error(t, err)
+		_, _, err = ds.AndroidResetOnReenrollment(ctx, hostA.Host.ID, "", true)
+		require.Error(t, err)
+	})
+
+	t.Run("keeps manual, host-vitals and builtin labels, clears dynamic", func(t *testing.T) {
+		require.ElementsMatch(t, []string{
+			fleet.BuiltinLabelNameAllHosts, fleet.BuiltinLabelNameAndroid,
+			"manual-label", "vitals-label",
+		}, labelNamesFor(hostA.Host.ID))
+	})
+
+	t.Run("leaves host vitals alone", func(t *testing.T) {
+		// The enrollment overwrites these itself, and both writers skip the write when
+		// the replica still reports the same values -- deleting here would make a
+		// lagging replica leave the host with no vitals row at all.
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_disks WHERE host_id = ?`, hostA.Host.ID))
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM host_operating_system WHERE host_id = ?`, hostA.Host.ID))
+	})
+
+	t.Run("deletes pending commands and their refs together", func(t *testing.T) {
+		var statuses []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &statuses,
+				`SELECT status FROM mdm_android_commands WHERE host_uuid = ?`, hostA.Host.UUID)
+		})
+		require.ElementsMatch(t, []string{
+			string(android.MDMAndroidCommandStatusAcknowledged),
+			string(android.MDMAndroidCommandStatusError),
+		}, statuses)
+		// The lock_ref pointed at the deleted command, so it must go in the same
+		// transaction rather than being left dangling.
+		require.Zero(t, countFor(`SELECT COUNT(*) FROM host_mdm_actions WHERE host_id = ?`, hostA.Host.ID))
+	})
+
+	t.Run("fails only pending software installs, and reports them", func(t *testing.T) {
+		var failedCmdUUIDs []string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &failedCmdUUIDs,
+				`SELECT command_uuid FROM host_vpp_software_installs
+				 WHERE host_id = ? AND verification_failed_at IS NOT NULL`, hostA.Host.ID)
+		})
+		// markAllPendingVPPInstallsAsFailedForHost fails every install without a verdict,
+		// which is the same set the Android unenroll path fails. Only the already-verified
+		// install keeps its successful outcome.
+		require.ElementsMatch(t, []string{
+			"esid-reset-a-pending", "esid-reset-a-removed", "esid-reset-a-canceled",
+			"esid-reset-a-verification-failed",
+		}, failedCmdUUIDs)
+		// The records are kept, not deleted, and nothing is hidden behind canceled.
+		require.Equal(t, len(installKinds),
+			countFor(`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ?`, hostA.Host.ID))
+		require.Equal(t, 1,
+			countFor(`SELECT COUNT(*) FROM host_vpp_software_installs WHERE host_id = ? AND canceled = 1`, hostA.Host.ID))
+		// A failed install is no longer a candidate for verification.
+		pending, err := ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, hostA.Host.UUID, 100)
+		require.NoError(t, err)
+		require.Empty(t, pending)
+		// The caller gets one activity per newly failed install so the admin can see it.
+		// The already-canceled and already-failed rows are excluded, matching the
+		// idempotency contract of the shared helper.
+		require.Len(t, activities, 2)
+		require.Len(t, users, len(activities))
+	})
+
+	t.Run("preserves past activities when asked to", func(t *testing.T) {
+		require.Equal(t, 1, countFor(`SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?`, hostA.Host.ID))
+	})
+
+	t.Run("leaves other hosts untouched", func(t *testing.T) {
+		requireSeededState(t, hostB)
+	})
+
+	t.Run("is idempotent and clears past activities when not preserving them", func(t *testing.T) {
+		_, repeatActivities, err := ds.AndroidResetOnReenrollment(ctx, hostA.Host.ID, hostA.Host.UUID, false)
+		require.NoError(t, err)
+		require.Empty(t, repeatActivities, "a second reset must not re-emit failed-install activities")
+		require.Zero(t, countFor(`SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?`, hostA.Host.ID))
+		// Still scoped to host A.
+		requireSeededState(t, hostB)
+	})
+}
+
+func testResetMDMAndroidHostProfilesForRedelivery(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	profile, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+		Name:    "Redelivery Profile",
+		RawJSON: []byte(`{"cameraDisabled": true}`),
+	}, nil)
+	require.NoError(t, err)
+	var profileChecksum []byte
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &profileChecksum,
+			`SELECT checksum FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`, profile.ProfileUUID)
+	})
+
+	// Each host has a delivered, verified install of the applicable profile and a pending
+	// removal of one that no longer applies: nothing needs sending.
+	seedHost := func(esid string) *fleet.AndroidHost {
+		host, err := ds.NewAndroidHost(ctx, createAndroidHost(esid), false)
+		require.NoError(t, err)
+		require.NoError(t, ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+			{
+				HostUUID:                host.Host.UUID,
+				ProfileUUID:             profile.ProfileUUID,
+				ProfileName:             profile.Name,
+				Status:                  &fleet.MDMDeliveryVerified,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Detail:                  "stale detail",
+				RequestFailCount:        1,
+				IncludedInPolicyVersion: new(5),
+				Checksum:                profileChecksum,
+				CanReverify:             true,
+			},
+			{
+				HostUUID:      host.Host.UUID,
+				ProfileUUID:   fleet.MDMAndroidProfileUUIDPrefix + "removed-" + esid,
+				ProfileName:   "Removed Profile",
+				Status:        &fleet.MDMDeliveryPending,
+				OperationType: fleet.MDMOperationTypeRemove,
+			},
+		}))
+		return host
+	}
+	hostA := seedHost("esid-redeliver-a")
+	hostB := seedHost("esid-redeliver-b")
+
+	type profileRow struct {
+		ProfileUUID             string  `db:"profile_uuid"`
+		Status                  *string `db:"status"`
+		OperationType           string  `db:"operation_type"`
+		Detail                  string  `db:"detail"`
+		RequestFailCount        int     `db:"request_fail_count"`
+		IncludedInPolicyVersion *int    `db:"included_in_policy_version"`
+		CanReverify             bool    `db:"can_reverify"`
+	}
+	rowsFor := func(hostUUID string) []profileRow {
+		var rows []profileRow
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows, `
+				SELECT profile_uuid, status, operation_type, detail, request_fail_count, included_in_policy_version, can_reverify
+				FROM host_mdm_android_profiles WHERE host_uuid = ? ORDER BY operation_type`, hostUUID)
+		})
+		return rows
+	}
+	hostsWithProfilesToSend := func() []string {
+		toInstall, toRemove, err := ds.ListMDMAndroidProfilesToSend(ctx, "", 0)
+		require.NoError(t, err)
+		var hostUUIDs []string
+		for _, p := range append(toInstall, toRemove...) {
+			if !slices.Contains(hostUUIDs, p.HostUUID) {
+				hostUUIDs = append(hostUUIDs, p.HostUUID)
+			}
+		}
+		return hostUUIDs
+	}
+
+	seededRows := rowsFor(hostB.Host.UUID)
+	require.Len(t, seededRows, 2)
+	require.Empty(t, hostsWithProfilesToSend())
+
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostA.Host.UUID))
+
+	rows := rowsFor(hostA.Host.UUID)
+	require.Len(t, rows, 1, "the pending removal is dropped")
+	assert.Equal(t, profileRow{
+		ProfileUUID:   profile.ProfileUUID,
+		OperationType: string(fleet.MDMOperationTypeInstall),
+	}, rows[0])
+
+	// The reconciler now re-sends host A's profiles, and only host A's.
+	require.Equal(t, []string{hostA.Host.UUID}, hostsWithProfilesToSend())
+	require.Equal(t, seededRows, rowsFor(hostB.Host.UUID))
+
+	// The host shows the profile as pending, not verified.
+	hostProfiles, err := ds.GetHostMDMAndroidProfiles(ctx, hostA.Host.UUID)
+	require.NoError(t, err)
+	require.Len(t, hostProfiles, 1)
+	require.NotNil(t, hostProfiles[0].Status)
+	assert.Equal(t, fleet.MDMDeliveryPending, *hostProfiles[0].Status)
+
+	// A host that was never sent its profiles gets a reset row for each applicable one.
+	hostC, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-redeliver-c"), false)
+	require.NoError(t, err)
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostC.Host.UUID))
+	assert.Equal(t, []profileRow{{
+		ProfileUUID:   profile.ProfileUUID,
+		OperationType: string(fleet.MDMOperationTypeInstall),
+	}}, rowsFor(hostC.Host.UUID))
+	// Resetting again is a no-op on the rows' content.
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostC.Host.UUID))
+	assert.Len(t, rowsFor(hostC.Host.UUID), 1)
+
+	// A host in a fleet without profiles gets no rows.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "redeliver-no-profiles"})
+	require.NoError(t, err)
+	hostD, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-redeliver-d"), false)
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{hostD.Host.ID})))
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, hostD.Host.UUID))
+	assert.Empty(t, rowsFor(hostD.Host.UUID))
+}
+
+func testBulkUpsertMDMAndroidHostProfilesUnlessResetSince(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-unless-reset"), false)
+	require.NoError(t, err)
+	otherHost, err := ds.NewAndroidHost(ctx, createAndroidHost("esid-unless-reset-other"), false)
+	require.NoError(t, err)
+
+	payload := func(hostUUID, profileUUID string, status *fleet.MDMDeliveryStatus, version int) *fleet.MDMAndroidProfilePayload {
+		return &fleet.MDMAndroidProfilePayload{
+			HostUUID:                hostUUID,
+			ProfileUUID:             profileUUID,
+			ProfileName:             profileUUID,
+			Status:                  status,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: new(version),
+		}
+	}
+	const (
+		resetProfile     = fleet.MDMAndroidProfileUUIDPrefix + "reset"
+		oldNullProfile   = fleet.MDMAndroidProfileUUIDPrefix + "old-null"
+		verifiedProfile  = fleet.MDMAndroidProfileUUIDPrefix + "verified"
+		newProfile       = fleet.MDMAndroidProfileUUIDPrefix + "new"
+		otherHostProfile = fleet.MDMAndroidProfileUUIDPrefix + "other"
+	)
+	require.NoError(t, ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+		payload(host.Host.UUID, resetProfile, &fleet.MDMDeliveryVerified, 1),
+		payload(host.Host.UUID, oldNullProfile, nil, 1),
+		payload(host.Host.UUID, verifiedProfile, &fleet.MDMDeliveryVerified, 1),
+		payload(otherHost.Host.UUID, otherHostProfile, &fleet.MDMDeliveryVerified, 1),
+	}))
+	// oldNullProfile was already waiting to be sent before the writer read the rows.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_android_profiles SET updated_at = NOW(6) - INTERVAL 1 HOUR
+			WHERE profile_uuid = ?`, oldNullProfile)
+		return err
+	})
+
+	since, err := ds.GetMDMAndroidProfilesWriteTime(ctx)
+	require.NoError(t, err)
+	// The host's rows are reset after the writer read them. The other host is not reset.
+	require.NoError(t, ds.ResetMDMAndroidHostProfilesForRedelivery(ctx, host.Host.UUID))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_android_profiles SET updated_at = NOW(6) - INTERVAL 1 HOUR
+			WHERE profile_uuid = ?`, oldNullProfile)
+		return err
+	})
+	// verifiedProfile is verified again after the reset, so it is no longer waiting.
+	require.NoError(t, ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+		payload(host.Host.UUID, verifiedProfile, &fleet.MDMDeliveryVerified, 1),
+	}))
+
+	require.NoError(t, ds.BulkUpsertMDMAndroidHostProfilesUnlessResetSince(ctx, []*fleet.MDMAndroidProfilePayload{
+		payload(host.Host.UUID, resetProfile, &fleet.MDMDeliveryPending, 2),
+		payload(host.Host.UUID, oldNullProfile, &fleet.MDMDeliveryPending, 2),
+		payload(host.Host.UUID, verifiedProfile, &fleet.MDMDeliveryPending, 2),
+		payload(host.Host.UUID, newProfile, &fleet.MDMDeliveryPending, 2),
+		payload(otherHost.Host.UUID, otherHostProfile, &fleet.MDMDeliveryPending, 2),
+	}, since))
+
+	type row struct {
+		ProfileUUID             string  `db:"profile_uuid"`
+		Status                  *string `db:"status"`
+		IncludedInPolicyVersion *int    `db:"included_in_policy_version"`
+	}
+	var rows []row
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &rows,
+			`SELECT profile_uuid, status, included_in_policy_version FROM host_mdm_android_profiles ORDER BY profile_uuid`)
+	})
+	pending := string(fleet.MDMDeliveryPending)
+	assert.ElementsMatch(t, []row{
+		// reset after since: kept as reset so it is sent again
+		{ProfileUUID: resetProfile},
+		// already waiting before since, or no longer waiting: written normally
+		{ProfileUUID: oldNullProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+		{ProfileUUID: verifiedProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+		{ProfileUUID: newProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+		{ProfileUUID: otherHostProfile, Status: &pending, IncludedInPolicyVersion: new(2)},
+	}, rows)
+}
+
+// setAndroidHostAppliedPolicy sets the policy the host last reported applying. Hosts from
+// createAndroidHost report the default policy, pass the host UUID to put one on its own policy.
+func setAndroidHostAppliedPolicy(t *testing.T, ds *Datastore, hostUUID string, policyID *string) {
+	t.Helper()
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE android_devices SET applied_policy_id = ? WHERE enterprise_specific_id = ?`, policyID, hostUUID)
+		return err
+	})
 }

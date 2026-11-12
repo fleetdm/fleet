@@ -13,7 +13,10 @@ import (
 //go:generate go run ./mockimpl/impl.go -o mdm/datastore_mdm_mock.go "fs *MDMAppleStore" "fleet.MDMAppleStore"
 //go:generate go run ./mockimpl/impl.go -o scep/depot.go "d *Depot" "depot.Depot"
 //go:generate go run ./mockimpl/impl.go -o scep/config.go "s *SCEPConfigService" "fleet.SCEPConfigService"
+//go:generate go run ./mockimpl/impl.go -o scep/enrollment_client.go "c *SCEPEnrollmentClient" "fleet.SCEPEnrollmentClient"
 //go:generate go run ./mockimpl/impl.go -o digicert/digicert.go "s *Service" "fleet.DigiCertService"
+//go:generate go run ./mockimpl/impl.go -o ejbca/ejbca.go "s *Service" "fleet.EJBCAService"
+//go:generate go run ./mockimpl/impl.go -o googlecas/googlecas.go "s *Service" "fleet.GoogleCASService"
 //go:generate go run ./mockimpl/impl.go -o mdm/bootstrap_package_store.go "s *MDMBootstrapPackageStore" "fleet.MDMBootstrapPackageStore"
 //go:generate go run ./mockimpl/impl.go -o software/software_installer_store.go "s *SoftwareInstallerStore" "fleet.SoftwareInstallerStore"
 
@@ -28,8 +31,28 @@ func (m *Store) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOr
 }
 
 func (m *Store) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string) (*fleet.Host, error) {
-	return nil, nil
+	if m.LoadHostByOrbitNodeKeyFunc != nil {
+		return m.DataStore.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
+	}
+	// Default to not-found rather than a nil host with a nil error: callers
+	// dereference the returned host, and "no host matches this orbit node
+	// key" is the meaningful default for tests that don't mock this method.
+	return nil, &mockNotFoundError{}
 }
+
+// RefreshMDMWindowsProfilesStatusRollup is a no-op unless a test mocks it: the Windows profile reconciler calls it on every window with
+// work, and most of its tests do not care about the rollup.
+func (m *Store) RefreshMDMWindowsProfilesStatusRollup(ctx context.Context, hostUUIDs []string) error {
+	if m.RefreshMDMWindowsProfilesStatusRollupFunc != nil {
+		return m.DataStore.RefreshMDMWindowsProfilesStatusRollup(ctx, hostUUIDs)
+	}
+	return nil
+}
+
+type mockNotFoundError struct{}
+
+func (e *mockNotFoundError) Error() string    { return "not found" }
+func (e *mockNotFoundError) IsNotFound() bool { return true }
 
 func (m *Store) GetCurrentTime(ctx context.Context) (time.Time, error) {
 	return time.Time{}, nil
@@ -37,7 +60,6 @@ func (m *Store) GetCurrentTime(ctx context.Context) (time.Time, error) {
 
 func (m *Store) Drop() error                             { return nil }
 func (m *Store) MigrateTables(ctx context.Context) error { return nil }
-func (m *Store) MigrateData(ctx context.Context) error   { return nil }
 func (m *Store) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, error) {
 	return &fleet.MigrationStatus{}, nil
 }

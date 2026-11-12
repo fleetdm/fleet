@@ -1,5 +1,5 @@
-import React from "react";
 import { noop } from "lodash";
+import React from "react";
 
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
@@ -15,13 +15,11 @@ const AddFleetAppSoftwareModal = () => {
       onExit={noop}
       disableClosingModal
     >
-      <>
-        <Spinner centered={false} className={`${baseClass}__spinner`} />
-        <p>
-          Uploading software so that it&apos;s available for install. This may
-          take a few minutes.
-        </p>
-      </>
+      <Spinner centered={false} className={`${baseClass}__spinner`} />
+      <p>
+        Uploading software so that it&apos;s available for install. This may
+        take a few minutes.
+      </p>
     </Modal>
   );
 };

@@ -49,10 +49,13 @@ parasails.registerComponent('scrollableTweets', {
         <div purpose="logo" class="mb-4">
           <img :height="testimonial.imageHeight" v-if="testimonial.quoteImageFilename" :src="'/images/'+testimonial.quoteImageFilename"/>
         </div>
-        <p purpose="quote">
-          {{testimonial.quote}}
-          <a purpose="video-link" v-if="testimonial.youtubeVideoUrl" @click.prevent.self="clickOpenVideoModal(testimonial.quoteAuthorName)">See the video.</a>
-        </p>
+        <div purpose="quote-container" :class="{ overflowing: testimonial.isQuoteOverflowing && !testimonial.isQuoteExpanded, expanded: testimonial.isQuoteExpanded }">
+          <p purpose="quote">
+            {{testimonial.quote}}
+            <a purpose="video-link" v-if="testimonial.youtubeVideoUrl" @click.prevent.stop="clickOpenVideoModal(testimonial.quoteAuthorName)">See the video.</a>
+          </p>
+        </div>
+        <a purpose="show-full-quote-link" v-if="testimonial.isQuoteOverflowing && !testimonial.isQuoteExpanded" @click.prevent.stop="testimonial.isQuoteExpanded = true">Show full quote</a>
         <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
           <div purpose="profile-picture">
             <img :src="'/images/'+testimonial.quoteAuthorProfileImageFilename">
@@ -66,7 +69,7 @@ parasails.registerComponent('scrollableTweets', {
     </div>
     <div v-for="video in quotesWithVideoLinks">
     <modal purpose="video-modal" v-if="modal === video.modalId" @close="closeModal()" >
-      <iframe width="560" height="315" :src="'https://www.youtube.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
+      <iframe width="560" height="315" :src="'https://www.youtube-nocookie.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
     </modal>
     </div>
   </div>
@@ -82,28 +85,34 @@ parasails.registerComponent('scrollableTweets', {
     if(!_.isArray(this.testimonials)){
       throw new Error('Incomplete usage of <scrollable-tweets>:  The `testimonials` prop provided is an invalid type. Please provide an array of testimonial values.');
     }
-    this.quotesToDisplay = _.clone(this.testimonials);
-    for(let quote of this.testimonials){
-      if(quote.youtubeVideoUrl){
+    this.quotesToDisplay = this.testimonials.map((testimonial) =>{
+      if(testimonial.youtubeVideoUrl) {
         this.quotesWithVideoLinks.push({
-          modalId: _.kebabCase(quote.quoteAuthorName),
-          embedId: quote.videoIdForEmbed,
+          modalId: _.kebabCase(testimonial.quoteAuthorName),
+          embedId: testimonial.videoIdForEmbed,
         });
       }
-    }
-
+      return Object.assign({}, testimonial, { isQuoteOverflowing: false, isQuoteExpanded: false});
+    });
   },
   mounted: async function(){
     this.tweetsDiv = $('div[purpose="tweets"]')[0];
     this.tweetCards = $('a[purpose="tweet-card"]');
-    this.firstCardPosition = this.tweetCards[0].getBoundingClientRect().x;
+    try {
+      this.firstCardPosition = this.tweetCards[0].getBoundingClientRect().x;
+    } catch (err) {
+      console.warn('Could not determine position of testimonials in scrollable-tweets component.  Using fake position, which may cause rendering issues.  Error details:',err);
+      this.firstCardPosition = 0;
+    }
     this.numberOfTweetCardsDisplayedOnThisPage = this.tweetCards.length;
     this.calculateHowManyFullTweetsCanBeDisplayed();
+    this.checkQuoteOverflow();
     $(window).on('resize', this.calculateHowManyFullTweetsCanBeDisplayed);
+    $(window).on('resize', this.checkQuoteOverflow);
     $(window).on('wheel', this.updatePageIndicators);
   },
   beforeDestroy: function() {
-
+    $(window).off('.scrollableTweets');
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -113,8 +122,14 @@ parasails.registerComponent('scrollableTweets', {
     calculateHowManyFullTweetsCanBeDisplayed: function() {
       let firstTweetCard = this.tweetCards[0];
       let nextTweetCard = this.tweetCards[1];
-      this.tweetCardWidth =  nextTweetCard.getBoundingClientRect().x - firstTweetCard.getBoundingClientRect().x;
-      this.numberOfTweetsPerPage = Math.floor((document.body.clientWidth - this.firstCardPosition)/this.tweetCardWidth);
+      try {
+        this.tweetCardWidth =  nextTweetCard.getBoundingClientRect().x - firstTweetCard.getBoundingClientRect().x;
+        this.numberOfTweetsPerPage = Math.floor((document.body.clientWidth - this.firstCardPosition)/this.tweetCardWidth);
+      } catch (err) {
+        console.warn('Could not determine "per page" and "card width" for testimonials in scrollable-tweets component.  Using fake position, which may cause rendering issues.  Error details:',err);
+        this.numberOfTweetsPerPage = 1;
+        this.tweetCardWidth = 100;
+      }
       if(this.numberOfTweetsPerPage < 1){
         this.numberOfTweetsPerPage = 1;
       }
@@ -157,6 +172,25 @@ parasails.registerComponent('scrollableTweets', {
 
     closeModal: function() {
       this.modal = undefined;
+    },
+
+    checkQuoteOverflow: function() {
+      // Check if a card's quote exceeds the set max-height, and set isQuoteOverflowing values on quote cards.
+      let containers = this.$el.querySelectorAll('[purpose="quote-container"]');
+      let minHiddenHeightToTruncate = 40;// « The number of pixels a quote must exceed the height of a parent container by for a quote to be truncated.
+      containers.forEach((el, i) => {
+        let quote = this.quotesToDisplay[i];
+        if (quote && !quote.isQuoteExpanded) {
+          let hiddenHeight = el.scrollHeight - el.clientHeight;
+          if (hiddenHeight > minHiddenHeightToTruncate) {
+            quote.isQuoteOverflowing = true;
+          } else if (hiddenHeight > 1) {
+            // Overflows the cap, but only barely — show the whole quote (no button).
+            quote.isQuoteOverflowing = false;
+            quote.isQuoteExpanded = true;
+          }
+        }
+      });
     },
 
   }

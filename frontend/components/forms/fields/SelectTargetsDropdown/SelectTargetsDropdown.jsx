@@ -1,11 +1,14 @@
-import React, { Component } from "react";
-import PropTypes from "prop-types";
 import classnames from "classnames";
 import { isEqual, noop } from "lodash";
+import PropTypes from "prop-types";
+import React, { Component } from "react";
 
-import targetsAPI from "services/entities/targets";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import targetInterface from "interfaces/target";
+import targetsAPI from "services/entities/targets";
 import { formatSelectedTargetsForApi } from "utilities/helpers";
+
 import Input from "./SelectTargetsInput";
 import Menu from "./SelectTargetsMenu";
 
@@ -45,7 +48,6 @@ class SelectTargetsDropdown extends Component {
     this.mounted = true;
     this.wrapperHeight = 0;
     this.fetchTargets();
-
     return false;
   }
 
@@ -206,6 +208,7 @@ class SelectTargetsDropdown extends Component {
       renderLabel,
     } = this;
     const { disabled, onSelect, selectedTargets, isPremiumTier } = this.props;
+
     const menuRenderer = Menu(
       onTargetSelectMoreInfo,
       moreInfoTarget,
@@ -218,8 +221,29 @@ class SelectTargetsDropdown extends Component {
       "is-empty": isEmpty,
     });
 
+    const ArrowRenderer = ({ isOpen }) => (
+      <div
+        className={classnames("target-select__arrow", {
+          "target-select__arrow--open": isOpen,
+        })}
+      >
+        <Icon name="chevron-down" />
+      </div>
+    );
+
+    const ClearRenderer = () => (
+      <Button
+        type="button"
+        className="target-select__clear"
+        onMouseDown={(e) => e.preventDefault()}
+        variant="subdued"
+      >
+        <Icon name="close" />
+      </Button>
+    );
+
     return (
-      <div className={`${baseClass} form-field`}>
+      <div className={`${baseClass}__wrapper form-field`}>
         {renderLabel()}
         <Input
           className={inputClasses}
@@ -234,6 +258,8 @@ class SelectTargetsDropdown extends Component {
           selectedTargets={selectedTargets}
           targets={targets}
           isPremiumTier={isPremiumTier}
+          arrowRenderer={ArrowRenderer}
+          clearRenderer={ClearRenderer}
         />
       </div>
     );

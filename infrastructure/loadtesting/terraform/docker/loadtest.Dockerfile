@@ -1,7 +1,10 @@
-FROM golang:1.25.5-alpine3.23@sha256:26111811bc967321e7b6f852e914d14bede324cd1accb7f81811929a6a57fea9
+FROM golang:1.27.4-alpine3.23@sha256:146e3b9c7c1e2ec3d3f5348c8a686151a75e1976e50efac9fc022ebe446a9a82
 ARG TAG
 RUN apk add git sqlite gcc musl-dev sqlite-dev
-RUN git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git && cd /go/fleet/cmd/osquery-perf/ && go build .
+RUN git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git
+# Build from the clone instead of `go install ...@${TAG}`: installing by module path fetches the module zip,
+# and the Fleet monorepo exceeds Go's hardcoded 500 MB module-zip limit.
+RUN cd /go/fleet && go build -o /go/bin/osquery-perf ./cmd/osquery-perf
 
 # Generate software database from SQL file
 RUN cd /go/fleet/cmd/osquery-perf/software-library && \
@@ -21,13 +24,13 @@ RUN cd /go/fleet/cmd/osquery-perf/software-library && \
     sqlite3 software.db "SELECT COUNT(*) FROM software;" && \
     echo "Successfully generated software.db ($(du -h software.db | cut -f1))"
 
-FROM alpine:3.23.0@sha256:51183f2cfa6320055da30872f211093f9ff1d3cf06f39a0bdb212314c5dc7375
+FROM alpine:3.23.8@sha256:5c216c9767869f6ec7c4718977601d52f087c5c7bf2fdfb198e403f6b48ec40d
 LABEL maintainer="Fleet Developers"
 
 # Create FleetDM group and user
 RUN addgroup -S osquery-perf && adduser -S osquery-perf -G osquery-perf
 
-COPY --from=0 /go/fleet/cmd/osquery-perf/osquery-perf /go/osquery-perf
+COPY --from=0 /go/bin/osquery-perf /go/osquery-perf
 COPY --from=0 /go/fleet/server/vulnerabilities/testdata/ /go/fleet/server/vulnerabilities/testdata/
 # Copy software database (generated in builder stage)
 COPY --from=0 /go/fleet/cmd/osquery-perf/software-library/ /go/software-library/

@@ -1,0 +1,483 @@
+import classnames from "classnames";
+import { format, parseISO } from "date-fns";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+
+import {
+  ChartTheme,
+  IFormattedDataPoint,
+  TooltipFormatter,
+} from "interfaces/charts";
+
+const baseClass = "checkerboard-viz";
+
+const formatHourLabel = (hourVal: number): string => {
+  if (hourVal === 0) return "12am";
+  if (hourVal < 12) return `${hourVal}am`;
+  if (hourVal === 12) return "12pm";
+  return `${hourVal - 12}pm`;
+};
+
+interface ICellData {
+  dayIndex: number;
+  hourRow: number;
+  value: number;
+  total?: number;
+  percentage: number;
+  dayLabel: string;
+  hourLabel: string;
+  // The timeframe that contains "now" — the next slot we're still collecting
+  // data for. Gets a highlighted border.
+  isCurrent: boolean;
+  // The current slot and anything after it have no collected data yet, so
+  // their tooltip reads "No data" rather than "0 hosts".
+  isFuture: boolean;
+}
+
+interface ICheckerboardVizProps {
+  data: IFormattedDataPoint[];
+  selectedDays: number;
+  theme?: ChartTheme;
+  tooltipFormatter?: TooltipFormatter;
+  relativeScale?: boolean;
+  // "gradient" (default) shows the full No data → More ramp. "binary" renders
+  // "Offline [offline swatch] [online swatch] Online" — for filters that
+  // render as on/off only, e.g. a single-host uptime view.
+  legendVariant?: "gradient" | "binary";
+  // Lowers the readability floor by COMPACT_MIN_SCALE so a 30-column grid
+  // still fits inside a medium modal's ~530px scroll-wrapper. Dashboard cards
+  // leave this off.
+  compact?: boolean;
+}
+
+// Baseline cell size, tuned around a 580px scroll-wrapper. Cells grow past
+// this to fill the wrapper (so the grid's right edge lines up with the card's
+// right padding on wide dashboards) but never exceed CELL_MAX_SCALE — with
+// few-column views (7 / 14 days) the alternative would be oversized cells on
+// wide layouts.
+const CELL_W = 16.75;
+const CELL_H = 19;
+const CELL_MAX_SCALE = 2;
+const COMPACT_MIN_SCALE = 0.93;
+const CELL_GAP = 2;
+const Y_AXIS_WIDTH = 40; // space for y-axis labels on the left
+
+const CheckerboardViz = ({
+  data,
+  selectedDays,
+  theme = "green",
+  tooltipFormatter,
+  relativeScale = false,
+  legendVariant = "gradient",
+  compact = false,
+}: ICheckerboardVizProps): JSX.Element => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const scrollWrapperRef = useRef<HTMLDivElement>(null);
+  const [wrapperWidth, setWrapperWidth] = useState(0);
+  const [hoveredCell, setHoveredCell] = useState<ICellData | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [tooltipAlign, setTooltipAlign] = useState<"left" | "center" | "right">(
+    "center"
+  );
+
+  let getColorLevel;
+  if (!relativeScale) {
+    getColorLevel = (cell: ICellData): number => {
+      if (cell.percentage === 0) return 0;
+      if (cell.percentage <= 20) return 1;
+      if (cell.percentage <= 40) return 2;
+      if (cell.percentage <= 60) return 3;
+      if (cell.percentage <= 80) return 4;
+      return 5;
+    };
+  } else {
+    // When relativeScale is true, the color ramp is based on the min/max in
+    // this dataset, not fixed percentage thresholds. This surfaces more
+    // variation when values are generally low or generally high.
+    // Exclude 0% points from the min/max calculation — they represent
+    // "no data" cells (level-0) and would otherwise compress the ramp
+    // toward zero whenever the grid contains empty slots.
+    const nonZeroValues = data.map((d) => d.value).filter((p) => p > 0);
+    const minVal = nonZeroValues.length ? Math.min(...nonZeroValues) : 0;
+    const maxVal = nonZeroValues.length ? Math.max(...nonZeroValues) : 0;
+    const range = maxVal - minVal;
+
+    getColorLevel = (cell: ICellData): number => {
+      if (cell.value === 0) return 0;
+      // When every non-zero cell shares the same value there's no range to
+      // grade against, so render them all at the brightest level rather than
+      // the dimmest.
+      if (range === 0) return 5;
+      const scaled = ((cell.value - minVal) / range) * 5;
+      // Level zero is reserved for real 0, so ensure we return
+      // something between 1 and 5.
+      return Math.min(5, Math.ceil(scaled)) || 1;
+    };
+  }
+
+  // Hours per slot: 3 for 30-day, 2 for 7/14-day, 1 for 24-hour
+  const is24h = selectedDays === 1;
+  let hoursPerSlot = 1;
+  if (selectedDays === 30) {
+    hoursPerSlot = 3;
+  } else if (selectedDays >= 7) {
+    hoursPerSlot = 2;
+  }
+  const hourRows = 24 / hoursPerSlot;
+
+  const { grid, dayLabels } = useMemo(() => {
+    // Anchor "now" once per build so every cell agrees on which slot is
+    // current. The current slot is the one we're still collecting data for;
+    // it and any later slot have no data yet.
+    const now = new Date();
+    const todayKey = format(now, "yyyy-MM-dd");
+    const currentSlot = Math.floor(now.getHours() / hoursPerSlot);
+
+    // 24h view: each incoming data point becomes a single column in a
+    // one-row strip. No day grouping, no slot aggregation — the backend has
+    // already produced one point per hour and we render them in order.
+    if (is24h) {
+      const cells: ICellData[] = data.map((point, i) => {
+        const date = parseISO(point.timestamp);
+        const dayKey = format(date, "yyyy-MM-dd");
+        const slot = Math.floor(date.getHours() / hoursPerSlot);
+        const isCurrent = dayKey === todayKey && slot === currentSlot;
+        return {
+          dayIndex: 0,
+          hourRow: i,
+          value: point.value,
+          total: point.total,
+          percentage: point.percentage,
+          dayLabel: format(date, "EEEE, MMM d"),
+          hourLabel: formatHourLabel(date.getHours()),
+          isCurrent,
+          isFuture:
+            dayKey > todayKey || (dayKey === todayKey && slot >= currentSlot),
+        };
+      });
+      return { grid: cells, dayLabels: ["today"] };
+    }
+
+    // Multi-day view: build a day × time-slot grid.
+    //
+    // `dayMap` is keyed by calendar day (yyyy-MM-dd) and each day holds a
+    // map of slot-index → data point. `dayOrder` preserves first-seen order
+    // so columns render chronologically regardless of Map iteration quirks.
+    const dayMap = new Map<string, Map<number, IFormattedDataPoint>>();
+    const dayOrder: string[] = [];
+
+    data.forEach((point) => {
+      const date = parseISO(point.timestamp);
+      const dayKey = format(date, "yyyy-MM-dd");
+      const hour = date.getHours();
+      // `hoursPerSlot` > 1 for wider windows (2 for 7/14-day, 3 for 30-day),
+      // so multiple hourly points collapse into the same slot row.
+      const slot = Math.floor(hour / hoursPerSlot);
+
+      if (!dayMap.has(dayKey)) {
+        dayMap.set(dayKey, new Map());
+        dayOrder.push(dayKey);
+      }
+      const hourMap = dayMap.get(dayKey);
+      if (hourMap) {
+        // When several hourly points land in the same slot, keep the max
+        // percentage. This biases visualizations toward "hosts had data
+        // at some point during this window".
+        const existing = hourMap.get(slot);
+        if (!existing || point.percentage > existing.percentage) {
+          hourMap.set(slot, point);
+        }
+      }
+    });
+
+    // The API window is anchored to "now" in UTC, so for users west of UTC
+    // the earliest local calendar day in the response is partially populated
+    // (the leading hours fall before the window starts). The caller works
+    // around this by requesting `selectedDays + 1` so the trailing
+    // `selectedDays` local days are always full. Trim the leading partial
+    // day(s) here so the grid only renders the requested window.
+    const visibleDays = dayOrder.slice(-selectedDays);
+
+    // Emit one cell per (day, slot) pair in a fixed grid. Days with no data
+    // for a given slot still get a cell with percentage 0 so the grid stays
+    // rectangular and the color ramp renders the "no data" swatch.
+    const labels: string[] = [];
+    const cells: ICellData[] = [];
+
+    visibleDays.forEach((dayKey, dayIndex) => {
+      const date = parseISO(dayKey);
+      labels.push(format(date, "MMM d"));
+      const hourMap = dayMap.get(dayKey);
+
+      for (let row = 0; row < hourRows; row += 1) {
+        const point = hourMap?.get(row);
+        const hourVal = row * hoursPerSlot;
+        const isCurrent = dayKey === todayKey && row === currentSlot;
+        cells.push({
+          dayIndex,
+          hourRow: row,
+          percentage: point?.percentage ?? 0,
+          value: point?.value ?? 0,
+          total: point?.total,
+          dayLabel: format(date, "EEEE, MMM d"),
+          hourLabel: formatHourLabel(hourVal),
+          isCurrent,
+          isFuture:
+            dayKey > todayKey || (dayKey === todayKey && row >= currentSlot),
+        });
+      }
+    });
+
+    return { grid: cells, dayLabels: labels };
+  }, [data, hoursPerSlot, hourRows, is24h, selectedDays]);
+
+  const numDays = dayLabels.length || 1;
+
+  // For 24h: hours are columns, single row. Otherwise: days are columns, hours are rows.
+  const numCols = is24h ? hourRows : numDays;
+  const numRows = is24h ? 1 : hourRows;
+
+  // Fill the scroll-wrapper, clamped at the readability floor (lower in
+  // compact mode) and CELL_MAX_SCALE × baseline ceiling. Fall back to the
+  // floor before ResizeObserver measures.
+  const minCellW = compact ? CELL_W * COMPACT_MIN_SCALE : CELL_W;
+  const idealCellW =
+    wrapperWidth > 0 && numCols > 0
+      ? (wrapperWidth - CELL_GAP * (numCols - 1)) / numCols
+      : minCellW;
+  const cellW = Math.max(
+    minCellW,
+    Math.min(idealCellW, CELL_W * CELL_MAX_SCALE)
+  );
+  const cellH = cellW * (CELL_H / CELL_W);
+  const gridWidth = cellW * numCols + CELL_GAP * (numCols - 1);
+  const gridHeight = cellH * numRows + CELL_GAP * (numRows - 1);
+
+  // Track the scroll-wrapper's width so cellW can size against it (above),
+  // and keep the most recent data pinned to the right whenever the wrapper
+  // resizes with the grid clipped — a window resize shouldn't leave the
+  // viewer looking at a stale historical slot.
+  useEffect(() => {
+    const el = scrollWrapperRef.current;
+    if (!el) return undefined;
+    setWrapperWidth(el.getBoundingClientRect().width);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      setWrapperWidth(entry.contentRect.width);
+      if (el.scrollWidth > el.clientWidth) {
+        el.scrollLeft = el.scrollWidth;
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Also snap to the right edge whenever the grid grows past the wrapper
+  // (e.g. dataset switch producing more columns).
+  useEffect(() => {
+    const el = scrollWrapperRef.current;
+    if (el && el.scrollWidth > el.clientWidth) {
+      el.scrollLeft = el.scrollWidth;
+    }
+  }, [gridWidth]);
+
+  // Compute x-axis date labels: start, middle, end
+  const xAxisDates = useMemo(() => {
+    if (dayLabels.length < 2) return { start: "", middle: "", end: "" };
+    const midIndex = Math.floor(dayLabels.length / 2);
+    return {
+      start: dayLabels[0],
+      middle: dayLabels[midIndex],
+      end: dayLabels[dayLabels.length - 1],
+    };
+  }, [dayLabels]);
+
+  const handleMouseEnter = (cell: ICellData, e: React.MouseEvent) => {
+    setHoveredCell(cell);
+    const rect = (e.target as SVGElement).getBoundingClientRect();
+    const containerRect = containerRef.current?.getBoundingClientRect();
+    if (containerRect) {
+      const cellCenterX = rect.left - containerRect.left + cellW / 2;
+      setTooltipPos({
+        x: cellCenterX,
+        y: rect.top - containerRect.top - 8,
+      });
+      // Near either edge, the default centered tooltip would overflow or
+      // word-wrap. Flip the anchor so the tooltip grows inward instead.
+      const EDGE_ZONE = 100;
+      if (cellCenterX > containerRect.width - EDGE_ZONE) {
+        setTooltipAlign("right");
+      } else if (cellCenterX < EDGE_ZONE) {
+        setTooltipAlign("left");
+      } else {
+        setTooltipAlign("center");
+      }
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredCell(null);
+  };
+
+  const showYAxis = !is24h;
+  const leftMargin = showYAxis ? Y_AXIS_WIDTH : 0;
+
+  return (
+    <div
+      className={classnames(baseClass, `${baseClass}--theme-${theme}`)}
+      ref={containerRef}
+    >
+      <div className={`${baseClass}__chart-row`}>
+        {/* Y-axis 6am/6pm labels. Kept outside the scroll-wrapper so they stay
+            pinned during horizontal scroll and label text can overflow
+            leftward without being clipped. */}
+        {showYAxis && (
+          <div
+            className={`${baseClass}__y-axis`}
+            style={{ width: leftMargin, height: gridHeight }}
+          >
+            {[
+              { hour: 6, label: "6am" },
+              { hour: 18, label: "6pm" },
+            ].map(({ hour, label }) => {
+              const row = hour / hoursPerSlot;
+              // Position label centered vertically on the row that represents
+              // this hour.
+              const topPx = row * (cellH + CELL_GAP) + cellH / 2;
+              return (
+                <div
+                  key={label}
+                  className={`${baseClass}__y-axis-label`}
+                  style={{ top: topPx }}
+                >
+                  {label}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div ref={scrollWrapperRef} className={`${baseClass}__scroll-wrapper`}>
+          {/* Grid cells */}
+          <svg width={gridWidth} height={gridHeight}>
+            {grid.map((cell) => {
+              const col = is24h ? cell.hourRow : cell.dayIndex;
+              const row = is24h ? 0 : cell.hourRow;
+              // The current slot and future slots have no collected data yet —
+              // their tooltip and aria-label read "No data" — so render them at
+              // the level-0 "no data" swatch even when the current slot carries
+              // a partial value. Without this the fill contradicts the tooltip.
+              const level = cell.isFuture ? 0 : getColorLevel(cell);
+              // Filled cells have a bg-colored 1px stroke that visually blends
+              // away. Level-0 cells (no data, which now includes the current
+              // and future slots) use a visible colored stroke instead, so
+              // without insetting they would look 1px larger than filled cells.
+              // Inset by half the stroke so the outline's outer edge sits where
+              // the filled cell's invisible stroke does.
+              const inset = level === 0 ? 0.5 : 0;
+              return (
+                <rect
+                  key={`${cell.dayIndex}-${cell.hourRow}`}
+                  x={col * (cellW + CELL_GAP) + inset}
+                  y={row * (cellH + CELL_GAP) + inset}
+                  width={cellW - inset * 2}
+                  height={cellH - inset * 2}
+                  rx={3}
+                  ry={3}
+                  className={classnames(
+                    `${baseClass}__cell`,
+                    `${baseClass}__cell--level-${level}`,
+                    { [`${baseClass}__cell--current`]: cell.isCurrent }
+                  )}
+                  role="img"
+                  aria-label={`${cell.dayLabel}, ${cell.hourLabel}: ${
+                    cell.isFuture
+                      ? "No data"
+                      : `${cell.value} host${cell.value === 1 ? "" : "s"}`
+                  }`}
+                  onMouseEnter={(e) => handleMouseEnter(cell, e)}
+                  onMouseLeave={handleMouseLeave}
+                />
+              );
+            })}
+          </svg>
+
+          {/* X-axis date labels */}
+          {!is24h && dayLabels.length >= 2 && (
+            <div
+              className={`${baseClass}__x-axis`}
+              style={{ width: gridWidth }}
+            >
+              <span className={`${baseClass}__x-axis-label`}>
+                {xAxisDates.start}
+              </span>
+              <span className={`${baseClass}__x-axis-label`}>
+                {xAxisDates.middle}
+              </span>
+              <span
+                className={`${baseClass}__x-axis-label ${baseClass}__x-axis-label--end`}
+              >
+                {xAxisDates.end}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {hoveredCell && (
+        <div
+          className={`chart-card__tooltip ${baseClass}__floating-tooltip ${baseClass}__floating-tooltip--align-${tooltipAlign}`}
+          style={{ left: tooltipPos.x, top: tooltipPos.y }}
+        >
+          <div className="chart-card__tooltip-label">
+            {hoveredCell.dayLabel}, {hoveredCell.hourLabel}
+          </div>
+          <div className="chart-card__tooltip-value">
+            {/* The current slot and anything after it haven't been collected
+                yet, so there's no value to report — show "No data". */}
+            {hoveredCell.isFuture && "No data"}
+            {!hoveredCell.isFuture &&
+              (tooltipFormatter
+                ? tooltipFormatter({
+                    value: hoveredCell.value,
+                    percentage: hoveredCell.percentage,
+                    total: hoveredCell.total,
+                  })
+                : `${hoveredCell.percentage}% of hosts`)}
+          </div>
+        </div>
+      )}
+      <div className={`${baseClass}__legend`}>
+        {legendVariant === "gradient" ? (
+          <>
+            <span className={`${baseClass}__legend-label`}>No data</span>
+            <span
+              className={`${baseClass}__legend-swatch ${baseClass}__cell--level-0`}
+            />
+            <span className={`${baseClass}__legend-label`}>Less</span>
+            {[1, 2, 3, 4, 5].map((level) => (
+              <span
+                key={level}
+                className={`${baseClass}__legend-swatch ${baseClass}__cell--level-${level}`}
+              />
+            ))}
+            <span className={`${baseClass}__legend-label`}>More</span>
+          </>
+        ) : (
+          <>
+            <span className={`${baseClass}__legend-label`}>Offline</span>
+            <span
+              className={`${baseClass}__legend-swatch ${baseClass}__cell--level-0`}
+            />
+            <span
+              className={`${baseClass}__legend-swatch ${baseClass}__cell--level-5`}
+            />
+            <span className={`${baseClass}__legend-label`}>Online</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default CheckerboardViz;

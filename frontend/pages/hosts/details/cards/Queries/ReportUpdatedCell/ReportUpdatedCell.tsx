@@ -1,15 +1,13 @@
 import React from "react";
 import { browserHistory } from "react-router";
 
+import Button from "components/buttons/Button";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import { uniqueId } from "lodash";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import Button from "components/buttons/Button";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import TooltipWrapper from "components/TooltipWrapper";
 import PATHS from "router/paths";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 const baseClass = "report-updated-cell";
 
@@ -42,30 +40,21 @@ const ReportUpdatedCell = ({
         return (
           <TextCell
             className={`${baseClass}__value no-report`}
-            formatter={(val) => {
-              const tooltipId = uniqueId();
-              return (
-                <>
-                  <span data-tip data-for={tooltipId}>
-                    {val}
-                  </span>
-                  <ReactTooltip
-                    place="top"
-                    effect="solid"
-                    backgroundColor={COLORS["tooltip-bg"]}
-                    id={tooltipId}
-                  >
-                    {
-                      <>
-                        Results from this query are not reported in Fleet.
-                        <br />
-                        Data is being sent to your log destination.
-                      </>
-                    }
-                  </ReactTooltip>
-                </>
-              );
-            }}
+            formatter={(val) => (
+              <TooltipWrapper
+                tipContent={
+                  <>
+                    Results from this report are not reported in Fleet. Data is
+                    being sent to your log destination.
+                  </>
+                }
+                position="top"
+                underline={false}
+                showArrow
+              >
+                <span>{val}</span>
+              </TooltipWrapper>
+            )}
             value="No report"
           />
         );
@@ -73,26 +62,24 @@ const ReportUpdatedCell = ({
 
       // Query is scheduled to run on host, but hasn't yet
       if (!last_fetched) {
-        const tipId = uniqueId();
         return (
           <TextCell
             value={DEFAULT_EMPTY_CELL_VALUE}
             formatter={(val) => (
-              <>
-                <span data-tip data-for={tipId}>
-                  {val}
-                </span>
-                <ReactTooltip
-                  id={tipId}
-                  effect="solid"
-                  backgroundColor={COLORS["tooltip-bg"]}
-                  place="top"
-                >
-                  Fleet is collecting query results.
-                  <br />
-                  Check back later.
-                </ReactTooltip>
-              </>
+              <TooltipWrapper
+                tipContent={
+                  <>
+                    Fleet is collecting report results.
+                    <br />
+                    Check back later.
+                  </>
+                }
+                position="top"
+                underline={false}
+                showArrow
+              >
+                <span>{val}</span>
+              </TooltipWrapper>
             )}
             grey
             italic
@@ -115,10 +102,10 @@ const ReportUpdatedCell = ({
     );
   };
 
-  const onClick = (): void => {
+  const onClick = () => {
     hostId &&
       queryId &&
-      browserHistory.push(PATHS.HOST_QUERY_REPORT(hostId, queryId));
+      browserHistory.push(PATHS.HOST_REPORT_RESULTS(hostId, queryId));
   };
 
   return (
@@ -127,12 +114,12 @@ const ReportUpdatedCell = ({
       {should_link_to_hqr && hostId && queryId && (
         // parent row has same onClick functionality but link here is required for keyboard accessibility
         <Button
-          variant="inverse"
+          variant="subdued"
           className={`${baseClass}__view-report`}
           onClick={onClick}
           size="small"
         >
-          <span>View report</span>
+          <span className={`${baseClass}__view-report--text`}>View data</span>
           <Icon name="chevron-right" color="ui-fleet-black-75" />
         </Button>
       )}

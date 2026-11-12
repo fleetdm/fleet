@@ -3,20 +3,36 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/psso/regtoken"
+	"github.com/fleetdm/fleet/v4/server/mdm/assets"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/text/unicode/norm"
 )
 
-func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) error {
+// secretVariableAllowedOrderKeys defines the allowed order keys for ListSecretVariables.
+// SECURITY: This prevents information disclosure via arbitrary column sorting.
+// Sensitive columns like 'value' are intentionally excluded.
+var secretVariableAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":       "name",
+	"id":         "id",
+	"updated_at": "updated_at",
+}
+
+func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables []fleet.SecretVariable) (created []string, updated []string, err error) {
 	if len(secretVariables) == 0 {
-		return nil
+		return nil, nil, nil
 	}
 
 	// The secret variables should rarely change, so we do not use a transaction here.
@@ -30,7 +46,7 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 	}
 	existingVariables, err := ds.GetSecretVariables(ctx, names)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get existing secret variables")
+		return nil, nil, ctxerr.Wrap(ctx, err, "get existing secret variables")
 	}
 	existingVariableMap := make(map[string]string, len(existingVariables))
 	for _, existingVariable := range existingVariables {
@@ -59,12 +75,15 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 		for _, secretVariable := range variablesToInsert {
 			valueEncrypted, err := encrypt([]byte(secretVariable.Value), ds.serverPrivateKey)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "encrypt secret value for insert with server private key")
+				return nil, nil, ctxerr.Wrap(ctx, err, "encrypt secret value for insert with server private key")
 			}
 			args = append(args, secretVariable.Name, valueEncrypted)
 		}
 		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert secret variables")
+			return nil, nil, ctxerr.Wrap(ctx, err, "insert secret variables")
+		}
+		for _, secretVariable := range variablesToInsert {
+			created = append(created, secretVariable.Name)
 		}
 	}
 
@@ -76,15 +95,26 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 		for _, secretVariable := range variablesToUpdate {
 			valueEncrypted, err := encrypt([]byte(secretVariable.Value), ds.serverPrivateKey)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "encrypt secret value for update with server private key")
+				return nil, nil, ctxerr.Wrap(ctx, err, "encrypt secret value for update with server private key")
 			}
 			if _, err := ds.writer(ctx).ExecContext(ctx, stmt, valueEncrypted, secretVariable.Name); err != nil {
-				return ctxerr.Wrap(ctx, err, "update secret variables")
+				return nil, nil, ctxerr.Wrap(ctx, err, "update secret variables")
 			}
+			updated = append(updated, secretVariable.Name)
+		}
+
+		// A changed secret value changes the resolved name of any host whose host
+		// name template references it, so re-queue those hosts' enforcement rows.
+		changedNames := make([]string, 0, len(variablesToUpdate))
+		for _, secretVariable := range variablesToUpdate {
+			changedNames = append(changedNames, secretVariable.Name)
+		}
+		if err := ds.resendDeviceNamesForSecretChange(ctx, changedNames); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "resend device names for secret change")
 		}
 	}
 
-	return nil
+	return created, updated, nil
 }
 
 func (ds *Datastore) CreateSecretVariable(ctx context.Context, name string, value string) (id uint, err error) {
@@ -140,7 +170,7 @@ func (ds *Datastore) GetSecretVariables(ctx context.Context, names []string) ([]
 func (ds *Datastore) ListSecretVariables(ctx context.Context, opt fleet.ListOptions) (
 	secretVariables []fleet.SecretVariableIdentifier, meta *fleet.PaginationMetadata, count int, err error,
 ) {
-	stmt := `SELECT id, name, updated_at FROM secret_variables WHERE true`
+	stmt := `SELECT id, name, created_at, updated_at FROM secret_variables WHERE true`
 
 	// normalize the name for full Unicode support (Unicode equivalence).
 	normMatch := norm.NFC.String(opt.MatchQuery)
@@ -151,7 +181,10 @@ func (ds *Datastore) ListSecretVariables(ctx context.Context, opt fleet.ListOpti
 	// build the count statement before adding pagination constraints
 	countStmt := fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS s", stmt)
 
-	stmt, args = appendListOptionsWithCursorToSQL(stmt, args, &opt)
+	stmt, args, err = appendListOptionsWithCursorToSQLSecure(stmt, args, &opt, secretVariableAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "apply list options")
+	}
 
 	dbReader := ds.reader(ctx)
 	if err := sqlx.SelectContext(ctx, dbReader, &secretVariables, stmt, args...); err != nil {
@@ -202,7 +235,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&scriptContents,
 			`SELECT 'script' AS entity, s.name,
-			COALESCE(t.name, 'No team') AS team_name, sc.contents
+			COALESCE(t.name, 'Unassigned') AS team_name, sc.contents
 			FROM script_contents sc
 			JOIN scripts s ON s.script_content_id = sc.id
 			LEFT JOIN teams t ON t.id = s.team_id;`,
@@ -227,7 +260,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&appleConfigurationProfileContents,
 			`SELECT 'apple_profile' AS entity, p.name,
-			COALESCE(t.name, 'No team') AS team_name, p.mobileconfig AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, p.mobileconfig AS contents
 			FROM mdm_apple_configuration_profiles p
 			LEFT JOIN teams t ON t.id = p.team_id;`,
 		); err != nil {
@@ -251,7 +284,7 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&appleDeclarationContents,
 			`SELECT 'apple_declaration' AS entity, d.name,
-			COALESCE(t.name, 'No team') AS team_name, d.raw_json AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, d.raw_json AS contents
 			FROM mdm_apple_declarations d
 			LEFT JOIN teams t ON t.id = d.team_id;`,
 		); err != nil {
@@ -275,13 +308,48 @@ func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretN
 		if err := sqlx.SelectContext(ctx, tx,
 			&windowsProfileContents,
 			`SELECT 'windows_profile' AS entity, p.name,
-			COALESCE(t.name, 'No team') AS team_name, p.syncml AS contents
+			COALESCE(t.name, 'Unassigned') AS team_name, p.syncml AS contents
 			FROM mdm_windows_configuration_profiles p
 			LEFT JOIN teams t ON t.id = p.team_id;`,
 		); err != nil {
 			return ctxerr.Wrap(ctx, err, "get windows profile contents")
 		}
 		for _, c := range windowsProfileContents {
+			if fleet.ContainsVar(c.Contents, fleet.ServerSecretPrefix+secretName) {
+				return ctxerr.Wrap(ctx, &fleet.SecretUsedError{
+					SecretName: secretName,
+					Entity: fleet.EntityUsingSecret{
+						Type:     c.Type,
+						Name:     c.Name,
+						TeamName: c.TeamName,
+					},
+				}, "found secret in use")
+			}
+		}
+
+		// 5. Check if the secret variable is used in a host name template, on a
+		// team or on "No team" (the global app config). The template is stored as
+		// the unexpanded $FLEET_SECRET_* placeholder in the config JSON.
+		var nameTemplateContents []entity
+		if err := sqlx.SelectContext(ctx, tx,
+			&nameTemplateContents,
+			// A team's name_template is a plain string that always serializes into
+			// the config JSON (as "" when unset), and the No-team template is an
+			// optjson that serializes to null when unset, so filter both on a
+			// non-empty resolved value rather than IS NOT NULL.
+			`SELECT 'host_name_template' AS entity, 'Host name' AS name,
+			t.name AS team_name, t.config->>'$.mdm.name_template' AS contents
+			FROM teams t
+			WHERE COALESCE(t.config->>'$.mdm.name_template', '') != ''
+			UNION ALL
+			SELECT 'host_name_template' AS entity, 'Host name' AS name,
+			'Unassigned' AS team_name, json_value->>'$.mdm.name_template' AS contents
+			FROM app_config_json
+			WHERE COALESCE(json_value->>'$.mdm.name_template', '') != '';`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "get host name template contents")
+		}
+		for _, c := range nameTemplateContents {
 			if fleet.ContainsVar(c.Contents, fleet.ServerSecretPrefix+secretName) {
 				return ctxerr.Wrap(ctx, &fleet.SecretUsedError{
 					SecretName: secretName,
@@ -340,30 +408,59 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		return "", nil, fleet.MissingSecretsError{MissingSecrets: missingSecrets}
 	}
 
-	// Check if document is XML
-	// We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
-	documentIsXML := strings.HasPrefix(strings.TrimSpace(document), "<")
-
-	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
+	expanded := expandDocumentVars(document, func(s string) (string, bool) {
 		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
 			return "", false
 		}
 		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
-
-		if documentIsXML {
-			// Escape XML special characters
-			var b strings.Builder
-			err = xml.EscapeText(&b, []byte(val))
-			if err != nil {
-				return "", false
-			}
-			val = b.String()
-		}
-
 		return val, ok
 	})
 
 	return expanded, secrets, nil
+}
+
+// expandDocumentVars runs fleet.MaybeExpand over document, resolving each
+// variable name via resolve and escaping the substituted value for the
+// document's format (JSON or XML) so an injected value can't break the
+// surrounding profile. resolve returns the raw (unescaped) value and whether the
+// variable was handled; unhandled variables are left in place. Shared by
+// ExpandEmbeddedSecrets ($FLEET_SECRET_) and ExpandCustomHostVitals
+// ($FLEET_HOST_VITAL_) so the format escaping has a single implementation.
+func expandDocumentVars(document string, resolve func(name string) (string, bool)) string {
+	// XML detection is aggressive because Windows profiles do not begin with <?xml.
+	trimmed := strings.TrimSpace(document)
+	documentIsXML := strings.HasPrefix(trimmed, "<")
+	documentIsJSON := strings.HasPrefix(trimmed, "{")
+
+	return fleet.MaybeExpand(document, func(s string, _, _ int) (string, bool) {
+		val, ok := resolve(s)
+		if !ok {
+			return "", false
+		}
+		switch {
+		case documentIsJSON:
+			val = jsonEscapeString(val)
+		case documentIsXML:
+			var b strings.Builder
+			if err := xml.EscapeText(&b, []byte(val)); err != nil {
+				return "", false
+			}
+			val = b.String()
+		}
+		return val, true
+	})
+}
+
+// jsonEscapeString returns the JSON-escaped interior of a string value
+// (without surrounding quotes), suitable for embedding inside a JSON string.
+func jsonEscapeString(s string) string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		// json.Marshal on a string should never fail, but return the
+		// original string as a fallback.
+		return s
+	}
+	return string(b[1 : len(b)-1])
 }
 
 func (ds *Datastore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error) {
@@ -422,4 +519,209 @@ func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []st
 	}
 
 	return nil
+}
+
+// ExpandHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in the document.
+// The enrollmentID is the enrollment's device channel ID (the UDID, or the EnrollmentID for ADUE).
+func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	// Check for host secret placeholders
+	hostSecrets := fleet.ContainsPrefixVars(document, fleet.HostSecretPrefix)
+	if len(hostSecrets) == 0 {
+		return document, nil
+	}
+
+	// Build a map of secret type -> value
+	// enrollmentID is the host UUID, which is the primary key in host_recovery_key_passwords
+	secretValues := make(map[string]string)
+	for _, secretType := range hostSecrets {
+		switch secretType {
+		case fleet.HostSecretRecoveryLockPassword:
+			password, err := ds.getHostRecoveryLockPasswordDecrypted(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting recovery lock password for host %s", enrollmentID)
+			}
+			secretValues[secretType] = password
+		case fleet.HostSecretRecoveryLockPendingPassword:
+			password, err := ds.getHostRecoveryLockPendingPasswordDecrypted(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting pending recovery lock password for host %s", enrollmentID)
+			}
+			secretValues[secretType] = password
+		case fleet.HostSecretMDMUnlockToken:
+			details, err := ds.GetNanoMDMEnrollmentDetails(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting MDM enrollment details for host %s", enrollmentID)
+			}
+			if details == nil {
+				return "", ctxerr.Errorf(ctx, "no MDM enrollment details found for host %s", enrollmentID)
+			}
+			if details.UnlockToken == nil {
+				return "", ctxerr.Errorf(ctx, "%s", fleet.CantClearPasscodePersonalHostsMessage)
+			}
+
+			// We need to send base64 encoded data in the <data> field.
+			encoded := base64.StdEncoding.EncodeToString([]byte(*details.UnlockToken))
+			secretValues[secretType] = encoded
+		case fleet.HostSecretPSSODeviceRegistrationToken:
+			token, err := ds.mintPSSODeviceRegistrationToken(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "minting psso device registration token for host %s", enrollmentID)
+			}
+			secretValues[secretType] = token
+		case fleet.HostSecretSCEPChallenge:
+			challenge, err := ds.findOrCreateAppleSCEPRenewalChallenge(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting scep renewal challenge for enrollment %s", enrollmentID)
+			}
+			secretValues[secretType] = challenge
+		case fleet.HostSecretFileVaultKey:
+			key, err := ds.getHostDiskEncryptionKeyDecrypted(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting disk encryption key for host %s", enrollmentID)
+			}
+			secretValues[secretType] = key
+		case fleet.HostSecretEnrollSecret:
+			secret, err := ds.mintHostOneTimeEnrollSecret(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "minting one-time enroll secret for host %s", enrollmentID)
+			}
+			secretValues[secretType] = secret
+		default:
+			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
+		}
+	}
+
+	// Detect document format (same logic as expandEmbeddedSecrets)
+	trimmed := strings.TrimSpace(document)
+	documentIsXML := strings.HasPrefix(trimmed, "<")
+	documentIsJSON := strings.HasPrefix(trimmed, "{")
+
+	// Expand the placeholders
+	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
+		if !strings.HasPrefix(s, fleet.HostSecretPrefix) {
+			return "", false
+		}
+		secretType := strings.TrimPrefix(s, fleet.HostSecretPrefix)
+		val, ok := secretValues[secretType]
+		if !ok {
+			return "", false
+		}
+
+		switch {
+		case documentIsJSON:
+			val = jsonEscapeString(val)
+		case documentIsXML:
+			var b strings.Builder
+			if err := xml.EscapeText(&b, []byte(val)); err != nil {
+				return "", false
+			}
+			val = b.String()
+		}
+
+		return val, ok
+	})
+
+	return expanded, nil
+}
+
+// mintPSSODeviceRegistrationToken mints a Fleet-signed Platform SSO device
+// registration token bound to hostUUID, using the PSSO signing key asset. The
+// token is not stored: it is minted fresh for the requesting host each time the
+// profile is delivered, so it never lands in the database or on /commands.
+func (ds *Datastore) mintPSSODeviceRegistrationToken(ctx context.Context, hostUUID string) (string, error) {
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetPSSOSigningKey}, nil)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "loading psso signing key")
+	}
+	asset, ok := assets[fleet.MDMAssetPSSOSigningKey]
+	if !ok || len(asset.Value) == 0 {
+		return "", ctxerr.New(ctx, "psso signing key asset is missing; configure Platform SSO first")
+	}
+	token, err := regtoken.MintFromPEM(asset.Value, hostUUID, time.Now())
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "minting psso device registration token")
+	}
+	return token, nil
+}
+
+func (ds *Datastore) getHostDiskEncryptionKeyDecrypted(ctx context.Context, hostUUID string) (string, error) {
+	var encrypted string
+	// Primary, so the device is sent the key as it is now rather than as a lagging replica has it.
+	// Only the host with a pending rotation qualifies: hosts.uuid isn't unique, and the key is
+	// only ever sent to authorize a rotation Fleet requested.
+	err := sqlx.GetContext(ctx, ds.writer(ctx), &encrypted, `
+SELECT hdek.base64_encrypted
+FROM host_disk_encryption_keys hdek
+JOIN hosts h ON h.id = hdek.host_id
+WHERE h.uuid = ? AND hdek.base64_encrypted != '' AND hdek.rotation_command_uuid IS NOT NULL`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, notFound("HostDiskEncryptionKey").WithMessage("for host "+hostUUID))
+		}
+		return "", ctxerr.Wrap(ctx, err, "getting encrypted disk encryption key")
+	}
+
+	certs, key, err := assets.CACertsAndKeyForDecryption(ctx, ds)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "loading CA assets to decrypt disk encryption key")
+	}
+	plain, err := mdm.DecryptBase64CMSWithCerts(encrypted, key, certs)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decrypting disk encryption key")
+	}
+	if len(plain) == 0 {
+		return "", ctxerr.New(ctx, "decrypted disk encryption key is empty")
+	}
+	return string(plain), nil
+}
+
+// getHostRecoveryLockPasswordDecrypted retrieves and decrypts the recovery lock password for a host.
+func (ds *Datastore) getHostRecoveryLockPasswordDecrypted(ctx context.Context, hostUUID string) (string, error) {
+	var encryptedPassword []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &encryptedPassword,
+		`SELECT encrypted_password FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return "", ctxerr.Wrap(ctx, err, "getting encrypted recovery lock password")
+	}
+
+	if len(encryptedPassword) == 0 {
+		return "", ctxerr.New(ctx, "encrypted recovery lock password is missing")
+	}
+
+	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decrypting recovery lock password")
+	}
+
+	return string(password), nil
+}
+
+// getHostRecoveryLockPendingPasswordDecrypted retrieves and decrypts the pending recovery lock
+// password for a host during password rotation.
+func (ds *Datastore) getHostRecoveryLockPendingPasswordDecrypted(ctx context.Context, hostUUID string) (string, error) {
+	var encryptedPassword []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &encryptedPassword,
+		`SELECT pending_encrypted_password FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0 AND pending_encrypted_password IS NOT NULL`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, notFound("HostRecoveryLockPendingPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return "", ctxerr.Wrap(ctx, err, "getting encrypted pending recovery lock password")
+	}
+
+	if len(encryptedPassword) == 0 {
+		return "", ctxerr.New(ctx, "encrypted pending recovery lock password is missing")
+	}
+
+	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decrypting pending recovery lock password")
+	}
+
+	return string(password), nil
 }

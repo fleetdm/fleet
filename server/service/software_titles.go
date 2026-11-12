@@ -2,6 +2,9 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -9,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -84,8 +86,13 @@ func (svc *Service) ListSoftwareTitles(
 		return nil, 0, nil, fleet.ErrMissingLicense
 	}
 
-	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit) {
+	if !lic.IsPremium() && (opt.MaximumCVSS > 0 || opt.MinimumCVSS > 0 || opt.KnownExploit || opt.AITool) {
 		return nil, 0, nil, fleet.ErrMissingLicense
+	}
+
+	opt.TypeFilter, err = fleet.ParseSoftwareTypeFilter(opt.Source, opt.ExtensionFor)
+	if err != nil {
+		return nil, 0, nil, err
 	}
 
 	// always include metadata for software titles
@@ -106,6 +113,11 @@ func (svc *Service) ListSoftwareTitles(
 	if err != nil {
 		return nil, 0, nil, err
 	}
+	if !lic.IsPremium() {
+		for i := range titles {
+			titles[i].AITool = nil
+		}
+	}
 
 	return titles, count, meta, nil
 }
@@ -116,7 +128,7 @@ func (svc *Service) ListSoftwareTitles(
 
 type getSoftwareTitleRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getSoftwareTitleResponse struct {
@@ -142,17 +154,19 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		return nil, err
 	}
 
-	if teamID != nil && *teamID != 0 {
-		// This auth check ensures we return 403 if the user doesn't have access to the team
+	if teamID != nil {
+		// Verify the caller has permission for the requested scope (team or global).
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
-		exists, err := svc.ds.TeamExists(ctx, *teamID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
-		} else if !exists {
-			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
-				WithStatus(http.StatusNotFound)
+		if *teamID != 0 {
+			exists, err := svc.ds.TeamExists(ctx, *teamID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+			} else if !exists {
+				return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+					WithStatus(http.StatusNotFound)
+			}
 		}
 	}
 
@@ -167,16 +181,9 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		IncludeObserver: true,
 	})
 	if err != nil {
-		if fleet.IsNotFound(err) && teamID == nil {
-			// here we use a global admin as filter because we want to check if the software exists
-			filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-			_, err = svc.ds.SoftwareTitleByID(ctx, id, nil, filter)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
-			}
-
-			return nil, fleet.NewPermissionError("Error: You don't have permission to view specified software. It is installed on hosts that belong to team you don't have permissions to view.")
-		}
+		// A title that exists only on a team outside the caller's visibility
+		// must return the same NotFound as a title that doesn't exist at
+		// all, so existence elsewhere can't be inferred from the response.
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
 
@@ -184,37 +191,143 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get license")
 	}
-	if license.IsPremium() {
+	// Skip installer data when no fleet is given, packages, App Store apps and in-house apps are set per fleet
+	if license.IsPremium() && teamID != nil {
 		// add software installer data if needed
 		if software.SoftwareInstallersCount > 0 {
-			meta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
+			pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, id)
 			if err != nil && !fleet.IsNotFound(err) {
-				return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
+				return nil, ctxerr.Wrap(ctx, err, "get software packages")
 			}
-			if meta != nil {
-				summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, meta.InstallerID)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
+			if len(pkgs) > 0 {
+				// Display name and icon are title-level; fetch once from the first-added package.
+				titleMeta, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, id, true)
+				if err != nil && !fleet.IsNotFound(err) {
+					return nil, ctxerr.Wrap(ctx, err, "get software installer metadata")
 				}
-				meta.Status = summary
+
+				// Categories are per-package.
+				installerIDs := make([]uint, len(pkgs))
+				for i, pkg := range pkgs {
+					installerIDs[i] = pkg.InstallerID
+				}
+				categoriesByInstaller, err := svc.ds.GetCategoriesForSoftwareInstallers(ctx, installerIDs)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get categories for software packages")
+				}
+
+				// Key policies by installer_id so each package on a multi-package
+				// title only surfaces the ones actually bound to it. VPP-backed
+				// policies have nil InstallerID and dispatch via AppStoreApp.
+				policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
+				if titleMeta != nil {
+					for _, p := range titleMeta.AutomaticInstallPolicies {
+						if p.InstallerID == nil {
+							continue
+						}
+						policiesByInstaller[*p.InstallerID] = append(policiesByInstaller[*p.InstallerID], p)
+					}
+				}
+
+				for _, pkg := range pkgs {
+					summary, err := svc.ds.GetSummaryHostSoftwareInstalls(ctx, pkg.InstallerID)
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "get software installer status summary")
+					}
+					pkg.Status = summary
+					pkg.Categories = categoriesByInstaller[pkg.InstallerID]
+
+					if titleMeta != nil {
+						pkg.DisplayName = titleMeta.DisplayName
+						pkg.IconUrl = titleMeta.IconUrl
+					}
+					pkg.AutomaticInstallPolicies = policiesByInstaller[pkg.InstallerID]
+
+					// Populate FleetMaintainedVersions/pin/patch policy for FMA titles.
+					// An FMA title has a single active package, so this runs on it.
+					if pkg.FleetMaintainedAppID != nil {
+						fmaVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, id)
+						if err != nil {
+							return nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
+						}
+						pkg.FleetMaintainedVersions = fmaVersions
+
+						// No pin row means the title tracks "Latest" (nil pinned_version); any other error is real.
+						pinnedVersion, err := svc.ds.GetPinnedVersion(ctx, teamID, id)
+						if err != nil && !errors.Is(err, sql.ErrNoRows) {
+							return nil, ctxerr.Wrap(ctx, err, "get pinned version")
+						}
+						pkg.PinnedVersion = pinnedVersion
+
+						patchPolicy, err := svc.ds.GetPatchPolicy(ctx, teamID, id)
+						if err != nil && !fleet.IsNotFound(err) {
+							return nil, ctxerr.Wrap(ctx, err, "get patch policy")
+						}
+						pkg.PatchPolicy = patchPolicy
+
+						// While patch_when_closed, notify_before_patching, or patch_deadline is on, the
+						// pre-install query is Fleet's managed app open query, shown read-only.
+						if patchPolicy != nil && (patchPolicy.PatchWhenClosed || patchPolicy.NotifyBeforePatching || patchPolicy.PatchDeadline) {
+							pkg.PreInstallQuery = pkg.AppOpenQuery
+						}
+					}
+				}
+
+				// software_package is kept for backwards compatibility and equals the first-added package.
+				software.Packages = make([]fleet.SoftwareInstaller, len(pkgs))
+				for i, pkg := range pkgs {
+					software.Packages[i] = *pkg
+				}
+				software.SoftwarePackage = pkgs[0]
 			}
-			software.SoftwarePackage = meta
 		}
 
 		// add VPP app data if needed
 		if software.VPPAppsCount > 0 {
-			meta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, id)
+			versions, err := svc.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, *teamID, id)
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, ctxerr.Wrap(ctx, err, "get VPP app metadata")
 			}
-			if meta != nil {
-				summary, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, teamID, meta.VPPAppID)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
-				}
-				meta.Status = summary
+			summaries, err := svc.ds.GetSummaryHostVPPAppInstalls(ctx, versions)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get VPP app status summary")
 			}
-			software.AppStoreApp = meta
+			vppTokensByID := make(map[uint]*fleet.VPPTokenSummary)
+			for _, meta := range versions {
+				meta.Status = summaries[meta.VPPAppsTeamsID]
+
+				if meta.VPPTokenID != nil {
+					if _, ok := vppTokensByID[*meta.VPPTokenID]; !ok {
+						var tok *fleet.VPPTokenDB
+						tok, err = svc.ds.GetVPPToken(ctx, *meta.VPPTokenID)
+						if err != nil && !fleet.IsNotFound(err) {
+							return nil, ctxerr.Wrap(ctx, err, "get vpp token for app store app")
+						}
+						if tok != nil {
+							vppTokensByID[*meta.VPPTokenID] = &fleet.VPPTokenSummary{ID: tok.ID, OrgName: tok.OrgName, Location: tok.Location, CountryCode: tok.CountryCode}
+						}
+					}
+					meta.VPPToken = vppTokensByID[*meta.VPPTokenID]
+				}
+
+				// Wrap iOS / iPadOS plist as a JSON string for the response.
+				if len(meta.Configuration) > 0 {
+					switch meta.Platform {
+					case fleet.IOSPlatform, fleet.IPadOSPlatform:
+						wrapped, err := json.Marshal(string(meta.Configuration))
+						if err != nil {
+							return nil, ctxerr.Wrap(ctx, err, "wrapping VPP configuration for response")
+						}
+						meta.Configuration = wrapped
+					}
+				}
+
+				software.AppStoreApps = append(software.AppStoreApps, meta.AppStoreAppVersion())
+			}
+			// Set app_store_app to the first-added version for backwards compatibility.
+			if len(versions) > 0 {
+				software.AppStoreApp = versions[0]
+			}
 		}
 
 		// add in house app data if needed
@@ -233,12 +346,78 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					PendingInstall: summary.Pending,
 					FailedInstall:  summary.Failed,
 				}
+
+				// Wrap iOS / iPadOS plist as a JSON string for the response.
+				if len(meta.Configuration) > 0 {
+					wrapped, err := json.Marshal(string(meta.Configuration))
+					if err != nil {
+						return nil, ctxerr.Wrap(ctx, err, "wrapping in-house app configuration for response")
+					}
+					meta.Configuration = wrapped
+				}
 			}
 			software.SoftwarePackage = meta
 		}
 	}
 
+	svc.filterInstallerDetailsForUser(ctx, teamID, software)
+	if !license.IsPremium() {
+		software.AITool = nil
+	}
+
 	return software, nil
+}
+
+// filterInstallerDetailsForUser clears the installer fields governed by
+// installable_entity read. This response embeds the full installer, so without
+// it a caller holding only software_inventory read would see script bodies and
+// managed app configuration that every other installer route withholds.
+func (svc *Service) filterInstallerDetailsForUser(ctx context.Context, teamID *uint, title *fleet.SoftwareTitle) {
+	if title == nil {
+		return
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err == nil {
+		return
+	}
+
+	filterInstaller := func(installer *fleet.SoftwareInstaller) {
+		installer.InstallScript = ""
+		installer.UninstallScript = ""
+		installer.PostInstallScript = ""
+		installer.PreInstallQuery = ""
+		installer.Configuration = nil
+	}
+
+	// Packages holds copies while SoftwarePackage is a pointer, so filter both.
+	for i := range title.Packages {
+		filterInstaller(&title.Packages[i])
+	}
+	if title.SoftwarePackage != nil {
+		filterInstaller(title.SoftwarePackage)
+	}
+	if title.AppStoreApp != nil {
+		title.AppStoreApp.Configuration = nil
+	}
+	for i := range title.AppStoreApps {
+		title.AppStoreApps[i].Configuration = nil
+	}
+}
+
+func (svc *Service) SoftwareTitleNameForHostFilter(ctx context.Context, id uint, teamID *uint) (name, displayName string, err error) {
+	// Intentionally skip team-scoped inventory auth: only minimal title name.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
+		return "", "", err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return "", "", fleet.ErrNoContext
+	}
+
+	return svc.ds.SoftwareTitleNameForHostFilter(ctx, id, teamID, fleet.TeamFilter{
+		User:            vc.User,
+		IncludeObserver: true,
+	})
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -286,21 +465,4 @@ func (svc *Service) UpdateSoftwareName(ctx context.Context, titleID uint, name s
 	}
 
 	return svc.ds.UpdateSoftwareTitleName(ctx, titleID, name)
-}
-
-func (svc *Service) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID *uint, config fleet.SoftwareAutoUpdateConfig) error {
-	if err := svc.authz.Authorize(ctx, &fleet.VPPApp{TeamID: teamID}, fleet.ActionWrite); err != nil {
-		return err
-	}
-
-	// Coerce nil teamID to 0.
-	var tID uint
-	if teamID != nil {
-		tID = *teamID
-	}
-	if err := svc.ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, tID, config); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating software title auto update config")
-	}
-
-	return nil
 }

@@ -3,20 +3,20 @@ package calendar
 import (
 	"context"
 	"errors"
-	"github.com/google/uuid"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 	"sync"
 	"time"
 
-	kitlog "github.com/go-kit/log"
+	"github.com/google/uuid"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
 )
 
 type GoogleCalendarMockAPI struct {
-	logger kitlog.Logger
+	logger *slog.Logger
 }
 
 type channel struct {
@@ -36,14 +36,14 @@ const latency = 200 * time.Millisecond
 // Configure creates a new Google Calendar service using the provided credentials.
 func (lowLevelAPI *GoogleCalendarMockAPI) Configure(_ context.Context, _ string, _ string, userToImpersonate string, _ string) error {
 	if lowLevelAPI.logger == nil {
-		lowLevelAPI.logger = kitlog.With(kitlog.NewLogfmtLogger(os.Stderr), "mock", "GoogleCalendarMockAPI", "user", userToImpersonate)
+		lowLevelAPI.logger = slog.New(slog.NewTextHandler(os.Stderr, nil)).With("mock", "GoogleCalendarMockAPI", "user", userToImpersonate)
 	}
 	return nil
 }
 
 func (lowLevelAPI *GoogleCalendarMockAPI) GetSetting(name string) (*calendar.Setting, error) {
 	time.Sleep(latency)
-	lowLevelAPI.logger.Log("msg", "GetSetting", "name", name)
+	lowLevelAPI.logger.InfoContext(context.TODO(), "GetSetting", "name", name)
 	if name == "timezone" {
 		return &calendar.Setting{
 			Id:    "timezone",
@@ -59,7 +59,7 @@ func (lowLevelAPI *GoogleCalendarMockAPI) CreateEvent(event *calendar.Event) (*c
 	defer mu.Unlock()
 	id += 1
 	event.Id = strconv.FormatUint(id, 10)
-	lowLevelAPI.logger.Log("msg", "CreateEvent", "id", event.Id, "start", event.Start.DateTime)
+	lowLevelAPI.logger.InfoContext(context.TODO(), "CreateEvent", "id", event.Id, "start", event.Start.DateTime)
 	mockEvents[event.Id] = event
 	return event, nil
 }
@@ -68,7 +68,7 @@ func (lowLevelAPI *GoogleCalendarMockAPI) UpdateEvent(event *calendar.Event) (*c
 	time.Sleep(latency)
 	mu.Lock()
 	defer mu.Unlock()
-	lowLevelAPI.logger.Log("msg", "UpdateEvent", "id", event.Id, "start", event.Start.DateTime)
+	lowLevelAPI.logger.InfoContext(context.TODO(), "UpdateEvent", "id", event.Id, "start", event.Start.DateTime)
 	mockEvents[event.Id] = event
 	return event, nil
 }
@@ -81,13 +81,13 @@ func (lowLevelAPI *GoogleCalendarMockAPI) GetEvent(id, _ string) (*calendar.Even
 	if !ok {
 		return nil, &googleapi.Error{Code: http.StatusNotFound}
 	}
-	lowLevelAPI.logger.Log("msg", "GetEvent", "id", id, "start", event.Start.DateTime)
+	lowLevelAPI.logger.InfoContext(context.TODO(), "GetEvent", "id", id, "start", event.Start.DateTime)
 	return event, nil
 }
 
 func (lowLevelAPI *GoogleCalendarMockAPI) ListEvents(string, string) (*calendar.Events, error) {
 	time.Sleep(latency)
-	lowLevelAPI.logger.Log("msg", "ListEvents")
+	lowLevelAPI.logger.InfoContext(context.TODO(), "ListEvents")
 	return &calendar.Events{}, nil
 }
 
@@ -95,7 +95,7 @@ func (lowLevelAPI *GoogleCalendarMockAPI) DeleteEvent(id string) error {
 	time.Sleep(latency)
 	mu.Lock()
 	defer mu.Unlock()
-	lowLevelAPI.logger.Log("msg", "DeleteEvent", "id", id)
+	lowLevelAPI.logger.InfoContext(context.TODO(), "DeleteEvent", "id", id)
 	delete(mockEvents, id)
 	return nil
 }

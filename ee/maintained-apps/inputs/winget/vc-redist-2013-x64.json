@@ -1,0 +1,13 @@
+{
+  "name": "Microsoft Visual C++ 2013 Redistributable (x64)",
+  "slug": "vc-redist-2013-x64/windows",
+  "package_identifier": "Microsoft.VCRedist.2013.x64",
+  "unique_identifier": "Microsoft Visual C++ 2013 Redistributable (x64)",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Microsoft Visual C++ 2013 Redistributable (x64)%' AND publisher = 'Microsoft Corporation';",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/vc_redist_x64_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/vc_redist_x64_uninstall.ps1",
+  "default_categories": ["Developer tools"]
+}

@@ -1,5 +1,8 @@
-import { IConfigServerSettings } from "./config";
-import { HostAndroidCertStatus } from "./host";
+import { formatCountry } from "utilities/country";
+
+import { IConfigServerSettings, IMdmConfig } from "./config";
+import { HostAndroidCertStatus, IHostDevice, IHostMdmData } from "./host";
+import { isAndroid, isAppleDevice, isWindows } from "./platform";
 
 export interface IMdmApple {
   common_name: string;
@@ -9,56 +12,90 @@ export interface IMdmApple {
 }
 
 export interface IMdmAppleBm {
-  default_team?: string;
+  default_fleet?: string;
   apple_id: string;
   org_name: string;
   mdm_server_url: string;
   renew_date: string;
 }
 
-export type ITokenTeam = {
-  team_id: number;
+export type ITokenFleet = {
+  fleet_id: number;
   name: string;
 };
 
-export interface IMdmAbmToken {
+export interface IMdmAbToken {
   id: number;
   apple_id: string;
   org_name: string;
   mdm_server_url: string;
   renew_date: string;
   terms_expired: boolean;
-  macos_team: ITokenTeam;
-  ios_team: ITokenTeam;
-  ipados_team: ITokenTeam;
+  token_invalid: boolean;
+  default: boolean;
+  macos_fleet: ITokenFleet;
+  ios_fleet: ITokenFleet;
+  ipados_fleet: ITokenFleet;
+  byod_fleet: ITokenFleet;
 }
 
 export interface IMdmVppToken {
   id: number;
   org_name: string;
   location: string;
+  /**
+   * Lowercase ISO 3166-1 alpha-2 country code of the App Store storefront tied to
+   * this token's Apple Business Manager account (e.g. "us", "de"). Empty string
+   * for legacy tokens whose backfill hasn't completed yet.
+   */
+  country_code: string;
   renew_date: string;
-  teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
+  fleets: ITokenFleet[] | null; // null means token isn't configured to a fleet; empty array means all fleets
+  /** Null for rows the backend can't date. Renders "---". */
+  created_at: string | null;
 }
+
+/** VPP token snapshot on software titles (with org_name) and activities (without). */
+export interface IVppTokenSummary {
+  id: number;
+  location: string;
+  country_code: string;
+  org_name?: string;
+}
+
+/** "<location> • <flag> <country>" */
+export const formatVppTokenLabel = (token: {
+  location: string;
+  country_code: string;
+}) =>
+  // Legacy tokens have no country until the backfill runs.
+  [token.location, formatCountry(token.country_code)]
+    .filter(Boolean)
+    .join(" • ");
 
 export const getMdmServerUrl = ({ server_url }: IConfigServerSettings) => {
   return server_url.concat("/mdm/apple/mdm");
 };
 
 /** These are the values the API will send back to the UI for mdm enrollment status */
-export type MdmEnrollmentStatus =
-  | "On (manual)"
-  | "On (automatic)"
-  | "On (personal)"
-  | "On (company-owned)"
-  | "Off"
-  | "Pending";
+export const MDM_ENROLLMENT_STATUSES = [
+  "On (manual)",
+  "On (automatic)",
+  "On (personal)",
+  "On (manual - personal)",
+  "On (company-owned)",
+  "Off",
+  "Pending",
+] as const;
+
+export type MdmEnrollmentStatus = typeof MDM_ENROLLMENT_STATUSES[number];
 
 /** This is the filter value used for query string parameters */
 export type MdmEnrollmentFilterValue =
   | "manual"
   | "automatic"
   | "personal"
+  | "manual-personal"
   | "unenrolled"
   | "pending";
 
@@ -88,6 +125,10 @@ export const MDM_ENROLLMENT_STATUS_UI_MAP: Record<
     displayName: "On (personal)",
     filterValue: "personal",
   },
+  "On (manual - personal)": {
+    displayName: "On (manual - personal)",
+    filterValue: "manual-personal",
+  },
   Off: {
     displayName: "Off",
     filterValue: "unenrolled",
@@ -111,6 +152,8 @@ export interface IMdmStatusCardData {
 export interface IMdmAggregateStatus {
   enrolled_manual_hosts_count: number;
   enrolled_automated_hosts_count: number;
+  enrolled_personal_hosts_count: number;
+  enrolled_manual_personal_hosts_count: number;
   unenrolled_hosts_count: number;
   pending_hosts_count?: number;
 }
@@ -132,6 +175,7 @@ interface IMdmStatus {
   enrolled_manual_hosts_count: number;
   enrolled_automated_hosts_count: number;
   enrolled_personal_hosts_count: number;
+  enrolled_manual_personal_hosts_count: number;
   unenrolled_hosts_count: number;
   pending_hosts_count?: number;
   hosts_count: number;
@@ -151,6 +195,56 @@ export type ProfilePlatform =
   | "linux"
   | "android";
 
+// Checks if MDM is configured for a given platform.
+// It will return false for platforms that do not have MDM as a concept.
+// It will return false on a missing config.
+export const isMDMConfiguredForPlatform = (
+  platform: ProfilePlatform,
+  mdmConfig: IMdmConfig | undefined
+) => {
+  if (!mdmConfig) {
+    return false;
+  }
+
+  if (isWindows(platform)) {
+    return mdmConfig.windows_mdm_enabled;
+  }
+
+  if (isAppleDevice(platform)) {
+    return mdmConfig.enabled_and_configured;
+  }
+
+  if (isAndroid(platform)) {
+    return mdmConfig.android_enabled_and_configured;
+  }
+
+  // Other platform types do not have MDM.
+  return false;
+};
+
+/** Whether MDM is on for at least one platform, which is what managing
+ * configuration profiles needs. */
+export const isAnyMDMConfigured = (mdmConfig: IMdmConfig | undefined) =>
+  !!mdmConfig &&
+  (mdmConfig.enabled_and_configured ||
+    mdmConfig.windows_mdm_enabled ||
+    mdmConfig.android_enabled_and_configured);
+
+export const platformToMDMLabel = (platform: ProfilePlatform) => {
+  switch (platform) {
+    case "android":
+      return "Android";
+    case "darwin":
+    case "ios":
+    case "ipados":
+      return "Apple";
+    case "windows":
+      return "Windows";
+    default:
+      return "Unknown";
+  }
+};
+
 export interface IProfileLabel {
   name: string;
   id?: number; // id is only present when the label is not broken
@@ -159,8 +253,12 @@ export interface IProfileLabel {
 
 export interface IMdmProfile {
   profile_uuid: string;
-  team_id: number;
+  fleet_id: number;
   name: string;
+  description?: string;
+  /** The PayloadDisplayName inside a .mobileconfig, which can differ from
+   * name once the profile is renamed. Absent for other profile types. */
+  payload_display_name?: string;
   platform: ProfilePlatform;
   identifier: string | null; // null for windows profiles
   created_at: string;
@@ -169,6 +267,24 @@ export interface IMdmProfile {
   labels_include_all?: IProfileLabel[];
   labels_include_any?: IProfileLabel[];
   labels_exclude_any?: IProfileLabel[];
+  // Apple DDM PayloadScope: "User" for user-scoped declarations, "System"
+  // otherwise. Note this differs from the host details endpoint, which reports
+  // the derived channel as lowercase "user"/"device" (see ProfileScope).
+  scope?: PayloadScope | null;
+  /** Only ever true for .mobileconfig profiles. */
+  self_service: boolean;
+  /** Never true together with self_service. */
+  hidden: boolean;
+}
+
+/** An Apple DDM asset (com.apple.asset.*) that declarations can reference. */
+export interface IMdmAsset {
+  asset_uuid: string;
+  name: string;
+  identifier: string;
+  created_at: string;
+  uploaded_at: string | null;
+  checksum: string;
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
@@ -180,6 +296,8 @@ export type MdmDDMProfileStatus =
 
 export type ProfileOperationType = "remove" | "install";
 export type ProfileScope = "device" | "user";
+/** Apple DDM declaration PayloadScope as returned by the profiles list endpoint. */
+export type PayloadScope = "System" | "User";
 
 export interface IHostMdmProfile {
   profile_uuid: string;
@@ -190,10 +308,23 @@ export interface IHostMdmProfile {
     | MdmProfileStatus
     | MdmDDMProfileStatus
     | LinuxDiskEncryptionStatus
-    | HostAndroidCertStatus;
+    | HostAndroidCertStatus
+    // Self-service profile the host hasn't opted in to.
+    | null;
   detail: string;
   scope: ProfileScope | null;
   managed_local_account: string | null;
+  // identifier when this profile represents an Android certificate template
+  certificate_template_id?: number;
+  /** Whether Fleet is in the middle of automatically retrying this profile after a failed
+   * install, along with the retries already used and the number allowed. Only present on Android
+   * certificate templates, and only on installs — removals are never retried. Note a manual
+   * resend also sets retry_count, so only `retrying` identifies an automatic retry. */
+  retrying?: boolean;
+  retry_count?: number;
+  max_retries?: number;
+  hidden: boolean;
+  self_service: boolean;
 }
 
 // TODO - move disk encryption related types to dedicated file
@@ -238,16 +369,31 @@ export const isLinuxDiskEncryptionStatus = (
   ["verified", "failed", "action_required"].includes(status);
 
 export const FLEET_FILEVAULT_PROFILE_DISPLAY_NAME = "Disk encryption";
+export const FLEET_FLEETD_CONFIG_PROFILE_DISPLAY_NAME = "Fleetd configuration";
+export const FLEET_WINDOWS_ENROLL_SECRET_PROFILE_DISPLAY_NAME =
+  "Fleetd enroll secret";
+export const FLEET_RECOVERY_LOCK_PASSWORD_DISPLAY_NAME =
+  "Recovery Lock password";
 export const FLEET_ANDROID_CERTIFICATE_TEMPLATE_PROFILE_ID =
   "fleet-host-certificate-template";
 
-export interface IMdmSSOReponse {
+export type RecoveryLockPasswordStatus =
+  | "verified"
+  | "pending"
+  | "removing_enforcement"
+  | "failed";
+
+// The host name template statuses are exactly the profile-delivery statuses, so
+// we alias MdmProfileStatus rather than re-declaring the same union.
+export type HostNameSettingStatus = MdmProfileStatus;
+
+export interface IMdmSSOResponse {
   url: string;
 }
 
 export interface IBootstrapPackageMetadata {
   name: string;
-  team_id: number;
+  fleet_id: number;
   sha256: string;
   token: string;
   created_at: string;
@@ -265,6 +411,12 @@ export enum BootstrapPackageStatus {
   FAILED = "failed",
 }
 
+export enum EndUserLocalAccountType {
+  ADMIN = "admin",
+  STANDARD = "standard",
+  NONE = "none",
+}
+
 export const isEnrolledInMdm = (
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null
 ): hostMdmEnrollmentStatus is MdmEnrollmentStatus => {
@@ -275,22 +427,51 @@ export const isEnrolledInMdm = (
     "On (automatic)",
     "On (manual)",
     "On (personal)",
+    "On (manual - personal)",
     "On (company-owned)",
   ].includes(hostMdmEnrollmentStatus);
 };
 
+/** Either personal (BYOD) status. Guards that protect personal devices must use
+ * this rather than one status, or devices enrolled the other way lose them. */
+export const isPersonalEnrollment = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return (
+    enrollmentStatus === "On (personal)" ||
+    enrollmentStatus === "On (manual - personal)"
+  );
+};
+
+/** Personal (BYOD) enrollment with a manual enrollment profile. */
 export const isBYODManualEnrollment = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {
-  return enrollmentStatus === "On (manual)";
+  return enrollmentStatus === "On (manual - personal)";
 };
 
-/** This checks if the device is enrolled via an Apple ID user enrollment.
- * We refer to that as "account driven user enrollment" */
+/** Personal (BYOD) enrollment via a Managed Apple Account ("account-driven user
+ * enrollment"). Android work profile shares this status, so pair it with a
+ * platform check where that matters. */
 export const isBYODAccountDrivenUserEnrollment = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {
   return enrollmentStatus === "On (personal)";
+};
+
+/** Whether the host's last recorded MDM enrollment was personal (BYOD), including
+ * hosts that have since unenrolled. `is_personal_enrollment` is not cleared on
+ * unenrollment while `enrollment_status` flips to "Off", so UI that identifies a
+ * BYOD device (which never reports a serial number) must not rely on the status
+ * alone. The status is still checked because not every host payload carries the
+ * flag: only queries built on the server's shared host-MDM select populate it. */
+export const wasBYODEnrolled = (
+  enrollmentStatus: MdmEnrollmentStatus | null,
+  isPersonalEnrollmentFlag?: boolean
+) => {
+  return (
+    isPersonalEnrollmentFlag === true || isPersonalEnrollment(enrollmentStatus)
+  );
 };
 
 /** This check is the device is enrolled via Automated Device Enrollment (ADE, also known as DEP)
@@ -302,5 +483,37 @@ export const isAutomaticDeviceEnrollment = (
   return (
     enrollmentStatus === "On (company-owned)" ||
     enrollmentStatus === "On (automatic)"
+  );
+};
+
+/** Android BYO (work profile, personally-owned) enrollment. */
+export const isAndroidBYO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
+  return enrollmentStatus === "On (personal)";
+};
+
+/** Android COBO (company-owned, fully managed) enrollment. */
+export const isAndroidCOBO = (enrollmentStatus: MdmEnrollmentStatus | null) => {
+  return enrollmentStatus === "On (automatic)";
+};
+
+// canTriggerAPNSPing checks the host state if it's allowed to hit APNS ping, it does not do any permission level checks.
+
+type ICanTriggerAPNSPingHost = Pick<IHostDevice, "platform"> & {
+  mdm: Pick<IHostMdmData, "connected_to_fleet"> &
+    Pick<IHostMdmData, "enrollment_status">;
+};
+
+export const canTriggerAPNSPing = (host: ICanTriggerAPNSPingHost) => {
+  return (
+    isAppleDevice(host.platform) &&
+    host.mdm.connected_to_fleet &&
+    host.mdm.enrollment_status !== null &&
+    ([
+      "On (automatic)",
+      "On (manual)",
+      "On (personal)",
+      "On (manual - personal)",
+      "On (company-owned)",
+    ] as MdmEnrollmentStatus[]).includes(host.mdm.enrollment_status)
   );
 };

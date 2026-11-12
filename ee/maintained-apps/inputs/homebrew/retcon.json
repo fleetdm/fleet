@@ -1,0 +1,10 @@
+{
+  "name": "Retcon",
+  "unique_identifier": "garden.lemon.Retcon",
+  "token": "retcon",
+  "installer_format": "dmg",
+  "slug": "retcon/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

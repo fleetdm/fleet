@@ -1,8 +1,8 @@
 import React from "react";
 
+import ActivityItem from "components/ActivityItem";
 import { formatScriptNameForActivityItem } from "utilities/helpers";
 
-import ActivityItem from "components/ActivityItem";
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 
 const baseClass = "ran-script-activity-item";
@@ -34,7 +34,11 @@ const RanScriptActivityItem = ({
         {" "}
         {ranScriptPrefix}{" "}
         {formatScriptNameForActivityItem(activity.details?.script_name)} on this
-        host.{" "}
+        host
+        {activity.details?.from_setup_experience
+          ? " during setup experience"
+          : ""}
+        .
       </>
     </ActivityItem>
   );

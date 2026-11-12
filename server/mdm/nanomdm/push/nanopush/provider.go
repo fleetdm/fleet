@@ -58,6 +58,10 @@ func (e *JSONPushError) Error() string {
 	return s
 }
 
+type mdmPushPayload struct {
+	MDM string `json:"mdm"`
+}
+
 func newError(body io.Reader, statusCode int) error {
 	var err error = new(JSONPushError)
 	if decodeErr := json.NewDecoder(body).Decode(err); decodeErr != nil {
@@ -68,11 +72,13 @@ func newError(body io.Reader, statusCode int) error {
 
 // do performs the HTTP push request
 func (p *Provider) do(ctx context.Context, pushInfo *mdm.Push) *push.Response {
-	jsonPayload := []byte(`{"mdm":"` + pushInfo.PushMagic + `"}`)
+	jsonPayload, err := json.Marshal(mdmPushPayload{MDM: pushInfo.PushMagic})
+	if err != nil {
+		return &push.Response{Err: err}
+	}
 
 	url := p.baseURL + "/3/device/" + pushInfo.Token.String()
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonPayload))
-
 	if err != nil {
 		return &push.Response{Err: err}
 	}
@@ -82,11 +88,17 @@ func (p *Provider) do(ctx context.Context, pushInfo *mdm.Push) *push.Response {
 		exp := time.Now().Add(p.expiration)
 		req.Header.Set("apns-expiration", strconv.FormatInt(exp.Unix(), 10))
 	}
+	req.Header.Set("apns-push-type", "mdm")
+	if pushInfo.Topic != "" {
+		// an empty topic is invalid; omitting the header instead lets APNs
+		// infer the topic from the client certificate's UID
+		req.Header.Set("apns-topic", pushInfo.Topic)
+	}
 	r, err := p.client.Do(req)
 	var goAwayErr http2.GoAwayError
 	if errors.As(err, &goAwayErr) {
 		body := strings.NewReader(goAwayErr.DebugData)
-		return &push.Response{Err: newError(body, r.StatusCode)}
+		return &push.Response{Err: newError(body, int(goAwayErr.ErrCode))} // resp is nil on GoAway; use the HTTP/2 error code instead
 	} else if err != nil {
 		return &push.Response{Err: err}
 	}
@@ -115,10 +127,7 @@ func (p *Provider) pushSerial(ctx context.Context, pushInfos []*mdm.Push) (map[s
 // It spawns worker goroutines and feeds them from the list of pushInfos.
 func (p *Provider) pushConcurrent(ctx context.Context, pushInfos []*mdm.Push) (map[string]*push.Response, error) {
 	// don't start more workers than we have pushes to send
-	workers := p.workers
-	if len(pushInfos) > workers {
-		workers = len(pushInfos)
-	}
+	workers := min(p.workers, len(pushInfos))
 
 	// response associates push.Response with token
 	type response struct {
@@ -147,6 +156,10 @@ func (p *Provider) pushConcurrent(ctx context.Context, pushInfos []*mdm.Push) (m
 	// start the "feeder" (queue source)
 	go func() {
 		for _, pushInfo := range pushInfos {
+			if pushInfo == nil {
+				continue
+			}
+
 			jobs <- pushInfo
 		}
 		close(jobs)

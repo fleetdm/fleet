@@ -15,6 +15,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1251,4 +1252,263 @@ func tempDirFn(t *testing.T) func(string, string) (string, error) {
 	return func(dir, pattern string) (string, error) {
 		return t.TempDir(), nil
 	}
+}
+
+// TestInstallSoftwareNotFoundRetryWindow covers the retry-window behavior for
+// orphaned installer 404s (#44084). Not parallel: it mutates the package-level
+// installerNotFoundRetryWindow.
+func TestInstallSoftwareNotFoundRetryWindow(t *testing.T) {
+	prevWindow := installerNotFoundRetryWindow
+	installerNotFoundRetryWindow = time.Minute
+	t.Cleanup(func() { installerNotFoundRetryWindow = prevWindow })
+
+	const execID = "exec-uuid-1"
+
+	notFoundErr := &client.NotFoundErr{Msg: "SoftwareInstallerDetails was not found in the datastore"}
+
+	t.Run("first failure records timestamp and returns nil payload", func(t *testing.T) {
+		oc := &TestOrbitClient{
+			getInstallerDetailsFn: func(string) (*fleet.SoftwareInstallDetails, error) {
+				return nil, notFoundErr
+			},
+		}
+		now := time.Date(2026, 4, 28, 12, 0, 0, 0, time.UTC)
+		r := &Runner{
+			OrbitClient:                oc,
+			scriptsEnabled:             func() bool { return true },
+			nowFn:                      func() time.Time { return now },
+			installerNotFoundFirstSeen: make(map[string]time.Time),
+			logger:                     log.With().Logger(),
+		}
+
+		payload, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.Nil(t, payload)
+		require.NoError(t, err, "in-window 404 must not surface an error so run() doesn't log ERR every cycle (#44084)")
+		require.Equal(t, now, r.installerNotFoundFirstSeen[execID])
+	})
+
+	t.Run("subsequent failures within window keep returning nil payload", func(t *testing.T) {
+		oc := &TestOrbitClient{
+			getInstallerDetailsFn: func(string) (*fleet.SoftwareInstallDetails, error) {
+				return nil, notFoundErr
+			},
+		}
+		start := time.Date(2026, 4, 28, 12, 0, 0, 0, time.UTC)
+		now := start
+		r := &Runner{
+			OrbitClient:                oc,
+			scriptsEnabled:             func() bool { return true },
+			nowFn:                      func() time.Time { return now },
+			installerNotFoundFirstSeen: make(map[string]time.Time),
+			logger:                     log.With().Logger(),
+		}
+
+		_, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.NoError(t, err)
+
+		now = start.Add(installerNotFoundRetryWindow - time.Second)
+		payload, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.Nil(t, payload)
+		require.NoError(t, err)
+		require.Equal(t, start, r.installerNotFoundFirstSeen[execID], "tracker should not be reset within window")
+	})
+
+	t.Run("after window elapses returns synthetic failure payload", func(t *testing.T) {
+		oc := &TestOrbitClient{
+			getInstallerDetailsFn: func(string) (*fleet.SoftwareInstallDetails, error) {
+				return nil, notFoundErr
+			},
+		}
+		start := time.Date(2026, 4, 28, 12, 0, 0, 0, time.UTC)
+		now := start
+		r := &Runner{
+			OrbitClient:                oc,
+			scriptsEnabled:             func() bool { return true },
+			nowFn:                      func() time.Time { return now },
+			installerNotFoundFirstSeen: make(map[string]time.Time),
+			logger:                     log.With().Logger(),
+		}
+
+		_, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.NoError(t, err)
+
+		now = start.Add(installerNotFoundRetryWindow + time.Second)
+		payload, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.NoError(t, err, "synthetic failure should be returned without error so caller reports it")
+		require.NotNil(t, payload)
+		require.Equal(t, execID, payload.InstallUUID)
+		require.NotNil(t, payload.InstallScriptExitCode)
+		require.Equal(t, fleet.ExitCodeInstallerNotFound, *payload.InstallScriptExitCode)
+		require.Equal(t, fleet.SoftwareInstallFailed, payload.Status())
+		_, stillTracked := r.installerNotFoundFirstSeen[execID]
+		require.False(t, stillTracked, "tracker should be cleared after firing")
+	})
+
+	t.Run("successful fetch clears tracker", func(t *testing.T) {
+		var callCount int
+		oc := &TestOrbitClient{
+			getInstallerDetailsFn: func(string) (*fleet.SoftwareInstallDetails, error) {
+				callCount++
+				if callCount == 1 {
+					return nil, notFoundErr
+				}
+				return &fleet.SoftwareInstallDetails{
+					InstallerID:   1,
+					ExecutionID:   execID,
+					InstallScript: "echo hi",
+				}, nil
+			},
+		}
+		start := time.Date(2026, 4, 28, 12, 0, 0, 0, time.UTC)
+		now := start
+		r := &Runner{
+			OrbitClient:                oc,
+			scriptsEnabled:             func() bool { return true },
+			nowFn:                      func() time.Time { return now },
+			installerNotFoundFirstSeen: make(map[string]time.Time),
+			logger:                     log.With().Logger(),
+			// stop-here error short-circuits attemptInstall after GetInstallerDetails.
+			tempDirFn: func(string, string) (string, error) { return "", errors.New("stop here") },
+		}
+
+		_, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.NoError(t, err)
+		require.Equal(t, start, r.installerNotFoundFirstSeen[execID])
+
+		_, _ = r.installSoftware(context.Background(), execID, r.logger)
+		_, stillTracked := r.installerNotFoundFirstSeen[execID]
+		require.False(t, stillTracked, "successful fetch must clear tracker so future 404s start a fresh window")
+	})
+
+	t.Run("non-404 error clears tracker so unrelated transient errors don't leak into window", func(t *testing.T) {
+		var returnNotFound bool
+		oc := &TestOrbitClient{
+			getInstallerDetailsFn: func(string) (*fleet.SoftwareInstallDetails, error) {
+				if returnNotFound {
+					return nil, notFoundErr
+				}
+				return nil, errors.New("some other transport error")
+			},
+		}
+		start := time.Date(2026, 4, 28, 12, 0, 0, 0, time.UTC)
+		now := start
+		r := &Runner{
+			OrbitClient:                oc,
+			scriptsEnabled:             func() bool { return true },
+			nowFn:                      func() time.Time { return now },
+			installerNotFoundFirstSeen: make(map[string]time.Time),
+			logger:                     log.With().Logger(),
+		}
+
+		returnNotFound = true
+		_, err := r.installSoftware(context.Background(), execID, r.logger)
+		require.NoError(t, err)
+		require.Contains(t, r.installerNotFoundFirstSeen, execID)
+
+		returnNotFound = false
+		_, err = r.installSoftware(context.Background(), execID, r.logger)
+		require.Error(t, err)
+		_, stillTracked := r.installerNotFoundFirstSeen[execID]
+		require.False(t, stillTracked, "non-404 error path must clear tracker")
+	})
+}
+
+// attemptInstallExtTestSetup wires a Runner whose exec fn records the base name
+// of every script it runs, so tests can assert the temp file extension picked
+// for each script's contents.
+func attemptInstallExtTestSetup(t *testing.T, execFn func(context.Context, string, []string) ([]byte, int, error)) (*Runner, *[]string) {
+	t.Helper()
+	var executed []string
+	oc := &TestOrbitClient{
+		downloadInstallerFn: func(installerID uint, downloadDir string) (string, error) {
+			return filepath.Join(downloadDir, fmt.Sprint(installerID)+".pkg"), nil
+		},
+	}
+	r := &Runner{
+		OrbitClient:               oc,
+		scriptsEnabled:            func() bool { return true },
+		installerExecutionTimeout: time.Minute,
+		tempDirFn:                 func(string, string) (string, error) { return t.TempDir(), nil },
+		removeAllFn:               func(string) error { return nil },
+		execCmdFn: func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
+			executed = append(executed, filepath.Base(scriptPath))
+			return execFn(ctx, scriptPath, env)
+		},
+	}
+	return r, &executed
+}
+
+func TestScriptFileExtension(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, ".sh", scriptFileExtension("", "darwin"), "no shebang defaults to shell")
+	require.Equal(t, ".sh", scriptFileExtension("#!/bin/bash\necho hi", "darwin"), "shell shebang")
+	require.Equal(t, ".py", scriptFileExtension("#!/usr/bin/env python3\nprint('hi')", "darwin"), "python shebang")
+	require.Equal(t, ".py", scriptFileExtension("#!/usr/bin/env python3\nprint('hi')", "linux"), "python shebang on linux")
+
+	require.Equal(t, ".ps1", scriptFileExtension("#!/usr/bin/env python3\nprint('hi')", "windows"), "windows is always powershell")
+	require.Equal(t, ".ps1", scriptFileExtension("", "windows"))
+}
+
+func TestAttemptInstallScriptExtension(t *testing.T) {
+	success := func(context.Context, string, []string) ([]byte, int, error) { return []byte("ok"), 0, nil }
+
+	t.Run("python install script", func(t *testing.T) {
+		r, executed := attemptInstallExtTestSetup(t, success)
+		_, err := r.attemptInstall(context.Background(), &fleet.SoftwareInstallDetails{
+			InstallerID:   1,
+			InstallScript: "#!/usr/bin/env python3\nprint('install')",
+		}, &fleet.HostSoftwareInstallResultPayload{}, log.With().Logger())
+		require.NoError(t, err)
+		require.Contains(t, *executed, "install-script.py")
+	})
+
+	t.Run("no-shebang install script", func(t *testing.T) {
+		r, executed := attemptInstallExtTestSetup(t, success)
+		_, err := r.attemptInstall(context.Background(), &fleet.SoftwareInstallDetails{
+			InstallerID:   1,
+			InstallScript: "echo install",
+		}, &fleet.HostSoftwareInstallResultPayload{}, log.With().Logger())
+		require.NoError(t, err)
+		require.Contains(t, *executed, "install-script.sh")
+	})
+
+	t.Run("python install with shell post-install and uninstall", func(t *testing.T) {
+		// A .py package can carry a Python install script but shell post-install
+		// and uninstall scripts; each temp file must reflect its own shebang.
+		exitPost := func(_ context.Context, scriptPath string, _ []string) ([]byte, int, error) {
+			if strings.Contains(scriptPath, "post-install-script") {
+				return []byte("boom"), 1, &exec.ExitError{}
+			}
+			return []byte("ok"), 0, nil
+		}
+		r, executed := attemptInstallExtTestSetup(t, exitPost)
+		_, _ = r.attemptInstall(context.Background(), &fleet.SoftwareInstallDetails{
+			InstallerID:       1,
+			InstallScript:     "#!/usr/bin/env python3\nprint('install')",
+			PostInstallScript: "#!/bin/sh\necho post",
+			UninstallScript:   "#!/bin/sh\necho uninstall",
+		}, &fleet.HostSoftwareInstallResultPayload{}, log.With().Logger())
+		require.Contains(t, *executed, "install-script.py")
+		require.Contains(t, *executed, "post-install-script.sh")
+		require.Contains(t, *executed, "rollback-script.sh")
+	})
+}
+
+// An execve failure (exit code -1, empty output) must surface the underlying
+// error to the server rather than reporting a blank result.
+func TestRunInstallerScriptSurfacesExecveError(t *testing.T) {
+	const execveErr = "fork/exec /usr/local/bin/python3: no such file or directory"
+	r, _ := attemptInstallExtTestSetup(t, func(context.Context, string, []string) ([]byte, int, error) {
+		return nil, -1, errors.New(execveErr)
+	})
+
+	payload := &fleet.HostSoftwareInstallResultPayload{}
+	_, err := r.attemptInstall(context.Background(), &fleet.SoftwareInstallDetails{
+		InstallerID:   1,
+		InstallScript: "#!/usr/local/bin/python3\nprint('install')",
+	}, payload, log.With().Logger())
+	require.Error(t, err)
+	require.NotNil(t, payload.InstallScriptOutput)
+	require.Contains(t, *payload.InstallScriptOutput, execveErr)
 }

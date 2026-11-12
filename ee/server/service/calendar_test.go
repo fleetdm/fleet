@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -11,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/calendar"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -331,7 +331,7 @@ func TestCalendarWebhookErrorCases(t *testing.T) {
 					}, nil
 				}
 			},
-			expectedError: "calendar event test-uuid-9 has no team ID",
+			expectedError: "calendar event test-uuid-9 has no fleet ID",
 		},
 		{
 			name:          "database error when getting event details",
@@ -389,7 +389,7 @@ func TestCalendarWebhookErrorCases(t *testing.T) {
 				ds:              ds,
 				distributedLock: lock,
 				authz:           auth,
-				logger:          log.NewNopLogger(),
+				logger:          slog.New(slog.DiscardHandler),
 			}
 
 			// Apply test-specific mocks

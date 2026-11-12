@@ -1,0 +1,18 @@
+.config-profile-host-count-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+
+    // ViewAllHostsButton's condensed modifier reserves margin-right to clear
+    // DataTable's horizontal-scroll shadow-fade on wide tables. This table is
+    // fixed-width and never scrolls, so it just leaves a stray gap here.
+    .view-all-hosts-button__condensed {
+      margin-right: 0;
+    }
+  }
+}

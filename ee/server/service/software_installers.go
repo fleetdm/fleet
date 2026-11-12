@@ -1,46 +1,61 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
 	"path/filepath"
+	"regexp"
+	"runtime/debug"
+	"slices"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 )
 
 const softwareInstallerTokenMaxLength = 36 // UUID length
 
-func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
+func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (_ *fleet.SoftwareInstaller, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+	if payload.StagedUploadID != "" {
+		if payload.InstallerFile, err = svc.openStagedUpload(ctx, payload.StagedUploadID); err != nil {
+			return nil, err
+		}
+		defer svc.finishStagedUpload(ctx, payload.StagedUploadID, payload.InstallerFile, &err)
 	}
 
 	if payload.AutomaticInstall {
@@ -52,7 +67,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	// validate labels before we do anything else
-	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.TeamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	validatedLabels, err := ValidateSoftwareLabels(ctx, svc, payload.TeamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels")
 	}
@@ -63,16 +78,6 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, fleet.ErrNoContext
 	}
 	payload.UserID = vc.UserID()
-
-	// Determine extension early so we can clear unsupported params for script packages
-	ext := strings.ToLower(filepath.Ext(payload.Filename))
-	ext = strings.TrimPrefix(ext, ".")
-	if fleet.IsScriptPackage(ext) {
-		// For script packages, clear unsupported params before any processing
-		payload.UninstallScript = ""
-		payload.PostInstallScript = ""
-		payload.PreInstallQuery = ""
-	}
 
 	// make sure all scripts use unix-style newlines to prevent errors when
 	// running them, browsers use windows-style newlines, which breaks the
@@ -85,6 +90,59 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	if _, err := svc.addMetadataToSoftwarePayload(ctx, payload, failOnBlankScript); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "adding metadata to payload")
+	}
+
+	// Validate iOS/iPadOS managed app configuration up-front. For non-.ipa extensions, silently drop.
+	if payload.Extension == "ipa" {
+		if len(payload.Configuration) > 0 {
+			if err := fleet.ValidateAppleAppConfiguration(payload.Configuration); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		payload.Configuration = nil
+	}
+
+	// A script package's install script is the uploaded file, validated in
+	// addScriptPackageMetadata, so only post-install/uninstall are checked here.
+	scriptsToValidate := []struct {
+		name    string
+		content string
+	}{
+		{"post-install script", payload.PostInstallScript},
+		{"uninstall script", payload.UninstallScript},
+	}
+	if !fleet.IsScriptPackage(payload.Extension) {
+		scriptsToValidate = append(scriptsToValidate, struct {
+			name    string
+			content string
+		}{"install script", payload.InstallScript})
+	}
+	for _, scriptVal := range scriptsToValidate {
+		if err := fleet.ValidateSoftwareInstallerScript(scriptVal.content, payload.Platform); err != nil {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't add. %s validation failed: %s", scriptVal.name, err.Error()),
+			}
+		}
+	}
+
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{payload.InstallScript, payload.PostInstallScript, payload.UninstallScript}); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
+		// Redo per-script to report which script references the undefined custom host vital.
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", &payload.InstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", &payload.PostInstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "uninstall script", &payload.UninstallScript, argErr)
+		if argErr != nil {
+			return nil, argErr
+		}
+		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
+	}
+
+	if err := validateFleetVariablesOnInstallerScripts(ctx, &payload.InstallScript, &payload.PostInstallScript, &payload.UninstallScript); err != nil {
+		return nil, err
 	}
 
 	if payload.AutomaticInstall && payload.AutomaticInstallQuery == "" {
@@ -113,7 +171,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
 	if err := preProcessUninstallScript(payload); err != nil {
 		return nil, &fleet.BadRequestError{
-			Message: "Couldn't add. $UPGRADE_CODE variable was used but package does not have an UpgradeCode.",
+			Message: fmt.Sprintf("Couldn't add software: %s", err),
 		}
 	}
 
@@ -135,7 +193,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "matching or creating software installer")
 	}
-	level.Debug(svc.logger).Log("msg", "software installer uploaded", "installer_id", installerID)
+	svc.logger.DebugContext(ctx, "software installer uploaded", "installer_id", installerID)
 
 	var teamName *string
 	if payload.TeamID != nil && *payload.TeamID != 0 {
@@ -146,7 +204,7 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		teamName = &t.Name
 	}
 
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
 		SoftwareTitle:    payload.Title,
 		SoftwarePackage:  payload.Filename,
@@ -154,8 +212,9 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		TeamID:           payload.TeamID,
 		SelfService:      payload.SelfService,
 		SoftwareTitleID:  titleID,
-		LabelsIncludeAny: actLabelsIncl,
-		LabelsExcludeAny: actLabelsExcl,
+		LabelsIncludeAny: actLabelsInclAny,
+		LabelsExcludeAny: actLabelsExclAny,
+		LabelsIncludeAll: actLabelsInclAll,
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating activity for added software")
 	}
@@ -171,18 +230,27 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 		if err != nil {
 			return nil, err
 		}
+		// Wrap iOS / iPadOS plist as a JSON string for the response.
+		if len(addedInstaller.Configuration) > 0 {
+			wrapped, err := json.Marshal(string(addedInstaller.Configuration))
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "wrapping configuration for response")
+			}
+			addedInstaller.Configuration = wrapped
+		}
 		return addedInstaller, nil
 	}
 
-	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctxdb.RequirePrimary(ctx, true), &tmID, titleID, true)
+	// Return the package just added, not the title's first-added one.
+	addedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctxdb.RequirePrimary(ctx, true), &tmID, titleID, installerID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting added software installer")
 	}
 
-	if payload.AutomaticInstall {
+	if payload.AutomaticInstall && payload.AddedAutomaticInstallPolicy != nil {
 		policyAct := fleet.ActivityTypeCreatedPolicy{
-			ID:   addedInstaller.AutomaticInstallPolicies[0].ID,
-			Name: addedInstaller.AutomaticInstallPolicies[0].Name,
+			ID:   payload.AddedAutomaticInstallPolicy.ID,
+			Name: payload.AddedAutomaticInstallPolicy.Name,
 		}
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
@@ -193,24 +261,35 @@ func (svc *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.
 	return addedInstaller, nil
 }
 
-func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint, labelsIncludeAny, labelsExcludeAny []string) (*fleet.LabelIdentsWithScope, error) {
+func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint, labelsIncludeAny, labelsExcludeAny, labelsIncludeAll []string) (*fleet.LabelIdentsWithScope, error) {
 	if authctx, ok := authz_ctx.FromContext(ctx); !ok {
 		return nil, fleet.NewAuthRequiredError("validate software labels: missing authorization context")
 	} else if !authctx.Checked() {
 		return nil, fleet.NewAuthRequiredError("validate software labels: method requires previous authorization")
 	}
 
+	var count int
+	for _, set := range [][]string{labelsIncludeAny, labelsExcludeAny, labelsIncludeAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
+		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_all", "labels_include_any" or "labels_exclude_any" can be included.`}
+	}
+
 	var names []string
 	var scope fleet.LabelScope
 	switch {
-	case len(labelsIncludeAny) > 0 && len(labelsExcludeAny) > 0:
-		return nil, &fleet.BadRequestError{Message: `Only one of "labels_include_any" or "labels_exclude_any" can be included.`}
 	case len(labelsIncludeAny) > 0:
 		names = labelsIncludeAny
 		scope = fleet.LabelScopeIncludeAny
 	case len(labelsExcludeAny) > 0:
 		names = labelsExcludeAny
 		scope = fleet.LabelScopeExcludeAny
+	case len(labelsIncludeAll) > 0:
+		names = labelsIncludeAll
+		scope = fleet.LabelScopeIncludeAll
 	}
 
 	if len(names) == 0 {
@@ -220,6 +299,13 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint
 
 	byName, err := svc.BatchValidateLabels(ctx, teamID, names)
 	if err != nil {
+		var missingLabelErr *fleet.MissingLabelError
+		if errors.As(err, &missingLabelErr) {
+			return nil, &fleet.BadRequestError{
+				InternalErr: missingLabelErr,
+				Message:     fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", missingLabelErr.MissingLabelName),
+			}
+		}
 		return nil, err
 	}
 
@@ -230,45 +316,64 @@ func ValidateSoftwareLabels(ctx context.Context, svc fleet.Service, teamID *uint
 }
 
 func preProcessUninstallScript(payload *fleet.UploadSoftwareInstallerPayload) error {
-	// We assume that we already validated that payload.PackageIDs is not empty.
-	// Replace $PACKAGE_ID in the uninstall script with the package ID(s).
-	if len(payload.PackageIDs) == 0 {
+	if len(payload.PackageIDs) == 0 && payload.UpgradeCode == "" {
 		// do nothing, this could be a FMA which won't include the installer when editing the scripts
 		return nil
 	}
-	var packageID string
+
+	// dmg and zip don't use template variable substitution
 	switch payload.Extension {
 	case "dmg", "zip":
 		return nil
-	case "pkg":
-		var sb strings.Builder
-		_, _ = sb.WriteString("(\n")
-		for _, pkgID := range payload.PackageIDs {
-			_, _ = sb.WriteString(fmt.Sprintf("  \"%s\"\n", pkgID))
-		}
-		_, _ = sb.WriteString(")") // no ending newline
-		packageID = sb.String()
-	default:
-		packageID = fmt.Sprintf("\"%s\"", payload.PackageIDs[0])
 	}
 
-	payload.UninstallScript = file.PackageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
-
-	// If $UPGRADE_CODE is in the script and we have one, replace it; if the var is included but we don't have one, error
-	if file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
-		if payload.UpgradeCode == "" {
-			return errors.New("blank upgrade code when required in script")
+	// Only validate and substitute $PACKAGE_ID if it appears in the script
+	if len(payload.PackageIDs) > 0 && file.PackageIDRegex.MatchString(payload.UninstallScript) {
+		if err := file.ValidatePackageIdentifiers(payload.PackageIDs, ""); err != nil {
+			return err
 		}
 
-		payload.UninstallScript = file.UpgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("\"%s\"${suffix}", payload.UpgradeCode))
+		var packageID string
+		switch payload.Extension {
+		case "pkg":
+			var sb strings.Builder
+			_, _ = sb.WriteString("(\n")
+			for _, pkgID := range payload.PackageIDs {
+				_, _ = sb.WriteString(fmt.Sprintf("  '%s'\n", pkgID))
+			}
+			_, _ = sb.WriteString(")") // no ending newline
+			packageID = sb.String()
+		default:
+			packageID = fmt.Sprintf("'%s'", payload.PackageIDs[0])
+		}
+
+		payload.UninstallScript = file.PackageIDRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("%s${suffix}", packageID))
+	}
+
+	// Only validate and substitute $UPGRADE_CODE if the template variable appears in the script
+	if file.UpgradeCodeRegex.MatchString(payload.UninstallScript) {
+		if payload.UpgradeCode == "" {
+			return errors.New("$UPGRADE_CODE variable was used in uninstall script but package does not have an UpgradeCode")
+		}
+		if err := file.ValidatePackageIdentifiers(nil, payload.UpgradeCode); err != nil {
+			return err
+		}
+
+		payload.UninstallScript = file.UpgradeCodeRegex.ReplaceAllString(payload.UninstallScript, fmt.Sprintf("'%s'${suffix}", payload.UpgradeCode))
 	}
 
 	return nil
 }
 
-func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {
+func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.UpdateSoftwareInstallerPayload) (_ *fleet.SoftwareInstaller, err error) {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+	if payload.StagedUploadID != "" {
+		if payload.InstallerFile, err = svc.openStagedUpload(ctx, payload.StagedUploadID); err != nil {
+			return nil, err
+		}
+		defer svc.finishStagedUpload(ctx, payload.StagedUploadID, payload.InstallerFile, &err)
 	}
 
 	vc, ok := viewer.FromContext(ctx)
@@ -278,7 +383,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.UserID = vc.UserID()
 
 	if payload.TeamID == nil {
-		return nil, &fleet.BadRequestError{Message: "team_id is required; enter 0 for no team"}
+		return nil, &fleet.BadRequestError{Message: "fleet_id is required; enter 0 for unassigned"}
 	}
 
 	var teamName *string
@@ -315,9 +420,28 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		// We should not get to this point. If we did, it means we have another issue, such as large read replica latency.
 		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating embedded secrets")
 	}
+	if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, scripts); err != nil {
+		if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+			return nil, ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+		}
+		var argErr *fleet.InvalidArgumentError
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "install script", payload.InstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "post-install script", payload.PostInstallScript, argErr)
+		argErr = svc.validateReferencedCustomHostVitalsOnScript(ctx, "uninstall script", payload.UninstallScript, argErr)
+		if argErr != nil {
+			return nil, argErr
+		}
+		return nil, ctxerr.Wrap(ctx, err, "transient server issue validating custom host vitals")
+	}
 
-	// get software by ID, fail if it does not exist or does not have an existing installer
-	software, err := svc.ds.SoftwareTitleByID(ctx, payload.TitleID, payload.TeamID, fleet.TeamFilter{
+	if err := validateFleetVariablesOnInstallerScripts(ctx, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript); err != nil {
+		return nil, err
+	}
+
+	// get software by ID, fail if it does not exist or does not have an existing installer.
+	// Force the primary DB so the display name reflects any override set by a prior
+	// edit in the same session (replica lag would otherwise emit a stale value in the activity).
+	software, err := svc.ds.SoftwareTitleByID(ctxdb.RequirePrimary(ctx, true), payload.TitleID, payload.TeamID, fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
 	})
@@ -328,19 +452,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	dirty := make(map[string]bool)
 
 	if payload.Categories != nil {
-		payload.Categories = server.RemoveDuplicatesFromSlice(payload.Categories)
-		catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, payload.Categories)
+		categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, ptr.ValOrZero(payload.TeamID), payload.Categories)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting software category ids")
+			return nil, ctxerr.Wrap(ctx, err, "filtering software installer categories")
 		}
-
-		if len(catIDs) != len(payload.Categories) {
-			return nil, &fleet.BadRequestError{
-				Message:     "some or all of the categories provided don't exist",
-				InternalErr: fmt.Errorf("categories provided: %v", payload.Categories),
-			}
-		}
-
+		payload.Categories = categories
 		payload.CategoryIDs = catIDs
 		dirty["Categories"] = true
 	}
@@ -350,16 +466,49 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return svc.updateInHouseAppInstaller(ctx, payload, vc, teamName, software)
 	}
 
-	// TODO when we start supporting multiple installers per title X team, need to rework how we determine installer to edit
-	if software.SoftwareInstallersCount != 1 {
+	if software.SoftwareInstallersCount < 1 {
 		return nil, &fleet.BadRequestError{
 			Message: "There are no software installers defined yet for this title and team. Please add an installer instead of attempting to edit.",
 		}
 	}
 
+	// Defaults to the first-added package; a specific installer_id overrides it below.
 	existingInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing installer")
+	}
+
+	// siblings is reused for both installer targeting and the hash-collision check below.
+	var siblings []*fleet.SoftwareInstaller
+	if software.SoftwareInstallersCount > 1 || payload.InstallerID != 0 {
+		siblings, err = svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, payload.TeamID, payload.TitleID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting title packages")
+		}
+
+		switch {
+		case payload.InstallerID == 0 && software.SoftwareInstallersCount > 1:
+			return nil, &fleet.BadRequestError{
+				Message: "installer_id is required when the title has multiple packages.",
+			}
+		case payload.InstallerID != 0:
+			var found bool
+			for _, p := range siblings {
+				if p.InstallerID == payload.InstallerID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, ctxerr.Wrapf(ctx, &notFoundError{},
+					"installer %d does not belong to this title and team", payload.InstallerID)
+			}
+			// hydrate the targeted package the same way as the first-added default
+			existingInstaller, err = svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, payload.TeamID, payload.TitleID, payload.InstallerID, true)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "getting targeted installer")
+			}
+		}
 	}
 
 	if payload.IsNoopPayload(software) {
@@ -367,6 +516,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	payload.InstallerID = existingInstaller.InstallerID
+
+	// The patch controls only apply to Fleet-maintained apps.
+	if (payload.Patch != nil || payload.PatchWhenClosed != nil || payload.NotifyBeforePatching != nil || payload.PatchDeadline != nil) && existingInstaller.FleetMaintainedAppID == nil {
+		return nil, &fleet.BadRequestError{Message: `"patch", "patch_when_closed", "notify_before_patching", and "patch_deadline" are only available for Fleet-maintained apps.`}
+	}
 
 	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
 		trimmed := strings.TrimSpace(*payload.DisplayName)
@@ -382,7 +536,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		dirty["SelfService"] = true
 	}
 
-	shouldUpdateLabels, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+	shouldUpdateLabels, validatedLabels, err := ValidateSoftwareLabelsForUpdate(ctx, svc, existingInstaller, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating software labels for update")
 	}
@@ -423,21 +577,67 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			return nil, ctxerr.Wrap(ctx, err, "extracting updated installer metadata")
 		}
 
-		if newInstallerExtension != existingInstaller.Extension {
+		// Fleet-maintained apps can't have their package replaced; return the FMA message before the
+		// extension and identity checks so it isn't masked by a more generic error.
+		if existingInstaller.FleetMaintainedAppID != nil {
 			return nil, &fleet.BadRequestError{
-				Message:     "The selected package is for a different file type.",
-				InternalErr: ctxerr.Wrap(ctx, err, "installer extension mismatch"),
+				Message:     "Couldn't update. The package can't be changed for Fleet-maintained apps.",
+				InternalErr: ctxerr.New(ctx, "installer file changed for fleet maintained app installer"),
 			}
 		}
 
-		if payloadForNewInstallerFile.Title != software.Name {
+		if newInstallerExtension != existingInstaller.Extension {
 			return nil, &fleet.BadRequestError{
-				Message:     "The selected package is for different software.",
-				InternalErr: ctxerr.Wrap(ctx, err, "installer software title mismatch"),
+				Message:     "The selected package is for a different file type.",
+				InternalErr: ctxerr.New(ctx, "installer extension mismatch"),
+			}
+		}
+
+		// The replacement must be the same software as the installer being edited. Its extracted
+		// identity (bundle id for apps, upgrade code for Windows, else name) must point at this title.
+		// A bare name match is accepted only when no title claims the identity — so a re-keyed MSI or
+		// re-bundled pkg still edits — while another app's package, which resolves to a different title,
+		// is rejected even when the names coincide. A package that changes both its name and its
+		// upgrade code at once can't be tied to the edited installer, so it is rejected (as before).
+		switch {
+		case payloadForNewInstallerFile.UpgradeCode != "" && payloadForNewInstallerFile.UpgradeCode == existingInstaller.UpgradeCode:
+			// Same Windows product as the edited installer (a sibling MSI whose upgrade code can differ
+			// from the title's); trusted fast path, skip the title lookup entirely.
+		default:
+			resolvedTitleID, err := svc.ds.GetExistingSoftwareInstallerTitleID(ctx, payloadForNewInstallerFile)
+			if err != nil && !fleet.IsNotFound(err) {
+				return nil, ctxerr.Wrap(ctx, err, "resolving title for updated installer")
+			}
+			switch {
+			case err == nil && resolvedTitleID == payload.TitleID:
+				// Identity resolves to this title.
+			case err == nil && (payloadForNewInstallerFile.BundleIdentifier != "" || payloadForNewInstallerFile.UpgradeCode != ""):
+				// A strong identifier (bundle id / upgrade code) resolves to a different existing title:
+				// different software, even if the names coincide. Name-only matches are excluded here
+				// because the resolver's name branch can match multiple same-named titles ambiguously.
+				return nil, &fleet.BadRequestError{
+					Message:     "The selected package is for different software.",
+					InternalErr: ctxerr.Errorf(ctx, "installer resolves to title %d, editing title %d", resolvedTitleID, payload.TitleID),
+				}
+			case payloadForNewInstallerFile.Title != software.Name:
+				// No authoritative identity claims this package and the name does not match either.
+				return nil, &fleet.BadRequestError{
+					Message:     "The selected package is for different software.",
+					InternalErr: ctxerr.New(ctx, "installer identity not found and name mismatch"),
+				}
 			}
 		}
 
 		if payloadForNewInstallerFile.StorageID != existingInstaller.StorageID {
+			// Catch a sibling hash match for a friendly 409; the dedup_token key would otherwise raise a raw 1062.
+			for _, p := range siblings {
+				if p.InstallerID != existingInstaller.InstallerID && p.StorageID == payloadForNewInstallerFile.StorageID {
+					return nil, ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf(fleet.SoftwarePackageHashConflictMessage, payloadForNewInstallerFile.Filename),
+					}, "edit collides with sibling package hash")
+				}
+			}
+
 			activity.SoftwarePackage = &payload.Filename
 			payload.StorageID = payloadForNewInstallerFile.StorageID
 			payload.Filename = payloadForNewInstallerFile.Filename
@@ -446,6 +646,20 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			payload.UpgradeCode = payloadForNewInstallerFile.UpgradeCode
 
 			dirty["Package"] = true
+
+			// For script packages the uploaded file's contents are the install
+			// script, so replacing the file must update install_script too. The
+			// file's contents were not among the payload fields validated above,
+			// so validate them here.
+			if fleet.IsScriptPackage(existingInstaller.Extension) {
+				if err := validateFleetVariablesOnInstallerScripts(ctx, &payloadForNewInstallerFile.InstallScript, nil, nil); err != nil {
+					return nil, err
+				}
+				payload.InstallScript = &payloadForNewInstallerFile.InstallScript
+				if payloadForNewInstallerFile.InstallScript != existingInstaller.InstallScript {
+					dirty["InstallScript"] = true
+				}
+			}
 		} else { // noop if uploaded installer is identical to previous installer
 			payloadForNewInstallerFile = nil
 			payload.InstallerFile = nil
@@ -464,25 +678,31 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 	// default pre-install query is blank, so blanking out the query doesn't have a semantic meaning we have to take care of
 	if payload.PreInstallQuery != nil {
-		if isScriptPackage {
-			emptyQuery := ""
-			payload.PreInstallQuery = &emptyQuery
-		} else if *payload.PreInstallQuery != existingInstaller.PreInstallQuery {
+		if *payload.PreInstallQuery != existingInstaller.PreInstallQuery {
 			dirty["PreInstallQuery"] = true
 		}
 	}
 
 	if payload.InstallScript != nil {
 		if isScriptPackage {
-			payload.InstallScript = nil
+			// A script package's install script comes from the uploaded file.
+			// Ignore a user-provided install_script value, but keep one derived
+			// from a newly uploaded file (set above).
+			if payloadForNewInstallerFile == nil {
+				payload.InstallScript = nil
+			}
 		} else {
 			installScript := file.Dos2UnixNewlines(*payload.InstallScript)
-			if installScript == "" {
-				installScript = file.GetInstallScript(existingInstaller.Extension)
-			}
+			installScript = getInstallScript(existingInstaller.Extension, existingInstaller.PackageIDs(), installScript)
 			if installScript == "" {
 				return nil, &fleet.BadRequestError{
 					Message: fmt.Sprintf("Couldn't edit. Install script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
+				}
+			}
+
+			if err := fleet.ValidateSoftwareInstallerScript(installScript, existingInstaller.Platform); err != nil {
+				return nil, &fleet.BadRequestError{
+					Message: fmt.Sprintf("Couldn't edit. install script validation failed: %s", err.Error()),
 				}
 			}
 
@@ -494,24 +714,25 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	}
 
 	if payload.PostInstallScript != nil {
-		if isScriptPackage {
-			emptyScript := ""
-			payload.PostInstallScript = &emptyScript
-		} else {
-			postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
-			if postInstallScript != existingInstaller.PostInstallScript {
-				dirty["PostInstallScript"] = true
+		postInstallScript := file.Dos2UnixNewlines(*payload.PostInstallScript)
+
+		if err := fleet.ValidateSoftwareInstallerScript(postInstallScript, existingInstaller.Platform); err != nil {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't edit. post-install script validation failed: %s", err.Error()),
 			}
-			payload.PostInstallScript = &postInstallScript
 		}
+
+		if postInstallScript != existingInstaller.PostInstallScript {
+			dirty["PostInstallScript"] = true
+		}
+		payload.PostInstallScript = &postInstallScript
 	}
 
 	if payload.UninstallScript != nil {
-		if isScriptPackage {
-			emptyScript := ""
-			payload.UninstallScript = &emptyScript
-		} else {
-			uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
+		uninstallScript := file.Dos2UnixNewlines(*payload.UninstallScript)
+		// Script packages have no default uninstall script and may leave it empty;
+		// other types fall back to a default and require one.
+		if !isScriptPackage {
 			if uninstallScript == "" { // extension can't change on an edit so we can generate off of the existing file
 				uninstallScript = file.GetUninstallScript(existingInstaller.Extension)
 				if payload.UpgradeCode != "" {
@@ -523,30 +744,95 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 					Message: fmt.Sprintf("Couldn't edit. Uninstall script is required for .%s packages.", strings.ToLower(existingInstaller.Extension)),
 				}
 			}
+		}
 
-			payloadForUninstallScript := &fleet.UploadSoftwareInstallerPayload{
-				Extension:       existingInstaller.Extension,
-				UninstallScript: uninstallScript,
-				PackageIDs:      existingInstaller.PackageIDs(),
-				UpgradeCode:     existingInstaller.UpgradeCode,
+		if err := fleet.ValidateSoftwareInstallerScript(uninstallScript, existingInstaller.Platform); err != nil {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't edit. uninstall script validation failed: %s", err.Error()),
 			}
-			if payloadForNewInstallerFile != nil {
-				payloadForUninstallScript.PackageIDs = payloadForNewInstallerFile.PackageIDs
-				payloadForUninstallScript.UpgradeCode = payloadForNewInstallerFile.UpgradeCode
-			}
+		}
 
-			if err := preProcessUninstallScript(payloadForUninstallScript); err != nil {
-				return nil, &fleet.BadRequestError{
-					Message: "Couldn't add. $UPGRADE_CODE variable was used but package does not have an UpgradeCode.",
+		payloadForUninstallScript := &fleet.UploadSoftwareInstallerPayload{
+			Extension:       existingInstaller.Extension,
+			UninstallScript: uninstallScript,
+			PackageIDs:      existingInstaller.PackageIDs(),
+			UpgradeCode:     existingInstaller.UpgradeCode,
+		}
+		if payloadForNewInstallerFile != nil {
+			payloadForUninstallScript.PackageIDs = payloadForNewInstallerFile.PackageIDs
+			payloadForUninstallScript.UpgradeCode = payloadForNewInstallerFile.UpgradeCode
+		}
+
+		if err := preProcessUninstallScript(payloadForUninstallScript); err != nil {
+			return nil, &fleet.BadRequestError{
+				Message: fmt.Sprintf("Couldn't edit software: %s", err),
+			}
+		}
+
+		if payloadForUninstallScript.UninstallScript != existingInstaller.UninstallScript {
+			dirty["UninstallScript"] = true
+		}
+		uninstallScript = payloadForUninstallScript.UninstallScript
+		payload.UninstallScript = &uninstallScript
+	}
+
+	// switch active installer to one that matches the pinned version
+	var activeInstallerID uint
+	if payload.PinnedVersion != nil {
+		if existingInstaller.FleetMaintainedAppID == nil {
+			return nil, &fleet.BadRequestError{
+				Message: `Couldn't update. "version" can be only specified for a software title that has a Fleet-maintained app.`,
+			}
+		}
+
+		if len(dirty) > 0 {
+			return nil, &fleet.BadRequestError{
+				Message: `Couldn't update. "version" can't be changed at the same time as other fields.`,
+			}
+		}
+
+		*payload.PinnedVersion = strings.TrimSpace(*payload.PinnedVersion)
+		majorVersionString, usesCaret, err := parsePinnedVersion(ctx, *payload.PinnedVersion)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
+		}
+
+		// Latest takes the most recently downloaded, not highest version string.
+		versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, payload.TeamID, payload.TitleID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting Fleet-maintained app versions")
+		}
+		if len(versions) == 0 {
+			return nil, ctxerr.New(ctx, "no cached versions for Fleet-maintained app")
+		}
+
+		switch {
+		case *payload.PinnedVersion == "": // Latest
+			activeInstallerID = versions[0].ID
+		case usesCaret:
+			for _, v := range versions {
+				if versionMatchesMajor(v.Version, majorVersionString) {
+					activeInstallerID = v.ID
+					break
 				}
 			}
-
-			if payloadForUninstallScript.UninstallScript != existingInstaller.UninstallScript {
-				dirty["UninstallScript"] = true
+			if activeInstallerID == 0 {
+				activeInstallerID = versions[0].ID
 			}
-			uninstallScript = payloadForUninstallScript.UninstallScript
-			payload.UninstallScript = &uninstallScript
+		default: // literal version
+			for _, v := range versions {
+				if v.Version == *payload.PinnedVersion {
+					activeInstallerID = v.ID
+					break
+				}
+			}
+			if activeInstallerID == 0 {
+				return nil, fleet.NewUserMessageError(errVersionNotFound, http.StatusNotFound)
+			}
 		}
+
+		// The active-installer flip is applied in the dirty section below.
+		dirty["PinnedVersion"] = true
 	}
 
 	fieldsShouldSideEffect := map[string]struct{}{
@@ -559,13 +845,38 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		"Labels":            {},
 	}
 	var shouldDoSideEffects bool
+
+	var existingPolicy *fleet.PatchPolicyData
+	var patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag, patchDeadlineFlag bool
+
+	if existingInstaller.FleetMaintainedAppID != nil {
+		existingPolicy, err = svc.ds.GetPatchPolicy(ctx, payload.TeamID, payload.TitleID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "getting patch policy")
+		}
+		patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag, patchDeadlineFlag, err = planPatchPolicy(payload, existingInstaller, existingPolicy)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if len(dirty) > 0 {
-		if len(dirty) == 1 && dirty["SelfService"] { // only self-service changed; use lighter update function
+		switch {
+		case len(dirty) == 1 && dirty["SelfService"]: // only self-service changed; use lighter update function
 			if err := svc.ds.UpdateInstallerSelfServiceFlag(ctx, *payload.SelfService, existingInstaller.InstallerID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "updating installer self service flag")
 			}
-		} else {
+		case len(dirty) == 1 && dirty["PinnedVersion"]: // only the pinned version changed; flip the active installer rather than rewriting it
+			// SetFleetMaintainedAppActiveInstaller also redirects installs frozen on
+			// the version we pinned away from to the newly-active one.
+			if err := svc.ds.SetFleetMaintainedAppActiveInstaller(ctx, payload, activeInstallerID); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "pinning Fleet-maintained app version")
+			}
+
+			// the pinned version is now the active installer; return it, not the one we pinned away from
+			payload.InstallerID = activeInstallerID
+		default:
 			if payloadForNewInstallerFile != nil {
 				if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "storing software installer")
@@ -589,6 +900,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 				payload.SelfService = &existingInstaller.SelfService
 			}
 
+			// Once a script is manually edited it can't be undone by the update endpoint.
+			payload.InstallScriptEdited = existingInstaller.InstallScriptEdited || dirty["InstallScript"]
+			payload.UninstallScriptEdited = existingInstaller.UninstallScriptEdited || dirty["UninstallScript"]
+
 			// Get the hosts that are NOT in label scope currently (before the update happens)
 			var hostsNotInScope map[uint]struct{}
 			if dirty["Labels"] {
@@ -601,6 +916,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			if err := svc.ds.SaveInstallerUpdates(ctx, payload); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
 			}
+
+			svc.resetInstallAttemptsForInstallers(ctx, []uint{payload.InstallerID})
 
 			if dirty["Labels"] {
 				// Get the hosts that are now IN label scope (after the update)
@@ -642,26 +959,68 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 
 		// now that the payload has been updated with any patches, we can set the
 		// final fields of the activity
-		actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(
-			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny)
+		actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(
+			existingInstaller.LabelsIncludeAny, existingInstaller.LabelsExcludeAny, existingInstaller.LabelsIncludeAll,
+		)
 		if payload.ValidatedLabels != nil {
-			actLabelsIncl, actLabelsExcl = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
+			actLabelsInclAny, actLabelsExclAny, actLabelsInclAll = activitySoftwareLabelsFromValidatedLabels(payload.ValidatedLabels)
 		}
-		activity.LabelsIncludeAny = actLabelsIncl
-		activity.LabelsExcludeAny = actLabelsExcl
+		activity.LabelsIncludeAny = actLabelsInclAny
+		activity.LabelsExcludeAny = actLabelsExclAny
+		activity.LabelsIncludeAll = actLabelsInclAll
 		if payload.SelfService != nil {
 			activity.SelfService = *payload.SelfService
 		}
+		// Carry the stored display name on every edit so edits that don't touch
+		// it still record the current override, instead of emitting an empty
+		// string (which reads as "cleared" to downstream consumers).
+		activity.SoftwareDisplayName = software.DisplayName
 		if payload.DisplayName != nil {
 			activity.SoftwareDisplayName = *payload.DisplayName
+		}
+		if payload.PinnedVersion != nil && *payload.PinnedVersion != "" {
+			activity.PinnedVersion = payload.PinnedVersion
 		}
 		if err := svc.NewActivity(ctx, vc.User, activity); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "creating activity for edited software")
 		}
 	}
 
-	// re-pull installer from database to ensure any side effects are accounted for; may be able to optimize this out later
-	updatedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctxdb.RequirePrimary(ctx, true), payload.TeamID, payload.TitleID, true)
+	// Create, update, or delete the patch policy after the installer save
+	patchTeamID := ptr.ValOrZero(payload.TeamID)
+	switch {
+	case !patchFlag && existingPolicy != nil:
+		if _, err := svc.DeleteTeamPolicies(ctx, patchTeamID, []uint{existingPolicy.ID}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "deleting patch policy")
+		}
+	case patchFlag && existingPolicy == nil:
+		patchType := fleet.PolicyTypePatch
+		if _, err := svc.NewTeamPolicy(ctx, patchTeamID, fleet.NewTeamPolicyPayload{
+			Type:                 &patchType,
+			PatchSoftwareTitleID: &payload.TitleID,
+			PatchWhenClosed:      patchWhenClosedFlag,
+			NotifyBeforePatching: notifyBeforePatchingFlag,
+			PatchDeadline:        patchDeadlineFlag,
+			// every patch option requires continuous automations on.
+			ContinuousAutomationsEnabled: patchWhenClosedFlag || notifyBeforePatchingFlag || patchDeadlineFlag,
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+		}
+	case patchFlag && existingPolicy != nil &&
+		(patchWhenClosedFlag != existingPolicy.PatchWhenClosed || notifyBeforePatchingFlag != existingPolicy.NotifyBeforePatching ||
+			patchDeadlineFlag != existingPolicy.PatchDeadline):
+		if _, err := svc.ModifyTeamPolicy(ctx, patchTeamID, existingPolicy.ID, fleet.ModifyPolicyPayload{
+			PatchWhenClosed:      &patchWhenClosedFlag,
+			NotifyBeforePatching: &notifyBeforePatchingFlag,
+			PatchDeadline:        &patchDeadlineFlag,
+		}); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "modifying patch policy")
+		}
+	}
+
+	// re-pull the edited installer to reflect side effects; return that specific
+	// package, not the title's first-added one. May be able to optimize this out later.
+	updatedInstaller, err := svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctxdb.RequirePrimary(ctx, true), payload.TeamID, payload.TitleID, payload.InstallerID, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "re-hydrating updated installer metadata")
 	}
@@ -673,6 +1032,89 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	updatedInstaller.Status = statuses
 
 	return updatedInstaller, nil
+}
+
+func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *fleet.SoftwareInstaller, existingPolicy *fleet.PatchPolicyData) (patchFlag bool, patchWhenClosedFlag bool, notifyBeforePatchingFlag bool, patchDeadlineFlag bool, err error) {
+	// Only the Fleet-maintained package has a managed pre-install query; patch controls on any other
+	// package are rejected by the caller.
+	if installer.FleetMaintainedAppID == nil {
+		return false, false, false, false, nil
+	}
+
+	// Resolve the optional flags into plain bools so the logic below never touches the pointers.
+	// An omitted patch keeps the current state.
+	if payload.Patch == nil {
+		if existingPolicy != nil {
+			patchFlag = true
+		}
+	} else {
+		patchFlag = *payload.Patch
+	}
+	// An omitted option keeps its current value unless the request turns on another one, since the
+	// options are mutually exclusive.
+	if payload.NotifyBeforePatching == nil {
+		if existingPolicy != nil && !ptr.ValOrZero(payload.PatchDeadline) && !ptr.ValOrZero(payload.PatchWhenClosed) {
+			notifyBeforePatchingFlag = existingPolicy.NotifyBeforePatching
+		}
+	} else {
+		notifyBeforePatchingFlag = *payload.NotifyBeforePatching
+	}
+	if payload.PatchDeadline == nil {
+		if existingPolicy != nil && !ptr.ValOrZero(payload.NotifyBeforePatching) && !ptr.ValOrZero(payload.PatchWhenClosed) {
+			patchDeadlineFlag = existingPolicy.PatchDeadline
+		}
+	} else {
+		patchDeadlineFlag = *payload.PatchDeadline
+	}
+	// An omitted patch_when_closed keeps the current value, or defaults on for a new policy. The
+	// default yields to an explicit notify_before_patching or patch_deadline, since the options are
+	// mutually exclusive.
+	if payload.PatchWhenClosed == nil {
+		switch {
+		case notifyBeforePatchingFlag || patchDeadlineFlag:
+			patchWhenClosedFlag = false
+		case existingPolicy != nil:
+			patchWhenClosedFlag = existingPolicy.PatchWhenClosed
+		default:
+			patchWhenClosedFlag = true
+		}
+	} else {
+		patchWhenClosedFlag = *payload.PatchWhenClosed
+	}
+
+	if fleet.PatchOptionsConflict(patchWhenClosedFlag, notifyBeforePatchingFlag, patchDeadlineFlag) {
+		return false, false, false, false, &fleet.BadRequestError{Message: fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error()}
+	}
+
+	// The patch options are only meaningful with patch enabled (in this request or already on the title).
+	if payload.PatchWhenClosed != nil && !patchFlag {
+		return false, false, false, false, &fleet.BadRequestError{Message: `If "patch_when_closed" is set, "patch" must be true.`}
+	}
+	if payload.NotifyBeforePatching != nil && !patchFlag {
+		return false, false, false, false, &fleet.BadRequestError{Message: `If "notify_before_patching" is set, "patch" must be true.`}
+	}
+	if payload.PatchDeadline != nil && !patchFlag {
+		return false, false, false, false, &fleet.BadRequestError{Message: `If "patch_deadline" is set, "patch" must be true.`}
+	}
+
+	if notifyBeforePatchingFlag && installer.Platform != "darwin" {
+		return false, false, false, false, &fleet.BadRequestError{Message: fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error()}
+	}
+	if patchDeadlineFlag && installer.Platform != "darwin" {
+		return false, false, false, false, &fleet.BadRequestError{Message: fleet.ErrPolicyPatchDeadlineRequiresMacOS.Error()}
+	}
+
+	// The pre-install query is read-only only while a patch option will actually be in effect.
+	if patchFlag && patchWhenClosedFlag && payload.PreInstallQuery != nil {
+		return false, false, false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "patch_when_closed" is enabled.`}
+	}
+	if patchFlag && notifyBeforePatchingFlag && payload.PreInstallQuery != nil {
+		return false, false, false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "notify_before_patching" is enabled.`}
+	}
+	if patchFlag && patchDeadlineFlag && payload.PreInstallQuery != nil {
+		return false, false, false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "patch_deadline" is enabled.`}
+	}
+	return patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag, patchDeadlineFlag, nil
 }
 
 func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptName string, script *string,
@@ -690,7 +1132,63 @@ func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptN
 	return argErr
 }
 
-func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, existingInstaller *fleet.SoftwareInstaller, includeAny, excludeAny []string) (shouldUpdate bool, validatedLabels *fleet.LabelIdentsWithScope, err error) {
+// validateFleetVariablesOnInstallerScripts validates $FLEET_VAR_* usage on the
+// installer's scripts, naming the offending script in the error. Nil scripts
+// are skipped (update payloads only carry the scripts that changed).
+func validateFleetVariablesOnInstallerScripts(ctx context.Context, installScript, postInstallScript, uninstallScript *string) error {
+	isPremium := license.IsPremium(ctx)
+	var argErr *fleet.InvalidArgumentError
+	for _, s := range []struct {
+		name     string
+		contents *string
+	}{
+		{"install script", installScript},
+		{"post-install script", postInstallScript},
+		{"uninstall script", uninstallScript},
+	} {
+		if s.contents == nil {
+			continue
+		}
+		fleetVars := variables.Find(*s.contents)
+		if len(fleetVars) == 0 {
+			continue
+		}
+		if !isPremium {
+			return fleet.ErrMissingLicense
+		}
+		if v := fleet.FindUnsupportedScriptFleetVar(fleetVars); v != "" {
+			msg := fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in scripts.", v)
+			if argErr != nil {
+				argErr.Append(s.name, msg)
+			} else {
+				argErr = fleet.NewInvalidArgumentError(s.name, msg)
+			}
+		}
+	}
+	if argErr != nil {
+		return argErr
+	}
+	return nil
+}
+
+// validateReferencedCustomHostVitalsOnScript mirrors validateEmbeddedSecretsOnScript
+// so callers can report which specific script references an undefined custom host vital.
+func (svc *Service) validateReferencedCustomHostVitalsOnScript(ctx context.Context, scriptName string, script *string,
+	argErr *fleet.InvalidArgumentError,
+) *fleet.InvalidArgumentError {
+	if script != nil {
+		if errScript := svc.ds.ValidateReferencedCustomHostVitals(ctx, []string{*script}); errScript != nil {
+			if argErr != nil {
+				argErr.Append(scriptName, errScript.Error())
+			} else {
+				argErr = fleet.NewInvalidArgumentError(scriptName, errScript.Error())
+			}
+		}
+	}
+	return argErr
+}
+
+func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, existingInstaller *fleet.SoftwareInstaller, includeAny, excludeAny, includeAll []string) (shouldUpdate bool, validatedLabels *fleet.LabelIdentsWithScope, err error) {
 	if authctx, ok := authz_ctx.FromContext(ctx); !ok {
 		return false, nil, fleet.NewAuthRequiredError("batch validate labels: missing authorization context")
 	} else if !authctx.Checked() {
@@ -701,16 +1199,12 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 		return false, nil, errors.New("existing installer must be provided")
 	}
 
-	if len(existingInstaller.LabelsIncludeAny) > 0 && len(existingInstaller.LabelsExcludeAny) > 0 {
-		return false, nil, errors.New("existing installer must have only one label scope")
-	}
-
-	if includeAny == nil && excludeAny == nil {
+	if includeAny == nil && excludeAny == nil && includeAll == nil {
 		// nothing to do
 		return false, nil, nil
 	}
 
-	incoming, err := ValidateSoftwareLabels(ctx, svc, existingInstaller.TeamID, includeAny, excludeAny)
+	incoming, err := ValidateSoftwareLabels(ctx, svc, existingInstaller.TeamID, includeAny, excludeAny, includeAll)
 	if err != nil {
 		return false, nil, err
 	}
@@ -724,6 +1218,9 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 	case len(existingInstaller.LabelsExcludeAny) > 0:
 		prevScope = fleet.LabelScopeExcludeAny
 		prevLabels = existingInstaller.LabelsExcludeAny
+	case len(existingInstaller.LabelsIncludeAll) > 0:
+		prevScope = fleet.LabelScopeIncludeAll
+		prevLabels = existingInstaller.LabelsIncludeAll
 	}
 
 	prevByName := make(map[string]fleet.LabelIdent, len(prevLabels))
@@ -753,9 +1250,9 @@ func ValidateSoftwareLabelsForUpdate(ctx context.Context, svc fleet.Service, exi
 	return false, nil, nil
 }
 
-func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint) error {
+func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, teamID *uint, installerID *uint, appStoreAppVersionID *uint) error {
 	if teamID == nil {
-		return fleet.NewInvalidArgumentError("team_id", "is required")
+		return fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
 
 	// we authorize with SoftwareInstaller here, but it uses the same AuthzType
@@ -764,9 +1261,9 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return err
 	}
 
-	// first, look for a software installer
+	// metaInstaller is fully hydrated (incl. the title-level icon) which the per-package reads below lack.
 	metaInstaller, errInstaller := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, teamID, titleID, false)
-	metaVPP, errVPP := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
+	versionsVPP, errVPP := svc.ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, *teamID, titleID)
 	metaInHouse, errInHouse := svc.ds.GetInHouseAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 
 	switch {
@@ -778,11 +1275,51 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		return ctxerr.Wrap(ctx, errInHouse, "getting in house app metadata")
 	}
 
+	// An installer id always refers to a software installer, never a VPP or in-house app.
+	if installerID != nil {
+		if metaInstaller == nil {
+			return ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", *installerID)
+		}
+		pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, titleID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting title packages")
+		}
+		for _, pkg := range pkgs {
+			if pkg.InstallerID == *installerID {
+				pkg.IconUrl = metaInstaller.IconUrl // title-level icon for cleanup + activity
+				return svc.deleteSoftwareInstaller(ctx, pkg)
+			}
+		}
+		return ctxerr.Wrapf(ctx, &notFoundError{}, "installer %d does not belong to this title and team", *installerID)
+	}
+
+	if appStoreAppVersionID != nil {
+		for _, version := range versionsVPP {
+			if version.VPPAppsTeamsID == *appStoreAppVersionID {
+				return svc.deleteAppStoreAppVersions(ctx, teamID, []*fleet.VPPAppStoreApp{version})
+			}
+		}
+		return ctxerr.Wrapf(ctx, &notFoundError{}, "app store app version %d does not belong to this title and team", *appStoreAppVersionID)
+	}
+
 	switch {
 	case metaInstaller != nil:
-		return svc.deleteSoftwareInstaller(ctx, metaInstaller)
-	case metaVPP != nil:
-		return svc.deleteVPPApp(ctx, teamID, metaVPP)
+		// Delete every package on the title. FMA titles keep one active row, so this
+		// matches prior behavior for them. Per-package deletes mean a guarded package
+		// (setup experience / patch policy) fails the title delete partway.
+		pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, teamID, titleID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting title packages to delete")
+		}
+		for _, pkg := range pkgs {
+			pkg.IconUrl = metaInstaller.IconUrl // title-level icon for cleanup + activity
+			if err := svc.deleteSoftwareInstaller(ctx, pkg); err != nil {
+				return err
+			}
+		}
+		return nil
+	case len(versionsVPP) > 0:
+		return svc.deleteAppStoreAppVersions(ctx, teamID, versionsVPP)
 	case metaInHouse != nil:
 		return svc.deleteSoftwareInstaller(ctx, metaInHouse)
 	}
@@ -795,7 +1332,29 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		return fleet.ErrNoContext
 	}
 
-	if err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID); err != nil {
+	// GetAppStoreAppVersionsByTeamAndTitleID (the batch caller) doesn't populate
+	// Configuration on the hydrated versions; fetch it before the DeleteVPPAppFromTeam
+	// clears the row so the activity payload carries the config bytes. Apps
+	// without a stored configuration return NotFound — tolerate that and emit
+	// an omitempty-nil Configuration on the activity.
+	cfg, cfgErr := svc.ds.GetVPPAppConfiguration(ctx, meta.VPPAppsTeamsID)
+	if cfgErr != nil && !fleet.IsNotFound(cfgErr) {
+		return ctxerr.Wrap(ctx, cfgErr, "getting VPP app configuration for delete activity")
+	}
+	// iOS / iPadOS store the plist as raw XML bytes; wrap in a JSON string so
+	// the activity's json.RawMessage field holds valid JSON (same pattern as
+	// the edit response at ee/server/service/vpp.go). Android configs are
+	// already JSON and pass through.
+	if len(cfg) > 0 && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
+		wrapped, err := json.Marshal(string(cfg))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "wrapping configuration for delete activity")
+		}
+		cfg = wrapped
+	}
+
+	err := svc.ds.DeleteVPPAppFromTeam(ctx, teamID, meta.VPPAppID, &meta.VPPAppsTeamsID)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting VPP app")
 	}
 
@@ -808,17 +1367,26 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		teamName = &t.Name
 	}
 
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny, meta.LabelsIncludeAll)
+
+	var softwareDisplayName *string
+	if meta.DisplayName != "" {
+		softwareDisplayName = new(meta.DisplayName)
+	}
 
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityDeletedAppStoreApp{
-		AppStoreID:       meta.AdamID,
-		SoftwareTitle:    meta.Name,
-		TeamName:         teamName,
-		TeamID:           teamID,
-		Platform:         meta.Platform,
-		LabelsIncludeAny: actLabelsIncl,
-		LabelsExcludeAny: actLabelsExcl,
-		SoftwareIconURL:  meta.IconURL,
+		AppStoreID:          meta.AdamID,
+		SoftwareTitle:       meta.Name,
+		SoftwareDisplayName: softwareDisplayName,
+		TeamName:            teamName,
+		TeamID:              teamID,
+		Platform:            meta.Platform,
+		LabelsIncludeAny:    actLabelsInclAny,
+		LabelsExcludeAny:    actLabelsExclAny,
+		LabelsIncludeAll:    actLabelsInclAll,
+		SoftwareIconURL:     meta.IconURL,
+		VersionName:         meta.VersionName,
+		Configuration:       cfg,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
@@ -839,11 +1407,40 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		return fleet.ErrNoContext
 	}
 
-	if meta.Extension == "ipa" {
+	switch {
+	case meta.Extension == "ipa":
 		if err := svc.ds.DeleteInHouseApp(ctx, meta.InstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting in house app")
 		}
-	} else {
+	case meta.FleetMaintainedAppID != nil:
+		// For FMA installers there may be multiple cached versions (active + up to
+		// N-1 inactive ones). Delete the active version first so that the
+		// policy-automation and setup-experience guard-rails are enforced, then
+		// sweep up any remaining inactive cached versions.
+		if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting active FMA installer version")
+		}
+		// After the active row is gone, fetch whatever cached versions remain and
+		// delete them.  GetFleetMaintainedVersionsByTitleID queries the live DB, so
+		// it will not return the row we just deleted.
+		if meta.TitleID != nil {
+			cachedVersions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, meta.TeamID, *meta.TitleID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting cached FMA versions for cleanup")
+			}
+			for _, v := range cachedVersions {
+				if err := svc.ds.DeleteSoftwareInstaller(ctx, v.ID); err != nil && !fleet.IsNotFound(err) {
+					return ctxerr.Wrap(ctx, err, "deleting cached FMA version")
+				}
+			}
+			// The pin row is keyed by (team, title) and is not cascade-deleted when
+			// installer rows go away (only when the title row is deleted), so clear
+			// it explicitly to avoid a stale pin surviving a delete + re-add.
+			if err := svc.ds.DeletePinnedVersion(ctx, meta.TeamID, *meta.TitleID); err != nil {
+				return ctxerr.Wrap(ctx, err, "deleting pinned version after FMA removal")
+			}
+		}
+	default:
 		if err := svc.ds.DeleteSoftwareInstaller(ctx, meta.InstallerID); err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting software installer")
 		}
@@ -858,15 +1455,16 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		teamName = &t.Name
 	}
 
-	actLabelsIncl, actLabelsExcl := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny)
+	actLabelsInclAny, actLabelsExclAny, actLabelsInclAll := activitySoftwareLabelsFromSoftwareScopeLabels(meta.LabelsIncludeAny, meta.LabelsExcludeAny, meta.LabelsIncludeAll)
 	if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeDeletedSoftware{
 		SoftwareTitle:    meta.SoftwareTitle,
 		SoftwarePackage:  meta.Name,
 		TeamName:         teamName,
 		TeamID:           meta.TeamID,
 		SelfService:      meta.SelfService,
-		LabelsIncludeAny: actLabelsIncl,
-		LabelsExcludeAny: actLabelsExcl,
+		LabelsIncludeAny: actLabelsInclAny,
+		LabelsExcludeAny: actLabelsExclAny,
+		LabelsIncludeAll: actLabelsInclAll,
 		SoftwareIconURL:  meta.IconUrl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
@@ -903,7 +1501,7 @@ func (svc *Service) GetSoftwareInstallerMetadata(ctx context.Context, skipAuthz 
 	return meta, nil
 }
 
-func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint) (string, error) {
+func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt string, titleID uint, teamID *uint, installerID *uint) (string, error) {
 	downloadRequested := alt == "media"
 	if !downloadRequested {
 		svc.authz.SkipAuthorization(ctx)
@@ -912,7 +1510,7 @@ func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt stri
 
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
-		return "", fleet.NewInvalidArgumentError("team_id", "is required")
+		return "", fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
@@ -922,6 +1520,11 @@ func (svc *Service) GenerateSoftwareInstallerToken(ctx context.Context, alt stri
 	meta := fleet.SoftwareInstallerTokenMetadata{
 		TitleID: titleID,
 		TeamID:  *teamID,
+	}
+	// Nil installerID means "no per-package pin" — the token consumer falls
+	// back to the first-added package. Preserves single-package back-compat.
+	if installerID != nil {
+		meta.InstallerID = *installerID
 	}
 	metaByte, err := json.Marshal(meta)
 	if err != nil {
@@ -976,7 +1579,7 @@ func (svc *Service) GetSoftwareInstallerTokenMetadata(ctx context.Context, token
 }
 
 func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, skipAuthz bool, alt string, titleID uint,
-	teamID *uint,
+	teamID *uint, installerID *uint,
 ) (*fleet.DownloadSoftwareInstallerPayload, error) {
 	downloadRequested := alt == "media"
 	if !downloadRequested {
@@ -986,12 +1589,31 @@ func (svc *Service) DownloadSoftwareInstaller(ctx context.Context, skipAuthz boo
 
 	if teamID == nil {
 		svc.authz.SkipAuthorization(ctx)
-		return nil, fleet.NewInvalidArgumentError("team_id", "is required")
+		return nil, fleet.NewInvalidArgumentError("fleet_id", "is required")
 	}
 
-	meta, err := svc.GetSoftwareInstallerMetadata(ctx, skipAuthz, titleID, teamID)
-	if err != nil {
-		return nil, err
+	// When installerID is set, target the specific package on a multi-package
+	// title. Nil falls back to the first-added default (single-package titles
+	// and pre-multi-package callers).
+	var meta *fleet.SoftwareInstaller
+	var err error
+	if installerID != nil {
+		if !skipAuthz {
+			if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+		}
+		// withScriptContents=false: only StorageID and Name are used below, so
+		// skip the script_contents join.
+		meta, err = svc.ds.GetSoftwareInstallerMetadataByTeamTitleAndInstallerID(ctx, teamID, titleID, *installerID, false)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting pinned software installer metadata")
+		}
+	} else {
+		meta, err = svc.GetSoftwareInstallerMetadata(ctx, skipAuthz, titleID, teamID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return svc.getSoftwareInstallerBinary(ctx, meta.StorageID, meta.Name)
@@ -1004,14 +1626,14 @@ func (svc *Service) GetSoftwareInstallDetails(ctx context.Context, installUUID s
 		return nil, err
 	}
 
-	// SoftwareInstallersCloudFrontSigner can only be set if license.IsPremium()
-	if svc.config.S3.SoftwareInstallersCloudFrontSigner != nil {
+	// Sign the download URL when CloudFront signing (premium-only), GCS presigning or Azure SAS signing is configured.
+	if svc.config.SoftwareInstallersSignedURLEnabled() {
 		// Sign the URL for the installer
 		installerURL, err := svc.getSoftwareInstallURL(ctx, details.InstallerID)
 		if err != nil {
 			// We log the error but continue to return the details without the signed URL because orbit can still
 			// try to download the installer via Fleet server.
-			level.Error(svc.logger).Log("msg", "error getting software installer URL; check CloudFront configuration", "err", err)
+			svc.logger.ErrorContext(ctx, "error getting software installer URL; check signed URL configuration", "err", err)
 		} else {
 			details.SoftwareInstallerURL = installerURL
 		}
@@ -1033,7 +1655,7 @@ func (svc *Service) getSoftwareInstallURL(ctx context.Context, installerID uint)
 	// If CloudFront is misconfigured, the server and Orbit clients will experience a greater load since they'll be doing throw-away work.
 
 	// Get the signed URL
-	signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID)
+	signedURL, err := svc.softwareInstallStore.Sign(ctx, meta.StorageID, fleet.SoftwareInstallerSignedURLExpiry)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "signing software installer URL")
 	}
@@ -1090,7 +1712,7 @@ func (svc *Service) getSoftwareInstallerBinary(ctx context.Context, storageID st
 		return nil, ctxerr.Wrap(ctx, err, "checking if installer exists")
 	}
 	if !exists {
-		return nil, ctxerr.Wrapf(ctx, notFoundError{}, "%s with filename %s does not exist in software installer store", storageID,
+		return nil, ctxerr.Wrapf(ctx, &notFoundError{}, "%s with filename %s does not exist in software installer store", storageID,
 			filename)
 	}
 
@@ -1105,6 +1727,60 @@ func (svc *Service) getSoftwareInstallerBinary(ctx context.Context, storageID st
 		Installer: installer,
 		Size:      size,
 	}, nil
+}
+
+// resolveFirstAddedInScopeInstaller returns the first-added (smallest installer_id) package of the
+// title that host is in label scope for — and, when requireSelfService is set, that is self-service
+// enabled. This is the install-time precedence rule now that a title can hold multiple packages:
+// admins scope labels to avoid overlap, but when a host still matches more than one package Fleet
+// installs the first-added one. anyPackages reports whether the title has any active packages at all,
+// so callers can distinguish "no package for this title" (fall through to VPP/in-house) from
+// "packages exist but none is a match for this host" (reject).
+func (svc *Service) resolveFirstAddedInScopeInstaller(ctx context.Context, host *fleet.Host, titleID uint, requireSelfService bool) (installer *fleet.SoftwareInstaller, anyPackages bool, err error) {
+	pkgs, err := svc.ds.GetSoftwarePackagesByTeamAndTitleID(ctx, host.TeamID, titleID)
+	if err != nil {
+		return nil, false, ctxerr.Wrap(ctx, err, "listing packages for install precedence")
+	}
+	anyPackages = len(pkgs) > 0
+
+	// pkgs are ordered installer_id ASC (first-added first). Prefer the first-added package the host
+	// can actually install (in scope and platform-compatible). Keep the first-added in-scope package
+	// of any platform as a fallback so a cross-platform title with no compatible package still hits
+	// the downstream platform error (matching single-package behavior).
+	var fallback *fleet.SoftwareInstaller
+	for _, pkg := range pkgs {
+		if requireSelfService && !pkg.SelfService {
+			continue
+		}
+		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, pkg.InstallerID, host.ID)
+		if err != nil {
+			return nil, anyPackages, ctxerr.Wrap(ctx, err, "checking label scoping during software install attempt")
+		}
+		if !scoped {
+			continue
+		}
+		if fallback == nil {
+			fallback = pkg
+		}
+		if installerCompatibleWithHost(pkg, host) {
+			return pkg, anyPackages, nil
+		}
+	}
+
+	return fallback, anyPackages, nil
+}
+
+// installerCompatibleWithHost reports whether the installer's package can run on the host's platform.
+// Mirrors the platform gate in installSoftwareTitleUsingInstaller (.sh and .py run on any unix-like host).
+func installerCompatibleWithHost(installer *fleet.SoftwareInstaller, host *fleet.Host) bool {
+	ext, requiredPlatform := installerRequiredPlatform(installer)
+	if requiredPlatform == "" {
+		return false
+	}
+	if host.FleetPlatform() == requiredPlatform {
+		return true
+	}
+	return (ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)
 }
 
 func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
@@ -1156,35 +1832,42 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 				}
 			}
 
-			err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{SelfService: false})
+			opts := fleet.HostSoftwareInstallOptions{SelfService: false}
+			cfg, err := svc.ds.GetInHouseAppConfiguration(ctx, iha.InstallerID)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "get in-house app configuration for pre-flight check")
+			}
+			switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
+			case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
+				_, err := svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+				return err
+			case err != nil:
+				return ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
+			}
+
+			err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), opts)
 			return ctxerr.Wrap(ctx, err, "insert in house app install")
 		}
 		// it's OK if we didn't find an in-house app; this might be a VPP app, so continue on
 	}
 
 	if !mobileAppleDevice {
-		installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+		// Resolve the first-added package the host is in label scope for (first-added-wins when the
+		// host matches more than one package of the title).
+		installer, anyPackages, err := svc.resolveFirstAddedInScopeInstaller(ctx, host, softwareTitleID, false)
 		if err != nil {
-			if !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "finding software installer for title")
-			}
-			installer = nil
+			return err
 		}
 
-		// if we found an installer, use that
+		// The title has packages but the host isn't in scope for any of them.
+		if installer == nil && anyPackages {
+			return &fleet.BadRequestError{
+				Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
+			}
+		}
+
+		// if we resolved an installer, use that
 		if installer != nil {
-			// check the label scoping for this installer and host
-			scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installer.InstallerID, hostID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "checking label scoping during software install attempt")
-			}
-
-			if !scoped {
-				return &fleet.BadRequestError{
-					Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
-				}
-			}
-
 			lastInstallRequest, err := svc.ds.GetHostLastInstallData(ctx, host.ID, installer.InstallerID)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "getting last install data for host %d and installer %d", host.ID, installer.InstallerID)
@@ -1192,7 +1875,7 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			if lastInstallRequest != nil && lastInstallRequest.Status != nil &&
 				(*lastInstallRequest.Status == fleet.SoftwareInstallPending || *lastInstallRequest.Status == fleet.SoftwareUninstallPending) {
 				return &fleet.BadRequestError{
-					Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
+					Message: "Couldn't install. Host already has a pending install/uninstall for this installer.",
 					InternalErr: ctxerr.WrapWithData(
 						ctx, err, "host already has a pending install/uninstall for this installer",
 						map[string]any{
@@ -1206,42 +1889,30 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			}
 			return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
 		}
-	} else {
-		// Get the enrollment type of the mobile apple device.
-		enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting nano mdm enrollment")
-		}
-
-		if enrollment.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String() {
-			return fleet.NewUserMessageError(errors.New(fleet.InstallSoftwarePersonalAppleDeviceErrMsg), http.StatusUnprocessableEntity)
-		}
 	}
+	// User-enrolled (BYOD) iOS/iPadOS hosts are no longer blocked here. The
+	// downstream VPP install path provisions the per-user VPP user (#44003),
+	// associates the asset via clientUserIds (#44004), and emits an
+	// InstallApplication command without ChangeManagementState (#44005).
 
-	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+	vppApp, anyVersions, err := svc.resolveFirstAddedInScopeAppStoreApp(ctx, host, softwareTitleID, nil)
 	if err != nil {
-		// if we couldn't find an installer or a VPP app, return a bad
-		// request error
-		if fleet.IsNotFound(err) {
-			return &fleet.BadRequestError{
-				Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
-				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "couldn't find an installer or VPP app for software title",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
-				),
-			}
+		return err
+	}
+
+	// if we couldn't find an installer or a VPP app, return a bad
+	// request error
+	if !anyVersions {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install software. Software title is not available for install. Please add software package or App Store app to install.",
+			InternalErr: ctxerr.NewWithData(
+				ctx, "couldn't find an installer or VPP app for software title",
+				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+			),
 		}
-
-		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
 	}
 
-	// check the label scoping for this VPP app and host
-	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "checking label scoping during vpp software install attempt")
-	}
-
-	if !scoped {
+	if vppApp == nil {
 		return &fleet.BadRequestError{
 			Message: "Couldn't install. This host isn't a member of the labels defined for this software title.",
 		}
@@ -1254,17 +1925,16 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 }
 
 func (svc *Service) installSoftwareFromVPP(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, appleDevice bool, opts fleet.HostSoftwareInstallOptions) (string, error) {
-	token, err := svc.GetVPPTokenIfCanInstallVPPApps(ctx, appleDevice, host)
-	if err != nil {
+	if err := svc.CheckCanInstallVPPApps(ctx, appleDevice, host); err != nil {
 		return "", err
 	}
 
-	return svc.InstallVPPAppPostValidation(ctx, host, vppApp, token, opts)
+	return svc.InstallVPPAppPostValidation(ctx, host, vppApp, opts)
 }
 
-func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) (string, error) {
+func (svc *Service) CheckCanInstallVPPApps(ctx context.Context, appleDevice bool, host *fleet.Host) error {
 	if !appleDevice {
-		return "", &fleet.BadRequestError{
+		return &fleet.BadRequestError{
 			Message: "VPP apps can only be installed only on Apple hosts.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested installer",
@@ -1275,20 +1945,20 @@ func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDev
 
 	config, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
+		return ctxerr.Wrap(ctx, err, "fetching config to check MDM status")
 	}
 
 	if !config.MDM.EnabledAndConfigured {
-		return "", fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
+		return fleet.NewUserMessageError(errors.New("Couldn't install. MDM is turned off. Please make sure that MDM is turned on to install App Store apps."), http.StatusUnprocessableEntity)
 	}
 
 	mdmConnected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
 	if err != nil {
-		return "", ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
+		return ctxerr.Wrapf(ctx, err, "checking MDM status for host %d", host.ID)
 	}
 
 	if !mdmConnected {
-		return "", &fleet.BadRequestError{
+		return &fleet.BadRequestError{
 			Message: "Error: Couldn't install. To install App Store app, turn on MDM for this host.",
 			InternalErr: ctxerr.NewWithData(
 				ctx, "VPP install attempted on non-MDM host",
@@ -1297,35 +1967,231 @@ func (svc *Service) GetVPPTokenIfCanInstallVPPApps(ctx context.Context, appleDev
 		}
 	}
 
-	token, err := svc.getVPPToken(ctx, host.TeamID)
+	return nil
+}
+
+// fleetVarInErrRe matches the $FLEET_VAR_* token embedded in the error
+// returned by apple_mdm.SubstituteFleetVarsInAppConfig, so we can name the
+// offending variable in the failure reason shown to the admin.
+var fleetVarInErrRe = regexp.MustCompile(`\$FLEET_VAR_[A-Z_]+`)
+
+// unresolvableAppConfigFailureReason builds the user-facing reason surfaced in
+// the activity feed and Install Details modal when a managed app configuration
+// references a Fleet variable that can't be resolved for the host. Prefers the
+// typed per-variable detail (same wording configuration-profile delivery uses)
+// and falls back to a generic sentence that names the variable.
+func unresolvableAppConfigFailureReason(err error) string {
+	// All current call sites gate on errors.Is(err, …ErrUnresolvableAppConfigVar)
+	// before invoking, so err is non-nil in practice. Defensive nil-guard so
+	// nilaway can prove this and to keep the helper safe if reused.
+	if err == nil {
+		return ""
+	}
+	var typed *apple_mdm.UnresolvableAppConfigVarError
+	if errors.As(err, &typed) && typed.Detail != "" {
+		return typed.Detail
+	}
+	if v := fleetVarInErrRe.FindString(err.Error()); v != "" {
+		return fmt.Sprintf("The app's managed configuration references %s, which Fleet couldn't populate for this host.", v)
+	}
+	return "The app's managed configuration references a Fleet variable that can't be resolved for this host."
+}
+
+// precheckAppConfigResolvable resolves the managed app configuration's Fleet
+// variables for the host without mutating anything. It returns the substitution
+// error unchanged (callers check errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar)).
+// cfg may be empty (no managed config), in which case it's a no-op.
+func (svc *Service) precheckAppConfigResolvable(ctx context.Context, host *fleet.Host, cfg []byte) error {
+	if len(cfg) == 0 {
+		return nil
+	}
+	_, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, svc.ds, cfg, apple_mdm.AppConfigSubstitutionHost{
+		UUID:           host.UUID,
+		HardwareSerial: host.HardwareSerial,
+		Platform:       host.Platform,
+	})
+	return err
+}
+
+// recordFailedVPPInstall records a pre-flight-failed VPP install (no license
+// reserved, no command enqueued) and emits the failed-install activity.
+//
+// For admin / self-service / policy / auto-update paths, returning a nil error
+// is intentional — the activity carries the outcome and the API responds 2xx.
+// For setup-experience (opts.ForSetupExperience=true) we have to surface a
+// non-nil error so the setup-experience driver transitions the step out of
+// Running; otherwise it would stash the unused command UUID and wait forever
+// for an MDM command result that will never arrive.
+func (svc *Service) recordFailedVPPInstall(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions, reason string) (string, error) {
+	cmdUUID := uuid.NewString()
+	user, act, err := svc.ds.RecordFailedVPPAppInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, reason, opts)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "record failed vpp install")
+	}
+	if act != nil {
+		if err := svc.NewActivity(ctx, user, act); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "create activity for failed vpp install")
+		}
+		if opts.PolicyID != nil {
+			err = svc.ds.IncrementHostPolicyAutomationRunCount(ctx, *opts.PolicyID, host.ID, fleet.ActivityInstalledAppStoreApp{}, false)
+			if err != nil {
+				svc.logger.ErrorContext(ctx, "increment host policy automation run count for failed vpp install", "host_id", host.ID, "command_uuid", cmdUUID, "err", err)
+			}
+		}
+	}
+	if opts.ForSetupExperience {
+		return cmdUUID, &fleet.PreflightInstallFailedError{Reason: reason}
+	}
+	return cmdUUID, nil
+}
+
+// recordFailedInHouseInstall is the in-house (.ipa) counterpart of
+// recordFailedVPPInstall. Like it, the setup-experience driver needs an error
+// signal to transition the step to Failure, so ForSetupExperience returns a
+// *fleet.PreflightInstallFailedError (see that type's doc).
+func (svc *Service) recordFailedInHouseInstall(ctx context.Context, hostID, inHouseAppID uint, opts fleet.HostSoftwareInstallOptions, reason string) (string, error) {
+	cmdUUID := uuid.NewString()
+	user, act, err := svc.ds.RecordFailedInHouseAppInstall(ctx, hostID, inHouseAppID, cmdUUID, reason, opts)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "record failed in-house install")
+	}
+	if act != nil {
+		if err := svc.NewActivity(ctx, user, act); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "create activity for failed in-house install")
+		}
+	}
+	if opts.ForSetupExperience {
+		return cmdUUID, &fleet.PreflightInstallFailedError{Reason: reason}
+	}
+	return cmdUUID, nil
+}
+
+// InstallInHouseAppForSetupExperience enqueues an in-house app (.ipa) install
+// for a host held in Setup Assistant. Unlike the manual install path above, it
+// deliberately skips IsInHouseAppLabelScoped: labels don't apply during setup
+// experience for any software type, and a freshly-enrolled host has no
+// computed label membership yet anyway.
+func (svc *Service) InstallInHouseAppForSetupExperience(ctx context.Context, host *fleet.Host, inHouseAppID uint, softwareTitleID uint) (string, error) {
+	opts := fleet.HostSoftwareInstallOptions{SelfService: false, ForSetupExperience: true}
+
+	cfg, err := svc.ds.GetInHouseAppConfiguration(ctx, inHouseAppID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return "", ctxerr.Wrap(ctx, err, "get in-house app configuration for pre-flight check")
+	}
+	switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
+	case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
+		return svc.recordFailedInHouseInstall(ctx, host.ID, inHouseAppID, opts, unresolvableAppConfigFailureReason(err))
+	case err != nil:
+		return "", ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
+	}
+
+	cmdUUID := uuid.NewString()
+	if err := svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, inHouseAppID, softwareTitleID, cmdUUID, opts); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "insert in-house app install for setup experience")
+	}
+	return cmdUUID, nil
+}
+
+func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, opts fleet.HostSoftwareInstallOptions) (string, error) {
+	tokenDB, err := svc.getVPPTokenByID(ctx, vppApp.VPPTokenID)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting VPP token")
 	}
+	token := tokenDB.Token
+	opts.VPPAppTeamID = vppApp.AppTeamID
+	opts.VPPTokenID = tokenDB.ID
+	if opts.ForConfigurationResend {
+		opts.DeferActivation = svc.config.Activity.FleetInitiatedReleasePerMinute > 0
+	}
 
-	return token, nil
-}
+	// Pre-flight: resolve the managed app configuration's Fleet variables for
+	// this host BEFORE anything irreversible (reserving a VPP license, enqueuing
+	// the command). iOS/iPadOS only — macOS VPP installs drop the configuration.
+	// If a variable can't be resolved for this host (e.g. an IdP variable on a
+	// host with no IdP linkage), record a failed install and emit the
+	// failed-install activity instead of rejecting the request, so the failure
+	// is visible in the activity feed and Install Details modal. Doing this
+	// before AssociateAssets also avoids leaking a VPP license.
+	if vppApp.Platform == fleet.IOSPlatform || vppApp.Platform == fleet.IPadOSPlatform {
+		cfg, err := svc.ds.GetVPPAppConfiguration(ctx, vppApp.AppTeamID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return "", ctxerr.Wrap(ctx, err, "get vpp app configuration for pre-flight check")
+		}
+		switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
+		case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
+			return svc.recordFailedVPPInstall(ctx, host, vppApp, opts, unresolvableAppConfigFailureReason(err))
+		case err != nil:
+			return "", ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in vpp app configuration")
+		}
+	}
 
-func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet.Host, vppApp *fleet.VPPApp, token string, opts fleet.HostSoftwareInstallOptions) (string, error) {
 	// at this moment, neither the UI nor the back-end are prepared to
 	// handle [asyncronous errors][1] on assignment, so before assigning a
 	// device to a license, we need to:
 	//
-	// 1. Check if the app is already assigned to the serial number.
+	// 1. Check if the app is already assigned to the serial number (or
+	//    Managed Apple ID, for User Enrollments).
 	// 2. If it's not assigned yet, check if we have enough licenses.
 	//
 	// A race still might happen, so async error checking needs to be
 	// implemented anyways at some point.
 	//
 	// [1]: https://developer.apple.com/documentation/devicemanagement/app_and_book_management/handling_error_responses#3729433
-	assignments, err := vpp.GetAssignments(token, &vpp.AssignmentFilter{AdamID: vppApp.AdamID, SerialNumber: host.HardwareSerial})
+
+	// Resolve enrollment style first so the assignment query can address the
+	// right principal — serial for device-scoped licensing, clientUserId for
+	// user-scoped (BYOD) licensing. Without this branch the existing
+	// SerialNumber filter always returns empty for User Enrollments, which
+	// makes Fleet enter the AvailableCount check on every retry and produces
+	// false-positive "no available licenses" errors when the user is just
+	// adding their Nth (≤5) device under one Managed Apple ID.
+	// Device-vs-user VPP licensing must key off the actual MDM enrollment
+	// channel, not host_mdm.is_personal_enrollment. is_personal_enrollment is
+	// set for BOTH Account-Driven User Enrollment (ADUE, user-scoped, backed by
+	// a Managed Apple ID) and manual-profile BYOD (device channel, no Managed
+	// Apple ID). Only ADUE gets user-scoped licensing; manual-profile BYOD
+	// installs device-scoped, exactly like company-owned manual enrollment.
+	//
+	// The host's primary nano_enrollments row (id = host UUID) tells us the
+	// channel: ADUE devices enroll as "User Enrollment (Device)", while every
+	// other device-channel enrollment (ADE, manual, manual-profile BYOD) is
+	// "Device". Note the "User" type is the separate macOS user channel and is
+	// NOT what we want here. This row exists from enrollment time, whereas the
+	// Managed Apple ID only arrives minutes later via TokenUpdate, so this is
+	// the correct, timing-robust signal. See #48879.
+	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "looking up enrollment for VPP install")
+	}
+	isUserEnrollment := nanoEnroll != nil && nanoEnroll.Type == nanomdm.EnrollType(nanomdm.UserEnrollmentDevice).String()
+
+	var clientUserID string
+	if isUserEnrollment {
+		clientUserID, err = svc.ensureVPPClientUser(ctx, host, tokenDB)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "ensure VPP client user")
+		}
+	}
+
+	assignmentFilter := &vpp.AssignmentFilter{AdamID: vppApp.AdamID}
+	if isUserEnrollment {
+		assignmentFilter.ClientUserID = clientUserID
+	} else {
+		assignmentFilter.SerialNumber = host.HardwareSerial
+	}
+	assignments, err := vpp.GetAssignments(ctx, token, assignmentFilter)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "getting assignments from VPP API")
 	}
 
 	var eventID string
 
-	// this app is not assigned to this device, check if we have licenses
-	// left and assign it.
+	// assocReq is non-nil once we reserve a license below; it lets us release
+	// the seat (DisassociateAssets) if a later step fails, avoiding a leak.
+	var assocReq *vpp.AssociateAssetsRequest
+
+	// this app is not assigned to this device (or this user, for BYOD), check
+	// if we have licenses left and assign it.
 	if len(assignments) == 0 {
 		assets, err := vpp.GetAssets(ctx, token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
 		if err != nil {
@@ -1333,13 +2199,13 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 		}
 
 		if len(assets) == 0 {
-			level.Debug(svc.logger).Log(
-				"msg", "trying to assign VPP asset to host",
+			svc.logger.DebugContext(
+				ctx, "trying to assign VPP asset to host",
 				"adam_id", vppApp.AdamID,
 				"host_serial", host.HardwareSerial,
 			)
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't add software. <app_store_id> isn't available in Apple Business Manager. Please purchase license in Apple Business Manager and try again.",
+				Message:     "Couldn't add software. <app_store_id> isn't available in Apple Business. Please purchase license in Apple Business and try again.",
 				InternalErr: ctxerr.Errorf(ctx, "VPP API didn't return any assets for adamID %s", vppApp.AdamID),
 			}
 		}
@@ -1350,7 +2216,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 
 		if assets[0].AvailableCount <= 0 {
 			return "", &fleet.BadRequestError{
-				Message: "Couldn't install. No available licenses. Please purchase license in Apple Business Manager and try again.",
+				Message: "Couldn't install. No available licenses. Please purchase license in Apple Business and try again.",
 				InternalErr: ctxerr.NewWithData(
 					ctx, "license available count <= 0",
 					map[string]any{
@@ -1363,8 +2229,30 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 			}
 		}
 
-		eventID, err = vpp.AssociateAssets(token, &vpp.AssociateAssetsRequest{Assets: assets, SerialNumbers: []string{host.HardwareSerial}})
+		req := &vpp.AssociateAssetsRequest{Assets: assets}
+		if isUserEnrollment {
+			req.ClientUserIds = []string{clientUserID}
+		} else {
+			req.SerialNumbers = []string{host.HardwareSerial}
+		}
+
+		eventID, err = vpp.AssociateAssets(ctx, token, req)
+		if err == nil {
+			// We reserved a seat; remember the request so we can release it if a
+			// later step fails.
+			assocReq = req
+		}
 		if err != nil {
+			// Apple rejects the per-user device cap (≤5 devices per Managed
+			// Apple ID per license). Surface it cleanly so admins can act on
+			// it without having to decode raw VPP error numbers.
+			if vpp.IsMaxDevicesPerUserError(err) {
+				return "", &fleet.BadRequestError{
+					Message:     "Couldn't install. This user has reached the maximum number of devices for this app license.",
+					InternalErr: ctxerr.WrapWithData(ctx, err, "associate asset rejected by Apple per-user device cap", map[string]any{"host_id": host.ID, "team_id": host.TeamID, "adam_id": vppApp.AdamID}),
+				}
+			}
+
 			return "", ctxerr.Wrapf(ctx, err, "associating asset with adamID %s to host %s", vppApp.AdamID, host.HardwareSerial)
 		}
 	}
@@ -1383,6 +2271,15 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	cmdUUID := uuid.NewString()
 	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, opts)
 	if err != nil {
+		// The install didn't persist, so if we reserved a license seat above we
+		// must release it — otherwise the seat leaks (no install will ever use
+		// it). Best-effort: log and continue returning the original error.
+		if assocReq != nil {
+			if _, dErr := vpp.DisassociateAssets(token, assocReq); dErr != nil {
+				svc.logger.ErrorContext(ctx, "failed to release reserved VPP license after install insert failure",
+					"err", dErr, "host_id", host.ID, "adam_id", vppApp.AdamID)
+			}
+		}
 		return "", ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
 	}
 
@@ -1390,35 +2287,44 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 }
 
 func (svc *Service) installSoftwareTitleUsingInstaller(ctx context.Context, host *fleet.Host, installer *fleet.SoftwareInstaller) error {
-	ext := filepath.Ext(installer.Name)
-	requiredPlatform := packageExtensionToPlatform(ext)
+	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
 		// this should never happen
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
 	}
 
 	if host.FleetPlatform() != requiredPlatform {
-		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
-			InternalErr: ctxerr.NewWithData(
-				ctx, "invalid host platform for requested installer",
-				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
-			),
+		// Allow .sh and .py scripts for any unix-like platform (linux and darwin)
+		if !((ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)) {
+			return &fleet.BadRequestError{
+				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
+				InternalErr: ctxerr.NewWithData(
+					ctx, "invalid host platform for requested installer",
+					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
+				),
+			}
 		}
+	}
+
+	// Reset old attempts so the new install starts fresh at attempt 1.
+	if err := svc.ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installer.InstallerID); err != nil {
+		return ctxerr.Wrap(ctx, err, "reset install attempts before new install")
 	}
 
 	_, err := svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{
 		SelfService: false,
+		WithRetries: true,
 	})
 	return ctxerr.Wrap(ctx, err, "inserting software install request")
 }
 
+// UninstallSoftwareTitle queues an uninstall of the title's package on the given
+// host, rejecting the request when the package can't run on the host's platform.
 func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, softwareTitleID uint) error {
 	// we need to use ds.Host because ds.HostLite doesn't return the orbit node key
 	host, err := svc.ds.Host(ctx, hostID)
 
 	fromMyDevicePage := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
-		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
 		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL)
 
 	if err != nil {
@@ -1455,18 +2361,62 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 		}
 	}
 
-	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
-	if err != nil {
-		if fleet.IsNotFound(err) {
+	const notAvailableMsg = "Couldn't uninstall software. Software title is not available for uninstall. Please add software package to install/uninstall."
+
+	// A My Device caller resolves the package the same way the self-service install
+	// path does, and never reaches the unscoped lookup. Callers acting with a role
+	// keep that lookup, so they can still remove software the host is no longer
+	// eligible for.
+	var installer *fleet.SoftwareInstaller
+	if fromMyDevicePage {
+		selfServiceInstaller, anyPackages, err := svc.resolveFirstAddedInScopeInstaller(ctx, host, softwareTitleID, true)
+		if err != nil {
+			return err
+		}
+		switch {
+		case selfServiceInstaller != nil:
+			installer = selfServiceInstaller
+		case anyPackages:
+			// Report the same reason the install path would for this state.
+			inScopeInstaller, _, err := svc.resolveFirstAddedInScopeInstaller(ctx, host, softwareTitleID, false)
+			if err != nil {
+				return err
+			}
+			if inScopeInstaller != nil {
+				return &fleet.BadRequestError{
+					Message: "Couldn't uninstall software. Software title is not available through self-service",
+					InternalErr: ctxerr.NewWithData(
+						ctx, "software title not available through self-service",
+						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+					),
+				}
+			}
 			return &fleet.BadRequestError{
-				Message: "Couldn't uninstall software. Software title is not available for uninstall. Please add software package to install/uninstall.",
-				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "couldn't find an installer for software title",
+				Message: "Couldn't uninstall software. Host isn't member of the labels defined for this software title.",
+			}
+		default:
+			return &fleet.BadRequestError{
+				Message: notAvailableMsg,
+				InternalErr: ctxerr.NewWithData(
+					ctx, "couldn't find an installer for software title",
 					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
 				),
 			}
 		}
-		return ctxerr.Wrap(ctx, err, "finding software installer for title")
+	} else {
+		installer, err = svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				return &fleet.BadRequestError{
+					Message: notAvailableMsg,
+					InternalErr: ctxerr.WrapWithData(
+						ctx, err, "couldn't find an installer for software title",
+						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+					),
+				}
+			}
+			return ctxerr.Wrap(ctx, err, "finding software installer for title")
+		}
 	}
 
 	lastInstallRequest, err := svc.ds.GetHostLastInstallData(ctx, host.ID, installer.InstallerID)
@@ -1491,16 +2441,18 @@ func (svc *Service) UninstallSoftwareTitle(ctx context.Context, hostID uint, sof
 	}
 
 	// Validate platform
-	ext := filepath.Ext(installer.Name)
-	requiredPlatform := packageExtensionToPlatform(ext)
+	ext, requiredPlatform := installerRequiredPlatform(installer)
 	if requiredPlatform == "" {
 		// this should never happen
 		return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
 	}
 
-	if host.FleetPlatform() != requiredPlatform {
+	// Share the install path's gate rather than re-deriving it: a package that
+	// was allowed to install on this host has to be allowed to uninstall, and
+	// keeping two copies of the rule is what let them drift apart.
+	if !installerCompatibleWithHost(installer, host) {
 		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("Package (%s) can be uninstalled only on %s hosts.", ext, requiredPlatform),
+			Message: fmt.Sprintf("Package (%s) can be uninstalled only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
 			InternalErr: ctxerr.NewWithData(
 				ctx, "invalid host platform for requested uninstall",
 				map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": installer.TitleID},
@@ -1539,7 +2491,6 @@ func (svc *Service) insertSoftwareUninstallRequest(ctx context.Context, executio
 
 func (svc *Service) GetSoftwareInstallResults(ctx context.Context, resultUUID string) (*fleet.HostSoftwareInstallerResult, error) {
 	if svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) ||
-		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) ||
 		svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		return svc.getDeviceSoftwareInstallResults(ctx, resultUUID)
 	}
@@ -1619,6 +2570,89 @@ func (svc *Service) GetSelfServiceUninstallScriptResult(ctx context.Context, hos
 	return scriptResult, nil
 }
 
+// setupExperiencePlatformsForBareIPABoolean resolves the bare setup_experience
+// boolean for an .ipa into the explicit platform list it stands for: true
+// means iOS only, the documented default. The boolean must not stay attached
+// to the base payload directly because on a hash-matched re-apply the base
+// payload is whichever of the app's two platform rows the lookup returned
+// first. An explicit setup_experience_platform list, false, or a non-.ipa
+// package passes through unchanged.
+func setupExperiencePlatformsForBareIPABoolean(extension string, setupPlatforms *[]string, installDuringSetup *bool) *[]string {
+	if extension == "ipa" && setupPlatforms == nil && installDuringSetup != nil && *installDuringSetup {
+		return &[]string{string(fleet.IOSPlatform)}
+	}
+	return setupPlatforms
+}
+
+// installDuringSetupForFannedOutPlatform derives InstallDuringSetup for the
+// second platform payload fanned out from a single .ipa entry. The base
+// payload's value was computed against the base platform (and the shallow copy
+// would otherwise share its pointer): the setup_experience_platform list
+// decides per platform, the bare setup_experience boolean only ever targets
+// the base platform, and nil preserves the stored value on upsert.
+func installDuringSetupForFannedOutPlatform(setupPlatforms *[]string, baseInstallDuringSetup *bool, platform string) *bool {
+	switch {
+	case setupPlatforms != nil:
+		return new(slices.Contains(*setupPlatforms, platform))
+	case baseInstallDuringSetup != nil:
+		return new(false)
+	default:
+		return nil
+	}
+}
+
+// normalizeSetupExperiencePlatforms lowercases, deduplicates, and validates
+// the incoming platforms against the extension's allowlist. The "macos" alias
+// is not accepted — only canonical tokens ("darwin", "linux"), consistent with
+// the query/policy `platform` field. Returns an error on the first
+// incompatible entry; empty input is legal.
+func normalizeSetupExperiencePlatforms(platforms []string, extension string) ([]string, error) {
+	allowed := fleet.AllowedSetupExperiencePlatformsForExtension(extension)
+	allowedSet := make(map[string]struct{}, len(allowed))
+	for _, a := range allowed {
+		allowedSet[a] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(platforms))
+	out := make([]string, 0, len(platforms))
+	for _, raw := range platforms {
+		// No canonicalization, so "macos" is rejected rather than mapped to "darwin".
+		platform := strings.ToLower(strings.TrimSpace(raw))
+		if platform == "" {
+			continue
+		}
+		if _, ok := allowedSet[platform]; !ok {
+			if len(allowed) == 0 {
+				return nil, fmt.Errorf(
+					`setup_experience_platform is not supported for a .%s package`,
+					extension,
+				)
+			}
+			return nil, fmt.Errorf(
+				`platform %q is not a valid "setup_experience_platform" value for a .%s package (allowed: %s)`,
+				raw, extension, strings.Join(allowed, ", "),
+			)
+		}
+		if _, ok := seen[platform]; ok {
+			continue
+		}
+		seen[platform] = struct{}{}
+		out = append(out, platform)
+	}
+	return out, nil
+}
+
+// batchNeedsWindowsTitleReconcile reports whether a batch added any Fleet-maintained app,
+// in which case Windows software titles may need merging onto the installers' titles.
+//
+// Keyed on the maintained-app link alone rather than also on the platform: the reconcile
+// is a no-op for non-Windows apps, so an unnecessary run costs one indexed scan, whereas a
+// missed run leaves the uninstall action hidden until the next periodic pass.
+func batchNeedsWindowsTitleReconcile(installers []*fleet.UploadSoftwareInstallerPayload) bool {
+	return slices.ContainsFunc(installers, func(i *fleet.UploadSoftwareInstallerPayload) bool {
+		return i != nil && i.FleetMaintainedAppID != nil
+	})
+}
+
 func (svc *Service) storeSoftware(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
 	// check if exists in the installer store
 	exists, err := svc.softwareInstallStore.Exists(ctx, payload.StorageID)
@@ -1643,8 +2677,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.New(ctx, "installer file is required")
 	}
 
-	ext := strings.ToLower(filepath.Ext(payload.Filename))
-	ext = strings.TrimPrefix(ext, ".")
+	ext := extensionFromFilename(payload.Filename)
 
 	if fleet.IsScriptPackage(ext) {
 		if err := svc.addScriptPackageMetadata(ctx, payload, ext); err != nil {
@@ -1670,32 +2703,39 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 			if failOnBlankScript {
 				if payload.InstallScript == "" {
 					return "", &fleet.BadRequestError{
-						Message: "Couldn't add. Install script is required for .zip packages.",
+						Message: "Install script is required for .zip packages.",
 					}
 				}
 				if payload.UninstallScript == "" {
 					return "", &fleet.BadRequestError{
-						Message: "Couldn't add. Uninstall script is required for .zip packages.",
+						Message: "Uninstall script is required for .zip packages.",
 					}
 				}
 			}
 			return ext, nil
 		}
 		// For non-Windows zip files (e.g., macOS), let ExtractInstallerMetadata handle it
-		// (it will detect it as IPA due to shared magic bytes, but that's handled elsewhere)
 	}
 
 	meta, err := file.ExtractInstallerMetadata(payload.InstallerFile)
 	if err != nil {
 		if errors.Is(err, file.ErrUnsupportedType) {
+			// The failure comes from magic-byte detection, so the file's content
+			// (not its extension) is what didn't match a supported format.
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. File type not supported. The file should be .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .ipa or .ps1.",
+				Message:     "The file's content doesn't match a supported installer format. Supported types: .pkg, .msi, .exe, .zip, .deb, .rpm, .tar.gz, .sh, .py, .ipa or .ps1.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
 		if errors.Is(err, file.ErrInvalidTarball) {
 			return "", &fleet.BadRequestError{
-				Message:     "Couldn't edit software. Uploaded file is not a valid .tar.gz archive.",
+				Message:     "Uploaded file is not a valid .tar.gz archive.",
+				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
+			}
+		}
+		if errors.Is(err, file.ErrInvalidInstaller) {
+			return "", &fleet.BadRequestError{
+				Message:     "Uploaded file is not a valid installer package.",
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
@@ -1704,7 +2744,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 
 	if len(meta.PackageIDs) == 0 && meta.Extension != "tar.gz" && meta.Extension != "zip" {
 		return "", &fleet.BadRequestError{
-			Message:     "Couldn't add. Unable to extract necessary metadata.",
+			Message:     "Unable to extract necessary metadata.",
 			InternalErr: ctxerr.New(ctx, "extracting package IDs from installer metadata"),
 		}
 	}
@@ -1726,20 +2766,18 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 		return "", ctxerr.Wrap(ctx, err, "resetting installer file reader")
 	}
 
-	if payload.InstallScript == "" {
-		payload.InstallScript = file.GetInstallScript(meta.Extension)
-	}
+	payload.InstallScript = getInstallScript(meta.Extension, meta.PackageIDs, payload.InstallScript)
 
 	// Software edits validate non-empty scripts later, so set failOnBlankScript to false
 	if payload.InstallScript == "" && failOnBlankScript && payload.Extension != "ipa" {
 		ext := strings.ToLower(payload.Extension)
 		if ext == "zip" {
 			return "", &fleet.BadRequestError{
-				Message: "Couldn't add. Install script is required for .zip packages.",
+				Message: "Install script is required for .zip packages.",
 			}
 		}
 		return "", &fleet.BadRequestError{
-			Message: fmt.Sprintf("Couldn't add. Install script is required for .%s packages.", ext),
+			Message: fmt.Sprintf("Install script is required for .%s packages.", ext),
 		}
 	}
 
@@ -1752,7 +2790,7 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 	}
 	if payload.UninstallScript == "" && failOnBlankScript && payload.Extension != "ipa" {
 		return "", &fleet.BadRequestError{
-			Message: fmt.Sprintf("Couldn't add. Uninstall script is required for .%s packages.", strings.ToLower(payload.Extension)),
+			Message: fmt.Sprintf("Uninstall script is required for .%s packages.", strings.ToLower(payload.Extension)),
 		}
 	}
 
@@ -1801,11 +2839,60 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 	}
 
 	scriptContents := string(scriptBytes)
+	if extension != "ps1" {
+		// sh/py scripts run via the kernel's shebang mechanism (e.g. /usr/bin/env python3): stray \r breaks the interpreter lookup.
+		// ps1 runs through powershell.exe on Windows, where CRLF is the native line ending and must be preserved as-is.
+		scriptContents = file.Dos2UnixNewlines(scriptContents)
+	}
 
-	if err := fleet.ValidateHostScriptContents(scriptContents, false); err != nil {
+	// PowerShell scripts don't support any shebang, so catch this before
+	// shebang validation errors on an unrecognized interpreter like pwsh.
+	if extension == "ps1" && strings.HasPrefix(scriptContents, "#!") {
 		return &fleet.BadRequestError{
-			Message:     fmt.Sprintf("Couldn't add. Script validation failed: %s", err.Error()),
+			Message:     "Script validation failed: PowerShell scripts must not start with a shebang (\"#!\").",
+			InternalErr: ctxerr.New(ctx, "powershell script with shebang"),
+		}
+	}
+
+	if err := fleet.ValidateHostScriptContents(scriptContents, true); err != nil {
+		return &fleet.BadRequestError{
+			Message:     fmt.Sprintf("Script validation failed: %s", err.Error()),
 			InternalErr: ctxerr.Wrap(ctx, err, "validating script contents"),
+		}
+	}
+
+	// Validate that the shebang matches the file extension
+	kind, directExecute, err := fleet.ShebangInfo(scriptContents)
+	if err != nil {
+		return &fleet.BadRequestError{
+			Message:     fmt.Sprintf("Script validation failed: %s", err.Error()),
+			InternalErr: ctxerr.Wrap(ctx, err, "validating script shebang"),
+		}
+	}
+	switch extension {
+	case "sh":
+		// allow no shebang (defaults to /bin/sh), or a supported shell shebang.
+		if directExecute && kind != fleet.ShebangShell {
+			return &fleet.BadRequestError{
+				Message:     fmt.Sprintf("Script validation failed: %s", fleet.ErrUnsupportedInterpreter.Error()),
+				InternalErr: ctxerr.New(ctx, "shell script with non-shell shebang"),
+			}
+		}
+	case "py":
+		// python scripts must be directly executable (via a python shebang).
+		if !directExecute || kind != fleet.ShebangPython {
+			return &fleet.BadRequestError{
+				Message:     "Script validation failed: Python scripts must start with a python shebang (for example, \"#!/usr/bin/env python3\").",
+				InternalErr: ctxerr.New(ctx, "python script without python shebang"),
+			}
+		}
+	case "ps1":
+		// PowerShell scripts are executed via powershell.exe, shebangs are not supported.
+		if directExecute {
+			return &fleet.BadRequestError{
+				Message:     "Script validation failed: PowerShell scripts must not start with a shebang (\"#!\").",
+				InternalErr: ctxerr.New(ctx, "powershell script with shebang"),
+			}
 		}
 	}
 
@@ -1830,6 +2917,8 @@ func (svc *Service) addScriptPackageMetadata(ctx context.Context, payload *fleet
 		payload.Source = "sh_packages"
 	case "ps1":
 		payload.Source = "ps1_packages"
+	case "py":
+		payload.Source = "py_packages"
 	}
 
 	platform, err := fleet.SoftwareInstallerPlatformFromExtension(extension)
@@ -1883,6 +2972,23 @@ func (svc *Service) addZipPackageMetadata(ctx context.Context, payload *fleet.Up
 
 const (
 	batchSoftwarePrefix = "software_batch_"
+	// batchSoftwareDeletedSuffix is appended to the batch status key to form the key holding
+	// the JSON-encoded list of packages the batch will delete (or, on a dry run, would delete).
+	batchSoftwareDeletedSuffix = ":deleted"
+	// batchSoftwareCategoriesSuffix is appended to the batch status key to form the key holding
+	// the JSON-encoded list of self-service categories this batch added. This is required because
+	// we can only be certain of all categories after downloading all FMA manifests and seeing
+	// which default categories we might need to add.
+	batchSoftwareCategoriesSuffix = ":categories"
+	// batchSoftwareDownloadedSuffix is appended to the batch status key to form the key
+	// holding each package's download status, written as the batch runs so clients can
+	// report progress before the batch completes.
+	batchSoftwareDownloadedSuffix = ":downloaded"
+	// keyExpireTime serves as a timeout for each step of the batch upload process (initial checks, download for
+	// a package from source, upload for a package to object storage) for each package. This timeout is refreshed
+	// at each step. If the timeout is reached, they key expires in Redis and the batch process is considered
+	// abandoned by clients checking in on it.
+	keyExpireTime = 4 * time.Minute
 )
 
 func (svc *Service) BatchSetSoftwareInstallers(
@@ -1898,20 +3004,41 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	}
 
 	var teamID *uint
+	var newFleet bool
 	if tmName != "" {
 		tm, err := svc.ds.TeamByName(ctx, tmName)
 		if err != nil {
-			// If this is a dry run, the team may not have been created yet
-			if dryRun && fleet.IsNotFound(err) {
-				return "", nil
+			// On a dry run the fleet may not have been created yet. teamID then
+			// stays nil, which means Unassigned, so only the payload checks run.
+			if !dryRun || !fleet.IsNotFound(err) {
+				return "", err
 			}
-			return "", err
+			newFleet = true
+		} else {
+			teamID = &tm.ID
 		}
-		teamID = &tm.ID
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "validating authorization")
+	}
+
+	// Empty payload + dry-run has nothing to validate or stage, so skip the async
+	// round-trip — but only when the team also has no installers: an empty payload
+	// deletes every existing package, and the dry run must report each one. The
+	// client handles an empty UUID response gracefully.
+	if dryRun && len(payloads) == 0 && !newFleet {
+		pendingDeletion, err := svc.ds.GetSoftwareInstallersPendingDeletion(ctx, teamID, nil)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "checking for software installers pending deletion")
+		}
+		if len(pendingDeletion) == 0 {
+			svc.logger.DebugContext(
+				ctx, "software batch dry-run skipped: empty payload and no existing installers",
+				"team_id", teamID,
+			)
+			return "", nil
+		}
 	}
 
 	var allScripts []string
@@ -1919,16 +3046,22 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	// Verify payloads first, to prevent starting the download+upload process if the data is invalid.
 	for _, payload := range payloads {
 		if payload.Slug != nil && *payload.Slug != "" {
-			err := svc.softwareInstallerPayloadFromSlug(ctx, payload, teamID)
+			err := svc.maintainedAppFromSlug(ctx, payload, teamID)
 			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "getting fleet maintained software installer payload from slug")
+				return "", ctxerr.Wrap(ctx, err, "getting fleet maintained app from slug")
 			}
 		}
 
-		if payload.URL == "" && payload.SHA256 == "" {
+		if payload.MaintainedApp == nil && payload.URL == "" && payload.SHA256 == "" {
 			return "", fleet.NewInvalidArgumentError(
 				"software",
 				"Couldn't edit software. One or more software packages is missing url or hash_sha256 fields.",
+			)
+		}
+		if payload.AlwaysDownload && payload.SHA256 != "" {
+			return "", fleet.NewInvalidArgumentError(
+				"software",
+				"Couldn't edit software. The 'always_download' option cannot be used with 'hash_sha256'.",
 			)
 		}
 		if len(payload.URL) > fleet.SoftwareInstallerURLMaxLength {
@@ -1938,7 +3071,9 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			)
 		}
 
-		if payload.URL != "" {
+		// Skip URL validation when it is empty or when it is for a script-only package,
+		// which uses a "script://" URL scheme to pass the filename
+		if payload.URL != "" && !strings.HasPrefix(payload.URL, "script://") {
 			if _, err := url.ParseRequestURI(payload.URL); err != nil {
 				return "", fleet.NewInvalidArgumentError(
 					"software.url",
@@ -1947,13 +3082,27 @@ func (svc *Service) BatchSetSoftwareInstallers(
 			}
 		}
 		if !dryRun {
-			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny)
+			validatedLabels, err := ValidateSoftwareLabels(ctx, svc, teamID, payload.LabelsIncludeAny, payload.LabelsExcludeAny, payload.LabelsIncludeAll)
 			if err != nil {
 				return "", err
 			}
 			payload.ValidatedLabels = validatedLabels
 		}
 		allScripts = append(allScripts, payload.InstallScript, payload.PostInstallScript, payload.UninstallScript)
+
+		// static check, so unlike the secrets validation below it also runs on
+		// gitops dry runs
+		if err := validateFleetVariablesOnInstallerScripts(ctx, &payload.InstallScript, &payload.PostInstallScript, &payload.UninstallScript); err != nil {
+			return "", err
+		}
+
+		if err := trimAndValidateCategories(ctx, payload.Categories.Value); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "validating software categories")
+		}
+	}
+
+	if newFleet {
+		return "", nil
 	}
 
 	if !dryRun {
@@ -1963,19 +3112,21 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		if err := svc.ds.ValidateEmbeddedSecrets(ctx, allScripts); err != nil {
 			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
 		}
+		if err := svc.ds.ValidateReferencedCustomHostVitals(ctx, allScripts); err != nil {
+			if !fleet.IsInvalidReferencedCustomHostVitalsError(err) {
+				return "", ctxerr.Wrap(ctx, err, "validating referenced custom host vitals")
+			}
+			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("script", err.Error()))
+		}
 	}
-
-	// keyExpireTime is the current maximum time supported for retrieving
-	// the result of a software by batch operation.
-	const keyExpireTime = 24 * time.Hour
 
 	requestUUID := uuid.NewString()
 	if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime); err != nil {
 		return "", ctxerr.Wrapf(ctx, err, "failed to set key as %s", batchSetProcessing)
 	}
 
-	svc.logger.Log(
-		"msg", "software batch start",
+	svc.logger.InfoContext(
+		ctx, "software batch start",
 		"request_uuid", requestUUID,
 		"team_id", teamID,
 		"payloads", len(payloads),
@@ -1992,25 +3143,113 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	return requestUUID, nil
 }
 
-func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payload *fleet.SoftwareInstallerPayload, teamID *uint) error {
+var (
+	errEmptyCaretVersion    = errors.New("a major version must be specified after the caret (^). For example, \"^32\".")
+	errNonMajorVersion      = errors.New("only the major version can be specified with a caret (^), without including minor and patch versions. For example, \"^32\".")
+	errMajorVersionNotFound = errors.New("specified major version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.")
+	errVersionNotFound      = errors.New("specified version is not available. Available versions are listed in the Fleet UI under Actions > Edit software.")
+)
+
+func (svc *Service) maintainedAppFromSlug(ctx context.Context, payload *fleet.SoftwareInstallerPayload, teamID *uint) error {
 	slug := payload.Slug
 	if slug == nil || *slug == "" {
 		return nil
 	}
 
-	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, teamID)
+	// convert nil teamID to 0 to get correct titleID
+	tmID := ptr.ValOrZero(teamID)
+	app, err := svc.ds.GetMaintainedAppBySlug(ctx, *slug, &tmID)
+	if err != nil {
+		// Return user-friendly message for generic not found error
+		if fleet.IsNotFound(err) {
+			// Must return low-level error in order to be properly handled upstream
+			return fleet.NewUserMessageError(
+				fmt.Errorf("%s isn't a supported Fleet-maintained app. See supported apps: https://fleetdm.com/learn-more-about/supported-fleet-maintained-app-slugs", *slug),
+				http.StatusNotFound,
+			)
+		}
+		return err
+	}
+
+	payload.RollbackVersion = strings.TrimSpace(payload.RollbackVersion)
+	_, _, err = parsePinnedVersion(ctx, payload.RollbackVersion)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
+	}
+
+	payload.MaintainedApp = app
+	return nil
+}
+
+func (svc *Service) softwareInstallerPayloadFromMaintainedApp(ctx context.Context, payload *fleet.SoftwareInstallerPayload, teamID *uint) error {
+	app := payload.MaintainedApp
+	majorVersionString, usesCaret, err := parsePinnedVersion(ctx, payload.RollbackVersion)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "reading Fleet-maintained app pinned version")
+	}
+
+	// use a temporary string for calling hydrate, so we download the latest manifest but keep the
+	// version in the db later for the auto update cron job
+	hydrateVersion := payload.RollbackVersion
+	if usesCaret {
+		hydrateVersion = ""
+	}
+
+	_, err = maintained_apps.Hydrate(ctx, app, hydrateVersion, teamID, svc.ds)
 	if err != nil {
 		return err
 	}
-	_, err = maintained_apps.Hydrate(ctx, app)
-	if err != nil {
-		return err
+
+	if usesCaret {
+		if !versionMatchesMajor(app.Version, majorVersionString) {
+			// We cannot use the FMA we just got the manifest for since it is on a different major
+			// version, so we try to find the latest cached version and use that instead.
+			if app.TitleID == nil {
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+			}
+			versions, err := svc.ds.GetFleetMaintainedVersionsByTitleID(ctx, teamID, *app.TitleID)
+			if err != nil {
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+			}
+			// Cached versions come back most recently downloaded first, so the first one on the
+			// pinned major is the one to fall back to.
+			pinnedVersion := ""
+			for _, version := range versions {
+				if versionMatchesMajor(version.Version, majorVersionString) {
+					pinnedVersion = version.Version
+					break
+				}
+			}
+			if pinnedVersion == "" {
+				return fleet.NewUserMessageError(errMajorVersionNotFound, http.StatusNotFound)
+			}
+
+			// This is a bit inefficient as we are duplicating strings for categories and install/uninstall scripts,
+			// but it can be optimized in softwareBatchUpload if it accepted only passing category and script content IDs.
+			installer, err := svc.ds.GetCachedFMAInstallerMetadata(ctx, teamID, app.ID, pinnedVersion)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting software installer")
+			}
+
+			app.Version = installer.Version
+			app.InstallerURL = installer.InstallerURL
+			app.SHA256 = installer.SHA256
+			app.InstallScript = installer.InstallScript
+			app.UninstallScript = installer.UninstallScript
+			app.Categories = installer.Categories
+			app.PatchQuery = installer.PatchQuery
+			app.AppOpenQuery = installer.AppOpenQuery
+		}
 	}
 
 	payload.URL = app.InstallerURL
 	if app.SHA256 != noCheckHash {
 		payload.SHA256 = app.SHA256
 	}
+	// A script spelled out in the request is an admin customization; falling back to
+	// the manifest is not.
+	payload.InstallScriptEdited = payload.InstallScript != ""
+	payload.UninstallScriptEdited = payload.UninstallScript != ""
 	if payload.InstallScript == "" {
 		payload.InstallScript = app.InstallScript
 	}
@@ -2018,10 +3257,11 @@ func (svc *Service) softwareInstallerPayloadFromSlug(ctx context.Context, payloa
 		payload.UninstallScript = app.UninstallScript
 	}
 	payload.FleetMaintained = true
-	payload.MaintainedApp = app
-	if len(payload.Categories) == 0 {
-		payload.Categories = app.Categories
+	if !payload.Categories.Set {
+		payload.Categories = optjson.SetSlice(app.Categories)
 	}
+	payload.MaintainedApp.PatchQuery = app.PatchQuery
+	payload.MaintainedApp.AppOpenQuery = app.AppOpenQuery
 
 	return nil
 }
@@ -2032,6 +3272,136 @@ const (
 	batchSetFailedPrefix = "failed:"
 )
 
+// installerDownloadStallTimeout fails a download that receives no bytes for this long, counted from the request
+// start or the last byte read. Any byte resets it, so slow downloads still finish. Matches the agent's
+// downloadStallTimeout in client/orbit_client.go.
+var installerDownloadStallTimeout = 60 * time.Second
+
+var errInstallerDownloadStalled = errors.New("installer download stalled")
+
+// stallResetReader pushes the download stall timer back on every read that returns bytes.
+type stallResetReader struct {
+	r       io.Reader
+	timer   *time.Timer
+	timeout time.Duration
+}
+
+func (s stallResetReader) Read(p []byte) (int, error) {
+	n, err := s.r.Read(p)
+	if n > 0 {
+		s.timer.Reset(s.timeout)
+	}
+	return n, err
+}
+
+// downloadInstallerURL downloads an installer from a URL. If ifNoneMatch is
+// non-empty, the request includes an If-None-Match header for conditional GET.
+//
+// On 304 Not Modified, returns (resp, nil, nil): resp has StatusCode 304 and a
+// closed body, tfr is nil. Callers MUST check resp.StatusCode before using tfr.
+func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch string, maxInstallerSize int64) (*http.Response, *fleet.TempFileReader, error) {
+	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithMaxResponseSize(maxInstallerSize))
+
+	// The client has no timeout so large installers can finish, which leaves a server that stops sending free to
+	// hang the batch. The stall timer cancels the request instead, before or after the headers arrive.
+	timeout := installerDownloadStallTimeout
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	stall := time.AfterFunc(timeout, func() { cancel(errInstallerDownloadStalled) })
+	defer stall.Stop()
+	stalledErr := func() error {
+		if !errors.Is(context.Cause(ctx), errInstallerDownloadStalled) {
+			return nil
+		}
+		return fmt.Errorf("downloading %q: no data received for %s: %w", downloadURL, timeout, errInstallerDownloadStalled)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("creating request for URL %q: %w", downloadURL, err)
+	}
+	if ifNoneMatch != "" {
+		req.Header.Set("If-None-Match", ifNoneMatch)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		if stallErr := stalledErr(); stallErr != nil {
+			return nil, nil, stallErr
+		}
+		var maxBytesErr *http.MaxBytesError
+		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
+			return nil, nil, fleet.NewInvalidArgumentError(
+				"software.url",
+				fmt.Sprintf("URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
+			)
+		}
+
+		return nil, nil, fmt.Errorf("performing request for URL %q: %w", downloadURL, err)
+	}
+
+	// 304 Not Modified: content unchanged, return response with no body.
+	// Set Body to http.NoBody after closing so downstream Close() calls are safe.
+	if resp.StatusCode == http.StatusNotModified {
+		resp.Body.Close()
+		resp.Body = http.NoBody
+		return resp, nil, nil
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil, fleet.NewInvalidArgumentError(
+			"software.url",
+			fmt.Sprintf("URL (%q) returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", downloadURL),
+		)
+	}
+
+	// Allow all 2xx and 3xx status codes in this pass.
+	if resp.StatusCode >= 400 {
+		return nil, nil, fleet.NewInvalidArgumentError(
+			"software.url",
+			fmt.Sprintf("URL (%q) received response status code %d.", downloadURL, resp.StatusCode),
+		)
+	}
+
+	tfr, err := fleet.NewTempFileReader(stallResetReader{r: resp.Body, timer: stall, timeout: timeout}, nil)
+	if err != nil {
+		if stallErr := stalledErr(); stallErr != nil {
+			return nil, nil, stallErr
+		}
+		// the max size error can be received either at client.Do or here when
+		// reading the body if it's caught via a limited body reader.
+		var maxBytesErr *http.MaxBytesError
+		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
+			return nil, nil, fleet.NewInvalidArgumentError(
+				"software.url",
+				fmt.Sprintf("URL (%q). The maximum file size is %s", downloadURL, installersize.Human(maxInstallerSize)),
+			)
+		}
+		return nil, nil, fmt.Errorf("reading installer %q contents: %w", downloadURL, err)
+	}
+
+	return resp, tfr, nil
+}
+
+func softwarePackageProgressName(payload *fleet.SoftwareInstallerPayload) string {
+	switch {
+	case payload.DisplayName != "":
+		return payload.DisplayName
+	case payload.MaintainedApp != nil && payload.MaintainedApp.Name != "":
+		return payload.MaintainedApp.Name
+	}
+
+	filename := file.ExtractFilenameFromURLPath(payload.URL, "")
+	// A url path with no extension comes back with a trailing dot.
+	filename = strings.TrimSuffix(filename, ".")
+	if filename == "" {
+		return payload.URL
+	}
+	return filename
+}
+
 func (svc *Service) softwareBatchUpload(
 	requestUUID string,
 	teamID *uint,
@@ -2040,6 +3410,9 @@ func (svc *Service) softwareBatchUpload(
 	dryRun bool,
 ) {
 	var batchErr error
+	// deletedPackagesJSON holds the JSON-encoded list of packages this batch will
+	// delete (dry run: would delete), recorded in Redis on completion.
+	var deletedPackagesJSON string
 
 	// TODO: this might be a little drastic to drop back to Background context,
 	// consider using ctx.WithoutCancel to keep all but the cancellation of the
@@ -2050,80 +3423,152 @@ func (svc *Service) softwareBatchUpload(
 	ctx := context.Background()
 
 	defer func(start time.Time) {
+		// The deleted-packages list was already persisted before any datastore
+		// mutation; re-set it here to refresh its TTL so the client has the full
+		// window to read it even after a long-running batch. Best-effort only: at
+		// this point the batch may have already committed, so a Redis failure must
+		// not mark it as failed.
+		if batchErr == nil && deletedPackagesJSON != "" {
+			if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDeletedSuffix, deletedPackagesJSON, 10*time.Minute); err != nil {
+				svc.logger.WarnContext(
+					ctx, "failed to refresh deleted-packages result; the deletion report may be missing from the batch result",
+					"request_uuid", requestUUID,
+					"err", err,
+				)
+			}
+		}
 		status := batchSetCompleted
 		if batchErr != nil {
 			status = fmt.Sprintf("%s%s", batchSetFailedPrefix, batchErr)
 		}
-		logger := log.With(svc.logger,
+		logger := svc.logger.With(
 			"request_uuid", requestUUID,
 			"team_id", teamID,
 			"payloads", len(payloads),
 			"status", status,
 			"took", time.Since(start),
 		)
-		logger.Log("msg", "software batch done")
+		logger.InfoContext(ctx, "software batch done")
 		// Give 10m for the client to read the result (it overrides the previos expiration time).
 		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, status, 10*time.Minute); err != nil {
-			logger.Log("msg", "failed to set result", "err", err)
+			logger.ErrorContext(ctx, "failed to set result", "err", err)
 		}
 	}(time.Now())
 
-	downloadURLFn := func(ctx context.Context, url string) (*http.Response, *fleet.TempFileReader, error) {
-		client := fleethttp.NewClient()
-		client.Transport = fleethttp.NewSizeLimitTransport(fleet.MaxSoftwareInstallerSize)
+	// Every write marshals the whole slice, so writing only your own index isn't enough if
+	// the download goroutine limit is ever raised. The Redis write stays outside the lock.
+	downloadProgress := make([]fleet.SoftwarePackageDownloadProgress, len(payloads))
+	var downloadProgressMutex sync.Mutex
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			return nil, nil, fmt.Errorf("creating request for URL %q: %w", url, err)
-		}
+	// Periodically refresh the expiration on the batch install process so that, even when downloading/uploading
+	// large installers, we ensure the server doesn't lose track of the batch. This way, the only time a batch times
+	// out is if the server goes offline during running the batch.
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(keyExpireTime / 3) // Running keepalive much more often since we don't retry set errors
+		defer ticker.Stop()
+		for {
+			select {
+			// at this point we're done with the batch, at which point the caller will set the job in Redis as complete
+			// with a longer TTL, so we don't need to do anything here
+			case <-done:
+				return
+			case <-ticker.C:
+				_ = svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID, batchSetProcessing, keyExpireTime)
 
-		resp, err := client.Do(req)
-		if err != nil {
-			var maxBytesErr *http.MaxBytesError
-			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
-				return nil, nil, fleet.NewInvalidArgumentError(
-					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
-				)
+				progressKey := batchSoftwarePrefix + requestUUID + batchSoftwareDownloadedSuffix
+				progressJSON, err := svc.keyValueStore.Get(ctx, progressKey)
+				if err == nil && progressJSON != nil {
+					_ = svc.keyValueStore.Set(ctx, progressKey, *progressJSON, 10*time.Minute)
+				}
+
+				categoriesKey := batchSoftwarePrefix + requestUUID + batchSoftwareCategoriesSuffix
+				categoriesJSON, err := svc.keyValueStore.Get(ctx, categoriesKey)
+				if err == nil && categoriesJSON != nil {
+					_ = svc.keyValueStore.Set(ctx, categoriesKey, *categoriesJSON, 10*time.Minute)
+				}
+				// The deleted key is only written once the downloads are done, and refreshed
+				// again as the batch completes, so it doesn't need this.
 			}
-
-			return nil, nil, fmt.Errorf("performing request for URL %q: %w", url, err)
 		}
-		defer resp.Body.Close()
+	}()
+	defer close(done)
 
-		if resp.StatusCode == http.StatusNotFound {
-			return nil, nil, fleet.NewInvalidArgumentError(
-				"software.url",
-				fmt.Sprintf("Couldn't edit software. URL (%q) returned \"Not Found\". Please make sure that URLs are reachable from your Fleet server.", url),
-			)
-		}
-
-		// Allow all 2xx and 3xx status codes in this pass.
-		if resp.StatusCode >= 400 {
-			return nil, nil, fleet.NewInvalidArgumentError(
-				"software.url",
-				fmt.Sprintf("Couldn't edit software. URL (%q) received response status code %d.", url, resp.StatusCode),
-			)
-		}
-
-		tfr, err := fleet.NewTempFileReader(resp.Body, nil)
-		if err != nil {
-			// the max size error can be received either at client.Do or here when
-			// reading the body if it's caught via a limited body reader.
-			var maxBytesErr *http.MaxBytesError
-			if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
-				return nil, nil, fleet.NewInvalidArgumentError(
-					"software.url",
-					fmt.Sprintf("Couldn't edit software. URL (%q). The maximum file size is %d GB", url, fleet.MaxSoftwareInstallerSize/(1000*1024*1024)),
-				)
-			}
-			return nil, nil, fmt.Errorf("reading installer %q contents: %w", url, err)
-		}
-
-		return resp, tfr, nil
+	maxInstallerSize := svc.config.Server.MaxInstallerSizeBytes
+	downloadURLFn := func(ctx context.Context, downloadURL string, ifNoneMatch string) (*http.Response, *fleet.TempFileReader, error) {
+		return downloadInstallerURL(ctx, downloadURL, ifNoneMatch, maxInstallerSize)
 	}
 
-	var g errgroup.Group
+	// retryDownload wraps downloadURLFn with the standard retry policy.
+	// Note: a 304 response returns nil error and is treated as success (not retried).
+	retryDownload := func(ctx context.Context, downloadURL, ifNoneMatch string) (*http.Response, *fleet.TempFileReader, error) {
+		var resp *http.Response
+		var tfr *fleet.TempFileReader
+		err := retry.Do(func() error {
+			// Close resources from a previous attempt to avoid leaking
+			// file descriptors, temp files, and HTTP connections.
+			if tfr != nil {
+				tfr.Close()
+				tfr = nil
+			}
+			if resp != nil && resp.Body != nil {
+				resp.Body.Close()
+				resp = nil
+			}
+			var retryErr error
+			resp, tfr, retryErr = downloadURLFn(ctx, downloadURL, ifNoneMatch)
+			return retryErr
+		}, retry.WithMaxAttempts(fleet.BatchDownloadMaxRetries), retry.WithInterval(fleet.BatchSoftwareInstallerRetryInterval()))
+		return resp, tfr, err
+	}
+
+	var manualAgentInstall bool
+	tmID := ptr.ValOrZero(teamID)
+	if tmID == 0 {
+		ac, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			batchErr = fmt.Errorf("Couldn't get app config: %w", err)
+			return
+		}
+		manualAgentInstall = ac.MDM.MacOSSetup.ManualAgentInstall.Value
+	} else {
+		team, err := svc.ds.TeamLite(ctx, tmID)
+		if err != nil {
+			batchErr = fmt.Errorf("Couldn't get team for team ID %d: %w", tmID, err)
+			return
+		}
+		manualAgentInstall = team.Config.MDM.MacOSSetup.ManualAgentInstall.Value
+	}
+
+	var categoryNames []string
+	for _, payload := range payloads {
+		if payload.MaintainedApp != nil {
+			err := svc.softwareInstallerPayloadFromMaintainedApp(ctx, payload, teamID)
+			if err != nil {
+				batchErr = err
+				return
+			}
+		}
+		categoryNames = append(categoryNames, payload.Categories.Value...)
+	}
+
+	batchCategories, err := svc.batchAddSelfServiceCategories(ctx, teamID, categoryNames, dryRun)
+	if err != nil {
+		batchErr = err
+		return
+	}
+	categoriesJSON, err := json.Marshal(batchCategories)
+	if err != nil {
+		batchErr = ctxerr.Wrap(ctx, err, "marshal self-service categories result")
+		return
+	}
+	err = svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareCategoriesSuffix, string(categoriesJSON), 10*time.Minute)
+	if err != nil {
+		batchErr = ctxerr.Wrap(ctx, err, "failed to set self-service categories result")
+		return
+	}
+
+	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(1) // TODO: consider whether we can increase this limit, see https://github.com/fleetdm/fleet/issues/22704#issuecomment-2397407837
 
 	// the reason for this struct with extra installers support is that:
@@ -2143,57 +3588,87 @@ func (svc *Service) softwareBatchUpload(
 	installers := make([]*installerPayloadWithExtras, len(payloads))
 	toBeClosedTFRs := make([]*fleet.TempFileReader, len(payloads))
 
+	setDownloadProgress := func(payloadIndex int, status fleet.SoftwarePackageDownloadStatus) {
+		downloadProgressMutex.Lock()
+		downloadProgress[payloadIndex] = fleet.SoftwarePackageDownloadProgress{
+			Name:   softwarePackageProgressName(payloads[payloadIndex]),
+			Status: status,
+		}
+		progressJSON, err := json.Marshal(downloadProgress)
+		downloadProgressMutex.Unlock()
+
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "encoding software package download progress", "request_uuid", requestUUID, "err", err)
+			return
+		}
+
+		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix, string(progressJSON), 10*time.Minute); err != nil {
+			svc.logger.ErrorContext(ctx, "recording software package download progress", "request_uuid", requestUUID, "err", err)
+		}
+	}
+
 	for i, p := range payloads {
 		i, p := i, p
 
-		g.Go(func() error {
+		g.Go(func() (retErr error) {
+			// errgroup doesn't recover, and installer parsers can panic on crafted
+			// input, which would end the process from this goroutine.
+			defer func() {
+				if r := recover(); r != nil {
+					svc.logger.ErrorContext(ctx, "panic processing software package",
+						"request_uuid", requestUUID, "url", p.URL, "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+					retErr = fmt.Errorf("Couldn't process software package %s: unexpected error.", p.URL)
+				}
+			}()
+
+			// A single failure fails the whole batch, so don't process (and download)
+			// the remaining payloads. With the limit of 1 above, gctx is always
+			// cancelled before the next goroutine starts; in-flight work isn't
+			// interrupted if the limit is raised.
+			if err := gctx.Err(); err != nil {
+				return err
+			}
+
 			// NOTE: cannot defer tfr.Close() here because the reader needs to be
 			// available after the goroutine completes. Instead, all temp file
 			// readers are collected in toBeClosedTFRs and will have their Close
 			// deferred after the join/wait of goroutines.
 			installer := &fleet.UploadSoftwareInstallerPayload{
-				TeamID:             teamID,
-				InstallScript:      p.InstallScript,
-				PreInstallQuery:    p.PreInstallQuery,
-				PostInstallScript:  p.PostInstallScript,
-				UninstallScript:    p.UninstallScript,
-				SelfService:        p.SelfService,
-				UserID:             userID,
-				URL:                p.URL,
-				InstallDuringSetup: p.InstallDuringSetup,
-				LabelsIncludeAny:   p.LabelsIncludeAny,
-				LabelsExcludeAny:   p.LabelsExcludeAny,
-				ValidatedLabels:    p.ValidatedLabels,
-				Categories:         p.Categories,
-				DisplayName:        p.DisplayName,
+				TeamID:                   teamID,
+				InstallScript:            p.InstallScript,
+				PreInstallQuery:          p.PreInstallQuery,
+				PostInstallScript:        p.PostInstallScript,
+				UninstallScript:          p.UninstallScript,
+				InstallScriptEdited:      p.InstallScriptEdited,
+				UninstallScriptEdited:    p.UninstallScriptEdited,
+				SelfService:              p.SelfService,
+				UserID:                   userID,
+				URL:                      p.URL,
+				InstallDuringSetup:       p.InstallDuringSetup,
+				SetupExperiencePlatforms: p.SetupExperiencePlatforms,
+				LabelsIncludeAny:         p.LabelsIncludeAny,
+				LabelsExcludeAny:         p.LabelsExcludeAny,
+				LabelsIncludeAll:         p.LabelsIncludeAll,
+				ValidatedLabels:          p.ValidatedLabels,
+				Categories:               p.Categories.Value,
+				DisplayName:              p.DisplayName,
+				RollbackVersion:          p.RollbackVersion,
+				Configuration:            p.Configuration,
 			}
 
 			var extraInstallers []*fleet.UploadSoftwareInstallerPayload
 
-			p.Categories = server.RemoveDuplicatesFromSlice(p.Categories)
-			catIDs, err := svc.ds.GetSoftwareCategoryIDs(ctx, p.Categories)
+			categories, catIDs, err := svc.removeDuplicateOrMissingCategories(ctx, tmID, p.Categories.Value)
 			if err != nil {
-				return err
+				return ctxerr.Wrap(ctx, err, "filtering software installer categories")
 			}
-
-			if len(catIDs) != len(p.Categories) {
-				return &fleet.BadRequestError{
-					Message:     "some or all of the categories provided don't exist",
-					InternalErr: fmt.Errorf("categories provided: %v", p.Categories),
-				}
-			}
-
+			installer.Categories = categories
 			installer.CategoryIDs = catIDs
 
 			// check if we already have the installer based on the SHA256 and URL
 			teamIDs, err := svc.ds.GetTeamsWithInstallerByHash(ctx, p.SHA256, p.URL)
 			if err != nil {
 				return err
-			}
-
-			var tmID uint
-			if teamID != nil {
-				tmID = *teamID
 			}
 
 			foundInstallers, ok := teamIDs[tmID]
@@ -2215,10 +3690,14 @@ func (svc *Service) softwareBatchUpload(
 				// make a copy of the installer without filled fields in case we add
 				// extra installers
 				extraInstallerBase := *installer
-				fillSoftwareInstallerPayloadFromExisting(installer, foundInstaller, p.SHA256)
+				if err := svc.fillSoftwareInstallerPayloadFromExisting(ctx, installer, foundInstaller, p.SHA256); err != nil {
+					return err
+				}
 				for _, extraInstaller := range foundInstallers[1:] {
 					extraPayload := extraInstallerBase
-					fillSoftwareInstallerPayloadFromExisting(&extraPayload, extraInstaller, p.SHA256)
+					if err := svc.fillSoftwareInstallerPayloadFromExisting(ctx, &extraPayload, extraInstaller, p.SHA256); err != nil {
+						return err
+					}
 					extraInstallers = append(extraInstallers, &extraPayload)
 				}
 
@@ -2259,10 +3738,14 @@ func (svc *Service) softwareBatchUpload(
 					// make a copy of the installer without filled fields in case we add
 					// extra installers
 					extraInstallerBase := *installer
-					fillSoftwareInstallerPayloadFromExisting(installer, teamInstaller, p.SHA256)
+					if err := svc.fillSoftwareInstallerPayloadFromExisting(ctx, installer, teamInstaller, p.SHA256); err != nil {
+						return err
+					}
 					for _, extraInstaller := range teamInstallers[1:] {
 						extraPayload := extraInstallerBase
-						fillSoftwareInstallerPayloadFromExisting(&extraPayload, extraInstaller, p.SHA256)
+						if err := svc.fillSoftwareInstallerPayloadFromExisting(ctx, &extraPayload, extraInstaller, p.SHA256); err != nil {
+							return err
+						}
 						extraInstallers = append(extraInstallers, &extraPayload)
 					}
 
@@ -2270,47 +3753,196 @@ func (svc *Service) softwareBatchUpload(
 				}
 			}
 
+			// For FMA installers, check if this version is already cached for this team.
+			// Match on the hash too so a rebuilt package (same version, new hash) isn't
+			// treated as cached and gets downloaded and upserted instead.
+			var fmaVersionCached bool
+			if p.Slug != nil && *p.Slug != "" && p.MaintainedApp != nil && p.MaintainedApp.Version != "" {
+				versionExists, cachedHash, err := svc.ds.HasFMAInstallerVersion(ctx, teamID, p.MaintainedApp.ID, p.MaintainedApp.Version)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "check cached FMA version")
+				}
+				switch {
+				case p.MaintainedApp.SHA256 != noCheckHash:
+					if versionExists && cachedHash == p.MaintainedApp.SHA256 {
+						fmaVersionCached, err = svc.softwareInstallStore.Exists(ctx, cachedHash)
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "check cached FMA installer in store")
+						}
+					}
+				case versionExists && cachedHash != "" && cachedHash != noCheckHash:
+					// A manifest without a hash has nothing to compare, so the cached
+					// bytes identify the version. Their digest replaces the sentinel
+					// here because StorageID is derived from this field below, and the
+					// download path is the only other place that substitutes it.
+					bytesExist, err := svc.softwareInstallStore.Exists(ctx, cachedHash)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "check cached FMA installer in store")
+					}
+					if bytesExist {
+						fmaVersionCached = true
+						p.MaintainedApp.SHA256 = cachedHash
+					}
+				}
+				installer.FMAVersionCached = fmaVersionCached
+			}
+
 			var installerBytesExist bool
-			if p.SHA256 != "" {
+			if !fmaVersionCached && p.SHA256 != "" {
 				installerBytesExist, err = svc.softwareInstallStore.Exists(ctx, installer.StorageID)
 				if err != nil {
-					return err
+					return ctxerr.Wrap(ctx, err, "check if installer exists in store")
 				}
 			}
 
 			// no accessible matching installer was found, so attempt to download it from URL.
-			if installer.StorageID == "" || !installerBytesExist {
+			if !fmaVersionCached && (installer.StorageID == "" || !installerBytesExist) {
 				if p.SHA256 != "" && p.URL == "" {
 					return fmt.Errorf("package not found with hash %s", p.SHA256)
 				}
 
-				var filename string
-				resp, tfr, err := downloadURLFn(ctx, p.URL)
-				if err != nil {
-					return err
+				var tfr *fleet.TempFileReader
+
+				// Handle script packages from path (script:// URL scheme)
+				if filename, ok := strings.CutPrefix(p.URL, "script://"); ok {
+					ext := strings.ToLower(filepath.Ext(filename))
+					ext = strings.TrimPrefix(ext, ".")
+
+					if !fleet.IsScriptPackage(ext) {
+						return fmt.Errorf("script:// URL must reference a .sh, .py, or .ps1 file, got: %s", filename)
+					}
+
+					if p.InstallScript == "" {
+						return fmt.Errorf("script package %s has no install script content", filename)
+					}
+
+					scriptContent := []byte(p.InstallScript)
+					tfr, err = fleet.NewTempFileReader(bytes.NewReader(scriptContent), nil)
+					if err != nil {
+						return fmt.Errorf("creating temp file for script package %s: %w", filename, err)
+					}
+
+					installer.InstallerFile = tfr
+					toBeClosedTFRs[i] = tfr
+					installer.Filename = filename
+				} else {
+					setDownloadProgress(i, fleet.SoftwarePackageDownloadStarted)
+
+					// Conditional GET (default behavior, disabled by always_download: true).
+					// Look up existing installer by URL for its ETag, only when
+					// we're about to download (avoids wasted DB queries).
+					var existingForCache *fleet.ExistingSoftwareInstaller
+					var ifNoneMatch string
+					if !p.AlwaysDownload && p.SHA256 == "" && p.URL != "" {
+						// First try same-team lookup, then fall back to any team.
+						existing, lookupErr := svc.ds.GetInstallerByTeamAndURL(ctx, &tmID, p.URL)
+						if lookupErr != nil {
+							svc.logger.WarnContext(ctx, "conditional download lookup failed, will download normally", "url", p.URL, "err", lookupErr)
+						} else if existing == nil {
+							// Cross-team fallback: another team may already have this URL cached.
+							existing, lookupErr = svc.ds.GetInstallerByTeamAndURL(ctx, nil, p.URL)
+							if lookupErr != nil {
+								svc.logger.WarnContext(ctx, "cross-team conditional download lookup failed, will download normally", "url", p.URL, "err", lookupErr)
+							}
+						}
+						if lookupErr == nil && existing != nil && existing.StorageID != "" &&
+							existing.HTTPETag != nil && *existing.HTTPETag != "" &&
+							existing.Extension != "ipa" && // skip conditional download for .ipa (multi-platform extraInstallers)
+							validETag(*existing.HTTPETag) { // re-validate before use as defense-in-depth
+							existingForCache = existing
+							ifNoneMatch = *existing.HTTPETag
+						}
+					}
+
+					resp, tfr, err := retryDownload(ctx, p.URL, ifNoneMatch)
+					if err != nil {
+						setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
+						return err
+					}
+
+					// Handle 304 Not Modified (conditional download with matching ETag).
+					// TRUST ASSUMPTION: conditional download trusts the origin server's
+					// ETag as a content fingerprint, so we reuse the cached installer
+					// bytes and metadata (filename, version, extension, etc.) without
+					// re-extraction. Flow continues past the download-specific code so
+					// that script fields from the user's GitOps config still pass
+					// through the shared normalization/validation below.
+					var cacheHit bool
+					if resp != nil && resp.StatusCode == http.StatusNotModified && existingForCache != nil {
+						bytesExist, existErr := svc.softwareInstallStore.Exists(ctx, existingForCache.StorageID)
+						if existErr == nil && bytesExist {
+							if err := svc.fillSoftwareInstallerPayloadFromExisting(ctx, installer, existingForCache, existingForCache.StorageID); err != nil {
+								setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
+								return err
+							}
+							installer.HTTPETag = existingForCache.HTTPETag
+							// Propagate the existing hash so FMA hydration below
+							// doesn't try to recompute it from the (nil) file
+							// reader when the manifest uses noCheckHash.
+							if p.MaintainedApp != nil {
+								p.MaintainedApp.SHA256 = existingForCache.StorageID
+							}
+							cacheHit = true
+						} else {
+							svc.logger.WarnContext(ctx, "304 received but installer bytes missing, re-downloading", "url", p.URL)
+							resp, tfr, err = retryDownload(ctx, p.URL, "")
+							if err != nil {
+								setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
+								return err
+							}
+							if resp != nil && resp.StatusCode == http.StatusNotModified {
+								setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
+								return fmt.Errorf("server returned 304 on unconditional re-download of %q", p.URL)
+							}
+						}
+					}
+
+					if !cacheHit {
+						// Protocol violation guards: downloadURLFn never returns nil resp
+						// on success, but guard defensively for server misbehavior.
+						if resp == nil || tfr == nil {
+							statusCode := 0
+							if resp != nil {
+								statusCode = resp.StatusCode
+							}
+							setDownloadProgress(i, fleet.SoftwarePackageDownloadFailed)
+							return fmt.Errorf("download of %q returned no body (status %d)", p.URL, statusCode)
+						}
+
+						installer.InstallerFile = tfr
+						toBeClosedTFRs[i] = tfr
+
+						filename := maintained_apps.FilenameFromResponse(resp)
+						installer.Filename = filename
+
+						// Always capture ETag from download response so it's available
+						// immediately if always_download is later disabled.
+						if etag := resp.Header.Get("ETag"); etag != "" && validETag(etag) {
+							installer.HTTPETag = &etag
+						} else {
+							svc.logger.DebugContext(ctx, "no usable ETag from server for conditional download", "url", p.URL, "etag", resp.Header.Get("ETag"))
+						}
+
+						// In-house apps (.ipa) don't support custom scripts or a
+						// pre-install query; clear them.
+						ext := strings.ToLower(filepath.Ext(filename))
+						ext = strings.TrimPrefix(ext, ".")
+						if ext == "ipa" {
+							installer.InstallScript = ""
+							installer.PostInstallScript = ""
+							installer.UninstallScript = ""
+							installer.PreInstallQuery = ""
+						}
+					}
+
+					if cacheHit {
+						setDownloadProgress(i, fleet.SoftwarePackageDownloadSkipped)
+					} else {
+						setDownloadProgress(i, fleet.SoftwarePackageDownloadFinished)
+					}
 				}
-
-				installer.InstallerFile = tfr
-				toBeClosedTFRs[i] = tfr
-
-				filename = maintained_apps.FilenameFromResponse(resp)
-				installer.Filename = filename
-
-				// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
-				// unsupported fields early. Determine extension from filename to
-				// validate before metadata extraction.
-				ext := strings.ToLower(filepath.Ext(filename))
-				ext = strings.TrimPrefix(ext, ".")
-				if fleet.IsScriptPackage(ext) {
-					installer.PostInstallScript = ""
-					installer.UninstallScript = ""
-					installer.PreInstallQuery = ""
-				} else if ext == "ipa" {
-					installer.InstallScript = ""
-					installer.PostInstallScript = ""
-					installer.UninstallScript = ""
-					installer.PreInstallQuery = ""
-				}
+			} else {
+				setDownloadProgress(i, fleet.SoftwarePackageDownloadSkipped)
 			}
 
 			if p.Slug != nil && *p.Slug != "" {
@@ -2330,8 +3962,9 @@ func (svc *Service) softwareBatchUpload(
 				}
 				// noCheckHash is used by homebrew to signal that a hash shouldn't be checked
 				// This comes from the manifest and is a special case for maintained apps
-				// we need to generate the SHA256 from the installer file
-				if p.MaintainedApp.SHA256 == noCheckHash {
+				// we need to generate the SHA256 from the installer file.
+				// Skip when version is cached — the existing row already has the computed hash.
+				if !fmaVersionCached && p.MaintainedApp.SHA256 == noCheckHash {
 					// generate the SHA256 from the installer file
 					if installer.InstallerFile == nil {
 						return fmt.Errorf("maintained app %s requires hash to be generated but no installer file found", p.MaintainedApp.UniqueIdentifier)
@@ -2340,16 +3973,31 @@ func (svc *Service) softwareBatchUpload(
 					if err != nil {
 						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
 					}
+				} else if !fmaVersionCached && installer.InstallerFile != nil {
+					gotHash, err := file.SHA256FromTempFileReader(installer.InstallerFile)
+					if err != nil {
+						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
+					}
+					if gotHash != p.MaintainedApp.SHA256 {
+						return fmt.Errorf("maintained app %s: mismatch in maintained app SHA256 hash", p.MaintainedApp.UniqueIdentifier)
+					}
 				}
-				extension := strings.TrimLeft(filepath.Ext(installer.Filename), ".")
+				extension := extensionFromFilename(installer.Filename)
 				installer.Title = appName
 				installer.Version = p.MaintainedApp.Version
 
 				// Some FMAs (e.g. Chrome for macOS) aren't version-pinned by URL, so we have to extract the
 				// version from the package once we download it.
-				if installer.Version == "latest" && installer.InstallerFile != nil {
+				// Skip when version is cached — the existing row already has the correct version.
+				if !fmaVersionCached && installer.Version == "latest" && installer.InstallerFile != nil {
 					meta, err := file.ExtractInstallerMetadata(installer.InstallerFile)
 					if err != nil {
+						if errors.Is(err, file.ErrInvalidInstaller) {
+							return &fleet.BadRequestError{
+								Message:     "Uploaded file is not a valid installer package.",
+								InternalErr: ctxerr.Wrap(ctx, err, "extracting installer metadata"),
+							}
+						}
 						return ctxerr.Wrap(ctx, err, "extracting installer metadata")
 					}
 
@@ -2363,43 +4011,64 @@ func (svc *Service) softwareBatchUpload(
 
 				installer.Platform = p.MaintainedApp.Platform
 				installer.Source = p.MaintainedApp.Source()
+				if installer.Source == "programs" && p.MaintainedApp.UpgradeCode != "" {
+					installer.UpgradeCode = p.MaintainedApp.UpgradeCode
+				}
+
 				installer.Extension = extension
 				installer.BundleIdentifier = p.MaintainedApp.BundleIdentifier()
 				installer.StorageID = p.MaintainedApp.SHA256
 				installer.FleetMaintainedAppID = &p.MaintainedApp.ID
+				installer.FMAName = p.MaintainedApp.Name
+				installer.PatchQuery = p.MaintainedApp.PatchQuery
+				installer.AppOpenQuery = p.MaintainedApp.AppOpenQuery
 			}
 
 			var ext string
 			if installer.FleetMaintainedAppID == nil && installer.InstallerFile != nil {
+				// Check the pin before parsing, so bytes that aren't the pinned
+				// installer never reach the parsers.
+				if p.SHA256 != "" {
+					gotHash, err := file.SHA256FromTempFileReader(installer.InstallerFile)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "hashing downloaded installer")
+					}
+					if gotHash != p.SHA256 {
+						return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
+					}
+				}
+
 				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer, true)
 				if err != nil {
 					return err
 				}
-
-				if p.SHA256 != "" && p.SHA256 != installer.StorageID {
-					// this isn't the specified installer, so return an error
-					return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
-				}
 			}
 
-			// For script packages (.sh and .ps1) and in-house apps (.ipa), clear
-			// unsupported fields. For script packages, the file contents become the
-			// install script, so post_install_script, uninstall_script, and
-			// pre_install_query are not supported.
+			// Managed app configuration is only supported for iOS / iPadOS in-house apps.
+			if installer.Extension != "ipa" {
+				installer.Configuration = nil
+			}
+
 			switch {
 			case fleet.IsScriptPackage(installer.Extension):
-				installer.PostInstallScript = ""
-				installer.UninstallScript = ""
-				installer.PreInstallQuery = ""
+				// Keep the file-derived install script and the provided post-install,
+				// uninstall, and pre-install query; skip the default-script injection
+				// below. Path-based script packages carry their filename in a
+				// "script://" url — an internal placeholder, not a real download url,
+				// so don't persist it.
+				if strings.HasPrefix(installer.URL, "script://") {
+					installer.URL = ""
+				}
 
 			case installer.Extension != "exe":
 				// custom scripts only for exe installers and non-script packages
-				if installer.InstallScript == "" {
-					installer.InstallScript = file.GetInstallScript(installer.Extension)
-				}
+				installer.InstallScript = getInstallScript(installer.Extension, installer.PackageIDs, installer.InstallScript)
 
 				if installer.UninstallScript == "" {
 					installer.UninstallScript = file.GetUninstallScript(installer.Extension)
+					if installer.UpgradeCode != "" {
+						installer.UninstallScript = file.UninstallMsiWithUpgradeCodeScript
+					}
 				}
 
 			case installer.Extension == "ipa":
@@ -2409,9 +4078,61 @@ func (svc *Service) softwareBatchUpload(
 				installer.InstallScript = ""
 			}
 
+			if fleet.IsMacOSPlatform(installer.Platform) && ptr.ValOrZero(installer.InstallDuringSetup) && manualAgentInstall {
+				return errors.New(`Couldn't edit software. "setup_experience" cannot be used for macOS software if "macos_manual_agent_install" is enabled.`)
+			}
+
+			// The bare setup_experience boolean on an .ipa defaults to iOS (see
+			// yaml-files.md). Pin it to an explicit platform list so the
+			// selection doesn't ride on whichever of the app's two rows the
+			// hash lookup happened to return as the base payload.
+			installer.SetupExperiencePlatforms = setupExperiencePlatformsForBareIPABoolean(
+				installer.Extension, installer.SetupExperiencePlatforms, installer.InstallDuringSetup)
+
+			// Canonicalize and reject platforms incompatible with the
+			// installer's extension before the batch reaches the datastore.
+			// When set, this field is authoritative for the installer's setup
+			// experience state — including the native platform, which
+			// overrides whatever setup_experience said on the same payload.
+			if installer.SetupExperiencePlatforms != nil {
+				normalized, err := normalizeSetupExperiencePlatforms(*installer.SetupExperiencePlatforms, installer.Extension)
+				if err != nil {
+					return fmt.Errorf("Couldn't edit software. %s: %s", installer.Filename, err.Error())
+				}
+				installer.SetupExperiencePlatforms = &normalized
+
+				if slices.Contains(normalized, "darwin") && manualAgentInstall {
+					return errors.New(`Couldn't edit software. "setup_experience_platform" cannot include macOS if "macos_manual_agent_install" is enabled.`)
+				}
+
+				nativeSelected := slices.Contains(normalized, installer.Platform)
+				installer.InstallDuringSetup = &nativeSelected
+			}
+
 			// Update $PACKAGE_ID/$UPGRADE_CODE in uninstall script
 			if err := preProcessUninstallScript(installer); err != nil {
-				return errors.New("$UPGRADE_CODE variable was used but package does not have an UpgradeCode")
+				return fmt.Errorf("processing uninstall script: %w", err)
+			}
+
+			// A script package's install script is the uploaded file, validated in
+			// addScriptPackageMetadata, so only post-install/uninstall are checked here.
+			scriptsToValidate := []struct {
+				name    string
+				content string
+			}{
+				{"post-install script", installer.PostInstallScript},
+				{"uninstall script", installer.UninstallScript},
+			}
+			if !fleet.IsScriptPackage(installer.Extension) {
+				scriptsToValidate = append(scriptsToValidate, struct {
+					name    string
+					content string
+				}{"install script", installer.InstallScript})
+			}
+			for _, sv := range scriptsToValidate {
+				if err := fleet.ValidateSoftwareInstallerScript(sv.content, installer.Platform); err != nil {
+					return fmt.Errorf("Couldn't edit software. %s validation failed: %s", sv.name, err.Error())
+				}
 			}
 
 			// if filename was empty, try to extract it from the URL with the
@@ -2443,6 +4164,15 @@ func (svc *Service) softwareBatchUpload(
 				}
 				extraInstallers = append(extraInstallers, &extraPayload)
 			}
+			if installer.Extension == "ipa" {
+				// Derive the per-platform selection for every fanned-out payload —
+				// both the one created above and those matched from existing rows
+				// by hash on re-apply, which skip the block above.
+				for _, extraPayload := range extraInstallers {
+					extraPayload.InstallDuringSetup = installDuringSetupForFannedOutPlatform(
+						installer.SetupExperiencePlatforms, installer.InstallDuringSetup, extraPayload.Platform)
+				}
+			}
 
 			installers[i] = &installerPayloadWithExtras{
 				UploadSoftwareInstallerPayload: installer,
@@ -2468,6 +4198,60 @@ func (svc *Service) softwareBatchUpload(
 		return
 	}
 
+	// Compute which existing packages this batch will delete (dry run: would
+	// delete): the installers on the team whose title matches no incoming
+	// payload, mirroring the title-based deletion in ds.BatchSetSoftwareInstallers.
+	incoming := make([]fleet.SoftwareTitleIdentifier, 0, len(installers))
+	var uploads []*fleet.UploadSoftwareInstallerPayload
+	for _, payloadWithExtras := range installers {
+		for _, p := range append([]*fleet.UploadSoftwareInstallerPayload{payloadWithExtras.UploadSoftwareInstallerPayload}, payloadWithExtras.ExtraInstallers...) {
+			incoming = append(incoming, fleet.SoftwareTitleIdentifier{
+				UniqueIdentifier: p.UniqueIdentifier(),
+				Source:           p.Source,
+			})
+			uploads = append(uploads, p)
+		}
+	}
+	deletedPackages, err := svc.ds.GetSoftwareInstallersPendingDeletion(ctx, teamID, incoming)
+	if err != nil {
+		batchErr = fmt.Errorf("computing software packages pending deletion: %w", err)
+		return
+	}
+	if len(deletedPackages) > 0 {
+		// The apply resolves a payload by bundle id or upgrade code, else by name, so it can keep a
+		// title whose unique identifier differs from the payload's, which the match above does not see.
+		var keptTitleIDs []uint
+		for _, p := range uploads {
+			titleID, err := svc.ds.GetExistingSoftwareInstallerTitleID(ctxdb.RequirePrimary(ctx, true), p)
+			switch {
+			case err == nil:
+				keptTitleIDs = append(keptTitleIDs, titleID)
+			case !fleet.IsNotFound(err):
+				batchErr = fmt.Errorf("resolving software title for %q: %w", p.Filename, err)
+				return
+			}
+		}
+		deletedPackages = slices.DeleteFunc(deletedPackages, func(d fleet.DeletedSoftwarePackage) bool {
+			return slices.Contains(keptTitleIDs, d.TitleID)
+		})
+	}
+	if len(deletedPackages) > 0 {
+		deletedJSON, err := json.Marshal(deletedPackages)
+		if err != nil {
+			batchErr = fmt.Errorf("encoding software packages pending deletion: %w", err)
+			return
+		}
+		deletedPackagesJSON = string(deletedJSON)
+		// Persist before any datastore mutation: a failure here fails the batch
+		// while it is still safe to retry (nothing has been applied or deleted),
+		// so deletion warnings are never silently missing. The defer refreshes
+		// this key's TTL on completion for long-running batches.
+		if err := svc.keyValueStore.Set(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDeletedSuffix, deletedPackagesJSON, 10*time.Minute); err != nil {
+			batchErr = fmt.Errorf("recording software packages pending deletion: %w", err)
+			return
+		}
+	}
+
 	if dryRun {
 		return
 	}
@@ -2475,9 +4259,14 @@ func (svc *Service) softwareBatchUpload(
 	var inHouseInstallers, softwareInstallers []*fleet.UploadSoftwareInstallerPayload
 	for _, payloadWithExtras := range installers {
 		payload := payloadWithExtras.UploadSoftwareInstallerPayload
-		if err := svc.storeSoftware(ctx, payload); err != nil {
-			batchErr = fmt.Errorf("storing software installer %q: %w", payload.Filename, err)
-			return
+		if !payload.FMAVersionCached {
+			batchErr = retry.Do(func() error {
+				if retryErr := svc.storeSoftware(ctx, payload); retryErr != nil {
+					return fmt.Errorf("storing software installer %q: %w", payload.Filename, retryErr)
+				}
+
+				return nil
+			}, retry.WithMaxAttempts(fleet.BatchUploadMaxRetries), retry.WithInterval(fleet.BatchSoftwareInstallerRetryInterval()))
 		}
 		if payload.Extension == "ipa" {
 			inHouseInstallers = append(inHouseInstallers, payload)
@@ -2488,12 +4277,48 @@ func (svc *Service) softwareBatchUpload(
 		}
 	}
 
-	if err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, softwareInstallers); err != nil {
+	modifiedInstallers, err := svc.ds.BatchSetSoftwareInstallers(ctx, teamID, softwareInstallers)
+	if err != nil {
 		batchErr = fmt.Errorf("batch set software installers: %w", err)
 		return
 	}
+	svc.resetInstallAttemptsForInstallers(ctx, modifiedInstallers)
+
 	if err := svc.ds.BatchSetInHouseAppsInstallers(ctx, teamID, inHouseInstallers); err != nil {
 		batchErr = fmt.Errorf("batch set in-house apps installers: %w", err)
+		return
+	}
+
+	// Windows programs report the version inside their name, so software already
+	// inventoried for an app in this batch sits under a versioned software title rather
+	// than the one its installer now owns, and the uninstall action stays hidden until
+	// they are merged. Matches what the single-add path does, so a team managed through
+	// GitOps is not left waiting for the periodic pass.
+	//
+	// Once for the whole batch rather than per installer: the pass covers every added app
+	// in one scan. Best effort, since the installers are committed at this point and the
+	// periodic pass will redo it.
+	//
+	// Triggered by the maintained-app link alone rather than also checking the platform.
+	// The pass is a no-op for non-Windows apps, so an unnecessary run costs one indexed
+	// scan, whereas a missed run leaves the uninstall action hidden until the next
+	// periodic pass. Not worth depending on Platform being populated this far down the
+	// batch payload chain to save that.
+	if batchNeedsWindowsTitleReconcile(softwareInstallers) {
+		if err := svc.ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx); err != nil {
+			svc.logger.WarnContext(
+				ctx, "reconciling Windows software titles after a software batch",
+				"team_id", teamID,
+				"err", err,
+			)
+		}
+	}
+
+	// Reconcile cross-platform setup experience selections when the incoming
+	// batch mentions them. A batch that never touches setup_experience_platform
+	// leaves the cross-table alone so UI-set selections aren't clobbered.
+	if err := svc.reconcileGitOpsSetupExperienceCrossInstallers(ctx, ptr.ValOrZero(teamID), softwareInstallers); err != nil {
+		batchErr = fmt.Errorf("reconciling cross-platform setup experience selections: %w", err)
 		return
 	}
 
@@ -2501,7 +4326,77 @@ func (svc *Service) softwareBatchUpload(
 	// anymore, so that's intentionally skipped.
 }
 
-func fillSoftwareInstallerPayloadFromExisting(payload *fleet.UploadSoftwareInstallerPayload, existing *fleet.ExistingSoftwareInstaller, sha256Hash string) {
+// reconcileGitOpsSetupExperienceCrossInstallers rewrites the
+// setup_experience_software_installers rows for each installer in the batch
+// that explicitly sets SetupExperiencePlatforms. Installers with nil
+// SetupExperiencePlatforms are left alone — that preserves cross-platform
+// selections made by another caller (UI, unrelated batch) for installers that
+// this apply didn't opt into.
+func (svc *Service) reconcileGitOpsSetupExperienceCrossInstallers(
+	ctx context.Context,
+	teamID uint,
+	payloads []*fleet.UploadSoftwareInstallerPayload,
+) error {
+	type key struct{ filename, platform string }
+	optedIn := make(map[key][]string)
+	var allKeys []key
+	seenKey := make(map[key]struct{})
+	for _, p := range payloads {
+		if p == nil || p.SetupExperiencePlatforms == nil {
+			continue
+		}
+		k := key{filename: p.Filename, platform: p.Platform}
+		// Filter to non-native platforms — the native platform is expressed
+		// via install_during_setup, not the cross-table.
+		var targets []string
+		for _, target := range *p.SetupExperiencePlatforms {
+			if target == p.Platform {
+				continue
+			}
+			targets = append(targets, target)
+		}
+		optedIn[k] = targets
+		if _, ok := seenKey[k]; !ok {
+			seenKey[k] = struct{}{}
+			allKeys = append(allKeys, k)
+		}
+	}
+	if len(allKeys) == 0 {
+		return nil
+	}
+
+	// (filename, platform) is uniquely constrained per team, so at most one
+	// row matches each pair.
+	filenames := make([]string, 0, len(allKeys))
+	platforms := make([]string, 0, len(allKeys))
+	for _, k := range allKeys {
+		filenames = append(filenames, k.filename)
+		platforms = append(platforms, k.platform)
+	}
+	rows, err := svc.ds.GetSoftwareInstallerIDsByTeamAndFilenamePlatform(ctx, teamID, filenames, platforms)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "look up installer ids for cross-platform reconcile")
+	}
+	idByKey := make(map[key]uint, len(rows))
+	for _, r := range rows {
+		idByKey[key{filename: r.Filename, platform: r.Platform}] = r.ID
+	}
+
+	for _, k := range allKeys {
+		id, ok := idByKey[k]
+		if !ok {
+			// Installer not found — batch inserts and lookups are eventually
+			// consistent; skip rather than fail the apply.
+			continue
+		}
+		if err := svc.ds.SetSetupExperienceCrossInstallersForInstaller(ctx, id, teamID, optedIn[k]); err != nil {
+			return ctxerr.Wrap(ctx, err, "set cross-platform setup experience installer rows")
+		}
+	}
+	return nil
+}
+
+func (svc *Service) fillSoftwareInstallerPayloadFromExisting(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload, existing *fleet.ExistingSoftwareInstaller, sha256Hash string) error {
 	payload.Extension = existing.Extension
 	payload.Filename = existing.Filename
 	payload.Version = existing.Version
@@ -2513,78 +4408,207 @@ func fillSoftwareInstallerPayloadFromExisting(payload *fleet.UploadSoftwareInsta
 	payload.Title = existing.Title
 	payload.StorageID = sha256Hash
 	payload.PackageIDs = existing.PackageIDs
+	payload.UpgradeCode = existing.UpgradeCode
+
+	if fleet.IsScriptPackage(existing.Extension) {
+		contents, err := svc.ds.GetAnyScriptContents(ctx, existing.InstallScriptContentID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "fetch install script for hash-matched script package")
+		}
+		payload.InstallScript = string(contents)
+	}
+
+	return nil
 }
 
-func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (string, string, []fleet.SoftwarePackageResponse, error) {
-	// We've already authorized in the POST /api/latest/fleet/software/batch,
-	// but adding it here so we don't need to worry about a special case endpoint.
+// validETag checks if an ETag value is a strong ETag per RFC 7232
+// section 2.3: a quoted opaque-tag without the weak validator prefix.
+// Weak ETags (W/"...") are rejected because they indicate semantic
+// equivalence rather than byte-for-byte identity, which is insufficient
+// for validating cached binary installers.
+// The opaque-tag body must consist of RFC 7232 etagc characters
+// (%x21 / %x23-7E), which excludes control chars, spaces, inner DQUOTEs,
+// and DEL. We reject obs-text (>0x7F) for defense-in-depth. Values over
+// 512 bytes are rejected.
+func validETag(etag string) bool {
+	if len(etag) > 512 {
+		return false
+	}
+	// Reject weak ETags — they don't guarantee byte-identical content.
+	if strings.HasPrefix(etag, "W/") {
+		return false
+	}
+	e := etag
+	if len(e) < 2 || e[0] != '"' || e[len(e)-1] != '"' {
+		return false
+	}
+	for i := 1; i < len(e)-1; i++ {
+		c := e[i]
+		// RFC 7232 etagc = %x21 / %x23-7E / obs-text. Reject obs-text
+		// (>0x7F) for defense-in-depth.
+		if c != 0x21 && (c < 0x23 || c > 0x7E) {
+			return false
+		}
+	}
+	return true
+}
+
+func (svc *Service) GetBatchSetSoftwareInstallersResult(ctx context.Context, tmName string, requestUUID string, dryRun bool) (*fleet.BatchSetSoftwareInstallersResult, error) {
+	// A running batch only reports download progress, so polling it takes any logged in user.
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
-		return "", "", nil, err
+		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
 	result, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID)
 	if err != nil {
-		return "", "", nil, ctxerr.Wrap(ctx, err, "failed to get result")
+		return nil, ctxerr.Wrap(ctx, err, "failed to get result")
 	}
 	if result == nil {
-		return "", "", nil, ctxerr.Wrap(ctx, notFoundError{}, "request_uuid not found")
+		return nil, ctxerr.Wrap(ctx, &notFoundError{}, "request_uuid not found")
+	}
+
+	// getDeletedPackages loads the packages the batch deleted (dry run: would
+	// delete). A missing or expired key degrades to an empty list, not an error.
+	getDeletedPackages := func() ([]fleet.DeletedSoftwarePackage, error) {
+		deletedJSON, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDeletedSuffix)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to get deleted packages result")
+		}
+		if deletedJSON == nil || *deletedJSON == "" {
+			return nil, nil
+		}
+		var deletedPackages []fleet.DeletedSoftwarePackage
+		if err := json.Unmarshal([]byte(*deletedJSON), &deletedPackages); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal deleted packages result")
+		}
+		return deletedPackages, nil
+	}
+
+	// getCategories loads the self-service categories the batch's software references
+	getCategories := func() ([]string, error) {
+		categoriesJSON, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareCategoriesSuffix)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to get categories result")
+		}
+		if categoriesJSON == nil || *categoriesJSON == "" {
+			return nil, nil
+		}
+		var categories []string
+		if err := json.Unmarshal([]byte(*categoriesJSON), &categories); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "unmarshal categories result")
+		}
+		return categories, nil
+	}
+
+	// getDownloadProgress loads how far the batch got through downloading. Progress is only
+	// printed for the user, so an unreadable key degrades to an empty list, not an error.
+	getDownloadProgress := func() []fleet.SoftwarePackageDownloadProgress {
+		progressJSON, err := svc.keyValueStore.Get(ctx, batchSoftwarePrefix+requestUUID+batchSoftwareDownloadedSuffix)
+		if err != nil {
+			svc.logger.ErrorContext(ctx, "failed to get software package download progress", "request_uuid", requestUUID, "err", err)
+			return nil
+		}
+		if progressJSON == nil || *progressJSON == "" {
+			return nil
+		}
+		var downloadProgress []fleet.SoftwarePackageDownloadProgress
+		if err := json.Unmarshal([]byte(*progressJSON), &downloadProgress); err != nil {
+			svc.logger.ErrorContext(ctx, "unreadable software package download progress", "request_uuid", requestUUID, "err", err)
+			return nil
+		}
+		return downloadProgress
 	}
 
 	switch {
 	case *result == batchSetCompleted:
-		if dryRun {
-			return fleet.BatchSetSoftwareInstallersStatusCompleted, "", nil, nil
-		} // this will fall through to retrieving software packages if not a dry run.
+		// fall through to retrieving the (deleted) software packages below.
 	case *result == batchSetProcessing:
-		return fleet.BatchSetSoftwareInstallersStatusProcessing, "", nil, nil
+		return &fleet.BatchSetSoftwareInstallersResult{
+			Status:           fleet.BatchSetSoftwareInstallersStatusProcessing,
+			DownloadProgress: getDownloadProgress(),
+		}, nil
 	case strings.HasPrefix(*result, batchSetFailedPrefix):
-		message := strings.TrimPrefix(*result, batchSetFailedPrefix)
-		return fleet.BatchSetSoftwareInstallersStatusFailed, message, nil, nil
+		return &fleet.BatchSetSoftwareInstallersResult{
+			Status:           fleet.BatchSetSoftwareInstallersStatusFailed,
+			Message:          strings.TrimPrefix(*result, batchSetFailedPrefix),
+			DownloadProgress: getDownloadProgress(),
+		}, nil
 	default:
-		return "", "", nil, ctxerr.New(ctx, "invalid status")
+		return nil, ctxerr.New(ctx, "invalid status")
 	}
 
-	var (
-		teamID    uint  // GetSoftwareInstallers uses 0 for "No team"
-		ptrTeamID *uint // Authorize uses *uint for "No team" teamID
-	)
+	// The fleet's own packages below take the same read as its installers. Resolved here,
+	// not up top, to keep the lookup out of every poll.
+	var teamID *uint
 	if tmName != "" {
 		team, err := svc.ds.TeamByName(ctx, tmName)
 		if err != nil {
-			return "", "", nil, ctxerr.Wrap(ctx, err, "load team by name")
+			return nil, ctxerr.Wrap(ctx, err, "load team by name")
 		}
-		teamID = team.ID
-		ptrTeamID = &team.ID
+		teamID = &team.ID
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
-	// We've already authorized in the POST /api/latest/fleet/software/batch,
-	// but adding it here so we don't need to worry about a special case endpoint.
-	//
-	// We use fleet.ActionWrite because this method is the counterpart of the POST
-	// /api/latest/fleet/software/batch.
-	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: ptrTeamID}, fleet.ActionWrite); err != nil {
-		return "", "", nil, ctxerr.Wrap(ctx, err, "validating authorization")
-	}
-
-	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, teamID)
+	deletedPackages, err := getDeletedPackages()
 	if err != nil {
-		return "", "", nil, ctxerr.Wrap(ctx, err, "get software installers")
+		return nil, err
 	}
 
-	return fleet.BatchSetSoftwareInstallersStatusCompleted, "", softwarePackages, nil
+	categories, err := getCategories()
+	if err != nil {
+		return nil, err
+	}
+
+	// The packages that finish last only reach the progress key as the batch ends, so a
+	// completed batch carries progress too.
+	downloadProgress := getDownloadProgress()
+
+	if dryRun {
+		return &fleet.BatchSetSoftwareInstallersResult{
+			Status:           fleet.BatchSetSoftwareInstallersStatusCompleted,
+			DeletedPackages:  deletedPackages,
+			Categories:       categories,
+			DownloadProgress: downloadProgress,
+		}, nil
+	}
+
+	softwarePackages, err := svc.ds.GetSoftwareInstallers(ctx, ptr.ValOrZero(teamID))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software installers")
+	}
+
+	return &fleet.BatchSetSoftwareInstallersResult{
+		Status:           fleet.BatchSetSoftwareInstallersStatusCompleted,
+		Packages:         softwarePackages,
+		DeletedPackages:  deletedPackages,
+		Categories:       categories,
+		DownloadProgress: downloadProgress,
+	}, nil
 }
 
-func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
-	installer, err := svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, host.TeamID, softwareTitleID, false)
+func (svc *Service) selfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint, hostVersionByTitleID map[uint]*fleet.HostAppStoreAppVersion) error {
+	// User-enrolled (BYOD) iOS/iPadOS hosts are no longer blocked from
+	// self-service. The downstream VPP install flow handles user-scoped
+	// licensing via clientUserIds. End-to-end success still depends on the
+	// main install-gate removal landing (#31138 subtask 01).
+	// Resolve the first-added self-service package the host is in label scope for (first-added-wins
+	// when the host matches more than one self-service package of the title).
+	installer, anyPackages, err := svc.resolveFirstAddedInScopeInstaller(ctx, host, softwareTitleID, true)
 	if err != nil {
-		if !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "finding software installer for title")
-		}
-		installer = nil
+		return err
 	}
 
-	if installer != nil {
-		if !installer.SelfService {
+	if installer == nil && anyPackages {
+		// The title has packages but none is available to this host through self-service. Distinguish
+		// "in scope but not self-service enabled" from "not a label member" to preserve the existing
+		// error messages.
+		inScopeInstaller, _, err := svc.resolveFirstAddedInScopeInstaller(ctx, host, softwareTitleID, false)
+		if err != nil {
+			return err
+		}
+		if inScopeInstaller != nil {
 			return &fleet.BadRequestError{
 				Message: "Software title is not available through self-service",
 				InternalErr: ctxerr.NewWithData(
@@ -2593,49 +4617,56 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 				),
 			}
 		}
-
-		scoped, err := svc.ds.IsSoftwareInstallerLabelScoped(ctx, installer.InstallerID, host.ID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "checking label scoping during software install attempt")
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
 		}
+	}
 
-		if !scoped {
-			return &fleet.BadRequestError{
-				Message: "Couldn't install. Host isn't member of the labels defined for this software title.",
-			}
-		}
-
-		ext := filepath.Ext(installer.Name)
-		requiredPlatform := packageExtensionToPlatform(ext)
+	if installer != nil {
+		ext, requiredPlatform := installerRequiredPlatform(installer)
 		if requiredPlatform == "" {
 			// this should never happen
 			return ctxerr.Errorf(ctx, "software installer has unsupported type %s", ext)
 		}
 
 		if host.FleetPlatform() != requiredPlatform {
-			return &fleet.BadRequestError{
-				Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, requiredPlatform),
-				InternalErr: ctxerr.WrapWithData(
-					ctx, err, "invalid host platform for requested installer",
-					map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
-				),
+			// Allow .sh and .py scripts for any unix-like platform (linux and darwin)
+			if !((ext == ".sh" || ext == ".py") && fleet.IsUnixLike(host.Platform)) {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("Package (%s) can be installed only on %s hosts.", ext, humanReadableRequiredPlatforms(ext, requiredPlatform)),
+					InternalErr: ctxerr.WrapWithData(
+						ctx, err, "invalid host platform for requested installer",
+						map[string]any{"host_id": host.ID, "team_id": host.TeamID, "title_id": softwareTitleID},
+					),
+				}
 			}
+		}
+
+		if err := svc.ds.ResetNonPolicyInstallAttempts(ctx, host.ID, installer.InstallerID); err != nil {
+			return ctxerr.Wrap(ctx, err, "reset install attempts before self-service install")
 		}
 
 		_, err = svc.ds.InsertSoftwareInstallRequest(ctx, host.ID, installer.InstallerID, fleet.HostSoftwareInstallOptions{
 			SelfService: true,
+			WithRetries: true,
 		})
 		return ctxerr.Wrap(ctx, err, "inserting self-service software install request")
 	}
 
-	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
+	vppApp, anyVersions, err := svc.resolveFirstAddedInScopeAppStoreApp(ctx, host, softwareTitleID, hostVersionByTitleID)
 	if err != nil {
-		// if we couldn't find an installer or a VPP app, try an in-house app
-		if fleet.IsNotFound(err) {
-			return svc.selfServiceInstallInHouseApp(ctx, host, softwareTitleID)
-		}
+		return err
+	}
 
-		return ctxerr.Wrap(ctx, err, "finding VPP app for title")
+	// if we couldn't find an installer or a VPP app, try an in-house app
+	if !anyVersions {
+		return svc.selfServiceInstallInHouseApp(ctx, host, softwareTitleID)
+	}
+
+	if vppApp == nil {
+		return &fleet.BadRequestError{
+			Message: "Couldn't install. This software is not available for this host.",
+		}
 	}
 
 	if !vppApp.SelfService {
@@ -2648,17 +4679,6 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		}
 	}
 
-	scoped, err := svc.ds.IsVPPAppLabelScoped(ctx, vppApp.VPPAppTeam.AppTeamID, host.ID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "checking vpp label scoping during software install attempt")
-	}
-
-	if !scoped {
-		return &fleet.BadRequestError{
-			Message: "Couldn't install. This software is not available for this host.",
-		}
-	}
-
 	platform := host.FleetPlatform()
 	mobileAppleDevice := fleet.InstallableDevicePlatform(platform) == fleet.IOSPlatform || fleet.InstallableDevicePlatform(platform) == fleet.IPadOSPlatform
 
@@ -2666,6 +4686,46 @@ func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *f
 		SelfService: true,
 	})
 	return err
+}
+
+func (svc *Service) SelfServiceInstallAllSoftwareTitles(ctx context.Context, host *fleet.Host, categoryID *uint, matchQuery string) error {
+	// get available self-service titles sorted by name
+	titles, categoryName, err := svc.ds.GetSoftwareTitlesForInstallAll(ctx, host, categoryID, matchQuery)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get software titles for install all")
+	}
+
+	hostVersionByTitleID, err := svc.ds.ListHostAppStoreAppVersions(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list host app store app versions for install all")
+	}
+
+	// Queue individual install activities for each title. If any errors occurred while
+	// queuing this title we log them and continue to the next software title.
+	var queuedCount uint
+	for _, title := range titles {
+		if err := svc.selfServiceInstallSoftwareTitle(ctx, host, title.ID, hostVersionByTitleID); err != nil {
+			svc.logger.ErrorContext(ctx, "enqueuing software install", "title_id", title.ID, "err", err)
+			continue
+		}
+		queuedCount++
+	}
+
+	if queuedCount == 0 {
+		return nil
+	}
+
+	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledAllSelfServiceSoftware{
+		HostID:                  host.ID,
+		HostDisplayName:         host.DisplayName(),
+		SelfServiceCategoryID:   categoryID,
+		SelfServiceCategoryName: categoryName,
+		SoftwareTitlesCount:     queuedCount,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating installed all self-service software activity")
+	}
+
+	return nil
 }
 
 // branching out this call so it doesn't conflict with work in parallel in the
@@ -2707,20 +4767,81 @@ func (svc *Service) selfServiceInstallInHouseApp(ctx context.Context, host *flee
 		}
 	}
 
-	err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), fleet.HostSoftwareInstallOptions{SelfService: true})
+	opts := fleet.HostSoftwareInstallOptions{SelfService: true}
+	cfg, err := svc.ds.GetInHouseAppConfiguration(ctx, iha.InstallerID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "get in-house app configuration for pre-flight check")
+	}
+	switch err := svc.precheckAppConfigResolvable(ctx, host, cfg); {
+	case errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar):
+		_, err := svc.recordFailedInHouseInstall(ctx, host.ID, iha.InstallerID, opts, unresolvableAppConfigFailureReason(err))
+		return err
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "pre-flight substitute fleet variables in in-house app configuration")
+	}
+
+	err = svc.ds.InsertHostInHouseAppInstall(ctx, host.ID, iha.InstallerID, softwareTitleID, uuid.NewString(), opts)
 	return ctxerr.Wrap(ctx, err, "insert in house app install")
 }
 
+// installerRequiredPlatform returns the file extension and the platform used for
+// platform validation. The installer's stored Platform is used when set (e.g.
+// .zip installers may target windows or darwin). Note that `.sh` installers are
+// stored as platform=linux but are allowed on any unix-like host by callers.
+func installerRequiredPlatform(installer *fleet.SoftwareInstaller) (ext, requiredPlatform string) {
+	ext = strings.ToLower(filepath.Ext(installer.Name))
+	if installer.Platform != "" {
+		return ext, installer.Platform
+	}
+	return ext, packageExtensionToPlatform(ext)
+}
+
+func extensionFromFilename(filename string) string {
+	// a .tar.gz filename returns "gz"
+	return strings.ToLower(strings.TrimPrefix(filepath.Ext(filename), "."))
+}
+
+// humanReadableRequiredPlatforms returns the platform(s) named in the
+// "can be installed only on ..." rejection message. .sh/.py script packages
+// are stored/derived as "linux" but the install gate also permits darwin
+// (see fleet.IsUnixLike), so they need the two-platform wording.
+func humanReadableRequiredPlatforms(ext, requiredPlatform string) string {
+	if ext == ".sh" || ext == ".py" {
+		return "macOS and Linux"
+	}
+	switch requiredPlatform {
+	case "darwin":
+		return "macOS"
+	case "windows":
+		return "Windows"
+	case "linux":
+		return "Linux"
+	default:
+		return requiredPlatform
+	}
+}
+
 // packageExtensionToPlatform returns the platform name based on the
-// package extension. Returns an empty string if there is no match.
+// package extension. Returns an empty string if there is no match. This is only
+// used as a fallback by installerRequiredPlatform when an installer has no
+// stored Platform; prefer the stored Platform, which is authoritative.
+//
+// .msix is included for Fleet-maintained Windows apps only; custom package
+// upload still rejects .msix (see addMetadataToSoftwarePayload and
+// SoftwareInstallerPlatformFromExtension).
+//
+// .zip is intentionally omitted: it is ambiguous across platforms (a Windows
+// installer or a macOS app bundle), so the stored Platform must be used. Both
+// FMAs and uploads always set Platform for .zip, so this fallback is never hit
+// for zip.
 func packageExtensionToPlatform(ext string) string {
 	var requiredPlatform string
 	switch ext {
-	case ".msi", ".exe", ".ps1":
+	case ".msi", ".exe", ".ps1", ".msix":
 		requiredPlatform = "windows"
-	case ".pkg", ".dmg", ".zip":
+	case ".pkg", ".dmg":
 		requiredPlatform = "darwin"
-	case ".deb", ".rpm", ".gz", ".tgz", ".sh":
+	case ".deb", ".rpm", ".gz", ".tgz", ".sh", ".py":
 		requiredPlatform = "linux"
 	default:
 		return ""
@@ -2733,7 +4854,7 @@ func UpgradeCodeMigration(
 	ctx context.Context,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) error {
 	// Find MSI installers without upgrade_code
 	idMap, err := ds.GetMSIInstallersWithoutUpgradeCode(ctx)
@@ -2755,7 +4876,7 @@ func UpgradeCodeMigration(
 				return ctxerr.Wrap(ctx, err, "checking if installer exists")
 			}
 			if !exists {
-				level.Warn(logger).Log("msg", "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
+				logger.WarnContext(ctx, "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
 				upgradeCodesByStorageID[storageID] = "" // set to empty string to avoid duplicating work
 				continue
 			}
@@ -2769,21 +4890,21 @@ func UpgradeCodeMigration(
 			tfr, err := fleet.NewTempFileReader(installer, nil)
 			_ = installer.Close()
 			if err != nil {
-				level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
-					err)
+				logger.WarnContext(ctx, "extracting metadata from installer",
+					"software_installer_id", id, "storage_id", storageID, "err", err)
 				upgradeCodesByStorageID[storageID] = ""
 				continue
 			}
 			meta, err := file.ExtractInstallerMetadata(tfr)
 			_ = tfr.Close() // best-effort closing and deleting of temp file
 			if err != nil {
-				level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
-					err)
+				logger.WarnContext(ctx, "extracting metadata from installer",
+					"software_installer_id", id, "storage_id", storageID, "err", err)
 				upgradeCodesByStorageID[storageID] = ""
 				continue
 			}
 			if meta.UpgradeCode == "" {
-				level.Debug(logger).Log("msg", "no upgrade code found in metadata", "software_installer_id", id, "storage_id", storageID)
+				logger.DebugContext(ctx, "no upgrade code found in metadata", "software_installer_id", id, "storage_id", storageID)
 			} // fall through since we're going to set the upgrade code even if it's blank
 
 			upgradeCodesByStorageID[storageID] = meta.UpgradeCode
@@ -2792,7 +4913,7 @@ func UpgradeCodeMigration(
 		if upgradeCode, hasParsedUpgradeCode := upgradeCodesByStorageID[storageID]; hasParsedUpgradeCode && upgradeCode != "" {
 			// Update the upgrade_code of the software package if we have one
 			if err := ds.UpdateInstallerUpgradeCode(ctx, id, upgradeCode); err != nil {
-				level.Warn(logger).Log("msg", "failed to update upgrade code", "software_installer_id", id, "error", err)
+				logger.WarnContext(ctx, "failed to update upgrade code", "software_installer_id", id, "error", err)
 				continue
 			}
 		}
@@ -2805,7 +4926,7 @@ func UninstallSoftwareMigration(
 	ctx context.Context,
 	ds fleet.Datastore,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) error {
 	// Find software installers that should have their uninstall script populated
 	idMap, err := ds.GetSoftwareInstallersPendingUninstallScriptPopulation(ctx)
@@ -2824,7 +4945,7 @@ func UninstallSoftwareMigration(
 			return ctxerr.Wrap(ctx, err, "checking if installer exists")
 		}
 		if !exists {
-			level.Warn(logger).Log("msg", "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
+			logger.WarnContext(ctx, "software installer not found in store", "software_installer_id", id, "storage_id", storageID)
 			continue
 		}
 
@@ -2837,23 +4958,23 @@ func UninstallSoftwareMigration(
 		tfr, err := fleet.NewTempFileReader(installer, nil)
 		_ = installer.Close()
 		if err != nil {
-			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
-				err)
+			logger.WarnContext(ctx, "extracting metadata from installer",
+				"software_installer_id", id, "storage_id", storageID, "err", err)
 			continue
 		}
 		meta, err := file.ExtractInstallerMetadata(tfr)
 		_ = tfr.Close() // best-effort closing and deleting of temp file
 		if err != nil {
-			level.Warn(logger).Log("msg", "extracting metadata from installer", "software_installer_id", id, "storage_id", storageID, "err",
-				err)
+			logger.WarnContext(ctx, "extracting metadata from installer",
+				"software_installer_id", id, "storage_id", storageID, "err", err)
 			continue
 		}
 		if len(meta.PackageIDs) == 0 {
-			level.Warn(logger).Log("msg", "no package_id found in metadata", "software_installer_id", id, "storage_id", storageID)
+			logger.WarnContext(ctx, "no package_id found in metadata", "software_installer_id", id, "storage_id", storageID)
 			continue
 		}
 		if meta.Extension == "" {
-			level.Warn(logger).Log("msg", "no extension found in metadata", "software_installer_id", id, "storage_id", storageID)
+			logger.WarnContext(ctx, "no extension found in metadata", "software_installer_id", id, "storage_id", storageID)
 			continue
 		}
 		payload := fleet.UploadSoftwareInstallerPayload{
@@ -2876,12 +4997,11 @@ func UninstallSoftwareMigration(
 	return nil
 }
 
-func activitySoftwareLabelsFromValidatedLabels(validatedLabels *fleet.LabelIdentsWithScope) (include, exclude []fleet.ActivitySoftwareLabel) {
+func activitySoftwareLabelsFromValidatedLabels(validatedLabels *fleet.LabelIdentsWithScope) (includeAny, excludeAny, includeAll []fleet.ActivitySoftwareLabel) {
 	if validatedLabels == nil || len(validatedLabels.ByName) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 
-	excludeAny := validatedLabels.LabelScope == fleet.LabelScopeExcludeAny
 	labels := make([]fleet.ActivitySoftwareLabel, 0, len(validatedLabels.ByName))
 	for _, lbl := range validatedLabels.ByName {
 		labels = append(labels, fleet.ActivitySoftwareLabel{
@@ -2889,26 +5009,154 @@ func activitySoftwareLabelsFromValidatedLabels(validatedLabels *fleet.LabelIdent
 			Name: lbl.LabelName,
 		})
 	}
-	if excludeAny {
-		exclude = labels
-	} else {
-		include = labels
+	switch validatedLabels.LabelScope {
+	case fleet.LabelScopeIncludeAny:
+		includeAny = labels
+	case fleet.LabelScopeExcludeAny:
+		excludeAny = labels
+	case fleet.LabelScopeIncludeAll:
+		includeAll = labels
 	}
-	return include, exclude
+	return includeAny, excludeAny, includeAll
 }
 
-func activitySoftwareLabelsFromSoftwareScopeLabels(includeScopeLabels, excludeScopeLabels []fleet.SoftwareScopeLabel) (include, exclude []fleet.ActivitySoftwareLabel) {
-	for _, label := range includeScopeLabels {
-		include = append(include, fleet.ActivitySoftwareLabel{
+func activitySoftwareLabelsFromSoftwareScopeLabels(includeAnyScopeLabels, excludeAnyScopeLabels, includeAllScopeLabels []fleet.SoftwareScopeLabel) (includeAny, excludeAny, includeAll []fleet.ActivitySoftwareLabel) {
+	for _, label := range includeAnyScopeLabels {
+		includeAny = append(includeAny, fleet.ActivitySoftwareLabel{
 			ID:   label.LabelID,
 			Name: label.LabelName,
 		})
 	}
-	for _, label := range excludeScopeLabels {
-		exclude = append(exclude, fleet.ActivitySoftwareLabel{
+	for _, label := range excludeAnyScopeLabels {
+		excludeAny = append(excludeAny, fleet.ActivitySoftwareLabel{
 			ID:   label.LabelID,
 			Name: label.LabelName,
 		})
 	}
-	return include, exclude
+	for _, label := range includeAllScopeLabels {
+		includeAll = append(includeAll, fleet.ActivitySoftwareLabel{
+			ID:   label.LabelID,
+			Name: label.LabelName,
+		})
+	}
+	return includeAny, excludeAny, includeAll
+}
+
+// getInstallScript returns the install script for a software installer,
+// using a special script for fleetd packages to handle macOS in-band upgrades.
+func getInstallScript(extension string, packageIDs []string, currentScript string) string {
+	if extension == "pkg" && file.IsFleetdPkg(packageIDs) {
+		return file.InstallPkgFleetdScript
+	}
+	if currentScript != "" {
+		return currentScript
+	}
+	return file.GetInstallScript(extension)
+}
+
+// batchAddSelfServiceCategories only adds categories, because it is used across both the installer and vpp
+// endpoints and we cannot know what categories to delete before those are both done.
+func (svc *Service) batchAddSelfServiceCategories(ctx context.Context, teamID *uint, categoryNames []string, dryRun bool) ([]string, error) {
+	// Compare names with fleet.SoftwareCategoryNamesEqual rather than a plain
+	// case-insensitive comparison: the software_categories unique index uses the
+	// utf8mb4_unicode_ci collation, which ignores variation selectors, so two
+	// names Go considers distinct (e.g. "🖥️ Productivity" with vs. without U+FE0F)
+	// are the same row to MySQL. Deduping/matching on the DB's terms here avoids
+	// attempting an insert that would fail with a 1062 duplicate-entry error.
+	var allCategories []string
+	for _, name := range fleet.TranslateLegacySoftwareCategoryNames(categoryNames) {
+		if slices.ContainsFunc(allCategories, func(c string) bool { return fleet.SoftwareCategoryNamesEqual(c, name) }) {
+			continue
+		}
+		allCategories = append(allCategories, name)
+	}
+
+	if len(allCategories) == 0 {
+		return allCategories, nil
+	}
+
+	existingCategories, err := svc.ds.ListSoftwareCategories(ctxdb.RequirePrimary(ctx, true), ptr.ValOrZero(teamID))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing existing software categories")
+	}
+
+	var categoriesToInsert []string
+	for _, name := range allCategories {
+		if !slices.ContainsFunc(existingCategories, func(c fleet.SoftwareCategory) bool { return fleet.SoftwareCategoryNamesEqual(c.Name, name) }) {
+			categoriesToInsert = append(categoriesToInsert, name)
+		}
+	}
+
+	if dryRun {
+		return allCategories, nil
+	}
+
+	if err := svc.ds.BatchNewSoftwareCategories(ctx, ptr.ValOrZero(teamID), categoriesToInsert); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating self-service categories")
+	}
+	return allCategories, nil
+}
+
+func parsePinnedVersion(ctx context.Context, version string) (trimmedVersion string, usesCaret bool, err error) {
+	trimmedVersion, usesCaret = strings.CutPrefix(version, "^")
+	if usesCaret {
+		if len(trimmedVersion) == 0 {
+			return "", false, fleet.NewUserMessageError(errEmptyCaretVersion, http.StatusBadRequest)
+		}
+		if _, err := strconv.ParseUint(trimmedVersion, 10, 64); err != nil {
+			return "", false, fleet.NewUserMessageError(errNonMajorVersion, http.StatusBadRequest)
+		}
+	}
+	return trimmedVersion, usesCaret, nil
+}
+
+func versionMatchesMajor(version string, majorVersion string) bool {
+	versionMajor, _, _ := strings.Cut(version, ".")
+	return versionMajor == majorVersion
+}
+
+func (svc *Service) resetInstallAttemptsForInstallers(ctx context.Context, installerIDs []uint) {
+	if svc.installAttemptCounter == nil {
+		return
+	}
+
+	if err := svc.installAttemptCounter.ResetInstallerAttempts(ctx, installerIDs); err != nil {
+		svc.logger.ErrorContext(ctx, "failed to reset policy automation install attempts for updated installers", "software_installer_ids", installerIDs, "err", err)
+	}
+}
+
+func (svc *Service) resolveFirstAddedInScopeAppStoreApp(ctx context.Context, host *fleet.Host, titleID uint, hostVersionByTitleID map[uint]*fleet.HostAppStoreAppVersion) (vppApp *fleet.VPPApp, anyVersions bool, err error) {
+	if hostVersionByTitleID == nil {
+		hostVersionByTitleID, err = svc.ds.ListHostAppStoreAppVersions(ctx, host)
+		if err != nil {
+			return nil, false, ctxerr.Wrap(ctx, err, "listing App Store app versions for install precedence")
+		}
+	}
+	hostVersion, ok := hostVersionByTitleID[titleID]
+	if !ok {
+		return nil, false, nil
+	}
+	if !hostVersion.InScope {
+		return nil, true, nil
+	}
+
+	vppApp, err = svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, titleID, hostVersion.VPPAppTeamID)
+	if err != nil {
+		return nil, true, ctxerr.Wrap(ctx, err, "get App Store app version")
+	}
+	return vppApp, true, nil
+}
+
+func (svc *Service) deleteAppStoreAppVersions(ctx context.Context, teamID *uint, versionsToDelete []*fleet.VPPAppStoreApp) error {
+	for _, version := range versionsToDelete {
+		err := svc.deleteVPPApp(ctx, teamID, version)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (svc *Service) SelfServiceInstallSoftwareTitle(ctx context.Context, host *fleet.Host, softwareTitleID uint) error {
+	return svc.selfServiceInstallSoftwareTitle(ctx, host, softwareTitleID, nil)
 }

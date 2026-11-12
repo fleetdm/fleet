@@ -1,0 +1,45 @@
+.select-report-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: 90%;
+  overflow: hidden;
+
+  .modal__content-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    // min-height: 0 lets this flex child shrink below its content height so
+    // the inner overflow-y: auto can actually scroll.
+    min-height: 0;
+  }
+
+  .modal__content {
+    @include vertical-modal-layout;
+
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  &__report-selection {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    .children-wrapper {
+      width: 680px;
+    }
+  }
+
+  .info {
+    &__header,
+    &__data {
+      display: block;
+      color: $core-fleet-black;
+      font-size: $x-small;
+      text-align: center;
+    }
+
+    &__header {
+      font-weight: $bold;
+    }
+  }
+}

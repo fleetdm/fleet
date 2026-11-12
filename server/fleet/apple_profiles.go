@@ -1,0 +1,107 @@
+package fleet
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+)
+
+// install/removeTargets are maps from profileUUID -> command uuid and host
+// UUIDs as the underlying MDM services are optimized to send one command to
+// multiple hosts at the same time. Note that the same command uuid is used
+// for all hosts in a given install/remove target operation.
+type CmdTarget struct {
+	CmdUUID           string
+	ProfileIdentifier string
+	ProfileName       string
+	EnrollmentIDs     []string
+}
+
+type HostProfileUUID struct {
+	HostUUID    string
+	ProfileUUID string
+}
+
+func FindProfilesWithSecrets(
+	ctx context.Context,
+	logger *slog.Logger,
+	installTargets map[string]*CmdTarget,
+	profileContents map[string]mobileconfig.Mobileconfig,
+) (map[string]struct{}, error) {
+	profilesWithSecrets := make(map[string]struct{})
+	for profUUID := range installTargets {
+		p, ok := profileContents[profUUID]
+		if !ok { // Should never happen
+			logger.ErrorContext(ctx, "profile content not found in FindProfilesWithSecrets", "profile_uuid", profUUID)
+			continue
+		}
+		profileStr := string(p)
+		// Both org-wide secrets ($FLEET_SECRET_*) and host-scoped secrets
+		// ($FLEET_HOST_SECRET_*) are expanded at command-delivery time, never
+		// stored, so a profile carrying either must take the secret command path.
+		vars := ContainsPrefixVars(profileStr, ServerSecretPrefix)
+		hostVars := ContainsPrefixVars(profileStr, HostSecretPrefix)
+		if len(vars) > 0 || len(hostVars) > 0 {
+			profilesWithSecrets[profUUID] = struct{}{}
+		}
+	}
+	return profilesWithSecrets, nil
+}
+
+func MarkProfilesFailed(
+	ctx context.Context,
+	ds Datastore,
+	logger *slog.Logger,
+	target *CmdTarget,
+	hostProfilesToInstallMap map[HostProfileUUID]*MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
+	profUUID string,
+	detail string,
+	variablesUpdatedAt *time.Time,
+) (bool, error) {
+	profilesToUpdate := make([]*MDMAppleBulkUpsertHostProfilePayload, 0, len(target.EnrollmentIDs))
+	for _, enrollmentID := range target.EnrollmentIDs {
+		profile, ok := GetHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, enrollmentID, profUUID)
+		if !ok || profile == nil {
+			logger.ErrorContext(ctx, "failed to find profile to install by enrollment id, when marking as failed", "enrollment_id", enrollmentID, "profile_uuid", profUUID)
+			// Should never happen
+			continue
+		}
+		profile.Status = &MDMDeliveryFailed
+		profile.Detail = detail
+		profile.VariablesUpdatedAt = variablesUpdatedAt
+		profilesToUpdate = append(profilesToUpdate, profile)
+	}
+	if err := ds.BulkUpsertMDMAppleHostProfiles(ctx, profilesToUpdate); err != nil {
+		return false, fmt.Errorf("marking host profiles failed: %w", err)
+	}
+	return false, nil
+}
+
+func GetHostProfileToInstallByEnrollmentID(hostProfilesToInstallMap map[HostProfileUUID]*MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
+	enrollmentID,
+	profUUID string,
+) (*MDMAppleBulkUpsertHostProfilePayload, bool) {
+	profile, ok := hostProfilesToInstallMap[HostProfileUUID{HostUUID: enrollmentID, ProfileUUID: profUUID}]
+	if !ok {
+		var hostUUID string
+		// If sending to the user channel the enrollmentID will have to be mapped back to the host UUID.
+		hostUUID, ok = userEnrollmentsToHostUUIDsMap[enrollmentID]
+		if ok {
+			profile, ok = hostProfilesToInstallMap[HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profUUID}]
+		}
+	}
+	return profile, ok
+}
+
+// MDMProfileOptInChanges is the opt-in intent delta computed alongside
+// install/remove deltas. Add rows are adoptions on team transfer; Purge rows
+// are opt-ins whose profile is no longer desired on the host.
+type MDMProfileOptInChanges struct {
+	Add   []HostProfileUUID
+	Purge []HostProfileUUID
+}

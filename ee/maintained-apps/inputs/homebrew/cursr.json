@@ -1,0 +1,10 @@
+{
+  "name": "Cursr",
+  "unique_identifier": "com.bitgapp.cursr",
+  "token": "cursr",
+  "installer_format": "dmg",
+  "slug": "cursr/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

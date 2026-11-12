@@ -1,16 +1,16 @@
+import { AxiosError } from "axios";
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "react-query";
 
-import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
-
-import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import TooltipWrapper from "components/TooltipWrapper";
-import IconStatusMessage from "components/IconStatusMessage";
-import Textarea from "components/Textarea";
 import DataError from "components/DataError/DataError";
-import Spinner from "components/Spinner/Spinner";
+import IconStatusMessage from "components/IconStatusMessage";
+import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
+import Spinner from "components/Spinner/Spinner";
+import Textarea from "components/Textarea";
+import TooltipWrapper from "components/TooltipWrapper";
+import scriptsAPI, { IScriptResultResponse } from "services/entities/scripts";
 
 const baseClass = "run-script-details-modal";
 
@@ -29,7 +29,7 @@ const ScriptContent = ({ content }: IScriptContentProps) => {
 const StatusMessageRunning = () => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="pending-outline"
+    iconName="pending"
     message="Script is running or will run when the host comes online."
   />
 );
@@ -37,7 +37,7 @@ const StatusMessageRunning = () => (
 const StatusMessageSuccess = () => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="success-outline"
+    iconName="success"
     message="Exit code: 0 (Script ran successfully.)"
   />
 );
@@ -45,7 +45,7 @@ const StatusMessageSuccess = () => (
 const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="error-outline"
+    iconName="error"
     message={`Exit code: ${exitCode} (Script failed.)`}
   />
 );
@@ -53,7 +53,7 @@ const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
 const StatusMessageError = ({ message }: { message: React.ReactNode }) => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="error-outline"
+    iconName="error"
     message={<>Error: {message}</>}
   />
 );
@@ -71,12 +71,24 @@ const StatusMessage = ({
 }: IStatusMessageProps) => {
   switch (exitCode) {
     case null:
-      return !hostTimeout ? (
+      if (!hostTimeout) {
         // Expected API message: "A script is already running on this host. Please wait about 1 minute to let it finish."
-        <StatusMessageRunning />
-      ) : (
-        // Expected API message: "Fleet hasn’t heard from the host in over 1 minute. Fleet doesn’t know if the script ran because the host went offline."
-        <StatusMessageError message={message} />
+        return <StatusMessageRunning />;
+      }
+      // The API message is fleetctl copy; strip the "Go to Fleet and check
+      // Host details > Activities to see script results." pointer — Fleet
+      // gave up at the server timeout, there are no results to go see, and
+      // if the host does report back late the result will appear on this
+      // same view.
+      return (
+        <StatusMessageError
+          message={message
+            .replace(
+              /\s*Go to Fleet and check Host details > Activities to see script results\.?/,
+              ""
+            )
+            .trim()}
+        />
       );
     case -2:
       // Expected API message: "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
@@ -122,28 +134,37 @@ const ScriptOutput = ({
   output,
   hostname,
   wasAdHoc = false,
-}: IScriptOutputProps) => (
-  <div className={`${baseClass}__script-result`}>
-    <Textarea
-      label={
-        <>
-          The{" "}
-          <TooltipWrapper
-            tipContent="Fleet records the last 10,000 characters to prevent downtime."
-            tooltipClass={`${baseClass}__output-tooltip`}
-            delayInMs={500}
-          >
-            output recorded
-          </TooltipWrapper>{" "}
-          when <b>{hostname}</b> ran the script{wasAdHoc && " above"}:
-        </>
-      }
-      variant="code"
-    >
-      {output}
-    </Textarea>
-  </div>
-);
+}: IScriptOutputProps) => {
+  const content =
+    output.trim().length === 0 ? (
+      <span>
+        No output captured when <b>{hostname}</b> ran the script
+        {wasAdHoc && " above"}.
+      </span>
+    ) : (
+      <Textarea
+        label={
+          <>
+            The{" "}
+            <TooltipWrapper
+              tipContent="Fleet records the last 10,000 characters to prevent downtime."
+              tooltipClass={`${baseClass}__output-tooltip`}
+              delayInMs={500}
+            >
+              output recorded
+            </TooltipWrapper>{" "}
+            when <b>{hostname}</b> ran the script{wasAdHoc && " above"}:
+          </>
+        }
+        variant="code"
+      >
+        {output}
+      </Textarea>
+    );
+
+  return <div className={`${baseClass}__script-result`}>{content}</div>;
+};
+
 interface IRunScriptDetailsModalProps {
   scriptExecutionId: string;
   onCancel: () => void;
@@ -166,12 +187,20 @@ const RunScriptDetailsModal = ({
     }
   };
 
-  const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
+  const { data, isLoading, isError, error } = useQuery<
+    IScriptResultResponse,
+    AxiosError
+  >(
     ["runScriptDetailsModal", scriptExecutionId],
     () => {
       return scriptsAPI.getScriptResult(scriptExecutionId);
     },
-    { refetchOnWindowFocus: false, enabled: !!scriptExecutionId }
+    {
+      refetchOnWindowFocus: false,
+      enabled: !!scriptExecutionId,
+      // Retention can delete the result, and retrying won't bring it back.
+      retry: (failureCount, err) => err?.status !== 404 && failureCount < 3,
+    }
   );
 
   // For scrollable modal
@@ -186,6 +215,13 @@ const RunScriptDetailsModal = ({
 
     if (isLoading) {
       content = <Spinner />;
+    } else if (isError && error?.status === 404) {
+      content = (
+        <DataError
+          description="These script results are no longer available."
+          excludeIssueLink
+        />
+      );
     } else if (isError) {
       content = <DataError description="Close this modal and try again." />;
     } else if (data) {
@@ -203,7 +239,7 @@ const RunScriptDetailsModal = ({
           <StatusMessage
             hostTimeout={data.host_timeout}
             exitCode={data.exit_code}
-            message={data.output}
+            message={data.message}
           />
           {ranAdHocScript && <ScriptContent content={data.script_contents} />}
           {showOutputText && (
@@ -230,7 +266,7 @@ const RunScriptDetailsModal = ({
   const renderFooter = () => (
     <ModalFooter
       isTopScrolling={isTopScrolling}
-      primaryButtons={<Button onClick={onCancel}>Done</Button>}
+      primaryButtons={<Button onClick={onCancel}>Close</Button>}
     />
   );
   return (
@@ -241,10 +277,8 @@ const RunScriptDetailsModal = ({
       className={baseClass}
       isHidden={isHidden}
     >
-      <>
-        {renderContent()}
-        {renderFooter()}
-      </>
+      {renderContent()}
+      {renderFooter()}
     </Modal>
   );
 };

@@ -1,16 +1,35 @@
+import { flatMap } from "lodash";
 import React from "react";
 
+import Button from "components/buttons/Button";
+import IconStatusMessage from "components/IconStatusMessage";
+import InfoBanner from "components/InfoBanner";
+import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
 import {
   IHostSoftware,
   SoftwareInstallUninstallStatus,
 } from "interfaces/software";
-import Button from "components/buttons/Button";
-import Modal from "components/Modal";
-import IconStatusMessage from "components/IconStatusMessage";
-import ModalFooter from "components/ModalFooter";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 const baseClass = "software-update-modal";
+
+// Installers only replace the copy in /Applications, so other copies keep the
+// update showing.
+const hasMultipleMacAppCopies = (software: IHostSoftware) =>
+  software.source === "apps" &&
+  new Set(
+    flatMap(software.installed_versions || [], (iv) => iv.installed_paths)
+  ).size > 1;
+
+const MultipleCopiesMessage = () => (
+  <InfoBanner color="yellow" icon="warning">
+    Multiple versions of this app are installed, and updating only replaces the
+    original version in the Applications folder. If this update keeps showing,
+    delete the other versions.
+  </InfoBanner>
+);
 
 // Status message render helper
 interface IStatusMessageProps {
@@ -58,11 +77,7 @@ const StatusMessage = ({
   return (
     <IconStatusMessage
       className={`${baseClass}__status-message`}
-      iconName={
-        softwareStatus === "pending_install"
-          ? "pending-outline"
-          : "error-outline"
-      }
+      iconName={softwareStatus === "pending_install" ? "pending" : "error"}
       iconColor="ui-fleet-black-50"
       message={<span>{renderMessage()}</span>}
     />
@@ -74,6 +89,8 @@ interface ISoftwareUpdateModalProps {
   software: IHostSoftware;
   onExit: () => void;
   isDeviceUser?: boolean;
+  /** Hides the Update button; modal is view-only */
+  disableUpdate?: boolean;
   /** Currently API for updating is the same as installing */
   onUpdate: (id: number) => void;
 }
@@ -82,6 +99,7 @@ const SoftwareUpdateModal = ({
   hostDisplayName,
   software,
   isDeviceUser = false,
+  disableUpdate = false,
   onExit,
   onUpdate,
 }: ISoftwareUpdateModalProps) => {
@@ -96,6 +114,7 @@ const SoftwareUpdateModal = ({
   } = software;
   const installerName = software_package?.name || "";
   const installerVersion = software_package?.version || app_store_app?.version;
+  const softwareDisplayName = getDisplayedSoftwareName(name, display_name);
 
   const onClickUpdate = () => {
     onUpdate(id);
@@ -109,37 +128,38 @@ const SoftwareUpdateModal = ({
 
   return (
     <Modal title="Update details" className={baseClass} onExit={onExit}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          <StatusMessage
-            hostDisplayName={hostDisplayName}
-            isDeviceUser={isDeviceUser}
-            softwareStatus={status}
-            softwareName={display_name || name}
-            installerName={installerName}
-            installerVersion={installerVersion}
-          />
-          {showCurrentVersions && <InventoryVersions hostSoftware={software} />}
-        </div>
-        <ModalFooter
-          primaryButtons={
-            status === "pending_install" ? (
-              <Button type="submit" onClick={onExit}>
-                Done
-              </Button>
-            ) : (
-              <>
-                <Button variant="inverse" onClick={onExit}>
-                  Cancel
-                </Button>
-                <Button type="submit" onClick={onClickUpdate}>
-                  Update
-                </Button>
-              </>
-            )
-          }
+      <div className={`${baseClass}__modal-content`}>
+        <StatusMessage
+          hostDisplayName={hostDisplayName}
+          isDeviceUser={isDeviceUser}
+          softwareStatus={status}
+          softwareName={softwareDisplayName}
+          installerName={installerName}
+          installerVersion={installerVersion}
         />
-      </>
+        {status !== "pending_install" && hasMultipleMacAppCopies(software) && (
+          <MultipleCopiesMessage />
+        )}
+        {showCurrentVersions && <InventoryVersions hostSoftware={software} />}
+      </div>
+      <ModalFooter
+        primaryButtons={
+          status === "pending_install" || disableUpdate ? (
+            <Button type="submit" onClick={onExit}>
+              Close
+            </Button>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={onExit}>
+                Cancel
+              </Button>
+              <Button type="submit" onClick={onClickUpdate}>
+                Update
+              </Button>
+            </>
+          )
+        }
+      />
     </Modal>
   );
 };

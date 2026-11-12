@@ -1,0 +1,11 @@
+{
+  "name": "Krisp",
+  "unique_identifier": "ai.krisp.krispMac",
+  "token": "krisp",
+  "installer_format": "pkg",
+  "slug": "krisp/darwin",
+  "default_categories": [
+    "Productivity"
+  ],
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/krisp-uninstall.sh"
+}

@@ -1,0 +1,192 @@
+name: Create fleetd release QA issue
+
+# Creates the "Release QA (fleetd)" smoke test issue from
+# .github/ISSUE_TEMPLATE/release-qa-fleetd.md when a fleetd release candidate
+# branch (rc-minor-fleetd-v1.X.Y or rc-patch-fleetd-v1.X.Y) is pushed.
+#
+# Only the first push of the branch (cutting the release) creates the issue;
+# later pushes (cherry-picks) are ignored. If that run fails, dispatch the
+# workflow manually from the RC branch: the issue lookup keeps it idempotent.
+
+on:
+  push:
+    branches:
+      - 'rc-minor-fleetd-v*'
+      - 'rc-patch-fleetd-v*'
+  workflow_dispatch:
+
+# Serialize runs for the same branch without cancelling: a cherry-pick pushed
+# right after cutting the RC must not cancel the run creating the issue.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  create-issue:
+    if: github.repository == 'fleetdm/fleet' && (github.event_name == 'workflow_dispatch' || github.event.created)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/ISSUE_TEMPLATE/release-qa-fleetd.md
+          sparse-checkout-cone-mode: false
+
+      - name: Parse release candidate branch
+        id: branch
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          # workflow_dispatch can be run from any branch: only proceed for RC branches.
+          if [[ ! "$BRANCH" =~ ^rc-(minor|patch)-fleetd-v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+            echo "Branch '$BRANCH' is not a fleetd release candidate branch (rc-{minor|patch}-fleetd-v1.X.Y), nothing to do."
+            echo "is_rc=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "is_rc=true" >> "$GITHUB_OUTPUT"
+          echo "release_type=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          echo "version=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release QA issue
+        if: steps.branch.outputs.is_rc == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          BRANCH: ${{ github.ref_name }}
+          VERSION: ${{ steps.branch.outputs.version }}
+          RELEASE_TYPE: ${{ steps.branch.outputs.release_type }}
+        with:
+          script: |
+            const fs = require('fs');
+
+            const branch = process.env.BRANCH;
+            const version = process.env.VERSION;
+            const releaseType = process.env.RELEASE_TYPE;
+            const runURL = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            // Parse the issue template's YAML front matter (title, labels,
+            // assignees) and use the rest of the file as the issue body.
+            const template = fs.readFileSync('.github/ISSUE_TEMPLATE/release-qa-fleetd.md', 'utf8');
+            const match = template.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+            if (!match) {
+              core.setFailed('Could not parse front matter of .github/ISSUE_TEMPLATE/release-qa-fleetd.md');
+              return;
+            }
+            const [, frontMatter, templateBody] = match;
+            const field = (name) => {
+              const m = frontMatter.match(new RegExp(`^${name}:\\s*(.*)$`, 'm'));
+              if (!m) return '';
+              // Values may be single-quoted, e.g. title: 'Release QA (fleetd):'
+              return m[1].trim().replace(/^'(.*)'$/, '$1').replace(/^"(.*)"$/, '$1');
+            };
+            const list = (name) => field(name).split(',').map(s => s.trim()).filter(Boolean);
+
+            const title = `${field('title')} v${version}`.trim();
+            const labels = list('labels');
+            const assignees = list('assignees');
+
+            // Idempotency: manual re-runs, or a branch deleted and re-created.
+            const { data: search } = await github.rest.search.issuesAndPullRequests({
+              q: `repo:${context.repo.owner}/${context.repo.repo} is:issue in:title "${title}"`,
+              per_page: 20,
+            });
+            const existing = search.items.find(i => i.title === title);
+            if (existing) {
+              console.log(`Issue already exists: #${existing.number} (${existing.html_url}) — not creating a new one.`);
+              return;
+            }
+
+            // Previous fleetd version, to pre-fill the "Release versioning" section.
+            const refs = await github.paginate(github.rest.git.listMatchingRefs, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'tags/orbit-v',
+              per_page: 100,
+            });
+            const cmp = (a, b) => {
+              const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+              for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i] - pb[i];
+              return 0;
+            };
+            const previous = refs
+              .map(r => r.ref.match(/^refs\/tags\/orbit-v(\d+\.\d+\.\d+)$/)?.[1])
+              .filter(v => v && cmp(v, version) < 0)
+              .sort(cmp)
+              .pop();
+            console.log(`Previous fleetd version: ${previous ?? 'unknown'}`);
+
+            // Pre-fill the Orbit and Desktop lines of "Release versioning" (they
+            // share the fleetd version). Match the whole line by component name so
+            // small edits to the template's placeholder text don't break this, and
+            // warn if the line is gone so the template and workflow can be re-synced.
+            let body = templateBody;
+            if (previous) {
+              for (const component of ['Orbit', 'Desktop']) {
+                const line = new RegExp(`^-\\s*${component}:.*$`, 'm');
+                if (!line.test(body)) {
+                  core.warning(`Template has no "- ${component}:" line under "Release versioning"; leaving the body as-is.`);
+                  continue;
+                }
+                body = body.replace(line, `- ${component}: True : \`v${previous}\` > \`v${version}\``);
+              }
+            } else {
+              core.warning('No previous orbit-v* tag found; leaving "Release versioning" placeholders as-is.');
+            }
+            body = [
+              `**Release candidate branch:** [\`${branch}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/tree/${branch}) (${releaseType} release)`,
+              ``,
+              body.trim(),
+              ``,
+              `---`,
+              `*This issue was automatically created by the [create-fleetd-release-qa-issue workflow](${runURL}).*`,
+            ].join('\n');
+
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels,
+              assignees,
+            });
+            console.log(`Created issue #${issue.number}: ${issue.html_url}`);
+            await core.summary
+              .addRaw(`Created release QA issue [#${issue.number}](${issue.html_url}) for \`${branch}\`.`)
+              .write();
+
+      - name: Slack notification on failure
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status }}\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "❌ Failed to create the fleetd release QA issue for `${{ github.ref_name }}`\nhttps://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_ORCHESTRATION_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

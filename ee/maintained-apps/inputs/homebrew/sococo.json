@@ -1,0 +1,10 @@
+{
+  "name": "Sococo",
+  "unique_identifier": "com.electron.sococo",
+  "token": "sococo",
+  "installer_format": "dmg",
+  "slug": "sococo/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

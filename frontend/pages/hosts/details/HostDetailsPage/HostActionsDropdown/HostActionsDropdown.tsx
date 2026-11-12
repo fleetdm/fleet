@@ -1,12 +1,14 @@
 import React, { useContext } from "react";
 
+import ActionsDropdown from "components/ActionsDropdown";
+import { AppContext } from "context/app";
+import { RecoveryLockPasswordStatus } from "interfaces/host";
 import { isEnrolledInMdm, MdmEnrollmentStatus } from "interfaces/mdm";
 import permissions from "utilities/permissions";
-import { AppContext } from "context/app";
 
-import ActionsDropdown from "components/ActionsDropdown";
-import { generateHostActionOptions } from "./helpers";
 import { HostMdmDeviceStatusUIState } from "../../helpers";
+
+import { generateHostActionOptions } from "./helpers";
 
 const baseClass = "host-actions-dropdown";
 
@@ -17,11 +19,30 @@ interface IHostActionsDropdownProps {
   /** This represents the mdm managed host device status (e.g. unlocked, locked,
    * unlocking, locking, ...etc) */
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
-  doesStoreEncryptionKey?: boolean;
+  isEncryptionKeyAvailable?: boolean;
+  isEncryptionKeyArchived?: boolean;
   isConnectedToFleetMdm?: boolean;
   hostPlatform?: string;
+  hostCpuType?: string;
+  isDEPAssignedToFleet?: boolean;
   onSelect: (value: string) => void;
   hostScriptsEnabled: boolean | null;
+  isRecoveryLockPasswordEnabled?: boolean;
+  diskEncryptionProfileStatus?: string | null;
+  recoveryLockPasswordAvailable?: boolean;
+  recoveryLockPasswordStatus?: RecoveryLockPasswordStatus;
+  isManagedLocalAccountEnabled?: boolean;
+  managedAccountStatus?: string | null;
+  managedAccountDetail?: string;
+  managedAccountPasswordAvailable?: boolean;
+  /**
+   * BYOD permission gates from the host MDM payload. Undefined when the host's
+   * stored AccessRights are not known (non-Apple-MDM or pre-#23242 hosts);
+   * treat undefined as "allowed" so the dropdown matches today's behavior.
+   */
+  wipeAllowed?: boolean;
+  lockAllowed?: boolean;
+  clearPasscodeAllowed?: boolean;
 }
 
 const HostActionsDropdown = ({
@@ -29,16 +50,31 @@ const HostActionsDropdown = ({
   hostStatus,
   hostMdmEnrollmentStatus,
   hostMdmDeviceStatus,
-  doesStoreEncryptionKey,
+  isEncryptionKeyAvailable,
+  isEncryptionKeyArchived,
   isConnectedToFleetMdm,
+  isDEPAssignedToFleet = false,
   hostPlatform = "",
+  hostCpuType = "",
   hostScriptsEnabled = false,
   onSelect,
+  isRecoveryLockPasswordEnabled = false,
+  diskEncryptionProfileStatus,
+  recoveryLockPasswordAvailable = false,
+  recoveryLockPasswordStatus,
+  isManagedLocalAccountEnabled = false,
+  managedAccountStatus,
+  managedAccountDetail,
+  managedAccountPasswordAvailable = false,
+  wipeAllowed,
+  lockAllowed,
+  clearPasscodeAllowed,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
     isGlobalAdmin = false,
     isGlobalMaintainer = false,
+    isGlobalTechnician = false,
     isMacMdmEnabledAndConfigured = false,
     isWindowsMdmEnabledAndConfigured = false,
     isAndroidMdmEnabledAndConfigured = false,
@@ -53,29 +89,51 @@ const HostActionsDropdown = ({
     currentUser,
     hostTeamId
   );
+  const isTeamTechnician = permissions.isTeamTechnician(
+    currentUser,
+    hostTeamId
+  );
   const isTeamObserver = permissions.isTeamObserver(currentUser, hostTeamId);
   const isGlobalObserver = permissions.isGlobalObserver(currentUser);
 
   const options = generateHostActionOptions({
     hostPlatform,
+    hostCpuType,
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
     isGlobalObserver,
+    isGlobalTechnician,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamTechnician,
     isTeamObserver,
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: isEnrolledInMdm(hostMdmEnrollmentStatus),
     isConnectedToFleetMdm,
+    isDEPAssignedToFleet,
     isMacMdmEnabledAndConfigured,
+    isAppleBusinessEnabledAndConfigured:
+      globalConfig?.mdm?.apple_bm_enabled_and_configured ?? false,
     isWindowsMdmEnabledAndConfigured,
     isAndroidMdmEnabledAndConfigured,
-    doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
+    isEncryptionKeyAvailable: isEncryptionKeyAvailable ?? false,
+    isEncryptionKeyArchived: isEncryptionKeyArchived ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,
     isPrimoMode: globalConfig?.partnerships?.enable_primo ?? false,
     hostMdmEnrollmentStatus,
+    isRecoveryLockPasswordEnabled,
+    diskEncryptionProfileStatus,
+    recoveryLockPasswordAvailable,
+    recoveryLockPasswordStatus,
+    isManagedLocalAccountEnabled,
+    managedAccountStatus,
+    managedAccountDetail,
+    managedAccountPasswordAvailable,
+    wipeAllowed,
+    lockAllowed,
+    clearPasscodeAllowed,
   });
 
   // No options to render. Exit early
@@ -89,7 +147,7 @@ const HostActionsDropdown = ({
         placeholder="Actions"
         options={options}
         menuAlign="right"
-        variant="brand-button"
+        variant="primary"
       />
     </div>
   );

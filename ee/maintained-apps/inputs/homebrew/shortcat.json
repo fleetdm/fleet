@@ -1,0 +1,10 @@
+{
+  "name": "Sproutcube Shortcat",
+  "unique_identifier": "com.sproutcube.Shortcat",
+  "token": "shortcat",
+  "installer_format": "zip",
+  "slug": "shortcat/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,23 +1,20 @@
 import React, { useContext, useCallback, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-
-import PATHS from "router/paths";
-
-import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
-
-import labelsAPI, { ILabelsResponse } from "services/entities/labels";
-
-import { ILabel } from "interfaces/label";
-
-import DeleteLabelModal from "pages/hosts/ManageHostsPage/components/DeleteLabelModal";
+import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
-import MainContent from "components/MainContent";
-import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import MainContent from "components/MainContent";
 import PageDescription from "components/PageDescription";
+import Spinner from "components/Spinner";
+import { notify } from "components/ToastNotification";
+import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
+import { ILabel } from "interfaces/label";
+import DeleteLabelModal from "pages/hosts/ManageHostsPage/components/DeleteLabelModal";
+import getDeleteLabelErrorMessages from "pages/labels/helpers";
+import PATHS from "router/paths";
+import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 
 import LabelsTable from "./LabelsTable";
 
@@ -33,8 +30,13 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    isGlobalTechnician,
+    isAnyTeamTechnician,
   } = useContext(AppContext);
-  const { renderFlash } = useContext(NotificationContext);
+
+  const { gitOpsModeEnabled: labelsGitOpsManaged, repoURL } = useGitOpsMode(
+    "labels"
+  );
   const [labelToDelete, setLabelToDelete] = useState<ILabel | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -56,19 +58,16 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
       try {
         setIsUpdating(true);
         await labelsAPI.destroy(labelToDelete);
-        renderFlash("success", `Successfully deleted ${labelToDelete.name}.`);
+        notify.success(`Successfully deleted ${labelToDelete.name}.`);
         refetch();
-      } catch {
-        renderFlash(
-          "error",
-          `Could not delete ${labelToDelete.name}. Please try again.`
-        );
+      } catch (err) {
+        notify.error(getDeleteLabelErrorMessages(err), { response: err });
       } finally {
         setLabelToDelete(null);
         setIsUpdating(false);
       }
     }
-  }, [labelToDelete, refetch, renderFlash]);
+  }, [labelToDelete, refetch]);
 
   const onClickAction = useCallback(
     (action: string, label: ILabel): void => {
@@ -89,7 +88,11 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
   );
 
   const canAddLabel =
-    isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamMaintainerOrTeamAdmin ||
+    isGlobalTechnician ||
+    isAnyTeamTechnician;
 
   const renderTable = useCallback(() => {
     if (isLoading || !currentUser || !labels) {
@@ -103,6 +106,8 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
         currentUser={currentUser}
         labels={labels}
         onClickAction={onClickAction}
+        labelsGitOpsManaged={labelsGitOpsManaged}
+        repoURL={repoURL}
       />
     );
   }, [currentUser, error, isLoading, labels, onClickAction]);

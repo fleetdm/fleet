@@ -15,8 +15,10 @@ import (
 	"fmt"
 
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
 	"github.com/open-policy-agent/opa/rego"
 )
 
@@ -131,12 +133,42 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	return nil
 }
 
-// AuthzTyper is the interface that may be implemented to get a `type`
-// property added during marshaling for authorization. Any struct that will be
-// used as a subject or object in authorization should implement this interface.
-type AuthzTyper interface {
-	// AuthzType returns the type as a snake_case string.
-	AuthzType() string
+// CanWriteSecretVariables reports whether the caller may set a secret variable's
+// value, which is the gate for resolving a $FLEET_SECRET_* reference into
+// content other users can read.
+//
+// Call it only after the request's own Authorize call: Authorize marks the
+// authorization context as checked, so an earlier probe would satisfy the
+// middleware even when the primary check would have failed.
+func (a *Authorizer) CanWriteSecretVariables(ctx context.Context) bool {
+	return a.Authorize(ctx, &fleet.SecretVariable{}, fleet.ActionWrite) == nil
+}
+
+// AuthorizeOrNotFound authorizes action on object. If that fails, it also
+// checks fleet.ActionRead on the same object; if the caller can't even read
+// it, notFoundErr is returned instead of the original failure, so a resource
+// entirely outside the caller's visibility is indistinguishable from one that
+// doesn't exist. If the caller CAN read it, or notFoundErr is nil, the
+// original authorization failure is returned unchanged: in the first case no
+// new information is disclosed by it (the caller already knows the resource
+// exists); in the second, masking would incorrectly return nil (success) for
+// a caller who was never authorized.
+func (a *Authorizer) AuthorizeOrNotFound(ctx context.Context, object, action any, notFoundErr error) error {
+	actionErr := a.Authorize(ctx, object, action)
+	if actionErr == nil {
+		return nil
+	}
+
+	if readErr := a.Authorize(ctx, object, fleet.ActionRead); readErr == nil || notFoundErr == nil {
+		return actionErr
+	}
+
+	// The caller can't read this resource either: report notFoundErr instead
+	// of actionErr, so its existence isn't disclosed. Still record the real
+	// cause for observability, so a systemic authz/policy failure isn't
+	// silently reported as "not found" for every caller.
+	ctxerr.Handle(ctx, actionErr)
+	return notFoundErr
 }
 
 // ExtraAuthzer is the interface to implement extra fields for the policy.
@@ -173,7 +205,7 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 	}
 
 	// Add the `type` property if the AuthzTyper interface is implemented.
-	if typer, ok := in.(AuthzTyper); ok {
+	if typer, ok := in.(platform_authz.AuthzTyper); ok {
 		out["type"] = typer.AuthzType()
 	}
 	// Add any extra key/values defined by the type.
@@ -201,4 +233,20 @@ func UserFromContext(ctx context.Context) *fleet.User {
 		return nil
 	}
 	return vc.User
+}
+
+// AuthorizerAdapter adapts the legacy Authorizer to the platform_authz.Authorizer interface.
+// This provides stronger typing via AuthzTyper (instead of `any`) while reusing the existing OPA-based authorization.
+type AuthorizerAdapter struct {
+	authorizer *Authorizer
+}
+
+// NewAuthorizerAdapter creates an adapter that wraps the legacy Authorizer.
+func NewAuthorizerAdapter(authorizer *Authorizer) *AuthorizerAdapter {
+	return &AuthorizerAdapter{authorizer: authorizer}
+}
+
+// Authorize implements platform_authz.Authorizer.
+func (a *AuthorizerAdapter) Authorize(ctx context.Context, subject platform_authz.AuthzTyper, action platform_authz.Action) error {
+	return a.authorizer.Authorize(ctx, subject, string(action))
 }

@@ -1,16 +1,15 @@
 import React from "react";
-
-import {
-  IMdmStatusCardData,
-  MDM_ENROLLMENT_STATUS_UI_MAP,
-} from "interfaces/mdm";
+import { CellProps, Column } from "react-table";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import { MDM_STATUS_TOOLTIP } from "utilities/constants";
-import { CellProps, Column } from "react-table";
 import { INumberCellProps } from "interfaces/datatable_config";
+import {
+  IMdmStatusCardData,
+  MDM_ENROLLMENT_STATUS_UI_MAP,
+} from "interfaces/mdm";
+import { MDM_STATUS_TOOLTIP } from "utilities/constants";
 
 type IMdmStatusTableConfig = Column<IMdmStatusCardData>;
 type IMdmStatusCellProps = CellProps<
@@ -31,7 +30,10 @@ export const generateStatusTableHeaders = (
       !MDM_STATUS_TOOLTIP[status] ? (
         <TextCell value={status} />
       ) : (
-        <TooltipWrapper tipContent={MDM_STATUS_TOOLTIP[status]}>
+        <TooltipWrapper
+          className="status-cell"
+          tipContent={MDM_STATUS_TOOLTIP[status]}
+        >
           {MDM_ENROLLMENT_STATUS_UI_MAP[status].displayName}
         </TooltipWrapper>
       ),
@@ -57,7 +59,7 @@ export const generateStatusTableHeaders = (
             mdm_enrollment_status:
               MDM_ENROLLMENT_STATUS_UI_MAP[cellProps.row.original.status]
                 .filterValue,
-            team_id: teamId,
+            fleet_id: teamId,
           }}
           className="mdm-solution-link"
           platformLabelId={cellProps.row.original.selectedPlatformLabelId}

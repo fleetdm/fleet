@@ -1,74 +1,182 @@
+import { fireEvent, screen } from "@testing-library/react";
 import React from "react";
 
-import { screen } from "@testing-library/react";
-
-import { createMockRouter, createCustomRenderer } from "test/test-utils";
 import { createMockConfig, createMockMdmConfig } from "__mocks__/configMock";
+import { IMdmConfig } from "interfaces/config";
+import configAPI from "services/entities/config";
+import { createMockRouter, createCustomRenderer } from "test/test-utils";
+
 import WindowsMdmPage from "./WindowsMdmPage";
 
+jest.mock("services/entities/config");
+
+const MIGRATION_CHECKBOX_LABEL =
+  "Automatically migrate hosts connected to another MDM solution";
+
+const renderPage = (mdm: Partial<IMdmConfig> = {}, isPremiumTier = true) => {
+  const render = createCustomRenderer({
+    context: {
+      app: {
+        isPremiumTier,
+        config: createMockConfig({ mdm: createMockMdmConfig(mdm) }),
+      },
+    },
+  });
+
+  return render(<WindowsMdmPage router={createMockRouter()} />);
+};
+
 describe("WindowsMdmPage", () => {
-  it("renders only the windows mdm slider and description when on free tier", () => {
-    const render = createCustomRenderer({
-      context: {
-        app: {
-          isPremiumTier: false,
-          config: createMockConfig(),
-        },
-      },
-    });
+  it("renders only the windows mdm slider when on free tier", () => {
+    renderPage({}, false);
 
-    render(<WindowsMdmPage router={createMockRouter()} />);
-
-    // switch and description only shown
     expect(screen.getByRole("switch")).toBeInTheDocument();
+
+    // no premium-only sections
     expect(
-      screen.getByText(
-        "Turns on MDM for Windows hosts that enroll to Fleet (excluding servers)."
-      )
-    ).toBeInTheDocument();
-
-    // no end user experience form
-    expect(screen.queryByLabelText("Automatic")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Manual")).not.toBeInTheDocument();
+      screen.queryByText("Turn on MDM programmatically")
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Default fleet")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(MIGRATION_CHECKBOX_LABEL)
+    ).not.toBeInTheDocument();
   });
 
-  it("renders the end user experience form as disabled when MDM is off", () => {
-    const render = createCustomRenderer({
-      context: {
-        app: {
-          isPremiumTier: true,
-          config: createMockConfig({
-            mdm: createMockMdmConfig({ windows_enabled_and_configured: false }),
-          }),
-        },
-      },
-    });
+  it("renders the programmatic enrollment toggle as disabled when MDM is off", () => {
+    renderPage({ windows_mdm_enabled: false });
 
-    render(<WindowsMdmPage router={createMockRouter()} />);
-
-    expect(screen.getByLabelText("Automatic")).toBeDisabled();
-    expect(screen.getByLabelText("Manual")).toBeDisabled();
+    expect(screen.getByText("Turn on MDM programmatically")).toBeVisible();
+    expect(screen.getAllByRole("switch")[1]).toBeDisabled();
   });
 
-  it("renders the automatically migrate checkbox if automatic mdm enrollment is selected", () => {
-    const render = createCustomRenderer({
-      context: {
-        app: {
-          isPremiumTier: true,
-          config: createMockConfig({
-            mdm: createMockMdmConfig({
-              enable_turn_on_windows_mdm_manually: false,
-              windows_enabled_and_configured: true,
-            }),
-          }),
-        },
-      },
+  it("renders the Migration checkbox when MDM is on programmatically", () => {
+    renderPage({
+      enable_turn_on_windows_mdm_manually: false,
+      windows_mdm_enabled: true,
     });
 
-    render(<WindowsMdmPage router={createMockRouter()} />);
-
-    // automatic is selected and the checkbox is visible
-    expect(screen.getByLabelText("Automatic")).toBeChecked();
+    expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
     expect(screen.getByRole("checkbox")).toBeVisible();
+    expect(screen.getByRole("checkbox")).not.toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+  });
+
+  it("disables the Migration checkbox when programmatic enrollment is off", () => {
+    renderPage({
+      enable_turn_on_windows_mdm_manually: true,
+      windows_mdm_enabled: true,
+    });
+
+    expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
+    expect(screen.getByRole("checkbox")).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+  });
+
+  it("disables the default fleet dropdown when Fleet is not connected to Entra", () => {
+    renderPage({
+      windows_mdm_enabled: true,
+      windows_entra_tenant_ids: [],
+    });
+
+    expect(screen.getByText("Default fleet")).toBeVisible();
+    expect(screen.getByRole("combobox")).toBeDisabled();
+  });
+
+  it("enables the default fleet dropdown when Fleet is connected to Entra", () => {
+    renderPage({
+      windows_mdm_enabled: true,
+      windows_entra_tenant_ids: ["tenant-1"],
+    });
+
+    expect(screen.getByRole("combobox")).toBeEnabled();
+  });
+
+  it("neither toggles Windows MDM nor navigates when Enter is pressed in the default fleet dropdown", async () => {
+    const { user } = renderPage({
+      windows_mdm_enabled: true,
+      windows_entra_tenant_ids: ["tenant-1"],
+    });
+    const dropdownInput = screen.getByRole("combobox");
+
+    // Focus without clicking so the menu stays closed and Enter reaches the form.
+    dropdownInput.focus();
+    await user.keyboard("{Enter}");
+
+    expect(screen.getAllByRole("switch")[0]).toBeChecked();
+    // Browsers submit a form with no submit button from its only text-type
+    // field (here the dropdown's input). user-event only does so for a form
+    // with a single <input>, so dispatch the submit event directly and check
+    // the form cancels it.
+    const form = dropdownInput.closest("form") as HTMLFormElement;
+    expect(fireEvent.submit(form)).toBe(false);
+  });
+
+  it("saves the toggle states and the default fleet through the config API", async () => {
+    (configAPI.updateMDMConfig as jest.Mock).mockResolvedValue({});
+    const { user } = renderPage({
+      windows_mdm_enabled: true,
+      enable_turn_on_windows_mdm_manually: false,
+      windows_entra_tenant_ids: ["tenant-1"],
+      windows_automatic_enrollment: { default_fleet: "Workstations" },
+    });
+
+    // Turning programmatic enrollment off also forces auto migration off.
+    await user.click(screen.getAllByRole("switch")[1]);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(configAPI.updateMDMConfig).toHaveBeenCalledWith(
+      {
+        windows_mdm_enabled: true,
+        enable_turn_on_windows_mdm_manually: true,
+        windows_mdm_migration_enabled: false,
+        windows_automatic_enrollment: { default_fleet: "Workstations" },
+      },
+      true
+    );
+  });
+
+  it("saves automatic migration when it is turned on", async () => {
+    (configAPI.updateMDMConfig as jest.Mock).mockResolvedValue({});
+    const { user } = renderPage({
+      windows_mdm_enabled: true,
+      enable_turn_on_windows_mdm_manually: false,
+      windows_mdm_migration_enabled: false,
+    });
+
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(configAPI.updateMDMConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ windows_mdm_migration_enabled: true }),
+      true
+    );
+  });
+
+  it("does not re-save a stale migration setting when enrollment is manual", async () => {
+    (configAPI.updateMDMConfig as jest.Mock).mockResolvedValue({});
+    // Inconsistent server state (settable via the API or GitOps): migration
+    // enabled while enrollment is manual, so the Migration checkbox is disabled.
+    const { user } = renderPage({
+      windows_mdm_enabled: true,
+      enable_turn_on_windows_mdm_manually: true,
+      windows_mdm_migration_enabled: true,
+      windows_entra_tenant_ids: ["tenant-1"],
+    });
+
+    expect(screen.getByText(MIGRATION_CHECKBOX_LABEL)).toBeVisible();
+    expect(screen.getByRole("checkbox")).toHaveAttribute(
+      "aria-disabled",
+      "true"
+    );
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(configAPI.updateMDMConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ windows_mdm_migration_enabled: false }),
+      true
+    );
   });
 });

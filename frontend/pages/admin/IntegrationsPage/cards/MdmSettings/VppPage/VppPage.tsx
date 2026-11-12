@@ -1,30 +1,28 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
-import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
+import React, { useCallback, useContext, useRef, useState } from "react";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 
-import PATHS from "router/paths";
+import BackButton from "components/BackButton";
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
+import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
 import { AppContext } from "context/app";
 import { IMdmVppToken } from "interfaces/mdm";
+import PATHS from "router/paths";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
 
-import BackButton from "components/BackButton";
-import MainContent from "components/MainContent";
-import Button from "components/buttons/Button";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
-import PageDescription from "components/PageDescription";
-import EmptyTable from "components/EmptyTable";
-
 import AddVppModal from "./components/AddVppModal";
-import RenewVppModal from "./components/RenewVppModal";
 import DeleteVppModal from "./components/DeleteVppModal";
-import VppTable from "./components/VppTable";
 import EditTeamsVppModal from "./components/EditTeamsVppModal";
+import RenewVppModal from "./components/RenewVppModal";
+import VppTable from "./components/VppTable";
 
 const baseClass = "vpp-page";
 
@@ -34,9 +32,9 @@ interface IAddVppMessageProps {
 
 const AddVppMessage = ({ onAddVpp }: IAddVppMessageProps) => {
   return (
-    <EmptyTable
+    <EmptyState
       header="Add your VPP"
-      info="Install Apple App Store apps purchased through Apple Business Manager."
+      info="Install Apple App Store apps purchased through Apple Business."
       primaryButton={<Button onClick={onAddVpp}>Add VPP</Button>}
     />
   );
@@ -139,13 +137,14 @@ const VppPage = ({ router }: IVppPageProps) => {
 
     if (!config?.mdm.enabled_and_configured) {
       return (
-        <GenericMsgWithNavButton
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
+        <EmptyState
           header="Turn on Apple MDM"
-          buttonText="Turn on"
-          info=" To install Apple App Store apps purchased through Apple Business
-        Manager, first turn on Apple MDM."
+          info="To install Apple App Store apps purchased through Apple Business, first turn on Apple MDM."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       );
     }
@@ -168,7 +167,7 @@ const VppPage = ({ router }: IVppPageProps) => {
         <>
           <PageDescription
             content="Add your VPP to install Apple App Store apps purchased through Apple
-            Business Manager."
+            Business."
           />
           <VppTable
             vppTokens={vppTokens}
@@ -210,7 +209,6 @@ const VppPage = ({ router }: IVppPageProps) => {
       {showRenewModal && selectedToken.current && (
         <RenewVppModal
           tokenId={selectedToken.current.id}
-          orgName={selectedToken.current.org_name}
           onCancel={onCancelRenewToken}
           onRenewedToken={onRenewed}
         />
@@ -226,7 +224,6 @@ const VppPage = ({ router }: IVppPageProps) => {
       {showEditTeamsModal && selectedToken.current && (
         <EditTeamsVppModal
           currentToken={selectedToken.current}
-          tokens={vppTokens || []}
           onCancel={onCancelEditTokenTeams}
           onSuccess={onEditedTeams}
         />

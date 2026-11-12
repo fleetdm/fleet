@@ -18,6 +18,7 @@ module.exports = {
     missingOriginHeader: { description: 'The request was missing an Origin header', responseType: 'badRequest'},
     unauthorized: { description: 'Invalid authentication token.', responseType: 'unauthorized'},
     notFound: { description: 'No Android enterprise found for this Fleet server.', responseType: 'notFound'},
+    tooManyRequests: { description: 'The Android management API rate limit was exceeded.', statusCode: 429 },
   },
 
 
@@ -50,31 +51,26 @@ module.exports = {
       throw 'unauthorized';
     }
 
+    // Get the shared Google API auth client with the getAndroidManagementAuthorizationClient helper.
+    // Note: we are doing this outside of the sails.helpers.flow.build() so any errors related to the website's credentials returned by the helper are not intercepted.
+    let androidManagementAuthClient = await sails.helpers.androidProxy.getAndroidManagementAuthorizationClient();
+
     // Get the Android enterprises list from Google
     try {
       let enterprisesList = await sails.helpers.flow.build(async ()=>{
         let { google } = require('googleapis');
-        let androidmanagement = google.androidmanagement('v1');
-
-        let googleAuth = new google.auth.GoogleAuth({
-          scopes: [
-            'https://www.googleapis.com/auth/androidmanagement'
-          ],
-          credentials: {
-            client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-            private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-          },
-        });
-
-        // Acquire the google auth client, and bind it to all future calls
-        let authClient = await googleAuth.getClient();
-        google.options({auth: authClient});
+        let androidManagementConnection = google.androidmanagement({version: 'v1', auth: androidManagementAuthClient});
 
         // List all enterprises accessible to this service account
         let allEnterprises = [];
         let tokenForNextPageOfEnterprises;
         await sails.helpers.flow.until(async ()=>{
-          let listEnterprisesResponse = await androidmanagement.enterprises.list({
+          sails.androidProxyApiRequestCount++;// Count this Android Management API request toward the per-minute total logged in api/hooks/custom/index.js.
+          if (!sails.androidProxyApiRequestCountByEnterpriseId[thisAndroidEnterprise.androidEnterpriseId]) { sails.androidProxyApiRequestCountByEnterpriseId[thisAndroidEnterprise.androidEnterpriseId] = {count: 0, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl}; }
+          sails.androidProxyApiRequestCountByEnterpriseId[thisAndroidEnterprise.androidEnterpriseId].count++;          let _rtKey = thisAndroidEnterprise.androidEnterpriseId + ':list_enterprises';
+          if (!sails.androidProxyApiRequestCountByRequestType[_rtKey]) { sails.androidProxyApiRequestCountByRequestType[_rtKey] = {count: 0, enterpriseId: thisAndroidEnterprise.androidEnterpriseId, fleetServerUrl: thisAndroidEnterprise.fleetServerUrl, requestType: 'list_enterprises'}; }
+          sails.androidProxyApiRequestCountByRequestType[_rtKey].count++;
+          let listEnterprisesResponse = await androidManagementConnection.enterprises.list({
             projectId: sails.config.custom.androidEnterpriseProjectId,
             pageSize: 100,
             pageToken: tokenForNextPageOfEnterprises,
@@ -90,10 +86,11 @@ module.exports = {
         });
 
         return allEnterprises;
-      }).intercept({status: 429}, (err)=>{
+      }).intercept({status: 429}, ()=>{
         // If the Android management API returns a 429 response, log an additional warning that will trigger a help-p1 alert.
         sails.log.warn(`p1: Android management API rate limit exceeded!`);
-        return err;
+        // Pass the 429 through to the Fleet server rather than collapsing it into a 500, so it can retry.
+        return 'tooManyRequests';
       }).intercept((err)=>{
         // Re-throw the error for handling outside the intercept
         return err;
@@ -114,6 +111,10 @@ module.exports = {
       return { enterprises: filteredEnterprises };
 
     } catch (err) {
+      // The 429 intercept above hands back the tooManyRequests exit wrapped in an Error; let it through.
+      if (err.raw === 'tooManyRequests') {
+        throw 'tooManyRequests';
+      }
       throw new Error(`When attempting to list android enterprises, an error occurred. Error: ${err}`);
     }
 

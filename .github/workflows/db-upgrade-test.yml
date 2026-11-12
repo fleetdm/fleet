@@ -26,19 +26,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Install Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
 
       - name: Run upgrade test
         run: |
-          cd test/upgrade
+          cd tools/upgrade
           FLEET_VERSION_A=${{ github.event.inputs.from-version }} FLEET_VERSION_B=${{ github.event.inputs.to-version }} go test -v

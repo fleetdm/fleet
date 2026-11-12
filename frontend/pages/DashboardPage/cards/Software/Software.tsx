@@ -1,19 +1,18 @@
 import React, { useMemo } from "react";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import { Row } from "react-table";
-import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
+import { Row } from "react-table";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import { getPathWithQueryParams } from "utilities/url";
-import { ISoftwareResponse } from "interfaces/software";
-
+import DataError from "components/DataError";
+import Spinner from "components/Spinner";
+import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import TableContainer from "components/TableContainer";
-import DataError from "components/DataError";
-import Spinner from "components/Spinner";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
+import PATHS from "router/paths";
+import { ISoftwareVersionsResponse } from "services/entities/software";
+import { getPathWithQueryParams } from "utilities/url";
 
 import generateTableHeaders from "./SoftwareTableConfig";
 
@@ -21,7 +20,7 @@ interface ISoftwareCardProps {
   errorSoftware: Error | null;
   isSoftwareFetching: boolean;
   isSoftwareEnabled?: boolean;
-  software?: ISoftwareResponse;
+  software?: ISoftwareVersionsResponse;
   teamId?: number;
   navTabIndex: number;
   onTabChange: (index: number, last: number, event: Event) => boolean | void;
@@ -60,8 +59,8 @@ const Software = ({
 
   const handleRowSelect = (row: IRowProps) => {
     const path = getPathWithQueryParams(PATHS.MANAGE_HOSTS, {
-      software_id: row.original.id,
-      team_id: teamId,
+      software_version_id: row.original.id,
+      fleet_id: teamId,
     });
 
     router.push(path);
@@ -124,7 +123,7 @@ const Software = ({
                   defaultSortDirection={SOFTWARE_DEFAULT_SORT_DIRECTION}
                   resultsTitle="software"
                   emptyComponent={() => (
-                    <EmptySoftwareTable vulnFilters={{ vulnerable: true }} />
+                    <EmptySoftwareTable filters={{ vulnerable: true }} />
                   )}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}

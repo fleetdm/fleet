@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React from "react";
+
 import { Meta, StoryObj } from "@storybook/react";
+import React from "react";
 import {
   QueryClient,
   QueryClientProvider,
@@ -9,7 +10,6 @@ import {
 
 import createMockConfig from "__mocks__/configMock";
 import { AppContext } from "context/app";
-import { NotificationContext } from "context/notification";
 
 import ConditionalAccess from "./ConditionalAccess";
 
@@ -25,15 +25,6 @@ const queryClient = new QueryClient({
 // See frontend/router/index.tsx for the same pattern
 type CustomQueryClientProviderProps = React.PropsWithChildren<QueryClientProviderProps>;
 const CustomQueryClientProvider: React.FC<CustomQueryClientProviderProps> = QueryClientProvider;
-
-const mockNotificationContext = {
-  renderFlash: () => {
-    // Mock function for stories
-  },
-  hideFlash: () => {
-    // Mock function for stories
-  },
-};
 
 const meta: Meta<typeof ConditionalAccess> = {
   title: "Components/ConditionalAccess",
@@ -68,11 +59,7 @@ export const NotConfigured: Story = {
       return (
         <CustomQueryClientProvider client={queryClient}>
           <AppContext.Provider value={appContextValue as any}>
-            <NotificationContext.Provider
-              value={mockNotificationContext as any}
-            >
-              <Story />
-            </NotificationContext.Provider>
+            <Story />
           </AppContext.Provider>
         </CustomQueryClientProvider>
       );
@@ -104,11 +91,7 @@ export const EntraConfigured: Story = {
       return (
         <CustomQueryClientProvider client={queryClient}>
           <AppContext.Provider value={appContextValue as any}>
-            <NotificationContext.Provider
-              value={mockNotificationContext as any}
-            >
-              <Story />
-            </NotificationContext.Provider>
+            <Story />
           </AppContext.Provider>
         </CustomQueryClientProvider>
       );
@@ -142,11 +125,7 @@ export const OktaConfigured: Story = {
       return (
         <CustomQueryClientProvider client={queryClient}>
           <AppContext.Provider value={appContextValue as any}>
-            <NotificationContext.Provider
-              value={mockNotificationContext as any}
-            >
-              <Story />
-            </NotificationContext.Provider>
+            <Story />
           </AppContext.Provider>
         </CustomQueryClientProvider>
       );
@@ -180,11 +159,7 @@ export const BothConfigured: Story = {
       return (
         <CustomQueryClientProvider client={queryClient}>
           <AppContext.Provider value={appContextValue as any}>
-            <NotificationContext.Provider
-              value={mockNotificationContext as any}
-            >
-              <Story />
-            </NotificationContext.Provider>
+            <Story />
           </AppContext.Provider>
         </CustomQueryClientProvider>
       );
@@ -207,11 +182,7 @@ export const FreeTier: Story = {
       return (
         <CustomQueryClientProvider client={queryClient}>
           <AppContext.Provider value={appContextValue as any}>
-            <NotificationContext.Provider
-              value={mockNotificationContext as any}
-            >
-              <Story />
-            </NotificationContext.Provider>
+            <Story />
           </AppContext.Provider>
         </CustomQueryClientProvider>
       );

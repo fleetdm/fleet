@@ -1,0 +1,74 @@
+import React from "react";
+
+import Modal from "components/Modal";
+import { IFormErrors } from "hooks/useFormValidation";
+import { ITeam } from "interfaces/team";
+import { UserRole } from "interfaces/user";
+
+import UserForm from "../UserForm";
+import { IUserFormData } from "../UserForm/UserForm";
+
+interface IAddUserModalProps {
+  onCancel: () => void;
+  onSubmit: (formData: IUserFormData) => void;
+  defaultGlobalRole?: UserRole | null;
+  defaultTeamRole?: UserRole;
+  defaultTeams?: ITeam[];
+  availableTeams?: ITeam[];
+  isPremiumTier: boolean;
+  smtpConfigured: boolean;
+  sesConfigured: boolean;
+  currentTeam?: ITeam;
+  canUseSso: boolean; // corresponds to whether SSO is enabled for the organization
+  isModifiedByGlobalAdmin?: boolean | false;
+  isUpdatingUsers?: boolean | false;
+  addUserErrors: IFormErrors;
+}
+
+const baseClass = "add-user-modal";
+
+const AddUserModal = ({
+  onCancel,
+  onSubmit,
+  currentTeam,
+  defaultGlobalRole,
+  defaultTeamRole,
+  defaultTeams,
+  availableTeams,
+  isPremiumTier,
+  smtpConfigured,
+  sesConfigured,
+  canUseSso,
+  isModifiedByGlobalAdmin,
+  isUpdatingUsers,
+  addUserErrors,
+}: IAddUserModalProps): JSX.Element => {
+  return (
+    <Modal
+      title="Add user"
+      onExit={onCancel}
+      className={baseClass}
+      width="large"
+    >
+      <UserForm
+        serverErrors={addUserErrors}
+        defaultGlobalRole={defaultGlobalRole}
+        defaultTeamRole={defaultTeamRole}
+        defaultTeams={defaultTeams}
+        onCancel={onCancel}
+        onSubmit={onSubmit}
+        availableTeams={availableTeams || []}
+        isPremiumTier={isPremiumTier}
+        smtpConfigured={smtpConfigured}
+        sesConfigured={sesConfigured}
+        canUseSso={canUseSso}
+        isModifiedByGlobalAdmin={isModifiedByGlobalAdmin}
+        currentTeam={currentTeam}
+        isNewUser
+        isUpdatingUsers={isUpdatingUsers}
+      />
+    </Modal>
+  );
+};
+
+export default AddUserModal;

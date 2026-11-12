@@ -2,223 +2,38 @@
 
 This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
-
 ## Team
 
-| Role                               | Contributor(s)
-|:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief  Marketing Officer          | [Ashish Kuthiala](https://www.linkedin.com/in/ashishkuthiala) _([@akuthiala](https://github.com/akuthiala))_
-| Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
-| Head of Demand Generation                  | [John Jeremiah](https://www.linkedin.com/in/johnjeremiah/) _([@johnjeremiah](https://github.com/johnjeremiah))_
+| Role                            | Contributor(s)
+|:--------------------------------|:----------------------------------------------------------------------|
+| Product Marketing Manager | Allen Houchins <sup><sub> See [🌐 IT](https://fleetdm.com/handbook/it#team) </sup></sub>
+| Marketing Coordinator | Irena Reedy <sup><sub> See [🌐 IT](https://fleetdm.com/handbook/it#team) </sup></sub>
+| GTM Engineer | Eric Shaw <sup><sub> See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#website-group) </sup></sub>
+| VP of Security Solutions | Dhruv Majumdar <sup><sub> See [🌦️ Customer Success](https://fleetdm.com/handbook/customer-success#team) </sup></sub>
+| Social media strategy and management (Consultant) | [Thomas Basgil Jr.](https://www.linkedin.com/in/tombasgil/)  · [*@tombasgil*](https://github.com/tombasgil) · Establish, manage and grow Fleet’s social media presence across all appropriate channels. Monitor and respond to comments on company page posts (e.g., LinkedIn); comments on tracked posts are surfaced in the [#_linkedin-comments-from-tracked-posts](https://fleetdm.slack.com/archives/C0AP1FM3ES2) Slack channel |
+| Public relations (Consultant) | [Alyssa Pallotti](https://www.linkedin.com/in/alyssapallotti/) · Establish Fleet AR & PR program Identify and train key Fleet employees on AR & PR interactions Establish, measure and improve Fleet share of voice with press, analysts, and media.   Manage Fleet submissions for industry awards |
 
 ## Contact us
 
-- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (if urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
+- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day. (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel.)
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
 
-> To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/ceo#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
+### Press boilerplate text
 
-## Responsibilities
+Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Over 1,300 organizations use Fleet to manage devices at scale, stay compliant, and cut costs. Fleet brings infrastructure-as-code to device management, and with built-in AI, IT teams can describe what they need in plain English, review the proposed changes by a human IT expert, and roll them out across every endpoint. Fleet gives you full control and supports the choices that work for your organization, including total deployment flexibility. 
 
-The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+Deploy Fleet anywhere - on-prem, air-gapped, or on any major cloud, and keep full control over data residency and legal jurisdiction, or let Fleet handle the infrastructure with Fleet Cloud. Learn more at [fleetdm.com](https://fleetdm.com)
 
 
-### Organize work in GitHub issues with marketing labels
+## Fleet writing style, tone, and voice instructions for AI
 
-In the Marketing department, we're using the following issue labels to organize our work into different categories/buckets.
+When using an AI to create written content for Fleet, give your AI [these instructions first](https://github.com/fleetdm/fleet/blob/main/.claude/skills/content-style/SKILL.md) so that it will write in the correct style, tone, and voice. These instructions can also be used to have the AI audit existing writing.
 
-| Label | Definition (When to use it) |
-| :---- | :---- |
-| **:mktg-campaign** | For tasks related to a specific, multi-touch marketing initiative (e.g., a product launch, awareness campaign, Q4 demand-gen). |
-| **:mktg-content** | For creating or updating any marketing asset: blog posts, case studies, website copy, videos, white papers, etc. |
-| **:mktg-event** | For tasks related to any event, virtual or in-person (e.g., webinars, conference logistics, booth design, talk submissions). |
-| **:mktg-social** | For tasks related to managing organic social media channels or creating social posts. |
-| **:mktg-ops** | For internal "infrastructure" work: tooling (e.g., "Fix email automation"), analytics, reporting, list management, and process improvements. |
-| **:mktg-ar** | For tasks related to analyst relations - briefing, responding to reports, inquiries, etc. |
-| **:mktg-pr** | All tasks/effort related to public relations, press releases, earned media, interviews, responding to reporters, etc. |
-| **:mktg-enablement** | All work associated with designing, developing, delivering enablement content for sales, partners, etc. |
-
-
-### Prepare "Let's get you set up!" meeting notes
-
-Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
-
-
-### Refresh event calendar
-
-Fleet's Head of Marketing is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the Head of Marketing updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
-1. Visit the latest website for each event.
-2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
-
-
-### Begin or modify an advertising campaign
-
-Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93).
-
-To propose an ad, or a change to an ad:
-1. Evaluate the buying situation before proposing any changes to ads. This determines the audience that will see each ad and which campaign it will be placed in. (Device management, vuln management, endpoint ops - security, endpoint ops - IT)
-2. Experiment campaigns must follow the YYYY-MM-DD._{buying_situation}-{ad_name}_ format. (2024-01-12.mdm - Cross-platform MDM waitlist)
-3. Image ads should follow the recommended size, centering, and asset guidelines. These are available on [Figma](https://www.figma.com/file/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?type=design&node-id=2078-100840&mode=design&t=cHriEw2E7hLxgwuG-0).
-4. Add your proposed ads to the ["🧫 Experiment review" agenda](https://docs.google.com/document/d/1e2TFsV0JFFym7MvCUrJR1Wr2DVmqUgboKYFUXBEmCyI/edit#heading=h.kvp9pcc0kkq) (private Google doc) and attend the next episode.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-5. Make revisions and re-attend the meeting as needed until the planned change is executed.
-7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
-
-
-### Promote a post on LinkedIn
-
-1. Create a classic campaign under ["Experiments"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D) following the YYYY-MM-DD.buying-situation - ad description with a goal of website visits or engagement to run for two weeks.
-2. Choose the appropriate audience according to the buying situation and disable audience expansion and the LinkedIn audience network. 
-3. When creating the ad for the new campaign, select "browse existing content" and find the post under the employee tab.
-4. Launch campaign once approved.
-
-
-### Settle content strategy
-
-The Head of Marketing is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
-
-1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=809357993#gid=809357993), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
-  - Release date: The date by which the content will be complete and finalized.
-  - DRI: Person(s) responsible for the project management of this content.
-  - Title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
-2. Attend a 30m meeting with Fleet's Client Platform Engineer & Community Advocate, CTO, and CEO to review and settle the proposed content.
-
-
-### Settle event strategy
-
- Fleet's [Head of Marketing](https://fleetdm.com/handbook/marketing#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy within Fleet's event budget. Events are settled significantly in advance to provide ample time for strategy and planning.  
-
-1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
-  - Target buying situation of the audience.
-  - Who from Fleet will attend.
-  - The training plan for Fleet attendees.
-  - Which talk proposal Fleet will submit.
-  - All event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties.
-  - Estimated budget, including sponsorship or airfare, and lodging for attendees.
-2. Set up and attend a 30m meeting with the Head of Marketing, Head of Finance and Manager of Training and Enablement.
-  - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
-  - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
-  - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
-
-
-### Book an event
-
-Fleet's Head of Marketing is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [🫧 Head of Marketing](https://fleetdm.com/handbook/marketing#team) as needed with any questions or blockers to booking an event.
-
-> Note: The Marketing department [settles all event strategy](https://fleetdm.com/handbook/marketing#settle-event-strategy) prior to booking an event. 
-
-<!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
-
-### Create an article
-Article creation begins with creation of an issue using the "Article request" template.
-
-1. Create a [new GitHub issue for the :help-marketing board](https://github.com/fleetdm/confidential/issues/new?assignees=mikermcneil&labels=%3Ahelp-marketing=&template=1-custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
-2. Move the issue into the "📃 Planned articles" column.
-
-### Review ongoing articles
-Check the "📃 Planned articles" column in [:help-marketing board](https://github.com/orgs/fleetdm/projects/65) and continue to work through steps in each event's issue.
--->
-
-
-### Order SWAG
-
-**To order T-shirts:**
-
-  - Login to [Rush Order tees](https://www.rushordertees.com/my-account/login/) (saved in 1Password).
-  - Choose Fleet logo design t-shirt under [my designs](https://www.rushordertees.com/my-account/designs/).
-  - Order shirts based on the pre-determined number (~5% of total event attendees).
-  - Submit the order. Ensure the address matches the expected receiving address.
-
-
-**To order stickers:**
-
-  - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
-  - Find the [brand kit](https://www.stickermule.com/studio/brand-kits) after logging in.
-  - Click on the "Fleet Device Management" brand kit and order pre-approved stickers from the templates.
-  - Total sticker quantity should be ~10% of total event attendees.
-  - Complete the checkout process. Ensure the address matches the expected receiving address.
-
-**To order pens and sticky note pads**
-
-  - Pens and sticky note pads are ordered through TODO.
-
-
-### Process pending swag requests from the website
-
-On a weekly basis, log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
-To do this:
-1. Go to the ["Orders"](https://www.printful.com/ca/dashboard/default/orders) page in Printful.
-2. Look for an order status of "Draft" and click that order.
-3. Copy the address displayed in the draft order. Close the modal.
-4. Under "Order list", there's a search box for customers that you will need to paste the address.
-5. The results should only display one order. Any additional could be duplicate orders or those made in error.
-6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment."
-
-
-### Request swag
-There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. To request swag:
-1. [Create an issue](https://github.com/orgs/fleetdm/projects/65) on the :help-marketing board.
-2. Provide order details (e.g. expected shirt size, name, and shipping details).
-3. Decide if you'd like to include a personalized message and attach it to the issue.
-
-
-### Fulfill a swag request
-
-Swag requests are received in the form of issues and will be fulfilled based on availability. To process a swag request:
-1. Check and communicate availability to the requestor.
-2. Use the appropriate shipping method that best serves the company.
-3. Attach tracking number to the issue and tag the requestor.
-4. Confirm delivery and close issue.
-
-
-### Send swag for community contributions to Fleet
-
-- Reach out to the contributor to thank them for their contribution
-- Consider sharing the contribution on social media
-- Ask if we could send the contributor any swag
-- If yes, follow the steps to fulfill a swag request.
-
-
-### Engage with the community
-
-Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
-
-Here are some links that filter relevant conversations on each platform:
-- [LinkedIn](https://www.linkedin.com/search/results/content/?datePosted=%22past-week%22&keywords=osquery%20OR%20%22fleet%20device%20management%22%20OR%20%22fleetdm%22%20OR%20%22github.com%2Ffleetdm%2Ffleet%22%20OR%20%22fleetdm.com%22&origin=FACETED_SEARCH&sid=oxR)
-- [Twitter](https://twitter.com/search?q=%22osquery%22%20OR%20%22github.com%2Fosquery%2Fosquery%22%20OR%20%22github.com%2Ffleetdm%2Ffleet%22%20OR%20%22github.com%2Fkolide%2Ffleet%22%20OR%20%22fleetdm%22%20OR%20%22fleet%20device%20management%22%20OR%20%22nanomdm%22%20OR%20%22micromdm%22%20OR%20%22swiftDialog%22&src=typed_query&f=live)
-
-1. Find conversations that are relevant to Fleet on both LinkedIn and Twitter
-2. Reply to threads looking for solutions Fleet can solve with helpful information. If additional information is needed, find help in [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) for accurate information.
-3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
-4. If a post is helpful to our audience, reshare it.
-
-
-### Upload to YouTube
-
-Fleet regularly uploads a variety of content to YouTube such as podcast episodes, sprint demos, educational updates, design reviews, and more.
-
-- Login to the Fleet YouTube channel, click the create button and then upload the video.
-- Fill out relevant information such as title, description, thumbnail, playlists, audience, and [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing).
-- Create a new video thumbnail within Figma in the [YouTube covers board](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) with the video title.
-- Set the visibility to "Public".
-- Share video link on social media.
-
-
-### Create a podcast episode
-
-Fleet invites guests to discuss the future of IT and security on the [ExpedITioners podcast](https://expeditioners.podbean.com/) to be shared with the community,
-
-- Find the new episode in the [Fleet drive](https://drive.google.com/drive/folders/1v2sBswrqaayxRTfqoDDZBhz0xViqoNbC?usp=drive_link).
-- Combine audio from the guest and speaker together in Garageband with the [jingle and introduction](https://drive.google.com/drive/u/0/folders/1Av8yAgkKo22nYOeFJyXXEHtpyX9tETIH).
-- Listen to the episode and note talking points, title, and links mentioned in the [show notes doc](https://docs.google.com/document/d/1quyiYWm7rZSGTobJbE4vFlZwT3nlutZG5e5u6fZ3Y_4/edit?usp=sharing).
-- Upload the audio file to the [episode folder](https://drive.google.com/drive/folders/1v2sBswrqaayxRTfqoDDZBhz0xViqoNbC) 
-- Create episode cover and sharable image in [Figma](https://www.figma.com/file/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?type=design&node-id=1711-84364&mode=design&t=mm5L76TMiRV4yUIA-0)
-- Log in to [Podbean](https://www.podbean.com/user-z61jYLi85TV2) to manage the podcast and click new episode.
-- Use the show notes to complete the Podbean description and [create a new article](https://github.com/fleetdm/fleet/tree/main/articles) on Fleet's website.
-- Publish on social media
 
 ### Website traffic Looker dashboard 
+
 <!-- 2025-11-29 This heading doesn't follow the format of a responsibility (https://fleetdm.com/handbook/company/leadership#outline-of-departmental-page-structure). However, we will leave the title as is in preparation for moving it to a separate page, not yet created-->
 
 This dashboard is the first iteration of a tracking website that monitors performance, traffic acquisition, and key event conversions. It is updated daily and is essential for tracking the success of marketing initiatives.
@@ -229,9 +44,11 @@ This dashboard is the first iteration of a tracking website that monitors perfor
 
 The Website Traffic Dashboard provides a comprehensive view of how users interact with the Fleet website. It tracks overall health metrics, such as **Total Users**, **Bounce Rate**, and **Sessions per user**, alongside detailed breakdowns of **traffic sources** and **conversion performance**. It is a critical tool for measuring the effectiveness of our organic and paid strategies, identifying high-performing content, and spotting trends in user behavior and goal completion.
 
+
 #### Key views description
 
 The dashboard is structured with a side navigation menu that allows you to dive into specific areas of performance:
+
 
 ##### 1\. WebTraffic dashboard (overview)
 
@@ -272,14 +89,406 @@ This view displays the website's efficiency by tracking the rate at which users 
   - **Swag:** Tracks the rate of fleet\_website\_swag\_request.  
 - **Usage:** Used to monitor A/B test results, measure the quality of traffic from different channels, and ensure key pathways in the product/website are optimized.
 
+
+## Responsibilities
+
+The Marketing department is directly responsible for achieving revenue pipeline targets, increasing market awareness about Fleet, customer training curriculums, prospect enablement, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
+
+
+### Prepare "Let's get you set up!" meeting notes
+
+Before each group call, copy the attendees from the "Let's get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
+On Thursdays, marketing reviews the names and accounts for upcoming meetings and checks how many hosts each account has. If an account has more than 500 hosts, post a message in the #help-gtm-ops Slack channel.
+Add notes in the meeting document if you cannot find a Salesforce account for an attendee, and include any other relevant information needed for the call to run smoothly.
+
+
+### Monitor the #help-marketing Slack channel
+
+The Marketing Coordinator is the DRI for the #help-marketing Slack channel and is responsible for making sure nothing posted there goes unnoticed.
+
+To do this:
+- Check #help-marketing at least daily and review every new thread and top-level post.
+- Reply to each message within one business day, looping in the appropriate DRI as necessary. 
+- Keep an eye on open threads until they're resolved, following up as needed.
+
+
+### Create UTM link
+
+Use the [Fleet UTM builder](https://docs.google.com/spreadsheets/d/1SO7-WIJSMPjEg89tskBIJmNj59xNySt0D-EjLg61IW8/edit?gid=0#gid=0) to create and record a UTM link needed for marketing campaigns
+
+
+### Refresh event calendar
+
+Fleet's Head of Marketing is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the Head of Marketing updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
+1. Visit the latest website for each event.
+2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
+
+
+### Begin or modify an advertising campaign
+
+> LinkedIn's campaign manager does not allow you to truly delete old or failed creatives from evergreen campaigns, which clutters performance data and makes reporting unreliable. To work around this, always create new ad creatives and boosted posts as new campaigns inside the "Targeting experiments" campaign group. Name each campaign with a date prefix (YYYY-MM-DD) and set a lifetime budget (not daily) to cap spend on each experiment. Boosted posts follow the same process since they are also temporary and experimental. If a creative performs well (good CTR), move it into the appropriate pre-existing evergreen awareness campaign to run on a daily budget until performance drops. Never create new LinkedIn "campaigns" outside the "Targeting experiments" campaign group.
+
+
+### Review competitor exclusion list
+
+Paid ads should never spend money on companies that compete with Fleet. Every active LinkedIn ad set applies the competitor exclusion list, and the list itself stays current (see ["Update list of competitors"](https://fleetdm.com/handbook/marketing#update-list-of-competitors)). Each quarter, the GTM Engineer, the CEO, the CTO, and the Head of GTM Architecture review it together:
+
+1. For each competitor on the competitor exclusion list, search the company name in the [dynamic company list segment builder](https://www.linkedin.com/campaignmanager/accounts/509911695/companies/?businessId=personal&companyNameSearch=tanium&crmFilters=%7B%22openOpportunityCountFilter%22%3A%22ALL%22%2C%22pipelineValueFilter%22%3A%22ALL%22%2C%22revenueWonFilter%22%3A%22ALL%22%2C%22closedLostValueFilter%22%3A%22ALL%22%7D&lookbackWindow=LAST_30_DAYS) in LinkedIn Campaign Manager (the example link searches "tanium"; change `companyNameSearch` to the competitor's name).
+2. Confirm that the competitor received no paid impressions, clicks, or engagements over the last 30 days.
+3. If a competitor did, find the active ad sets that skipped the exclusion list and fix them. Add any missing company to the list.
+
+
+### Update list of competitors
+
+When a new competitor or category of competitors is identified (for example, through a market mapping exercise with the VP of Security Solutions), update Fleet's records so that Fleet doesn't spend time or money on those competitors:
+
+1. Update [Competition](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) (Fleet's feature chart / competitors database) with the players in the new category and make sure all details are filled out for each product, including subsidiaries, parent companies, and the category each competes in.
+2. Ask the GTM Engineer to update ads so that Fleet doesn't accidentally advertise to those competitors: update [this spreadsheet used for uploading to LI ads](https://docs.google.com/spreadsheets/d/1VqG87Jxtwn7dX94yJW2E2338zBtVrg9hLXSiBLtFhPA/edit?gid=1226811520#gid=1226811520) and reupload it to the [matched audience for competitors](https://www.linkedin.com/campaignmanager/accounts/509911695/audiences/matched/88570054/matched-companies?businessId=personal).
+3. Ask the Head of GTM Architecture to update Salesforce so that Fleet doesn't accidentally take calls with those competitors, as if they were prospective customers.
+
+
+### Promote a workshop on LinkedIn
+
+1. Create an ad set under ["Drives"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D). Name it with an ISO date prefix, the type of workshop, and the city (e.g., "2026-10-03 - Apple certified (Denver)").
+2. Set the goal to "Engagement" and don't set an end date. Marketing turns off the ad set manually when it's no longer needed.
+3. Click "Next."
+4. Under "What you're marketing," clear all selections so it shows "No specified offering."
+5. Under "Saved audiences," select "See all audiences" and load "anyone.local." This audience includes customers, because customers should see workshop ads too.
+6. Under "Location," clear the default (Canada and United States) and search for the workshop's city. Select the city's metro area, plus its state and the surrounding states. For example, for a Denver workshop, select "Denver Metro," Colorado, Wyoming, New Mexico, and Utah, which gives a target audience size of 5,400+.
+7. Keep the language set to English. Leave every other audience setting at its default, except uncheck "Enable Audience Expansion."
+8. Turn off "LinkedIn Audience Network."
+9. Set a daily budget of $50.
+10. Under "Additional options," select "Manual bidding" and uncheck "Enable bid adjustments for high-value clicks." Ignore LinkedIn's suggested bid, which is usually high. Start at $1 and check the results. For a small, highly targeted workshop audience, go up to $2.
+11. Keep the "Single image" ad format and leave everything else at its defaults, then click "Next."
+12. Finish and launch the ad set by following the ["LinkedIn workshop promotion"](https://docs.google.com/document/d/1Zgs093felMMJHNkYUZafLWoSsePPmg2ofl0zUYljx5Q/edit) steps (private Google doc).
+
+
+### Settle event strategy
+
+Events are settled in advance to provide ample time for strategy and planning. This includes any event that Fleet pays to attend or sponsor. The Content Specialist, Head of Strategic Growth, and Head of People will meet weekly to settle upcoming events and manage the execution of planned events using the ["🎪 Events" spreadsheet](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) and the [Event planning agenda](https://docs.google.com/document/d/190wBBkf8pPMX4lLsjfnTv4KL7n0lffT1aJwvAM9--Jg/edit?tab=t.0).
+
+
+> DRIs:
+> 
+> The Head of Strategic Growth is the DRI for planning GitOps workshops.
+> The [Content Specialist](https://fleetdm.com/handbook/marketing#team) is the DRI for event execution.
+> The [Head of People](https://fleetdm.com/handbook/marketing#team) serves as the DRI for managing the event process.
+
+<!--
+The "Settle events strategy" meeting is held on the first Wednesday of every quarter to discuss and lock in all events (conferences, field/sales events, and GitOps workshops) for the next quarter.
+
+The [Content Specialist](https://fleetdm.com/handbook/marketing#team) is the DRI for this meeting. 
+
+Once events have been settled for the upcoming quarter, Fleet does not make changes except in extreme circumstances.
+
+1. Proposed events are tracked and recorded in the ["🫧 Proposed events (not yet settled)" tab](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?gid=1411322737#gid=1411322737) of the 🎪 Events spreadsheet (confidential doc). 
+2. Proposed events will include the following information:
+  - Event Priority (Scale 1 - 10) where 1 is a top priority
+  - Event Name
+  - Event Location
+  - Event DRI
+  - Event Dates
+  - Type of Event
+  - Theme
+  - Event Registration
+  - Who from Fleet will attend?
+  - Which talk proposal will Fleet submit?
+  - Estimated budget, including sponsorship or airfare, and lodging for attendees.
+2. Attend the 30m quarterly event strategy meeting. During this meeting, we will decide which events (conferences, field/sales events, and GitOps workshops) Fleet will execute in the **following quarter**.
+3. After the meeting, the Content Specialist will communicate the settled events by moving all settled events to the "All 🎪 Official (planned & settled events)" tab of the 🎪 Events spreadsheet (confidential doc) and removing any proposed that were not prioritized.
+-->
+
+#### Track program spend
+
+Marketing program spend (events, sponsorships, digital ads, PR, and miscellaneous costs like website swag fulfillment) is budgeted each quarter. The single source of truth for the current budget is the "Budgets" tab in the [OKR spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?pli=1&gid=1137119307#gid=1137119307). Event budgets include all related costs: travel, swag, sponsorship, and venue.
+
+To keep finance's projections accurate:
+
+1. When an event is confirmed or its costs change, the Marketing Coordinator updates column W in the [event spreadsheet](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit?pli=1&gid=692710204#gid=692710204).
+2. Finance updates actual spend in the Budgets tab every month, after the books close.
+3. If a change in plans affects the quarterly budget, ping the CFO in the [#help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) channel so the Budgets tab can be updated.
+
+
+### Settle content strategy
+
+<!-- 2026-06-02 TODO: Is this still a thing? If so, we need to update the responsibility -->
+
+The CMO is the DRI for deploying Fleet's outward-facing content. The content schedule is settled significantly in advance to provide ample time for strategy and planning. Use the following steps to settle content strategy:
+
+1. Using the [content calendar](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=809357993#gid=809357993), propose the content that Fleet will produce in the current quarter, and the strategy behind that content, including:
+  - Release date: The date by which the content will be complete and finalized.
+  - DRI: Person(s) responsible for the project management of this content.
+  - Title (e.g. "Article: Fleet takes bacon to new heights with flying pigs release").
+2. Attend a 30m meeting with Fleet's Content Specialist  to review and settle the proposed content.
+
+To add a GitHub issue to the [Content planning](https://github.com/orgs/fleetdm/projects/114) project board, add the `content-planning` label to the issue.
+
+[Planned content for SEO and GEO optimization](https://airtable.com/appiljMCYUZJGeRmH/tblfNFlpMJrrLe3eH/viwe6rmqbyUm8XFIC?blocks=hide) 
+
+
+### Localize content
+
+To localize content, pick the best fleetie to do the translation, and refer to the following list of languages to their biggest markets:
+
+- 🇮🇳 Hindi (Delhi, Uttar Pradesh, Madhya Pradesh, Bihar, Rajasthan, Haryana, Himachal Pradesh, Chhattisgarh, and Jharkhand, Fiji, Nepal)
+- 🇪🇸 Spanish (Spain, Andorra, Colombia, Chile, Argentina, Mexico)
+- 🇫🇷 French (France, Quebec/Canada, Luxembourg, Monaco, Democratic Republic of the Congo, Cameroon, New Brunswick/Canada, Switzerland)
+- 🇵🇹 Portuguese (Brazil, Portugal, Sao Tome and Principe, Angola, Mozambique, Cape Verde)
+- 🇷🇺 Russian (Russia) (while Fleet is unable to advertise or do business with organizations in Russia, Belarus, and other markets with export controls, Fleet still advertises to native speakers of every supported language in every market where Fleet can do business, around the world)
+- 🇩🇪 German (Germany, Austria, Switzerland, Liechtenstein)
+- ळ Marathi (Maharashtra)
+- ಠ Kannada (Karnataka)
+- 🇲🇾 Malay (Malaysia)
+- 🇷🇴 Romanian (Romania, Moldova)
+- 🇳🇱 Dutch (the Netherlands, Flemish Region, Belgium, Suriname)
+- 🇸🇪 Swedish (Sweden)
+- 🇮🇱 Hebrew (Israel)
+- 🇩🇰 Danish (Denmark)
+
+
+<!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to engineering.rituals.yml
+
+### Create an article
+Article creation begins with creation of an issue using the "Article request" template.
+
+1. Create a [new GitHub issue for the :help-marketing board](https://github.com/fleetdm/confidential/issues/new?assignees=mikermcneil&labels=%3Ahelp-marketing=&template=1-custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
+2. Move the issue into the "📃 Planned articles" column.
+
+### Review ongoing articles
+Check the "📃 Planned articles" column in [:help-marketing board](https://github.com/orgs/fleetdm/projects/65) and continue to work through steps in each event's issue.
+-->
+
+
+### Order SWAG
+
+**To order T-shirts:**
+
+  - Login to [Printful](https://www.printful.com/dashboard/default) (saved in 1Password).
+  - Choose Fleet logo design t-shirt under [product templates](https://www.printful.com/dashboard/product-templates).
+  - Order shirts based on the pre-determined number (~5% of total event attendees).
+  - Submit the order. Ensure the address matches the expected receiving address.
+
+
+**To order stickers:**
+
+  - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
+  - Find the [brand kit](https://www.stickermule.com/studio/brand-kits) after logging in.
+  - Click on the "Fleet Device Management" brand kit and order pre-approved stickers from the templates.
+  - Total sticker quantity should be ~10% of total event attendees.
+  - Complete the checkout process. Ensure the address matches the expected receiving address.
+
+**To order pens and sticky note pads**
+
+  - Pens and sticky note pads are ordered through TODO.
+
+
+### Process pending swag requests from the website
+
+On a weekly basis, log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
+To do this:
+1. Go to the ["Orders"](https://www.printful.com/ca/dashboard/default/orders) page in Printful.
+2. Look for an order status of "Draft" and click that order.
+3. Copy the address displayed in the draft order. Close the modal.
+4. Under "Order list", there's a search box for customers that you will need to paste the address.
+5. The results should only display one order. Any additional could be duplicate orders or those made in error.
+6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment."
+
+
+### Fulfill a swag request
+
+Swag requests are received in the form of issues and will be fulfilled based on availability. To process a swag request:
+1. Check and communicate availability to the requestor.
+2. Use the appropriate shipping method that best serves the company.
+3. Attach tracking number to the issue and tag the requestor.
+4. Confirm delivery and close issue.
+
+
+<!-- 2026-06-02 SAM: This isn't happening today, commenting out for now...
+
+### Send swag for community contributions to Fleet
+
+- Reach out to the contributor to thank them for their contribution
+- Consider sharing the contribution on social media
+- Ask if we could send the contributor any swag
+- If yes, follow the steps to fulfill a swag request.
+-->
+
+### Engage with the community
+
+Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.Here are some links that filter relevant conversations on each platform:
+
+- [LinkedIn](https://www.linkedin.com/search/results/content/?datePosted=%22past-week%22&keywords=osquery%20OR%20%22fleet%20device%20management%22%20OR%20%22fleetdm%22%20OR%20%22github.com%2Ffleetdm%2Ffleet%22%20OR%20%22fleetdm.com%22&origin=FACETED_SEARCH&sid=oxR)
+- [Twitter](https://twitter.com/search?q=%22osquery%22%20OR%20%22github.com%2Fosquery%2Fosquery%22%20OR%20%22github.com%2Ffleetdm%2Ffleet%22%20OR%20%22github.com%2Fkolide%2Ffleet%22%20OR%20%22fleetdm%22%20OR%20%22fleet%20device%20management%22%20OR%20%22nanomdm%22%20OR%20%22micromdm%22%20OR%20%22swiftDialog%22&src=typed_query&f=live)
+
+1. Find conversations that are relevant to Fleet on both LinkedIn and Twitter
+2. Reply to threads looking for solutions Fleet can solve with helpful information. If additional information is needed, find help in [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) for accurate information.
+3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
+4. If a post is helpful to our audience, reshare it.
+
+
+<!-- 2026-06-02 SAM: Commenting out for now, this is now automated by Harry.
+### Process to send out GitOps workshop certifications
+
+After every GitOps workshop, Fleet issues a certificate to all participants who passed via email.
+
+#### Collect attendee data
+
+1. Ask the AE or CSM to submit a GitHub issue after the workshop.  
+2. Make sure the issue is assigned to the DRI (Irena).  
+3. Confirm the issue includes:  
+   - Workshop date  
+   - Workshop location  
+   - First name  
+   - Last name  
+   - Email address  
+   - Registered (yes or no)  
+   - Attended (yes or no)  
+   - Certified by the trainer (passed)  
+4. Only issue certificates to attendees who passed the workshop.
+
+#### Create a new certificate collection
+
+1. Go to virtualbadge.io.  
+2. Find the most recent certificate collection.  
+3. Duplicate the collection.  
+4. Rename the collection using:  
+   - City  
+   - Date in YYYY-MM-DD format
+
+#### Update certificate details
+
+1. Open the duplicated collection.  
+2. Edit the certificate template:  
+   - Set the issue date to the workshop date.  
+   - Do not use the email send date.  
+   - Remove any expiration date.  
+   - Keep the contact email as the SVP of Customer Success  
+   - Update the Fleet version if needed.  
+     - It’s ok to reuse a version for up to 3-6 months. After this point, use the current version of Fleet.  
+3. Click **Customize** and update:  
+   - Event location  
+   - Event date  
+4. Do not edit the recipient name field. It is auto-filled.
+
+#### Add recipients
+
+1. Go to the recipient list.  
+2. Choose manual entry for speed.  
+3. Click **Add single**.  
+4. Enter:  
+   - Email address  
+   - Full name (first and last)  
+5. Repeat for each certified attendee.  
+6. If there are more than 10 attendees, consider uploading a CSV.  
+7. Click **Upload**, then **Confirm**.
+
+#### Generate certificates
+
+1. Check the **Certificate status** column.  
+2. Wait until all certificates show “generated”.
+
+#### Send certificates
+
+1. Select all recipients.  
+2. Click **Send emails**.
+
+#### Notes
+
+- Only send certificates to attendees who passed.  
+- Do not send certificates to registrants or attendees who did not pass.  
+- Use the workshop date for all certificate records.  
+- Keep the process simple and consistent for every workshop.
+-->
+
+
+### Publish release demo video
+
+After each release demo, the marketing team is responsible for doing a quick post-production pass on the recording and publishing it. 
+
+1. **Download the release demo recording**
+
+   This video is recorded and found in Gong. If the video is not uploaded, reach out to the CTO and Head of Product Design in the #help-marketing channel.
+   
+3. **Review and scrub the recording**
+
+   The Content Specialist reviews the original recording and will remove/edit any issues, including:
+   - Mentions of customer names or sensitive information  
+   - Long pauses or dead air  
+   - The opening ritual or internal-only discussion  
+   - Any unclear or unnecessary segments
+   - Make sure the video has a clean start and a clear ending.
+   
+4. **Share with Technical Marketing**
+
+   After scrubbing, the Content Specialist shares the project file with the Technical Marketer.
+
+5. **Edit audio and visuals**
+
+   The Technical Marketer adjusts sound and visual quality as needed.
+
+   Ensure audio is clear and visuals are easy to follow.
+
+   Because different presenters have different microphone setups and speaking volumes, the raw recording often has inconsistent audio levels:
+  - Upload the recording to [Kapwing](https://www.kapwing.com), a free browser-based video editor. (need to revisit this. No longer a free option)
+  - Apply "Auto Level Volume" (under the "Audio" section) to even out the volume levels across all presenters.
+  - Export and download the processed video.
+
+6. **Upload the video to Youtube**
+   Follow the steps to [upload the video to YouTube](#upload-to-youtube).
+
+   Make sure the YouTube title follows the pattern `Release-demo - <version #.##.#>` (eg. "Release demo - 4.82.0").
+
+   Add a brief description highlighting the new features.
+
+   Add the new video to the "Releases" playlist.
+
+
+### Upload to YouTube
+
+Fleet regularly uploads a variety of content to YouTube such as podcast episodes, release demos, educational updates, design reviews, and more.
+
+- Login to the Fleet YouTube channel, click the create button and then upload the video.
+- Fill out relevant information such as:
+    * title - make sure it is SEO friendly
+    * description - Give enough to entice someone to view the video. Add a CTA/link to website at the end
+    * thumbnail - a good thumbnail gets viewers. "First frame of video" or auto-generate is usually not compelling. See below on creating one.
+    * playlists - Add to appropriate one(s)
+    * audience - not "made for kids"
+    * video details - allow auto chapters, no featured places or automatic concepts
+    * [tags](https://docs.google.com/document/d/1Mu-XTkgJjqvPqpM1O0fiz97druAEJiYnr3OI4n6HtAA/edit?usp=sharing) (needs to be updated)
+    * end screen - set these!! Subscribe logo and at least one video of "next interest" (pick one using your judgement).
+- Create a new video thumbnail within Figma using the [YouTube covers board](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media--logos--covers--banners-?node-id=1148-57414&p=f&t=cDvD2NcWwN6NaTKv-0) with the video title. Upload it.
+- Set the visibility to "Public".
+- Share video link on social media.
+
+
+### Post a blog article
+
+Although details on how to format and meta tag a blog are in [the writing handbook page](https://fleetdm.com/handbook/company/writing#articles), it does not give the step-by-step, so to a new person how exactly to get a blog published is not clear. Here is how you do it.
+
+1. Create your own branch either in [https://github.com/fleetdm/fleet](https://github.com/fleetdm/fleet) or in your local clone.
+2. Create a new file in [https://github.com/fleetdm/fleet/articles/](https://github.com/fleetdm/fleet/tree/main/articles) or the local equivalent
+3. Title the file with the slug version of your blog title, ending in `.md`
+4. First line should be the Title of the blog with H1 markdown (`#`)
+5. Put in your article, using markdown to format it
+6. Add the required meta data at the END of the file (see [writing handbook page](https://fleetdm.com/handbook/company/writing#article-meta-tags) for syntax) or copy it from an existing blog and edit
+7. If you are having AI help you write the blog, before you start, ask it to read the [Fleet writing, style, and tone instructions](https://github.com/fleetdm/fleet/blob/main/.claude/skills/content-style/SKILL.md) first
+8. If you have written the blog yourself, ask AI to read the instructions and then analyze your blog for needed changes
+9. Once you think your blog is ready, commit the changes
+10. Before submitting a PR to merge it, preview it:
+    - GitHub: has a **Preview** button in the editor
+    - VS Code: right click on filename tab and select **Open Preview**
+    - Or if local, [follow this setup to view your changes locally](https://fleetdm.com/handbook/engineering#test-fleetdm-com-locally) - this provides the most true to reality check
+11. When ready, submit a PR to get it reviewed and merged
+
 ## Rituals
-
 <rituals :rituals="rituals['handbook/marketing/marketing.rituals.yml']"></rituals>
-
-
 
 #### Stubs
 The following stubs are included only to make links backward compatible
+
+##### Publish sprint demo video
+Please see [handbook/marketing#publish-release-demo-video](https://fleetdm.com/handbook/marketing#publish-release-demo-video)
 
 ##### Programs
 Please see [handbook/company/communications#product-marketing-programs](https://fleetdm.com/handbook/company/communications#product-marketing-programs)
@@ -296,9 +505,5 @@ Please see [handbook/company/communications#events](https://fleetdm.com/handbook
 ##### Video
 Please see [handbook/company/communications#video](https://fleetdm.com/handbook/company/communications#video)
 
-
-
-
-
-<meta name="maintainedBy" value="akuthiala">
+<meta name="maintainedBy" value="ireedy">
 <meta name="title" value="🫧 Marketing">

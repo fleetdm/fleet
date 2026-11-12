@@ -1,0 +1,10 @@
+{
+  "name": "Radio Silence",
+  "unique_identifier": "com.radiosilenceapp.client",
+  "token": "radio-silence",
+  "installer_format": "pkg",
+  "slug": "radio-silence/darwin",
+  "default_categories": [
+    "Security"
+  ]
+}

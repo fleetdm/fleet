@@ -1,7 +1,8 @@
 .tooltip-truncated-cell {
   display: flex;
   align-items: center; // For badges, etc
-  gap: $pad-small;
+  gap: $gap-icon-text;
+  max-width: 100%;
 
   .text-muted {
     color: $ui-fleet-black-50;
@@ -11,6 +12,14 @@
     display: flex; // Flex container for text and suffix
     align-items: center; // Keep text and suffix aligned
     min-width: 0; // Prevent flex child from growing beyond container
+  }
+
+  // Pins .data-table__suffix to the cell's right edge regardless of the
+  // truncated text's length, instead of letting it hug the text.
+  &.justify-suffix-end {
+    .data-table__tooltip-truncated-text-container {
+      flex: 1 1 0%;
+    }
   }
 
   .data-table__tooltip-truncated-text {
@@ -54,7 +63,7 @@
   .data-table__suffix,
   .data-table__prefix {
     display: flex;
-    gap: $pad-small;
+    gap: $gap-icon-text;
     height: 24px;
     align-items: center;
     flex-shrink: 0; /* Prevent suffix from shrinking */

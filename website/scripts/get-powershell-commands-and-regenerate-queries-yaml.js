@@ -45,7 +45,7 @@ module.exports = {
           Please return only the powershell script. do not wrap it in any code fences or format it in any way or add any other text.
         `;
         // console.log(prompt);
-        let powershellResult = await sails.helpers.ai.prompt.with({prompt:prompt, baseModel: 'o3-mini-2025-01-31'});
+        let powershellResult = await sails.helpers.ai.prompt.with({prompt:prompt, baseModel: 'claude-sonnet-5'});
         query.spec.powershell = powershellResult;
       });
     }

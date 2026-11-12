@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -17,6 +18,25 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/guregu/null.v3"
 )
+
+var testMailpitSMTPPort = getTestMailpitSMTPPort()
+var testMailpitWebURL = getTestMailpitWebURL()
+
+func getTestMailpitSMTPPort() uint {
+	if port := os.Getenv("FLEET_MAILPIT_SMTP_PORT"); port != "" {
+		if p, err := strconv.ParseUint(port, 10, 32); err == nil && p > 0 {
+			return uint(p)
+		}
+	}
+	return 1026
+}
+
+func getTestMailpitWebURL() string {
+	if port := os.Getenv("FLEET_MAILPIT_WEB_PORT"); port != "" {
+		return "http://127.0.0.1:" + port
+	}
+	return "http://127.0.0.1:8026"
+}
 
 type notTestFoundError struct{}
 
@@ -40,7 +60,7 @@ func (e *notTestFoundError) Is(other error) bool {
 }
 
 func TestMailService(t *testing.T) {
-	// This mail test requires mailpit running on localhost:1026.
+	// This mail test requires mailpit (ports read from env vars FLEET_MAILPIT_SMTP_PORT, FLEET_MAILPIT_WEB_PORT).
 	if _, ok := os.LookupEnv("MAIL_TEST"); !ok {
 		t.Skip("Mail tests are disabled")
 	}
@@ -61,7 +81,7 @@ func TestMailService(t *testing.T) {
 				SMTPPassword:             "mailpit-password",
 				SMTPEnableTLS:            false,
 				SMTPVerifySSLCerts:       false,
-				SMTPPort:                 1026,
+				SMTPPort:                 testMailpitSMTPPort,
 				SMTPServer:               "localhost",
 				SMTPSenderAddress:        "foobar@example.com",
 			},
@@ -101,7 +121,7 @@ func TestMailService(t *testing.T) {
 	ctx = test.UserContext(ctx, test.UserAdmin)
 
 	// (1) Modifying the app config `sender_address` field to trigger a test e-mail send.
-	_, err := svc.ModifyAppConfig(ctx, []byte(`{
+	_, err := svc.ModifyAppConfig(ctx, fmt.Appendf(nil, `{
   "org_info": {
 	"org_name": "Acme"
   },
@@ -117,15 +137,15 @@ func TestMailService(t *testing.T) {
     "password": "mailpit-password",
     "enable_ssl_tls": false,
     "verify_ssl_certs": false,
-    "port": 1026,
+    "port": %d,
     "server": "127.0.0.1",
     "sender_address": "foobar_updated@example.com"
   }
-}`), fleet.ApplySpecOptions{})
+}`, testMailpitSMTPPort), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 
 	getLastMailPitMessage := func() map[string]interface{} {
-		resp, err := http.Get("http://localhost:8026/api/v1/messages?limit=1")
+		resp, err := http.Get(testMailpitWebURL + "/api/v1/messages?limit=1")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		b, err := io.ReadAll(resp.Body)

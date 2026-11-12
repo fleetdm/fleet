@@ -1,0 +1,5 @@
+# gitops yara_rules items are {path}, not {name, contents}; the old shape is rejected.
+org_settings:
+  yara_rules:
+    - name: my_rule
+      contents: "rule foo {}"

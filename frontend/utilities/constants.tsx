@@ -1,14 +1,17 @@
-import URL_PREFIX from "router/url_prefix";
+import React from "react";
+
+import { ICampaign } from "interfaces/campaign";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { IHost } from "interfaces/host";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 import { DisplayPlatform, Platform } from "interfaces/platform";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
-import React from "react";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { ICampaign } from "interfaces/campaign";
-import { MdmEnrollmentStatus } from "interfaces/mdm";
-import { IHost } from "interfaces/host";
+import URL_PREFIX from "router/url_prefix";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
+
+export const UNCHANGED_PASSWORD_API_RESPONSE = "********";
 
 export enum PolicyResponse {
   PASSING = "passing",
@@ -86,8 +89,20 @@ export const LOGGING_TYPE_OPTIONS = [
 
 export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
+// Max character length for most user-supplied free-text fields (name, title,
+// description) — matches the varchar(255) column shared across policies,
+// reports, teams (fleets), labels, software categories, custom variables,
+// certificate authorities, etc. Use on any `InputField` bound to such a
+// column: `inputOptions={{ maxLength: MAX_ENTITY_CHAR_LENGTH }}`.
+export const MAX_ENTITY_CHAR_LENGTH = 255;
+
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.24.1 +", value: "5.24.1" },
+  { label: "5.24.0 +", value: "5.24.0" },
+  { label: "5.23.1 +", value: "5.23.1" },
+  { label: "5.23.0 +", value: "5.23.0" },
+  { label: "5.22.1 +", value: "5.22.1" },
   { label: "5.21.0 +", value: "5.21.0" },
   { label: "5.20.0 +", value: "5.20.0" },
   { label: "5.19.0 +", value: "5.19.0" },
@@ -174,7 +189,7 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
   saved: false,
   author_id: 0,
   packs: [],
-  team_id: 0,
+  fleet_id: 0,
   author_email: "",
   stats: {},
   editingExistingQuery: false,
@@ -334,13 +349,23 @@ export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS = [
 ] as const;
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
-  "Search name, hostname, UUID, serial number, or private IP address";
+  "Search name, user email, hostname, UUID, serial number, or IP address";
 
-export const HOSTS_SEARCH_BOX_TOOLTIP =
-  "Search hosts by name, hostname, UUID, serial number, or private IP address";
+export const HOSTS_SEARCH_BOX_TOOLTIP = (
+  <>
+    Search hosts by name, user email, hostname,
+    <br />
+    UUID, serial number, or IP address.
+  </>
+);
 
-export const VULNERABILITIES_SEARCH_BOX_TOOLTIP =
-  'To search for an exact CVE, surround the string in double quotes (e.g. "CVE-2024-1234")';
+export const VULNERABILITIES_SEARCH_BOX_TOOLTIP = (
+  <>
+    To search for an exact CVE, surround the string
+    <br />
+    in double quotes (e.g. &quot;CVE-2024-1234&quot;).
+  </>
+);
 
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<
@@ -349,26 +374,52 @@ export const MDM_STATUS_TOOLTIP: Record<
 > = {
   "On (automatic)": (
     <span>
-      MDM was turned on automatically. IT admins can block end users from
-      turning MDM off.
+      MDM was turned on automatically (Apple ADE, Windows Autopilot, or
+      fully-managed Android). IT admins can block end users from turning MDM
+      off.
     </span>
   ),
   "On (manual)": (
-    <span>MDM was turned on manually. End users can turn MDM off.</span>
+    <span>
+      Enrolled with a manual enrollment profile as a company-owned device. IT
+      admins can wipe this device and enforce all MDM restrictions.
+    </span>
   ),
   "On (personal)": (
     <span>
-      MDM was turned on by signing in with Managed Apple Account on iPhone/iPad,
-      or by creating a work profile on Android. End users can turn MDM off.
+      Enrolled via a Managed Apple Account (Account-driven User Enrollment) or
+      Android work profile as a personal (BYOD) device. IT admins cannot wipe
+      this device or lock the end user out.
+    </span>
+  ),
+  "On (manual - personal)": (
+    <span>
+      Enrolled with a manual enrollment profile as a personal (BYOD) device. IT
+      admins cannot wipe this device or lock the end user out.
     </span>
   ),
   "On (company-owned)": null,
   Off: undefined, // no tooltip specified
   Pending: (
     <span>
-      Hosts ordered via Apple Business Manager <br /> (ABM). These will
-      automatically enroll to Fleet <br /> and turn on MDM when they&apos;re
-      unboxed.
+      Hosts pending automatic enrollment in Apple Business (AB) or Windows
+      Autopilot.
+    </span>
+  ),
+};
+
+/** Used where a single host's platform is known, e.g. the host details MDM status modal. */
+export const MDM_STATUS_PENDING_TOOLTIP_BY_PLATFORM = {
+  windows: (
+    <span>
+      Hosts added to Windows Autopilot. These will automatically enroll to Fleet
+      and turn on MDM when they&apos;re unboxed.
+    </span>
+  ),
+  apple: (
+    <span>
+      Hosts ordered via Apple Business (AB). These will automatically enroll to
+      Fleet and turn on MDM when they&apos;re unboxed.
     </span>
   ),
 };
@@ -394,7 +445,7 @@ export const BATTERY_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
 };
 
-export const PRIMO_TOOLTIP = "Teams are disabled while using Primo";
+export const PRIMO_TOOLTIP = "Fleets are disabled while using Primo";
 
 /** Must pass agent options config as empty object */
 export const EMPTY_AGENT_OPTIONS = {
@@ -405,15 +456,27 @@ export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
 
+// Fields the host summary row (top of the Host details page and My device page)
+// renders. Not every field is shown on both pages: display_name, maintenance_window,
+// and patch_deadline_at are gated out of My device by the components that read them.
+// timezone rides along to let HostSummary format patch_deadline_at in the host's
+// local time without a second trip through the host record.
 export const HOST_SUMMARY_DATA: (keyof IHost)[] = [
   "id",
   "status",
   "issues",
   "platform",
   "detail_updated_at",
-  "team_name",
-  "display_name", // Not rendered on my device page
-  "maintenance_window", // Not rendered on my device page
+  "policy_updated_at",
+  "fleet_name",
+  "display_name",
+  "maintenance_window",
+  "os_name",
+  "os_version",
+  "mdm",
+  "last_mdm_checked_in_at",
+  "timezone",
+  "patch_deadline_at",
 ];
 
 export const HOST_VITALS_DATA = [
@@ -421,6 +484,7 @@ export const HOST_VITALS_DATA = [
   "uptime",
   "last_enrolled_at",
   "hardware_model",
+  "hardware_marketing_name",
   "hardware_serial",
   "primary_ip",
   "public_ip",
@@ -440,7 +504,28 @@ export const HOST_VITALS_DATA = [
   "fleet_desktop_version",
   "memory",
   "cpu_type",
+  "os_name",
   "os_version",
+  "timezone",
+  "mdm_enrollment_hardware_attested",
+  "primary_mac",
+  "google_device_id",
+  // Android-only vitals. Absent for every other platform, so they're simply
+  // dropped by the pick rather than needing a platform check here.
+  "adb_enabled",
+  "passcode_protected",
+  "play_protect_enabled",
+  "encryption_type",
+  "manufacturer",
+  "security_update_version",
+  "device_kernel_version",
+  "bootloader_version",
+  "system_update_status",
+  "security_posture",
+  "imei",
+  "meid",
+  "api_level",
+  "telephony_infos",
 ];
 
 export const HOST_OSQUERY_DATA = [
@@ -452,7 +537,7 @@ export const HOST_OSQUERY_DATA = [
 export const DEFAULT_USE_QUERY_OPTIONS = {
   refetchOnWindowFocus: false,
   retry: (failureCount: number, error: unknown) => {
-    const err = error as any;
+    const err = error as { status?: number };
     let isBadRequestErr = false;
     if (err.status !== undefined) {
       isBadRequestErr = err.status >= 400 && err.status < 500;
@@ -465,7 +550,7 @@ export const INVALID_PLATFORMS_REASON =
   "query payload verification: query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string";
 
 export const INVALID_PLATFORMS_FLASH_MESSAGE =
-  "Couldn't save query. Please update platforms and try again.";
+  "Couldn't save report. Please update platforms and try again.";
 
 export const DATE_FNS_FORMAT_STRINGS = {
   dateAtTime: "E, MMM d 'at' p",

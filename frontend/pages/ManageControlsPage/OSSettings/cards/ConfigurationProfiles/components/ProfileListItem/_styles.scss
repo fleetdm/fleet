@@ -1,0 +1,135 @@
+.profile-list-item {
+  // lets the name's max-width be relative to the row (cqw)
+  container-type: inline-size;
+  gap: $pad-large;
+  cursor: pointer;
+
+  &__profile-details {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-xsmall;
+    color: $ui-fleet-black-75;
+    overflow: hidden;
+    white-space: nowrap;
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+  }
+
+  &__list-item-details {
+    display: flex;
+    flex-direction: row;
+    gap: $pad-xsmall;
+    font-size: $xx-small;
+  }
+
+  &__actions-wrap {
+    display: flex;
+    flex-shrink: 0;
+    gap: $pad-large;
+  }
+
+  &__actions {
+    display: flex;
+    gap: $pad-small;
+  }
+
+  // Stage 1 (≤1185px): hide the profile icon to reclaim horizontal space
+  @include breakpoint(smalldesk) {
+    .list-item__main-content .graphic {
+      display: none;
+    }
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    min-width: 0;
+    // The global body font-size ($medium) would otherwise inflate the name's
+    // line-box strut and baseline-bias the 14px title downward, making the
+    // centered user-scope icon look high. Match the title size so the strut
+    // tracks the text.
+    font-size: $x-small;
+
+    // Render the icon as a flex box rather than inside the tooltip element's
+    // text line box, which would baseline-align it and push it above center.
+    .component__tooltip-wrapper__element {
+      display: flex;
+      align-items: center;
+    }
+
+    // let the name shrink/truncate; keep the user-scope icon at its natural size
+    .component__tooltip-wrapper:first-child {
+      min-width: 0;
+      overflow: hidden;
+
+      // both are flex items, which won't shrink below the text without this
+      .component__tooltip-wrapper__element,
+      .profile-list-item__name {
+        min-width: 0;
+      }
+    }
+
+    /* Prevent icons from being pushed out or shrinking */
+    .component__tooltip-wrapper:not(:first-child) {
+      flex-shrink: 0;
+    }
+  }
+
+  // ListItem wraps the title row in this span; let it shrink with the row
+  .list-item__title {
+    min-width: 0;
+
+    // override TooltipWrapper's default cursor so the whole row reads clickable
+    .component__tooltip-wrapper__element {
+      cursor: pointer;
+    }
+  }
+
+  &__name {
+    // ~half the row, so the name never crowds the labels and actions
+    max-width: min(500px, 50cqw);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  // Constrain main content so a long title and details truncate at any width
+  .list-item__main-content {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .list-item__info {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  // the tooltip wraps at spaces; this also breaks names without any
+  &__full-name {
+    overflow-wrap: anywhere;
+  }
+
+  .list-item__labels {
+    display: flex;
+    gap: $pad-small;
+
+    &--count {
+      display: flex;
+      align-items: center;
+      gap: $gap-icon-text;
+      align-self: center;
+      color: $ui-fleet-black-75;
+      font-size: $x-small; // Remove when global default font is implemented
+    }
+  }
+
+  &__name-tooltip {
+    max-width: 450px;
+  }
+}

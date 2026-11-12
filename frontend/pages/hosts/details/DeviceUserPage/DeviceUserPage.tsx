@@ -1,133 +1,155 @@
-import React, { useState, useContext, useCallback, useEffect } from "react";
-import { InjectedRouter, Params } from "react-router/lib/Router";
-import { useQuery } from "react-query";
-import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import useIsMobileWidth from "hooks/useIsMobileWidth";
 import { AxiosError } from "axios";
-
-import { pick } from "lodash";
-
-import { NotificationContext } from "context/notification";
 import classNames from "classnames";
+import { omit, pick } from "lodash";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
+import { useQuery } from "react-query";
+import { InjectedRouter, Params } from "react-router/lib/Router";
+import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
-import deviceUserAPI, {
-  IGetDeviceCertsRequestParams,
-  IGetDeviceCertificatesResponse,
-  IGetSetupExperienceStatusesResponse,
-} from "services/entities/device_user";
-import diskEncryptionAPI from "services/entities/disk_encryption";
-import {
-  IMacadminsResponse,
-  IDeviceUserResponse,
-  IHostDevice,
-} from "interfaces/host";
-import { IListSort } from "interfaces/list_options";
-import { IHostPolicy } from "interfaces/policy";
-import { IDeviceGlobalConfig } from "interfaces/config";
-import {
-  IHostCertificate,
-  CERTIFICATES_DEFAULT_SORT,
-} from "interfaces/certificates";
-import {
-  isAndroid,
-  isMacOS,
-  isAppleDevice,
-  isLinuxLike,
-  isWindows,
-} from "interfaces/platform";
-import { IHostSoftware } from "interfaces/software";
-import { ISetupStep } from "interfaces/setup";
-
-import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
-
+import CustomLink from "components/CustomLink";
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import FlashMessage from "components/FlashMessage";
-import DataError from "components/DataError";
-import CustomLink from "components/CustomLink";
-
-import { normalizeEmptyValues } from "utilities/helpers";
+import { notify } from "components/ToastNotification";
+import useIsMobileWidth from "hooks/useIsMobileWidth";
+import {
+  IHostCertificate,
+  CERTIFICATES_DEFAULT_SORT,
+} from "interfaces/certificates";
+import { IDeviceGlobalConfig } from "interfaces/config";
+import { hasStatusKey } from "interfaces/errors";
+import { IMacadminsResponse, IDUPDetails, IHostDevice } from "interfaces/host";
+import { IListSort } from "interfaces/list_options";
+import { canTriggerAPNSPing } from "interfaces/mdm";
+import {
+  isMacOS,
+  isAppleDevice,
+  isLinuxLike,
+  isWindows,
+} from "interfaces/platform";
+import { IHostPolicy } from "interfaces/policy";
+import { ISetupStep } from "interfaces/setup";
+import { IHostSoftware } from "interfaces/software";
+import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
+import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
 import PATHS from "router/paths";
+import deviceUserAPI, {
+  IGetDeviceCertsApiParams,
+  IGetDeviceCertificatesResponse,
+  IGetSetupExperienceStatusesResponse,
+} from "services/entities/device_user";
+import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
   DEFAULT_USE_QUERY_OPTIONS,
   DOCUMENT_TITLE_SUFFIX,
   HOST_VITALS_DATA,
   HOST_SUMMARY_DATA,
 } from "utilities/constants";
+import { getHostOSDisplayName, normalizeEmptyValues } from "utilities/helpers";
+import { isDarkMode } from "utilities/theme";
+import { getPathWithQueryParams } from "utilities/url";
 
-import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
-
+import CertificatesCard from "../cards/Certificates";
+import ControlsCard from "../cards/Controls";
+import { shouldShowControlsTab } from "../cards/Controls/helpers";
+import {
+  countFailedControls,
+  generateTableData,
+} from "../cards/Controls/OSSettingsTableConfig";
+import HostHeader from "../cards/HostHeader/HostHeader";
 import HostSummaryCard from "../cards/HostSummary";
-import VitalsCard from "../cards/Vitals";
-import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
-import InfoModal from "./InfoModal";
+import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
+import SoftwareCard from "../cards/Software";
+import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
+import SelfService from "../cards/Software/SelfService";
+import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
+import UserCard from "../cards/User";
+import VitalsCard from "../cards/Vitals";
+import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
+import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
+import CertificateDetailsModal from "../modals/CertificateDetailsModal";
+import InventoryVersionsModal from "../modals/InventoryVersionsModal";
+
+import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
+import BitLockerPinInstructionsModal from "./BitLockerPinInstructionsModal";
+import BitLockerPinModal from "./BitLockerPinModal";
+import BypassModal from "./BypassModal";
+import DeviceUserBanners from "./components/DeviceUserBanners";
+import InfoButton from "./components/InfoButton";
+import SettingUpYourDevice from "./components/SettingUpYourDevice";
+import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import {
   getErrorMessage,
   hasRemainingSetupSteps,
   isSoftwareScriptSetup,
   isIPhone,
   isIPad,
+  isRecentlyEnrolled,
+  isMismatchedSSOUserError,
+  toEndUserIssues,
 } from "./helpers";
-
-import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
-import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
-import BitLockerPinModal from "./BitLockerPinModal";
-import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
-import OSSettingsModal from "../OSSettingsModal";
-import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
-import { parseHostSoftwareQueryParams } from "../cards/Software/HostSoftware";
-import { parseSelfServiceQueryParams } from "../cards/Software/SelfService/SelfService";
-import SelfService from "../cards/Software/SelfService";
-import DeviceUserBanners from "./components/DeviceUserBanners";
-import CertificateDetailsModal from "../modals/CertificateDetailsModal";
-import CertificatesCard from "../cards/Certificates";
-import UserCard from "../cards/User";
-import {
-  generateChromeProfilesValues,
-  generateOtherEmailsValues,
-} from "../cards/User/helpers";
-import HostHeader from "../cards/HostHeader/HostHeader";
-import InventoryVersionsModal from "../modals/InventoryVersionsModal";
-import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
-
-import SettingUpYourDevice from "./components/SettingUpYourDevice";
-import InfoButton from "./components/InfoButton";
+import InfoModal from "./InfoModal";
+import useDeviceSSO from "./useDeviceSSO";
 
 const baseClass = "device-user";
 
-const defaultCardClass = `${baseClass}__card`;
+const getRetryAfterSeconds = (e: unknown): number | undefined => {
+  if (typeof e !== "object" || e === null || !("headers" in e)) {
+    return undefined;
+  }
+  const headers = (e as { headers?: Record<string, unknown> }).headers;
+  const seconds = Number(headers?.["retry-after"]);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : undefined;
+};
+
 const fullWidthCardClass = `${baseClass}__card--full-width`;
 
 const PREMIUM_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS_SELF_SERVICE,
   PATHS.DEVICE_USER_DETAILS,
+  PATHS.DEVICE_USER_DETAILS_CONTROLS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
   PATHS.DEVICE_USER_DETAILS_POLICIES,
 ] as const;
 
 const FREE_TAB_PATHS = [
   PATHS.DEVICE_USER_DETAILS,
+  PATHS.DEVICE_USER_DETAILS_CONTROLS,
   PATHS.DEVICE_USER_DETAILS_SOFTWARE,
 ] as const;
 
 const DEFAULT_CERTIFICATES_PAGE_SIZE = 10;
 const DEFAULT_CERTIFICATES_PAGE = 0;
 
+const BITLOCKER_PIN_POLL_INTERVAL = 5000;
+
+/** Whether a submitted BitLocker PIN is still in the agent's hands, so its outcome is still coming. */
+const hasPINRequestInFlight = (data?: IDUPDetails) => {
+  const status =
+    data?.host.mdm.os_settings?.disk_encryption.pin_request?.status;
+  return status === "pending" || status === "delivered";
+};
+
 interface IDeviceUserPageProps {
   location: {
     pathname: string;
     query: {
       vulnerable?: string;
+      exploit?: string;
+      min_cvss_score?: string;
+      max_cvss_score?: string;
       page?: string;
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
       setup_only?: string;
+      sso_error?: string;
+      create_pin?: string;
+      mobile?: string;
     };
     search?: string;
   };
@@ -143,12 +165,15 @@ const DeviceUserPage = ({
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
   const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
+  // ?mobile=1 dev override: latch at mount so SelfService navigations
+  // (which drop the param from the URL) don't flip us back to desktop.
+  const [mobileOverride] = useState(() => location.query.mobile === "1");
+  const isMobile = isMobileDevice || mobileOverride;
 
-  const { renderFlash, notification, hideFlash } = useContext(
-    NotificationContext
-  );
-
+  const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
+  /** Whether the Create PIN modal is still owed an answer about a PIN it handed to Fleet. */
+  const [isAwaitingPINOutcome, setIsAwaitingPINOutcome] = useState(false);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [showEnrollMdmModal, setShowEnrollMdmModal] = useState(false);
   const [enrollUrlError, setEnrollUrlError] = useState<string | null>(null);
@@ -156,7 +181,7 @@ const DeviceUserPage = ({
     null
   );
   const [showPolicyDetailsModal, setShowPolicyDetailsModal] = useState(false);
-  const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
+  const [showHiddenPolicies, setShowHiddenPolicies] = useState(false);
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
@@ -164,6 +189,10 @@ const DeviceUserPage = ({
   const [isTriggeringCreateLinuxKey, setIsTriggeringCreateLinuxKey] = useState(
     false
   );
+  const [isEscrowInFlight, setIsEscrowInFlight] = useState(false);
+  const [escrowRetryAfterSeconds, setEscrowRetryAfterSeconds] = useState<
+    number | undefined
+  >();
   const [
     hostSWForInventoryVersions,
     setHostSWForInventoryVersions,
@@ -183,8 +212,24 @@ const DeviceUserPage = ({
   const [queuedSelfServiceRefetch, setQueuedSelfServiceRefetch] = useState(
     false
   );
-  const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
+  const [refetchStart, setRefetchStart] = useState<{
+    at: number;
+    byUser: boolean;
+  } | null>(null);
+  const refetchStartTime = refetchStart?.at ?? null;
+  const isUserRequestedRefetch = !!refetchStart?.byUser;
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
+
+  const [darkMode, setDarkMode] = useState(() => isDarkMode());
+
+  useEffect(() => {
+    const onThemeChange = (e: Event) => {
+      setDarkMode((e as CustomEvent).detail.dark);
+    };
+    window.addEventListener("fleet-theme-change", onThemeChange);
+    return () =>
+      window.removeEventListener("fleet-theme-change", onThemeChange);
+  }, []);
 
   const { data: deviceMacAdminsData } = useQuery(
     ["macadmins", deviceAuthToken],
@@ -203,12 +248,13 @@ const DeviceUserPage = ({
     data: deviceCertificates,
     isLoading: isLoadingDeviceCertificates,
     isError: isErrorDeviceCertificates,
+    error: deviceCertificatesError,
     refetch: refetchDeviceCertificates,
   } = useQuery<
     IGetDeviceCertificatesResponse,
     Error,
     IGetDeviceCertificatesResponse,
-    Array<IGetDeviceCertsRequestParams & { scope: "device-certificates" }>
+    Array<IGetDeviceCertsApiParams & { scope: "device-certificates" }>
   >(
     [
       {
@@ -232,9 +278,9 @@ const DeviceUserPage = ({
     }
   );
 
-  const refetchExtensions = () => {
+  const refetchExtensions = useCallback(() => {
     deviceCertificates && refetchDeviceCertificates();
-  };
+  }, [deviceCertificates, refetchDeviceCertificates]);
 
   /**
    * Hides refetch spinner and resets refetch timer,
@@ -242,7 +288,7 @@ const DeviceUserPage = ({
    */
   const resetHostRefetchStates = () => {
     setShowRefetchSpinner(false);
-    setRefetchStartTime(null);
+    setRefetchStart(null);
   };
 
   const isRefetching = ({
@@ -261,23 +307,33 @@ const DeviceUserPage = ({
   };
 
   const {
-    data: dupResponse,
-    isLoading: isLoadingHost,
-    error: isDeviceUserError,
-    refetch: refetchHostDetails,
-  } = useQuery<IDeviceUserResponse, AxiosError>(
-    ["host", deviceAuthToken],
+    data: dupDetails,
+    dataUpdatedAt: dupDetailsUpdatedAt,
+    isLoading: isLoadingDupDetails,
+    isPreviousData: isDupDetailsPreviousData,
+    error: dupDetailsError,
+    refetch: refetchDupDetails,
+  } = useQuery<IDUPDetails, AxiosError>(
+    ["host", deviceAuthToken, showHiddenPolicies],
     () =>
       deviceUserAPI.loadHostDetails({
         token: deviceAuthToken,
         exclude_software: true,
+        include_hidden_policies: showHiddenPolicies,
       }),
     {
       enabled: !!deviceAuthToken,
+      keepPreviousData: true,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
       retry: false,
+      // A PIN the agent has not reported on yet resolves without the end user doing anything, so the banner clears itself.
+      // A modal still owed an answer keeps polling on its own account. The modal gives up after a deadline, which is what bounds this.
+      refetchInterval: (data) =>
+        isAwaitingPINOutcome || hasPINRequestInFlight(data)
+          ? BITLOCKER_PIN_POLL_INTERVAL
+          : false,
       onSuccess: ({ host: responseHost }) => {
         // If we're just showing the setup screen,
         // we don't need to refetch or alert on offline hosts.
@@ -287,43 +343,66 @@ const DeviceUserPage = ({
         // Handle spinner and timer for refetch
         if (isRefetching(responseHost)) {
           setShowRefetchSpinner(true);
+          // Automatic refetches (enrollment, software installs, admin requests) can catch a busy host between osquery check-ins,
+          // and the end user is at the host, so only their own refetch gets toasts. The status card still shows a real outage.
+          const shouldNotify = isUserRequestedRefetch;
 
           // Only set timer if not already running
           if (!refetchStartTime) {
-            if (responseHost.status === "online") {
-              setRefetchStartTime(Date.now());
+            // Here and below: iOS/iPadOS refetches use MDM commands which can be slower/less predictable
+            // than osquery. Don't show an error, just reset and let the user try again.
+            // Recently enrolled hosts are also exempted: orbit endpoints don't update host_seen_times,
+            // so a fresh host can read as offline until its first osquery distributed-read.
+            const isIOSOrIPadOS =
+              responseHost.platform === "ios" ||
+              responseHost.platform === "ipados";
+            if (
+              responseHost.status === "online" ||
+              isIOSOrIPadOS ||
+              isRecentlyEnrolled(responseHost.last_enrolled_at)
+            ) {
+              setRefetchStart({ at: Date.now(), byUser: false });
               setTimeout(() => {
-                refetchHostDetails();
+                refetchDupDetails();
                 refetchExtensions();
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
               resetHostRefetchStates();
-              renderFlash(
-                "error",
-                `This host is offline. Please try refetching host vitals later.`
-              );
             }
           } else {
             const totalElapsedTime = Date.now() - refetchStartTime;
             if (totalElapsedTime < 180000) {
-              if (responseHost.status === "online") {
+              const isIOSOrIPadOS =
+                responseHost.platform === "ios" ||
+                responseHost.platform === "ipados";
+              if (
+                responseHost.status === "online" ||
+                isIOSOrIPadOS ||
+                isRecentlyEnrolled(responseHost.last_enrolled_at)
+              ) {
                 setTimeout(() => {
-                  refetchHostDetails();
+                  refetchDupDetails();
                   refetchExtensions();
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
                 resetHostRefetchStates();
-                renderFlash(
-                  "error",
-                  `This host is offline. Please try refetching host vitals later.`
-                );
+                if (shouldNotify) {
+                  notify.error(
+                    `This host is offline. Please try refetching host vitals later.`
+                  );
+                }
               }
             } else {
+              // Timeout reached (3 minutes)
               resetHostRefetchStates();
-              renderFlash(
-                "error",
-                "We're having trouble fetching fresh vitals for this host. Please try again later."
-              );
+              const isIOSOrIPadOS =
+                responseHost.platform === "ios" ||
+                responseHost.platform === "ipados";
+              if (!isIOSOrIPadOS && shouldNotify) {
+                notify.error(
+                  "Refetch sent but vitals are taking longer than expected to load. You’ll see an update when the host responds."
+                );
+              }
             }
           }
         } else {
@@ -335,23 +414,52 @@ const DeviceUserPage = ({
   );
 
   const isAuthenticationError =
-    isDeviceUserError && isDeviceUserError.status === 401;
+    dupDetailsError && dupDetailsError.status === 401;
 
   const {
     host,
     license,
-    org_logo_url_light_background: orgLogoURL = "",
+    org_logo_url: orgLogoUrl = "",
+    org_logo_url_light_background: orgLogoUrlLightBackground = "",
+    org_logo_url_dark_mode: orgLogoUrlDarkMode = "",
+    org_logo_url_light_mode: orgLogoUrlLightMode = "",
     org_contact_url: orgContactURL = "",
     global_config: globalConfig = null as IDeviceGlobalConfig | null,
     self_service: hasSelfService = false,
-  } = dupResponse || {};
+  } = dupDetails || {};
+  const darkLogoURL = orgLogoUrlDarkMode || orgLogoUrl;
+  const lightLogoURL = orgLogoUrlLightMode || orgLogoUrlLightBackground;
+  const orgLogoURL = darkMode ? darkLogoURL : lightLogoURL;
   const isPremiumTier = license?.tier === "premium";
+  const diskEncryptionSetting = host?.mdm.os_settings?.disk_encryption;
+  const needsBitLockerPIN =
+    diskEncryptionSetting?.action_required === "create_pin";
+
+  // The Fleet Desktop toast links here with ?create_pin=1. The parameter is dropped once the page has acted on it.
+  useEffect(() => {
+    if (!location.query.create_pin || !host) {
+      return;
+    }
+    if (needsBitLockerPIN) {
+      setShowBitLockerPINModal(true);
+    }
+    router.replace(
+      getPathWithQueryParams(
+        location.pathname,
+        omit(location.query, "create_pin")
+      )
+    );
+  }, [host, needsBitLockerPIN, location, router]);
+
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
   const isSetupExperienceSoftwareEnabledPlatform =
     isLinuxLike(host?.platform || "") ||
     host?.platform === "windows" ||
     isMacOS(host?.platform || "");
+
+  const isManualAppleEnrollmentBlocked =
+    globalConfig?.mdm.only_allow_apple_business_enrollment ?? false;
 
   const isFleetMdmManualUnenrolledMac =
     !!globalConfig?.mdm.enabled_and_configured &&
@@ -364,7 +472,17 @@ const DeviceUserPage = ({
   const checkForSetupExperienceSoftware =
     isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
 
+  // Memoized so the table keeps a stable `data` reference across renders.
+  const controls = useMemo(
+    () => (host ? generateTableData(host.mdm, host.platform) ?? [] : []),
+    [host]
+  );
+
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
+
+  const deviceSummaryData = host?.issues
+    ? { ...summaryData, issues: toEndUserIssues(host.issues) }
+    : summaryData;
 
   const vitalsData = normalizeEmptyValues(pick(host, HOST_VITALS_DATA));
 
@@ -372,6 +490,7 @@ const DeviceUserPage = ({
     data: setupStepStatuses,
     isLoading: isLoadingSetupSteps,
     isError: isErrorSetupSteps,
+    error: setupStepsError,
   } = useQuery<
     IGetSetupExperienceStatusesResponse,
     AxiosError,
@@ -386,12 +505,12 @@ const DeviceUserPage = ({
       refetchIntervalInBackground: true,
       select: (response) => {
         // Marshal the response to include a `type` property so we can differentiate
-        // between software, payload-free software, and script setup steps in the UI.
+        // between software, script-only software, and script setup steps in the UI.
         return [
           ...(response.setup_experience_results.software ?? []).map((s) => ({
             ...s,
             type: isSoftwareScriptSetup(s)
-              ? "software_script_run" // used for payload-free software
+              ? "software_script_run" // used for script-only software
               : "software_install",
           })),
           ...(response.setup_experience_results.scripts ?? []).map((s) => ({
@@ -411,7 +530,10 @@ const DeviceUserPage = ({
     ["mdm_mandual_enroll_url", deviceAuthToken],
     () => deviceUserAPI.getMdmManualEnrollUrl(deviceAuthToken),
     {
-      enabled: !!deviceAuthToken && isFleetMdmManualUnenrolledMac,
+      enabled:
+        !!deviceAuthToken &&
+        isFleetMdmManualUnenrolledMac &&
+        !isManualAppleEnrollmentBlocked,
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
@@ -419,6 +541,31 @@ const DeviceUserPage = ({
       select: (data) => data.enroll_url,
     }
   );
+
+  const {
+    isSSORequired,
+    isRedirecting: isRedirectingToSSO,
+    retry: retryDeviceSSO,
+  } = useDeviceSSO({
+    deviceAuthToken,
+    errors: [
+      dupDetailsError,
+      deviceCertificatesError,
+      setupStepsError,
+      mdmManualEnrollUrlError,
+    ],
+    ssoErrorParam: location.query.sso_error,
+    isSetupOnly: !!location.query.setup_only,
+    hasSession: !!dupDetails,
+  });
+
+  const { bypassConditionalAccess } = deviceUserAPI;
+
+  const [isLoadingBypass, setIsLoadingBypass] = useState(false);
+
+  const toggleShowBypassModal = useCallback(() => {
+    setShowBypassModal(!showBypassModal);
+  }, [showBypassModal, setShowBypassModal]);
 
   const toggleInfoModal = useCallback(() => {
     setShowInfoModal(!showInfoModal);
@@ -453,50 +600,55 @@ const DeviceUserPage = ({
   );
 
   const bootstrapPackageData = {
-    status: host?.mdm.macos_setup?.bootstrap_package_status,
-    details: host?.mdm.macos_setup?.details,
-    name: host?.mdm.macos_setup?.bootstrap_package_name,
+    status: host?.mdm.setup_experience?.bootstrap_package_status,
+    details: host?.mdm.setup_experience?.details,
+    name: host?.mdm.setup_experience?.bootstrap_package_name,
   };
 
-  const toggleOSSettingsModal = useCallback(() => {
-    setShowOSSettingsModal(!showOSSettingsModal);
-  }, [showOSSettingsModal, setShowOSSettingsModal]);
-
   const onCancelPolicyDetailsModal = useCallback(() => {
-    setShowPolicyDetailsModal(!showPolicyDetailsModal);
+    setShowPolicyDetailsModal(false);
     setSelectedPolicy(null);
-  }, [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]);
+  }, [setShowPolicyDetailsModal, setSelectedPolicy]);
 
-  // User-initiated refetch always starts a new timer!
-  const onRefetchHost = useCallback(async () => {
-    if (!host) return;
-    setShowRefetchSpinner(true);
-    try {
-      await deviceUserAPI.refetch(deviceAuthToken);
-      setRefetchStartTime(Date.now());
-      setTimeout(() => {
-        refetchHostDetails();
-        refetchExtensions();
-      }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
-    } catch (error) {
-      renderFlash("error", getErrorMessage(error, host.display_name));
-      resetHostRefetchStates();
-    }
-  }, [
-    host,
-    deviceAuthToken,
-    refetchHostDetails,
-    refetchExtensions,
-    renderFlash,
-  ]);
+  // A refetch always starts a new timer!
+  const startRefetch = useCallback(
+    async (byUser: boolean) => {
+      if (!host) return;
+      setShowRefetchSpinner(true);
+
+      // Trigger APNS ping independently of the main refetch
+      if (canTriggerAPNSPing(host)) {
+        deviceUserAPI.apnsPing(deviceAuthToken).catch((error) => {
+          notify.error("Failed to send APNS ping", { response: error });
+        });
+      }
+
+      try {
+        await deviceUserAPI.refetch(deviceAuthToken);
+        setRefetchStart({ at: Date.now(), byUser });
+        setTimeout(() => {
+          refetchDupDetails();
+          refetchExtensions();
+        }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
+      } catch (error) {
+        notify.error(getErrorMessage(error, host.display_name), {
+          response: error,
+        });
+        resetHostRefetchStates();
+      }
+    },
+    [host, deviceAuthToken, refetchDupDetails, refetchExtensions]
+  );
+
+  const onRefetchHost = useCallback(() => startRefetch(true), [startRefetch]);
 
   // Handles the queue: If there's a queued refetch and not actively refetching, run refetch
   useEffect(() => {
     if (queuedSelfServiceRefetch && !showRefetchSpinner) {
       setQueuedSelfServiceRefetch(false);
-      onRefetchHost();
+      startRefetch(false);
     }
-  }, [queuedSelfServiceRefetch, showRefetchSpinner, onRefetchHost]);
+  }, [queuedSelfServiceRefetch, showRefetchSpinner, startRefetch]);
 
   // Triggered when a software update finishes
   const requestRefetch = () => {
@@ -505,14 +657,16 @@ const DeviceUserPage = ({
       setQueuedSelfServiceRefetch(true);
     } else {
       // Otherwise, run it now
-      onRefetchHost();
+      startRefetch(false);
     }
   };
 
+  const pageHeader = "My device";
+
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    document.title = `My device | ${DOCUMENT_TITLE_SUFFIX}`;
-  }, [location.pathname, host]);
+    document.title = `${pageHeader} | ${DOCUMENT_TITLE_SUFFIX}`;
+  }, [location.pathname, host, pageHeader]);
 
   const renderActionButtons = () => {
     return (
@@ -524,6 +678,8 @@ const DeviceUserPage = ({
 
   const onTriggerEscrowLinuxKey = async () => {
     setIsTriggeringCreateLinuxKey(true);
+    // reset before the request so a previous in-flight answer never flashes while loading
+    setIsEscrowInFlight(false);
     // modal opens in loading state
     setShowCreateLinuxKeyModal(true);
     try {
@@ -531,8 +687,14 @@ const DeviceUserPage = ({
         deviceAuthToken
       );
     } catch (e) {
-      renderFlash("error", "Failed to trigger key creation.");
-      setShowCreateLinuxKeyModal(false);
+      // 409: fleetd is already handling an earlier request, so no new pop-up is coming
+      if (hasStatusKey(e) && e.status === 409) {
+        setIsEscrowInFlight(true);
+        setEscrowRetryAfterSeconds(getRetryAfterSeconds(e));
+      } else {
+        notify.error("Failed to trigger key creation.", { response: e });
+        setShowCreateLinuxKeyModal(false);
+      }
     } finally {
       setIsTriggeringCreateLinuxKey(false);
     }
@@ -549,8 +711,35 @@ const DeviceUserPage = ({
     [deviceAuthToken]
   );
 
+  const installProfile = useCallback(
+    (profileUUID: string): Promise<void> =>
+      deviceUserAPI.installProfile(deviceAuthToken, profileUUID),
+    [deviceAuthToken]
+  );
+
+  const uninstallProfile = useCallback(
+    (profileUUID: string): Promise<void> =>
+      deviceUserAPI.uninstallProfile(deviceAuthToken, profileUUID),
+    [deviceAuthToken]
+  );
+
   const renderDeviceUserPage = () => {
-    const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
+    const displayedPolicies = host?.policies || [];
+    // Counted from the list the tab shows, so it follows the hidden-policies toggle.
+    const failingPoliciesCount = displayedPolicies.filter(
+      (p) => p.response === "fail"
+    ).length;
+
+    const failedControlsCount = countFailedControls(controls);
+
+    const showControlsTab =
+      !!host &&
+      shouldShowControlsTab({
+        platform: host.platform,
+        osVersion: getHostOSDisplayName(host.os_name, host.os_version),
+        enrollmentStatus: host.mdm?.enrollment_status ?? null,
+        hasControls: controls.length > 0,
+      });
 
     // TODO: We should probably have a standard way to handle this on all pages. Do we want to show
     // a premium-only message in the case that a user tries direct navigation to a premium-only page
@@ -561,6 +750,9 @@ const DeviceUserPage = ({
     ).map((t) => t(deviceAuthToken));
     if (!hasSelfService) {
       tabPaths = tabPaths.filter((path) => !path.includes("self-service"));
+    }
+    if (!showControlsTab) {
+      tabPaths = tabPaths.filter((path) => !path.endsWith("/controls"));
     }
 
     const findSelectedTab = (pathname: string) => {
@@ -580,7 +772,11 @@ const DeviceUserPage = ({
       ).idx;
     };
 
-    if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
+    if (
+      !isLoadingDupDetails &&
+      host &&
+      findSelectedTab(location.pathname) === -1
+    ) {
       router.push(tabPaths[0]);
     }
 
@@ -589,22 +785,24 @@ const DeviceUserPage = ({
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
 
-    const showUsersCard =
-      isMacOS(host?.platform || "") ||
-      isAndroid(host?.platform || "") ||
-      generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
-      generateOtherEmailsValues(host?.end_users ?? []).length > 0;
-
     if (
       !host ||
-      isLoadingHost ||
+      isLoadingDupDetails ||
       isLoadingDeviceCertificates ||
       isLoadingSetupSteps
     ) {
       return <Spinner {...(isMobileView && { variant: "mobile" })} />;
     }
     if (isErrorSetupSteps) {
-      return <DataError description="Could not get software setup status." />;
+      return (
+        <div className={`${baseClass} main-content`}>
+          <DeviceUserError
+            isMobileView={isMobileView}
+            isMobileDevice={isMobileDevice}
+            isErrorSetupSteps={isErrorSetupSteps}
+          />
+        </div>
+      );
     }
     if (
       checkForSetupExperienceSoftware &&
@@ -615,7 +813,7 @@ const DeviceUserPage = ({
         <SettingUpYourDevice
           setupSteps={setupStepStatuses || []}
           requireAllSoftware={
-            (isAppleHost && globalConfig?.mdm?.require_all_software_macos) ??
+            (isAppleHost && globalConfig?.mdm?.macos_require_all_software) ??
             false
           }
           toggleInfoModal={toggleInfoModal}
@@ -624,8 +822,8 @@ const DeviceUserPage = ({
       );
     }
 
-    // iOS/iPadOS devices or narrow screens should show mobile UI
-    const shouldShowMobileUI = isIOSIPadOS || isMobileView;
+    // isIOSIPadOS: Fleet platform. isMobile: user agent or ?mobile=1.
+    const shouldShowMobileUI = isIOSIPadOS || isMobile;
 
     if (shouldShowMobileUI) {
       // Force redirect to self-service route for iOS/iPadOS devices
@@ -655,26 +853,31 @@ const DeviceUserPage = ({
               hostSoftwareUpdatedAt={host.software_updated_at}
               hostDisplayName={host?.hostname || ""}
               isMobileView={shouldShowMobileUI}
+              mdmEnrollmentStatus={host.mdm.enrollment_status || "Off"}
             />
           </div>
         </div>
       );
     }
 
+    const hasAnyCriticalFailingCAPolicy = host?.policies?.some(
+      (p) => p.response === "fail" && p.conditional_access_enabled && p.critical
+    );
+
     return (
       <>
         <div className={`${baseClass} main-content`}>
           <DeviceUserBanners
             hostPlatform={host.platform}
-            hostOsVersion={host.os_version}
+            hostOsVersion={getHostOSDisplayName(host.os_name, host.os_version)}
             mdmEnrollmentStatus={host.mdm.enrollment_status}
             mdmEnabledAndConfigured={!!globalConfig?.mdm.enabled_and_configured}
             connectedToFleetMdm={!!host.mdm.connected_to_fleet}
             macDiskEncryptionStatus={
-              host.mdm.macos_settings?.disk_encryption ?? null
+              host.mdm.apple_settings?.disk_encryption ?? null
             }
             diskEncryptionActionRequired={
-              host.mdm.macos_settings?.action_required ?? null
+              host.mdm.apple_settings?.action_required ?? null
             }
             onClickCreatePIN={() => setShowBitLockerPINModal(true)}
             onClickTurnOnMdm={onClickTurnOnMdm}
@@ -683,6 +886,12 @@ const DeviceUserPage = ({
             diskIsEncrypted={host.disk_encryption_enabled}
             diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
             mdmManualEnrolmentUrl={mdmManualEnrollUrl}
+            lastMdmEnrolledAt={host.last_mdm_enrolled_at}
+            detailUpdatedAt={host.detail_updated_at}
+            depAssignedToFleet={host.dep_assigned_to_fleet || false}
+            onlyAllowAppleBusinessEnrollment={
+              !!globalConfig?.mdm.only_allow_apple_business_enrollment
+            }
           />
           <HostHeader
             summaryData={summaryData}
@@ -690,6 +899,8 @@ const DeviceUserPage = ({
             onRefetchHost={onRefetchHost}
             renderActionsDropdown={renderActionButtons}
             deviceUser
+            deviceUserHeader={pageHeader}
+            hostMdmEnrollmentStatus={null}
           />
           <TabNav className={`${baseClass}__tab-nav`}>
             <Tabs
@@ -699,12 +910,19 @@ const DeviceUserPage = ({
               <TabList>
                 {isPremiumTier && isSoftwareEnabled && hasSelfService && (
                   <Tab>
-                    <TabText>Self-service</TabText>
+                    <TabText>Self service</TabText>
                   </Tab>
                 )}
                 <Tab>
                   <TabText>Details</TabText>
                 </Tab>
+                {showControlsTab && (
+                  <Tab>
+                    <TabText count={failedControlsCount} countVariant="alert">
+                      Controls
+                    </TabText>
+                  </Tab>
+                )}
                 {isSoftwareEnabled && (
                   <Tab>
                     <TabText>Software</TabText>
@@ -731,18 +949,16 @@ const DeviceUserPage = ({
                     isHostDetailsPolling={showRefetchSpinner}
                     hostSoftwareUpdatedAt={host.software_updated_at}
                     hostDisplayName={host?.hostname || ""}
+                    mdmEnrollmentStatus={host.mdm.enrollment_status || "Off"}
                   />
                 </TabPanel>
               )}
               <TabPanel className={`${baseClass}__details-panel`}>
                 <HostSummaryCard
                   className={fullWidthCardClass}
-                  summaryData={summaryData}
+                  summaryData={deviceSummaryData}
                   bootstrapPackageData={bootstrapPackageData}
                   isPremiumTier={isPremiumTier}
-                  toggleOSSettingsModal={toggleOSSettingsModal}
-                  hostSettings={host?.mdm.profiles ?? []}
-                  osSettings={host?.mdm.os_settings}
                 />
                 <VitalsCard
                   className={fullWidthCardClass}
@@ -753,8 +969,6 @@ const DeviceUserPage = ({
                   className={fullWidthCardClass}
                   canWriteEndUser={false}
                   endUsers={host.end_users ?? []}
-                  disableFullNameTooltip
-                  disableGroupsTooltip
                 />
                 {isAppleHost && !!deviceCertificates?.certificates.length && (
                   <CertificatesCard
@@ -776,6 +990,27 @@ const DeviceUserPage = ({
                   />
                 )}
               </TabPanel>
+              {showControlsTab && (
+                <TabPanel>
+                  <ControlsCard
+                    controls={controls}
+                    hostDisplayName={host.display_name}
+                    isDeviceUser
+                    isConnectedToFleetMdm={!!host.mdm.connected_to_fleet}
+                    canResendProfiles={isAppleHost || isWindows(host.platform)}
+                    resendRequest={resendProfile}
+                    onProfileResent={refetchDupDetails}
+                    isMacOSHost={host.platform === "darwin"}
+                    canManageSelfServiceProfiles={
+                      isPremiumTier && host.platform === "darwin"
+                    }
+                    isPremiumTier={isPremiumTier}
+                    installRequest={installProfile}
+                    uninstallRequest={uninstallProfile}
+                    router={router}
+                  />
+                </TabPanel>
+              )}
               {isSoftwareEnabled && (
                 <TabPanel>
                   <SoftwareCard
@@ -785,8 +1020,9 @@ const DeviceUserPage = ({
                     pathname={location.pathname}
                     queryParams={parseHostSoftwareQueryParams(location.query)}
                     isMyDevicePage
+                    isPremiumTier={isPremiumTier}
                     platform={host.platform}
-                    hostTeamId={host.team_id || 0}
+                    hostTeamId={host.fleet_id || 0}
                     isSoftwareEnabled={isSoftwareEnabled}
                     onShowInventoryVersions={setHostSWForInventoryVersions}
                   />
@@ -795,12 +1031,23 @@ const DeviceUserPage = ({
               {isPremiumTier && (
                 <TabPanel>
                   <PoliciesCard
-                    policies={host?.policies || []}
-                    isLoading={isLoadingHost}
+                    policies={displayedPolicies}
+                    isLoading={isDupDetailsPreviousData}
                     deviceUser
+                    showHiddenPolicies={showHiddenPolicies}
+                    hasHiddenPolicies={!!host?.issues?.hidden_policies_count}
+                    onToggleShowHiddenPolicies={() =>
+                      setShowHiddenPolicies((current) => !current)
+                    }
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    closePolicyDetailsModal={onCancelPolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
-                    router={router}
+                    conditionalAccessEnabled={
+                      globalConfig?.features?.enable_conditional_access
+                    }
+                    conditionalAccessBypassed={
+                      host?.conditional_access_bypassed
+                    }
                   />
                 </TabPanel>
               )}
@@ -809,28 +1056,46 @@ const DeviceUserPage = ({
           {showEnrollMdmModal && host.dep_assigned_to_fleet ? (
             <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
           ) : null}
-          {showBitLockerPINModal && (
-            <BitLockerPinModal
-              onCancel={() => setShowBitLockerPINModal(false)}
-            />
-          )}
+          {showBitLockerPINModal &&
+            (diskEncryptionSetting?.fleetd_can_set_pin ? (
+              <BitLockerPinModal
+                deviceAuthToken={deviceAuthToken}
+                diskEncryption={diskEncryptionSetting}
+                dataUpdatedAt={dupDetailsUpdatedAt}
+                onWaitingChange={(isWaiting) => {
+                  setIsAwaitingPINOutcome(isWaiting);
+                  // A request already in flight would answer from before the submit, and react-query hands it back
+                  // rather than starting a second one unless it is cancelled.
+                  if (isWaiting) {
+                    refetchDupDetails({ cancelRefetch: true });
+                  }
+                }}
+                onExit={() => {
+                  setIsAwaitingPINOutcome(false);
+                  setShowBitLockerPINModal(false);
+                }}
+              />
+            ) : (
+              <BitLockerPinInstructionsModal
+                onExit={() => setShowBitLockerPINModal(false)}
+              />
+            ))}
         </div>
         {!!host && showPolicyDetailsModal && (
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
-          />
-        )}
-        {!!host && showOSSettingsModal && (
-          <OSSettingsModal
-            canResendProfiles={
-              isMacOS(host.platform) || isWindows(host.platform)
+            isDeviceUser
+            onResolveLater={
+              globalConfig?.features?.enable_conditional_access &&
+              globalConfig.features?.enable_conditional_access_bypass &&
+              !hasAnyCriticalFailingCAPolicy
+                ? () => {
+                    onCancelPolicyDetailsModal();
+                    setShowBypassModal(true);
+                  }
+                : undefined
             }
-            platform={host.platform}
-            hostMDMData={host.mdm}
-            resendRequest={resendProfile}
-            onProfileResent={refetchHostDetails}
-            onClose={toggleOSSettingsModal}
           />
         )}
         {showBootstrapPackageModal &&
@@ -845,6 +1110,8 @@ const DeviceUserPage = ({
         {showCreateLinuxKeyModal && !!host && (
           <CreateLinuxKeyModal
             isTriggeringCreateLinuxKey={isTriggeringCreateLinuxKey}
+            isEscrowInFlight={isEscrowInFlight}
+            retryAfterSeconds={escrowRetryAfterSeconds}
             onExit={() => {
               setShowCreateLinuxKeyModal(false);
             }}
@@ -866,33 +1133,88 @@ const DeviceUserPage = ({
     );
   };
 
+  const renderDeviceSSOState = () => {
+    if (isRedirectingToSSO) {
+      return (
+        <div className={`${baseClass}__sso-redirect`} role="status">
+          <Spinner {...(isMobileView && { variant: "mobile" })} />
+          <span>Redirecting to your organization’s sign-in page…</span>
+        </div>
+      );
+    }
+
+    return (
+      <DeviceUserError
+        isMobileView={isMobileView}
+        isMobileDevice={isMobileDevice}
+        ssoError="sign_in_failed"
+        onRetry={retryDeviceSSO}
+      />
+    );
+  };
+
+  // Auth errors (expired token, SSO required, bad enroll URL) are actionable;
+  // the "enlarge your browser" overlay is not. Let the error page win.
+  const hasDeviceUserError =
+    isSSORequired ||
+    (dupDetailsError && !dupDetails) ||
+    isAuthenticationError ||
+    !!enrollUrlError;
+
+  const showUnsupportedScreen =
+    !hasDeviceUserError &&
+    shouldShowUnsupportedScreen(location.pathname, isMobile);
+
   const coreWrapperClassnames = classNames("core-wrapper", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+    "low-width-supported": !showUnsupportedScreen,
   });
 
   const siteNavContainerClassnames = classNames("site-nav-container", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+    "low-width-supported": !showUnsupportedScreen,
   });
+
+  // The SSO branch has to come first: a refused device call is an error to
+  // every query on the page, but one the end user can act on by signing in.
+  const renderDeviceUserBody = () => {
+    if (isSSORequired) {
+      return renderDeviceSSOState();
+    }
+    // Only a failure that leaves nothing to show takes over the page. An expired token still takes over, because
+    // nothing here will work again without signing in.
+    if (
+      (dupDetailsError && !dupDetails) ||
+      isAuthenticationError ||
+      enrollUrlError
+    ) {
+      return (
+        <DeviceUserError
+          isMobileView={isMobileView}
+          isMobileDevice={isMobileDevice}
+          isAuthenticationError={!!isAuthenticationError}
+          ssoError={
+            isMismatchedSSOUserError(dupDetailsError)
+              ? "mismatched_sso_user"
+              : undefined
+          }
+        />
+      );
+    }
+    return (
+      <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
+    );
+  };
 
   return (
     <div className="app-wrap">
-      {shouldShowUnsupportedScreen(location.pathname) && (
-        <UnsupportedScreenSize />
-      )}
-      <FlashMessage
-        fullWidth
-        notification={notification}
-        onRemoveFlash={hideFlash}
-        pathname={location.pathname}
-      />
+      {showUnsupportedScreen && <UnsupportedScreenSize />}
       <nav className={siteNavContainerClassnames}>
         <div className="site-nav-content">
           <ul className="site-nav-left">
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
-                  {isLoadingHost ? (
-                    <Spinner />
+                  {isLoadingDupDetails ? (
+                    <Spinner centered={false} />
                   ) : (
                     <OrgLogoIcon className="logo" src={orgLogoURL} />
                   )}
@@ -903,7 +1225,7 @@ const DeviceUserPage = ({
           {isMobileView && (
             <div className="site-nav-better-link">
               <CustomLink
-                url="https://www.fleetdm.com/better"
+                url={PATHS.DEVICE_TRANSPARENCY(deviceAuthToken)}
                 text="About Fleet"
                 newTab
               />
@@ -911,17 +1233,36 @@ const DeviceUserPage = ({
           )}
         </div>
       </nav>
-      {isDeviceUserError || enrollUrlError ? (
-        <DeviceUserError
-          isMobileView={isMobileView}
-          isMobileDevice={isMobileDevice}
-          isAuthenticationError={!!isAuthenticationError}
-          platform={host?.platform}
+      {renderDeviceUserBody()}
+      {showInfoModal && (
+        <InfoModal
+          onCancel={toggleInfoModal}
+          transparencyURL={PATHS.DEVICE_TRANSPARENCY(deviceAuthToken)}
         />
-      ) : (
-        <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
       )}
-      {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
+      {showBypassModal && (
+        <BypassModal
+          onCancel={toggleShowBypassModal}
+          onResolveLater={async () => {
+            setIsLoadingBypass(true);
+            try {
+              await bypassConditionalAccess(deviceAuthToken);
+              notify.success(
+                "Access has been temporarily restored. You may now attempt to sign in again."
+              );
+              refetchDupDetails();
+            } catch {
+              notify.error(
+                `Couldn't restore access. Please click "Refetch" and try again.`
+              );
+            } finally {
+              setIsLoadingBypass(false);
+              setShowBypassModal(false);
+            }
+          }}
+          isLoading={isLoadingBypass}
+        />
+      )}
     </div>
   );
 };

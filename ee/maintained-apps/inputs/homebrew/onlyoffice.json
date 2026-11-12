@@ -1,0 +1,10 @@
+{
+  "name": "ONLYOFFICE",
+  "unique_identifier": "asc.onlyoffice.ONLYOFFICE",
+  "token": "onlyoffice",
+  "installer_format": "dmg",
+  "slug": "onlyoffice/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

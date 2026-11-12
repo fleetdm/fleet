@@ -153,7 +153,7 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
 <COPY FROM CHANGELOG>
 
-> Fleet-maintained app updates and vulnerability fixes are applied, whether or not you upgrade.
+> Fleet-maintained app updates and vulnerability feed fixes are applied, whether or not you upgrade.
 
 ### Fleet's agent and fleetctl CLI
 

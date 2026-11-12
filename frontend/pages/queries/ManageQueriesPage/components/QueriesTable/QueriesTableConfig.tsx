@@ -2,19 +2,19 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import PATHS from "router/paths";
 
-import { secondsToDhms } from "utilities/helpers";
-import {
-  isGlobalAdmin,
-  isGlobalMaintainer,
-  isTeamAdmin,
-  isTeamMaintainer,
-  isTeamObserver,
-  isOnlyObserver,
-} from "utilities/permissions/permissions";
-import { getPathWithQueryParams } from "utilities/url";
-
+import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import Icon from "components/Icon";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
+import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
+import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
+import Tag from "components/Tag";
+import TooltipWrapper from "components/TooltipWrapper";
 import {
   isScheduledQueryablePlatform,
   ScheduledQueryablePlatform,
@@ -26,19 +26,17 @@ import {
 } from "interfaces/schedulable_query";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
-
-import Icon from "components/Icon";
-import Checkbox from "components/forms/fields/Checkbox";
-import { getConditionalSelectHeaderCheckboxProps } from "components/TableContainer/utilities/config_utils";
-import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
-import TooltipWrapper from "components/TooltipWrapper";
-import InheritedBadge from "components/InheritedBadge";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import PATHS from "router/paths";
+import { secondsToDhms } from "utilities/helpers";
+import {
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
+  isOnlyObserver,
+} from "utilities/permissions/permissions";
+import { getPathWithQueryParams } from "utilities/url";
 
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
@@ -144,7 +142,11 @@ const generateColumnConfigs = ({
       ),
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
-        const { id, team_id, observer_can_run } = cellProps.row.original;
+        const {
+          id,
+          fleet_id: queryFleetId,
+          observer_can_run,
+        } = cellProps.row.original;
         return (
           <LinkCell
             className="w400"
@@ -154,7 +156,7 @@ const generateColumnConfigs = ({
               <>
                 {!isCurrentTeamObserverOrGlobalObserver && observer_can_run && (
                   <TooltipWrapper
-                    tipContent="Observers can run this query."
+                    tipContent="Observers can run this report."
                     underline={false}
                     showArrow
                     position="top"
@@ -163,20 +165,21 @@ const generateColumnConfigs = ({
                     <Icon
                       className="observer-can-run-query-icon"
                       name="query"
-                      size="small"
                       color="ui-fleet-black-50"
                     />
                   </TooltipWrapper>
                 )}
                 {viewingTeamScope &&
                   // inherited
-                  team_id !== currentTeamId && (
-                    <InheritedBadge tooltipContent="This query runs on all hosts." />
+                  queryFleetId !== currentTeamId && (
+                    <Tag tooltip="This report runs on all hosts." size="small">
+                      Inherited
+                    </Tag>
                   )}
               </>
             }
-            path={getPathWithQueryParams(PATHS.QUERY_DETAILS(id), {
-              team_id: team_id ?? currentTeamId,
+            path={getPathWithQueryParams(PATHS.REPORT_DETAILS(id), {
+              fleet_id: queryFleetId ?? currentTeamId,
             })}
           />
         );
@@ -240,7 +243,6 @@ const generateColumnConfigs = ({
         <PerformanceImpactCell
           value={{
             indicator: cellProps.cell.value,
-            id: cellProps.row.original.id,
           }}
         />
       ),
@@ -295,7 +297,7 @@ const generateColumnConfigs = ({
         const checkboxProps = getConditionalSelectHeaderCheckboxProps({
           headerProps,
           checkIfRowIsSelectable: (row) =>
-            (row.original.team_id ?? undefined) === currentTeamId,
+            (row.original.fleet_id ?? undefined) === currentTeamId,
         });
 
         return (
@@ -315,7 +317,7 @@ const generateColumnConfigs = ({
       },
       Cell: (cellProps: ICellProps): JSX.Element => {
         const isInheritedQuery =
-          (cellProps.row.original.team_id ?? undefined) !== currentTeamId;
+          (cellProps.row.original.fleet_id ?? undefined) !== currentTeamId;
         if (viewingTeamScope && isInheritedQuery) {
           // disallow selecting inherited queries
           return <></>;

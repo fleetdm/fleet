@@ -36,9 +36,13 @@
     }
   }
 
+  &__manage-automations-tooltip {
+    text-align: center;
+  }
+
   &__action-button-container {
     display: flex;
-    gap: $pad-small;
+    gap: $gap-action-elements;
   }
 
   .queries-table {
@@ -49,7 +53,6 @@
     .data-table-block {
       .data-table {
         &__wrapper {
-          overflow-x: auto;
           overflow-y: hidden;
         }
         &__table {
@@ -91,10 +94,6 @@
           tbody {
             .name__cell {
               width: auto;
-
-              .inherited-badge {
-                overflow: initial;
-              }
             }
 
             @media (max-width: $break-md) {
@@ -143,11 +142,6 @@
           font-size: $xx-small;
         }
       }
-    }
-  }
-  .reveal-button {
-    .component__tooltip-wrapper__underline {
-      position: initial;
     }
   }
 }

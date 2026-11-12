@@ -1,9 +1,8 @@
 import React from "react";
 
-import { PolicyResponse } from "utilities/constants";
-
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import { PolicyResponse } from "utilities/constants";
 
 interface IPoliciesFilterProps {
   policyResponse: PolicyResponse;
@@ -15,12 +14,12 @@ const baseClass = "policies-filter";
 const POLICY_RESPONSE_OPTIONS = [
   {
     disabled: false,
-    label: "Yes",
+    label: "Pass",
     value: PolicyResponse.PASSING,
   },
   {
     disabled: false,
-    label: "No",
+    label: "Fail",
     value: PolicyResponse.FAILING,
   },
 ];

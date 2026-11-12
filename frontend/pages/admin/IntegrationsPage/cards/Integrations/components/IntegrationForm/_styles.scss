@@ -18,9 +18,7 @@
       margin-top: 5px;
 
       &__label {
-        font-size: $x-small;
-        font-weight: $bold;
-        color: $core-fleet-black;
+        @include form-label;
       }
     }
   }
@@ -43,9 +41,7 @@
   }
 
   &__label {
-    color: $core-fleet-black;
-    font-size: $x-small;
-    font-weight: $bold;
+    @include form-label;
     margin-bottom: $pad-small;
   }
 

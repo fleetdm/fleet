@@ -1,0 +1,9 @@
+dependencies:
+- name: mysql
+  repository: file://charts/mysql
+  version: 1.0.0
+- name: valkey
+  repository: https://valkey.io/valkey-helm/
+  version: 0.9.3
+digest: sha256:f5d7c7af6135ca2f3c338d0980ebc4ddac73bab407d3a2e4856e11ca26c8bedd
+generated: "2026-03-25T22:00:57.544657787-05:00"

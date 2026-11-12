@@ -1,5 +1,4 @@
 .dashboard-page {
-  overflow: initial; // auto causes double scroll bar  but still needed for other pages .main-content div
   @include vertical-page-layout;
 
   h2 {
@@ -31,6 +30,11 @@
     .fleeticon-offline {
       color: $ui-error;
     }
+  }
+
+  .card {
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
 
   &__platforms {
@@ -72,6 +76,16 @@
     flex-direction: column;
   }
 
+  &__charts-row {
+    display: grid;
+    row-gap: $gap-page-component;
+
+    @media screen and (min-width: $break-md) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      column-gap: $gap-page-component;
+    }
+  }
+
   // >= 320px 12 pt gap
   @media (min-width: $break-mobile-xs) {
     .dashboard-page__host-sections {
@@ -95,12 +109,5 @@
     display: flex;
     justify-content: center;
     align-items: center;
-  }
-
-  // this is needed to make changes to the activity feed dropodown filters layout
-  // based on the activity feed card width
-  .activity-feed-card {
-    container-type: inline-size;
-    container-name: activity-feed-card;
   }
 }

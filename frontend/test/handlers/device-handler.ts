@@ -1,51 +1,80 @@
 import { http, HttpResponse } from "msw";
 
-import createMockDeviceUser, {
+import { createMockHostCertificate } from "__mocks__/certificatesMock";
+import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
+import {
   createMockDeviceSoftwareResponse,
   createMockSetupSoftwareStatusesResponse,
 } from "__mocks__/deviceUserMock";
 import createMockHost from "__mocks__/hostMock";
 import createMockLicense from "__mocks__/licenseMock";
 import createMockMacAdmins from "__mocks__/macAdminsMock";
-import { createMockHostCertificate } from "__mocks__/certificatesMock";
-import { createMockAppleMdmCommandResult } from "__mocks__/commandMock";
-
-import { baseUrl } from "test/test-utils";
-import { IDeviceUserResponse } from "interfaces/host";
+import { IDUPDetails } from "interfaces/host";
 import {
   IGetDeviceSoftwareResponse,
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
+import { baseUrl } from "test/test-utils";
 
-export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
-  return HttpResponse.json({
-    host: createMockHost(),
-    license: createMockLicense(),
-    org_logo_url: "",
-    org_logo_url_light_background: "",
-    global_config: {
-      mdm: { enabled_and_configured: false },
+export const createDefaultDeviceResponse = (): IDUPDetails => ({
+  host: { ...createMockHost(), dep_assigned_to_fleet: false },
+  license: createMockLicense(),
+  org_logo_url: "",
+  org_logo_url_light_background: "",
+  org_logo_url_dark_mode: "",
+  org_logo_url_light_mode: "",
+  org_contact_url: "",
+  self_service: false,
+  global_config: {
+    mdm: {
+      enabled_and_configured: false,
+      macos_require_all_software: false,
+      only_allow_apple_business_enrollment: false,
     },
-  });
+    features: {
+      enable_software_inventory: false,
+      enable_conditional_access: false,
+      enable_conditional_access_bypass: false,
+    },
+  },
 });
 
-export const customDeviceHandler = (overrides?: Partial<IDeviceUserResponse>) =>
-  http.get(baseUrl("/device/:token"), () => {
-    const response = Object.assign(
-      {
-        host: createMockHost(),
-        license: createMockLicense(),
-        org_logo_url: "",
-        org_logo_url_light_background: "",
-        global_config: {
-          mdm: { enabled_and_configured: false },
-        },
-      },
-      overrides
-    );
-    return HttpResponse.json(response);
-  });
+export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () =>
+  HttpResponse.json(createDefaultDeviceResponse())
+);
+
+/** The device API answers 401 for an expired device token and, when Fleet
+ * Desktop SSO is on, for a request carrying no IdP session. Only the second
+ * carries the marker. */
+export const ssoRequiredDeviceHandler = http.get(
+  baseUrl("/device/:token"),
+  () =>
+    HttpResponse.json(
+      { message: "Single sign-on required", sso_required: true },
+      { status: 401 }
+    )
+);
+
+export const ssoRequiredDeviceCertificatesHandler = http.get(
+  baseUrl("/device/:token/certificates"),
+  () =>
+    HttpResponse.json(
+      { message: "Single sign-on required", sso_required: true },
+      { status: 401 }
+    )
+);
+
+export const unauthorizedDeviceHandler = http.get(
+  baseUrl("/device/:token"),
+  () =>
+    HttpResponse.json({ message: "Authentication required" }, { status: 401 })
+);
+
+export const customDeviceHandler = (overrides?: Partial<IDUPDetails>) =>
+  http.get(baseUrl("/device/:token"), () =>
+    HttpResponse.json({ ...createDefaultDeviceResponse(), ...overrides })
+  );
 
 export const defaultMacAdminsHandler = http.get(
   baseUrl("/device/:token/macadmins"),
@@ -93,7 +122,7 @@ export const emptySetupExperienceHandler = deviceSetupExperienceHandler({
 export const getDeviceVppCommandResultHandler = http.get(
   `/device/:token/software/commands/:uuid/results`,
   ({ params }) => {
-    const { token, uuid } = params;
+    const { uuid } = params;
 
     // Map UUIDs to status
     const statusMap = {

@@ -13,14 +13,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/jmoiron/sqlx"
-
-	kitlog "github.com/go-kit/log"
 )
 
 func main() {
@@ -118,13 +117,19 @@ func main() {
 	_, err = db.ExecContext(ctx, `
 		INSERT INTO nano_enrollments (
 			id, device_id, user_id, type, topic, push_magic, token_hex, enabled,
-			token_update_tally, last_seen_at, enrolled_from_migration
+			token_update_tally, enrolled_from_migration
 		) VALUES (
 			?, ?, NULL, 'Device', 'com.example.mdm', 'magic-token', 'deadbeef', 1,
-			1, NOW(), 0
+			1, 0
 		) ON DUPLICATE KEY UPDATE enabled = 1`, *hostUUID, *hostUUID)
 	if err != nil {
 		log.Fatalf("failed to insert nano_enrollments for host UUID %s: %v", *hostUUID, err)
+	}
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO nano_seen_times (id, seen_time) VALUES (?, NOW())
+		ON DUPLICATE KEY UPDATE seen_time = NOW()`, *hostUUID)
+	if err != nil {
+		log.Fatalf("failed to insert nano_seen_times for host UUID %s: %v", *hostUUID, err)
 	}
 	_, err = db.ExecContext(ctx, `
 		INSERT INTO host_mdm_apple_awaiting_configuration (host_uuid, awaiting_configuration) VALUES (?, 1) ON DUPLICATE KEY UPDATE awaiting_configuration = 1
@@ -145,7 +150,7 @@ func main() {
 		}
 	}
 
-	logger := kitlog.NewLogfmtLogger(os.Stderr)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 	opts := []mysql.DBOption{
 		mysql.Logger(logger),
 		mysql.WithFleetConfig(&config.FleetConfig{
@@ -159,7 +164,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	_, err = mds.EnqueueSetupExperienceItems(ctx, "darwin", *hostUUID, teamID)
+	_, err = mds.EnqueueSetupExperienceItems(ctx, "darwin", "darwin", *hostUUID, teamID)
 	if err != nil {
 		log.Fatalf("failed to enqueue setup experience items for host %s: %v", *hostUUID, err)
 	}

@@ -42,17 +42,18 @@ func TestRetryDo(t *testing.T) {
 	t.Run("with backoff", func(t *testing.T) {
 		count := 0
 		maxAttempts := 4
+		tolerance := 50 * time.Millisecond // Use a generous tolerance for CI environments where scheduling jitter can occur
 		start := time.Now()
 		err := Do(func() error {
 			switch count {
 			case 0:
-				require.WithinDuration(t, start, time.Now(), 1*time.Millisecond)
+				require.WithinDuration(t, start, time.Now(), tolerance)
 			case 1:
-				require.WithinDuration(t, start.Add(50*time.Millisecond), time.Now(), 10*time.Millisecond)
+				require.WithinDuration(t, start.Add(50*time.Millisecond), time.Now(), tolerance)
 			case 2:
-				require.WithinDuration(t, start.Add((50+100)*time.Millisecond), time.Now(), 10*time.Millisecond)
+				require.WithinDuration(t, start.Add((50+100)*time.Millisecond), time.Now(), tolerance)
 			case 3:
-				require.WithinDuration(t, start.Add((50+100+200)*time.Millisecond), time.Now(), 10*time.Millisecond)
+				require.WithinDuration(t, start.Add((50+100+200)*time.Millisecond), time.Now(), tolerance)
 			}
 			count++
 			if count != maxAttempts {

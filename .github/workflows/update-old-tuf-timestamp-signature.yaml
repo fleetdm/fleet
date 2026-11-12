@@ -14,6 +14,8 @@ defaults:
 env:
   AWS_REGION: us-east-1
   AWS_IAM_ROLE: arn:aws:iam::142412512209:role/github-actions-role
+  # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
+  NPM_CONFIG_MIN_RELEASE_AGE: 0.5
 
 permissions:
   id-token: write # This is required for aws-actions/configure-aws-credentials
@@ -23,9 +25,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
+
+      - name: Checkout fleetctl install script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: website/assets/resources/install-fleetctl.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
@@ -34,7 +43,9 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Install fleetctl
-        run: npm install -g fleetctl
+        run: |
+          bash website/assets/resources/install-fleetctl.sh
+          echo "$HOME/.fleetctl" >> "$GITHUB_PATH"
 
       - name: Pull metadata files
         run: |

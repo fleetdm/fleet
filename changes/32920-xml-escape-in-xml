@@ -1,1 +1,0 @@
-- Fixed an issue where GitOps would fail if $FLEET_SECRET contained XML characters in XML files, due to not escaping the value.

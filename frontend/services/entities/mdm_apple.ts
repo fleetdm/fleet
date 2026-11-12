@@ -2,6 +2,7 @@ import { IMdmVppToken } from "interfaces/mdm";
 import { ApplePlatform } from "interfaces/platform";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
+import { getPathWithQueryParams } from "utilities/url";
 
 export interface IGetVppInfoResponse {
   org_name: string;
@@ -27,11 +28,11 @@ export interface IGetVppTokensResponse {
   vpp_tokens: IMdmVppToken[];
 }
 
-export interface IUploadVppTokenReponse {
-  vpp_token: IMdmVppToken;
+export interface IUploadVppTokenResponse {
+  token: IMdmVppToken;
 }
 
-export type IRenewVppTokenResponse = IUploadVppTokenReponse;
+export type IRenewVppTokenResponse = IUploadVppTokenResponse;
 
 export default {
   getAppleAPNInfo: () => {
@@ -62,10 +63,18 @@ export default {
     return sendRequest("DELETE", MDM_APPLE_VPP_TOKEN);
   },
 
-  getVppApps: (teamId: number): Promise<IGetVppAppsResponse> => {
+  getVppApps: (
+    teamId: number,
+    vppTokenId?: number
+  ): Promise<IGetVppAppsResponse> => {
     const { SOFTWARE_APP_STORE_APPS } = endpoints;
-    const path = `${SOFTWARE_APP_STORE_APPS}?team_id=${teamId}`;
-    return sendRequest("GET", path);
+    return sendRequest(
+      "GET",
+      getPathWithQueryParams(SOFTWARE_APP_STORE_APPS, {
+        fleet_id: teamId,
+        vpp_token_id: vppTokenId,
+      })
+    );
   },
 
   getVppTokens: (): Promise<IGetVppTokensResponse> => {
@@ -73,7 +82,7 @@ export default {
     return sendRequest("GET", MDM_VPP_TOKENS);
   },
 
-  uploadVppToken: (token: File): Promise<IUploadVppTokenReponse> => {
+  uploadVppToken: (token: File): Promise<IUploadVppTokenResponse> => {
     const { MDM_VPP_TOKENS } = endpoints;
     const formData = new FormData();
     formData.append("token", token);
@@ -100,6 +109,6 @@ export default {
   }) => {
     const { MDM_VPP_TOKEN_TEAMS } = endpoints;
     const path = MDM_VPP_TOKEN_TEAMS(params.tokenId);
-    return sendRequest("PATCH", path, { teams: params.teamIds });
+    return sendRequest("PATCH", path, { fleets: params.teamIds });
   },
 };

@@ -2,14 +2,6 @@ import { IFormField } from "./form_field";
 import { IPack } from "./pack";
 import { ISchedulableQuery, ISchedulableQueryStats } from "./schedulable_query";
 
-export interface IEditQueryFormData {
-  description?: string | number | boolean | undefined;
-  name?: string | number | boolean | undefined;
-  query?: string | number | boolean | undefined;
-  observer_can_run?: string | number | boolean | undefined;
-  automations_enabled?: boolean;
-}
-
 export interface IStoredQueryResponse {
   query: ISchedulableQuery;
 }

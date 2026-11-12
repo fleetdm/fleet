@@ -1,0 +1,10 @@
+{
+  "name": "Portfolio Performance",
+  "unique_identifier": "name.abuchen.portfolio.distro.product",
+  "token": "portfolioperformance",
+  "installer_format": "dmg",
+  "slug": "portfolioperformance/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

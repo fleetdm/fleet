@@ -1,4 +1,10 @@
-import React, { createContext, useReducer, useMemo, ReactNode } from "react";
+import React, {
+  createContext,
+  useReducer,
+  useMemo,
+  useCallback,
+  ReactNode,
+} from "react";
 
 import { IConfig, IUserSettings } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
@@ -9,9 +15,9 @@ import {
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
 import { IUser } from "interfaces/user";
+import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import sort from "utilities/sort";
-import { hasLicenseExpired, willExpireWithinXDays } from "utilities/helpers";
 
 enum ACTIONS {
   SET_AVAILABLE_TEAMS = "SET_AVAILABLE_TEAMS",
@@ -24,8 +30,10 @@ enum ACTIONS {
   SET_ABM_EXPIRY = "SET_ABM_EXPIRY",
   SET_APNS_EXPIRY = "SET_APNS_EXPIRY",
   SET_VPP_EXPIRY = "SET_VPP_EXPIRY",
+  SET_EJBCA_EXPIRY = "SET_EJBCA_EXPIRY",
   SET_SANDBOX_EXPIRY = "SET_SANDBOX_EXPIRY",
   SET_NO_SANDBOX_HOSTS = "SET_NO_SANDBOX_HOSTS",
+  SET_HOST_COUNT = "SET_HOST_COUNT",
   SET_FILTERED_HOSTS_PATH = "SET_FILTERED_HOSTS_PATH",
   SET_FILTERED_SOFTWARE_PATH = "SET_FILTERED_SOFTWARE_PATH",
   SET_FILTERED_QUERIES_PATH = "SET_FILTERED_QUERIES_PATH",
@@ -69,6 +77,8 @@ interface ISetAndroidEnterpriseDeletedAction {
 interface IAbmExpiry {
   earliestExpiry: string;
   needsAbmTermsRenewal: boolean;
+  hasInvalidABMToken: boolean;
+  invalidAbmTokenOrgNames: string[];
 }
 
 interface ISetABMExpiryAction {
@@ -86,6 +96,11 @@ interface ISetVppExpiryAction {
   vppExpiry: string;
 }
 
+interface ISetEJBCAExpiryAction {
+  type: ACTIONS.SET_EJBCA_EXPIRY;
+  ejbcaExpiry: string;
+}
+
 interface ISetSandboxExpiryAction {
   type: ACTIONS.SET_SANDBOX_EXPIRY;
   sandboxExpiry: string;
@@ -94,6 +109,11 @@ interface ISetSandboxExpiryAction {
 interface ISetNoSandboxHostsAction {
   type: ACTIONS.SET_NO_SANDBOX_HOSTS;
   noSandboxHosts: boolean;
+}
+
+interface ISetHostCountAction {
+  type: ACTIONS.SET_HOST_COUNT;
+  hostCount?: number;
 }
 
 interface ISetFilteredHostsPathAction {
@@ -127,8 +147,10 @@ type IAction =
   | ISetABMExpiryAction
   | ISetAPNsExpiryAction
   | ISetVppExpiryAction
+  | ISetEJBCAExpiryAction
   | ISetSandboxExpiryAction
   | ISetNoSandboxHostsAction
+  | ISetHostCountAction
   | ISetFilteredHostsPathAction
   | ISetFilteredSoftwarePathAction
   | ISetFilteredQueriesPathAction
@@ -164,22 +186,33 @@ type InitialStateType = {
   isTeamMaintainerOrTeamAdmin?: boolean;
   isAnyTeamAdmin?: boolean;
   isTeamAdmin?: boolean;
+  isTeamTechnician?: boolean;
+  isAnyTeamTechnician?: boolean;
+  isGlobalTechnician?: boolean;
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isNoAccess?: boolean;
+  isAnyMaintainerAdminObserverPlus?: boolean;
   isAndroidEnterpriseDeleted: boolean;
   isAppleBmExpired: boolean;
   isApplePnsExpired: boolean;
   isVppExpired: boolean;
+  isEJBCACertExpired: boolean;
   needsAbmTermsRenewal: boolean;
+  hasInvalidABMToken: boolean;
+  invalidAbmTokenOrgNames: string[];
   willAppleBmExpire: boolean;
   willApplePnsExpire: boolean;
   willVppExpire: boolean;
+  willEJBCACertExpire: boolean;
   abmExpiry?: IAbmExpiry;
   apnsExpiry?: string;
   vppExpiry?: string;
+  ejbcaExpiry?: string;
   sandboxExpiry?: string;
   noSandboxHosts?: boolean;
+  /** Total hosts across all fleets. Only loaded for global users on Fleet Premium. */
+  hostCount?: number;
   filteredHostsPath?: string;
   filteredSoftwarePath?: string;
   filteredQueriesPath?: string;
@@ -198,8 +231,10 @@ type InitialStateType = {
   setAPNsExpiry: (apnsExpiry: string) => void;
   setABMExpiry: (abmExpiry: IAbmExpiry) => void;
   setVppExpiry: (vppExpiry: string) => void;
+  setEJBCAExpiry: (ejbcaExpiry: string) => void;
   setSandboxExpiry: (sandboxExpiry: string) => void;
   setNoSandboxHosts: (noSandboxHosts: boolean) => void;
+  setHostCount: (hostCount?: number) => void;
   setFilteredHostsPath: (filteredHostsPath: string) => void;
   setFilteredSoftwarePath: (filteredSoftwarePath: string) => void;
   setFilteredQueriesPath: (filteredQueriesPath: string) => void;
@@ -234,9 +269,13 @@ export const initialState = {
   isTeamMaintainerOrTeamAdmin: undefined,
   isAnyTeamAdmin: undefined,
   isTeamAdmin: undefined,
+  isTeamTechnician: undefined,
+  isAnyTeamTechnician: undefined,
+  isGlobalTechnician: undefined,
   isOnlyObserver: undefined,
   isObserverPlus: undefined,
   isNoAccess: undefined,
+  isAnyMaintainerAdminObserverPlus: undefined,
   filteredHostsPath: undefined,
   filteredSoftwarePath: undefined,
   filteredQueriesPath: undefined,
@@ -245,10 +284,14 @@ export const initialState = {
   isAppleBmExpired: false,
   isApplePnsExpired: false,
   isVppExpired: false,
+  isEJBCACertExpired: false,
   needsAbmTermsRenewal: false,
+  hasInvalidABMToken: false,
+  invalidAbmTokenOrgNames: [],
   willAppleBmExpire: false,
   willApplePnsExpire: false,
   willVppExpire: false,
+  willEJBCACertExpire: false,
   setAvailableTeams: () => null,
   setUserSettings: () => null,
   setCurrentUser: () => null,
@@ -259,8 +302,10 @@ export const initialState = {
   setAPNsExpiry: () => null,
   setABMExpiry: () => null,
   setVppExpiry: () => null,
+  setEJBCAExpiry: () => null,
   setSandboxExpiry: () => null,
   setNoSandboxHosts: () => null,
+  setHostCount: () => null,
   setFilteredHostsPath: () => null,
   setFilteredSoftwarePath: () => null,
   setFilteredQueriesPath: () => null,
@@ -302,6 +347,7 @@ const setPermissions = (
     isGlobalAdmin: permissions.isGlobalAdmin(user),
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
+    isGlobalTechnician: permissions.isGlobalTechnician(user),
     isOnGlobalTeam: permissions.isOnGlobalTeam(user),
     isAnyTeamObserverPlus: permissions.isAnyTeamObserverPlus(user),
     isAnyTeamMaintainer: permissions.isAnyTeamMaintainer(user),
@@ -312,6 +358,8 @@ const setPermissions = (
     isTeamObserver: permissions.isTeamObserver(user, teamId),
     isTeamMaintainer: permissions.isTeamMaintainer(user, teamId),
     isTeamAdmin: permissions.isTeamAdmin(user, teamId),
+    isTeamTechnician: permissions.isTeamTechnician(user, teamId),
+    isAnyTeamTechnician: permissions.isAnyTeamTechnician(user),
     isTeamMaintainerOrTeamAdmin: permissions.isTeamMaintainerOrTeamAdmin(
       user,
       teamId
@@ -320,6 +368,24 @@ const setPermissions = (
     isObserverPlus: permissions.isObserverPlus(user, teamId),
     isNoAccess: permissions.isNoAccess(user),
   };
+};
+
+export const sortAvailableTeams = (
+  availableFleets: ITeamSummary[],
+  user: IUser | null
+): ITeamSummary[] => {
+  const sortedFleets = [...availableFleets]
+    .sort((a, b) => sort.caseInsensitiveAsc(a.name, b.name))
+    .filter(
+      (t) =>
+        t.name !== APP_CONTEXT_ALL_TEAMS_SUMMARY.name &&
+        t.name !== APP_CONTEXT_NO_TEAM_SUMMARY.name
+    );
+  if (user && permissions.isOnGlobalTeam(user)) {
+    sortedFleets.unshift(APP_CONTEXT_ALL_TEAMS_SUMMARY);
+    sortedFleets.push(APP_CONTEXT_NO_TEAM_SUMMARY);
+  }
+  return sortedFleets;
 };
 
 const reducer = (state: InitialStateType, action: IAction) => {
@@ -332,27 +398,9 @@ const reducer = (state: InitialStateType, action: IAction) => {
       };
     }
     case ACTIONS.SET_AVAILABLE_TEAMS: {
-      const { user, availableTeams } = action;
-
-      let sortedTeams = availableTeams.sort(
-        (a: ITeamSummary, b: ITeamSummary) =>
-          sort.caseInsensitiveAsc(a.name, b.name)
-      );
-      sortedTeams = sortedTeams.filter(
-        (t) =>
-          t.name !== APP_CONTEXT_ALL_TEAMS_SUMMARY.name &&
-          t.name !== APP_CONTEXT_NO_TEAM_SUMMARY.name
-      );
-      if (user && permissions.isOnGlobalTeam(user)) {
-        sortedTeams.unshift(
-          APP_CONTEXT_ALL_TEAMS_SUMMARY,
-          APP_CONTEXT_NO_TEAM_SUMMARY
-        );
-      }
-
       return {
         ...state,
-        availableTeams: sortedTeams,
+        availableTeams: sortAvailableTeams(action.availableTeams, action.user),
       };
     }
     case ACTIONS.SET_CURRENT_USER: {
@@ -396,13 +444,20 @@ const reducer = (state: InitialStateType, action: IAction) => {
     }
     case ACTIONS.SET_ABM_EXPIRY: {
       const { abmExpiry } = action;
-      const { earliestExpiry, needsAbmTermsRenewal } = abmExpiry;
+      const {
+        earliestExpiry,
+        needsAbmTermsRenewal,
+        hasInvalidABMToken,
+        invalidAbmTokenOrgNames,
+      } = abmExpiry;
       return {
         ...state,
         abmExpiry,
         isAppleBmExpired: hasLicenseExpired(earliestExpiry),
         willAppleBmExpire: willExpireWithinXDays(earliestExpiry, 30),
         needsAbmTermsRenewal,
+        hasInvalidABMToken,
+        invalidAbmTokenOrgNames,
       };
     }
     case ACTIONS.SET_APNS_EXPIRY: {
@@ -423,6 +478,15 @@ const reducer = (state: InitialStateType, action: IAction) => {
         willVppExpire: willExpireWithinXDays(vppExpiry, 30),
       };
     }
+    case ACTIONS.SET_EJBCA_EXPIRY: {
+      const { ejbcaExpiry } = action;
+      return {
+        ...state,
+        ejbcaExpiry,
+        isEJBCACertExpired: hasLicenseExpired(ejbcaExpiry),
+        willEJBCACertExpire: willExpireWithinXDays(ejbcaExpiry, 30),
+      };
+    }
     case ACTIONS.SET_SANDBOX_EXPIRY: {
       const { sandboxExpiry } = action;
       return {
@@ -435,6 +499,13 @@ const reducer = (state: InitialStateType, action: IAction) => {
       return {
         ...state,
         noSandboxHosts,
+      };
+    }
+    case ACTIONS.SET_HOST_COUNT: {
+      const { hostCount } = action;
+      return {
+        ...state,
+        hostCount,
       };
     }
     case ACTIONS.SET_FILTERED_HOSTS_PATH: {
@@ -475,6 +546,97 @@ export const AppContext = createContext<InitialStateType>(initialState);
 const AppProvider = ({ children }: Props): JSX.Element => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
+  // Stable setter functions - dispatch is stable, so these won't change
+  const setAvailableTeams = useCallback(
+    (user: IUser | null, availableTeams: ITeamSummary[]) => {
+      dispatch({ type: ACTIONS.SET_AVAILABLE_TEAMS, user, availableTeams });
+    },
+    []
+  );
+
+  const setUserSettings = useCallback((userSettings: IUserSettings) => {
+    dispatch({ type: ACTIONS.SET_USER_SETTINGS, userSettings });
+  }, []);
+
+  const setCurrentUser = useCallback((currentUser: IUser) => {
+    dispatch({ type: ACTIONS.SET_CURRENT_USER, currentUser });
+  }, []);
+
+  const setCurrentTeam = useCallback(
+    (currentTeam: ITeamSummary | undefined) => {
+      dispatch({ type: ACTIONS.SET_CURRENT_TEAM, currentTeam });
+    },
+    []
+  );
+
+  const setConfig = useCallback((config: IConfig) => {
+    dispatch({ type: ACTIONS.SET_CONFIG, config });
+  }, []);
+
+  const setEnrollSecret = useCallback((enrollSecret: IEnrollSecret[]) => {
+    dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
+  }, []);
+
+  const setAndroidEnterpriseDeleted = useCallback((isDeleted: boolean) => {
+    dispatch({ type: ACTIONS.SET_ANDROID_ENTERPRISE_DELETED, isDeleted });
+  }, []);
+
+  const setABMExpiry = useCallback((abmExpiry: IAbmExpiry) => {
+    dispatch({ type: ACTIONS.SET_ABM_EXPIRY, abmExpiry });
+  }, []);
+
+  const setAPNsExpiry = useCallback((apnsExpiry: string) => {
+    dispatch({ type: ACTIONS.SET_APNS_EXPIRY, apnsExpiry });
+  }, []);
+
+  const setVppExpiry = useCallback((vppExpiry: string) => {
+    dispatch({ type: ACTIONS.SET_VPP_EXPIRY, vppExpiry });
+  }, []);
+
+  const setEJBCAExpiry = useCallback((ejbcaExpiry: string) => {
+    dispatch({ type: ACTIONS.SET_EJBCA_EXPIRY, ejbcaExpiry });
+  }, []);
+
+  const setSandboxExpiry = useCallback((sandboxExpiry: string) => {
+    dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
+  }, []);
+
+  const setNoSandboxHosts = useCallback((noSandboxHosts: boolean) => {
+    dispatch({ type: ACTIONS.SET_NO_SANDBOX_HOSTS, noSandboxHosts });
+  }, []);
+
+  const setHostCount = useCallback((hostCount?: number) => {
+    dispatch({ type: ACTIONS.SET_HOST_COUNT, hostCount });
+  }, []);
+
+  const setFilteredHostsPath = useCallback((filteredHostsPath: string) => {
+    dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
+  }, []);
+
+  const setFilteredSoftwarePath = useCallback(
+    (filteredSoftwarePath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_SOFTWARE_PATH,
+        filteredSoftwarePath,
+      });
+    },
+    []
+  );
+
+  const setFilteredQueriesPath = useCallback((filteredQueriesPath: string) => {
+    dispatch({ type: ACTIONS.SET_FILTERED_QUERIES_PATH, filteredQueriesPath });
+  }, []);
+
+  const setFilteredPoliciesPath = useCallback(
+    (filteredPoliciesPath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_POLICIES_PATH,
+        filteredPoliciesPath,
+      });
+    },
+    []
+  );
+
   const value = useMemo(
     () => ({
       availableTeams: state.availableTeams,
@@ -487,15 +649,21 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       abmExpiry: state.abmExpiry,
       apnsExpiry: state.apnsExpiry,
       vppExpiry: state.vppExpiry,
+      ejbcaExpiry: state.ejbcaExpiry,
       isAndroidEnterpriseDeleted: state.isAndroidEnterpriseDeleted,
       isAppleBmExpired: state.isAppleBmExpired,
       isApplePnsExpired: state.isApplePnsExpired,
       isVppExpired: state.isVppExpired,
+      isEJBCACertExpired: state.isEJBCACertExpired,
       needsAbmTermsRenewal: state.needsAbmTermsRenewal,
+      hasInvalidABMToken: state.hasInvalidABMToken,
+      invalidAbmTokenOrgNames: state.invalidAbmTokenOrgNames,
       willAppleBmExpire: state.willAppleBmExpire,
       willApplePnsExpire: state.willApplePnsExpire,
       willVppExpire: state.willVppExpire,
+      willEJBCACertExpire: state.willEJBCACertExpire,
       noSandboxHosts: state.noSandboxHosts,
+      hostCount: state.hostCount,
       filteredHostsPath: state.filteredHostsPath,
       filteredSoftwarePath: state.filteredSoftwarePath,
       filteredQueriesPath: state.filteredQueriesPath,
@@ -517,84 +685,39 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       isTeamObserver: state.isTeamObserver,
       isTeamMaintainer: state.isTeamMaintainer,
       isTeamAdmin: state.isTeamAdmin,
+      isTeamTechnician: state.isTeamTechnician,
+      isAnyTeamTechnician: state.isAnyTeamTechnician,
+      isGlobalTechnician: state.isGlobalTechnician,
       isTeamMaintainerOrTeamAdmin: state.isTeamMaintainerOrTeamAdmin,
       isAnyTeamAdmin: state.isAnyTeamAdmin,
       isOnlyObserver: state.isOnlyObserver,
       isObserverPlus: state.isObserverPlus,
       isNoAccess: state.isNoAccess,
-      setAvailableTeams: (
-        user: IUser | null,
-        availableTeams: ITeamSummary[]
-      ) => {
-        dispatch({
-          type: ACTIONS.SET_AVAILABLE_TEAMS,
-          user,
-          availableTeams,
-        });
-      },
-      setUserSettings: (userSettings: IUserSettings) => {
-        dispatch({ type: ACTIONS.SET_USER_SETTINGS, userSettings });
-      },
-      setCurrentUser: (currentUser: IUser) => {
-        dispatch({ type: ACTIONS.SET_CURRENT_USER, currentUser });
-      },
-      setCurrentTeam: (currentTeam: ITeamSummary | undefined) => {
-        dispatch({ type: ACTIONS.SET_CURRENT_TEAM, currentTeam });
-      },
-      setConfig: (config: IConfig) => {
-        dispatch({ type: ACTIONS.SET_CONFIG, config });
-      },
-      setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
-        dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
-      },
-      setAndroidEnterpriseDeleted: (isDeleted: boolean) => {
-        dispatch({
-          type: ACTIONS.SET_ANDROID_ENTERPRISE_DELETED,
-          isDeleted,
-        });
-      },
-      setABMExpiry: (abmExpiry: IAbmExpiry) => {
-        dispatch({ type: ACTIONS.SET_ABM_EXPIRY, abmExpiry });
-      },
-      setAPNsExpiry: (apnsExpiry: string) => {
-        dispatch({ type: ACTIONS.SET_APNS_EXPIRY, apnsExpiry });
-      },
-      setVppExpiry: (vppExpiry: string) => {
-        dispatch({
-          type: ACTIONS.SET_VPP_EXPIRY,
-          vppExpiry,
-        });
-      },
-      setSandboxExpiry: (sandboxExpiry: string) => {
-        dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
-      },
-      setNoSandboxHosts: (noSandboxHosts: boolean) => {
-        dispatch({
-          type: ACTIONS.SET_NO_SANDBOX_HOSTS,
-          noSandboxHosts,
-        });
-      },
-      setFilteredHostsPath: (filteredHostsPath: string) => {
-        dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
-      },
-      setFilteredSoftwarePath: (filteredSoftwarePath: string) => {
-        dispatch({
-          type: ACTIONS.SET_FILTERED_SOFTWARE_PATH,
-          filteredSoftwarePath,
-        });
-      },
-      setFilteredQueriesPath: (filteredQueriesPath: string) => {
-        dispatch({
-          type: ACTIONS.SET_FILTERED_QUERIES_PATH,
-          filteredQueriesPath,
-        });
-      },
-      setFilteredPoliciesPath: (filteredPoliciesPath: string) => {
-        dispatch({
-          type: ACTIONS.SET_FILTERED_POLICIES_PATH,
-          filteredPoliciesPath,
-        });
-      },
+      isAnyMaintainerAdminObserverPlus:
+        state.isGlobalAdmin ||
+        state.isGlobalMaintainer ||
+        state.isAnyTeamAdmin ||
+        state.isAnyTeamMaintainer ||
+        state.isObserverPlus ||
+        state.isAnyTeamObserverPlus,
+      setAvailableTeams,
+      setUserSettings,
+      setCurrentUser,
+      setCurrentTeam,
+      setConfig,
+      setEnrollSecret,
+      setAndroidEnterpriseDeleted,
+      setABMExpiry,
+      setAPNsExpiry,
+      setVppExpiry,
+      setEJBCAExpiry,
+      setSandboxExpiry,
+      setNoSandboxHosts,
+      setHostCount,
+      setFilteredHostsPath,
+      setFilteredSoftwarePath,
+      setFilteredQueriesPath,
+      setFilteredPoliciesPath,
     }),
     [
       state.abmExpiry,
@@ -628,19 +751,47 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.isPremiumTier,
       state.isSandboxMode,
       state.isTeamAdmin,
+      state.isTeamTechnician,
+      state.isAnyTeamTechnician,
+      state.isGlobalTechnician,
       state.isTeamMaintainer,
       state.isTeamMaintainerOrTeamAdmin,
       state.isTeamObserver,
       state.isVppExpired,
+      state.isEJBCACertExpired,
       state.isWindowsMdmEnabledAndConfigured,
       state.isAndroidMdmEnabledAndConfigured,
       state.needsAbmTermsRenewal,
+      state.hasInvalidABMToken,
+      state.invalidAbmTokenOrgNames,
       state.noSandboxHosts,
+      state.hostCount,
       state.sandboxExpiry,
       state.vppExpiry,
+      state.ejbcaExpiry,
       state.willAppleBmExpire,
       state.willApplePnsExpire,
       state.willVppExpire,
+      state.willEJBCACertExpire,
+      // Stable setters (useCallback with empty deps)
+      setAvailableTeams,
+      setUserSettings,
+      setCurrentUser,
+      setCurrentTeam,
+      setConfig,
+      setEnrollSecret,
+      setAndroidEnterpriseDeleted,
+      setABMExpiry,
+      setAPNsExpiry,
+      setVppExpiry,
+      setEJBCAExpiry,
+      setSandboxExpiry,
+      setNoSandboxHosts,
+      setHostCount,
+      setFilteredHostsPath,
+      setFilteredSoftwarePath,
+      setFilteredQueriesPath,
+      setFilteredPoliciesPath,
     ]
   );
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

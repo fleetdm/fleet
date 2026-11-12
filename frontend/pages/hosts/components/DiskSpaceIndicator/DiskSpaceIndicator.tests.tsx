@@ -1,9 +1,8 @@
+import { screen, waitFor } from "@testing-library/react";
 import React from "react";
 
-import { screen, waitFor } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
-
 import { COLORS } from "styles/var/colors";
+import { renderWithSetup } from "test/test-utils";
 
 import DiskSpaceIndicator from "./DiskSpaceIndicator";
 

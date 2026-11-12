@@ -31,15 +31,18 @@ type Context struct {
 	CustomHeaders map[string]string `json:"custom-headers"`
 }
 
-func configFlag() cli.Flag {
+func defaultConfigPath() string {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		homeDir = "~"
 	}
-	defaultConfigPath := filepath.Join(homeDir, ".fleet", "config")
+	return filepath.Join(homeDir, ".fleet", "config")
+}
+
+func configFlag() cli.Flag {
 	return &cli.StringFlag{
 		Name:    "config",
-		Value:   defaultConfigPath,
+		Value:   defaultConfigPath(),
 		EnvVars: []string{"CONFIG"},
 		Usage:   "Path to the fleetctl config file",
 	}
@@ -300,19 +303,19 @@ func configSetCommand() *cli.Command {
 				if err := setConfigValue(configPath, context, "token", flToken); err != nil {
 					return fmt.Errorf("error setting token: %w", err)
 				}
-				// Redact the token from the output as this may be run in contexts where it is logged.
-				fmt.Printf("[+] Set the token config key to \"<redacted>\" in the %q context\n", c.String("context"))
+				fmt.Printf("[+] Set the token in the %q context\n", c.String("context"))
 			}
 
-			if flTLSSkipVerify {
+			if c.IsSet("tls-skip-verify") {
 				set = true
-				if err := setConfigValue(configPath, context, "tls-skip-verify", "true"); err != nil {
+				value := strconv.FormatBool(flTLSSkipVerify)
+				if err := setConfigValue(configPath, context, "tls-skip-verify", value); err != nil {
 					return fmt.Errorf("error setting tls-skip-verify: %w", err)
 				}
-				fmt.Printf("[+] Set the tls-skip-verify config key to \"true\" in the %q context\n", c.String("context"))
+				fmt.Printf("[+] Set the tls-skip-verify config key to %q in the %q context\n", value, c.String("context"))
 			}
 
-			if flRootCA != "" {
+			if c.IsSet("rootca") {
 				set = true
 				if err := setConfigValue(configPath, context, "rootca", flRootCA); err != nil {
 					return fmt.Errorf("error setting rootca: %w", err)
@@ -337,7 +340,7 @@ func configSetCommand() *cli.Command {
 			}
 
 			if !set {
-				return cli.ShowCommandHelp(c, "set")
+				return cli.ShowSubcommandHelp(c)
 			}
 
 			return nil
@@ -356,7 +359,7 @@ func configGetCommand() *cli.Command {
 		},
 		Action: func(c *cli.Context) error {
 			if c.Args().Len() != 1 {
-				return cli.ShowCommandHelp(c, "get")
+				return cli.ShowSubcommandHelp(c)
 			}
 
 			key := c.Args().Get(0)
@@ -365,7 +368,7 @@ func configGetCommand() *cli.Command {
 			switch key {
 			case "address", "email", "token", "tls-skip-verify", "rootca", "url-prefix", "custom-headers":
 			default:
-				return cli.ShowCommandHelp(c, "get")
+				return cli.ShowSubcommandHelp(c)
 			}
 
 			configPath, context := c.String("config"), c.String("context")

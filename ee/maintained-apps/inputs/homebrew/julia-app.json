@@ -1,0 +1,10 @@
+{
+  "name": "Julia",
+  "unique_identifier": "org.julialang.launcherapp",
+  "token": "julia-app",
+  "installer_format": "dmg",
+  "slug": "julia-app/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

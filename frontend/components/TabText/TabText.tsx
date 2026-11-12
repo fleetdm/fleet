@@ -1,5 +1,7 @@
-import React from "react";
 import classnames from "classnames";
+import React from "react";
+
+import Icon from "components/Icon";
 
 type TabCountVariant = "alert" | "pending";
 interface ITabTextProps {
@@ -7,6 +9,9 @@ interface ITabTextProps {
   children: React.ReactNode;
   count?: number;
   countVariant?: TabCountVariant;
+  /** When true, renders a green check icon next to the tab text
+   * (e.g. to indicate that something is configured for this tab). */
+  showCheck?: boolean;
 }
 
 /*
@@ -20,6 +25,7 @@ const TabText = ({
   children,
   count,
   countVariant,
+  showCheck,
 }: ITabTextProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
@@ -41,6 +47,13 @@ const TabText = ({
         {children}
       </div>
       {renderCount()}
+      {showCheck && (
+        <Icon
+          name="check"
+          color="core-fleet-green"
+          className={`${baseClass}__check`}
+        />
+      )}
     </div>
   );
 };

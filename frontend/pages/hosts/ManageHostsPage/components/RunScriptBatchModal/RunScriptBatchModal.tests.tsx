@@ -1,12 +1,12 @@
-import React from "react";
 import { screen, waitFor } from "@testing-library/react";
-
 import { UserEvent } from "@testing-library/user-event";
-import { IScript } from "interfaces/script";
-import { createCustomRenderer } from "test/test-utils";
-import { http, HttpResponse } from "msw";
-import mockServer from "test/mock-server";
 import { format } from "date-fns";
+import { http, HttpResponse } from "msw";
+import React from "react";
+
+import { IScript } from "interfaces/script";
+import mockServer from "test/mock-server";
+import { createCustomRenderer } from "test/test-utils";
 
 import RunScriptBatchModal from "./RunScriptBatchModal";
 
@@ -16,7 +16,7 @@ const baseUrl = (path: string) => {
 
 const windowsScript: IScript = {
   id: 123,
-  team_id: 1,
+  fleet_id: 1,
   name: "winscript.ps1",
   created_at: "2023-01-01T00:00:00Z",
   updated_at: "2023-01-01T00:00:00Z",
@@ -24,7 +24,7 @@ const windowsScript: IScript = {
 
 const linuxScript: IScript = {
   id: 456,
-  team_id: 1,
+  fleet_id: 1,
   name: "linuxscript.sh",
   created_at: "2023-01-01T00:00:00Z",
   updated_at: "2023-01-01T00:00:00Z",
@@ -149,6 +149,19 @@ describe("RunScriptBatchModal", () => {
     });
   });
 
+  it("renders empty state with Add a script link when no scripts exist", async () => {
+    mockServer.use(
+      http.get(baseUrl("/scripts"), () => {
+        return HttpResponse.json({ scripts: [] });
+      })
+    );
+    render(<RunScriptBatchModal {...defaultProps} />);
+
+    expect(await screen.findByText("No scripts available")).toBeInTheDocument();
+    expect(screen.getByText("Add a script")).toBeInTheDocument();
+    expect(screen.getByText(/to this fleet/)).toBeInTheDocument();
+  });
+
   describe("after clicking run script", () => {
     it("shows the correct heading for linux/macos scripts", async () => {
       const { user } = render(<RunScriptBatchModal {...defaultProps} />);
@@ -220,7 +233,7 @@ describe("RunScriptBatchModal", () => {
           filters: {
             query: "hi",
             label_id: 16,
-            team_id: 1,
+            fleet_id: 1,
             status: "",
           },
         });
@@ -364,7 +377,7 @@ describe("RunScriptBatchModal", () => {
         expect(body).toEqual({
           script_id: windowsScript.id,
           not_before: "2099-12-31T23:59:00.000Z",
-          filters: { query: "hi", label_id: 16, status: "", team_id: 1 },
+          filters: { query: "hi", label_id: 16, status: "", fleet_id: 1 },
         });
       });
     });

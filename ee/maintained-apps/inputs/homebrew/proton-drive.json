@@ -1,0 +1,10 @@
+{
+  "name": "Proton Drive",
+  "unique_identifier": "ch.protonmail.drive",
+  "token": "proton-drive",
+  "installer_format": "dmg",
+  "slug": "proton-drive/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

@@ -1,11 +1,11 @@
-import React, { Component } from "react";
 import PropTypes from "prop-types";
+import React, { Component } from "react";
 
 import Button from "components/buttons/Button";
-import Form from "components/forms/Form";
-import formFieldInterface from "interfaces/form_field";
 import InputField from "components/forms/fields/InputField";
+import Form from "components/forms/Form";
 import validate from "components/forms/UserSettingsForm/validate";
+import formFieldInterface from "interfaces/form_field";
 
 const formFields = ["email", "name", "position", "username"];
 
@@ -56,6 +56,7 @@ class UserSettingsForm extends Component {
             label="Email (required)"
             helpText={renderEmailHelpText()}
             readOnly={!smtpConfigured}
+            ignore1password={false}
             tooltip={
               <>
                 Editing your email address requires that SMTP or SES is
@@ -77,7 +78,7 @@ class UserSettingsForm extends Component {
         />
         <InputField {...fields.position} label="Position" />
         <div className="button-wrap">
-          <Button onClick={onCancel} variant="inverse">
+          <Button onClick={onCancel} variant="secondary">
             Cancel
           </Button>
           <Button type="submit">Update</Button>
