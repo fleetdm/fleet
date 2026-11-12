@@ -138,6 +138,9 @@ func TestApplyAsGitOpsDeprecatedKeys(t *testing.T) {
 	}
 
 	savedTeam := &fleet.Team{ID: 123}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "Team1" {
 			return savedTeam, nil
@@ -640,6 +643,9 @@ func TestApplyMacosSetupDeprecatedKeys(t *testing.T) {
 		}
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 			return job, nil
+		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			return nil, nil
 		}
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
@@ -1464,6 +1470,9 @@ func TestApplySpecsDeprecatedKeys(t *testing.T) {
 			},
 		}
 
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			return nil, nil
+		}
 		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 			team, ok := teamsByName[name]
 			if !ok {

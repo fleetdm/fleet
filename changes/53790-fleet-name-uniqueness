@@ -1,0 +1,2 @@
+- Fleet names must now include at least one letter or number, and must be distinct from other fleets' names when letter case, accents, whitespace, punctuation, symbols, and emoji are ignored. The REST API, `fleetctl apply`, and `fleetctl gitops` enforce both rules.
+- When upgrading, existing fleets that break these rules are renamed by adding a number (for example, `workstations! 2`). The oldest fleet keeps its name, and Apple Business and VPP settings show the new names.

@@ -13,8 +13,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"golang.org/x/text/unicode/norm"
-
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -28,8 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 )
-
-const teamNameConflictErrMsg = "Fleet names must differ by more than letter case."
 
 func obfuscateSecrets(user *fleet.User, teams []*fleet.Team) error {
 	if user == nil {
@@ -104,6 +100,9 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	if fleet.IsReservedTeamName(*p.Name) {
 		return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *p.Name))
 	}
+	if fleet.TeamNameKey(*p.Name) == "" {
+		return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
+	}
 
 	conflict, err := svc.ds.TeamConflictsWithName(ctx, *p.Name, 0)
 	if err != nil {
@@ -111,7 +110,7 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 	}
 	if conflict != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
-			Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictErrMsg),
+			Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, fleet.TeamNameConflictHint),
 		})
 	}
 
@@ -196,6 +195,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if fleet.IsReservedTeamName(*payload.Name) {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", *payload.Name))
 		}
+		if fleet.TeamNameKey(*payload.Name) == "" {
+			return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
+		}
 
 		conflict, err := svc.ds.TeamConflictsWithName(ctx, *payload.Name, teamID)
 		if err != nil {
@@ -203,7 +205,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 		if conflict != nil {
 			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{
-				Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, teamNameConflictErrMsg),
+				Message: fmt.Sprintf("A fleet named %q already exists. %s", conflict.Name, fleet.TeamNameConflictHint),
 			})
 		}
 		oldName = team.Name
@@ -1488,7 +1490,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 	seenNames := make(map[string]seenSpec, len(specs))
 	for _, spec := range specs {
 		trimmedName := strings.TrimSpace(spec.Name)
-		key := norm.NFC.String(strings.ToLower(trimmedName))
+		// Compares name keys only. Pairs that conflict only under the
+		// teams.name collation are caught by the database check below.
+		key := fleet.TeamNameKey(trimmedName)
 		if key == "" {
 			continue
 		}
@@ -1499,7 +1503,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if prev, ok := seenNames[key]; ok {
 			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
 				"duplicate fleet names in request: %q (filename %q) and %q (filename %q). %s",
-				prev.name, prev.filename, trimmedName, filename, teamNameConflictErrMsg,
+				prev.name, prev.filename, trimmedName, filename, fleet.TeamNameConflictHint,
 			)})
 		}
 		seenNames[key] = seenSpec{name: trimmedName, filename: filename}
@@ -1538,6 +1542,9 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		if fleet.IsReservedTeamName(spec.Name) {
 			return nil, fleet.NewInvalidArgumentError("name", fmt.Sprintf("%q is a reserved fleet name", spec.Name))
 		}
+		if fleet.TeamNameKey(spec.Name) == "" {
+			return nil, fleet.NewInvalidArgumentError("name", fleet.TeamNameNoLetterOrNumberReason)
+		}
 
 		var team *fleet.Team
 		filenameProvided := spec.Filename != nil && *spec.Filename != ""
@@ -1548,23 +1555,6 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 			team, err = svc.ds.TeamByFilename(ctx, *spec.Filename)
 			if err != nil && !fleet.IsNotFound(err) {
 				return nil, err
-			}
-		}
-
-		// If we matched by filename, enforce uniqueness against *other*
-		// teams. Excluding the matched team's id lets a case-only self-rename
-		// ("ABC" → "abc") succeed while still catching renames that collide
-		// with a different team.
-		if team != nil {
-			conflict, err := svc.ds.TeamConflictsWithName(ctx, spec.Name, team.ID)
-			if err != nil {
-				return nil, err
-			}
-			if conflict != nil {
-				return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
-					"fleet name %q conflicts with existing fleet %q. %s",
-					spec.Name, conflict.Name, teamNameConflictErrMsg,
-				)})
 			}
 		}
 
@@ -1602,6 +1592,22 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		var tmID uint
 		if team != nil {
 			tmID = team.ID
+		}
+
+		// Enforce uniqueness against *other* teams, whether this spec creates a
+		// team or edits the one matched above. Excluding the matched team's id
+		// lets a self-rename to a variant of its own name ("ABC" → "abc")
+		// succeed while still catching names that collide with a different
+		// team.
+		conflict, err := svc.ds.TeamConflictsWithName(ctx, spec.Name, tmID)
+		if err != nil {
+			return nil, err
+		}
+		if conflict != nil {
+			return nil, ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fmt.Sprintf(
+				"fleet name %q conflicts with existing fleet %q. %s",
+				spec.Name, conflict.Name, fleet.TeamNameConflictHint,
+			)})
 		}
 
 		if len(spec.AgentOptions) > 0 && !bytes.Equal(spec.AgentOptions, jsonNull) {

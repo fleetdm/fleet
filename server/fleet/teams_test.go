@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -454,4 +455,50 @@ func TestTeamMarshalJSONMacOSSetupDefaults(t *testing.T) {
 		require.Equal(t, "standard", got.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 		require.True(t, got.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 	})
+}
+
+func TestTeamNameKey(t *testing.T) {
+	sameKey := [][]string{
+		{"Workstations", "workstations", "WORKSTATIONS", "Work-stations", "Work stations", "workstations!", "WORK_STATIONS", "Workstations 💻", " Workstations\t"},
+		{"Laptops 💻", "Laptops", "Laptops 🚀", "💻 Laptops"},
+		{"ABC", "abc", "ＡＢＣ", "a.b.c", "Ⓐⓑⓒ"},
+		{"Renee", "Reneé", "Rene\u0065\u0301", "RENÉE"},
+		{"straße", "strasse", "STRASSE", "Straẞe"},
+		{"開発チーム", "開発・チーム", "開発チーム。", "「開発チーム」"},
+		{"ﬁre", "FIRE", "f-i-r-e"},
+		{"Ångström", "angstrom", "A\u030angstro\u0308m"},
+		{"ǅ", "DŽ", "dž", "dz"},
+		{"Workstations 2", "workstations2", "Workstations (2)", "Workstations ②"},
+	}
+	keys := make(map[string]string)
+	for _, names := range sameKey {
+		want := TeamNameKey(names[0])
+		require.NotEmpty(t, want, names[0])
+		require.NotContains(t, keys, want, "%q has the same key as %q", names[0], keys[want])
+		keys[want] = names[0]
+		for _, name := range names[1:] {
+			assert.Equal(t, want, TeamNameKey(name), "%q and %q", names[0], name)
+		}
+	}
+
+	// Letters the teams.name collation also tells apart.
+	distinct := []string{"Workstations", "Workstation", "Workstations 2", "Servers", "開発", "開発チーム", "2026", "2027", "Ingeniería 1", "Ingeniería 2"}
+	keys = make(map[string]string)
+	for _, name := range distinct {
+		key := TeamNameKey(name)
+		require.NotEmpty(t, key, name)
+		require.NotContains(t, keys, key, "%q has the same key as %q", name, keys[key])
+		keys[key] = name
+	}
+
+	for _, name := range []string{"", " ", "\t\n", "🚀", "🚀🚀🚀", "🚀 🚀", "!!!", "---", "___", "「」", "・・・", "。", "👩‍💻", "\u0301", "$€£", "+-=", "🏳️‍🌈"} {
+		assert.Empty(t, TeamNameKey(name), "%q", name)
+	}
+	for _, name := range []string{"開発", "Ingeniería", "2026", "Fleet 🚀", "a", "1", "١", "½", "Ⅻ", "é", "ß", "ー", "🚀1"} {
+		assert.NotEmpty(t, TeamNameKey(name), "%q", name)
+	}
+
+	assert.Equal(t, "workstations", TeamNameKey("Work-Stations"))
+	assert.Equal(t, "strasse", TeamNameKey("Straße"))
+	assert.Equal(t, "開発チーム2", TeamNameKey("開発・チーム 2"))
 }

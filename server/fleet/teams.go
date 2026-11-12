@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -46,6 +48,34 @@ func IsReservedTeamName(name string) bool {
 	normalizedName := strings.ToLower(norm.NFC.String(name))
 	return normalizedName == "no team" || normalizedName == "all teams" ||
 		normalizedName == "unassigned" || normalizedName == "all fleets"
+}
+
+// TeamNameNoLetterOrNumberReason is the validation reason for a fleet name
+// whose TeamNameKey is empty.
+const TeamNameNoLetterOrNumberReason = "must include at least one letter or number"
+
+// TeamNameConflictHint ends every fleet name conflict error.
+const TeamNameConflictHint = "Choose a fleet name distinct from other fleets."
+
+// TeamNameKey returns the form of a fleet name that must be unique across
+// fleets: compatibility-decomposed, case-folded, and reduced to letters and
+// numbers. It ignores letter case, diacritics, whitespace, punctuation,
+// symbols, and emoji. It is empty for a name with no letter or number.
+//
+// It does not reproduce every equality of the teams.name collation (for
+// example, the collation treats all characters outside the Basic Multilingual
+// Plane as equal), so it complements the collation comparison rather than
+// replacing it.
+func TeamNameKey(name string) string {
+	// Folding can produce characters that decompose further, so decompose again.
+	folded := norm.NFKD.String(cases.Fold().String(norm.NFKD.String(name)))
+	var key strings.Builder
+	for _, r := range folded {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			key.WriteRune(r)
+		}
+	}
+	return key.String()
 }
 
 // IsUnassignedFleetName checks if the name provided is the display name of the "Unassigned" pseudo-fleet, i.e. hosts with no fleet (case-insensitive).
