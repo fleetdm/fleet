@@ -627,7 +627,7 @@ Once you submit the form, Stripe will refund the user's payment and cancel their
 When a user requests that we delete all data we have stored about them, their data will need to be removed from the following places:
 1. **fleetdm.com**
     - Create a confidential website request issue
-    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the #g-website product group will delete the account and let you know in a comment when the user account is deleted.
+    - If the user signed up for an account on fleetdm.com, you will need to create a confidential website request issue. A member of the [First impressions group](https://fleetdm.com/handbook/company/product-groups#first-impressions) will delete the account and let you know in a comment when the user account is deleted.
 2.  **Salesforce**
     1. Search Salesforce for the user's email address, delete the contact record, and any related historical event records associated with the user's contact record.
 3. **Stripe** 
