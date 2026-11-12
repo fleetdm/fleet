@@ -103,7 +103,7 @@ SELECT 1 WHERE EXISTS (
 
 ## Via the API
 
-Fleet provides a REST API for managing policies, including software install automations. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#add-team-policy).
+Software install automation can be managed by setting `automation_type` to `"software"` and `software_title_id` on the Fleet REST API's [Create policy](https://fleetdm.com/docs/rest-api/rest-api#create-policy) or [Update policy](https://fleetdm.com/docs/rest-api/rest-api#update-policy) endpoints.
 
 ## Via GitOps
 

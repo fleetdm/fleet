@@ -58,7 +58,7 @@ When saving the policy's query, you’ll notice a “resolution” field. Comple
 
 Take your time writing these instructions. Remember, employees have different areas of expertise. Try to keep your technical explanations as simple as possible.
 
-Read our documentation about [adding policies](https://fleetdm.com/docs/using-fleet/rest-api#add-policy) to get started.
+Read our documentation about [adding policies](https://fleetdm.com/docs/rest-api/rest-api#create-policy) to get started.
 
 ### Set your enforcement standards
 

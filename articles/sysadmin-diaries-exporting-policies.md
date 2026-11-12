@@ -20,7 +20,7 @@ Administrators have a couple of options to extract policies from the Fleet web U
 The most direct method is to use the Fleet API. You can extract existing policies by making a GET request to the Fleet server:
 
 ```
-GET https://my.fleet.server/api/v1/fleet/global/policies
+GET https://my.fleet.server/api/v1/fleet/policies
 ```
 
 This request retrieves all global policies configured in the Fleet. The output, typically in JSON format, can then be converted into YAML format and integrated into your GitOps configurations. This process requires careful handling to ensure that the policy attributes are correctly mapped in the YAML file.
@@ -42,7 +42,7 @@ For those preferring a hands-on approach, manually editing the `xxx.policies.yml
 While `fleetctl` currently lacks a direct command to export policies in YAML format (`fleetctl get policies --yaml`), there are workarounds:
 
 ```
-fleetctl api api/v1/fleet/teams/9/policies | jq .policies | yq -P
+fleetctl api "api/v1/fleet/policies?fleet_id=9" | jq .policies | yq -P
 ```
 
 This command sequence uses `fleetctl` to call the API, `jq` to parse the JSON output, and `yq` to convert it into pretty YAML format. Although not as straightforward as a single command, this method is useful for teams needing to automate their workflow until a dedicated command is available.
