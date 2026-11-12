@@ -230,6 +230,10 @@ const Modal = ({
       const active = document.activeElement as HTMLElement | null;
 
       if (!container.contains(active)) {
+        // Focus is inside another modal dialog above us (e.g. the command
+        // palette, which wraps Radix Dialog with aria-modal="true"). Let it
+        // own Tab instead of pulling focus back into this modal.
+        if (active?.closest('[aria-modal="true"]')) return;
         e.preventDefault();
         first.focus();
         return;

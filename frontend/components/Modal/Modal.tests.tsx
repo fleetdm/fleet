@@ -487,6 +487,31 @@ describe("Modal", () => {
       expect(secondCloseButton).toHaveFocus();
     });
 
+    it("yields Tab handling to a higher modal dialog above it", () => {
+      render(
+        <Modal title="Lower" onExit={noop}>
+          <input type="text" aria-label="lower-input" />
+        </Modal>
+      );
+
+      // Simulate the command palette (cmdk wraps Radix Dialog) opening above.
+      // Its root sets role="dialog" and aria-modal="true" but doesn't join
+      // Fleet Modal's focusTrapStack.
+      const palette = document.createElement("div");
+      palette.setAttribute("role", "dialog");
+      palette.setAttribute("aria-modal", "true");
+      const paletteInput = document.createElement("input");
+      palette.appendChild(paletteInput);
+      document.body.appendChild(palette);
+      paletteInput.focus();
+
+      fireEvent.keyDown(document, { key: "Tab" });
+
+      // Focus must stay in the palette; the modal below must not pull it back.
+      expect(paletteInput).toHaveFocus();
+      document.body.removeChild(palette);
+    });
+
     it("only the topmost of two stacked modals handles Tab", () => {
       render(
         <>
