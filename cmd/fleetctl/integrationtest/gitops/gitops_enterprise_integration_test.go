@@ -3731,8 +3731,10 @@ settings:
 		require.NotNil(t, queries[0].AuthorID)
 		require.Equal(t, *queries[0].AuthorID, user.ID)
 
-		label, err := s.DS.LabelByName(ctx, fmt.Sprintf("label-%d", i), fleet.TeamFilter{User: &fleet.User{ID: user.ID}})
+		labelName := fmt.Sprintf("label-%d", i)
+		labels, err := s.DS.LabelsByName(ctx, []string{labelName}, fleet.TeamFilter{User: &fleet.User{ID: user.ID}})
 		require.NoError(t, err)
+		label := labels[labelName]
 		require.NotNil(t, label)
 		require.NotNil(t, label.TeamID)
 		require.Equal(t, *label.TeamID, team.ID)
@@ -3778,12 +3780,13 @@ settings:
 		require.NotNil(t, queries[0].AuthorID)
 		require.Equal(t, *queries[0].AuthorID, user.ID)
 
-		label, err := s.DS.LabelByName(ctx, fmt.Sprintf("label-%d", i), fleet.TeamFilter{User: &fleet.User{ID: user.ID}})
+		labelName := fmt.Sprintf("label-%d", i)
+		labels, err := s.DS.LabelsByName(ctx, []string{labelName}, fleet.TeamFilter{User: &fleet.User{ID: user.ID}})
+		require.NoError(t, err)
+		label := labels[labelName]
 		if i == 0 {
-			require.Error(t, err)
 			require.Nil(t, label)
 		} else {
-			require.NoError(t, err)
 			require.NotNil(t, label)
 			require.NotNil(t, label.TeamID)
 			require.Equal(t, *label.TeamID, team.ID)

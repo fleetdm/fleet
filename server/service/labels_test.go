@@ -166,16 +166,6 @@ func TestLabelsAuth(t *testing.T) {
 		return nil, nil, ctxerr.Wrap(ctx, &notFoundErr{Msg: "label"})
 	}
 
-	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-		switch name {
-		case "team1-label":
-			return &team1Label, nil
-		case "team2-label":
-			return &team2Label, nil
-		default:
-			return &fleet.Label{ID: 2, Name: name}, nil
-		}
-	}
 	ds.ListLabelsFunc = func(ctx context.Context, filter fleet.TeamFilter, opts fleet.ListOptions, includeHostCounts bool) ([]*fleet.Label, error) {
 		return nil, nil
 	}
@@ -1036,7 +1026,9 @@ func TestBatchValidateLabels(t *testing.T) {
 	t.Run("name shared by several fleets resolves to the entity's fleet", func(t *testing.T) {
 		const teamID = uint(5)
 		ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
-			return map[string][]uint{"shared": {10, 20}}, nil
+			require.NotNil(t, filter.TeamID)
+			require.Equal(t, teamID, *filter.TeamID)
+			return map[string][]uint{"shared": {20}}, nil
 		}
 		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 			require.NotNil(t, filter.TeamID)
@@ -1049,18 +1041,18 @@ func TestBatchValidateLabels(t *testing.T) {
 		require.Equal(t, map[string]fleet.LabelIdent{"shared": mockLabelIdent("shared", 20)}, got)
 	})
 
-	t.Run("case variants on other fleets count as the same name", func(t *testing.T) {
+	t.Run("a name only on another fleet doesn't exist for the entity", func(t *testing.T) {
 		const teamID = uint(5)
 		ds.AllLabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string][]uint, error) {
-			return map[string][]uint{"Engineering": {10}, "engineering": {11}}, nil
-		}
-		ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
-			return map[string]*fleet.Label{"Engineering": {ID: 10, Name: "Engineering", TeamID: new(teamID)}}, nil
+			require.NotNil(t, filter.TeamID)
+			require.Equal(t, teamID, *filter.TeamID)
+			return map[string][]uint{}, nil
 		}
 
-		got, err := svc.BatchValidateLabels(ctx, new(teamID), []string{"Engineering"})
-		require.NoError(t, err)
-		require.Equal(t, map[string]fleet.LabelIdent{"Engineering": mockLabelIdent("Engineering", 10)}, got)
+		_, err := svc.BatchValidateLabels(ctx, new(teamID), []string{"other-fleet-label"})
+		var missing *fleet.MissingLabelError
+		require.ErrorAs(t, err, &missing)
+		require.Equal(t, "other-fleet-label", missing.MissingLabelName)
 	})
 }
 

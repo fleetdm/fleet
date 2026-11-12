@@ -1002,7 +1002,7 @@ func (svc *Service) BatchValidateLabels(ctx context.Context, teamID *uint, label
 
 	uniqueNames := server.RemoveDuplicatesFromSlice(labelNames)
 
-	found, err := foundLabelNames(ctx, svc.ds, uniqueNames, authz.UserFromContext(ctx))
+	found, err := foundLabelNames(ctx, svc.ds, uniqueNames, teamID, authz.UserFromContext(ctx))
 	if err != nil {
 		return nil, err
 	}

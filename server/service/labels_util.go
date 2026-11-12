@@ -9,10 +9,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-// Any fleet the user can see counts here; whether the entity can use the label is checked separately. Names match
-// case-insensitively, as in the database, so case variants on different fleets count as one name.
-func foundLabelNames(ctx context.Context, ds fleet.Datastore, names []string, user *fleet.User) (map[string]struct{}, error) {
-	labels, err := ds.AllLabelIDsByName(ctx, names, fleet.TeamFilter{User: user})
+// Only global labels and the entity's fleet's labels count, the labels it can use. Names match case-insensitively, as
+// in the database.
+func foundLabelNames(ctx context.Context, ds fleet.Datastore, names []string, entityTeamID *uint, user *fleet.User) (map[string]struct{}, error) {
+	if entityTeamID == nil {
+		entityTeamID = new(uint(0))
+	}
+	labels, err := ds.AllLabelIDsByName(ctx, names, fleet.TeamFilter{User: user, TeamID: entityTeamID})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
 	}

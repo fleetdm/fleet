@@ -202,8 +202,6 @@ type SaveLabelFunc func(ctx context.Context, label *fleet.Label, hostIDs []uint,
 
 type DeleteLabelFunc func(ctx context.Context, id uint) error
 
-type LabelByNameFunc func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error)
-
 type LabelFunc func(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error)
 
 type LabelMembershipHostIDsFunc func(ctx context.Context, labelID uint) ([]uint, error)
@@ -2907,9 +2905,6 @@ type DataStore struct {
 
 	DeleteLabelFunc        DeleteLabelFunc
 	DeleteLabelFuncInvoked bool
-
-	LabelByNameFunc        LabelByNameFunc
-	LabelByNameFuncInvoked bool
 
 	LabelFunc        LabelFunc
 	LabelFuncInvoked bool
@@ -7189,13 +7184,6 @@ func (s *DataStore) DeleteLabel(ctx context.Context, id uint) error {
 	s.DeleteLabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteLabelFunc(ctx, id)
-}
-
-func (s *DataStore) LabelByName(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-	s.mu.Lock()
-	s.LabelByNameFuncInvoked = true
-	s.mu.Unlock()
-	return s.LabelByNameFunc(ctx, name, filter)
 }
 
 func (s *DataStore) Label(ctx context.Context, lid uint, teamFilter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {

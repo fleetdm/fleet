@@ -784,7 +784,8 @@ func (ds *Datastore) SaveLabel(ctx context.Context, label *fleet.Label, hostIDs 
 func (ds *Datastore) DeleteLabel(ctx context.Context, labelID uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var name string
-		if err := sqlx.GetContext(ctx, tx, &name, `SELECT name FROM labels WHERE id = ?`, labelID); err != nil {
+		// Locked so that of two concurrent deletes of a label, only one succeeds.
+		if err := sqlx.GetContext(ctx, tx, &name, `SELECT name FROM labels WHERE id = ? FOR UPDATE`, labelID); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return ctxerr.Wrap(ctx, notFound("Label").WithID(labelID))
 			}
@@ -839,27 +840,6 @@ func deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) 
 	}
 
 	return nil
-}
-
-// LabelByName returns a fleet.Label identified by name if one exists and is accessible to the specified user.
-func (ds *Datastore) LabelByName(ctx context.Context, name string, teamFilter fleet.TeamFilter) (*fleet.Label, error) {
-	stmt, params, err := applyLabelTeamFilter("SELECT l.* FROM labels l WHERE l.name = ?", teamFilter, name)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building label select query")
-	}
-
-	var labels []*fleet.Label
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, params...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "selecting label")
-	}
-	switch len(labels) {
-	case 0:
-		return nil, ctxerr.Wrap(ctx, notFound("Label").WithName(name))
-	case 1:
-		return labels[0], nil
-	default:
-		return nil, ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(name))
-	}
 }
 
 // Label returns a fleet.LabelWithTeamName identified by lid if one exists and is accessible to the specified user.

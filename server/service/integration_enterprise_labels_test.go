@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -113,6 +114,64 @@ func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNames() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team1Label.ID), nil, http.StatusNotFound, &getResp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d", team2Label.ID), nil, http.StatusOK, &getResp)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", createResp.Label.ID), nil, http.StatusOK, &delResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamLabelsShareNamesLiveReport() {
+	t := s.T()
+	ctx := t.Context()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+	hosts := s.createHosts(t, "darwin", "darwin")
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[0].ID})))
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{hosts[1].ID})))
+
+	shared := strings.ReplaceAll(t.Name(), "/", "_") + "_engineering"
+	labelIDs := make([]uint, 2)
+	for i, team := range []*fleet.Team{team1, team2} {
+		s.Do("POST", "/api/latest/fleet/spec/labels", fleet.ApplyLabelSpecsRequest{
+			Specs: []*fleet.LabelSpec{{Name: shared, LabelMembershipType: fleet.LabelMembershipTypeManual, Hosts: []string{hosts[i].UUID}}},
+		}, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
+		ids, err := s.ds.LabelIDsByName(ctx, []string{shared}, fleet.TeamFilter{User: test.UserAdmin, TeamID: &team.ID})
+		require.NoError(t, err)
+		labelIDs[i] = ids[shared]
+	}
+	require.NotEqual(t, labelIDs[0], labelIDs[1])
+
+	runByName := func(wantLabelIDs, wantHostIDs []uint) {
+		t.Helper()
+		var ranOn []uint
+		s.lq.On("RunQuery", mock.Anything, "SELECT 1", mock.Anything).Return(nil).Once().Run(func(args mock.Arguments) {
+			ranOn = args.Get(2).([]uint)
+		})
+		var resp createDistributedQueryCampaignResponse
+		s.DoJSON("POST", "/api/latest/fleet/reports/run_by_names", createDistributedQueryCampaignByIdentifierRequest{
+			QuerySQL: "SELECT 1",
+			Selected: distributedQueryCampaignTargetsByIdentifiers{Labels: []string{shared}},
+		}, http.StatusOK, &resp)
+		targets, err := s.ds.DistributedQueryCampaignTargetIDs(ctx, resp.Campaign.ID)
+		require.NoError(t, err)
+		require.ElementsMatch(t, wantLabelIDs, targets.LabelIDs)
+		require.ElementsMatch(t, wantHostIDs, ranOn)
+	}
+
+	// The name targets every label with that name the user can see.
+	runByName(labelIDs, []uint{hosts[0].ID, hosts[1].ID})
+
+	// A user on one fleet only sees that fleet's label.
+	maintainer := &fleet.User{
+		Name:  "maintainer",
+		Email: strings.ReplaceAll(t.Name(), "/", "_") + "_maintainer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleMaintainer}},
+	}
+	require.NoError(t, maintainer.SetPassword(test.GoodPassword, 10, 10))
+	maintainer, err = s.ds.NewUser(ctx, maintainer)
+	require.NoError(t, err)
+	s.token = s.getTestToken(maintainer.Email, test.GoodPassword)
+	defer func() { s.token = s.getTestAdminToken() }()
+	runByName([]uint{labelIDs[0]}, []uint{hosts[0].ID})
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamLabels() {

@@ -2573,7 +2573,7 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint
 
 	uniqueNames := server.RemoveDuplicatesFromSlice(labelNames)
 
-	found, err := foundLabelNames(ctx, svc.ds, uniqueNames, authz.UserFromContext(ctx))
+	found, err := foundLabelNames(ctx, svc.ds, uniqueNames, teamID, authz.UserFromContext(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -2587,7 +2587,7 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, teamID *uint
 	}
 
 	// NOTE(lucas): To not break API error string returned above
-	// AND for code reusability we are a-ok with loading labels again in labelsToAssociate.
+	// AND for code reusability we are a-ok with loading labels again in loadLabelsToAssociate.
 	// This can definitely be optimized if need be.
 	scoped, err := loadLabelsToAssociate(ctx, svc.ds, teamID, labelNames, authz.UserFromContext(ctx))
 	if err != nil {
