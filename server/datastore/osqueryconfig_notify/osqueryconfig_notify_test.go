@@ -277,8 +277,8 @@ var hookCases = []hookCase{
 		want:           "scope global labels",
 		alwaysNotifies: true,
 		run: func(ctx context.Context, ds *mock.Store, d *Datastore, unchanged bool, writeErr error) error {
-			ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error { return writeErr }
-			return d.DeleteLabel(ctx, "l", fleet.TeamFilter{})
+			ds.DeleteLabelFunc = func(ctx context.Context, id uint) error { return writeErr }
+			return d.DeleteLabel(ctx, 1)
 		},
 	},
 }

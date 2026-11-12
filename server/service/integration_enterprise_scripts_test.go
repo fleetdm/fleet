@@ -120,44 +120,20 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.False(t, scriptResultResp.HostTimeout)
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedMsg)
 
-	// Disable scripts and verify that there are no Orbit notifs
-	acr := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"server_settings": {
-			"scripts_disabled": true
-		}
-	}`), http.StatusOK, &acr)
-	require.True(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
+	// send the removed scripts_disabled setting as true and as false, both config updates should fail
+	removedSettingMsg := `The "scripts_disabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`
+	res = s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings": {"scripts_disabled": true}}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), removedSettingMsg)
+	res = s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{"server_settings": {"scripts_disabled": false}}`), http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), removedSettingMsg)
 
-	t.Cleanup(func() {
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"server_settings": {
-			"scripts_disabled": false
-		}
-	}`), http.StatusOK, &acr)
-	})
+	// read the config, the removed setting should not be returned
+	res = s.DoRaw("GET", "/api/latest/fleet/config", nil, http.StatusOK)
+	configBody, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.NotContains(t, string(configBody), "scripts_disabled")
 
 	var orbitResp fleet.OrbitGetConfigResponse
-	s.DoJSON("POST", "/api/fleet/orbit/config",
-		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
-		http.StatusOK, &orbitResp)
-	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
-
-	// Verify that endpoints related to scripts are disabled
-	srResp := s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusForbidden)
-	assertBodyContains(t, srResp, fleet.RunScriptScriptsDisabledGloballyErrMsg)
-
-	srResp = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusForbidden)
-	assertBodyContains(t, srResp, fleet.RunScriptScriptsDisabledGloballyErrMsg)
-
-	acr = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"server_settings": {
-			"scripts_disabled": false
-		}
-	}`), http.StatusOK, &acr)
-	require.False(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
-
 	// verify that orbit would get the notification that it has a script to run
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
@@ -242,7 +218,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	resultsCh := make(chan *fleet.HostScriptResultPayload, 1)
 	go func() {
 		for range time.Tick(300 * time.Millisecond) {
-			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID)
 			if err != nil {
 				t.Log(err)
 				return
@@ -635,7 +611,7 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 
 	// Queue again this time using a filter
 	filters := map[string]any{
-		"team_id": 0,
+		"fleet_id": 0,
 	}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", fleet.BatchScriptRunRequest{
 		ScriptID:  script.ID,
@@ -2441,7 +2417,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptFleetVariablesExecution() {
 		require.Eventually(t, func() bool {
 			// no require inside the condition: it runs on a separate goroutine,
 			// where FailNow is not supported
-			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID, false)
+			pending, err := s.ds.ListPendingHostScriptExecutions(ctx, host.ID)
 			if err != nil || len(pending) == 0 {
 				return false
 			}

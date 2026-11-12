@@ -1077,19 +1077,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	s.Require().NoError(err)
 	appConf.Features.EnableSoftwareInventory = true
-	appConf.ServerSettings.ScriptsDisabled = true // shouldn't stop installs/uninstalls
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	s.Require().NoError(err)
 	time.Sleep(2 * time.Second) // Wait for the app config cache to clear
-
-	t.Cleanup(func() {
-		acr := appConfigResponse{}
-		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"server_settings": {
-			"scripts_disabled": false
-		}
-	}`), http.StatusOK, &acr)
-	})
 
 	var createTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/fleets", &fleet.Team{
@@ -1356,7 +1346,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	for _, c := range cases {
 		t.Run(c.status, func(t *testing.T) {
 			var listResp listHostsResponse
-			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", c.status, "team_id",
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp, "software_status", c.status, "fleet_id",
 				fmt.Sprint(*teamID), "software_title_id", fmt.Sprint(titleID))
 			require.Len(t, listResp.Hosts, c.count)
 			gotIDs := make([]uint, 0, c.count)
@@ -1366,19 +1356,19 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			require.ElementsMatch(t, c.hostIDs, gotIDs)
 
 			var countResp countHostsResponse
-			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", c.status, "team_id",
+			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", c.status, "fleet_id",
 				fmt.Sprint(*teamID), "software_title_id", fmt.Sprint(titleID))
 			require.Equal(t, c.count, countResp.Count)
 
 			// count with label filter
 			countResp = countHostsResponse{}
-			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", c.status, "team_id",
+			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "software_status", c.status, "fleet_id",
 				fmt.Sprint(*teamID), "software_title_id", fmt.Sprint(titleID), "label_id", fmt.Sprint(labelResp.Label.ID))
 			require.Equal(t, c.count, countResp.Count)
 
 			listResp = listHostsResponse{}
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelResp.Label.ID), nil, http.StatusOK, &listResp,
-				"software_status", c.status, "team_id", fmt.Sprint(*teamID), "software_title_id", fmt.Sprint(titleID))
+				"software_status", c.status, "fleet_id", fmt.Sprint(*teamID), "software_title_id", fmt.Sprint(titleID))
 			require.Len(t, listResp.Hosts, c.count)
 			gotIDs = make([]uint, 0, c.count)
 			for _, h := range listResp.Hosts {
@@ -1394,13 +1384,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed")
 	require.Contains(t, extractServerErrorText(r.Body), "Missing software_title_id")
 	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "software_title_id", "1")
-	require.Contains(t, extractServerErrorText(r.Body), "Missing team_id")
-	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1")
+	require.Contains(t, extractServerErrorText(r.Body), "Missing fleet_id")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "fleet_id", "1")
 	require.Contains(t, extractServerErrorText(r.Body), "Missing software_title_id")
-	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_version_id", "1")
+	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "fleet_id", "1", "software_title_id", "1", "software_version_id", "1")
 	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_version_id and software_title_id is not allowed.")
-	r = s.Do("GET", "/api/latest/fleet/hosts", nil, http.StatusBadRequest, "software_status", "installed", "team_id", "1", "software_title_id", "1", "software_id", "1")
-	require.Contains(t, extractServerErrorText(r.Body), "Invalid parameters. The combination of software_id and software_title_id is not allowed.")
 
 	// Test: software_title_id DNE and software_status is valid (should return 0 hosts, 0 count)
 	nonExistentTitleID := uint(999999) // unlikely to exist
@@ -1412,7 +1400,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			var listResp listHostsResponse
 			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp,
 				"software_status", status,
-				"team_id", fmt.Sprint(*teamID),
+				"fleet_id", fmt.Sprint(*teamID),
 				"software_title_id", fmt.Sprint(nonExistentTitleID),
 			)
 			require.Empty(t, listResp.Hosts)
@@ -1421,7 +1409,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 			var countResp countHostsResponse
 			s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp,
 				"software_status", status,
-				"team_id", fmt.Sprint(*teamID),
+				"fleet_id", fmt.Sprint(*teamID),
 				"software_title_id", fmt.Sprint(nonExistentTitleID),
 			)
 			require.Equal(t, 0, countResp.Count)
@@ -1646,10 +1634,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	assert.EqualValues(t, 1, *scriptResultResp.ExitCode)
 	assert.Equal(t, "not ok", scriptResultResp.Output)
 	assert.Less(t, beforeUninstall, scriptResultResp.CreatedAt)
-
-	appConf.ServerSettings.ScriptsDisabled = false // set back to normal
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
-	s.Require().NoError(err)
 }
 
 func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall() {

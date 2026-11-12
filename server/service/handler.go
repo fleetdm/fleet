@@ -40,6 +40,7 @@ import (
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
@@ -54,7 +55,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/throttled/throttled/v2"
-	"go.elastic.co/apm/module/apmgorilla/v2"
 	otmiddleware "go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
@@ -180,23 +180,17 @@ func MakeHandler(
 
 	r := mux.NewRouter()
 
-	fastPathEnabled := true
-	if config.Logging.TracingEnabled {
-		if config.OTELEnabled() {
-			r.Use(otmiddleware.Middleware(
-				"service",
-				otmiddleware.WithSpanNameFormatter(func(route string, r *http.Request) string {
-					// Use the guideline for span names: {method} {target}
-					// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
-					return r.Method + " " + route
-				}),
-			))
-		} else {
-			// Elastic APM instrumentation is gorilla-specific and names spans from the matched mux route, so the fast path
-			// cannot be installed alongside it.
-			apmgorilla.Instrument(r)
-			fastPathEnabled = false
-		}
+	if config.OTELEnabled() {
+		// otelmux takes the route from r.Pattern when it is set, so this runs first to give it the readable template.
+		r.Use(cleanRoutePattern)
+		r.Use(otmiddleware.Middleware(
+			"service",
+			otmiddleware.WithSpanNameFormatter(func(route string, r *http.Request) string {
+				// Use the guideline for span names: {method} {target}
+				// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+				return r.Method + " " + route
+			}),
+		))
 	}
 
 	// Route-agnostic middleware is collected because it is needed by both the fastpath stdlib router and gorilla.
@@ -243,10 +237,20 @@ func MakeHandler(
 	endpointer.RegisterRemovedPaths(r, apiVersions, logger, removedPaths())
 	addMetrics(r)
 
-	if !fastPathEnabled {
-		return r, nil
-	}
 	return newFastPathHandler(r, middlewares, config)
+}
+
+// cleanRoutePattern sets r.Pattern to the matched gorilla route template without its regex syntax, so spans read
+// "GET /api/_version_/fleet/hosts/{id}" instead of "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}".
+func cleanRoutePattern(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if route := mux.CurrentRoute(r); route != nil {
+			if tpl, err := route.GetPathTemplate(); err == nil {
+				r.Pattern = tracing.CleanRouteTemplate(tpl)
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // PrometheusMetricsHandler wraps the provided handler with prometheus metrics
@@ -372,7 +376,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/spec/enroll_secret", getEnrollSecretSpecEndpoint, nil)
 	ue.GET("/api/_version_/fleet/version", versionEndpoint, nil)
 
-	ue.POST("/api/_version_/fleet/users/roles/spec", applyUserRoleSpecsEndpoint, applyUserRoleSpecsRequest{})
 	ue.POST("/api/_version_/fleet/translate", translatorEndpoint, translatorRequest{})
 	ue.WithRequestBodySizeLimit(5*units.MiB).POST("/api/_version_/fleet/spec/fleets", applyTeamSpecsEndpoint, applyTeamSpecsRequest{})
 	ue.PATCH("/api/_version_/fleet/fleets/{fleet_id:[0-9]+}/secrets", modifyTeamEnrollSecretsEndpoint, modifyTeamEnrollSecretsRequest{})
@@ -462,13 +465,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	ue.GET("/api/_version_/fleet/software/versions", listSoftwareVersionsEndpoint, listSoftwareRequest{})
 	ue.GET("/api/_version_/fleet/software/versions/{id:[0-9]+}", getSoftwareEndpoint, getSoftwareRequest{})
-
-	// DEPRECATED: use /api/_version_/fleet/software/versions instead
-	ue.GET("/api/_version_/fleet/software", listSoftwareEndpoint, listSoftwareRequest{})
-	// DEPRECATED: use /api/_version_/fleet/software/versions{id:[0-9]+} instead
-	ue.GET("/api/_version_/fleet/software/{id:[0-9]+}", getSoftwareEndpoint, getSoftwareRequest{})
-	// DEPRECATED: software version counts are now included directly in the software version list
-	ue.GET("/api/_version_/fleet/software/count", countSoftwareEndpoint, countSoftwareRequest{})
 
 	ue.GET("/api/_version_/fleet/software/titles", listSoftwareTitlesEndpoint, listSoftwareTitlesRequest{})
 	ue.GET("/api/_version_/fleet/software/titles/{id:[0-9]+}", getSoftwareTitleEndpoint, getSoftwareTitleRequest{})
@@ -579,7 +575,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/labels", listLabelsEndpoint, fleet.ListLabelsRequest{})
 	ue.GET("/api/_version_/fleet/labels/summary", getLabelsSummaryEndpoint, fleet.GetLabelsSummaryRequest{})
 	ue.GET("/api/_version_/fleet/labels/{id:[0-9]+}/hosts", listHostsInLabelEndpoint, fleet.ListHostsInLabelRequest{})
-	ue.DELETE("/api/_version_/fleet/labels/{name}", deleteLabelEndpoint, fleet.DeleteLabelRequest{})
 	ue.DELETE("/api/_version_/fleet/labels/id/{id:[0-9]+}", deleteLabelByIDEndpoint, fleet.DeleteLabelByIDRequest{})
 	ue.WithRequestBodySizeLimit(fleet.MaxSpecSize).POST("/api/_version_/fleet/spec/labels", applyLabelSpecsEndpoint, fleet.ApplyLabelSpecsRequest{})
 	ue.GET("/api/_version_/fleet/spec/labels", getLabelSpecsEndpoint, fleet.GetLabelSpecsRequest{})

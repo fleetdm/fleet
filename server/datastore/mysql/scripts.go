@@ -40,10 +40,9 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 }
 
 // NewInternalHostScriptExecutionRequest enqueues a host script run flagged
-// as internal (fleet-initiated). Internal scripts run even when scripts
-// are globally disabled and do not appear in the user-facing host activity
-// feed. Use for server-driven follow-up actions (e.g. cleanup scripts
-// after MDM events) rather than user-requested runs.
+// as internal (fleet-initiated). Internal scripts do not appear in the
+// user-facing host activity feed. Use for server-driven follow-up actions
+// (e.g. cleanup scripts after MDM events) rather than user-requested runs.
 func (ds *Datastore) NewInternalHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	return ds.newHostScriptExecutionRequestPublic(ctx, request, true)
 }
@@ -312,22 +311,18 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	return hsr, action, nil
 }
 
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, false)
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, false)
 }
 
-func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
-	return ds.listUpcomingHostScriptExecutions(ctx, hostID, onlyShowInternal, true)
+func (ds *Datastore) ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
+	return ds.listUpcomingHostScriptExecutions(ctx, hostID, true)
 }
 
-func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
+func (ds *Datastore) listUpcomingHostScriptExecutions(ctx context.Context, hostID uint, onlyReadyToExecute bool) ([]*fleet.HostScriptResult, error) {
 	extraWhere := ""
-	if onlyShowInternal {
-		// software_uninstalls are implicitly internal
-		extraWhere = " AND COALESCE(ua.payload->'$.is_internal', 1) = 1"
-	}
 	if onlyReadyToExecute {
-		extraWhere += " AND ua.activated_at IS NOT NULL"
+		extraWhere = " AND ua.activated_at IS NOT NULL"
 	}
 	// this selects software uninstalls too as they run as scripts
 	listStmt := fmt.Sprintf(`

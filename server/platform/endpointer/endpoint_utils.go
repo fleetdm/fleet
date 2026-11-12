@@ -55,6 +55,25 @@ type fieldPair struct {
 	V  reflect.Value
 }
 
+// expectsJSONBody reports whether a request field makes the JSON body (and its
+// cross-site Content-Type check) required. A field tagged only `json:"-"` is
+// server-internal state shielded from the body, not a request input, so it
+// must not force GET requests to carry one. `json:"-"` combined with a url or
+// query tag keeps counting, since some requests rely on it for the
+// Content-Type check.
+func expectsJSONBody(sf reflect.StructField) bool {
+	jsonTag, ok := sf.Tag.Lookup("json")
+	if !ok {
+		return false
+	}
+	if jsonTag != "-" {
+		return true
+	}
+	_, hasURL := sf.Tag.Lookup("url")
+	_, hasQuery := sf.Tag.Lookup("query")
+	return hasURL || hasQuery
+}
+
 // allFields returns all the fields for a struct, including the ones from embedded structs
 func allFields(ifv reflect.Value) []fieldPair {
 	if ifv.Kind() == reflect.Ptr {
@@ -263,8 +282,7 @@ func BadRequestErr(publicMsg string, internalErr error) error {
 }
 
 func UintFromRequest(r *http.Request, name string) (uint64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return 0, ErrBadRoute
 	}
@@ -276,8 +294,7 @@ func UintFromRequest(r *http.Request, name string) (uint64, error) {
 }
 
 func IntFromRequest(r *http.Request, name string) (int64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return 0, ErrBadRoute
 	}
@@ -289,8 +306,7 @@ func IntFromRequest(r *http.Request, name string) (int64, error) {
 }
 
 func StringFromRequest(r *http.Request, name string) (string, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return "", ErrBadRoute
 	}
@@ -743,7 +759,7 @@ func MakeDecoder(
 
 			}
 
-			_, jsonExpected := fp.Sf.Tag.Lookup("json")
+			jsonExpected := expectsJSONBody(fp.Sf)
 			if jsonExpected && nilBody {
 				return nil, &platform_http.BadRequestError{Message: "Expected JSON Body"}
 			}

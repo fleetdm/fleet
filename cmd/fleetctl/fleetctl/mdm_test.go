@@ -685,6 +685,24 @@ fleetctl mdm unlock --host=%s
 	}
 
 	runTestCases(t, ds, "lock", successfulOutput, cases)
+
+	t.Run("gitops user", func(t *testing.T) {
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfgAllMDM, nil
+		}
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+		}
+		ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+			return nil, nil
+		}
+		for _, action := range []string{"lock", "unlock", "clear-passcode", "wipe"} {
+			t.Run(action, func(t *testing.T) {
+				_, err := runAppNoChecks([]string{"mdm", action, "--host", macEnrolled.host.UUID})
+				require.ErrorContains(t, err, fleet.GitOpsMDMCommandErrorMessage)
+			})
+		}
+	})
 }
 
 func TestMDMUnlockCommand(t *testing.T) {
@@ -1326,7 +1344,6 @@ func TestMDMWipeCommand(t *testing.T) {
 	}
 
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
-	appCfgScriptsDisabled := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}
 
 	cases := []struct {
 		appCfg  *fleet.AppConfig
@@ -1358,7 +1375,6 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgAllMDM, "valid windows but host is locked", []string{"--host", winEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
 		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.host.UUID}, "Host cannot be wiped until it is unlocked."},
-		{appCfgScriptsDisabled, "valid linux and scripts are disabled", []string{"--host", linuxEnrolled.host.UUID}, ""},
 		{appCfgAllMDM, "valid android but not connected", []string{"--host", androidNotConnected.host.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
 	}
 

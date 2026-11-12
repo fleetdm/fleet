@@ -234,7 +234,26 @@
                 <strong>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</strong>
             </div>
           </div>
-          <div purpose="comparison-table" class="d-sm-flex d-none flex-column"> 
+          <div purpose="comparison-table" class="d-sm-flex d-none flex-column">
+            <div purpose="table-row">
+              <div purpose="feature-name">
+                <p>Zero-touch provisioning<a href="https://fleetdm.com/guides/windows-zero-touch-without-entra-or-autopilot" target="_blank" no-icon><img style="margin-left: 6px;" class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p>No Entra or Autopilot required. Your hardware vendor ships devices that enroll in Fleet during setup. Available in Fleet Premium.</p><p class=&quot;d-flex flex-row align-items-center mb-0&quot;>Click <img src=&quot;/images/icon-more-info-25-14x14@2x.png&quot; class=&quot;mx-1&quot; style=&quot;height: 12px; display: inline;&quot; alt=&quot;more info&quot;> to learn more</p>"></a></p>
+              </div>
+              <div purpose="fleet-column"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></div>
+              <div purpose="comparison-column" v-if="comparisonModeForIt === 'intune'">
+                <p>Requires Entra P1</p>
+              </div>
+              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'jamf'">
+                <p>Apple only</p>
+              </div>
+              <div purpose="comparison-column" v-else-if="comparisonModeForIt === 'patchmypc'">
+                <p>Windows only</p>
+              </div>
+              <div purpose="comparison-column" v-else-if="['omnissa', 'ivanti'].includes(comparisonModeForIt)">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+
             <div purpose="table-row">
               <div purpose="feature-name">
                 <p>Complete device inventory <img style="margin-left: 6px;" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info"  data-toggle="tooltip" tabindex="0" data-placement="top" title="Fleet gives you complete software inventory and hardware data down to the chip level on Apple, Linux, Windows, and ChromeOS devices."></p>
@@ -382,6 +401,33 @@
             <div class="dropdown-item" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')">PatchMyPC</div>
           </div>
 
+          <div purpose="feature-table">
+            <div purpose="feature-name">
+              <p>Zero-touch provisioning</p>
+              <a href="https://fleetdm.com/guides/windows-zero-touch-without-entra-or-autopilot" target="_blank" no-icon><img style="margin-left: 6px;" class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p>No Entra or Autopilot required. Your hardware vendor ships devices that enroll in Fleet during setup. Available in Fleet Premium.</p><p class=&quot;d-flex flex-row align-items-center mb-0&quot;>Click <img src=&quot;/images/icon-more-info-25-14x14@2x.png&quot; class=&quot;mx-1&quot; style=&quot;height: 12px; display: inline;&quot; alt=&quot;more info&quot;> to learn more</p>"></a>
+            </div>
+            <div purpose="feature-table-row">
+              <div>Fleet</div>
+              <div purpose="feature-status">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+            <div purpose="feature-table-row">
+              <div>{{comparisonModeFriendlyNames[comparisonModeForIt]}}</div>
+              <div purpose="feature-status" v-if="comparisonModeForIt === 'intune'">
+                <p>Requires Entra P1</p>
+              </div>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'jamf'">
+                <p>Apple only</p>
+              </div>
+              <div purpose="feature-status" v-else-if="comparisonModeForIt === 'patchmypc'">
+                <p>Windows only</p>
+              </div>
+              <div purpose="feature-status" v-else-if="['omnissa', 'ivanti'].includes(comparisonModeForIt)">
+                <img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              </div>
+            </div>
+          </div>
           <div purpose="feature-table">
             <div purpose="feature-name">
               <p>Complete device inventory </p>

@@ -470,6 +470,25 @@
   automations_enabled: true
   logging: snapshot
   interval: 3600
+- name: DEX - System experience - Pending macOS updates
+  description: macOS software updates staged for automatic install, with target build and version compared to the currently installed OS.
+  query: |
+    SELECT
+      p.value AS product_key,
+      split(p.value, '_', 2) AS target_build,
+      split(p.value, '_', 3) AS payload,
+      split(p.value, '_', 4) AS target_version,
+      split(p.value, '_', 5) AS update_type,
+      o.version AS current_version,
+      o.build AS current_build
+    FROM plist p, os_version o
+    WHERE p.path = '/Library/Preferences/com.apple.SoftwareUpdate.plist'
+      AND p.key = 'AutoInstallProductKeys'
+      AND p.value LIKE 'MSU_UPDATE_%';
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 28800
 - name: DEX - Application experience - Windows application crashes (7 days)
   description: Application crashes and hangs from Windows Event Log. Identifies problematic applications affecting user productivity.
   query: |

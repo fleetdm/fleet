@@ -58,6 +58,7 @@ spec:
   orbit_version: null
   os_update_deadline: null
   os_update_minimum_version: null
+  os_name: ""
   os_version: ""
   osquery_version: ""
   pack_stats: null
@@ -121,8 +122,6 @@ spec:
   software: []
   software_updated_at: "0001-01-01T00:00:00Z"
   status: offline
-  team_id: null
-  team_name: null
   timezone: null
   updated_at: "0001-01-01T00:00:00Z"
   uptime: 0

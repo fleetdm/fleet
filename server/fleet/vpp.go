@@ -362,7 +362,6 @@ var FleetVarsSupportedInAppleAppConfig = []FleetVarName{
 	FleetVarHostUUID,
 	FleetVarHostHardwareSerial,
 	FleetVarHostPlatform,
-	FleetVarHostEndUserEmailIDP,
 	FleetVarHostEndUserIDPUsername,
 	FleetVarHostEndUserIDPUsernameLocalPart,
 	FleetVarHostEndUserIDPGroups,
@@ -396,15 +395,26 @@ func ValidateAppleAppConfiguration(config []byte) error {
 	// Raw-bytes scan catches structural bypasses (duplicate keys, trailing
 	// siblings) invisible to the decoded tree. The decoded-tree walk below
 	// catches XML-entity-encoded tokens the regex won't match.
-	for _, name := range variables.Find(string(config)) {
+	rawVars := variables.Find(string(config))
+	if err := FindRemovedFleetVariable(rawVars...); err != nil {
+		return err
+	}
+	for _, name := range rawVars {
 		if !slices.Contains(FleetVarsSupportedInAppleAppConfig, FleetVarName(name)) {
-			return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+			return unsupportedAppleAppConfigVarError(name)
 		}
 	}
 	if name, ok := findUnsupportedFleetVar(root); ok {
-		return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+		return unsupportedAppleAppConfigVarError(name)
 	}
 	return nil
+}
+
+func unsupportedAppleAppConfigVarError(name string) error {
+	if err := FindRemovedFleetVariable(name); err != nil {
+		return err
+	}
+	return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
 }
 
 // findUnsupportedFleetVar walks v's keys and string values and returns the
