@@ -1075,8 +1075,8 @@ func testListSoftwareTitlesAppStoreApps(t *testing.T, ds *Datastore) {
 
 		iosTitle := titlesByID[iosFirstVersion.TitleID]
 		require.Equal(t, []fleet.AppStoreAppListItem{
-			{ID: iosFirstVersion.AppTeamID, Name: fleet.DefaultAppStoreAppVersionName, AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0", SelfService: true, InstallDuringSetup: new(false)},
-			{ID: iosSecondVersion.AppTeamID, Name: "Beta", AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0", InstallDuringSetup: new(false)},
+			{ID: iosFirstVersion.AppTeamID, Name: fleet.DefaultAppStoreAppVersionName, AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0", SelfService: true},
+			{ID: iosSecondVersion.AppTeamID, Name: "Beta", AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0"},
 		}, iosTitle.AppStoreApps)
 		// read app_store_app from the titles list, it should only be set for setup experience
 		require.Nil(t, iosTitle.AppStoreApp)
@@ -2783,7 +2783,6 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 				require.Equal(t, want[i].AppStoreID, sw.AppStoreApps[0].AppStoreID)
 				require.Equal(t, want[i].Platform, string(sw.AppStoreApps[0].Platform))
 				require.Equal(t, *want[i].SelfService, sw.AppStoreApps[0].SelfService)
-				require.Equal(t, want[i].InstallDuringSetup, sw.AppStoreApps[0].InstallDuringSetup)
 			default:
 				require.Nil(t, sw.AppStoreApps)
 				require.NotNil(t, sw.SoftwarePackage)

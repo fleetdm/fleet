@@ -535,7 +535,8 @@ func (ds *Datastore) processSoftwareTitleResults(
 		// Key policies by installer_id so each package on a multi-package
 		// title only shows the policies actually bound to it — not the
 		// aggregated title-level list. Custom-package-backed policies
-		// always carry a non-nil InstallerID; VPP-backed policies carry a non-nil VPPAppsTeamsID.
+		// always carry a non-nil InstallerID; VPP-backed policies carry a
+		// non-nil VPPAppsTeamsID.
 		policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
 		policiesByVersionID := make(map[uint][]fleet.AutomaticInstallPolicy)
 		for _, p := range policies {
@@ -569,7 +570,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 		}
 		for _, appStoreApp := range appStoreApps {
 			title := softwareList[titleIndex[appStoreApp.TitleID]]
-			title.AppStoreApps = append(title.AppStoreApps, fleet.AppStoreAppListItem{
+			listItem := fleet.AppStoreAppListItem{
 				ID:                       appStoreApp.VPPAppsTeamsID,
 				Name:                     appStoreApp.VersionName,
 				AppStoreID:               appStoreApp.AdamID,
@@ -577,17 +578,27 @@ func (ds *Datastore) processSoftwareTitleResults(
 				Version:                  appStoreApp.LatestVersion,
 				SelfService:              appStoreApp.SelfService,
 				AutomaticInstallPolicies: policiesByVersionID[appStoreApp.VPPAppsTeamsID],
-				InstallDuringSetup:       appStoreApp.InstallDuringSetup,
-			})
-			// Set app_store_app for setup experience to the first-added version, versions are sorted by id.
-			if opt.ForSetupExperience && title.AppStoreApp == nil {
-				title.AppStoreApp = &fleet.SoftwarePackageOrApp{
-					AppStoreID:               appStoreApp.AdamID,
-					Version:                  appStoreApp.LatestVersion,
-					Platform:                 string(appStoreApp.Platform),
-					SelfService:              new(appStoreApp.SelfService),
-					InstallDuringSetup:       appStoreApp.InstallDuringSetup,
-					AutomaticInstallPolicies: appStoreAppPoliciesByTitleID[appStoreApp.TitleID],
+			}
+			if opt.ForSetupExperience {
+				listItem.InstallDuringSetup = appStoreApp.InstallDuringSetup
+			}
+			title.AppStoreApps = append(title.AppStoreApps, listItem)
+		}
+
+		// Fill in the deprecated app_store_app for setup experience software only.
+		if opt.ForSetupExperience {
+			for _, title := range softwareList {
+				if len(title.AppStoreApps) > 0 {
+					// Set app_store_app to the first-added version, versions are sorted by id.
+					firstVersion := title.AppStoreApps[0]
+					title.AppStoreApp = &fleet.SoftwarePackageOrApp{
+						AppStoreID:               firstVersion.AppStoreID,
+						Version:                  firstVersion.Version,
+						Platform:                 string(firstVersion.Platform),
+						SelfService:              new(firstVersion.SelfService),
+						InstallDuringSetup:       firstVersion.InstallDuringSetup,
+						AutomaticInstallPolicies: appStoreAppPoliciesByTitleID[title.ID],
+					}
 				}
 			}
 		}

@@ -3490,7 +3490,7 @@ func (s *integrationMDMTestSuite) TestAppStoreAppsManyTokens() {
 	// The software title carries the token only when a fleet is given.
 	var titleResp getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", canva.TitleID), nil, http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(team.ID))
-	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 1)
+	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
 	require.Equal(t, &fleet.VPPTokenSummary{ID: jpTok.ID, OrgName: "Alpha KK", Location: "Acme Japan", CountryCode: jpTok.CountryCode},
 		titleResp.SoftwareTitle.AppStoreApps[0].VPPToken)
 	titleResp = getSoftwareTitleResponse{}
