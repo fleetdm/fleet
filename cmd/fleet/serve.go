@@ -117,9 +117,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/throttled/throttled/v2"
-	"go.elastic.co/apm/module/apmhttp/v2"
-	_ "go.elastic.co/apm/module/apmsql/v2"
-	_ "go.elastic.co/apm/module/apmsql/v2/mysql"
 	"google.golang.org/grpc"
 	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
@@ -214,6 +211,14 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// Validate OTEL server options
 	config.Logging.Validate(initFatal)
 
+	// Elastic APM support was removed. Turning tracing off avoids exporting OpenTelemetry to a default endpoint nobody set up.
+	elasticAPMConfigured := config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm"
+	if elasticAPMConfigured {
+		config.Logging.TracingEnabled = false
+		// OTEL logs require tracing, and the logger setup panics without a logger provider.
+		config.Logging.OtelLogsEnabled = false
+	}
+
 	// Trace sampler tier registry. Bounded contexts register their own route to tier classifications below. The
 	// platform/tracing package stays free of cross context coupling. Infra paths (/healthz, /version, /metrics) are registered
 	// alongside their WrapHandler calls further down in this function.
@@ -227,6 +232,11 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	loggerProvider, tracerProvider, meterProvider, traceSampler := initOTELProviders(config, traceRegistry, initFatal)
 
 	logger := initLogger(config, loggerProvider)
+
+	if elasticAPMConfigured {
+		logger.WarnContext(cmd.Context(), `The "logging.tracing_type: elasticapm" value is not available anymore, so tracing is off. `+
+			"What to use instead: "+fleet.Fleet5MigrationGuide)
+	}
 
 	// If you want to disable any logs by default, this is where to do it.
 	//
@@ -1209,13 +1219,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	// of the response.
 	liveQueryRestPeriod += 10 * time.Second
 
-	// Create the handler based on whether tracing should be there
-	var handler http.Handler
-	if config.Logging.TracingEnabled && config.Logging.TracingType == "elasticapm" {
-		handler = launcher.Handler(apmhttp.Wrap(rootMux))
-	} else {
-		handler = launcher.Handler(rootMux)
-	}
+	handler := launcher.Handler(rootMux)
 
 	srv = config.Server.DefaultHTTPServer(ctx, handler)
 	if liveQueryRestPeriod > srv.WriteTimeout {

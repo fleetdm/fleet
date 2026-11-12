@@ -480,7 +480,6 @@ func toCommonLoggingConfig(conf *config.LoggingConfig) *common_mysql.LoggingConf
 	}
 	return &common_mysql.LoggingConfig{
 		TracingEnabled: conf.TracingEnabled,
-		TracingType:    conf.TracingType,
 	}
 }
 
