@@ -579,6 +579,29 @@ We track certain social posts from the [LinkedIn company page](https://www.linke
 
 
 
+### Create an account
+
+Fleet uses LinkedIn as the source of truth for account data. Use the company's LinkedIn page for every field below. If LinkedIn doesn't show a value, leave the field blank instead of guessing.
+
+1. Search Salesforce for the company name and email domain to make sure the account doesn't already exist. If it does, use the existing account.
+2. Find the company's LinkedIn page from the contact's email domain.
+3. Use the top-level parent company. Regional, country, and brand pages roll up to the parent. For example, a contact at NVIDIA India belongs to the "NVIDIA" account. Channel partners are the exception (see [channel partner accounts](https://fleetdm.com/handbook/company/go-to-market-operations#channel-partner-accounts)).
+4. In Salesforce, click **Accounts** > **New** and fill out these fields:
+
+| Field | What to enter |
+|:---|:---|
+| **Account name** | The LinkedIn company page name, exactly as written (e.g., "Total Life Changes, LLC"). |
+| **Account type** | "Prospect" (the default). Only change it if the company is clearly a competitor, channel partner, or technical partner. |
+| **Employees** | The "Total employee count" number on the LinkedIn page's **Insights** tab (e.g., `linkedin.com/company/webmd/insights`). Don't use the size range on the **About** tab. |
+| **Website** | The contact's email domain, without `https://` or `www.` (e.g., `webmd.com`). This is usually the same as the company's website. When they differ, use the email domain. |
+| **LinkedIn company URL** | `linkedin.com/company/` followed by the company's LinkedIn slug (e.g., `linkedin.com/company/webmd`). Remove `https://`, `www.`, and anything after the slug, like `/about` or `/insights`. |
+| **Industry (LinkedIn)** | The industry LinkedIn shows for the company, exactly as written (e.g., "Software Development"). |
+| **Account description** | The "Overview" text from the LinkedIn **About** tab. |
+| **Billing address** | The company's headquarters address. Find it under "Locations" on the LinkedIn **About** tab, marked "Primary". |
+
+> Leave the standard "Industry" picklist and "Account owner" fields alone. Fleet uses "Industry (LinkedIn)" instead of "Industry", and territory routing assigns the account owner.
+
+
 ### Channel partner accounts
 
 Keep one Salesforce account per channel partner by default. Create a separate account only when a region or segment has a different billing address, because quotes fill in the billing address from the account.
