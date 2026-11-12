@@ -112,21 +112,25 @@ func mergeUnlockPasswordPolicies(policies []*androidmanagement.PasswordRequireme
 		if p == nil {
 			continue
 		}
-		spec.length = max(spec.length, int(p.PasswordMinimumLength))
+		// passwordMinimumLength is only enforced for NUMERIC, NUMERIC_COMPLEX, ALPHABETIC, ALPHANUMERIC, and COMPLEX.
+		minLength := int(p.PasswordMinimumLength)
 
 		switch p.PasswordQuality {
-		case "", "PASSWORD_QUALITY_UNSPECIFIED", "BIOMETRIC_WEAK", "SOMETHING", "NUMERIC", "NUMERIC_COMPLEX",
-			"COMPLEXITY_LOW", "COMPLEXITY_MEDIUM":
+		case "", "PASSWORD_QUALITY_UNSPECIFIED", "BIOMETRIC_WEAK", "SOMETHING", "COMPLEXITY_LOW", "COMPLEXITY_MEDIUM":
 			// A PIN with no sequence satisfies all of these.
 		case "COMPLEXITY_HIGH":
 			// On Android 12+, a PIN in the high band needs at least 8 digits.
 			spec.length = max(spec.length, 8)
+		case "NUMERIC", "NUMERIC_COMPLEX":
+			spec.length = max(spec.length, minLength)
 		case "ALPHABETIC", "ALPHANUMERIC":
 			spec.kind = max(spec.kind, unlockPasswordAlphanumeric)
+			spec.length = max(spec.length, minLength)
 		default:
 			// COMPLEX, or a quality added after this was written. A complex password with a letter, a digit, and a
 			// symbol satisfies every other band, so it's the safest fallback.
 			spec.kind = unlockPasswordComplex
+			spec.length = max(spec.length, minLength)
 			if p.PasswordQuality != "COMPLEX" {
 				spec.length = max(spec.length, 8)
 			}

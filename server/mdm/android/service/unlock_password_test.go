@@ -120,6 +120,24 @@ func TestGenerateUnlockPassword(t *testing.T) {
 			digitsOnly: true,
 		},
 		{
+			name: "minimum length is ignored where Android doesn't enforce it",
+			policies: []*androidmanagement.PasswordRequirements{
+				{PasswordQuality: "SOMETHING", PasswordMinimumLength: 10},
+				{PasswordQuality: "COMPLEXITY_MEDIUM", PasswordMinimumLength: 12},
+				{PasswordQuality: "BIOMETRIC_WEAK", PasswordMinimumLength: 14},
+			},
+			minLength:  6,
+			digitsOnly: true,
+		},
+		{
+			name: "COMPLEXITY_HIGH ignores a minimum length over 32",
+			policies: []*androidmanagement.PasswordRequirements{
+				{PasswordQuality: "COMPLEXITY_HIGH", PasswordMinimumLength: 40},
+			},
+			minLength:  8,
+			digitsOnly: true,
+		},
+		{
 			name: "ALPHABETIC",
 			policies: []*androidmanagement.PasswordRequirements{
 				{PasswordQuality: "ALPHABETIC"},
