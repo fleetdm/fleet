@@ -2,7 +2,7 @@
 
 FMA install/uninstall scripts are not internal code. They're returned verbatim by `GET /fleet/software/fleet_maintained_apps/:id` and by the software title endpoint, and rendered in the "Install script" / "Uninstall script" editors of the Edit software modal ([AdvancedOptionsFields.tsx](../../../../frontend/pages/SoftwarePage/components/forms/AdvancedOptionsFields/AdvancedOptionsFields.tsx)), where an admin reads them and can edit them. Every comment you leave is product copy — treat it like the app description, not like a commit message.
 
-Budget: the Fleet template header (`# Learn more about .exe install scripts:` + URL) if the script started from a template, then **at most ~4 lines** of app-specific comment. Of the 580 scripts in `inputs/*/scripts/`, only 51 open with a longer block than that — a big header is the exception you have to justify, not the norm.
+Budget: the Fleet template header (`# Learn more about .exe install scripts:` + URL) if the script started from a template, then **at most ~4 lines** of app-specific comment. Most shipped scripts stay within that; a big header is the exception you have to justify, not the norm.
 
 **Keep** a comment only if an admin who edits this script would break something without it, or would be surprised at install time:
 - Host-visible side effects: the app is force-quit, users are logged out, a reboot happens, existing config is preserved or deleted.
@@ -19,7 +19,7 @@ Budget: the Fleet template header (`# Learn more about .exe install scripts:` + 
 
 If the fact matters at run time rather than at edit time, `Write-Host`/`echo` it instead of commenting it — script output lands in the host's software install details, which is where an admin debugging a failure actually looks.
 
-Before/after — [darktable_install.ps1](../../../../ee/maintained-apps/inputs/winget/scripts/darktable_install.ps1)'s 20-line header carries three admin-relevant facts and 16 lines of internal history:
+Before/after — [darktable_install.ps1](../../../../ee/maintained-apps/inputs/winget/scripts/darktable_install.ps1)'s 20-line header carries three admin-relevant facts and 16 lines of internal history. Trimmed, it would read:
 ```powershell
 # Learn more about .exe install scripts:
 # http://fleetdm.com/learn-more-about/exe-install-scripts
