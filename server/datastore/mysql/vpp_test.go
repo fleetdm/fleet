@@ -5648,9 +5648,9 @@ func testSetTeamVPPAppVersions(t *testing.T, ds *Datastore) {
 
 		// set two new versions that both install during setup, they should be added in list order and only the first version should install during setup
 		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
-			{VPPAppID: app.VPPAppID, VersionName: "Production", InstallDuringSetup: new(true), Configuration: []byte("<dict>production</dict>")},
+			{VPPAppID: app.VPPAppID, VersionName: "Production", InstallDuringSetup: new(true), Configuration: []byte("<dict><key>Env</key><string>production</string></dict>")},
 			{
-				VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict>test</dict>"),
+				VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict><key>Env</key><string>test</string></dict>"),
 				AutoUpdateEnabled: new(true), AutoUpdateStartTime: new("01:00"), AutoUpdateEndTime: new("03:00"),
 			},
 		}, map[string]uint{})
@@ -5662,11 +5662,11 @@ func testSetTeamVPPAppVersions(t *testing.T, ds *Datastore) {
 		testID := versions[1].VPPAppsTeamsID
 		require.Equal(t, "Production", versions[0].VersionName)
 		require.False(t, versions[0].SelfService)
-		require.Equal(t, "<dict>production</dict>", string(versions[0].Configuration))
+		require.Equal(t, "<dict><key>Env</key><string>production</string></dict>", string(versions[0].Configuration))
 		require.Nil(t, versions[0].AutoUpdateEnabled)
 		require.Equal(t, "Test", versions[1].VersionName)
 		require.True(t, versions[1].SelfService)
-		require.Equal(t, "<dict>test</dict>", string(versions[1].Configuration))
+		require.Equal(t, "<dict><key>Env</key><string>test</string></dict>", string(versions[1].Configuration))
 		require.True(t, *versions[1].AutoUpdateEnabled)
 		require.Equal(t, "01:00", *versions[1].AutoUpdateStartTime)
 		require.Equal(t, "03:00", *versions[1].AutoUpdateEndTime)
@@ -5678,10 +5678,10 @@ func testSetTeamVPPAppVersions(t *testing.T, ds *Datastore) {
 		// set the same versions in reverse order, the versions should keep their ids and order
 		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
 			{
-				VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict>test</dict>"),
+				VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict><key>Env</key><string>test</string></dict>"),
 				AutoUpdateEnabled: new(true), AutoUpdateStartTime: new("01:00"), AutoUpdateEndTime: new("03:00"),
 			},
-			{VPPAppID: app.VPPAppID, VersionName: "Production", InstallDuringSetup: new(true), Configuration: []byte("<dict>production</dict>")},
+			{VPPAppID: app.VPPAppID, VersionName: "Production", InstallDuringSetup: new(true), Configuration: []byte("<dict><key>Env</key><string>production</string></dict>")},
 		}, map[string]uint{})
 		require.NoError(t, err)
 		versions, err = ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
@@ -5696,22 +5696,22 @@ func testSetTeamVPPAppVersions(t *testing.T, ds *Datastore) {
 
 		// change the configuration and turn off automatic updates of the Test version, only the Test version should change
 		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
-			{VPPAppID: app.VPPAppID, VersionName: "Production", InstallDuringSetup: new(true), Configuration: []byte("<dict>production</dict>")},
-			{VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict>test v2</dict>"), AutoUpdateEnabled: new(false)},
+			{VPPAppID: app.VPPAppID, VersionName: "Production", InstallDuringSetup: new(true), Configuration: []byte("<dict><key>Env</key><string>production</string></dict>")},
+			{VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict><key>Env</key><string>test v2</string></dict>"), AutoUpdateEnabled: new(false)},
 		}, map[string]uint{})
 		require.NoError(t, err)
 		versions, err = ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
 		require.NoError(t, err)
 		require.Len(t, versions, 2)
 		require.Equal(t, productionID, versions[0].VPPAppsTeamsID)
-		require.Equal(t, "<dict>production</dict>", string(versions[0].Configuration))
+		require.Equal(t, "<dict><key>Env</key><string>production</string></dict>", string(versions[0].Configuration))
 		require.Equal(t, testID, versions[1].VPPAppsTeamsID)
-		require.Equal(t, "<dict>test v2</dict>", string(versions[1].Configuration))
+		require.Equal(t, "<dict><key>Env</key><string>test v2</string></dict>", string(versions[1].Configuration))
 		require.False(t, *versions[1].AutoUpdateEnabled)
 
 		// remove the Production version, the Test version should be the only version left and install during setup
 		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
-			{VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict>test v2</dict>"), AutoUpdateEnabled: new(false)},
+			{VPPAppID: app.VPPAppID, VersionName: "Test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict><key>Env</key><string>test v2</string></dict>"), AutoUpdateEnabled: new(false)},
 		}, map[string]uint{})
 		require.NoError(t, err)
 		versions, err = ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)
@@ -5725,7 +5725,7 @@ func testSetTeamVPPAppVersions(t *testing.T, ds *Datastore) {
 
 		// set the Test version with its name in lower case, the version should keep its id and take the lower case name
 		_, err = ds.SetTeamVPPApps(ctx, &fleetID, []fleet.VPPAppTeam{
-			{VPPAppID: app.VPPAppID, VersionName: "test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict>test v2</dict>"), AutoUpdateEnabled: new(false)},
+			{VPPAppID: app.VPPAppID, VersionName: "test", InstallDuringSetup: new(true), SelfService: true, Configuration: []byte("<dict><key>Env</key><string>test v2</string></dict>"), AutoUpdateEnabled: new(false)},
 		}, map[string]uint{})
 		require.NoError(t, err)
 		versions, err = ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, app.TitleID)

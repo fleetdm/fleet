@@ -4249,6 +4249,16 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 			StorageID:     uuid.New().String(),
 			Configuration: []byte("not actually a plist"),
 		}
+		s.uploadSoftwareInstaller(t, invalidPayload, http.StatusUnprocessableEntity, "must be an XML plist")
+
+		// Upload with a structurally invalid plist → 422.
+		invalidPayload = &fleet.UploadSoftwareInstallerPayload{
+			TeamID:        &teamResp.Team.ID,
+			Filename:      "ipa_test2.ipa",
+			Version:       "1.0.0",
+			StorageID:     uuid.New().String(),
+			Configuration: []byte("<dict/><dict/>"),
+		}
 		s.uploadSoftwareInstaller(t, invalidPayload, http.StatusUnprocessableEntity, "invalid plist")
 	})
 }

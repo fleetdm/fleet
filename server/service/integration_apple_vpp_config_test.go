@@ -139,7 +139,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		Platform:      fleet.IPadOSPlatform,
 		Configuration: asJSONString(`not actually a plist`),
 	}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(res.Body), "invalid plist")
+	require.Contains(t, extractServerErrorText(res.Body), "must be an XML plist")
 
 	// 5. Add iOS app with disallowed Fleet variable → 422.
 	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
@@ -156,7 +156,7 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 			TeamID:        &team.ID,
 			Configuration: asJSONString(`not actually a plist`),
 		}, http.StatusUnprocessableEntity)
-	require.Contains(t, extractServerErrorText(res.Body), "invalid plist")
+	require.Contains(t, extractServerErrorText(res.Body), "must be an XML plist")
 
 	// Update iOS app with disallowed Fleet variable → 422.
 	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addResp.TitleID),
@@ -172,6 +172,50 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 	requireNoStoredConfig := func(platform fleet.InstallableDevicePlatform, adamID string, teamID uint) {
 		_, err := getFirstAddedVPPAppConfigurationForTest(t, s.ds, platform, adamID, teamID)
 		require.True(t, fleet.IsNotFound(err), "expected not found, got %v", err)
+	}
+
+	commandBreakingConfigs := []struct{ name, config string }{
+		{name: "text in dict without a key", config: `<dict>no key</dict>`},
+		{name: "extra trailing end tag", config: `<dict><key>a</key><string>b</string></dict></dict>`},
+		{name: "sibling dict after root", config: `<dict/><dict/>`},
+		{name: "key followed by key", config: `<dict><key>a</key><key>b</key><string>x</string></dict>`},
+		{name: "comment after plist end tag", config: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict/>
+</plist>
+<!-- trailing -->`},
+	}
+	for _, c := range commandBreakingConfigs {
+		t.Run("command-breaking configuration "+c.name, func(t *testing.T) {
+			res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+				TeamID:        &team.ID,
+				AppStoreID:    ipadOSAdamID,
+				Platform:      fleet.IPadOSPlatform,
+				Configuration: asJSONString(c.config),
+			}, http.StatusUnprocessableEntity)
+			require.Contains(t, extractServerErrorText(res.Body), "invalid plist")
+			_, err := s.ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, ipadOSAdamID, fleet.IPadOSPlatform, &team.ID)
+			require.True(t, fleet.IsNotFound(err), "expected iPadOS app not to be added, got %v", err)
+			requireNoStoredConfig(fleet.IPadOSPlatform, ipadOSAdamID, team.ID)
+
+			res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addResp.TitleID),
+				&updateAppStoreAppRequest{
+					TeamID:        &team.ID,
+					Configuration: asJSONString(c.config),
+				}, http.StatusUnprocessableEntity)
+			require.Contains(t, extractServerErrorText(res.Body), "invalid plist")
+			require.Equal(t, []byte(validPlist2), readStoredConfig(iosAdamID, fleet.IOSPlatform))
+
+			res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+				batchAssociateAppStoreAppsRequest{
+					Apps: []fleet.VPPBatchPayload{
+						{AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Configuration: asJSONString(c.config)},
+					},
+				}, http.StatusUnprocessableEntity, "fleet_name", team.Name)
+			require.Contains(t, extractServerErrorText(res.Body), "invalid plist")
+			require.Equal(t, []byte(validPlist2), readStoredConfig(iosAdamID, fleet.IOSPlatform))
+		})
 	}
 
 	// 6. Add macOS app with configuration → 200, configuration silently dropped.
