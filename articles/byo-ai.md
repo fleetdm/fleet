@@ -1,4 +1,4 @@
-# Use a custom AI provider
+# Bring your own (BYO) AI
 
 By default, Fleet's [AI profile builder](https://fleetdm.com/guides/custom-os-settings) uses Fleet's built-in AI. If your organization requires an approved AI provider, you can connect a custom AI provider, Anthropic or OpenAI, instead.
 
