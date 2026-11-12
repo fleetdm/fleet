@@ -1,6 +1,6 @@
-# Set up Gemini with Slack and Microsoft Teams for Fleet GitOps
+# Set up Gemini with Slack and Microsoft Teams
 
-Once your Fleet configuration lives in a GitOps repository, most changes are a pull request away. This guide connects Google's Gemini to your repository, so anyone on your IT team can turn a Slack or Teams message into a GitHub issue, mention `@gemini-cli`, and get a pull request back. Gemini plans the change, waits for a person to approve the plan, and then writes it. Your CI runs a dry run, a person reviews it, and merging it deploys it.
+This guide connects Google's Gemini to Fleet and your GitHub repository, so your IT team can ask questions about your hosts and request changes to Fleet. Anyone can turn a Slack or Teams message into a GitHub issue, mention `@gemini-cli`, and get a pull request to your GitOps repository back. Gemini plans the change, waits for a person to approve the plan, and then writes it. Your CI runs a dry run, a person reviews it, and merging it deploys it.
 
 This guide has two parts:
 
@@ -235,13 +235,13 @@ Check that `FLEET_MCP_TOKEN` is under the step's `env:` block in both workflows.
 - [Create GitHub issues from Slack](https://docs.github.com/en/integrations/tutorials/slack/create-issues)
 - [Create GitHub issues from Microsoft Teams](https://docs.github.com/en/integrations/tutorials/teams/create-issues)
 - [Fleet's GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files)
-- [Set up Claude in Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/claude-in-slack-and-teams-for-fleet-gitops)
-- [Set up Codex in Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/codex-in-slack-and-teams-for-fleet-gitops)
-- [Set up GitHub Copilot in Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/github-copilot-in-slack-and-teams-for-fleet-gitops)
+- [Set up Claude in Slack and Microsoft Teams](https://fleetdm.com/guides/claude-in-slack-and-teams)
+- [Set up Codex in Slack and Microsoft Teams](https://fleetdm.com/guides/codex-in-slack-and-teams)
+- [Set up GitHub Copilot in Slack and Microsoft Teams](https://fleetdm.com/guides/github-copilot-in-slack-and-teams)
 
-<meta name="articleTitle" value="Set up Gemini with Slack and Microsoft Teams for Fleet GitOps">
+<meta name="articleTitle" value="Set up Gemini with Slack and Microsoft Teams">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-10-21">
-<meta name="description" value="Turn a Slack or Teams request into a Fleet GitOps pull request with Gemini, and connect Gemini to Fleet's MCP server.">
+<meta name="description" value="Ask Gemini about your hosts with Fleet's MCP server, and turn a Slack or Teams request into a Fleet GitOps pull request.">

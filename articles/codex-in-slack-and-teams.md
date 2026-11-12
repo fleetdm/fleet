@@ -1,6 +1,6 @@
-# Set up Codex in Slack and Microsoft Teams for Fleet GitOps
+# Set up Codex in Slack and Microsoft Teams
 
-Once your Fleet configuration lives in a GitOps repository, most changes are a pull request away. This guide connects OpenAI's Codex to Slack and Microsoft Teams, so anyone on your IT team can mention `@ChatGPT` in a channel, describe a change, and get a pull request back. Codex writes the change in Codex Cloud and checks it with the `fleet-gitops` skill. Your CI runs a dry run, a person reviews it, and merging it deploys it.
+This guide connects OpenAI's Codex to Fleet, Slack, and Microsoft Teams, so your IT team can ask questions about your hosts and request changes to Fleet. Anyone can mention `@ChatGPT` in a channel, describe a change, and get a pull request to your GitOps repository back. Codex writes the change in Codex Cloud and checks it with the `fleet-gitops` skill. Your CI runs a dry run, a person reviews it, and merging it deploys it.
 
 This guide has two parts:
 
@@ -172,13 +172,13 @@ If Fleet answers with an error:
 - [Codex Cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environments)
 - [Codex MCP servers](https://learn.chatgpt.com/docs/extend/mcp)
 - [Fleet's GitOps YAML reference](https://fleetdm.com/docs/configuration/yaml-files)
-- [Set up Claude in Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/claude-in-slack-and-teams-for-fleet-gitops)
-- [Set up GitHub Copilot in Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/github-copilot-in-slack-and-teams-for-fleet-gitops)
-- [Set up Gemini with Slack and Microsoft Teams for Fleet GitOps](https://fleetdm.com/guides/gemini-with-slack-and-teams-for-fleet-gitops)
+- [Set up Claude in Slack and Microsoft Teams](https://fleetdm.com/guides/claude-in-slack-and-teams)
+- [Set up GitHub Copilot in Slack and Microsoft Teams](https://fleetdm.com/guides/github-copilot-in-slack-and-teams)
+- [Set up Gemini with Slack and Microsoft Teams](https://fleetdm.com/guides/gemini-with-slack-and-teams)
 
-<meta name="articleTitle" value="Set up Codex in Slack and Microsoft Teams for Fleet GitOps">
+<meta name="articleTitle" value="Set up Codex in Slack and Microsoft Teams">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-10-16">
-<meta name="description" value="Ask Codex for Fleet changes in Slack or Teams and get a validated GitOps pull request. Connect it to Fleet's MCP server.">
+<meta name="description" value="Ask Codex about your hosts with Fleet's MCP server, and request Fleet changes from Slack or Teams as GitOps pull requests.">
