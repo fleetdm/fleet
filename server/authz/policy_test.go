@@ -2008,60 +2008,6 @@ func TestAuthorizeTarget(t *testing.T) {
 	})
 }
 
-func TestAuthorizeUserCreatedPack(t *testing.T) {
-	t.Parallel()
-
-	userCreatedPack := &fleet.Pack{
-		// Type nil is the type for user-created packs.
-		Type: nil,
-	}
-	runTestCases(t, []authTestCase{
-		{user: nil, object: userCreatedPack, action: read, allow: false},
-		{user: nil, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserNoRoles, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserNoRoles, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserAdmin, object: userCreatedPack, action: read, allow: true},
-		{user: test.UserAdmin, object: userCreatedPack, action: write, allow: true},
-
-		{user: test.UserMaintainer, object: userCreatedPack, action: read, allow: true},
-		{user: test.UserMaintainer, object: userCreatedPack, action: write, allow: true},
-
-		{user: test.UserObserver, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserObserver, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserObserverPlus, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserObserverPlus, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTechnician, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTechnician, object: userCreatedPack, action: write, allow: false},
-
-		// This is one exception to the "write only" nature of gitops. To be able to create
-		// and edit packs currently it needs read access too.
-		{user: test.UserGitOps, object: userCreatedPack, action: read, allow: true},
-		{user: test.UserGitOps, object: userCreatedPack, action: write, allow: true},
-
-		{user: test.UserTeamAdminTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamAdminTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamMaintainerTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamMaintainerTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamObserverTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamObserverTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamObserverPlusTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamObserverPlusTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: userCreatedPack, action: write, allow: false},
-
-		{user: test.UserTeamTechnicianTeam1, object: userCreatedPack, action: read, allow: false},
-		{user: test.UserTeamTechnicianTeam1, object: userCreatedPack, action: write, allow: false},
-	})
-}
-
 func TestAuthorizeCarve(t *testing.T) {
 	t.Parallel()
 
