@@ -827,6 +827,7 @@ func TestBundleVersionPatchedQueryUsesCaskVersion(t *testing.T) {
 		{"malwarebytes", "com.malwarebytes.mbam.frontend.application", "5.29.2.4310", "5.29.2", "5.29.2.4310"},
 		{"plex-media-server", "com.plexapp.plexmediaserver", "1.43.5.11079,b3b13e506", "1.43.5", "1.43.5.11079"},
 		{"axure-rp", "com.axure.AxureRP11", "11.0.0.4150", "11.0.0.4150", "11.0.0.4150"},
+		{"redcine-x-pro", "com.red.RedCineX", "65.2.1", "65.2", "65.2.1"},
 	}
 	tempDir := t.TempDir()
 	i := &brewIngester{logger: slog.New(slog.DiscardHandler)}

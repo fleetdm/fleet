@@ -7348,7 +7348,7 @@
       "name": "REDCINE-X PRO",
       "slug": "redcine-x-pro/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.red.RED-Tether",
+      "unique_identifier": "com.red.RedCineX",
       "description": "REDCINE-X PRO is an app to transcode and manipulate REDCODE RAW footage."
     },
     {
