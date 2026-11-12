@@ -1,6 +1,6 @@
 ---
 name: new-fma
-description: Add, fix, or debug Fleet-maintained apps (FMAs) in ee/maintained-apps — Homebrew casks for macOS, winget packages for Windows. Use whenever a task touches FMA inputs, outputs, or scripts, even if the user never says "FMA": adding an app or the other platform of an existing one, macOS/Windows parity work, a failing FMA validator or nightly "Update Fleet-maintained apps" run, an install/uninstall script (including per-user Windows apps that break under SYSTEM), the exists/patched/open queries or patch policy, freezing an app, or pruning comments in a shipped script. Centers on verifying installer identity and behavior with real tools and real osquery instead of trusting catalog metadata.
+description: Add, fix, or debug Fleet-maintained apps (FMAs) in ee/maintained-apps — Homebrew casks for macOS, winget packages for Windows. Use whenever a task touches FMA inputs, outputs, or install/uninstall scripts, even if the user never says "FMA" — adding an app or its other platform, a failing FMA validator or nightly "Update Fleet-maintained apps" PR, an ingest panic, an `~fma-soak` issue or customer report (install hangs, "app not detected", patch policy always failing or never failing, update loop), a per-user Windows app that breaks under SYSTEM, the exists/patched/open queries or patch policy, freezing or unfreezing an app, or pruning comments in a shipped script. Centers on verifying installer identity and behavior with real tools and real osquery instead of trusting catalog metadata.
 allowed-tools: Bash, Read, Write, Edit, Grep, Glob, WebFetch, WebSearch
 model: opus
 effort: high
@@ -10,7 +10,7 @@ effort: high
 
 Task: $ARGUMENTS
 
-An FMA is an input JSON in `ee/maintained-apps/inputs/homebrew/` or `inputs/winget/` (plus optional custom scripts), run through a generator that writes `ee/maintained-apps/outputs/<slug-token>/<platform>.json`: installer URL, SHA-256, install/uninstall scripts, and three osquery queries that Fleet runs on customer hosts. A CI validator installs each changed app on a GitHub runner and looks for it with osquery. The contributor basics are in [ee/maintained-apps/README.md](../../../ee/maintained-apps/README.md). This skill is the workflow plus the gotchas the README doesn't cover; where they disagree, follow this skill.
+An FMA is an input JSON in `ee/maintained-apps/inputs/homebrew/` or `inputs/winget/` (plus optional custom scripts), run through a generator that writes `ee/maintained-apps/outputs/<slug-token>/<platform>.json`: installer URL, SHA-256, install/uninstall scripts, and three osquery queries. Fleet servers fetch these manifests at runtime from `maintained-apps.fleetdm.com`, so a fix merged to main reaches every server without a release. The scripts run as root (macOS) or SYSTEM (Windows) on customer hosts, and the queries decide whether Fleet installs, reports, and patches the app. The contributor basics are in [ee/maintained-apps/README.md](../../../ee/maintained-apps/README.md); this skill is the workflow plus what the README doesn't cover. Where they disagree, follow this skill.
 
 ## Where to start
 
@@ -18,46 +18,52 @@ An FMA is an input JSON in `ee/maintained-apps/inputs/homebrew/` or `inputs/wing
 |---|---|
 | Add a macOS app | [Workflow: macOS](#workflow-macos) |
 | Add a Windows app | [Workflow: Windows](#workflow-windows) |
-| Add the other platform of an app that already has an FMA | [Second platform](#second-platform-of-an-existing-fma) first, then the platform workflow |
-| Fix a failing validator run, nightly update PR, or ingest job | [references/validator-failures.md](references/validator-failures.md), indexed by error message |
-| Check or fix the exists/patched/open queries or a patch policy | [references/queries.md](references/queries.md) |
-| Write or fix a Windows install/uninstall script | [references/windows-scripts.md](references/windows-scripts.md): SYSTEM context, per-user apps, PowerShell traps |
+| Add the other platform of an existing FMA | [Second platform](#second-platform-of-an-existing-fma), then the platform workflow |
+| Fix a validator failure, nightly PR, or ingest panic | [references/validator-failures.md](references/validator-failures.md), indexed by error message |
+| Work an `~fma-soak` issue or customer report | [validator-failures.md#soak-issues-and-customer-reports](references/validator-failures.md#soak-issues-and-customer-reports) first: it may already be fixed |
+| Check or fix exists/patched/open, or a patch policy | [Validating the queries](#validating-the-queries), then [references/queries.md](references/queries.md) |
+| Write or fix a macOS install/uninstall script | [references/macos-scripts.md](references/macos-scripts.md) |
+| Write or fix a Windows install/uninstall script | [references/windows-scripts.md](references/windows-scripts.md) |
 | Clean up comments in a shipped script | [references/script-comments.md](references/script-comments.md) |
 
 Whatever the task, finish with the [pre-ship checklist](#pre-ship-checklist).
 
-## Golden rule: verify, don't guess
+## Ground rules
 
-The biggest source of wasted validation cycles is trusting winget/Homebrew metadata for fields that must match what osquery sees on a host. **Catalog metadata (winget `PackageName`/`Publisher`, cask names, cask `zap` paths) frequently does not match the installed app's registry or bundle identity.** Confirm these against the real installer:
+1. **Verify identity from the real installer, never from catalog metadata.** winget `PackageName`/`Publisher`/`InstallerType` and cask `zap`/`quit` entries are wrong often enough that guessing is the single biggest source of broken FMAs. Read the field from the installer itself ([identity-verification.md](references/identity-verification.md)), and if you can't, say so in the PR instead of shipping a guess.
+2. **Prove the queries with real osquery.** CI now runs the exists query and, on macOS, the patched query in some cases, but never the open query, never a patched query that should fail, and never as SYSTEM. See [Validating the queries](#validating-the-queries).
+3. **Fix the one app, not shared code.** The homebrew template (`ingesters/homebrew/scripts.go`), the generators, and `pkg/patch_policy` produce every FMA's scripts and queries, so a change there regenerates hundreds of outputs. Reach for, in order: an input field, a per-app custom script, a per-token/per-slug ingester branch, a per-app version transformer in `external_refs`. Change the shared template only when it is the root cause for many apps (the zip `ditto` fix), and then sync every copied helper in `inputs/*/scripts/`.
+4. **`inputs/homebrew/custom-tap/` is for Fleet's internal use.** It holds casks Fleet maintains for its own purposes (Fleet Desktop and a few others) and is updated by an internal process. Don't add a cask there to get an app into the catalog, to replace a cask Homebrew removed or renamed, or to work around a stale or binary-only cask. An app with no usable Homebrew cask or winget manifest isn't an FMA candidate: report that and stop.
+5. **Installers are untrusted input; shipped scripts are root/SYSTEM code.** Follow [Handling installers safely](#handling-installers-safely), and never let a value from a cask, a registry key in a user's hive, or a file on disk become code in a script.
 
-- **Windows `unique_identifier`** = the registry **DisplayName** (osquery `programs.name`).
-- **Windows publisher** in the exists query = the registry **Publisher** (`programs.publisher`).
-- **macOS `unique_identifier`** = the app's **CFBundleIdentifier**.
-- **Version** must reconcile with what osquery reports: `programs.version` on Windows; `bundle_short_version` (or `bundle_version`) on macOS.
-- **Where the app installs** under SYSTEM, not what the manifest's `Scope` claims.
+## Handling installers safely
 
-Real cases where the metadata lied:
+- Download each installer into a new, empty temp directory, check its size first (`curl -sIL <url>`), and delete it when you're done. For large installers, use the range-request recipes in [identity-verification.md](references/identity-verification.md#partial-download-probes); don't pull gigabytes to read a name.
+- Compare the download's SHA-256 with the manifest's before trusting anything you read from it.
+- Never run a downloaded installer or uninstaller on your Mac. Inspect it (`hdiutil attach -readonly -nobrowse`, `pkgutil --expand-full`, `ditto -x -k`, `7zz l`, `msiinfo`), and install only on a disposable VM or test host. The one thing you launch locally is the app itself for the open-query check, and only once its hash matches the manifest and Gatekeeper accepts it.
+- Keep your own helper scripts outside the download directory and run Python with `-I`, so nothing in the payload can shadow a module.
+- Don't fabricate or install an `.app` in `/Applications` on an enrolled Mac to test a query: it shows up in real inventory. Point the queries at the mounted or extracted bundle instead (`check_queries.py --app-path`).
+- In shipped scripts: quote every expansion; pass bundle ids and paths to `osascript` as data (`on run argv` … `--`), never by string interpolation; validate ids read from disk before use; on Windows, run an `UninstallString` from a user's hive only as that user ([windows-scripts.md](references/windows-scripts.md#uninstall-must-run-in-the-hive-that-owns-the-registration)); stage files a user-context task must read in a directory whose ACL you set, not a world-writable one.
+- Don't weaken integrity checks to get green: `ignore_hash`/`no_check` and frozen pins on rolling URLs have real costs ([validator-failures.md](references/validator-failures.md#rolling-latest-urls)).
 
-| App | winget/cask says | Registry/bundle actually is |
-|-----|------------------|------------------------------|
-| Amazon Corretto | PackageName "Amazon Corretto 25" | DisplayName `Amazon Corretto (x64)` (no version), Publisher `Amazon` |
-| Genesys Cloud | PackageName "GenesysCloud" | DisplayName `GenesysCloud` (you'd guess "Genesys Cloud") |
-| P4V | PackageName "P4 Apps", locale Publisher "Perforce Software, Inc." | DisplayName `P4 Apps`, Publisher `Perforce Software` |
-| GoToMeeting | MSI ProductName "GoToMeeting 10.19.19950" | DisplayName `GoToMeeting 10.19.0.19950` (bootstrapper) |
-| Tableau | locale Publisher `Tableau Software, LLC` | Publisher `Salesforce, Inc` (Burn bundle) |
-| darktable | InstallerType `nullsoft`, Publisher "the darktable project" | Inno Setup, Publisher `darktable team`, DisplayName `darktable 5.6.0` |
-| KiCad | cask zap `org.kicad-pcb.*` | bundle id `org.kicad.kicad` |
-
-How to read each field from a real installer, per installer type, without a Windows host: [references/identity-verification.md](references/identity-verification.md). If you can't confirm a field, say so in your report rather than shipping a guess.
-
-## Prerequisites
+## Prerequisites and helpers
 
 ```bash
-brew install msitools sevenzip   # msiinfo for MSIs, 7zz for NSIS payloads and Burn cabinets
-gh auth status                   # gh reads winget-pkgs manifests
+brew install msitools sevenzip innoextract   # msiinfo; 7zz for NSIS/Burn/MSIX payloads; innoextract for Inno <= 6.2
+gh auth status                               # winget manifests come from the GitHub contents API
 ```
 
-Bundled helpers in [scripts/](scripts/): `check_queries.sh` (run a macOS output's queries through osquery), `pe_info.py` (a Windows installer's architecture and ProductVersion from a partial download), `burn_ux.py` (a Burn bundle's ARP identity from a 30 MB range request).
+Bundled helpers in [scripts/](scripts/) (run Python with `python3 -I`):
+
+| Script | Does |
+|---|---|
+| `inspect_mac_installer.sh <url\|file> [--sha256 X] [--keep]` | Real installer format, each app's bundle id, versions, executable, signer, Gatekeeper verdict, nested apps, and pkg scripts that kill or relaunch the app. `--keep` leaves the bundle mounted for `check_queries.py --app-path`. |
+| `check_queries.py <output.json> [--app-path P] [--ps1 F]` | Runs exists, patched, open, and patched with its version literals bumped, through real osquery (darwin), or writes a `.ps1` that does the same as SYSTEM on Windows. |
+| `winget_manifest.sh <PackageIdentifier> [version] [--diff]` | Newest versions, recent commits (in-place edits, auto-deletions, moves), installer and locale manifests (with the `DefaultLocale` fallback), and a diff against the previous version. |
+| `pe_info.py <file>` | A Windows installer's architecture and VERSIONINFO from the first few MB. |
+| `burn_ux.py <head.bin> <out.cab>` | A WiX Burn bundle's UX cabinet (ARP identity) from a 30 MB range request. |
+
+On macOS, osquery comes from fleetd (`/opt/orbit/bin/osqueryd/macos-app/stable/osquery.app/Contents/MacOS/osqueryd`). Without fleetd, extract it from the cask without installing anything: `brew fetch --cask osquery && pkgutil --expand-full "$(brew --cache --cask osquery)" <dir>`, then pass `--osqueryd <dir>/Payload/opt/osquery/lib/osquery.app/Contents/MacOS/osqueryd`.
 
 ## How the generator behaves
 
@@ -65,113 +71,172 @@ Bundled helpers in [scripts/](scripts/): `check_queries.sh` (run a macOS output'
 go run cmd/maintained-apps/main.go --slug="<token>/<platform>" --debug
 ```
 
-- It fetches the upstream cask or winget manifest and writes `outputs/<token>/<platform>.json`. Scripts are embedded under `refs`, keyed by `sha256(script)[:8]`, so editing a script means regenerating (or recomputing the ref by hand).
-- It appends new apps to `outputs/apps.json` with an **empty description**: fill it in, sentence case, "`<App>` is a(n)…". It never updates `unique_identifier` on an existing entry and never removes entries.
-- Regenerating can bump the app's version, because it refetches upstream. If you only meant to change a script, check the diff for an unrelated version bump; [references/validator-failures.md](references/validator-failures.md#editing-an-output-without-regenerating) has the hand-edit recipe.
-- **`frozen: true` only stops the output from being rewritten.** The generator still fetches upstream for every input, so a renamed or removed cask still breaks the run. Re-running it on a frozen app silently leaves the old output, stale script refs included: if you edit a frozen app's scripts, hand-edit its output.
+- It fetches the cask or winget manifest and writes `outputs/<token>/<platform>.json`. Scripts are embedded under `refs`, keyed by `sha256(script)[:8]`, so a script change means regenerating (or recomputing the ref by hand).
+- `--slug` is a **substring** match: `r/darwin` also regenerates `codexbar`, `keycastr`, and `rustrover`. `git checkout` collateral outputs before committing.
+- New apps are appended to `outputs/apps.json` with an empty description. It never updates `name` or `unique_identifier` on an existing entry and never removes entries: change those by hand.
+- Regenerating refetches upstream and can bump the version. If you only meant to change a script, check the diff, or hand-edit ([validator-failures.md](references/validator-failures.md#editing-an-output-without-regenerating)).
+- **`frozen: true` only stops the output from being rewritten.** Upstream is still fetched for every input, so a removed cask or a winget manifest with no matching installer still breaks the run. Regenerating a frozen app silently leaves the old output, stale script refs included: edit a frozen output by hand.
+- `default_categories` must be one of `Browsers`, `Communication`, `Developer tools`, `Productivity`, `Security`, `Support`, `Utilities` (the README's list is outdated).
+- A full run aborts at the first failing app. To check many inputs, build once and loop per slug ([validator-failures.md](references/validator-failures.md#winget-manifest-changed-underneath-the-input)).
 
 ## Workflow: macOS
 
-1. **Fetch the cask** (`curl -s https://formulae.brew.sh/api/cask/<token>.json`) and read `artifacts`:
-   - **It needs an `app` artifact.** The macOS exists query is `SELECT 1 FROM apps WHERE bundle_identifier = '…'`, and osquery's `apps` table only inventories `.app` bundles. A pkg-only cask (JDKs, runtimes, drivers, daemons, CLI tools, prefPanes) cannot be a working FMA: its exists and patched queries would never match. Stop and report that instead of shipping it.
-   - A `suite` (a folder such as `/Applications/KiCad`) or `artifact` stanza isn't parsed by the ingester, so it needs custom scripts. See [identity-verification.md](references/identity-verification.md#macos-installers).
-   - Arch-split casks: the API's top-level `url` is the arm64 build. Many macOS FMAs ship it; that's expected.
-2. **Download and inspect the real installer** ([identity-verification.md](references/identity-verification.md#macos-installers)):
-   - `file` the download. `installer_format` must match the file you actually get (`dmg`/`pkg`/`zip`), not the cask's artifact shape: a `dmg` format on a bare pkg makes the generated `hdiutil attach` fail. A zip that contains a dmg needs a custom install script (`inputs/homebrew/scripts/pd-install.sh`).
-   - Read `CFBundleIdentifier` (→ `unique_identifier`), `CFBundleShortVersionString`, and `CFBundleVersion` from the app's `Info.plist`.
-   - **Compare both versions to the cask `version`.** The generated patched query compares `bundle_short_version`. If that's missing or is a marketing version (`3.8.7` for cask `3.8.7.19194`), the patch policy fails on every host forever. The validator still passes, because it accepts a match on either column. Fix it with a per-token branch in `ee/maintained-apps/ingesters/homebrew/ingester.go` ([queries.md](references/queries.md#when-the-version-column-doesnt-track-the-manifest)).
-3. **Create `inputs/homebrew/<token>.json`**: `name`, `slug` (`<token>/darwin`), `unique_identifier`, `token` (the cask token, which can differ from the slug), `installer_format`, `default_categories`. Install/uninstall scripts auto-generate from the cask's artifacts and `zap`. To change them, add per-app scripts in `inputs/homebrew/scripts/` via `install_script_path`/`uninstall_script_path` rather than editing the shared template in `ingesters/homebrew/scripts.go`, which regenerates every macOS FMA. `pre_uninstall_scripts`/`post_uninstall_scripts` can't be combined with a custom uninstall script.
-   - **A custom install script starts from the generated one**, with its helpers copied verbatim from `scripts.go`. Call `quit_and_track_application '<bundle id>' || exit 1` before anything moves or replaces the app, and detach any disk image the script still has mounted before exiting. The helper returns 1 when the app won't quit (for example, the user cancels a save prompt), and an app replaced while it's running loses its files when fleetd deletes `$TMPDIR`. A copied helper that confirms the quit with `pgrep -f "$bundle_id"` is stale: that never matches, because an app's command line is its executable path. The one exception is a vendor installer that kills the app itself (read its preinstall or install script to confirm). Then keep going after a failed quit and add the script to `continuesAnyway` in `TestCustomInstallScriptsStopWhenAppWontQuit`, which fails on any other quit call that doesn't stop.
-   - **Changing a helper in `scripts.go` means syncing its copies** in `inputs/homebrew/scripts/`. Grep for the old line as well as the function name: older scripts carry their own `quit_application` variants.
-4. **Generate, finalize, and run the queries** through osquery: [Finalize](#finalize), then [queries.md](references/queries.md).
+1. **Read the cask** (`curl -s https://formulae.brew.sh/api/cask/<token>.json`), especially `artifacts`, `url`, `version`, and `sha256`.
+   - **It needs an `app` artifact.** The exists query reads osquery's `apps` table, which only lists `.app` bundles. A pkg-only or binary-only cask (JDKs, runtimes, drivers, daemons, CLI tools, prefPanes) can't be a working FMA. Stop and report it.
+   - A `suite` (a folder such as `/Applications/KiCad`) or `artifact` stanza isn't parsed by the ingester, so it needs custom scripts ([macos-scripts.md](references/macos-scripts.md#suite-casks-and-nested-apps)).
+   - No cask at all, or only a formula: not an FMA candidate (ground rule 4).
+   - Arch-split casks: the API's top-level `url` is the arm64 build. That's expected.
+2. **Inspect the real installer**: `scripts/inspect_mac_installer.sh "<url>" --sha256 <cask sha>`.
+   - `installer_format` is what the file really is (`dmg`/`zip`/`pkg`), not what the URL or artifact implies. A zip or pkg inside a dmg, or a dmg inside a zip, needs a custom install script.
+   - `unique_identifier` is the top-level app's `CFBundleIdentifier`. Never take it from the cask's `zap`, `quit`, `pkgutil`, or `launchctl` entries, a pkg receipt id, or a prefs-plist name: each of those has shipped a wrong id (ForkLift `-4`, GIMP `-3.0`, Tableau's receipt id, 4K Video Downloader's prefs name, ShareFile's XPC service).
+   - Compare `CFBundleShortVersionString` and `CFBundleVersion` with the cask `version`. The default patched query compares `bundle_short_version`, so if that's missing, shorter, or a marketing version, the patch policy fails on current hosts ([queries.md](references/queries.md#when-the-version-column-doesnt-track-the-manifest)).
+   - Gatekeeper must say `accepted`. A rejected or unnotarized app fails CI and won't launch for users.
+   - Note nested apps (the open query only sees the main executable), pkg scripts that kill or relaunch the app, and a payload whose version differs from the cask's.
+3. **Create `inputs/homebrew/<token>.json`**: `name`, `slug` (`<token>/darwin`), `unique_identifier`, `token` (the cask token, which can differ from the slug), `installer_format`, `default_categories`. Scripts generate from the cask's artifacts and `zap`. Add custom scripts only when the generated ones can't work, and read [macos-scripts.md](references/macos-scripts.md) first: custom scripts must copy the template's helpers verbatim, and guard tests in `ingesters/homebrew/scripts_test.go` fail on stale copies.
+4. **Generate, finalize, and [validate the queries](#validating-the-queries).**
 
 ## Workflow: Windows
 
-1. **Read the winget manifests** ([identity-verification.md](references/identity-verification.md#winget-manifests)). Pick **machine** scope and **x64**, or the only architecture available. ARM64 builds are separate FMAs with an `-arm64` slug suffix (README).
-2. **Verify identity from the installer**: the MSI Property table, or for an exe, `AppsAndFeaturesEntries` and then the installer itself. Set `program_publisher` whenever the registry Publisher differs from the winget locale Publisher (it often does). Don't ship an exe FMA whose DisplayName you couldn't confirm.
-3. **Confirm the installer framework yourself** (`strings setup.exe | grep -iE 'Inno Setup|Nullsoft|WixBundle|InstallShield'`). winget's `InstallerType` is sometimes wrong, and the wrong silent switch shows up as an 11-minute timeout, not an error.
-4. **Decide scope.** Machine-wide whenever possible, and verify the all-users switch is honored. Per-user-only apps need the scheduled-task pattern in [windows-scripts.md](references/windows-scripts.md).
-5. **Create `inputs/winget/<token>.json`**: `name`, `slug` (`<token>/windows`), `package_identifier`, `unique_identifier` (the verified DisplayName), `installer_arch`, `installer_type`, `installer_scope`, `default_categories`, plus `program_publisher`, `fuzzy_match_name`, or `exists_query` as needed ([Field semantics](#field-semantics)).
-6. **Add custom install and uninstall scripts** for everything except machine-scope MSI, starting from the closest existing pair (table below), then read [windows-scripts.md](references/windows-scripts.md) before you trust them under SYSTEM.
-7. **Generate, finalize, and verify the queries**: [Finalize](#finalize), then [queries.md](references/queries.md).
+1. **Read the winget manifests**: `scripts/winget_manifest.sh <PackageIdentifier>`. Pick **machine** scope and **x64**, or the only architecture available. ARM64 builds are separate FMAs with an `-arm64` slug suffix. Before adding, check that no input already uses this `package_identifier`; names alone give false negatives.
+2. **Confirm the installer framework yourself** (`strings -n 8 setup.exe | grep -iE 'Inno Setup|Nullsoft|WixBundle|\.wixburn|InstallShield|Squirrel|velopack'`). winget's `InstallerType` is sometimes wrong, and the wrong silent switch shows up as a timeout, not an error.
+3. **Verify identity from the installer**: the MSI Property table, the Burn manifest, the NSIS or Inno header, or `AppsAndFeaturesEntries` (often absent) ([identity-verification.md](references/identity-verification.md)). Set `program_publisher` whenever the registry Publisher differs from the winget locale Publisher (it often does). Don't ship an exe FMA whose DisplayName you couldn't confirm.
+4. **Decide scope.** Machine-wide whenever the installer supports it, and prove the switch is honored. Per-user-only apps need the scheduled-task pattern ([windows-scripts.md](references/windows-scripts.md#when-the-app-has-no-machine-wide-mode)).
+5. **Create `inputs/winget/<token>.json`**: `name`, `slug` (`<token>/windows`), `package_identifier`, `unique_identifier` (the verified DisplayName), `installer_arch`, `installer_type`, `installer_scope`, `default_categories`, plus `program_publisher`, `fuzzy_match_name`, `exists_query`, or `open_process_names` as needed ([Field semantics](#field-semantics)).
+6. **Add custom install and uninstall scripts** for everything except a plain machine-scope MSI, starting from the closest existing pair in the table below. Read [windows-scripts.md](references/windows-scripts.md) before you trust them under SYSTEM.
+7. **Generate, finalize, and [validate the queries](#validating-the-queries)**, on a Windows host as SYSTEM.
 
-| Real framework | FMA `installer_type` | Silent install | Uninstall | Start from |
+| Real framework | `installer_type` | Silent install | Uninstall | Start from |
 |---|---|---|---|---|
-| MSI / WiX | `msi` | auto (`msiexec /i … /quiet /norestart`) | auto upgrade-code (machine scope only) | generated |
-| NSIS (incl. electron-builder) | `exe` | `/S` (+ `/allusers` for machine scope) | registry UninstallString + `/S` | `beekeeper-studio_*.ps1` |
-| Inno Setup | `exe` | `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` | registry UninstallString + same | `audacity_*.ps1` |
-| WiX Burn bundle | `exe` | `/quiet /norestart` | the bundle's QuietUninstallString, not the inner MSI's key | `jabra-direct_uninstall.ps1` |
-| InstallShield InstallScript MSI | `exe` | `/S /v/qn` | same switches | `mindmanager_install.ps1` |
-| Per-user only (any) | `exe` | as the signed-in user, via scheduled task | as the owning user | `signal_*.ps1` |
-| MSIX | `msix` | n/a | n/a | generated |
+| MSI / WiX | `msi` | auto (`msiexec /i … /quiet /norestart`) | auto upgrade-code (machine scope) | generated; custom if it needs `ALLUSERS=1` or vendor properties |
+| NSIS / electron-builder | `exe` | `/S` (+ `/allusers` only if the build has a per-machine mode) | registry `UninstallString` + `/S` | `beekeeper-studio_*.ps1` |
+| Inno Setup | `exe` | `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART` | `unins000.exe` + same switches | `audacity_*.ps1` |
+| WiX Burn bundle | `exe` | `/quiet /norestart` (some custom BAs reject `/norestart`) | the bundle's `QuietUninstallString`, not the inner MSI's key | `jabra-direct_uninstall.ps1` |
+| InstallShield InstallScript MSI | `exe` | `/S /v/qn` (+ `/b"<temp dir>"` for 32-bit setups) | same switches | `mindmanager_install.ps1` |
+| Squirrel / per-user only | `exe` | as the signed-in user, via a scheduled task | as the owning user | `signal_*.ps1` |
+| MSIX | `msix` | provision + register per user | remove provisioned + registered | `slack_*.ps1` ([windows-scripts.md](references/windows-scripts.md#msix)) |
+| Zip wrapping an installer | `zip` (+ `nested_installer_type`) | extract, then the inner framework's switches | inner framework | `agent-ransack_install.ps1` |
 
-Script paths are under `ee/maintained-apps/inputs/winget/scripts/`. Only machine-scope MSI gets auto-generated scripts. MSI success codes are `0`, `3010` (reboot required), and `1641` (reboot initiated). Treat all three as success in any custom script that runs an installer; otherwise a reboot-pending host fails the install.
+Script paths are under `ee/maintained-apps/inputs/winget/scripts/`. Any custom script that runs an installer treats `0`, `3010`, and `1641` as success, and must never drop `/norestart`-style switches: Fleet installs must not reboot the host.
 
 ## Second platform of an existing FMA
 
-The FMA library merges platforms by **slug token**, not by name: the list query groups on `SUBSTRING_INDEX(fma.slug, '/', 1)` and the UI on `slug.split("/")[0]`. So the new platform's `slug` must be `<existing-token>/<platform>` even when the cask token or winget ID differs. Put the real cask token in `token` (precedents: `libreoffice` → `libreoffice-still`, `ollama` → `ollama-app`, `zoom` → `zoom-for-it-admins`). Reuse the existing `name` exactly too: icons key off the lowercased `name`, so a shared name reuses the existing icon. Docker Desktop, GitHub Desktop, Tailscale, Wireshark, and Zen Browser show up as two library rows because this was missed. Don't add to that list.
+The library merges platforms by **slug token**, not by name (`SUBSTRING_INDEX(fma.slug, '/', 1)` in the list query, `slug.split("/")[0]` in the UI). So the new platform's `slug` is `<existing-token>/<platform>` even when the cask token or winget ID differs; put the real cask token in `token` (precedents: `libreoffice` → `libreoffice-still`, `ollama` → `ollama-app`). Reuse the existing `name` exactly: icons key off it. Docker Desktop, GitHub Desktop, Tailscale, Tableau, Wireshark, and Zen Browser show as two library rows because this was missed; don't add to that list.
 
-## Finalize
+## Validating the queries
 
-- Fill in the `apps.json` description; check it with `python3 -m json.tool ee/maintained-apps/outputs/apps.json >/dev/null`.
-- Compare the output's `sha256` with the manifest's. For Windows, `install_script_ref`/`uninstall_script_ref` should point at your current scripts.
-- **Icon**: look in `frontend/pages/SoftwarePage/components/icons/index.ts` for a `SOFTWARE_NAME_TO_ICON_MAP` key equal to the lowercased `name`. If it's missing, generate one with [tools/software/icons](../../../tools/software/icons) and check that the new key is the lowercased `name`, not the slug. Insert imports and map entries in alphabetical order rather than at the end. If an icon for that name already exists, revert any regenerated `.tsx`/`.png` and reuse it.
-- **Run the queries through real osquery** ([queries.md](references/queries.md)). CI never runs them.
-- If you changed shared code (`cmd/maintained-apps/validate/*.go`, the ingesters, `pkg/patch_policy`), say so in the PR and run `go test ./cmd/maintained-apps/... ./ee/maintained-apps/...`, plus `GOOS=windows go build ./cmd/maintained-apps/validate/` for validator changes.
+Every output ships three queries. Fleet runs `exists` as the automatic-install policy and to link the app to inventory, `patched` as the patch policy, and `open` as the **Patch when closed** gate. A wrong query fails silently: a dead exists query never detects the app and makes the patch policy pass forever, a patched query that can't fail never flags an outdated host, and an open query that never matches lets Fleet patch over a running app. Run all of them yourself; reading SQL isn't verifying it.
+
+**macOS**, on your Mac, without installing:
+
+```bash
+scripts/inspect_mac_installer.sh "<installer_url>" --keep           # prints the mounted app path
+python3 -I scripts/check_queries.py ee/maintained-apps/outputs/<token>/darwin.json --app-path "<that path>"
+```
+
+Then the open query's running state: copy the app to a non-temp path under your home directory, launch it with `open -g`, confirm its process is still alive, rerun with `--app-path` pointing there (expect `open 0`), quit it (expect `open 1`), and delete the copy and its `~/Library` data. Keep that window to seconds and tell the user first: the app's windows (first-run or permission prompts) appear on their screen, and while the copy is registered, fleetd's inventory can report it. If the app is already installed on your Mac, drop `--app-path`.
+
+**Windows**, on a Windows host or VM, as SYSTEM:
+
+```bash
+python3 -I scripts/check_queries.py ee/maintained-apps/outputs/<token>/windows.json --ps1 check.ps1
+# On the host, after installing with the FMA's own install script as SYSTEM:
+#   powershell -NoProfile -ExecutionPolicy Bypass -File check.ps1
+```
+
+Run it after install, then with the app open in the user's session, then after the uninstall script.
+
+| Check | Expect | A wrong result means |
+|---|---|---|
+| `exists` after install | ≥ 1 row | wrong `unique_identifier`, publisher, version-embedded name, or scope ([queries.md](references/queries.md#exists-name-and-publisher-matching)) |
+| `patched` on the new version | 1 row | the compared column doesn't track the manifest version ([queries.md](references/queries.md#when-the-version-column-doesnt-track-the-manifest)) |
+| `patched@bumped` (literal raised by 1000) | 0 rows | the patch policy can never flag an outdated host |
+| `patched` with the previous version installed | 0 rows; then 1 after installing the new one on top | upgrades don't converge (side-by-side installs, renamed ids) |
+| `open` with the app closed / running / quit | 1 / 0 / 1 | wrong process name, a helper or service that outlives the window, nested apps ([queries.md](references/queries.md#open-run-it-with-the-app-running)) |
+| `exists` after uninstall | 0 rows | the uninstall missed a copy or a registration |
+
+The previous build's URL is in `git show origin/main:ee/maintained-apps/outputs/<token>/<platform>.json`. If you couldn't run a check, say which one in the PR.
+
+## Finalize and open the PR
+
+- Fill in the `apps.json` description: sentence case, "`<App>` is a(n) …", ending with a period. Check it parses: `python3 -m json.tool ee/maintained-apps/outputs/apps.json >/dev/null`.
+- Compare the output's `sha256` with the manifest's, and check that `install_script_ref`/`uninstall_script_ref` point at your current scripts.
+- **Icon**: look in `frontend/pages/SoftwarePage/components/icons/index.ts` for a `SOFTWARE_NAME_TO_ICON_MAP` key matching the lowercased `name`. The map serves two names, matched as a whole-word, case-insensitive prefix: the catalog `name` (Add software page) and the name osquery reports (inventory: the `.app` name, or the Windows DisplayName). Add a key for each when they differ, and keep old keys when an app is renamed. If the icon is missing, generate it with [tools/software/icons](../../../tools/software/icons), preferably from the real `.app` (`-a`); an icon from a third-party catalog needs a human look. Then check `git diff` of `index.ts`: the key must be the lowercased `name`, not the slug; the import must sit in the png import block; a token starting with a digit or containing `@` makes a bad identifier or path; and an existing component with the same name may have been overwritten (restore it). Keep imports and map entries in alphabetical order, and run the repo's eslint and prettier (2.2.1) on the icons directory. If an icon for that name already exists, revert any regenerated `.tsx`/`.png` and reuse it.
+- **Upstream fixes**: when the real bug is in a cask (`zap`, `quit`) or a winget manifest, fix it there too. Homebrew allows one open AI-assisted PR per non-maintainer, wants the tool and model disclosed in the PR body (no AI trailers in commits), and its attestation checkbox is the human's to tick.
+- Run `go test ./ee/maintained-apps/... ./cmd/maintained-apps/...` (guard tests catch stale helper copies, missing scope, and extraction or quit handling that doesn't stop), plus `GOOS=windows go build ./cmd/maintained-apps/validate/` for validator changes.
+- Open the PR from `.github/pull_request_template.md`. Put what you verified and how, everything you couldn't verify, and catalog archaeology (what winget or Homebrew claimed vs. reality) in the PR body, not in script comments. For an identity fix, add an "Existing installs" note ([queries.md](references/queries.md#how-fixes-reach-existing-deployments)).
+- Keep a human-authored PR under 100 changed files; split larger ones into PRs with disjoint file sets ([validator-failures.md](references/validator-failures.md#large-prs)). Nightly PRs opened by `fleet-release` aren't split: push fixes to the bot branch.
 
 ## What CI does and doesn't prove
 
-- **The validator searches loosely.** On Windows it uses `LOWER(name) LIKE '%<name>%'`; on macOS, `bundle_identifier LIKE '%<id>%'` or a name match. It finds apps that the shipped exact `exists` query never would. Compare its `Found app: '…'` log line with the identity you're shipping.
-- **It never runs the shipped exists/patched/open queries.**
-- **On macOS it accepts a version match on either `CFBundleShortVersionString` or `CFBundleVersion`** (`checkVersionMatch` in `cmd/maintained-apps/validate/darwin.go`), while the patch policy compares only one of them.
-- **On Windows it runs as an interactive `runneradmin`, not SYSTEM.** Per-user installers land in a normal profile and pass while broken in the field (`signal/windows` did).
-- **It only validates changed outputs** (`.github/scripts/detect-new-fmas-in-pr.sh`), skips frozen apps, and runs on an ephemeral host that you can't query afterward.
+PR validation (`test-fma-*-pr-only.yml`) installs each **changed** output on a GitHub runner, then:
 
-A green run means the installer downloaded, installed, and something with a similar name appeared. The rest is yours to prove.
+- Finds the app with a loose search (macOS: `bundle_identifier LIKE '%<id>%'` or a name match; Windows: `name LIKE` on the catalog name and `unique_identifier`, or the exists clause) and checks its version loosely. Its `Found app:` log lines show what osquery really saw.
+- On macOS, when the found `bundle_short_version` isn't exactly the manifest version, runs the **patched** query and fails if it returns no rows.
+- On macOS, runs Gatekeeper (`spctl --assess`) on every `apps` row matching the exists clause, and fails on a rejection or on no rows.
+- Runs the shipped **exists** query and fails with `exists query returned no rows with the app installed`.
+- Runs the uninstall script and checks the app is gone.
+
+It doesn't prove:
+
+- That the **open** query matches anything, or that **patched** can ever fail (no bumped-version or previous-version check).
+- That the Windows patched query passes: the Windows validator still accepts a registry version that's a shorter prefix (`6.9` for `6.9.0.0`), which fails the policy.
+- **SYSTEM context.** Windows runs as an interactive `runneradmin` with UAC off, on Windows Server (x64) or `windows-11-arm` (arm64 apps and `requires_client_os`). Per-user installers, session-0 dialogs, WOW64 profile redirection, and UAC prompts in scheduled tasks all pass in CI and break in the field.
+- Upgrades over an existing install, same-version reinstalls, or an app that's running.
+- Anything about frozen apps, or apps whose output didn't change: they aren't validated.
+
+A green run means the installer downloaded, installed, registered under the exists query, and uninstalled on a clean runner. The rest is yours to prove.
 
 ## Field semantics
 
 | Field | Meaning |
 |-------|---------|
 | `name` | Catalog display name and icon key. Reuse it exactly across platforms. |
-| `slug` | `<token>/<platform>`. The token groups platforms into one library row and names the output directory. |
+| `slug` | `<token>/<platform>`. The token groups platforms into one library row and names the output directory and input file. |
 | `token` (homebrew) | The cask token to fetch. Can differ from the slug token. |
-| `unique_identifier` | Windows registry DisplayName / macOS CFBundleIdentifier. |
+| `unique_identifier` | Windows registry DisplayName / macOS CFBundleIdentifier. Changing it on a Windows app changes its software title key: GitOps deletes and re-adds the installer for existing fleets. |
 | `installer_format` (homebrew) | What the download actually is: `dmg`, `pkg`, or `zip`. |
-| `install_script_path` / `uninstall_script_path` | Repo-relative custom script, embedded verbatim. |
+| `install_script_path` / `uninstall_script_path` | Repo-relative custom script, embedded verbatim. Custom winget uninstall scripts get `$PACKAGE_ID` substituted, nothing else. |
 | `pre_uninstall_scripts` / `post_uninstall_scripts` (homebrew) | Lines wrapped around the generated uninstall. Not allowed with `uninstall_script_path`. |
+| `cask_path` (homebrew) | Internal: points at `custom-tap/`. Not a way to add FMAs (ground rule 4). |
 | `program_publisher` (winget) | Exists-query publisher when the registry Publisher ≠ the winget locale Publisher. |
-| `fuzzy_match_name` (winget) | `true` → `name LIKE '<unique_identifier> %'`, for versioned DisplayNames. A string → `name LIKE '<string>'` verbatim (`"Mozilla Firefox % ESR %"`). Wrong in both directions: see [queries.md](references/queries.md). |
-| `exists_query` (winget) | Replaces the generated exists query; the patched query is derived from it. |
-| `use_display_version_for_patch` (winget) | Compare against the manifest's `DisplayVersion` instead of `PackageVersion` (python.org registers `3.14.5150.0` for `3.14.5`). |
-| `installer_scope` (winget) | Must match a `Scope` in the manifest. It selects the manifest entry; it doesn't make the installer honor that scope. |
+| `fuzzy_match_name` (winget) | `true` → `name LIKE '<unique_identifier> %'`, for versioned DisplayNames. A string → `name LIKE '<string>'` verbatim (`"Mozilla Firefox % ESR %"`). Wrong in both directions: see [queries.md](references/queries.md#exists-name-and-publisher-matching). |
+| `exists_query` (winget) | Replaces the generated exists query; the patched query is derived from it (a WHERE body with ` OR ` is parenthesized for you). |
+| `open_process_names` / `open_process_name_prefix` (winget) | The processes the open query matches when the app's exe isn't `<name>.exe`. Set at most one. |
+| `use_display_version_for_patch` (winget) | Compare against `AppsAndFeaturesEntries` `DisplayVersion` instead of `PackageVersion`. Hard-errors when the manifest has no DisplayVersion. |
+| `installer_scope` (winget) | Must match a `Scope` in the manifest (an installer with no scope accepts the input's). It selects the manifest entry; it doesn't make the installer honor that scope. Always set it. |
+| `installer_locale` (winget) | Only match installers with this `InstallerLocale` (unset matches any, so a manifest whose only installer is `ko-KR` gets picked silently). A root-level locale isn't read. |
+| `nested_installer_type` (winget) | Pick among zip installers that differ only by what's inside (Paint.NET: `wix`). |
+| `uninstall_type` (winget) | `msi`, with machine scope, gives a non-MSI `installer_type` the generated MSI uninstall (by upgrade code when the manifest has one). |
+| `ignore_upgrade_code` (winget) | For vendors that mint a new UpgradeCode every build (QGIS). The title then links by `unique_identifier`, which must be distinct. |
 | `ignore_hash` (winget) | SHA becomes `no_check`, for rolling URLs. It doesn't fix version drift ([validator-failures.md](references/validator-failures.md#rolling-latest-urls)). |
-| `frozen` | Output is never rewritten; upstream is still fetched. |
+| `requires_client_os` (winget) | The installer refuses Windows Server; CI validates on `windows-11-arm` instead. |
+| `frozen` | Output is never rewritten and CI skips the app; upstream is still fetched. |
 | `patch_policy_path` | Dead code. Shape `exists_query` or add an ingester branch instead. |
 
 ## Pre-ship checklist
 
-- [ ] Identity fields come from the real installer (MSI Property table, Burn manifest, Inno/NSIS metadata, `AppsAndFeaturesEntries`, Info.plist), not from catalog names. Anything unverified is called out in the PR.
-- [ ] macOS: the cask has an `app` artifact; `installer_format` matches the real download; `bundle_short_version` tracks the cask version, or a per-token override was added.
-- [ ] macOS custom install script: helpers match `scripts.go`, and a failed `quit_and_track_application` stops the script before the app is replaced.
+- [ ] Identity fields come from the real installer (Info.plist, MSI Property table, Burn manifest, NSIS/Inno header, `AppsAndFeaturesEntries`), not catalog names. Anything unverified is called out in the PR.
+- [ ] macOS: the cask has an `app` artifact; `installer_format` matches the real download; Gatekeeper accepts the app; the bundle id is the top-level app's.
+- [ ] Custom macOS scripts: helpers match `scripts.go`; a failed quit stops the script before the app is replaced; any mounted image is detached on every path.
 - [ ] Second platform: slug token and `name` match the existing FMA.
-- [ ] Windows: silent switches match the framework you confirmed; custom uninstall uses the defensive UninstallString parser.
-- [ ] **Scope proven, not assumed**: installed on a host as SYSTEM, and the payload and registration were where you expected. Nothing under `S-1-5-18`/`.DEFAULT`. If you couldn't test it, the PR says so.
-- [ ] Per-user apps: install runs as the signed-in user; uninstall enumerates every `HKEY_USERS` hive, runs the uninstaller as the owning user, and has the `system32` → `SysWOW64` fallback.
-- [ ] **Queries run through real osquery with the app installed**: `exists` ≥ 1 row; `patched` 1 row as generated and **0 rows with the version bumped**; `open` 0 rows while the app runs and 1 after it quits.
+- [ ] Windows: silent switches match the framework you confirmed; the uninstall uses the defensive `UninstallString` parser and picks the right key.
+- [ ] **Scope proven, not assumed**: installed as SYSTEM on a real host, payload and registration where you expected, nothing under `S-1-5-18`/`.DEFAULT`. If you couldn't test it, the PR says so.
+- [ ] Per-user apps: install runs as the signed-in user; uninstall finds every `HKEY_USERS` hive, runs the uninstaller as the owning user, and has the `system32` → `SysWOW64` fallback.
+- [ ] **Queries run through real osquery**: exists ≥ 1, patched 1 and 0 when bumped, open 1/0/1 across closed/running/quit, exists 0 after uninstall.
 - [ ] `fuzzy_match_name` matches the DisplayName you observed: set for versioned names, absent for plain ones.
 - [ ] Custom script comments are short and admin-facing ([script-comments.md](references/script-comments.md)).
-- [ ] `apps.json` description filled; generated SHA matches; icon exists or was generated.
-- [ ] Frozen app: the output was hand-edited, because the generator skipped it.
-- [ ] Bootstrapper, per-user, rolling-URL, and unverified-identity risks are flagged in the PR.
-- [ ] Exit codes you report were actually measured (no blank `ExitCode` from `-PassThru` + `WaitForExit($ms)`).
+- [ ] `apps.json` description filled; `name`/`unique_identifier` there match the input; generated SHA matches; icon exists or was generated; `go test ./ee/maintained-apps/...` passes.
+- [ ] Frozen app: the output was hand-edited, and the PR says what must happen before it can be unfrozen.
+- [ ] Bootstrapper, per-user, rolling-URL, side-by-side-install, and unverified-identity risks are flagged in the PR.
+- [ ] Every exit code you report was measured, not inferred.
 
 ## Reference files
 
 | File | Read it when |
 |---|---|
-| [references/identity-verification.md](references/identity-verification.md) | Reading DisplayName/Publisher/bundle id/version/switches from an installer, per framework, without a Windows host |
-| [references/windows-scripts.md](references/windows-scripts.md) | Writing or debugging any Windows install/uninstall script: SYSTEM context, per-user apps, hives and SIDs, install-script patterns, PowerShell traps |
-| [references/queries.md](references/queries.md) | Verifying or fixing exists/patched/open, version-column overrides, `fuzzy_match_name`, sibling products |
-| [references/validator-failures.md](references/validator-failures.md) | Any CI or ingest failure: error message → cause → fix, revert-and-freeze, rolling URLs, renamed casks, hand-editing outputs |
+| [references/identity-verification.md](references/identity-verification.md) | Reading DisplayName/Publisher/bundle id/version/switches/process names from an installer, per framework, on a Mac |
+| [references/queries.md](references/queries.md) | Fixing exists/patched/open, version-column overrides, `fuzzy_match_name`, sibling products, rebrands, and how fixes reach existing deployments |
+| [references/macos-scripts.md](references/macos-scripts.md) | Writing or debugging a macOS install/uninstall script: quit and relaunch, DMG/zip/pkg handling, ownership, suites, rebrands |
+| [references/windows-scripts.md](references/windows-scripts.md) | Writing or debugging a Windows script: SYSTEM context, per-user apps, hives and SIDs, MSIX, hangs, ARM64, testing in a VM, PowerShell traps |
+| [references/validator-failures.md](references/validator-failures.md) | Any CI, ingest, or soak failure: error message → cause → fix, revert-and-freeze, rolling URLs, renamed casks, nightly PRs, hand-editing outputs |
 | [references/script-comments.md](references/script-comments.md) | Writing or pruning comments in scripts that ship to customers |
