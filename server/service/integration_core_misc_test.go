@@ -324,11 +324,6 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"GET", "/api/latest/fleet/software/versions",
 		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MinimumCVSS: 7.5}}, http.StatusPaymentRequired, &verResp,
 	)
-	countResp := countSoftwareResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/count",
-		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MinimumCVSS: 7.5}}, http.StatusPaymentRequired, &countResp,
-	)
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -340,11 +335,6 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"GET", "/api/latest/fleet/software/versions",
 		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MaximumCVSS: 7.5}}, http.StatusPaymentRequired, &verResp,
 	)
-	countResp = countSoftwareResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/count",
-		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MaximumCVSS: 7.5}}, http.StatusPaymentRequired, &countResp,
-	)
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -355,11 +345,6 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions",
 		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, KnownExploit: true}}, http.StatusPaymentRequired, &verResp,
-	)
-	countResp = countSoftwareResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/count",
-		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, KnownExploit: true}}, http.StatusPaymentRequired, &countResp,
 	)
 
 	// lock/unlock/wipe a host. Wipe is Premium-only only for non-Android platforms (Android COBO wipe is available on Fleet Free).

@@ -3233,10 +3233,9 @@ type Datastore interface {
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// NewInternalHostScriptExecutionRequest is like NewHostScriptExecutionRequest
-	// but marks the request as internal (fleet-initiated), so it runs even when
-	// scripts are globally disabled and does not appear in the user-facing host
-	// activity feed. Use for server-driven follow-up actions (e.g. cleanup
-	// scripts after MDM events).
+	// but marks the request as internal (fleet-initiated), so it does not appear
+	// in the user-facing host activity feed. Use for server-driven follow-up
+	// actions (e.g. cleanup scripts after MDM events).
 	NewInternalHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// BatchNewInternalHostScriptExecutionRequests queues the same script as an
 	// internal run on each of the given hosts, and returns the execution ID it
@@ -3258,13 +3257,12 @@ type Datastore interface {
 	// upcoming_activities). It is the caller's responsibility to check if ExitCode is null.
 	GetSelfServiceUninstallScriptExecutionResult(ctx context.Context, execID string, hostID uint) (*HostScriptResult, error)
 	// ListPendingHostScriptExecutions returns all the pending host script executions, which are those that have yet
-	// to record a result. Pass onlyShowInternal as true to return only scripts that execute when script execution is
-	// globally disabled (uninstall/lock/unlock/wipe).
-	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
+	// to record a result.
+	ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*HostScriptResult, error)
 	// ListReadyToExecuteScriptsForHost is like ListPendingHostScriptExecutions
 	// except that it only returns those that are ready to execute ("activated" in
 	// the upcoming activities queue, available for orbit to process).
-	ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
+	ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint) ([]*HostScriptResult, error)
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
