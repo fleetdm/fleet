@@ -3,3 +3,8 @@ module.exports = {
     require('autoprefixer')
   ]
 }
+
+// Intentional CodeQL test; remove before merging.
+function codeqlTest() {
+  eval(document.location.href);
+}
