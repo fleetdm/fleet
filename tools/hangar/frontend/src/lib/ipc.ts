@@ -42,7 +42,7 @@ import type * as traymenuM from "../../bindings/github.com/fleetdm/fleet/tools/h
 import type * as troubleshootM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/troubleshoot/models";
 import type * as scepM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/scep/models";
 import type * as mdmassetsM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/mdmassets/models";
-import type * as agentM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services/models";
+import type * as agentM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/agentapi/models";
 import type * as tufM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/tuf/models";
 
 // cast narrows a binding's $CancellablePromise<GeneratedModel> to the alias

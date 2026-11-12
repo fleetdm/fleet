@@ -35,8 +35,3 @@ export {
     TroubleshootService,
     TufService
 };
-
-export {
-    SlotJob,
-    SlotUsage
-} from "./models.js";

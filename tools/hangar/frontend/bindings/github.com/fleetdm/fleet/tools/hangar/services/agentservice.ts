@@ -12,17 +12,17 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as $models from "./models.js";
+import * as agentapi$0 from "../internal/agentapi/models.js";
 
 /**
  * SlotUsage returns usage per slot id, empty when nothing is wired.
  */
-export function SlotUsage(): $CancellablePromise<{ [_ in string]?: $models.SlotUsage }> {
+export function SlotUsage(): $CancellablePromise<{ [_ in string]?: agentapi$0.SlotUsage }> {
     return $Call.ByID(264931368).then(($result: any) => {
         return $$createType1($result);
     });
 }
 
 // Private type creation functions
-const $$createType0 = $models.SlotUsage.createFrom;
+const $$createType0 = agentapi$0.SlotUsage.createFrom;
 const $$createType1 = $Create.Map($Create.Any, $$createType0);

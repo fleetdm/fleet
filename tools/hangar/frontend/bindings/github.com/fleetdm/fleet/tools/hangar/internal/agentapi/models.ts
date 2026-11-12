@@ -6,7 +6,7 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * SlotJob is the agent job currently holding a slot.
+ * SlotJob is the job holding a slot.
  */
 export class SlotJob {
     "id": string;
@@ -34,8 +34,7 @@ export class SlotJob {
 }
 
 /**
- * SlotUsage is what the GUI shows for one slot: the worktree that reserved it
- * and the agent job running on it. Both are nil when absent. No secrets.
+ * SlotUsage is one slot's reservation and holding job, for the GUI badge.
  */
 export class SlotUsage {
     "reserved_by": string | null;

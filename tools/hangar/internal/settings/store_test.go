@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -174,40 +173,29 @@ func TestSaveFromGUIUnreservedSlotChanges(t *testing.T) {
 	}
 }
 
-func TestSaveFromGUIHeldIdentityRefused(t *testing.T) {
-	f := newFixture(t)
-	f.store.SetHeldBy(func(id string) (string, bool) { return "job-7", id == "s2" })
-	in := f.store.Snapshot()
-	server(in, "s2").Ports.MySQL = 4000
-	_, err := f.store.SaveFromGUI(in)
-	if err == nil || !strings.Contains(err.Error(), "job-7") {
-		t.Fatalf("err = %v, want one naming job-7", err)
-	}
-	// Removal while idle is put back; while held with unchanged fields it saves.
-	in = f.store.Snapshot()
-	in.Theme = ThemeDark
-	if _, err := f.store.SaveFromGUI(in); err != nil {
-		t.Errorf("unchanged held slot should save: %v", err)
-	}
-	if f.store.Snapshot().Servers[1].Ports.MySQL == 4000 {
-		t.Error("refused save leaked into the store")
-	}
-}
-
-func TestSaveFromGUIReservationErrorRefuses(t *testing.T) {
+func TestSaveFromGUIReservationErrorKeepsEverySlot(t *testing.T) {
 	f := newFixture(t)
 	f.resErr = errors.New("bad json")
 	in := f.store.Snapshot()
 	in.Theme = ThemeDark
-	if _, err := f.store.SaveFromGUI(in); err == nil {
-		t.Fatal("want error")
+	server(in, "s1").WorktreePath = ptr("/wt/moved")
+	in.Servers = in.Servers[:1]
+	out, err := f.store.SaveFromGUI(in)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if f.store.Snapshot().Theme == ThemeDark {
-		t.Error("refused save changed the store")
+	if out.Theme != ThemeDark {
+		t.Error("theme change not saved")
+	}
+	if server(out, "s1").WorktreePath != nil {
+		t.Errorf("s1 worktree changed: %v", *server(out, "s1").WorktreePath)
+	}
+	if server(out, "s2") == nil {
+		t.Error("removed slot not put back")
 	}
 	disk, _ := Load(f.dir)
-	if disk.Theme == ThemeDark {
-		t.Error("refused save changed the file")
+	if disk.Theme != ThemeDark {
+		t.Error("theme not on disk")
 	}
 }
 

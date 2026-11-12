@@ -1,31 +1,20 @@
 package services
 
-// SlotJob is the agent job currently holding a slot.
-type SlotJob struct {
-	ID     string `json:"id"`
-	Action string `json:"action"`
-}
-
-// SlotUsage is what the GUI shows for one slot: the worktree that reserved it
-// and the agent job running on it. Both are nil when absent. No secrets.
-type SlotUsage struct {
-	ReservedBy *string  `json:"reserved_by"`
-	Job        *SlotJob `json:"job"`
-}
+import "github.com/fleetdm/fleet/tools/hangar/internal/agentapi"
 
 // AgentService exposes slot reservation and agent-job state to the frontend.
 type AgentService struct {
 	// Usage is wired by main from the agent API; nil means no data.
-	Usage func() map[string]SlotUsage
+	Usage func() map[string]agentapi.SlotUsage
 }
 
 // SlotUsage returns usage per slot id, empty when nothing is wired.
-func (s *AgentService) SlotUsage() map[string]SlotUsage {
+func (s *AgentService) SlotUsage() map[string]agentapi.SlotUsage {
 	if s.Usage == nil {
-		return map[string]SlotUsage{}
+		return map[string]agentapi.SlotUsage{}
 	}
 	if m := s.Usage(); m != nil {
 		return m
 	}
-	return map[string]SlotUsage{}
+	return map[string]agentapi.SlotUsage{}
 }

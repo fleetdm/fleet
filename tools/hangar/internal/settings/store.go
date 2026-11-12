@@ -2,7 +2,6 @@ package settings
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"reflect"
 	"sync"
@@ -19,7 +18,6 @@ type Store struct {
 	dir      string
 	emit     func(event string)
 	reserved func() (map[string]bool, error)
-	heldBy   func(slotID string) (owner string, held bool)
 	cur      Settings
 }
 
@@ -31,13 +29,6 @@ func NewStore(dir string, emit func(event string), reserved func() (map[string]b
 		return nil, err
 	}
 	return &Store{dir: dir, emit: emit, reserved: reserved, cur: cur}, nil
-}
-
-// SetHeldBy installs the lookup for slots held by an agent job.
-func (s *Store) SetHeldBy(fn func(slotID string) (owner string, held bool)) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.heldBy = fn
 }
 
 // Snapshot returns a copy of the current settings.
@@ -74,12 +65,12 @@ func (s *Store) SaveFromGUI(in Settings) (Settings, error) {
 	s.mu.Lock()
 	reserved, err := s.readReserved()
 	if err != nil {
-		s.mu.Unlock()
-		return Settings{}, fmt.Errorf("reading reservations: %w", err)
-	}
-	if err := s.checkHeld(in, reserved); err != nil {
-		s.mu.Unlock()
-		return Settings{}, err
+		// Unknown reservations: protect every slot rather than refuse the save.
+		slog.Error("reading reservations; keeping every slot's identity", "err", err)
+		reserved = map[string]bool{}
+		for _, c := range s.cur.Servers {
+			reserved[c.ID] = true
+		}
 	}
 	next := clone(in)
 	kept := keepReserved(&next, s.cur, reserved)
@@ -108,27 +99,6 @@ func (s *Store) readReserved() (map[string]bool, error) {
 		return nil, nil
 	}
 	return s.reserved()
-}
-
-func (s *Store) checkHeld(in Settings, reserved map[string]bool) error {
-	if s.heldBy == nil {
-		return nil
-	}
-	for _, cur := range s.cur.Servers {
-		if !reserved[cur.ID] {
-			continue
-		}
-		owner, held := s.heldBy(cur.ID)
-		if !held {
-			continue
-		}
-		for _, p := range in.Servers {
-			if p.ID == cur.ID && (p.Ports != cur.Ports || p.ComposeProject != cur.ComposeProject || p.Enabled != cur.Enabled) {
-				return fmt.Errorf("slot %s is held by %s; ports, compose project, and enabled can't change until it finishes", cur.ID, owner)
-			}
-		}
-	}
-	return nil
 }
 
 // keepReserved overwrites next's reserved profiles with cur's identity group

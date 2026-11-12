@@ -92,7 +92,6 @@ func main() {
 		slog.Error("load settings", "err", err)
 		os.Exit(1)
 	}
-	store.SetHeldBy(pm.HeldBy)
 
 	agentAPI := agentapi.New(agentapi.Options{
 		Store:            store,
@@ -149,17 +148,7 @@ func main() {
 			application.NewService(&services.PerfConfigService{}),
 			application.NewService(&services.DepsService{}),
 			application.NewService(&services.DialogService{}),
-			application.NewService(&services.AgentService{Usage: func() map[string]services.SlotUsage {
-				out := map[string]services.SlotUsage{}
-				for id, u := range agentAPI.SlotUsage() {
-					su := services.SlotUsage{ReservedBy: u.ReservedBy}
-					if u.Job != nil {
-						su.Job = &services.SlotJob{ID: u.Job.ID, Action: u.Job.Action}
-					}
-					out[id] = su
-				}
-				return out
-			}}),
+			application.NewService(&services.AgentService{Usage: agentAPI.SlotUsage}),
 		},
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(assets),
