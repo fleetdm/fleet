@@ -29,34 +29,21 @@ parasails.registerComponent('bubble', {
     if (rawType.startsWith('global ')) {
       rawType = rawType.replace('global ', '');
     }
+    // "+" isn't valid in a CSS class name.
+    if (rawType === 'observer+') {
+      rawType = 'observer-plus';
+    }
     let roleLink = '';
 
     switch (rawType) {
       case 'admin':
-        roleLink = '/guides/role-based-access#admin';
-        break;
       case 'maintainer':
-        roleLink = '/guides/role-based-access#maintainer';
-        break;
       case 'observer':
-        roleLink = '/guides/role-based-access#observer';
-        break;
-      case 'observer+':
-        roleLink = '/guides/role-based-access#observer2';
-        rawType = 'observer-plus';
-        break;
+      case 'observer-plus':
       case 'technician':
-        roleLink = '/guides/role-based-access#technician';
-        break;
       case 'gitops':
-        roleLink = '/guides/role-based-access#gitops';
-case 'maintainer':
-case 'observer':
-case 'observer+':
-case 'technician':
-case 'gitops':
-roleLink = '/guides/role-based-access#roles';
-break;
+        roleLink = '/guides/role-based-access#roles';
+        break;
     }
 
     return {
