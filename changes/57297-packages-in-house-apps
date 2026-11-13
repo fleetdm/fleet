@@ -1,0 +1,1 @@
+- Added in-house apps, `fleet_maintained_app_id`, and `install_during_setup` to `packages` in software title responses, and added `package` to host and device software responses.
