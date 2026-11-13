@@ -10,9 +10,7 @@ import { notify } from "components/ToastNotification";
 import { AppContext } from "context/app";
 import { EndUserLocalAccountType } from "interfaces/mdm";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
-import configAPI from "services/entities/config";
 import mdmAPI from "services/entities/mdm";
-import teamsAPI from "services/entities/teams";
 
 import EndUserAuthSection from "./components/EndUserAuthSection";
 import LocalAccountSection, {
@@ -130,34 +128,23 @@ const UsersForm = ({
       await mdmAPI.updateSetupExperienceSettings({
         fleet_id: currentTeamId,
         enable_end_user_authentication: formData.endUserAuthEnabled,
-        // Apple-only fields are omitted when Apple MDM isn't configured.
+        // Each platform's fields are omitted when its MDM is off, because the
+        // server rejects the whole request otherwise.
         ...(isMacMdmEnabledAndConfigured && {
           lock_end_user_info: canLockEndUserInfo,
-          enable_managed_local_account: effectiveEnableManagedLocalAccount(
+          macos_managed_local_account_enabled: effectiveEnableManagedLocalAccount(
             formData
           ),
-          end_user_local_account_type: formData.localAccountType,
+          macos_end_user_local_account_type: formData.localAccountType,
+        }),
+        ...(isWindowsMdmEnabledAndConfigured && {
+          windows_managed_local_account_enabled:
+            formData.enableManagedLocalAccountWindows,
         }),
       });
 
-      // The Windows toggle isn't part of the Apple Setup Assistant flow that /setup_experience models, so it saves
-      // through the MDM config instead. Skipped entirely when Windows MDM is off.
-      if (isWindowsMdmEnabledAndConfigured) {
-        const mdmUpdate = {
-          windows_settings: {
-            enable_managed_local_account:
-              formData.enableManagedLocalAccountWindows,
-          },
-        };
-        if (currentTeamId === APP_CONTEXT_NO_TEAM_ID) {
-          await configAPI.update({ mdm: mdmUpdate });
-        } else {
-          await teamsAPI.updateConfig({ mdm: mdmUpdate }, currentTeamId);
-        }
-      }
-
-      // Both calls above write into the app config and the fleet, which several other cards read
-      // from the same cache keys, so drop them.
+      // The request writes into the app config or the fleet, which several
+      // other cards read from the same cache keys, so drop them.
       await queryClient.invalidateQueries(["config"]);
       if (currentTeamId !== APP_CONTEXT_NO_TEAM_ID) {
         await queryClient.invalidateQueries(["team", currentTeamId]);
