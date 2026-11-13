@@ -1914,10 +1914,7 @@ func (ds *Datastore) GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) 
 		TeamID   uint   `db:"team_id"`
 		Checksum []byte `db:"checksum"`
 	}
-	const stmt = `
-		SELECT dp.team_id, dp.checksum
-		FROM android_fleet_default_policies dp
-		WHERE dp.team_id = 0 OR EXISTS (SELECT 1 FROM teams t WHERE t.id = dp.team_id)`
+	const stmt = `SELECT team_id, checksum FROM android_fleet_default_policies`
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting android fleet default policy checksums")
 	}

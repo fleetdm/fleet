@@ -4125,7 +4125,7 @@ type Datastore interface {
 	ListAndroidFleetDefaultPolicyProfiles(ctx context.Context, teamID *uint) ([]*MDMAndroidConfigProfile, error)
 
 	// GetAndroidFleetDefaultPolicyChecksums returns, keyed by team ID (0 is Unassigned), the checksum of the
-	// default policy last sent to AMAPI for each fleet that still exists.
+	// default policy last sent to AMAPI for each fleet.
 	GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (map[uint][]byte, error)
 
 	// SetAndroidFleetDefaultPolicyChecksum records the checksum of the default policy last sent for a fleet,
