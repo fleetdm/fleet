@@ -23,8 +23,6 @@ import (
 type removedNames struct {
 	jsonKeys    map[string]struct{} // lower case, JSON member names match case-insensitively
 	queryParams map[string]struct{} // exact, query parameter names are case-sensitive
-	// handParsed maps a `url` tag value to the query parameters its parser reads by name in code, where no tag declares them.
-	handParsed map[string][]string
 	// skipPaths are request path segments, such as "/orbit/", whose requests the scan leaves alone.
 	skipPaths []string
 }
@@ -39,11 +37,10 @@ const maxRemovedNamesScanSize = 1 << 20
 var removedNamesList atomic.Pointer[removedNames]
 
 // SetRemovedNames sets the request names the scan rejects.
-func SetRemovedNames(jsonKeys, queryParams []string, handParsed map[string][]string, skipPaths []string) {
+func SetRemovedNames(jsonKeys, queryParams, skipPaths []string) {
 	names := &removedNames{
 		jsonKeys:    make(map[string]struct{}, len(jsonKeys)),
 		queryParams: make(map[string]struct{}, len(queryParams)),
-		handParsed:  handParsed,
 		skipPaths:   skipPaths,
 	}
 	for _, k := range jsonKeys {
@@ -53,7 +50,6 @@ func SetRemovedNames(jsonKeys, queryParams []string, handParsed map[string][]str
 		names.queryParams[p] = struct{}{}
 	}
 	removedNamesList.Store(names)
-	queryNamesCache.Clear() // the declared names include the hand-parsed ones
 }
 
 // SkipsRemovedNamesScan reports whether the request path is one of the skip paths.
@@ -209,7 +205,7 @@ func RejectRemovedQueryParams(query url.Values, t reflect.Type) error {
 	if names == nil || len(names.queryParams) == 0 || len(query) == 0 {
 		return nil
 	}
-	declared := declaredQueryNames(t, names.handParsed)
+	declared := declaredQueryNames(t)
 	for param := range query {
 		if _, isRemoved := names.queryParams[param]; !isRemoved {
 			continue
@@ -221,30 +217,26 @@ func RejectRemovedQueryParams(query url.Values, t reflect.Type) error {
 	return nil
 }
 
-// declaredQueryNames returns the parameters t declares in `query` tags, plus those its hand-parsed fields read.
-func declaredQueryNames(t reflect.Type, handParsed map[string][]string) map[string]struct{} {
+// declaredQueryNames returns the parameters t declares in `query` tags.
+func declaredQueryNames(t reflect.Type) map[string]struct{} {
 	if cached, ok := queryNamesCache.Load(t); ok {
 		return cached.(map[string]struct{})
 	}
 	declared := make(map[string]struct{})
-	collectQueryNames(t, handParsed, declared)
+	collectQueryNames(t, declared)
 	queryNamesCache.Store(t, declared)
 	return declared
 }
 
 // collectQueryNames follows embedded structs by value only, like the decoder's allFields.
-func collectQueryNames(t reflect.Type, handParsed map[string][]string, declared map[string]struct{}) {
+func collectQueryNames(t reflect.Type, declared map[string]struct{}) {
 	for sf := range t.Fields() {
 		if tag, ok := sf.Tag.Lookup("query"); ok {
 			name, _, _ := strings.Cut(tag, ",")
 			declared[name] = struct{}{}
 		}
-		urlName, _, _ := strings.Cut(sf.Tag.Get("url"), ",")
-		for _, param := range handParsed[urlName] {
-			declared[param] = struct{}{}
-		}
 		if sf.Anonymous && sf.Type.Kind() == reflect.Struct {
-			collectQueryNames(sf.Type, handParsed, declared)
+			collectQueryNames(sf.Type, declared)
 		}
 	}
 }

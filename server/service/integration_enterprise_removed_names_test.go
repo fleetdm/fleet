@@ -62,6 +62,7 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"GET", "/scripts"}, {"GET", "/scripts/batch"}, {"POST", "/scripts/batch"},
 		{"GET", "/setup_experience/software"}, {"GET", "/setup_experience/script"}, {"DELETE", "/setup_experience/script"},
 		{"GET", "/certificates"},
+		{"GET", "/hosts"}, {"GET", "/hosts/count"}, {"GET", "/hosts/report"}, {"GET", "/users"},
 	} {
 		reject(tc[0], tc[1], "", "team_id", "fleet_id", "0", "team_id", "1")
 	}

@@ -56,8 +56,8 @@ func requireRejected(t *testing.T, err error, wantKey string) {
 }
 
 func TestRejectRemovedJSONKeys(t *testing.T) {
-	SetRemovedNames([]string{"team_id", "teams", "Team"}, nil, nil, nil)
-	t.Cleanup(func() { SetRemovedNames(nil, nil, nil, nil) })
+	SetRemovedNames([]string{"team_id", "teams", "Team"}, nil, nil)
+	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
 	typ := reflect.TypeFor[scanRequest]()
 
 	for _, tc := range []struct {
@@ -91,13 +91,9 @@ func TestRejectRemovedJSONKeys(t *testing.T) {
 	}
 }
 
-type handParsedRequest struct {
-	Opts struct{} `url:"host_options"`
-}
-
 func TestRejectRemovedQueryParams(t *testing.T) {
-	SetRemovedNames(nil, []string{"team_id", "team_name"}, map[string][]string{"host_options": {"team_id"}}, nil)
-	t.Cleanup(func() { SetRemovedNames(nil, nil, nil, nil) })
+	SetRemovedNames(nil, []string{"team_id", "team_name"}, nil)
+	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
 
 	type renamed struct {
 		FleetID *uint `query:"fleet_id,optional"`
@@ -112,8 +108,6 @@ func TestRejectRemovedQueryParams(t *testing.T) {
 		{name: "parameter names are case sensitive, like the decoder", query: "Team_ID=1"},
 		{name: "a parameter the type still declares", typ: reflect.TypeFor[scanRequest](), query: "team_id=1"},
 		{name: "declared through an embedded struct", typ: reflect.TypeFor[scanRequest](), query: "fleet_id=1&team_name=x", wantKey: "team_name"},
-		{name: "a hand-parsed field accepts the parameter its parser reads", typ: reflect.TypeFor[handParsedRequest](), query: "team_id=1"},
-		{name: "a hand-parsed field rejects the others", typ: reflect.TypeFor[handParsedRequest](), query: "team_name=a", wantKey: "team_name"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			values, err := url.ParseQuery(tc.query)
@@ -121,17 +115,11 @@ func TestRejectRemovedQueryParams(t *testing.T) {
 			requireRejected(t, RejectRemovedQueryParams(values, cmp.Or(tc.typ, reflect.TypeFor[renamed]())), tc.wantKey)
 		})
 	}
-
-	t.Run("changing the names resets what a type declares", func(t *testing.T) {
-		query := url.Values{"team_id": {"1"}}
-		SetRemovedNames(nil, []string{"team_id"}, nil, nil)
-		requireRejected(t, RejectRemovedQueryParams(query, reflect.TypeFor[handParsedRequest]()), "team_id")
-	})
 }
 
 func TestMakeDecoderRemovedNames(t *testing.T) {
-	SetRemovedNames([]string{"team_id"}, []string{"team_id"}, nil, []string{"/orbit/", "/device/"})
-	t.Cleanup(func() { SetRemovedNames(nil, nil, nil, nil) })
+	SetRemovedNames([]string{"team_id"}, []string{"team_id"}, []string{"/orbit/", "/device/"})
+	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
 
 	type request struct {
 		FleetID uint `json:"fleet_id"`
