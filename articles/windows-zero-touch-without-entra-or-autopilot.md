@@ -1,6 +1,6 @@
 # Windows zero touch without Entra or Autopilot
 
-Fleet already supports [zero-touch Windows deployment](https://fleetdm.com/articles/autopilot-without-autopilot): a partner preinstalls Fleet's agent (fleetd), and new computers enroll in Fleet the first time they're online. Starting in Fleet 5.2.0, zero touch can also sign the end user in with your identity provider (IdP) and install their software before they reach the Windows desktop. Fleet builds the Windows image for you and sends it to your PC maker (OEM), and the OEM ships computers straight to your end users.
+Fleet supports two ways to do [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot). The first is a [provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package): a partner preinstalls Fleet's agent (fleetd), and new computers enroll in Fleet the first time they're online. The second, starting in Fleet 5.2.0, is a Fleet factory image. It also signs the end user in with your identity provider (IdP) and installs their software before they reach the Windows desktop. Fleet builds the Windows image for you and sends it to your PC maker (OEM), and the OEM ships computers straight to your end users.
 
 ## What's new
 
@@ -39,6 +39,8 @@ Learn more in the [Windows and Linux setup experience guide](https://fleetdm.com
 ## Step 2: Fleet provides your image
 
 Fleet builds a Windows 11 image with fleetd set up for that fleet, tests it, and sends it to your OEM.
+
+> **Note:** Fleet is working on turning the factory image into a provisioning package. Today, computers get the Windows version the image was built with. With a provisioning package, they'll keep the up-to-date Windows version your OEM ships.
 
 ## Step 3: Order computers
 
