@@ -14,7 +14,7 @@ import (
 //////////////////////////////////////////////////////////////////////////////
 
 type getSelfServiceCategoriesRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getSelfServiceCategoriesResponse struct {
@@ -87,7 +87,7 @@ func (svc *Service) ListSelfServiceSoftwareCategoriesForHost(ctx context.Context
 //////////////////////////////////////////////////////////////////////////////
 
 type addSelfServiceCategoriesRequest struct {
-	TeamID *uint  `json:"team_id" renameto:"fleet_id"`
+	TeamID *uint  `json:"fleet_id"`
 	Name   string `json:"name"`
 }
 
