@@ -3913,7 +3913,9 @@ type Datastore interface {
 	// ReconcileWindowsMaintainedAppSoftwareTitles merges Windows software titles whose
 	// reported name embeds the version (e.g. "Granola 7.373.2") into the title owned by
 	// the Fleet-maintained app's installer, re-pointing every reference and deleting the
-	// emptied title. Idempotent.
+	// emptied title. It also moves software that an exact-name app's title holds only by
+	// name prefix ("Microsoft Teams Meeting Add-in…" under "Microsoft Teams") onto a
+	// title of its own. Idempotent.
 	//
 	// Separate from the macOS pass because it reads only local installer and title state,
 	// never the catalog: it must not be gated on a successful catalog fetch, and it wants
@@ -3927,10 +3929,10 @@ type Datastore interface {
 
 	// GetWindowsFMAMatches returns the Windows Fleet-maintained apps that have been
 	// added as an installer, populated with just what name matching needs: the catalog
-	// name, unique identifier, platform, and the id and name of the software title the
-	// installer owns. Used during software ingestion to collapse versioned program names
-	// (e.g. "Granola 7.373.2") onto that title. See MaintainedApp.WinMatchPrefixes for how a
-	// reported name is matched against them.
+	// name, unique identifier, platform, whether the program name is exact, and the id
+	// and name of the software title the installer owns. Used during software ingestion
+	// to collapse versioned program names (e.g. "Granola 7.373.2") onto that title. See
+	// MaintainedApp.WinMatchPrefixes for how a reported name is matched against them.
 	GetWindowsFMAMatches(ctx context.Context) ([]MaintainedApp, error)
 
 	// /////////////////////////////////////////////////////////////////////////////

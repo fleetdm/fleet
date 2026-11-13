@@ -1,0 +1,1 @@
+- Fixed Windows Fleet-maintained apps whose program name is exact, such as Microsoft Teams, showing as installed on hosts that only have a different product whose name starts with the app's, such as the Microsoft Teams Meeting Add-in for Microsoft Office. Software already filed under the app's title moves to its own title on the next hourly reconcile after the apps list syncs.

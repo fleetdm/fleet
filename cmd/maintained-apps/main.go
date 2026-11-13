@@ -157,15 +157,13 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 		return ctxerr.Wrap(ctx, err, "unmarshaling output apps list file")
 	}
 
-	var found bool
-	for _, a := range outputAppsFile.Apps {
-		if a.Slug == outApp.Slug {
-			found = true
-			break
-		}
-	}
-
-	if !found {
+	// Existing entries keep their hand-edited fields; only the derived name-match flag
+	// follows the input, since the server's title matching depends on it.
+	changed := true
+	if i := slices.IndexFunc(outputAppsFile.Apps, func(a maintained_apps.FMAListFileApp) bool { return a.Slug == outApp.Slug }); i >= 0 {
+		changed = outputAppsFile.Apps[i].ExactNameMatch != outApp.ExactNameMatch
+		outputAppsFile.Apps[i].ExactNameMatch = outApp.ExactNameMatch
+	} else {
 		platform := outApp.Platform()
 		if platform == "" {
 			return ctxerr.New(ctx, fmt.Sprintf("invalid platform found for slug %s", outApp.Slug))
@@ -176,11 +174,14 @@ func updateAppsListFile(ctx context.Context, outApp *maintained_apps.FMAManifest
 			Slug:             outApp.Slug,
 			Platform:         platform,
 			UniqueIdentifier: outApp.UniqueIdentifier,
+			ExactNameMatch:   outApp.ExactNameMatch,
 		})
 
 		// Keep existing order
 		slices.SortFunc(outputAppsFile.Apps, func(a, b maintained_apps.FMAListFileApp) int { return strings.Compare(a.Slug, b.Slug) })
+	}
 
+	if changed {
 		var buf bytes.Buffer
 		encoder := json.NewEncoder(&buf)
 		encoder.SetEscapeHTML(false)

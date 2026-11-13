@@ -449,6 +449,9 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if input.ExistsQuery != "" {
 		out.Queries.Exists = input.ExistsQuery
 	}
+	// A custom exists query can match any shape of name, so only the generated exact
+	// query vouches for it.
+	out.ExactNameMatch = input.ExistsQuery == "" && !input.FuzzyMatchName.Enabled
 	out.InstallScript = installScript
 	processedUninstallScript, err := preProcessUninstallScript(uninstallScript, productCode)
 	if err != nil {

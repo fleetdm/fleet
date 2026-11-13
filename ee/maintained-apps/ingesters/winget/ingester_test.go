@@ -692,6 +692,59 @@ func TestIngestValidations(t *testing.T) {
 	}
 }
 
+func TestIngestExactNameMatch(t *testing.T) {
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "install_script.ps1"), []byte("install"), 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "uninstall_script.ps1"), []byte("uninstall"), 0o644))
+
+	srv := newTestServer(t, serverConfig{
+		productCode:       "{ABCDEF}",
+		installerType:     "msi",
+		installerScope:    "machine",
+		installerArch:     "x64",
+		installerProdCode: "{ACBDEF}",
+		upgradeCode:       "{ABCDEF}",
+	})
+	t.Cleanup(srv.Close)
+	gc := github.NewClient(srv.Client())
+	u, err := url.Parse(srv.URL + "/")
+	require.NoError(t, err)
+	gc.BaseURL = u
+	i := wingetIngester{logger: slog.New(slog.DiscardHandler), githubClient: gc}
+
+	cases := []struct {
+		name      string
+		fuzzy     fuzzyMatch
+		exists    string
+		wantExact bool
+	}{
+		{"exact by default", fuzzyMatch{}, "", true},
+		{"fuzzy", fuzzyMatch{Enabled: true}, "", false},
+		{"custom pattern", fuzzyMatch{Enabled: true, Custom: "Foo version %"}, "", false},
+		{"custom exists query", fuzzyMatch{}, "SELECT 1 FROM programs WHERE name = 'Foo';", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			out, err := i.ingestOne(ctx, inputApp{
+				Name:                "Foo",
+				UniqueIdentifier:    "Foo",
+				PackageIdentifier:   "Foo",
+				InstallerArch:       "x64",
+				Slug:                "foo/windows",
+				InstallScriptPath:   path.Join(tempDir, "install_script.ps1"),
+				UninstallScriptPath: path.Join(tempDir, "uninstall_script.ps1"),
+				InstallerType:       "msi",
+				InstallerScope:      "machine",
+				FuzzyMatchName:      c.fuzzy,
+				ExistsQuery:         c.exists,
+			})
+			require.NoError(t, err)
+			require.Equal(t, c.wantExact, out.ExactNameMatch)
+		})
+	}
+}
+
 func TestWindowsOpenQuery(t *testing.T) {
 	cases := []struct {
 		name    string

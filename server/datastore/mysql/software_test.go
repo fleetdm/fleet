@@ -13247,6 +13247,15 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 	dupTitleID := uint(10)
 	sameTitleA := fleet.MaintainedApp{Name: "Dup A", UniqueIdentifier: "Dup", Platform: "windows", TitleID: &dupTitleID, TitleName: "Dup"}
 	sameTitleB := fleet.MaintainedApp{Name: "Dup B", UniqueIdentifier: "Dup", Platform: "windows", TitleID: &dupTitleID, TitleName: "Dup"}
+	// The catalog says this app's program reports exactly its identifier.
+	teams := win(11, "Microsoft Teams", "Microsoft Teams")
+	teams.ExactNameMatch = true
+	// An exact-name app whose catalog name differs from its identifier.
+	teamsARM := fleet.MaintainedApp{
+		Name: "Microsoft Teams (ARM64)", UniqueIdentifier: "Microsoft Teams",
+		Platform: "windows", TitleID: new(uint(12)), TitleName: "Microsoft Teams (ARM64)", ExactNameMatch: true,
+	}
+	teamsAddIn := win(13, "Microsoft Teams Meeting Add-in for Microsoft Office", "Microsoft Teams Meeting Add-in for Microsoft Office")
 
 	cases := []struct {
 		name        string
@@ -13276,6 +13285,14 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 		// Destination is the installer's title, never the current catalog name.
 		{"renamed catalog: matches old name", "Zoom 6.1.0", []fleet.MaintainedApp{renamed}, "Zoom", 9, true},
 		{"renamed catalog: matches new name", "Zoom Workplace 7.0", []fleet.MaintainedApp{renamed}, "Zoom", 9, true},
+
+		// An exact-name app takes only programs named exactly one of its candidates.
+		{"exact-name app: exact name", "Microsoft Teams", []fleet.MaintainedApp{teams}, "Microsoft Teams", 11, true},
+		{"exact-name app: case insensitive", "microsoft teams", []fleet.MaintainedApp{teams}, "Microsoft Teams", 11, true},
+		{"exact-name app: longer name is another product", "Microsoft Teams Meeting Add-in for Microsoft Office", []fleet.MaintainedApp{teams}, "", 0, false},
+		{"exact-name app: version suffix is not a match", "Microsoft Teams 1.2", []fleet.MaintainedApp{teams}, "", 0, false},
+		{"exact-name app: catalog name still matches exactly", "Microsoft Teams (ARM64)", []fleet.MaintainedApp{teamsARM}, "Microsoft Teams (ARM64)", 12, true},
+		{"exact-name app: longer name goes to its own app", "Microsoft Teams Meeting Add-in for Microsoft Office", []fleet.MaintainedApp{teams, teamsAddIn}, "Microsoft Teams Meeting Add-in for Microsoft Office", 13, true},
 
 		// MySQL's utf8mb4_unicode_ci ignores Unicode format characters, so Go-side
 		// matching must too or a name carrying one silently stops matching.
