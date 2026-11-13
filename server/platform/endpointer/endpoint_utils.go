@@ -603,7 +603,13 @@ func MakeDecoder(
 		}
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
+		rdType := indirectType(reflect.TypeOf(iface))
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+			if r.URL.RawQuery != "" && !SkipsRemovedNamesScan(r.URL.Path) {
+				if err := RejectRemovedQueryParams(r.URL.Query(), rdType); err != nil {
+					return nil, err
+				}
+			}
 			if maxRequestBodySize != -1 {
 				r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
 			}

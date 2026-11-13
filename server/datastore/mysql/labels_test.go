@@ -4424,7 +4424,7 @@ func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
 		"label_membership_type",
 		"author_id",
 		"criteria",
-		"team_id",
+		"fleet_id",
 		"host_count",
 	} {
 		t.Run("order_"+key, func(t *testing.T) {
@@ -4435,8 +4435,10 @@ func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
 	}
 
 	t.Run("rejects_unknown_key", func(t *testing.T) {
-		_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "l.id; SELECT 1"}, false)
-		require.Error(t, err)
+		for _, key := range []string{"l.id; SELECT 1", "team_id"} {
+			_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key}, false)
+			require.Error(t, err)
+		}
 	})
 
 	t.Run("page_pagination_with_allowed_key", func(t *testing.T) {

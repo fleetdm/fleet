@@ -152,7 +152,7 @@ func SoftwareMaintained(c Client, log Logger, opt SoftwareOptions) Result {
 
 	listPath := "/api/latest/fleet/software/fleet_maintained_apps"
 	if opt.TeamID > 0 {
-		listPath = fmt.Sprintf("%s?team_id=%d", listPath, opt.TeamID)
+		listPath = fmt.Sprintf("%s?fleet_id=%d", listPath, opt.TeamID)
 	}
 	var list listMaintainedAppsResponse
 	if err := c.Get(listPath, &list); err != nil {
