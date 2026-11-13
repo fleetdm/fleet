@@ -102,6 +102,9 @@ var removedPathTemplates = []string{
 	"/api/_version_/fleet/mdm/setup/eula/{token}",
 	"/api/_version_/fleet/mdm/apple/setup/eula/{token}",
 	"/api/_version_/fleet/labels/{name}",
+	"/api/_version_/fleet/mdm/apple/installers",
+	"/api/_version_/fleet/mdm/apple/installers/{installer_id}",
+	"/api/mdm/apple/installer",
 }
 
 // removedPathOverlaps has the removed paths that a stdlib ServeMux cannot register next to a live route.
