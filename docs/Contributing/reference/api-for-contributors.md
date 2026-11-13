@@ -2977,6 +2977,7 @@ Some routes are always exempt from SSO and others are exempt while a host is sti
 - `POST /api/v1/fleet/device/{token}/setup_experience/status` — *exempt during setup experience*
 - `POST /api/v1/fleet/device/{token}/mdm/linux/trigger_escrow` — *exempt during setup experience*
 - `POST /api/v1/fleet/device/{token}/bypass_conditional_access` — *exempt during setup experience*
+- [Get device's Google conditional access status](#get-devices-google-conditional-access-status) (`GET /api/v1/fleet/device/{token}/conditional_access/google`) — *exempt during setup experience*
 - [Download device's MDM manual enrollment profile](#download-devices-mdm-manual-enrollment-profile) (`GET /api/v1/fleet/device/{token}/mdm/apple/manual_enrollment_profile`) — *exempt during setup experience*
 - [Get device's software MDM command results](#get-devices-software-mdm-command-results) (`GET /api/v1/fleet/device/{token}/software/commands/{command_uuid}/results`) — *exempt during setup experience*
 - `POST /api/v1/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend` — *exempt during setup experience*
@@ -5169,6 +5170,81 @@ None.
   "configuration_completed": false
 }
 ```
+
+### Get device's Google conditional access status
+
+Used by the **Self-service** web clip on iOS and iPadOS hosts. The web clip calls it only when [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token) returns `google_conditional_access_sign_in_required: true`, and then sends the end user to `sign_in_url`.
+
+Each call that returns a `sign_in_url` creates a new single-use token, valid for 15 minutes, and counts as a sign-in attempt. After 3 attempts in 24 hours with no completed sign-in, the response has no `sign_in_url`.
+
+`GET /api/v1/fleet/device/{token}/conditional_access/google`
+
+#### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "sign_in_url": "https://fleetdm.com/api/v1/google-conditional-access/sign-in?..."
+}
+```
+
+`sign_in_url` is omitted when the host is registered, isn't a company-owned iOS or iPadOS host, Google isn't connected, or the host used up its sign-in attempts.
+
+### Register device with Google conditional access
+
+**Note:** This endpoint is called by fleetdm.com after an end user signs in to Google on an iOS or iPadOS host. It's authenticated with the per-server secret that fleetdm.com returned when Google was connected, sent as a bearer token.
+
+Stores the host's Google device users and marks them as managed in Google.
+
+`POST /api/v1/fleet/google_conditional_access/register`
+
+#### Parameters
+
+| Name     | Type   | In   | Description                                                                 |
+| -------- | ------ | ---- | --------------------------------------------------------------------------- |
+| token    | string | body | **Required.** The single-use token from the host's `sign_in_url`. |
+| names    | array  | body | The resource names of the Google device users that Google's lookup returned (`devices/{device}/deviceUsers/{deviceUser}`). Empty when Google doesn't know the device. |
+| customer | string | body | The Google customer the lookup ran in. |
+| email    | string | body | The Google account that signed in. |
+
+##### Request body
+
+```json
+{
+  "token": "<single-use token>",
+  "names": ["devices/c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12/deviceUsers/7f2b9c1e-3a4d-4e5f-8a6b-1c2d3e4f5a6b"],
+  "customer": "customers/C01234abc",
+  "email": "anna@example.com"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "result": "done"
+}
+```
+
+`result` tells fleetdm.com which page to show the end user:
+
+- `done`: the host is registered.
+- `not_found`: `names` is empty. The end user hasn't signed in to Gmail on the device, or Gmail doesn't have the managed configuration.
+- `not_allowed`: the token is unknown, used, or expired, the host isn't company-owned, the account is from another Google Workspace, or a device user is registered to another host.
+- `error`: Fleet couldn't register the host. The reason is in the server logs.
+
+A wrong or missing secret returns `Status: 401`.
+
+To develop against these endpoints without fleetdm.com or a Google Workspace, use the [mock server](https://github.com/fleetdm/fleet/tree/main/cmd/google-conditional-access-mock).
 
 ### Get Okta conditional access SAML IdP metadata
 

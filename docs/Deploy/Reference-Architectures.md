@@ -193,6 +193,9 @@ Learn more about [conditional access](https://fleetdm.com/guides/conditional-acc
 | Route | Reason |
 |---|---|
 | `fleetdm.com/api/v1/microsoft-compliance-partner*` | [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration). Fleet reaches Entra through fleetdm.com. |
+| `fleetdm.com/api/v1/google-conditional-access*` | [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration). Connect and disconnect your Fleet server. The end user's Google sign-in on iPhones and iPads goes through fleetdm.com. |
+| `oauth2.googleapis.com` | Google conditional access. Sign in to Google with your service account. |
+| `cloudidentity.googleapis.com` | Google conditional access. Find devices in Google and mark them as managed. |
 
 ### Vulnerability processing
 
