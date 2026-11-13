@@ -3,7 +3,7 @@ import React from "react";
 
 import { ISoftwarePackage } from "interfaces/software";
 
-import { getErrorMessage } from "./helpers";
+import { getErrorMessage, isNonSideEffectOnlyChange } from "./helpers";
 
 jest.mock("axios", () => {
   const actual = jest.requireActual("axios");
@@ -115,5 +115,56 @@ describe("getErrorMessage", () => {
     expect(container.textContent).toBe(
       "Couldn't edit Zoom. The selected package is for a different file type."
     );
+  });
+});
+
+// Regression: the Edit software modal's "cancel pending installs" warning
+// used to always fire because the diff carried extra form-only fields
+// (categories, automaticInstall, the installer reference seeded as `software`)
+// that current-state didn't. The modal now routes the diff through this
+// helper, which recognizes a self-service-only or categories-only edit as
+// non-side-effect and skips the warning. Mirrors the backend's
+// `fieldsShouldSideEffect` map in ee/server/service/software_installers.go.
+describe("isNonSideEffectOnlyChange", () => {
+  it("is false for an empty diff so an unchanged save doesn't skip the modal by accident", () => {
+    expect(isNonSideEffectOnlyChange({})).toBe(false);
+  });
+
+  it("is true when only self-service changed", () => {
+    expect(isNonSideEffectOnlyChange({ selfService: true })).toBe(true);
+  });
+
+  it("is true when only categories changed", () => {
+    expect(isNonSideEffectOnlyChange({ categories: ["Productivity"] })).toBe(
+      true
+    );
+  });
+
+  it("is true when both self-service and categories changed and nothing else", () => {
+    expect(
+      isNonSideEffectOnlyChange({
+        selfService: true,
+        categories: ["Productivity"],
+      })
+    ).toBe(true);
+  });
+
+  it("is false when a side-effect field like install script is also in the diff", () => {
+    expect(
+      isNonSideEffectOnlyChange({
+        selfService: true,
+        installScript: "echo hi",
+      })
+    ).toBe(false);
+  });
+
+  it("is false when the installer file is in the diff", () => {
+    expect(isNonSideEffectOnlyChange({ software: {} })).toBe(false);
+  });
+
+  it("is false when label targeting is in the diff", () => {
+    expect(
+      isNonSideEffectOnlyChange({ labelTargets: { "label-1": true } })
+    ).toBe(false);
   });
 });

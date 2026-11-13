@@ -22,7 +22,6 @@ import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/moda
 import {
   generateSelectedLabels,
   getCustomTarget,
-  getInstallType,
   getTargetType,
 } from "pages/SoftwarePage/helpers";
 import labelsAPI, { getCustomLabels } from "services/entities/labels";
@@ -33,7 +32,7 @@ import { getFileDetails } from "utilities/file/fileUtils";
 
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
-import { getErrorMessage } from "./helpers";
+import { getErrorMessage, isNonSideEffectOnlyChange } from "./helpers";
 
 const baseClass = "edit-software-modal";
 
@@ -269,24 +268,26 @@ const EditSoftwareModal = ({
     setIsUpdatingSoftware(false);
   };
 
-  const isOnlySelfServiceUpdated = (updates: Record<string, unknown>) => {
-    return Object.keys(updates).length === 1 && "selfService" in updates;
-  };
-
   const onClickSavePackage = (formData: IPackageFormData) => {
     const softwarePackage = softwareInstaller as ISoftwarePackage;
 
+    // currentData mirrors the form's shape so deepDifference only reports real
+    // changes. `software` is seeded to the installer so the form's initial
+    // installer reference compares equal when no new file was picked;
+    // `automaticInstall` is always false on edit (the deploy slider is
+    // add-only).
     const currentData = {
-      software: null,
+      software: (softwarePackage as unknown) as File | null,
       installScript: softwarePackage.install_script || "",
       preInstallQuery: softwarePackage.pre_install_query || "",
       postInstallScript: softwarePackage.post_install_script || "",
       uninstallScript: softwarePackage.uninstall_script || "",
       selfService: softwarePackage.self_service || false,
-      installType: getInstallType(softwarePackage),
       targetType: getTargetType(softwarePackage),
       customTarget: getCustomTarget(softwarePackage),
       labelTargets: generateSelectedLabels(softwarePackage),
+      automaticInstall: false,
+      categories: softwarePackage.categories || [],
     };
 
     setPendingPackageUpdates(formData);
@@ -300,7 +301,7 @@ const EditSoftwareModal = ({
       formData.categories = [""];
     }
 
-    if (isOnlySelfServiceUpdated(updates)) {
+    if (isNonSideEffectOnlyChange(updates)) {
       onEditPackage(formData);
     } else {
       setShowConfirmSaveChangesModal(true);
@@ -347,13 +348,14 @@ const EditSoftwareModal = ({
       targetType: getTargetType(softwareInstaller),
       customTarget: getCustomTarget(softwareInstaller),
       labelTargets: generateSelectedLabels(softwareInstaller),
+      categories: softwareInstaller.categories || [],
     };
 
     setPendingVppUpdates(formData);
 
     const updates = deepDifference(formData, currentData);
 
-    if (isOnlySelfServiceUpdated(updates)) {
+    if (isNonSideEffectOnlyChange(updates)) {
       onEditVpp(formData);
     } else {
       setShowConfirmSaveChangesModal(true);

@@ -12,7 +12,17 @@ import { ensurePeriod } from "pages/SoftwarePage/SoftwareAddPage/helpers";
 export const EDIT_SOFTWARE_ERROR_PREFIX = "Couldn't edit software.";
 const DEFAULT_ERROR_MESSAGE = `${EDIT_SOFTWARE_ERROR_PREFIX} Please try again.`;
 
-// eslint-disable-next-line import/prefer-default-export
+// Fields the backend cancels pending installs/uninstalls for live in
+// `fieldsShouldSideEffect` in ee/server/service/software_installers.go. Self
+// service and categories aren't there, so edits that only change those skip
+// the "this will cancel pending installs" confirm modal.
+const NON_SIDE_EFFECT_KEYS = new Set(["selfService", "categories"]);
+
+export const isNonSideEffectOnlyChange = (updates: Record<string, unknown>) => {
+  const keys = Object.keys(updates);
+  return keys.length > 0 && keys.every((k) => NON_SIDE_EFFECT_KEYS.has(k));
+};
+
 export const getErrorMessage = (
   err: unknown,
   software: ISoftwarePackage | IAppStoreApp
