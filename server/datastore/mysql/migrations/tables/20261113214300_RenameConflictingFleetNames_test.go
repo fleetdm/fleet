@@ -14,7 +14,7 @@ import (
 	"golang.org/x/text/unicode/norm"
 )
 
-func TestUp_20261112204537(t *testing.T) {
+func TestUp_20261113214300(t *testing.T) {
 	// Each name is inserted in order, so its index is its id order.
 	insertFleets := func(t *testing.T, db *sqlx.DB, names []string) []int64 {
 		ids := make([]int64, 0, len(names))
@@ -148,7 +148,7 @@ func TestUp_20261112204537(t *testing.T) {
 			var wantLog strings.Builder
 			for i, name := range after {
 				assert.LessOrEqual(t, utf8.RuneCountInString(name), 255)
-				assert.NotEmpty(t, fleetNameKey20261112204537(name))
+				assert.NotEmpty(t, fleetNameKey20261113214300(name))
 				if name != tc.before[i] {
 					fmt.Fprintf(&wantLog, "Renamed fleet ID %d from %q to %q to follow the Fleet 5 fleet name rules.\n", ids[i], tc.before[i], name)
 				}
@@ -164,7 +164,7 @@ func TestUp_20261112204537(t *testing.T) {
 			// No fleet matches another by name key or under the collation.
 			keys := make(map[string]string)
 			for _, name := range after {
-				key := fleetNameKey20261112204537(name)
+				key := fleetNameKey20261113214300(name)
 				assert.NotContains(t, keys, key, "%q and %q have the same name key", keys[key], name)
 				keys[key] = name
 			}
@@ -412,7 +412,7 @@ func TestUp_20261112204537(t *testing.T) {
 	})
 }
 
-func TestFleetNameKey20261112204537(t *testing.T) {
+func TestFleetNameKey20261113214300(t *testing.T) {
 	for name, want := range map[string]string{
 		"Workstations":    "workstations",
 		"Work-stations":   "workstations",
@@ -435,6 +435,6 @@ func TestFleetNameKey20261112204537(t *testing.T) {
 		"İstanbul":        "istanbul",
 		"ΣΊΣΥΦΟΣ σίσυφος": "σισυφοσσισυφοσ",
 	} {
-		assert.Equal(t, want, fleetNameKey20261112204537(name), name)
+		assert.Equal(t, want, fleetNameKey20261113214300(name), name)
 	}
 }
