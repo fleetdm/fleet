@@ -4,10 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -60,6 +64,12 @@ func (t *Task) RecordScheduledQueryStats(ctx context.Context, teamID *uint, host
 	key := fmt.Sprintf(scheduledQueryStatsHostQueriesKey, hostID)
 	args := redigo.Args{key, int(ttl.Seconds())}
 	for _, ps := range stats {
+		// Same rule as SaveHostPackStats: only the "Global" pack and the host's own
+		// "team-<id>" pack carry its reports, so a host can't record stats for
+		// another fleet's reports.
+		if ps.PackName != "Global" && (teamID == nil || ps.PackName != fmt.Sprintf("team-%d", *teamID)) {
+			continue
+		}
 		for _, qs := range ps.QueryStats {
 			field := fmt.Sprintf("%s\x00%s", ps.PackName, qs.ScheduledQueryName)
 			jsonStat, err := json.Marshal(qs)
@@ -167,12 +177,12 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 
 	// NOTE(mna): packs typically target many hosts, so it's very likely that the
 	// batch of recorded stats have a small-ish set of packName+schedQueryName that
-	// is repeated many times over. Instead of loading those schedQuery IDs for each
-	// insertion of the stats, load it once before processing the batch.
+	// is repeated many times over. Instead of loading those report IDs for each
+	// insertion of the stats, load them once before processing the batch.
 
-	// get all hosts' stats and index the scheduled query names
+	// get all hosts' stats and index the report names
 	hostsStats := make(map[uint][]fleet.ScheduledQueryStats, len(hosts)) // key is host ID
-	uniqueSchedQueries := make(map[[2]string]uint)                       // key is pack+scheduled query names, value is scheduled query id
+	reportNames := make(map[string]fleet.TeamScopedQueryName)            // key is TeamScopedQueryName.Key()
 	for _, host := range hosts {
 		sqStats, names, err := getHostStats(host.HostID)
 		if err != nil {
@@ -180,35 +190,35 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 		}
 		hostsStats[host.HostID] = sqStats
 		for _, nm := range names {
-			uniqueSchedQueries[nm] = 0
+			if rn, ok := statReportName(nm[0], nm[1]); ok {
+				reportNames[rn.Key()] = rn
+			}
 		}
 	}
 
-	// batch-load scheduled query IDs
-	schedNames := make([][2]string, 0, len(uniqueSchedQueries))
-	for k := range uniqueSchedQueries {
-		schedNames = append(schedNames, k)
-	}
-	schedIDs, err := ds.ScheduledQueryIDsByName(ctx, fleet.DefaultScheduledQueryIDsByNameBatchSize, schedNames...)
+	// Read the primary so stats for a report created moments ago aren't
+	// dropped (the Redis entries are already gone) before it reaches the replica.
+	reports, err := ds.QueriesByName(ctxdb.RequirePrimary(ctx, true), slices.Collect(maps.Values(reportNames)))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "batch-load scheduled query ids from names")
-	}
-	// store the IDs along with the names
-	for i, nm := range schedNames {
-		uniqueSchedQueries[nm] = schedIDs[i]
+		return ctxerr.Wrap(ctx, err, "batch-load report ids from names")
 	}
 
-	// build the batch of stats to upsert, ignoring stats for non-existing
-	// scheduled queries
+	// build the batch of stats to upsert, ignoring stats that don't resolve to
+	// a report (2017 packs, deleted reports, unknown fleets)
 	batchStatsByHost := make(map[uint][]fleet.ScheduledQueryStats, len(hostsStats))
 	for hid, sqStats := range hostsStats {
 		batchStats := batchStatsByHost[hid]
 		for _, sqStat := range sqStats {
-			sqStat.ScheduledQueryID = uniqueSchedQueries[[2]string{sqStat.PackName, sqStat.ScheduledQueryName}]
-			// ignore if the scheduled query does not exist
-			if sqStat.ScheduledQueryID != 0 {
-				batchStats = append(batchStats, sqStat)
+			rn, ok := statReportName(sqStat.PackName, sqStat.ScheduledQueryName)
+			if !ok {
+				continue
 			}
+			report, ok := reports[rn.Key()]
+			if !ok {
+				continue
+			}
+			sqStat.ScheduledQueryID = report.ID
+			batchStats = append(batchStats, sqStat)
 		}
 		batchStatsByHost[hid] = batchStats
 	}
@@ -229,4 +239,22 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 		}
 	}
 	return nil
+}
+
+// statReportName returns the report a stat was recorded for. Reports reach
+// osquery in the "Global" and "team-<id>" packs; stats for any other pack
+// (e.g. 2017 packs) don't map to a report.
+func statReportName(packName, schedQueryName string) (fleet.TeamScopedQueryName, bool) {
+	if packName == "Global" {
+		return fleet.TeamScopedQueryName{Name: schedQueryName}, true
+	}
+	idStr, ok := strings.CutPrefix(packName, "team-")
+	if !ok {
+		return fleet.TeamScopedQueryName{}, false
+	}
+	teamID, err := strconv.ParseUint(idStr, 10, 0)
+	if err != nil {
+		return fleet.TeamScopedQueryName{}, false
+	}
+	return fleet.TeamScopedQueryName{TeamID: new(uint(teamID)), Name: schedQueryName}, true
 }

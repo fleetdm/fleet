@@ -1,12 +1,21 @@
 
-$machineKey = `
- 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{EA457B21-F73E-494C-ACAB-524FDE069978}_is1'
+# The x64 and ARM64 builds share a software title, so fall back to the ARM64
+# entry when the x64 one isn't installed.
+$machineKeys = @(
+ 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{EA457B21-F73E-494C-ACAB-524FDE069978}_is1',
+ 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{A5270FC5-65AD-483E-AC30-2C276B63D0AC}_is1'
+)
 $uninstallArgs = "/VERYSILENT"
 $exitCode = 0
 
 try {
 
-    $key = Get-ItemProperty -Path $machineKey -ErrorAction Stop
+    $key = $machineKeys |
+        ForEach-Object { Get-ItemProperty -Path $_ -ErrorAction SilentlyContinue } |
+        Select-Object -First 1
+    if (-not $key) {
+        throw "Visual Studio Code uninstall entry not found."
+    }
 
     # Get the uninstall command. Some uninstallers do not include
     # 'QuietUninstallString' and require a flag to run silently.
@@ -46,9 +55,6 @@ try {
     # Start process and track exit code
     $process = Start-Process @processOptions
     $exitCode = $process.ExitCode
-
-    # Kill Brave process
-    Stop-Process -Name "brave" -Force -ErrorAction SilentlyContinue
 
     # Prints the exit code
     Write-Host "Uninstall exit code: $exitCode"

@@ -70,8 +70,8 @@ type OsqueryService interface {
 	//
 	// When the Redis-backed store is enabled and the agent's etag matches, this
 	// returns NotModified WITHOUT BUILDING THE CONFIG — no AppConfig read, no
-	// ListPacksForHost, no agent options, no scheduled queries, and no
-	// host-intervals reconciliation. A side effect that must run on every config
+	// agent options, no scheduled queries, and no host-intervals
+	// reconciliation. A side effect that must run on every config
 	// check-in therefore cannot live on the full-build path. Every other outcome,
 	// including every error, falls back to a full build; see ConfigETagMode for
 	// the cache modes and server/service/redis_config_etag for the design.
@@ -320,44 +320,11 @@ type Service interface {
 	DeleteSession(ctx context.Context, id uint) (err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
-	// PackService is the service interface for managing query packs.
-
-	// ApplyPackSpecs applies a list of PackSpecs to the datastore, creating and updating packs as necessary.
-	ApplyPackSpecs(ctx context.Context, specs []*PackSpec) ([]*PackSpec, error)
-
-	// GetPackSpecs returns all of the stored PackSpecs.
-	GetPackSpecs(ctx context.Context) ([]*PackSpec, error)
-
-	// GetPackSpec gets the spec for the pack with the given name.
-	GetPackSpec(ctx context.Context, name string) (*PackSpec, error)
-
-	// NewPack creates a new pack in the datastore.
-	NewPack(ctx context.Context, p PackPayload) (pack *Pack, err error)
-
-	// ModifyPack modifies an existing pack in the datastore.
-	ModifyPack(ctx context.Context, id uint, p PackPayload) (pack *Pack, err error)
-
-	// ListPacks lists all packs in the application.
-	ListPacks(ctx context.Context, opt PackListOptions) (packs []*Pack, err error)
-
-	// GetPack retrieves a pack by ID.
-	GetPack(ctx context.Context, id uint) (pack *Pack, err error)
-
-	// DeletePack deletes a pack record from the datastore.
-	DeletePack(ctx context.Context, name string) (err error)
-
-	// DeletePackByID is for backwards compatibility with the UI
-	DeletePackByID(ctx context.Context, id uint) (err error)
-
-	// ListPacksForHost lists the packs that a host should execute.
-	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
-
-	// /////////////////////////////////////////////////////////////////////////////
 	// LabelService
 
 	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary,
 	// plus rename existing labels *on other teams* to avoid name conflicts
-	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec, teamID *uint, namesToMove []string) error
+	ApplyLabelSpecs(ctx context.Context, specs []*LabelSpec, teamID *uint, labelsToMove []LabelToMove) error
 	// GetLabelSpecs returns either all labels a user can see (no team ID), global labels only (team ID 0),
 	// or team-specific labels
 	GetLabelSpecs(ctx context.Context, teamID *uint) ([]*LabelSpec, error)
@@ -370,8 +337,6 @@ type Service interface {
 	LabelsSummary(ctx context.Context, teamID *uint) (labels []*LabelSummary, err error)
 	GetLabel(ctx context.Context, id uint) (label *LabelWithTeamName, hostIDs []uint, err error)
 
-	DeleteLabel(ctx context.Context, name string) (err error)
-	// DeleteLabelByID is for backwards compatibility with the UI
 	DeleteLabelByID(ctx context.Context, id uint) (err error)
 
 	// ListHostsInLabel returns a slice of hosts in the label with the given ID.
@@ -686,15 +651,6 @@ type Service interface {
 	// is provided and the referenced query allows observers to run, targets will include hosts that the user has
 	// observer role for.
 	CountHostsInTargets(ctx context.Context, queryID *uint, targets HostTargets) (*TargetMetrics, error)
-
-	// /////////////////////////////////////////////////////////////////////////////
-	// ScheduledQueryService
-
-	GetScheduledQueriesInPack(ctx context.Context, id uint, opts ListOptions) (queries []*ScheduledQuery, err error)
-	GetScheduledQuery(ctx context.Context, id uint) (query *ScheduledQuery, err error)
-	ScheduleQuery(ctx context.Context, sq *ScheduledQuery) (query *ScheduledQuery, err error)
-	DeleteScheduledQuery(ctx context.Context, id uint) (err error)
-	ModifyScheduledQuery(ctx context.Context, id uint, p ScheduledQueryPayload) (query *ScheduledQuery, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// StatusService
@@ -1812,10 +1768,9 @@ const (
 	// could not apply. Distinct from Bypass: the feature is not active at all.
 	ConfigETagModeOff ConfigETagMode = "off"
 	// ConfigETagModeBypass means the feature is active but this request
-	// declined to use it — user-created 2017 packs exist, or the gate state
-	// could not be read. Kept distinct from Off so the etag_mode field can
-	// tell "flag disabled" from "enabled but bypassing fleet-wide"; no
-	// control flow branches on it.
+	// declined to use it because the gate state could not be read. Kept
+	// distinct from Off so the etag_mode field can tell "flag disabled" from
+	// "enabled but bypassing"; no control flow branches on it.
 	ConfigETagModeBypass ConfigETagMode = "bypass"
 	// ConfigETagModeShared uses one record per (scope, platform).
 	ConfigETagModeShared ConfigETagMode = "shared"
@@ -1880,12 +1835,11 @@ func (s ConfigETagLabelScopes) Any() bool {
 	return s.Global || len(s.TeamIDs) > 0
 }
 
-// ErrConfigETagGateLoading is returned by ConfigETagStore gate methods
-// (LegacyPacksPresent, LabelScopes) when another request on this Fleet
-// instance is already loading the missing gate state. It signals NORMAL
-// contention, not a fault: callers must treat the state as unknown for this
-// request (bypass the short circuit, run a full build) WITHOUT waiting and
-// WITHOUT error logging. This is the non-blocking half of the gate loaders'
+// ErrConfigETagGateLoading is returned by ConfigETagStore.LabelScopes when
+// another request on this Fleet instance is already loading the missing gate
+// state. It signals NORMAL contention, not a fault: callers must treat the
+// state as unknown for this request (bypass the short circuit, run a full
+// build) WITHOUT waiting and WITHOUT error logging. This is the non-blocking half of the gate loaders'
 // leader election — one database load per container per miss window, and a
 // hung loader can never stall config delivery for other requests.
 var ErrConfigETagGateLoading = errors.New("config etag gate state load in flight")
@@ -1942,19 +1896,6 @@ type ConfigETagStore interface {
 	// host IDs are known.
 	InvalidateHost(ctx context.Context, hostID uint) error
 
-	// LegacyPacksPresent reports whether the deployment has any user-created
-	// 2017 packs — the hard deployment-wide bypass. 2017 pack targeting can
-	// change via label membership drift, which fires no invalidation event,
-	// and per-host records do not help because pack content is also
-	// host-specific in unbounded ways. The result is cached in Redis for a
-	// few minutes; on a cache miss, load is called to compute it (one cheap
-	// DB query). Errors must be treated by callers as "present" (fail closed
-	// for the gate = fail open for config correctness).
-	LegacyPacksPresent(ctx context.Context, load func(ctx context.Context) (bool, error)) (bool, error)
-	// ResetLegacyPacksFlag drops the cached legacy-packs answer so the next
-	// LegacyPacksPresent recomputes it. Called by pack CRUD invalidation
-	// hooks, where the answer may have just changed.
-	ResetLegacyPacksFlag(ctx context.Context) error
 	// LabelScopes returns the cached set of scopes containing label-scoped
 	// scheduled reports (bounded ~5m TTL), loading it via load — one cheap
 	// deployment-level DB query — on a cache miss. It drives shared vs

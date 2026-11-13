@@ -101,8 +101,6 @@ export interface IMdmConfig {
     lock_end_user_info: boolean | null;
     enable_create_local_admin_account?: boolean;
     end_user_local_account_type?: EndUserLocalAccountType;
-  };
-  macos_setup?: {
     enable_managed_local_account?: boolean;
   };
   windows_settings?: {

@@ -1120,6 +1120,29 @@ agent_options:
 	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
 	assert.Contains(t, err.Error(), `https://fleet.example.com/settings/integrations/change-management`)
 
+	// Same, with a fleet that has a label of that name: the exception error still comes first, not a name conflict.
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return []*fleet.Team{{ID: 1, Name: "team1"}}, nil
+	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		if filter.TeamID != nil && *filter.TeamID == 1 {
+			return []*fleet.LabelSpec{{ID: 1, Name: "test-label", Query: "SELECT 1"}}, nil
+		}
+		return nil, nil
+	}
+	fleetFile := filepath.Join(t.TempDir(), "team1.yml")
+	require.NoError(t, os.WriteFile(fleetFile, []byte("name: team1\nagent_options:\ncontrols:\npolicies:\nreports:\n"), 0o600))
+	_, err = runAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "-f", fleetFile})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"labels" is excepted from GitOps management`)
+	assert.NotContains(t, err.Error(), fleet.LabelNameInUseByFleetsErrMsg)
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		return nil, nil
+	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
 	// Secrets excepted + present → error
 	tmpFile2, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
@@ -1419,13 +1442,7 @@ func TestGitOpsExceptionsPreserveOmittedKeys(t *testing.T) {
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
 		return errors.New("unexpected ApplyLabelSpecsWithAuthorFunc call - should not apply labels when excepted")
 	}
-	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-		return &fleet.Label{ID: 1, Name: name}, nil
-	}
-	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
-		deletedLabels = append(deletedLabels, name)
-		return nil
-	}
+	ds.DeleteLabelFunc = testing_utils.RecordDeletedLabelNames(ds, &deletedLabels)
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		return errors.New("unexpected ApplyEnrollSecretsFunc call - should not apply enroll secrets when excepted")
 	}
@@ -1518,9 +1535,6 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 		return []*fleet.Team{{ID: 1, Name: "Test Fleet"}}, nil
 	}
 	setupDefaultTeamConfigMocks(ds)
-	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-		return &fleet.Label{ID: 1, Name: name}, nil
-	}
 	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
 		if name == "Test Fleet" {
 			return &fleet.Team{ID: 1, Name: "Test Fleet"}, nil
@@ -1729,26 +1743,19 @@ func TestGitOpsNoExceptionsClearOmittedKeys(t *testing.T) {
 	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
 		return []*fleet.Team{savedTeam}, nil
 	}
+	existingLabel := &fleet.LabelSpec{ID: 1, Name: "existing-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"}
+	existingTeamLabel := &fleet.LabelSpec{ID: 2, Name: "existing-team-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1", TeamID: new(uint(1))}
 	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
 		if filter.TeamID != nil && *filter.TeamID == 1 {
-			return []*fleet.LabelSpec{
-				{Name: "existing-team-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1", TeamID: ptr.Uint(1)},
-			}, nil
+			return []*fleet.LabelSpec{existingTeamLabel}, nil
 		}
-		return []*fleet.LabelSpec{
-			{Name: "existing-label", LabelType: fleet.LabelTypeRegular, LabelMembershipType: fleet.LabelMembershipTypeDynamic, Query: "SELECT 1"},
-		}, nil
+		return []*fleet.LabelSpec{existingLabel}, nil
 	}
+	ds.LabelFunc = testing_utils.LabelsByID(existingLabel, existingTeamLabel)
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
 		return errors.New("unexpected ApplyLabelSpecsWithAuthorFunc call - should not apply labels when all are deleted")
 	}
-	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-		return &fleet.Label{ID: 1, Name: name}, nil
-	}
-	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
-		deletedLabels = append(deletedLabels, name)
-		return nil
-	}
+	ds.DeleteLabelFunc = testing_utils.RecordDeletedLabelNames(ds, &deletedLabels)
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
 		appliedSecrets = secrets
 		return nil
@@ -2360,33 +2367,31 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	}
 
 	// Labels
-	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
-		return []*fleet.LabelSpec{
-			{
-				Name:                "a",
-				Description:         "A global label",
-				LabelMembershipType: fleet.LabelMembershipTypeManual,
-				Hosts:               []string{"host2", "host3"},
-			},
-			{
-				Name:                "c",
-				Description:         "A label that should be deleted",
-				LabelMembershipType: fleet.LabelMembershipTypeDynamic,
-				Query:               "SELECT 1 from osquery_info",
-			},
-		}, nil
+	existingLabels := []*fleet.LabelSpec{
+		{
+			ID:                  1,
+			Name:                "a",
+			Description:         "A global label",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{"host2", "host3"},
+		},
+		{
+			ID:                  3,
+			Name:                "c",
+			Description:         "A label that should be deleted",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+			Query:               "SELECT 1 from osquery_info",
+		},
 	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return existingLabels, nil
+	}
+	ds.LabelFunc = testing_utils.LabelsByID(existingLabels...)
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		appliedLabelSpecs = specs
 		return nil
 	}
-	ds.LabelByNameFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) (*fleet.Label, error) {
-		return &fleet.Label{Name: name}, nil
-	}
-	ds.DeleteLabelFunc = func(ctx context.Context, name string, filter fleet.TeamFilter) error {
-		deletedLabels = append(deletedLabels, name)
-		return nil
-	}
+	ds.DeleteLabelFunc = testing_utils.RecordDeletedLabelNames(ds, &deletedLabels)
 	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
 		return map[string]*fleet.Label{
 			"a": {ID: 1, Name: "a"},
@@ -3951,7 +3956,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
 	}
-	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 		return nil
 	}
 	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) {
@@ -7855,40 +7860,69 @@ func TestComputeLabelChanges(t *testing.T) {
 }
 
 func TestComputeLabelMoves(t *testing.T) {
-	t.Run("valid move between teams", func(t *testing.T) {
+	t.Run("same name on several fleets is not a move", func(t *testing.T) {
 		allChanges := map[string][]spec.LabelChange{
-			"team1": { // Team 1 deletes "move-me"
-				{Name: "move-me", Op: "-", TeamName: "team1", FileName: "t1.yml"},
-			},
-			"team2": { // Team 2 adds "move-me"
-				{Name: "move-me", Op: "+", TeamName: "team2", FileName: "t2.yml"},
-			},
+			"team1": {{Name: "shared", Op: "-", TeamName: "team1", FileName: "t1.yml"}},
+			"team2": {{Name: "shared", Op: "+", TeamName: "team2", FileName: "t2.yml"}},
+			"team3": {{Name: "shared", Op: "+", TeamName: "team3", FileName: "t3.yml"}},
+			"team4": {{Name: "shared", Op: "-", TeamName: "team4", FileName: "t4.yml"}},
 		}
 
 		moves, err := computeLabelMoves(allChanges)
 		require.NoError(t, err)
-		require.Len(t, moves["team2"], 1)
-		require.Equal(t, "move-me", moves["team2"][0].Name)
-		require.Equal(t, "team1", moves["team2"][0].FromTeamName)
-		require.Equal(t, "team2", moves["team2"][0].ToTeamName)
+		require.Empty(t, moves)
 	})
 
-	t.Run("conflict: duplicate delete", func(t *testing.T) {
+	t.Run("global label moved to fleets", func(t *testing.T) {
 		allChanges := map[string][]spec.LabelChange{
-			"team1": {{Name: "conflict", Op: "-", FileName: "file1.yml"}},
-			"team2": {{Name: "conflict", Op: "-", FileName: "file2.yml"}},
+			spec.LabelAPIGlobalTeamName: {{Name: "move-me", Op: "-", TeamName: spec.LabelAPIGlobalTeamName, FileName: "default.yml"}},
+			"team1":                     {{Name: "move-me", Op: "+", TeamName: "team1", FileName: "t1.yml"}},
+			"team2":                     {{Name: "move-me", Op: "+", TeamName: "team2", FileName: "t2.yml"}},
 		}
-		_, err := computeLabelMoves(allChanges)
-		require.ErrorContains(t, err, "already being deleted")
+
+		moves, err := computeLabelMoves(allChanges)
+		require.NoError(t, err)
+		require.Empty(t, moves[spec.LabelAPIGlobalTeamName])
+		for _, team := range []string{"team1", "team2"} {
+			require.Equal(t, []spec.LabelMovement{{Name: "move-me", FromTeamName: spec.LabelAPIGlobalTeamName, ToTeamName: team}}, moves[team])
+		}
 	})
 
-	t.Run("conflict: duplicate add", func(t *testing.T) {
+	t.Run("fleet labels moved to global", func(t *testing.T) {
 		allChanges := map[string][]spec.LabelChange{
-			"team1": {{Name: "conflict", Op: "+", FileName: "file1.yml"}},
-			"team2": {{Name: "conflict", Op: "+", FileName: "file2.yml"}},
+			spec.LabelAPIGlobalTeamName: {{Name: "move-me", Op: "+", TeamName: spec.LabelAPIGlobalTeamName, FileName: "default.yml"}},
+			"team1":                     {{Name: "move-me", Op: "-", TeamName: "team1", FileName: "t1.yml"}},
+			"team2":                     {{Name: "move-me", Op: "-", TeamName: "team2", FileName: "t2.yml"}},
+		}
+
+		moves, err := computeLabelMoves(allChanges)
+		require.NoError(t, err)
+		require.ElementsMatch(t, []spec.LabelMovement{
+			{Name: "move-me", FromTeamName: "team1", ToTeamName: spec.LabelAPIGlobalTeamName},
+			{Name: "move-me", FromTeamName: "team2", ToTeamName: spec.LabelAPIGlobalTeamName},
+		}, moves[spec.LabelAPIGlobalTeamName])
+	})
+
+	t.Run("conflict: global label added with a name a fleet uses", func(t *testing.T) {
+		for _, fleetOp := range []string{"+", "="} {
+			allChanges := map[string][]spec.LabelChange{
+				spec.LabelAPIGlobalTeamName: {{Name: "conflict", Op: "+", FileName: "default.yml"}},
+				"team1":                     {{Name: "conflict", Op: fleetOp, FileName: "t1.yml"}},
+			}
+			_, err := computeLabelMoves(allChanges)
+			require.ErrorContains(t, err, `can't add label "conflict" to "default.yml"`)
+			require.ErrorContains(t, err, fleet.LabelNameInUseByFleetsErrMsg)
+		}
+	})
+
+	t.Run("conflict: fleet label added with a global label's name", func(t *testing.T) {
+		allChanges := map[string][]spec.LabelChange{
+			spec.LabelAPIGlobalTeamName: {{Name: "conflict", Op: "=", FileName: "default.yml"}},
+			"team1":                     {{Name: "conflict", Op: "+", FileName: "t1.yml"}},
 		}
 		_, err := computeLabelMoves(allChanges)
-		require.ErrorContains(t, err, "already being added")
+		require.ErrorContains(t, err, `can't add label "conflict" to "t1.yml"`)
+		require.ErrorContains(t, err, fleet.LabelNameInUseGloballyErrMsg)
 	})
 }
 

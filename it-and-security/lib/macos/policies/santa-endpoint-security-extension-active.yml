@@ -1,7 +1,8 @@
 - name: Santa Endpoint Security extension active
   platform: darwin
-  description: Santa is installed but its Endpoint Security system extension is missing or not in the activated enabled state.
-  resolution: "Fleet can run the remediation script to request extension activation. If it still fails, please reach out to help-it in Slack."
+  description: Checks that Santa's Endpoint Security system extension is activated and enabled. Macs without Santa pass.
+  resolution: "No action needed from you. Fleet runs a script that activates the extension when this policy fails. If it keeps failing, IT reviews the script output in the host's activity."
+  hidden: true
   query: >-
     SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.northpolesec.santa')
     OR EXISTS (

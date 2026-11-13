@@ -808,7 +808,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 }
 
 func TestNewMDMAppleConfigProfile(t *testing.T) {
-	identifier := "Bar.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+	identifier := "Bar.$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 	setup := func(t *testing.T, license *fleet.LicenseInfo, identifier string) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
 		svc, ctx, ds, _ := setupAppleMDMService(t, license)
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
@@ -1122,7 +1122,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 
 	t.Run("Fleet variables used in the upload are threaded through to the datastore call", func(t *testing.T) {
 		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-		identifierWithVar := "com.fleetdm.test.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+		identifierWithVar := "com.fleetdm.test.$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 		existing := newExistingProfile(identifierWithVar, "Test Profile", 0)
 		mcBytes := mcBytesForTest("Test Profile", identifierWithVar, "UUID")
 
@@ -1137,7 +1137,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", mcBytes, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.NoError(t, err)
-		assert.Contains(t, capturedVars, fleet.FleetVarHostEndUserEmailIDP)
+		assert.Contains(t, capturedVars, fleet.FleetVarHostEndUserIDPUsername)
 	})
 
 	t.Run("secrets_updated_at from expanding embedded secrets is threaded through to the datastore call", func(t *testing.T) {
@@ -2246,9 +2246,6 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		return nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
-		return nil, nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return nil, nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
@@ -9208,7 +9205,7 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	<array>
 		<dict>
 			<key>ComputerName</key>
-			<string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string>
+			<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
 		</dict>
 	</array>
 </dict>
@@ -9223,7 +9220,16 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	vars, err := validateConfigProfileFleetVariables(profileWithVars, premiumLic, &fleet.GroupedCertificateAuthorities{})
 	require.NoError(t, err)
-	require.Contains(t, vars, "HOST_END_USER_EMAIL_IDP")
+	require.Contains(t, vars, "HOST_END_USER_IDP_USERNAME")
+
+	// A removed variable gets its Fleet 5 error whatever the license.
+	profileWithRemovedVar := strings.ReplaceAll(profileWithVars, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}")
+	for _, lic := range []*fleet.LicenseInfo{freeLic, premiumLic} {
+		_, err = validateConfigProfileFleetVariables(profileWithRemovedVar, lic, &fleet.GroupedCertificateAuthorities{})
+		var removedErr *fleet.RemovedFleetVariableError
+		require.ErrorAs(t, err, &removedErr, lic.Tier)
+		require.ErrorContains(t, err, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`)
+	}
 
 	// Test profile without variables (should work with free license)
 	profileNoVars := `<?xml version="1.0" encoding="UTF-8"?>
