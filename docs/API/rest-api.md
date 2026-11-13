@@ -777,7 +777,7 @@ Object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. Must be unique across all certificate authorities (case-insensitive). |
 | url | string | **Required** DigiCert instance URL, used as base URL for DigiCert API requests. |
 | api_token | string | **Required** API token used to authenticate requests to DigiCert. |
 | profile_id | string | **Required** The ID of certificate profile in DigiCert. |
@@ -804,7 +804,7 @@ Object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. Must be unique across all certificate authorities (case-insensitive). |
 | url | string | **Required**. URL of the Simple Certificate Enrollment Protocol (SCEP) server |
 | challenge | string | **Required**. Static challenge password used to authenticate requests to SCEP server. |
 
@@ -815,7 +815,7 @@ Object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. Must be unique across all certificate authorities (case-insensitive). |
 | url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint's URL. |
 | username  | string | **Required**. The username used to authenticate with the EST endpoint. |
 | password  | string | **Required**. The password used to authenticate with the EST endpoint. |
@@ -826,7 +826,7 @@ Object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| name | string | **Required**. Name of the certificate authority. Only letters, numbers, and underscores are allowed. |
+| name | string | **Required**. Name of the certificate authority. Only letters, numbers, and underscores are allowed. Must be unique across all certificate authorities (case-insensitive). |
 | url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant. |
 | client_id | string | **Required**. The client ID provided by Hydrant.|
 | client_secret  | string | **Required**. The client secret provided by Hydrant. |
@@ -848,7 +848,7 @@ Object with the following structure:
 
 | Name                    | Type    | Description   |
 | ---------------------   | ------- | ---------------------------------------------------- |
-| name                    | string  | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
+| name                    | string  | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. Must be unique across all certificate authorities (case-insensitive). |
 | url                     | string  | **Required**. URL of the EJBCA REST API endpoint. |
 | password                | string  | **Required**. The password for the client certificate. |
 
