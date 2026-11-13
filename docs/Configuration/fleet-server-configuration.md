@@ -1422,16 +1422,28 @@ The minimum time difference between the software's "last opened at" timestamp re
     min_software_last_opened_at_diff: 4h
   ```
 
-### osquery_disable_ai_session_ingestion
+### osquery_ai_session_max_tool_calls
 
-Applies only to Fleet Premium. Stops Fleet from collecting AI coding agent sessions and their tool calls from hosts. Sessions Fleet already collected stay available in the Fleet UI and API until they expire, 30 days after they started.
+Applies only to Fleet Premium. The maximum number of tool calls Fleet stores for each AI coding agent session. Fleet stores a session's first tool calls, so for a longer session the newest ones aren't collected. To stop collecting AI sessions, use [`server_settings.ai_sessions_disabled`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) instead.
 
-- Default value: false
-- Environment variable: `FLEET_OSQUERY_DISABLE_AI_SESSION_INGESTION`
+- Default value: 10000
+- Environment variable: `FLEET_OSQUERY_AI_SESSION_MAX_TOOL_CALLS`
 - Config file format:
   ```yaml
   osquery:
-    disable_ai_session_ingestion: true
+    ai_session_max_tool_calls: 10000
+  ```
+
+### osquery_ai_session_max_tool_calls_per_refresh
+
+Applies only to Fleet Premium. The maximum number of new tool calls Fleet asks a host for, per AI coding agent session, at each refresh. Lowering it spreads the collection of long sessions, such as when hosts first report their sessions, over more refreshes. Set it to 0 to ask for as many as fit in the host's result.
+
+- Default value: 0
+- Environment variable: `FLEET_OSQUERY_AI_SESSION_MAX_TOOL_CALLS_PER_REFRESH`
+- Config file format:
+  ```yaml
+  osquery:
+    ai_session_max_tool_calls_per_refresh: 500
   ```
 
 ### osquery_max_concurrent_query_report_reads

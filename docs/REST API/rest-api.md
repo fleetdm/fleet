@@ -1757,7 +1757,8 @@ None.
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
-    "ai_features_disabled": false
+    "ai_features_disabled": false,
+    "ai_sessions_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": false,
@@ -2161,7 +2162,8 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_analytics": true,
     "live_query_disabled": false,
     "query_reports_disabled": false,
-    "ai_features_disabled": false
+    "ai_features_disabled": false,
+    "ai_sessions_disabled": false
   },
   "smtp_settings": {
     "enable_smtp": true,
@@ -2492,6 +2494,7 @@ Modifies the Fleet's configuration with the supplied information.
 | live_reporting_disabled           | boolean | Whether the live reporting capabilities are disabled.                                       |
 | discard_reports_data              | boolean | Whether storing report results are disabled.                                                |
 | ai_features_disabled              | boolean | Whether AI features are disabled.                                                           |
+| ai_sessions_disabled              | boolean | _Available in Fleet Premium._ Whether Fleet stops collecting AI coding agent sessions from hosts. Sessions already collected are kept until they expire. (Default: `false`) |
 | report_cap                        | integer | The maximum number of results to store per report before the report is clipped. If the number of hosts is higher than this cap, Fleet uses the number of hosts instead, so a report that returns one result per host is never clipped. If increasing this cap, we recommend enabling reports for one report at time and monitoring your infrastructure. (Default: `1000`) |
 
 > Note: If `server_url` changes, hosts that enrolled to the old URL will need to re-enroll, or they will no longer communicate with Fleet. Before re-enrolling Android hosts, you'll need to turn Android MDM off and back on to point Google to the new `server_url`.
@@ -2507,7 +2510,8 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_analytics": true,
     "live_reporting_disabled": false,
     "discard_reports_data": false,
-    "ai_features_disabled": false
+    "ai_features_disabled": false,
+    "ai_sessions_disabled": false
   }
 }
 ```
@@ -7480,7 +7484,7 @@ Lists the AI coding agent sessions on a host. Available for macOS, Windows, and 
 
 Only admins and maintainers, globally or of the host's fleet, can see AI sessions, because commands and their arguments can include secrets.
 
-Hosts report the sessions that started in the last 30 days. Fleet keeps each session for 30 days after it started, even after its transcript is gone from the host.
+Hosts report the sessions active in the last 7 days. Fleet keeps each session for 30 days after it was last active, even after its transcript is gone from the host. To stop collecting AI sessions, set [`server_settings.ai_sessions_disabled`](#server-settings) to `true`, or uncheck **Store host AI sessions** in **Settings > Organization settings > Advanced options**.
 
 Supported agents are Claude Code (`claude_code`), GitHub Copilot CLI (`copilot_cli`), Cursor (`cursor`), OpenAI Codex CLI (`codex_cli`), and Gemini CLI (`gemini_cli`).
 
@@ -7509,8 +7513,6 @@ Fields that an agent doesn't record are empty (`""`) for strings, `0` for counts
 `user_message_count` only includes prompts a person typed. Tool results sent back to the model aren't included. `assistant_message_count`, `tool_call_count`, and `transcript_size` include sub-agents'.
 
 `categories` lists every category of the session's tool calls that Fleet has collected. See [List host's AI session events](#list-hosts-ai-session-events) for how categories are assigned.
-
-`backfill` is `true` while Fleet is still collecting tool calls the session made before Fleet first saw it, such as when a host first reports its sessions. Fleet collects these a few at a time, so the session can list fewer events than `tool_call_count` for a while.
 
 `input_token_count` only includes uncached input tokens. Tokens read from and written to the prompt cache are reported in `cache_read_token_count` and `cache_write_token_count`.
 
@@ -7543,7 +7545,6 @@ Fields that an agent doesn't record are empty (`""`) for strings, `0` for counts
       "assistant_message_count": 96,
       "tool_call_count": 81,
       "categories": ["command", "file_access"],
-      "backfill": false,
       "input_token_count": 18342,
       "output_token_count": 52117,
       "cache_read_token_count": 4210983,
@@ -7569,7 +7570,6 @@ Fields that an agent doesn't record are empty (`""`) for strings, `0` for counts
       "assistant_message_count": 31,
       "tool_call_count": 22,
       "categories": ["file_access"],
-      "backfill": false,
       "input_token_count": 0,
       "output_token_count": 0,
       "cache_read_token_count": 0,
@@ -7633,7 +7633,6 @@ See [List host's AI sessions](#list-hosts-ai-sessions) for how each field is rep
     "assistant_message_count": 27,
     "tool_call_count": 19,
     "categories": ["command", "file_access"],
-    "backfill": false,
     "input_token_count": 41820,
     "output_token_count": 9634,
     "cache_read_token_count": 388102,
@@ -7652,7 +7651,7 @@ Lists the tool calls an AI coding agent made during a session, in the order they
 
 Only admins and maintainers, globally or of the host's fleet, can see AI sessions.
 
-Fleet collects a session's tool calls on the refresh after it collects the session, so they can trail the session by a refresh (one hour by default). Fleet stops collecting a session's tool calls once its transcript is gone from the host.
+Fleet collects a session's tool calls on the refresh after it collects the session, so they can trail the session by a refresh (one hour by default). Fleet stops collecting a session's tool calls once its transcript is gone from the host. Fleet stores a session's first 10,000 tool calls by default (see [`osquery_ai_session_max_tool_calls`](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-ai-session-max-tool-calls)), so a longer session lists fewer events than its `tool_call_count`.
 
 `GET /api/v1/fleet/hosts/:id/ai_sessions/:ai_session_id/events`
 
