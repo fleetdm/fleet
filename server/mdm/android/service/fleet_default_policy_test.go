@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
@@ -159,8 +160,9 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 	}
 
 	var (
-		profiles  []*fleet.MDMAndroidConfigProfile
-		checksums map[uint][]byte
+		profiles       []*fleet.MDMAndroidConfigProfile
+		checksums      map[uint][]byte
+		deleted        []uint
 		patched        map[string]*androidmanagement.Policy
 		patchCount     int
 		saved          map[uint][]byte
@@ -174,6 +176,9 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 	}
 	ds.GetAndroidFleetDefaultPolicyChecksumsFunc = func(_ context.Context) (map[uint][]byte, error) {
 		return checksums, nil
+	}
+	ds.ListAndroidFleetDefaultPolicyDeletedFleetsFunc = func(_ context.Context) ([]uint, error) {
+		return deleted, nil
 	}
 	ds.SetAndroidFleetDefaultPolicyChecksumFunc = func(_ context.Context, teamID uint, checksum, previous []byte) error {
 		saved[teamID] = checksum
@@ -278,6 +283,26 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 		run(t)
 		require.Zero(t, patchCount, "nothing is sent again until the profiles change")
 	})
+
+	t.Run("a deleted fleet's policy follows Unassigned's", func(t *testing.T) {
+		// teamGone's zero-touch token still enrolls hosts, into Unassigned.
+		profiles = []*fleet.MDMAndroidConfigProfile{pin(0, 4), pin(teamA, 6)}
+		checksums = map[uint][]byte{0: checksumFor(pin(0, 4)), teamA: checksumFor(pin(teamA, 6)), teamGone: checksumFor(pin(teamGone, 8))}
+		deleted, patchErrs = []uint{teamGone}, nil
+		t.Cleanup(func() { deleted = nil })
+		run(t)
+		require.Len(t, patched, 1)
+		require.Equal(t, int64(4), patched[policyName(teamGone)].PasswordPolicies[0].PasswordMinimumLength)
+		require.Equal(t, map[uint][]byte{teamGone: checksumFor(pin(0, 4))}, saved)
+
+		// It keeps following Unassigned's changes, including losing the passcode.
+		checksums = map[uint][]byte{0: checksumFor(pin(0, 4)), teamA: checksumFor(pin(teamA, 6)), teamGone: checksumFor(pin(0, 4))}
+		profiles = []*fleet.MDMAndroidConfigProfile{pin(teamA, 6)}
+		run(t)
+		require.Len(t, patched, 2)
+		require.Empty(t, patched[policyName(0)].PasswordPolicies)
+		require.Empty(t, patched[policyName(teamGone)].PasswordPolicies)
+	})
 }
 
 // The premium zero-touch service calls EnsureFleetDefaultPolicy with a client of its own, so this service's
@@ -299,8 +324,13 @@ func TestEnsureFleetDefaultPolicyAuthenticatesItsClient(t *testing.T) {
 	fleetDS.Store.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, _ []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{fleet.MDMAssetAndroidFleetServerSecret: {Value: []byte("server-secret")}}, nil
 	}
-	fleetDS.Store.GetAndroidFleetDefaultPolicyChecksumsFunc = func(_ context.Context) (map[uint][]byte, error) { return nil, nil }
-	fleetDS.Store.ListAndroidFleetDefaultPolicyProfilesFunc = func(_ context.Context, _ *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+	// Read from the primary: a lagging replica could miss the policy and have it overwritten with less.
+	fleetDS.Store.GetAndroidFleetDefaultPolicyChecksumsFunc = func(ctx context.Context) (map[uint][]byte, error) {
+		require.True(t, ctxdb.IsPrimaryRequired(ctx))
+		return nil, nil
+	}
+	fleetDS.Store.ListAndroidFleetDefaultPolicyProfilesFunc = func(ctx context.Context, _ *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+		require.True(t, ctxdb.IsPrimaryRequired(ctx))
 		return nil, nil
 	}
 	fleetDS.Store.MarkAndroidFleetDefaultPolicyUnverifiedFunc = func(_ context.Context, _ uint) error { return nil }

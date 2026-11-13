@@ -164,6 +164,9 @@ func TestReconcileAndroidApps(t *testing.T) {
 	ds.GetAndroidFleetDefaultPolicyChecksumsFunc = func(ctx context.Context) (map[uint][]byte, error) {
 		return nil, nil
 	}
+	ds.ListAndroidFleetDefaultPolicyDeletedFleetsFunc = func(ctx context.Context) ([]uint, error) {
+		return nil, nil
+	}
 
 	// profiles
 	ds.GetMDMAndroidReconcileCursorFunc = func(ctx context.Context) (string, error) {
@@ -956,6 +959,9 @@ func TestReconcileAndroidAppsRemoval(t *testing.T) {
 		return nil, nil
 	}
 	ds.GetAndroidFleetDefaultPolicyChecksumsFunc = func(ctx context.Context) (map[uint][]byte, error) {
+		return nil, nil
+	}
+	ds.ListAndroidFleetDefaultPolicyDeletedFleetsFunc = func(ctx context.Context) ([]uint, error) {
 		return nil, nil
 	}
 	ds.GetMDMAndroidReconcileCursorFunc = func(ctx context.Context) (string, error) {

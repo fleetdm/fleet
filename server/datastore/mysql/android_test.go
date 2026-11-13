@@ -5492,7 +5492,6 @@ func testAndroidFleetDefaultPolicies(t *testing.T, ds *Datastore) {
 	}, checksums)
 
 	// Marking a policy unverified overwrites any checksum, and creates a row for a fleet without one.
-	unverified := make([]byte, 16)
 	require.NoError(t, ds.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamA.ID))
 	teamC, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-c"})
 	require.NoError(t, err)
@@ -5501,18 +5500,31 @@ func testAndroidFleetDefaultPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamC.ID, []byte("cccccccccccccccc"), nil))
 	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, unverified, checksums[teamA.ID])
-	assert.Equal(t, unverified, checksums[teamC.ID])
+	firstMark := checksums[teamA.ID]
+	assert.Len(t, firstMark, 16)
+	assert.NotEqual(t, []byte("AAAAAAAAAAAAAAAA"), firstMark)
+	assert.NotEqual(t, []byte("cccccccccccccccc"), checksums[teamC.ID])
 
-	// Deleting a fleet deletes its row.
-	require.NoError(t, ds.DeleteTeam(ctx, teamB.ID))
-	var teamBRows int
-	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &teamBRows,
-		`SELECT COUNT(*) FROM android_fleet_default_policies WHERE team_id = ?`, teamB.ID))
-	assert.Zero(t, teamBRows)
+	// A second mark invalidates a save based on the first, so the reconciler sends the policy again.
+	require.NoError(t, ds.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamA.ID))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("AAAAAAAAAAAAAAAA"), firstMark))
 	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
 	require.NoError(t, err)
-	assert.Len(t, checksums, 3)
+	assert.NotEqual(t, firstMark, checksums[teamA.ID])
+	assert.NotEqual(t, []byte("AAAAAAAAAAAAAAAA"), checksums[teamA.ID])
+
+	deletedFleets, err := ds.ListAndroidFleetDefaultPolicyDeletedFleets(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, deletedFleets)
+
+	// Deleting a fleet keeps its row, since its zero-touch token can still enroll hosts.
+	require.NoError(t, ds.DeleteTeam(ctx, teamB.ID))
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.Len(t, checksums, 4)
+	deletedFleets, err = ds.ListAndroidFleetDefaultPolicyDeletedFleets(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, []uint{teamB.ID}, deletedFleets)
 
 	// The policies belong to the enterprise, so deleting it deletes every row.
 	require.NoError(t, ds.DeleteAllEnterprises(ctx))

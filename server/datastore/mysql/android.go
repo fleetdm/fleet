@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -1940,14 +1941,28 @@ func (ds *Datastore) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, t
 	return nil
 }
 
-// unverifiedAndroidFleetDefaultPolicyChecksum never matches a real checksum, so the reconciler resends the policy.
-var unverifiedAndroidFleetDefaultPolicyChecksum = make([]byte, 16)
+func (ds *Datastore) ListAndroidFleetDefaultPolicyDeletedFleets(ctx context.Context) ([]uint, error) {
+	const stmt = `
+		SELECT dp.team_id FROM android_fleet_default_policies dp
+		WHERE dp.team_id <> 0 AND NOT EXISTS (SELECT 1 FROM teams t WHERE t.id = dp.team_id)`
+	var teamIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing deleted fleets with android default policies")
+	}
+	return teamIDs, nil
+}
 
 func (ds *Datastore) MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error {
+	// Random rather than a constant, so a second mark also fails a reconciler's save that read the first one.
+	// It never matches a real checksum, so the reconciler sends the policy again.
+	marker := make([]byte, 16)
+	if _, err := rand.Read(marker); err != nil {
+		return ctxerr.Wrap(ctx, err, "generating android fleet default policy marker")
+	}
 	const stmt = `
 		INSERT INTO android_fleet_default_policies (team_id, checksum) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE checksum = VALUES(checksum)`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, unverifiedAndroidFleetDefaultPolicyChecksum); err != nil {
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, marker); err != nil {
 		return ctxerr.Wrap(ctx, err, "marking android fleet default policy unverified")
 	}
 	return nil

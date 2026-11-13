@@ -2032,4 +2032,21 @@ func testFleetDefaultPolicies(t *testing.T, ds fleet.Datastore, client *mock.Cli
 	require.Len(t, patched, 1)
 	require.Empty(t, sent().PasswordPolicies)
 	require.NotNil(t, sent().StatusReportingSettings)
+
+	// A deleted fleet's zero-touch token enrolls hosts into Unassigned, so its policy takes Unassigned's
+	// passcode, and follows it.
+	unassignedPin := androidProfileWithPayloadForTest("unassigned pin", `{"passwordPolicies": [{"passwordMinimumLength": 4}]}`)
+	unassignedPin.TeamID = new(uint(0))
+	unassignedPin, err = ds.NewMDMAndroidConfigProfile(ctx, *unassignedPin, nil)
+	require.NoError(t, err)
+	run()
+	require.NoError(t, ds.DeleteTeam(ctx, team.ID))
+	run()
+	require.Len(t, patched, 1)
+	require.Equal(t, int64(4), sent().PasswordPolicies[0].PasswordMinimumLength)
+
+	require.NoError(t, ds.DeleteMDMAndroidConfigProfile(ctx, unassignedPin.ProfileUUID))
+	run()
+	require.Len(t, patched, 2)
+	require.Empty(t, sent().PasswordPolicies)
 }

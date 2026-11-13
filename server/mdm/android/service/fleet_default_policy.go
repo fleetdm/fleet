@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"slices"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -150,6 +151,10 @@ func (r *profileReconciler) reconcileFleetDefaultPolicies(ctx context.Context) e
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get android fleet default policy checksums")
 	}
+	deletedTeamIDs, err := r.DS.ListAndroidFleetDefaultPolicyDeletedFleets(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list deleted fleets with android default policies")
+	}
 
 	profilesByTeam := make(map[uint][]*fleet.MDMAndroidConfigProfile)
 	for _, p := range profiles {
@@ -165,6 +170,11 @@ func (r *profileReconciler) reconcileFleetDefaultPolicies(ctx context.Context) e
 	}
 	for teamID := range checksums {
 		teamIDs[teamID] = struct{}{}
+	}
+
+	// A deleted fleet's zero-touch token still enrolls hosts, into Unassigned, so they set up with its settings.
+	for _, teamID := range deletedTeamIDs {
+		profilesByTeam[teamID] = profilesByTeam[0]
 	}
 
 	for teamID := range teamIDs {
@@ -200,6 +210,8 @@ func (r *profileReconciler) syncFleetDefaultPolicy(ctx context.Context, teamID u
 // EnsureFleetDefaultPolicy makes sure the default policy of a fleet (0 is Unassigned) was sent to AMAPI
 // and returns its name, for enrollment tokens to point at.
 func (svc *Service) EnsureFleetDefaultPolicy(ctx context.Context, enterpriseName string, teamID uint) (string, error) {
+	// A lagging replica could miss the policy or its profiles, and this would overwrite the policy with less.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	checksums, err := svc.fleetDS.GetAndroidFleetDefaultPolicyChecksums(ctx)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get android fleet default policy checksums")

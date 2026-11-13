@@ -122,6 +122,10 @@ func (ds *AndroidDSWithMock) GetAndroidFleetDefaultPolicyChecksums(ctx context.C
 	return ds.Datastore.GetAndroidFleetDefaultPolicyChecksums(ctx)
 }
 
+func (ds *AndroidDSWithMock) ListAndroidFleetDefaultPolicyDeletedFleets(ctx context.Context) ([]uint, error) {
+	return ds.Datastore.ListAndroidFleetDefaultPolicyDeletedFleets(ctx)
+}
+
 func (ds *AndroidDSWithMock) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum, previous []byte) error {
 	return ds.Datastore.SetAndroidFleetDefaultPolicyChecksum(ctx, teamID, checksum, previous)
 }

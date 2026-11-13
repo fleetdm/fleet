@@ -4128,6 +4128,10 @@ type Datastore interface {
 	// default policy last sent to AMAPI for each fleet.
 	GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (map[uint][]byte, error)
 
+	// ListAndroidFleetDefaultPolicyDeletedFleets returns the IDs of deleted fleets that still have a default
+	// policy. Zero-touch tokens can't be deleted, so their policies are kept in line with Unassigned's.
+	ListAndroidFleetDefaultPolicyDeletedFleets(ctx context.Context) ([]uint, error)
+
 	// SetAndroidFleetDefaultPolicyChecksum records the checksum of the default policy last sent for a fleet,
 	// only if the stored checksum is still previous (nil: only if there's none), so a concurrent writer's
 	// record isn't overwritten.
