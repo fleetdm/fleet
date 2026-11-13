@@ -4496,6 +4496,16 @@ func TestAuthSettings(t *testing.T) {
 		require.Equal(t, &fleet.AuthSettings{MDMWindowsOneTimeEnrollSecrets: true}, settings)
 	})
 
+	t.Run("reported when only the Android flag is on", func(t *testing.T) {
+		ds := new(mock.Store)
+		cfg := config.TestConfig()
+		cfg.MDM.AndroidOneTimeEnrollSecrets = true
+		svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil)
+		settings, err := svc.AuthSettings(test.UserContext(ctx, test.UserAdmin))
+		require.NoError(t, err)
+		require.Equal(t, &fleet.AuthSettings{MDMAndroidOneTimeEnrollSecrets: true}, settings)
+	})
+
 	t.Run("requires an authenticated user", func(t *testing.T) {
 		svc, ctx := newSvc(t, true, false)
 		_, err := svc.AuthSettings(ctx)

@@ -63,6 +63,9 @@ type Service struct {
 	keyValueStore           fleet.KeyValueStore
 	clock                   clock.Clock
 	installReapTimeout      time.Duration
+	// oneTimeEnrollSecrets puts a one-time, host-bound enroll secret in the Fleet agent's managed configuration instead of the
+	// host's fleet enroll secret.
+	oneTimeEnrollSecrets bool
 }
 
 func NewService(
@@ -99,6 +102,11 @@ func WithClock(clk clock.Clock) ServiceOption {
 // by the device before it is marked failed. Zero or less keeps it pending indefinitely.
 func WithInstallReapTimeout(d time.Duration) ServiceOption {
 	return func(s *Service) { s.installReapTimeout = d }
+}
+
+// WithOneTimeEnrollSecrets mirrors the mdm.android_one_time_enroll_secrets server configuration.
+func WithOneTimeEnrollSecrets(enabled bool) ServiceOption {
+	return func(s *Service) { s.oneTimeEnrollSecrets = enabled }
 }
 
 func NewServiceWithClient(
@@ -1595,12 +1603,11 @@ func (svc *Service) buildAgentManagedConfig(ctx context.Context, hostUUID string
 		return nil, ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
 	}
 
-	enrollSecrets, err := svc.fleetDS.GetEnrollSecrets(ctx, androidHost.Host.TeamID)
+	enrollSecret, err := svc.agentEnrollSecret(ctx, androidHost, func(teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return svc.fleetDS.GetEnrollSecrets(ctx, teamID)
+	})
 	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
-	}
-	if len(enrollSecrets) == 0 {
-		return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+		return nil, err
 	}
 
 	// Get certificate templates for the host (all templates, regardless of status)
@@ -1629,9 +1636,31 @@ func (svc *Service) buildAgentManagedConfig(ctx context.Context, hostUUID string
 	return &android.AgentManagedConfiguration{
 		ServerURL:              appConfig.ServerSettings.ServerURL,
 		HostUUID:               hostUUID,
-		EnrollSecret:           enrollSecrets[0].Secret,
+		EnrollSecret:           enrollSecret,
 		CertificateTemplateIDs: certificateTemplateIDs,
 	}, nil
+}
+
+// agentEnrollSecret returns the enroll secret for the Fleet agent's managed configuration: the host's one-time secret when
+// one-time enroll secrets are on, otherwise the first enroll secret of the host's fleet.
+func (svc *Service) agentEnrollSecret(
+	ctx context.Context, androidHost *fleet.AndroidHost, getEnrollSecrets func(teamID *uint) ([]*fleet.EnrollSecret, error),
+) (string, error) {
+	if svc.oneTimeEnrollSecrets {
+		secret, err := svc.fleetDS.MintAndroidOneTimeEnrollSecret(ctx, androidHost.Host.ID)
+		if err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "mint one-time enroll secret for android host %d", androidHost.Host.ID)
+		}
+		return secret, nil
+	}
+	enrollSecrets, err := getEnrollSecrets(androidHost.Host.TeamID)
+	if err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
+	}
+	if len(enrollSecrets) == 0 {
+		return "", ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+	}
+	return enrollSecrets[0].Secret, nil
 }
 
 func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
@@ -1818,6 +1847,18 @@ func (svc *Service) MigrateToPerDevicePolicy(ctx context.Context) error {
 // - delivering: Cron is actively sending to AMAPI
 // - delivered: AMAPI confirmed receipt
 func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
+	return svc.buildAndSendFleetAgentConfig(ctx, enterpriseName, hostUUIDs, skipHostsWithoutNewCerts, false)
+}
+
+// SendFleetAgentConfig builds and sends the host's Fleet agent configuration like BuildAndSendFleetAgentConfig, but returns
+// the error when the Android Management API call fails, so the caller can retry.
+func (svc *Service) SendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUID string) error {
+	return svc.buildAndSendFleetAgentConfig(ctx, enterpriseName, []string{hostUUID}, false, true)
+}
+
+func (svc *Service) buildAndSendFleetAgentConfig(
+	ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts, failOnSendError bool,
+) error {
 	if len(hostUUIDs) == 0 {
 		return nil
 	}
@@ -1857,12 +1898,9 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			return nil, ctxerr.Wrapf(ctx, err, "get android host %s", hostUUID)
 		}
 
-		enrollSecrets, err := getEnrollSecretsForTeam(androidHost.Host.TeamID)
+		enrollSecret, err := svc.agentEnrollSecret(ctx, androidHost, getEnrollSecretsForTeam)
 		if err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "get enroll secrets for team %v", androidHost.Host.TeamID)
-		}
-		if len(enrollSecrets) == 0 {
-			return nil, ctxerr.Errorf(ctx, "no enroll secrets found for team %v", androidHost.Host.TeamID)
+			return nil, err
 		}
 
 		var certificateTemplateIDs []android.AgentCertificateTemplate
@@ -1878,7 +1916,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		return &android.AgentManagedConfiguration{
 			ServerURL:              appConfig.ServerSettings.ServerURL,
 			HostUUID:               hostUUID,
-			EnrollSecret:           enrollSecrets[0].Secret,
+			EnrollSecret:           enrollSecret,
 			CertificateTemplateIDs: certificateTemplateIDs,
 		}, nil
 	}
@@ -1907,6 +1945,9 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
 			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
 				svc.logger.ErrorContext(ctx, "failed to send AMAPI config without certs", "host_uuid", hostUUID, "err", err)
+				if failOnSendError {
+					return ctxerr.Wrapf(ctx, err, "send fleet agent config for host %s", hostUUID)
+				}
 				// Not a critical failure. We will retry installing Fleet Agent when certificates are added to the host's team
 			}
 			continue
@@ -1916,6 +1957,10 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		config, err := buildHostConfig(hostUUID, certTemplates.Templates)
 		if err != nil {
 			svc.logger.ErrorContext(ctx, "failed to build host config", "host_uuid", hostUUID, "err", err)
+			// Put the templates back, or they wait in delivering for the stale revert.
+			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); revertErr != nil {
+				svc.logger.ErrorContext(ctx, "failed to revert to pending after host config failure", "host_uuid", hostUUID, "err", revertErr)
+			}
 			return ctxerr.Wrapf(ctx, err, "build host config for %s", hostUUID)
 		}
 
@@ -1926,6 +1971,9 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); revertErr != nil {
 				svc.logger.ErrorContext(ctx, "failed to revert to pending after AMAPI failure", "host_uuid", hostUUID, "err", revertErr)
 				return ctxerr.Wrapf(ctx, revertErr, "revert certificate templates to pending after AMAPI failure for host %s", hostUUID)
+			}
+			if failOnSendError {
+				return ctxerr.Wrapf(ctx, err, "send fleet agent config for host %s", hostUUID)
 			}
 			continue
 		}

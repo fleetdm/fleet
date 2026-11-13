@@ -347,13 +347,7 @@ func (r *profileReconciler) buildApplicationsWithAgent(
 	ctx context.Context,
 	appList *androidAppList,
 ) ([]*androidmanagement.ApplicationPolicy, error) {
-	agentSvc := &Service{
-		logger:             r.Logger,
-		ds:                 r.DS,
-		fleetDS:            r.DS,
-		androidAPIClient:   r.Client,
-		androidAgentConfig: r.AndroidAgentConfig,
-	}
+	agentSvc := r.agentService()
 	agentPolicy, err := agentSvc.BuildFleetAgentApplicationPolicy(ctx, appList.host.UUID)
 	// Fail instead of building the list without the Fleet agent, because replacing the list would remove the agent
 	if err != nil {

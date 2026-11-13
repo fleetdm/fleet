@@ -39,6 +39,12 @@ type mockAndroidModule struct {
 	removeAppsFromAndroidPolicyFunc      func(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error)
 	patchPolicyFunc                      func(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error)
 	patchDeviceFunc                      func(ctx context.Context, policyID, deviceName string, device *androidmanagement.Device) (bool, error)
+	buildAndSendFleetAgentConfigFunc     func(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error
+	sendFleetAgentConfigFunc             func(ctx context.Context, enterpriseName string, hostUUID string) error
+}
+
+func (m *mockAndroidModule) SendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUID string) error {
+	return m.sendFleetAgentConfigFunc(ctx, enterpriseName, hostUUID)
 }
 
 func (m *mockAndroidModule) PatchPolicy(ctx context.Context, policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (bool, error) {
@@ -50,6 +56,9 @@ func (m *mockAndroidModule) PatchDevice(ctx context.Context, policyID, deviceNam
 }
 
 func (m *mockAndroidModule) BuildAndSendFleetAgentConfig(ctx context.Context, enterpriseName string, hostUUIDs []string, skipHostsWithoutNewCerts bool) error {
+	if m.buildAndSendFleetAgentConfigFunc != nil {
+		return m.buildAndSendFleetAgentConfigFunc(ctx, enterpriseName, hostUUIDs, skipHostsWithoutNewCerts)
+	}
 	return nil
 }
 
@@ -117,6 +126,43 @@ func TestUpdateAndroidHostsAfterFleetTransferMovesCertificateTemplates(t *testin
 	require.True(t, ds.SetHostCertificateTemplatesToPendingRemoveForHostFuncInvoked)
 	require.Equal(t, teamID, newTeamID)
 	require.False(t, ds.SetHostAndroidSoftwareInstallsNeedsResendFuncInvoked)
+}
+
+func TestSoftwareWorkerSendAndroidFleetAgentConfig(t *testing.T) {
+	ds := new(mock.Store)
+	var queued *fleet.Job
+	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
+		queued = job
+		return job, nil
+	}
+	require.NoError(t, QueueSendAndroidFleetAgentConfig(t.Context(), ds, slog.New(slog.DiscardHandler), "host-1", "enterprises/test"))
+	require.NotNil(t, queued)
+	require.Equal(t, softwareWorkerJobName, queued.Name)
+
+	var (
+		calls   int
+		gotEnt  string
+		gotHost string
+		sendErr error
+	)
+	androidModule := &mockAndroidModule{
+		sendFleetAgentConfigFunc: func(ctx context.Context, enterpriseName string, hostUUID string) error {
+			calls++
+			gotEnt, gotHost = enterpriseName, hostUUID
+			return sendErr
+		},
+	}
+	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
+
+	// the queued job sends the host's configuration, which carries its new enroll secret
+	require.NoError(t, w.Run(t.Context(), *queued.Args))
+	require.Equal(t, 1, calls)
+	require.Equal(t, "enterprises/test", gotEnt)
+	require.Equal(t, "host-1", gotHost)
+
+	// a failed send fails the job, so the worker retries it
+	sendErr = errors.New("amapi unavailable")
+	require.ErrorIs(t, w.Run(t.Context(), *queued.Args), sendErr)
 }
 
 func TestSoftwareWorkerRunSkipsDeprecatedAndroidAppTasks(t *testing.T) {
