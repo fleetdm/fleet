@@ -99,11 +99,12 @@ How to enforce account types on macOS hosts:
 
 2. Under the **End user account**, choose **Admin**, **Standard**, or **Skip (no account)** for the end user account type.
 
-To configure via GitOps, set the `macos_end_user_local_account_type` field under `controls.setup_experience` in your YAML configuration:
+To configure via GitOps, set `macos_end_user_local_account_type` under `controls.setup_experience`. It requires `macos_managed_local_account_enabled` to be `true`:
 
 ```yaml
 controls:
   setup_experience:
+    macos_managed_local_account_enabled: true
     macos_end_user_local_account_type: "standard"
 ```
 
@@ -119,13 +120,13 @@ Fleet can create a hidden admin account (`_fleetadmin`) with a unique password o
 
 > The managed local account is only created during automatic enrollment (ADE). It is not created during [MDM migration](https://fleetdm.com/guides/mdm-migration). Wipe and re-enroll the Mac to get the account.
 
-This feature is available for macOS hosts that automatically enroll via Apple Business (AB) and Windows hosts that automatically enroll via Azure AD. Manually enrolled hosts are not supported.
+This feature is available for macOS hosts that automatically enroll via Apple Business (AB). Manually enrolled Macs are not supported. For Windows, see the [Windows and Linux setup experience guide](https://fleetdm.com/guides/windows-linux-setup-experience#managed-local-account-windows).
 
 To enable managed local accounts:
 
-1. In Fleet, head to **Controls > Setup experience > Users** and select the platform (macOS or Windows), then choose **Managed > Create hidden admin**. Alternatively, you can enable this using [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps workflow](https://fleetdm.com/docs/configuration/yaml-files).
+1. In Fleet, head to **Controls > Setup experience > Users**, select the **macOS** tab, then choose **Create hidden admin**. Alternatively, use `macos_managed_local_account_enabled` in [Fleet's REST API](https://fleetdm.com/docs/rest-api/rest-api#update-setup-experience) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files#setup-experience).
 
-2. Wipe and re-enroll any existing hosts that should receive the account. Hosts enrolled before the feature is turned on won't receive a managed account until they go through the setup experience again.
+2. Wipe and re-enroll any existing Macs that should receive the account. Macs enrolled before the feature is turned on won't receive a managed account until they go through the setup experience again.
 
 To view the password for a host's managed account, head to **Host details > Actions > Show managed account**. The password is unique per host and stored securely in Fleet.
 

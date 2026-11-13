@@ -686,7 +686,7 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 
 ```http
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="server_token_abm.p7m"
+Content-Disposition: form-data; name="token"; filename="server_token_ab.p7m"
 Content-Type: application/octet-stream
 
 <TOKEN_DATA>
@@ -715,7 +715,7 @@ Content-Type: application/octet-stream
     "ipados_fleet": null,
     "byod_fleet": null
   },
-  "abm_token": {
+  "ab_token": {
     "id": 1,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
@@ -823,7 +823,7 @@ None.
     "ipados_fleet": 3,
     "byod_fleet": 3
   },
-  "abm_token": {
+  "ab_token": {
     "id": 1,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
@@ -881,7 +881,7 @@ Fleet uses the default AB token to verify Managed Apple Account sign-in on hosts
     "ipados_fleet": null,
     "byod_fleet": null
   },
-  "abm_token": {
+  "ab_token": {
     "id": 2,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
@@ -927,7 +927,7 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 
 ```http
 --------------------------f02md47480und42y
-Content-Disposition: form-data; name="token"; filename="server_token_abm.p7m"
+Content-Disposition: form-data; name="token"; filename="server_token_ab.p7m"
 Content-Type: application/octet-stream
 
 <TOKEN_DATA>
@@ -956,7 +956,7 @@ Content-Type: application/octet-stream
     "ipados_fleet": null,
     "byod_fleet": null
   },
-  "abm_token": {
+  "ab_token": {
     "id": 1,
     "apple_id": "apple@example.com",
     "org_name": "Fleet Device Management Inc.",
@@ -1666,6 +1666,8 @@ Creates and/or modifies the reports included in the list. To modify an existing 
 
 If a query field is not specified in the "spec" then its default value depending on its type will be assumed, e.g. if `interval` is not set then `0` will be assumed, if `discard_data` is omitted then `false` will be assumed, etc.
 
+Fleets can have labels with the same name. If a global report's `labels_include_any` or `labels_include_all` includes a name that labels on more than one fleet use, this endpoint returns `409`.
+
 `POST /api/v1/fleet/spec/queries`
 
 #### Parameters
@@ -1827,6 +1829,8 @@ Creates and/or modifies the policies included in the list. To modify an existing
 
 NOTE: when updating a policy, fleet and platform will be ignored.
 
+Fleets can have labels with the same name. If a global policy's label fields (`labels_include_any`, `labels_include_all`, `labels_exclude_any`, or `labels_exclude_all`) include a name that labels on more than one fleet use, this endpoint returns `409`.
+
 `POST /api/v1/fleet/spec/policies`
 
 #### Parameters
@@ -1851,7 +1855,8 @@ NOTE: when updating a policy, fleet and platform will be ignored.
       "team": "No team",
       "fleet": "Unassigned",
       "resolution": "some resolution steps here",
-      "critical": false
+      "critical": false,
+      "webhooks_and_tickets_enabled": true
     },
     {
       “name”: “Is FileVault enabled on macOS devices?”,
@@ -1879,6 +1884,8 @@ NOTE: when updating a policy, fleet and platform will be ignored.
 ```
 
 The fields `critical`, `script_id`, and `software_title_id` are available in Fleet Premium.
+
+Each policy can have one automation. If a policy in the list has more than one, the request fails. Set `webhooks_and_tickets_enabled` to `true` to send the policy's failing hosts to the webhook, Jira, or Zendesk destination configured for the policy's fleet (or the global destination for "All fleets" policies).
 
 ##### Default response
 
@@ -2268,9 +2275,11 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 | ----- | ---- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | team_id | int | query | The ID of the fleet to set labels to; omit to set global labels |
 | specs | object[] | body | A list of the label to apply. Each label requires the `name`, `query`, and `label_membership_type` properties |
-| names_to_move | string[] | body | A list of names of labels that are both in `specs` in the current request and already exist on other fleets. If the requesting user has permission to modify those labels, this endpoint will rename the specified labels so new labels on the correct fleet can be created. The request will fail with no changes if one or more of the specified labels cannot be moved. |
+| labels_to_move | object[] | body | Labels in `specs` whose names are moving between the global level and a fleet. Each object has a `name` and, when applying global labels, the `from_fleet_id` of the fleet the name is moving from. List a name once per fleet it's moving from. Omit `from_fleet_id` when applying a fleet's labels, since the name is moving from the global level. |
 
-The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance from having a label on one fleet (or global) to using that same label name on another fleet (or switching a fleet label to a global label). Once labels are created on the correct fleets, the old labels are cleaned up when GitOps is run on the old fleet via explicit `DELETE` calls.
+A global label and a fleet label can't have the same name. `labels_to_move` lets a GitOps run move a name across that boundary in one run: this endpoint renames the existing labels so the new ones can be created, and GitOps deletes the renamed labels at the end of the run.
+
+When applying global labels, only the listed fleets' labels are renamed. If another fleet has a label with one of the names, the request fails with `409` and no labels are renamed. Names with no label to rename are skipped, since an earlier request in the same GitOps run may already have renamed it.
 
 #### Example
 
@@ -2294,7 +2303,12 @@ The purpose of `names_to_move` is to allow a GitOps run to move a Fleet instance
       "hosts": ["C02XK1Z2JG5J"]
     }
   ],
-  "names_to_move": ["local_machine"]
+  "labels_to_move": [
+    {
+      "name": "local_machine",
+      "from_fleet_id": 2
+    }
+  ]
 }
 ```
 
@@ -2421,6 +2435,8 @@ Gets all labels visible to the currently logged-in user.
 ### Get label
 
 Returns the label specified by name if it exists and its fleet (if any) is accessible by the current user.
+
+Fleets can have labels with the same name. If the name matches labels on more than one fleet the user can access, this endpoint returns `409`.
 
 `GET /api/v1/fleet/spec/labels/{name}`
 
@@ -2655,7 +2671,8 @@ for which the user has an observer role.
         "uuid": "a2064cef-0000-0000-afb9-283e3c1d487e",
         "platform": "rhel",
         "osquery_version": "4.5.1",
-        "os_version": "CentOS 6.10.0",
+        "os_name": "CentOS",
+        "os_version": "6.10.0",
         "build": "",
         "platform_like": "rhel",
         "code_name": "",
@@ -2870,8 +2887,8 @@ Gets all information required by Fleet Desktop, this includes things like the nu
   "config": {
     "org_info": {
       "org_name": "Fleet",
-      "org_logo_url": "https://example.com/logo.jpg",
-      "org_logo_url_light_background": "https://example.com/logo-light.jpg",
+      "org_logo_url_dark_mode": "https://example.com/logo.jpg",
+      "org_logo_url_light_mode": "https://example.com/logo-light.jpg",
       "contact_url": "https://fleetdm.com/company/contact"
     },
     "mdm": {
@@ -4349,7 +4366,7 @@ If the Fleet instance is provided required parameters to complete setup.
   },
   "org_info": {
     "org_name": "Fleet Device Management",
-    "org_logo_url": "https://fleetdm.com/logo.png"
+    "org_logo_url_dark_mode": "https://fleetdm.com/logo.png"
   },
   "server_url": "https://localhost:8080",
   "osquery_enroll_secret": null,

@@ -3,6 +3,7 @@
   "slug": "qgis@ltr/windows",
   "package_identifier": "OSGeo.QGIS_LTR",
   "unique_identifier": "QGIS LTR",
+  "open_process_names": ["qgis-ltr-bin.exe"],
   "fuzzy_match_name": true,
   "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'QGIS %' AND publisher = 'QGIS.org' AND version LIKE '3.44.%';",
   "installer_arch": "x64",

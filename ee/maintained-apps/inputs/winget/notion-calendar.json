@@ -3,6 +3,7 @@
   "slug": "notion-calendar/windows",
   "package_identifier": "Notion.NotionCalendar",
   "unique_identifier": "Notion Calendar",
+  "open_process_names": ["cron.exe", "notion calendar.exe"],
   "fuzzy_match_name": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/notion_calendar_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/notion_calendar_uninstall.ps1",

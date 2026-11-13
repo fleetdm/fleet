@@ -75,7 +75,7 @@ This activity contains the following fields:
 - [mdm_enrolled](#mdm-enrolled)
 - [mdm_unenrolled](#mdm-unenrolled)
 - [read_host_disk_encryption_key](#read-host-disk-encryption-key)
-- [viewed_host_recovery_lock_password](#viewed-host-recovery-lock-password)
+- [read_host_recovery_lock_password](#read-host-recovery-lock-password)
 - [retrieved_host_my_device_url](#retrieved-host-my-device-url)
 - [set_host_recovery_lock_password](#set-host-recovery-lock-password)
 - [created_managed_local_account](#created-managed-local-account)
@@ -190,7 +190,7 @@ This activity contains the following fields:
 }
 ```
 
-### viewed_host_recovery_lock_password
+### read_host_recovery_lock_password
 
 Generated when a user views the Recovery Lock password for a host.
 

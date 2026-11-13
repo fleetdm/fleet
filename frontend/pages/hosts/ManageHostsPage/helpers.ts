@@ -38,3 +38,22 @@ export const STRIP_FLEET_SCOPED_FILTERS_ON_ALL_FLEETS = FLEET_SCOPED_HOST_FILTER
   (config, param) => ({ ...config, [param]: isAllFleets }),
   {}
 );
+
+/** Table columns that show more than one host field. "agent" coalesces the
+ * orbit and osquery versions, "hardware_model" also shows the Apple marketing
+ * name, and the operating system column joins the OS name and version. */
+const REPORT_COLUMNS_BY_TABLE_COLUMN: Record<string, string[]> = {
+  agent: ["orbit_version", "osquery_version"],
+  hardware_model: ["hardware_model", "hardware_marketing_name"],
+  os_version: ["os_name", "os_version"],
+};
+
+/** Maps the hosts table's visible column ids to the hosts report's CSV
+ * columns. The "selection" column has no data to export. */
+export const getHostsReportColumns = (tableColumnIds: string[]): string[] =>
+  tableColumnIds
+    .filter((id) => id !== "" && id !== "selection")
+    .reduce<string[]>(
+      (acc, id) => acc.concat(REPORT_COLUMNS_BY_TABLE_COLUMN[id] ?? [id]),
+      []
+    );

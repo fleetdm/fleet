@@ -59,6 +59,7 @@
     "orbit_version": null,
     "os_update_deadline": null,
     "os_update_minimum_version": null,
+    "os_name": "",
     "os_version": "",
     "osquery_version": "",
     "pack_stats": null,
@@ -89,7 +90,6 @@
         "query": "select 1 from osquery_info where start_time \u003e 1;",
         "resolution": "Some resolution",
         "response": "passes",
-        "team_id": 1,
         "updated_at": "0001-01-01T00:00:00Z",
         "type": "dynamic"
       },
@@ -113,7 +113,6 @@
         "platform": "",
         "query": "select 1 from osquery_info where start_time \u003e 1;",
         "response": "fails",
-        "team_id": null,
         "updated_at": "0001-01-01T00:00:00Z",
         "type": "dynamic"
       }

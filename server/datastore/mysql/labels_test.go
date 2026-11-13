@@ -2851,7 +2851,7 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 			Name:                "label1",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 			Hosts: []string{
-				"foo.local",
+				"foo.local", // host1's hostname, which isn't a label host identifier
 				"hwd2",
 				"uuid3",
 				strconv.Itoa(int(host4.ID)), //nolint:gosec // dismiss G115
@@ -2862,11 +2862,23 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 
 	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hosts, 4)
+	require.Len(t, hosts, 3)
+	require.Equal(t, host2.ID, hosts[0].ID)
+	require.Equal(t, host3.ID, hosts[1].ID)
+	require.Equal(t, host4.ID, hosts[2].ID)
+
+	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "label1",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Hosts:               []string{"hwd1"},
+		},
+	})
+	require.NoError(t, err)
+	hosts, err = ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
 	require.Equal(t, host1.ID, hosts[0].ID)
-	require.Equal(t, host2.ID, hosts[1].ID)
-	require.Equal(t, host3.ID, hosts[2].ID)
-	require.Equal(t, host4.ID, hosts[3].ID)
 }
 
 func testApplyLabelSpecsWithPlatformChange(t *testing.T, ds *Datastore) {
@@ -4042,11 +4054,11 @@ func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
 			Name:                "global1",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
 			Hosts: fleet.HostsSlice{
-				h1t1.Hostname,
+				h1t1.UUID,
 				h2t2.HardwareSerial,
 				h3t3.UUID,
 				fmt.Sprint(h4t4.ID),
-				h5Global.Hostname,
+				h5Global.HardwareSerial,
 			},
 		},
 	})
@@ -4060,7 +4072,7 @@ func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
 
 	// Attempt to create team label, make sure we can only add hosts on that team.
 	for _, hostIdentifier := range []string{
-		h2t2.Hostname,
+		h2t2.UUID,
 		h3t3.UUID,
 		h4t4.HardwareSerial,
 		fmt.Sprint(h5Global.ID),
@@ -4070,7 +4082,7 @@ func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
 				Name:                "l1t1",
 				LabelMembershipType: fleet.LabelMembershipTypeManual,
 				Hosts: fleet.HostsSlice{
-					h1t1.Hostname,
+					h1t1.UUID,
 					hostIdentifier, // conflicting host identifier.
 				},
 				TeamID: &t1.ID,
@@ -4081,7 +4093,6 @@ func testApplyLabelSpecsWithManualTeamLabels(t *testing.T, ds *Datastore) {
 	}
 	// Create team label with team host identifiers should work.
 	for _, hostIdentifier := range []string{
-		h1t1.Hostname,
 		h1t1.UUID,
 		h1t1.HardwareSerial,
 		fmt.Sprint(h1t1.ID),
@@ -4135,7 +4146,7 @@ func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
 		{
 			Name:                "nilhosts-label",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
-			Hosts:               []string{"nilhosts1.local", "nilhosts2.local"},
+			Hosts:               []string{"nilhosts-serial-1", "nilhosts-serial-2"},
 		},
 	})
 	require.NoError(t, err)
@@ -4182,7 +4193,7 @@ func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
 		{
 			Name:                "nilhosts-label",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
-			Hosts:               []string{"nilhosts1.local"},
+			Hosts:               []string{"nilhosts-serial-1"},
 		},
 	})
 	require.NoError(t, err)
@@ -4273,7 +4284,7 @@ func testLabelMembershipHostIDs(t *testing.T, ds *Datastore) {
 		{
 			Name:                "memb-label",
 			LabelMembershipType: fleet.LabelMembershipTypeManual,
-			Hosts:               []string{"memb-team-host.local", "memb-global-host.local"},
+			Hosts:               []string{"memb-serial-team", "memb-serial-global"},
 		},
 	}))
 

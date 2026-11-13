@@ -1,7 +1,7 @@
 {
   "versions": [
     {
-      "version": "7.3.7.1327",
+      "version": "7.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.Google.GoogleEarthPro';",
         "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.Google.GoogleEarthPro' AND version_compare(bundle_version, '7.3.7.1327') < 0);",

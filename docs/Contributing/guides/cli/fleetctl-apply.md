@@ -431,8 +431,8 @@ spec:
     jira: null
     zendesk: null
   org_info:
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     contact_url: ""
     org_name: Fleet
   server_settings:
@@ -480,7 +480,6 @@ spec:
       destination_url: ""
       enable_failing_policies_webhook: false
       host_batch_size: 0
-      policy_ids: null
     host_status_webhook:
       days_count: 0
       destination_url: ""
@@ -492,7 +491,6 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
   mdm:
-    apple_bm_default_fleet: ""
     windows_enabled_and_configured: false
     macos_updates:
       minimum_version: ""

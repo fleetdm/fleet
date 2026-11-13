@@ -793,6 +793,8 @@ This activity contains the following fields:
 - [unlocked_host](#unlocked-host)
 - [wiped_host](#wiped-host)
 - [failed_wipe](#failed-wipe)
+- [reset_host](#reset-host)
+- [failed_reset](#failed-reset)
 - [escrowed_disk_encryption_key](#escrowed-disk-encryption-key)
 - [rotated_disk_encryption_key](#rotated-disk-encryption-key)
 - [failed_to_rotate_disk_encryption_key](#failed-to-rotate-disk-encryption-key)
@@ -802,8 +804,8 @@ This activity contains the following fields:
 - [deleted_host_google_device_id](#deleted-host-google-device-id)
 - [edited_host_idp_data](#edited-host-idp-data)
 - [read_host_recovery_lock_password](#read-host-recovery-lock-password)
-- [escrowed_recovery_lock_password](#escrowed-recovery-lock-password)
-- [rotated_recovery_lock_password](#rotated-recovery-lock-password)
+- [set_host_recovery_lock_password](#set-host-recovery-lock-password)
+- [rotated_host_recovery_lock_password](#rotated-host-recovery-lock-password)
 - [rotated_managed_local_account_password](#rotated-managed-local-account-password)
 - [failed_to_rotate_managed_local_account_password](#failed-to-rotate-managed-local-account-password)
 - [read_managed_local_account](#read-managed-local-account)
@@ -1063,19 +1065,57 @@ Generated when a user sends a request to wipe a host.
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
 
 #### Example
 
 ```json
 {
   "host_id": 1,
-  "host_display_name": "Anna's MacBook Pro"
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
 }
 ```
 
 ### failed_wipe
 
 Generated when a Windows host reports that a wipe MDM command failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1",
+  "host_platform": "windows"
+}
+```
+
+### reset_host
+
+Generated when a user sends a request to reset a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1"
+}
+```
+
+### failed_reset
+
+Generated when a Windows host reports that a reset MDM command failed.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1272,9 +1312,9 @@ This activity contains the following fields:
 }
 ```
 
-### escrowed_recovery_lock_password
+### set_host_recovery_lock_password
 
-Generated when a Recovery Lock password is escrowed.
+Generated when Fleet sets the Recovery Lock password on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1289,9 +1329,9 @@ This activity contains the following fields:
 }
 ```
 
-### rotated_recovery_lock_password
+### rotated_host_recovery_lock_password
 
-Generated when a Recovery Lock password is rotated.
+Generated when the Recovery Lock password for a host is rotated, either by a user or automatically by Fleet after the password is viewed.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1586,8 +1626,8 @@ This activity contains the following fields:
 - [resent_configuration_profile_batch](#resent-configuration-profile-batch)
 - [installed_opt_in_configuration_profile](#installed-opt-in-configuration-profile)
 - [uninstalled_opt_in_configuration_profile](#uninstalled-opt-in-configuration-profile)
-- [enabled_recovery_lock_password](#enabled-recovery-lock-password)
-- [disabled_recovery_lock_password](#disabled-recovery-lock-password)
+- [enabled_recovery_lock_passwords](#enabled-recovery-lock-passwords)
+- [disabled_recovery_lock_passwords](#disabled-recovery-lock-passwords)
 - [edited_host_name_template](#edited-host-name-template)
 - [created_apple_asset_declaration](#created-apple-asset-declaration)
 - [edited_disk_encryption_settings](#edited-disk-encryption-settings)
@@ -2095,7 +2135,7 @@ This activity contains the following fields:
 }
 ```
 
-### enabled_recovery_lock_password
+### enabled_recovery_lock_passwords
 
 Generated when a user turns on Recovery Lock password for a fleet (or no fleet).
 
@@ -2112,7 +2152,7 @@ This activity contains the following fields:
 }
 ```
 
-### disabled_recovery_lock_password
+### disabled_recovery_lock_passwords
 
 Generated when a user turns off Recovery Lock password for a fleet (or no fleet).
 

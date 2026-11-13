@@ -121,7 +121,11 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import {
+  getHostOSDisplayName,
+  normalizeEmptyValues,
+  wrapFleetHelper,
+} from "utilities/helpers";
 import local from "utilities/local";
 import permissions from "utilities/permissions";
 import { getPathWithQueryParams } from "utilities/url";
@@ -921,7 +925,8 @@ const HostDetailsPage = ({
       // sharing the URL won't reopen the modal. Opening never adds the param
       // — it's only set by external deep-links.
       if (closing && location.query.show_mdm_status === "true") {
-        const { show_mdm_status: _, ...rest } = location.query;
+        const rest = { ...location.query };
+        delete rest.show_mdm_status;
         router.replace({ pathname: location.pathname, query: rest });
       }
       return !prev;
@@ -1537,7 +1542,7 @@ const HostDetailsPage = ({
 
   const showControlsTab = shouldShowControlsTab({
     platform: host.platform,
-    osVersion: host.os_version,
+    osVersion: getHostOSDisplayName(host.os_name, host.os_version),
     enrollmentStatus: host.mdm?.enrollment_status ?? null,
     hasControls: controls.length > 0,
     isPlatformMdmEnabled:

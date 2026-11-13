@@ -3,6 +3,7 @@
   "slug": "okta-verify/windows",
   "package_identifier": "Okta.OktaVerify",
   "unique_identifier": "Okta Verify",
+  "open_process_names": ["oktaverify.exe"],
   "program_publisher": "Okta, Inc.",
   "installer_arch": "x64",
   "installer_type": "exe",
