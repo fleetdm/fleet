@@ -17,7 +17,7 @@ function change_state {
 
   # Stop Orbit, wait for stop to complete, and then restart.
   launchctl bootout system/com.fleetdm.orbit
-  while pgrep orbit > /dev/null; do sleep 1 ; done
+  while pgrep orbit > /dev/null || pgrep Fleet > /dev/null; do sleep 1 ; done
   launchctl bootstrap system $plist_path
 
   exit
