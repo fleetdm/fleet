@@ -1477,7 +1477,8 @@ func TestMDMConfig(t *testing.T) {
 				OAuthIdPTokenURL: optjson.String{Set: true},
 				OAuthIdPClientID: optjson.String{Set: true},
 			},
-			AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+			AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+			DeprecatedAppleBMDefaultTeam: "",
 			MacOSSetup: fleet.MacOSSetup{
 				BootstrapPackage:            optjson.String{Set: true},
 				MacOSSetupAssistant:         optjson.String{Set: true},
@@ -1516,6 +1517,7 @@ func TestMDMConfig(t *testing.T) {
 	}
 
 	const licenseErr = "missing or invalid license"
+	const notFoundErr = "not found"
 	testCases := []struct {
 		name          string
 		licenseTier   string
@@ -1531,6 +1533,44 @@ func TestMDMConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: defaultMDMAppConfig(),
+		},
+		{
+			name:          "newDefaultTeamNoLicense",
+			licenseTier:   "free",
+			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
+			expectedError: licenseErr,
+		},
+		{
+			name:          "notFoundNew",
+			licenseTier:   "premium",
+			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
+			expectedError: notFoundErr,
+		},
+		{
+			name:          "notFoundEdit",
+			licenseTier:   "premium",
+			oldMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
+			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
+			expectedError: notFoundErr,
+		},
+		{
+			name:        "foundNew",
+			licenseTier: "premium",
+			findTeam:    true,
+			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.DeprecatedAppleBMDefaultTeam = "foobar"
+			}),
+		},
+		{
+			name:        "foundEdit",
+			licenseTier: "premium",
+			findTeam:    true,
+			oldMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
+			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
+			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
+				m.DeprecatedAppleBMDefaultTeam = "foobar"
+			}),
 		},
 		{
 			// A lapsed-premium instance can still have "latest" stored, so editing

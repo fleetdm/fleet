@@ -23,7 +23,7 @@ import (
 type removedNames struct {
 	jsonKeys    map[string]struct{} // lower case, JSON member names match case-insensitively
 	queryParams map[string]struct{} // exact, query parameter names are case-sensitive
-	sortKeys    map[string]struct{} // exact values of the order_key parameter
+	sortKeys    map[string]struct{} // exact values of the order_key and inherited_order_key parameters
 	// skipPaths are request path segments, such as "/orbit/", whose requests the scan leaves alone.
 	skipPaths []string
 }
@@ -210,9 +210,13 @@ func RejectRemovedQueryParams(query url.Values, t reflect.Type) error {
 	if names == nil || len(query) == 0 {
 		return nil
 	}
-	for _, key := range query["order_key"] {
-		if _, isRemoved := names.sortKeys[key]; isRemoved {
-			return &RemovedKeyError{Key: key, Param: "order_key"}
+	if !sortsByAnyColumn(t) {
+		for _, param := range []string{"order_key", "inherited_order_key"} {
+			for _, key := range query[param] {
+				if _, isRemoved := names.sortKeys[key]; isRemoved {
+					return &RemovedKeyError{Key: key, Param: param}
+				}
+			}
 		}
 	}
 	declared := declaredQueryNames(t)
@@ -225,6 +229,16 @@ func RejectRemovedQueryParams(query url.Values, t reflect.Type) error {
 		}
 	}
 	return nil
+}
+
+// anyColumnSorter is implemented by request types whose order_key names a result column chosen by the user, which may be
+// called team_id.
+type anyColumnSorter interface{ SortsByAnyColumn() }
+
+var anyColumnSorterType = reflect.TypeFor[anyColumnSorter]()
+
+func sortsByAnyColumn(t reflect.Type) bool {
+	return t.Implements(anyColumnSorterType) || reflect.PointerTo(t).Implements(anyColumnSorterType)
 }
 
 // declaredQueryNames returns the parameters t declares in `query` tags.

@@ -44,7 +44,6 @@ MIGRATION_GUIDE = "https://fleetdm.com/learn-more-about/fleet-5-migration"
 # Team-related keys that Fleet 5 removed. [] stands for every element of a list. Keep in sync with RemovedGitOpsKeys in pkg/spec.
 REMOVED_KEYS = [
     "team_settings",
-    "org_settings.mdm.apple_bm_default_team",
     "org_settings.mdm.apple_business[].macos_team",
     "org_settings.mdm.apple_business[].ios_team",
     "org_settings.mdm.apple_business[].ipados_team",

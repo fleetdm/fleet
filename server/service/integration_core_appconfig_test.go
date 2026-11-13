@@ -1844,6 +1844,11 @@ func (s *integrationTestSuite) TestAppConfig() {
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")
 
+	// try to set the apple bm default team, which is premium only
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "apple_bm_default_team": "xyz" }
+  }`), http.StatusUnprocessableEntity, &acResp)
+
 	// try to set Okta conditional access settings, which is premium only
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"conditional_access": {

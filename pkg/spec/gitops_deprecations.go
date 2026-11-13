@@ -101,7 +101,6 @@ var DeprecatedGitOpsKeyScopes = map[string][]string{
 // Every path has an entry in pkg/removednames, which supplies the error message.
 var RemovedGitOpsKeys = []DeprecatedKeyMapping{
 	{"team_settings", "settings"},
-	{"org_settings.mdm.apple_bm_default_team", "org_settings.mdm.apple_business"},
 	{"org_settings.mdm.apple_business[].macos_team", "org_settings.mdm.apple_business[].macos_fleet"},
 	{"org_settings.mdm.apple_business[].ios_team", "org_settings.mdm.apple_business[].ios_fleet"},
 	{"org_settings.mdm.apple_business[].ipados_team", "org_settings.mdm.apple_business[].ipados_fleet"},

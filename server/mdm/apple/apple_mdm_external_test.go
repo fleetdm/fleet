@@ -87,6 +87,9 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.False(t, modTime.Before(start))
 
 		// no team to assign to
+		appCfg, err := ds.AppConfig(ctx)
+		require.NoError(t, err)
+		require.Empty(t, appCfg.MDM.DeprecatedAppleBMDefaultTeam)
 		abmTok, err := ds.GetABMTokenByOrgName(ctx, abmTokenOrgName)
 		require.NoError(t, err)
 		require.Nil(t, abmTok.MacOSDefaultTeamID)

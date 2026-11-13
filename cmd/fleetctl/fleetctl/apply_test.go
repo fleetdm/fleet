@@ -732,6 +732,7 @@ spec:
     enable_host_users: false
     enable_software_inventory: false
   mdm:
+    apple_bm_default_team: "team1"
     macos_updates:
       minimum_version: 14.6.1
       deadline: 2011-02-01
@@ -741,8 +742,9 @@ spec:
 `)
 
 	newMDMSettings := fleet.MDM{
-		WindowsSettings:     fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
-		AppleBMTermsExpired: false,
+		DeprecatedAppleBMDefaultTeam: "team1",
+		WindowsSettings:              fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
+		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
@@ -826,8 +828,9 @@ spec:
 `)
 
 	newMDMSettings = fleet.MDM{
-		WindowsSettings:     fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
-		AppleBMTermsExpired: false,
+		DeprecatedAppleBMDefaultTeam: "team1",
+		WindowsSettings:              fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
+		AppleBMTermsExpired:          false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-02-01"),

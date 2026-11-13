@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -55,7 +56,6 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"PUT", "/setup_experience/software", `{"team_id": 1, "platform": "macos"}`, "team_id"},
 		{"POST", "/certificates", `{"name": "a", "team_id": 1}`, "team_id"},
 		{"DELETE", "/spec/certificates", `{"team_id": 1, "names": ["a"]}`, "team_id"},
-		{"PATCH", "/config", `{"mdm": {"apple_bm_default_team": "a"}}`, "apple_bm_default_team"},
 	} {
 		reject(tc[0], tc[1], tc[2], tc[3])
 	}
@@ -80,9 +80,16 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 	} {
 		rejectNamed("GET", tc[0], "", "order_key", tc[1], "order_key", tc[1])
 	}
+	rejectNamed("GET", "/fleets/0/policies", "", "inherited_order_key", "team_id", "inherited_order_key", "team_id")
 
 	// The rejected create calls did not create anything, and the new name is accepted.
 	require.Len(t, s.listReports(), reportsBefore)
+
+	// A report's result column can be called team_id, so sorting its results by it is allowed.
+	var created fleet.CreateQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(t.Name()), Query: new("SELECT 1 AS team_id")}, http.StatusOK,
+		&created)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/reports/%d/report", created.Query.ID), nil, http.StatusOK, "order_key", "team_id")
 }
 
 func (s *integrationEnterpriseTestSuite) listReports() []fleet.Query {
