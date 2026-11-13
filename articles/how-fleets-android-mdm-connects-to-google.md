@@ -109,21 +109,22 @@ Source: [retry_client.go#L15-L24](https://github.com/fleetdm/fleet/blob/59e246b4
 
 ## Google conditional access
 
-> **Note:** This section describes planned work, not a released feature. The design may change before it ships.
+Fleet marks company-owned iPhones, iPads, and Android hosts as managed in Google. Learn how to set it up in the [Google conditional access guide](https://fleetdm.com/guides/google-conditional-access-integration). Like Android MDM, part of it goes through fleetdm.com: the end user's Google sign-in on iPhones and iPads, which needs Fleet's Google OAuth client. That client is shared by every Fleet server, so its secret stays on fleetdm.com.
 
-Fleet will soon mark company-owned iPhones, iPads, and Android hosts as managed in Google ([#56195](https://github.com/fleetdm/fleet/issues/56195)). Like Android MDM, part of it will go through fleetdm.com ([#56354](https://github.com/fleetdm/fleet/issues/56354)): the end user's Google sign-in, which needs Fleet's Google OAuth client. That client is shared by every Fleet server, so its secret stays on fleetdm.com.
+fleetdm.com:
 
-fleetdm.com will:
+- Registers your Fleet server when you connect Google, and returns a per-server secret.
+- Runs the end user's Google sign-in on iPhones and iPads. It starts when the end user opens the **Self-service** web clip. There's no button to find.
+- Uses the sign-in to find the device in Google and sends the result to your Fleet server. Fleet refuses a device that's already registered to another host, so a link copied to a personal device can't take over a company-owned host.
 
-- Run the end user's Google sign-in. It starts when the end user opens the Fleet app on Android or the **Self service** web clip on an iPhone or iPad. There's no button to find.
-- Use the sign-in to find the device in Google and send its Google device ID to your Fleet server. Fleet refuses a second device for the same host, so a link copied to a personal device can't take over a company-owned host.
+Android hosts don't use fleetdm.com for this. Your Fleet server finds each company-owned Android host's device in Google by itself, with no sign-in.
 
-fleetdm.com won't mark devices as managed. Your Fleet server does that with a service account you create in your own Google Cloud project, with domain-wide delegation limited to the `cloud-identity.devices` scope. You own the credential, and the Fleet server unmarks a device when its host leaves Fleet or stops being company-owned. No Google credentials pass through fleetdm.com.
+fleetdm.com doesn't mark devices as managed. Your Fleet server does that with a service account you create in your own Google Cloud project, with domain-wide delegation limited to the `cloud-identity.devices` scope. You own the credential. The Fleet server unmarks a device when its host is deleted or unenrolled, or when you remove the host's Google device ID. No Google service account credentials pass through fleetdm.com.
 
 Compared to Android MDM:
 
-- fleetdm.com will call your Fleet server, authenticated with the per-server secret. If you restrict inbound traffic, you'll need to allow that endpoint from fleetdm.com. The exact path isn't final yet. See the plan in [#56354](https://github.com/fleetdm/fleet/issues/56354).
-- New data will pass through fleetdm.com: the Fleet server URL and, for each device, its host UUID, platform, enrollment status, Google device ID, the end user's Google account, and, on Android, the device's Android ID.
+- fleetdm.com calls your Fleet server at `/api/*/fleet/google_conditional_access/register`, authenticated with the per-server secret. If you restrict inbound traffic, [allow that endpoint](https://fleetdm.com/guides/what-api-endpoints-to-expose-to-the-public-internet#conditional-access-google).
+- New data passes through fleetdm.com: the Fleet server URL, your Google customer ID and, for each iPhone or iPad that signs in, its host UUID, the end user's Google account, and the names of that account's device records in Google.
 
 ## Further reading
 
