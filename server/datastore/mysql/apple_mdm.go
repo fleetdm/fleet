@@ -3,10 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
-	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -29,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	fleetcrypto "github.com/fleetdm/fleet/v4/server/platform/crypto"
 
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -6589,48 +6587,16 @@ VALUES
 	return nil
 }
 
-func encrypt(plainText []byte, privateKey string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(privateKey))
-	if err != nil {
-		return nil, fmt.Errorf("create new cipher: %w", err)
-	}
-
-	aesGCM, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, fmt.Errorf("create new gcm: %w", err)
-	}
-
-	nonce := make([]byte, aesGCM.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return nil, fmt.Errorf("generate nonce: %w", err)
-	}
-
-	return aesGCM.Seal(nonce, nonce, plainText, nil), nil
+func encrypt(plainText []byte, key string) ([]byte, error) {
+	return fleetcrypto.Encrypt(plainText, key)
 }
 
-func decrypt(encrypted []byte, privateKey string) ([]byte, error) {
-	block, err := aes.NewCipher([]byte(privateKey))
-	if err != nil {
-		return nil, fmt.Errorf("create new cipher: %w", err)
-	}
+func decrypt(encrypted []byte, key string) ([]byte, error) {
+	return fleetcrypto.Decrypt(encrypted, key)
+}
 
-	aesGCM, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, fmt.Errorf("create new gcm: %w", err)
-	}
-
-	// Get the nonce size
-	nonceSize := aesGCM.NonceSize()
-
-	// Extract the nonce from the encrypted data
-	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
-
-	decrypted, err := aesGCM.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return nil, fmt.Errorf("decrypting: %w", err)
-	}
-
-	return decrypted, nil
+func decryptOrPassthrough(data []byte, key string) []byte {
+	return fleetcrypto.DecryptOrPassthrough(data, key)
 }
 
 func (ds *Datastore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
@@ -8058,15 +8024,36 @@ func (ds *Datastore) GetNanoMDMEnrollmentDetails(ctx context.Context, hostUUID s
 	  INNER JOIN nano_enrollments ne ON ne.id = nd.id
 	  LEFT JOIN nano_seen_times nst ON nst.id = ne.id
 	WHERE ne.type IN ('Device', 'User Enrollment (Device)') AND nd.id = ?`
-	var res fleet.NanoMDMEnrollmentDetails
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, query, hostUUID)
+	var row struct {
+		AuthenticateAt         *time.Time `db:"authenticate_at"`
+		LastSeenAt             *time.Time `db:"last_seen_at"`
+		HardwareAttested       bool       `db:"hardware_attested"`
+		UnlockToken            []byte     `db:"unlock_token"`
+		BootstrapTokenEscrowed bool       `db:"bootstrap_token_escrowed"`
+		EnrollmentType         string     `db:"enrollment_type"`
+		Enabled                bool       `db:"enabled"`
+	}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, query, hostUUID)
 	if err == sql.ErrNoRows {
 		return &fleet.NanoMDMEnrollmentDetails{}, nil
 	}
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get mdm enrollment times")
 	}
-	return &res, nil
+	res := &fleet.NanoMDMEnrollmentDetails{
+		LastMDMEnrollmentTime:  row.AuthenticateAt,
+		LastMDMSeenTime:        row.LastSeenAt,
+		HardwareAttested:       row.HardwareAttested,
+		BootstrapTokenEscrowed: row.BootstrapTokenEscrowed,
+		EnrollmentType:         row.EnrollmentType,
+		Enabled:                row.Enabled,
+	}
+	if len(row.UnlockToken) > 0 {
+		decrypted := decryptOrPassthrough(row.UnlockToken, ds.serverPrivateKey)
+		s := string(decrypted)
+		res.UnlockToken = &s
+	}
+	return res, nil
 }
 
 func (ds *Datastore) AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) (string, error) {
