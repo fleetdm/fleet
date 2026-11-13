@@ -1573,7 +1573,7 @@ func (*Datastore) getBatchExecutionFilters(whereParams []interface{}, opt fleet.
 			// A host may have a host_script_results record if the batch started, in which case canceling will set that record's `canceled` field.
 			// Or it may not have one, if it's a scheduled batch, in which case if the batch is marked as canceled then we'll count
 			// the host as canceled as well.
-			batchScriptExecutionFilter += ` AND ((hsr.exit_code IS NULL AND hsr.canceled = 1) OR (hsr.host_id IS NULL AND bsehr.error IS NULL AND ba.canceled = 1))`
+			batchScriptExecutionFilter += ` AND (hsr.canceled = 1 OR (hsr.host_id IS NULL AND bsehr.error IS NULL AND ba.canceled = 1))`
 		}
 	}
 	return batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams
