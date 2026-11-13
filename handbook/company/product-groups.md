@@ -77,6 +77,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
 | Tech Lead                         | [Juan Fernandez](https://www.linkedin.com/in/juan-fdz-hawa/) _([@juan-fdz-hawa](https://github.com/juan-fdz-hawa))_
 | Quality Assurance                 | [Marcus Allen](https://www.linkedin.com/in/marcus-a-785b3b7/) _([@MarcusAllen](https://github.com/marcusallen97))_
+| Software Engineer                 | [Arend Peter Castelein](https://www.linkedin.com/in/arend-peter-castelein-530a5070/) _([@ArendPeter](https://github.com/ArendPeter))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C09HG9VMRSS), [kanban release board](https://github.com/orgs/fleetdm/projects/97), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A%23g-supply-chain) for this product group is `#g-supply-chain`.
 
