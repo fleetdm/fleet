@@ -43,15 +43,11 @@ const RefetchButton = ({
     "refetch-btn": !isFetching,
   });
 
-  const buttonText = isFetching
-    ? "Fetching fresh vitals...this may take a moment"
-    : "Refetch";
-
   return (
     <>
       <TooltipWrapper
         underline={false}
-        disableTooltip={!tooltip}
+        disableTooltip={!tooltip || isFetching}
         tipContent={tooltip}
         position="top"
         showArrow
@@ -64,7 +60,7 @@ const RefetchButton = ({
             variant="secondary"
             icon="refresh"
           >
-            {buttonText}
+            Refetch
           </Button>
         </div>
       </TooltipWrapper>
@@ -291,15 +287,17 @@ const HostHeader = ({
           {renderDeviceStatusTag()}
 
           <div className={`${baseClass}__last-fetched`}>
-            {withTooltip(
-              showMdmCheckIn ? (
-                <>Last MDM check-in {humanLastSeen(lastMdmCheckIn)}</>
-              ) : (
-                <>
-                  {"Last fetched"} {lastFetched}
-                </>
-              )
-            )}
+            {showRefetchSpinner && "Refetching... This can take up to 1 minute."}
+            {!showRefetchSpinner &&
+              withTooltip(
+                showMdmCheckIn ? (
+                  <>Last MDM check-in {humanLastSeen(lastMdmCheckIn)}</>
+                ) : (
+                  <>
+                    {"Last fetched"} {lastFetched}
+                  </>
+                )
+              )}
           </div>
         </div>
       </div>

@@ -266,9 +266,7 @@ describe("HostDetailsPage - pending hosts", () => {
     // Give the poll timer (2s) room to fire if it was scheduled.
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
-    expect(
-      screen.queryByText(/fetching fresh vitals/i)
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/refetching\.\.\./i)).not.toBeInTheDocument();
     expect(notify.error).not.toHaveBeenCalled();
   }, 15000);
 
@@ -334,13 +332,13 @@ describe("HostDetailsPage - hosts that haven't reported vitals", () => {
         currentUser: ADMIN,
         isGlobalAdmin: true,
       });
-      await screen.findByText(/fetching fresh vitals/i);
+      await screen.findByText(/refetching\.\.\./i);
       elapsedMs = pollMs;
       // The spinner clears only once the next response has gone through the toast decision.
       await waitFor(
         () =>
           expect(
-            screen.queryByText(/fetching fresh vitals/i)
+            screen.queryByText(/refetching\.\.\./i)
           ).not.toBeInTheDocument(),
         { timeout: 5000 }
       );

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	micromdmplist "github.com/micromdm/plist"
@@ -265,57 +266,37 @@ func TestSubstituteFleetVarsInAppConfig(t *testing.T) {
 		require.Contains(t, string(got), "macos")
 	})
 
-	t.Run("HOST_END_USER_EMAIL_IDP resolves via datastore", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			require.Equal(t, "host-uuid-1", hostUUID)
-			return []string{"user@example.com"}, nil
-		}
+	t.Run("removed HOST_END_USER_EMAIL_IDP is unresolvable with its Fleet 5 message", func(t *testing.T) {
 		cfg := []byte(`<dict><key>K</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`)
-		got, err := SubstituteFleetVarsInAppConfig(ctx, ds, cfg, host)
-		require.NoError(t, err)
-		require.Contains(t, string(got), "user@example.com")
-	})
-
-	t.Run("HOST_END_USER_EMAIL_IDP missing returns ErrUnresolvable", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return nil, nil
-		}
-		cfg := []byte(`<dict><key>K</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`)
-		got, err := SubstituteFleetVarsInAppConfig(ctx, ds, cfg, host)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, emptyDS, cfg, host)
 		require.ErrorIs(t, err, ErrUnresolvableAppConfigVar)
+		require.EqualError(t, err, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. `+
+			`What to use instead: `+removednames.GuideURL)
 		require.Nil(t, got)
 	})
 
 	t.Run("XML special chars in substituted value are escaped", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return []string{"a&b@example.com"}, nil
-		}
-		cfg := []byte(`<dict><key>K</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`)
-		got, err := SubstituteFleetVarsInAppConfig(ctx, ds, cfg, host)
+		specialHost := host
+		specialHost.HardwareSerial = "a&b<c"
+		cfg := []byte(`<dict><key>K</key><string>$FLEET_VAR_HOST_HARDWARE_SERIAL</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, emptyDS, cfg, specialHost)
 		require.NoError(t, err)
 		// Round-trip the resulting XML through the plist parser; if escaping
 		// is broken the parser will fail or decode incorrectly.
 		var parsed map[string]any
 		_, perr := plist.Unmarshal(got, &parsed)
 		require.NoError(t, perr)
-		require.Equal(t, "a&b@example.com", parsed["K"])
+		require.Equal(t, "a&b<c", parsed["K"])
 	})
 
 	t.Run("multiple variables substituted independently", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return []string{"user@example.com"}, nil
-		}
-		cfg := []byte(`<dict><key>UUID</key><string>$FLEET_VAR_HOST_UUID</string><key>S</key><string>$FLEET_VAR_HOST_HARDWARE_SERIAL</string><key>E</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`)
-		got, err := SubstituteFleetVarsInAppConfig(ctx, ds, cfg, host)
+		cfg := []byte(`<dict><key>UUID</key><string>$FLEET_VAR_HOST_UUID</string><key>S</key><string>$FLEET_VAR_HOST_HARDWARE_SERIAL</string><key>P</key><string>$FLEET_VAR_HOST_PLATFORM</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, emptyDS, cfg, host)
 		require.NoError(t, err)
 		s := string(got)
 		require.Contains(t, s, "host-uuid-1")
 		require.Contains(t, s, "ABC123")
-		require.Contains(t, s, "user@example.com")
+		require.Contains(t, s, "<string>"+host.Platform+"</string>")
 	})
 }
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/tracing"
 	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/gorilla/mux"
 )
@@ -98,8 +99,9 @@ func buildFastPathMux(r *mux.Router, middlewares []mux.MiddlewareFunc, cfg confi
 			wrapped = middleware.Middleware(wrapped)
 		}
 		if cfg.Logging.TracingEnabled && cfg.OTELEnabled() {
-			// Span names have to keep matching the gorilla route template: the trace sampler tiers routes by span name.
-			wrapped = otelmw.WrapHandler(otelmw.WithRouteTag(tpl, wrapped), tpl, cfg)
+			// Must match the name cleanRoutePattern gives the same route on the gorilla path.
+			route := tracing.CleanRouteTemplate(tpl)
+			wrapped = otelmw.WrapHandler(otelmw.WithRouteTag(route, wrapped), route, cfg)
 		}
 
 		varNames := make([]string, 0, 4)

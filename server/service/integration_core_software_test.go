@@ -184,12 +184,6 @@ func (s *integrationTestSuite) TestVulnerableSoftware() {
 	assert.Equal(t, soft1.ID, versionsResp.Software[0].ID)
 	assert.Equal(t, soft1.ExtensionID, versionsResp.Software[0].ExtensionID)
 	assert.Equal(t, soft1.ExtensionFor, versionsResp.Software[0].ExtensionFor)
-	// Browser field should be populated for browser extensions
-	if soft1.Source == "chrome_extensions" || soft1.Source == "firefox_addons" || soft1.Source == "ie_extensions" || soft1.Source == "safari_extensions" {
-		assert.Equal(t, soft1.ExtensionFor, versionsResp.Software[0].Browser)
-	} else {
-		assert.Empty(t, versionsResp.Software[0].Browser)
-	}
 	assert.Len(t, versionsResp.Software[0].Vulnerabilities, 1)
 	require.NotNil(t, versionsResp.CountsUpdatedAt)
 	assert.WithinDuration(t, hostsCountTs, *versionsResp.CountsUpdatedAt, time.Second)
@@ -360,18 +354,12 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		// fields that may be present in the response (e.g., vulnerabilities)
 		for _, sw := range expectedSoftware {
 			var detailsResp getSoftwareResponse
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", sw.ID), nil, http.StatusOK, &detailsResp, "team_id", team)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", sw.ID), nil, http.StatusOK, &detailsResp, "fleet_id", team)
 			assert.Equal(t, sw.ID, detailsResp.Software.ID)
 			assert.Equal(t, sw.Name, detailsResp.Software.Name)
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
 			assert.Equal(t, sw.Source, detailsResp.Software.Source)
 			assert.Equal(t, sw.ExtensionFor, detailsResp.Software.ExtensionFor)
-			// Browser field should be populated for browser extensions
-			if sw.Source == "chrome_extensions" || sw.Source == "firefox_addons" || sw.Source == "ie_extensions" || sw.Source == "safari_extensions" {
-				assert.Equal(t, sw.ExtensionFor, detailsResp.Software.Browser)
-			} else {
-				assert.Empty(t, detailsResp.Software.Browser)
-			}
 			if len(sw.Vulnerabilities) > 0 {
 				assert.Len(t, detailsResp.Software.Vulnerabilities, len(sw.Vulnerabilities))
 				assert.Greater(t, detailsResp.Software.Vulnerabilities[0].CreatedAt, time.Now().Add(-time.Hour)) // asserting a non-zero time
@@ -397,12 +385,6 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, wantSource, gotSource)
 			wantExtensionFor, gotExtensionFor := want[i].ExtensionFor, resp.Software[i].ExtensionFor
 			assert.Equal(t, wantExtensionFor, gotExtensionFor)
-			// Browser field should be populated for browser extensions
-			if want[i].Source == "chrome_extensions" || want[i].Source == "firefox_addons" || want[i].Source == "ie_extensions" || want[i].Source == "safari_extensions" {
-				assert.Equal(t, want[i].ExtensionFor, resp.Software[i].Browser)
-			} else {
-				assert.Empty(t, resp.Software[i].Browser)
-			}
 		}
 		if ts.IsZero() {
 			assert.Nil(t, resp.CountsUpdatedAt)
@@ -423,7 +405,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "order_key", "hosts_count", "order_direction", "desc",
-		"team_id", teamStr,
+		"fleet_id", teamStr,
 	)
 	assertVersionsResp(versResp, nil, time.Time{}, teamStr, 0)
 
@@ -565,7 +547,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "0", "order_key",
-		"hosts_count", "order_direction", "desc", "team_id", teamStr,
+		"hosts_count", "order_direction", "desc", "fleet_id", teamStr,
 	)
 	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, teamStr, expectedTeamVersionsCount, 3, 2)
 
@@ -573,7 +555,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "1", "order_key",
-		"hosts_count", "order_direction", "desc", "team_id", teamStr,
+		"hosts_count", "order_direction", "desc", "fleet_id", teamStr,
 	)
 	assertVersionsResp(versResp, []fleet.Software{sws[17]}, hostsCountTs, teamStr, expectedTeamVersionsCount, 1)
 
@@ -581,7 +563,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "0", "order_key",
-		"name", "order_direction", "desc", "team_id", "0",
+		"name", "order_direction", "desc", "fleet_id", "0",
 	)
 	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, "", len(sws), 17, 17)
 
@@ -589,7 +571,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	detailsResp := getSoftwareResponse{}
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", versResp.Software[0].ID), nil, http.StatusNotFound, &detailsResp,
-		"team_id", "999999",
+		"fleet_id", "999999",
 	)
 
 	// a request with without_vulnerability_details set to false does not return extra details
