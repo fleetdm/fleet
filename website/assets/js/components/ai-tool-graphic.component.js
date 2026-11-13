@@ -1,8 +1,8 @@
 /**
  * <ai-tool-graphic>
  * -----------------------------------------------------------------------------
- * Animated mockups of Slack, Claude Code, Cursor, GitHub Copilot, and Codex
- * working with Fleet, with buttons to switch between them.
+ * Animated mockups of Slack, Microsoft Teams, Claude Code, Cursor, GitHub
+ * Copilot, and Codex working with Fleet, with buttons to switch between them.
  *
  * @type {Component}
  * -----------------------------------------------------------------------------
@@ -14,6 +14,7 @@ parasails.registerComponent('aiToolGraphic', {
   //  ╩  ╩╚═╚═╝╩  ╚═╝
   props: [
     'hideToolSwitcher',// « Shows only the Slack demo, without buttons to switch tools.
+    'hideTeams',// « Leaves out the Microsoft Teams demo (e.g. on Apple-focused pages).
   ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
@@ -41,6 +42,16 @@ parasails.registerComponent('aiToolGraphic', {
           ['Yes', 400],
           [3, 1600],
           [4, 4500],
+        ],
+        teams: [
+          [null, 800],
+          [2, 1800],
+          [3, 1000],
+          [4, 1500],
+          ['Yes', 400],
+          [5, 600],
+          [6, 1800],
+          [7, 4500],
         ],
         codex: [
           [null, 1200],
@@ -114,6 +125,7 @@ parasails.registerComponent('aiToolGraphic', {
   <div purpose="ai-tool-graphic" id="ai-tool-graphic-component">
     <div purpose="ai-tool-switcher" role="group" aria-label="AI tool" v-if="!hideToolSwitcher">
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'slack'}" :aria-pressed="selectedAiTool === 'slack' ? 'true' : 'false'" @click="clickSelectAiTool('slack')"><img alt="" src="/images/ai-demo/icon-slack-logo-16x16.svg">Slack</button>
+      <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'teams'}" :aria-pressed="selectedAiTool === 'teams' ? 'true' : 'false'" @click="clickSelectAiTool('teams')" v-if="!hideTeams"><img alt="" src="/images/ai-demo/icon-microsoft-teams-logo-16x16@2x.png">Teams</button>
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'claude'}" :aria-pressed="selectedAiTool === 'claude' ? 'true' : 'false'" @click="clickSelectAiTool('claude')"><img alt="" src="/images/ai-demo/icon-claude-logo-16x16.svg">Claude</button>
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'cursor'}" :aria-pressed="selectedAiTool === 'cursor' ? 'true' : 'false'" @click="clickSelectAiTool('cursor')"><img alt="" src="/images/ai-demo/icon-cursor-logo-16x16.svg">Cursor</button>
       <button type="button" purpose="ai-tool-button" :class="{selected: selectedAiTool === 'github-copilot'}" :aria-pressed="selectedAiTool === 'github-copilot' ? 'true' : 'false'" @click="clickSelectAiTool('github-copilot')"><img alt="" src="/images/ai-demo/icon-github-copilot-logo-16x16.svg">Copilot</button>
@@ -481,6 +493,60 @@ parasails.registerComponent('aiToolGraphic', {
         </div>
       </div>
     </div>
+    <div purpose="teams-animation" role="img" aria-label="A Microsoft Teams chat with Fleet. An admin asks what it takes to meet CIS Level 2 on their Windows devices. Fleet reports that 2,184 of 2,350 Windows hosts pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are Credential Guard, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Fleet proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-else-if="selectedAiTool === 'teams'">
+      <div purpose="teams-window" aria-hidden="true">
+        <picture purpose="teams-chrome">
+          <source media="(max-width: 767px)" srcset="/images/teams-chat-window-mobile-492x576.svg">
+          <source media="(max-width: 991px)" srcset="/images/teams-chat-window-tablet-844x576.svg">
+          <img alt="" src="/images/teams-chat-window-1044x520.svg">
+        </picture>
+        <div purpose="teams-conversation" ref="demoConversation">
+          <div purpose="teams-thread" ref="demoThread" :class="{resetting: demoResetting, 'fading-out': demoFadingOut}" :style="{transform: 'translateY(-' + demoScrollOffset + 'px)'}">
+            <div purpose="teams-first-message">
+              <p><strong>@Fleet</strong> what do we need for CIS level 2 on our Windows devices?</p>
+            </div>
+            <div purpose="teams-first-reply" v-show="demoStep >= 2">
+              <div purpose="teams-typing" v-show="demoStep === 2">
+                <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                <div purpose="teams-typing-bubble"><span></span><span></span><span></span></div>
+              </div>
+              <div purpose="teams-reply" v-show="demoStep >= 3">
+                <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                <div purpose="teams-reply-body">
+                  <span purpose="teams-sender">Fleet</span>
+                  <div purpose="teams-reply-bubble">
+                    <p>2,184 of 2,350 Windows hosts pass Level 1. Level 2 adds 38 settings. The biggest gaps are Credential Guard, telemetry limits, and unneeded services.</p>
+                  </div>
+                  <div purpose="teams-follow-up" v-show="demoStep >= 4">
+                    <div purpose="teams-reply-bubble">
+                      <p>Want me to propose changes that close those gaps?</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div purpose="teams-second-message" v-show="demoStep >= 5">
+              <p>Yes</p>
+            </div>
+            <div purpose="teams-second-reply" v-show="demoStep >= 6">
+              <div purpose="teams-typing" v-show="demoStep === 6">
+                <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                <div purpose="teams-typing-bubble"><span></span><span></span><span></span></div>
+              </div>
+              <div purpose="teams-reply" v-show="demoStep >= 7">
+                <img purpose="teams-avatar" alt="" src="/images/icon-fleet-avatar-28x28.svg">
+                <div purpose="teams-reply-body">
+                  <span purpose="teams-sender">Fleet</span>
+                  <div purpose="teams-reply-bubble">
+                    <p>Done. I’ve proposed 3 new profiles and 38 policies <span purpose="teams-link">for your review</span>.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div purpose="claude-code-animation" role="img" aria-label="A Claude Code session connected to Fleet. An admin asks what it takes to meet CIS Level 2 on their Macs. Claude checks with Fleet and reports that 2,184 of 2,350 Macs pass Level 1, that Level 2 adds 38 settings, and that the biggest gaps are iCloud Drive sync, telemetry limits, and unneeded services, then offers to propose changes to close those gaps. The admin says yes, and Claude opens a pull request that proposes 3 new profiles and 38 policies for their review." :class="{'reduced-motion': demoReducedMotion}" v-else>
       <div purpose="claude-code-window" aria-hidden="true">
         <img purpose="ai-demo-window-controls" alt="" src="/images/ai-demo/icon-macos-window-controls-47x11.svg">
@@ -601,6 +667,11 @@ parasails.registerComponent('aiToolGraphic', {
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
+  beforeMount: function() {
+    if (bowser.windows && !this.hideToolSwitcher && !this.hideTeams) {
+      this.selectedAiTool = 'teams';
+    }
+  },
   mounted: async function() {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       this.demoReducedMotion = true;
