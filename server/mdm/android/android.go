@@ -25,11 +25,11 @@ func IsDefaultPolicyID(policyID string) bool {
 		return true
 	}
 	digits, ok := strings.CutPrefix(policyID, fleetDefaultPolicyPrefix)
-	if !ok || digits == "" {
+	if !ok {
 		return false
 	}
-	_, err := strconv.ParseUint(digits, 10, 32)
-	return err == nil
+	teamID, err := strconv.ParseUint(digits, 10, 32)
+	return err == nil && FleetDefaultPolicyID(uint(teamID)) == policyID
 }
 
 type SignupDetails struct {

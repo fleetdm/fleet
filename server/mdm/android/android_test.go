@@ -22,6 +22,7 @@ func TestIsDefaultPolicyID(t *testing.T) {
 		{policyID: "fleet", want: false},
 		{policyID: "fleet-1", want: false},
 		{policyID: "fleetabc", want: false},
+		{policyID: "fleet007", want: false},
 		{policyID: "2", want: false},
 		{policyID: "", want: false},
 		{policyID: "a1b2c3d4e5f6a7b8", want: false},

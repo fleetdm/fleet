@@ -199,6 +199,39 @@ func TestGetZeroTouchConfiguration_ReplacesLegacyToken(t *testing.T) {
 	})
 }
 
+// A fleet without a token still gets one when its default policy can't be created; it points at the global
+// policy and is marked as such, so the next view replaces it.
+func TestGetZeroTouchConfiguration_NewTokenFallsBackToGlobalPolicy(t *testing.T) {
+	svc, mockDS, apiClient := setupEEService(t)
+	svc.Service.(*stubCoreService).ensurePolicyErr = errors.New("quota")
+
+	mockDS.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, _ *uint) (*android.ZeroTouchToken, error) {
+		return nil, &notFoundError{}
+	}
+	mockDS.GetEnterpriseFunc = func(_ context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "LC00test"}, nil
+	}
+	apiClient.EnterprisesEnrollmentTokensCreateFunc = func(_ context.Context, _ string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
+		assert.Equal(t, "enterprises/LC00test/policies/1", token.PolicyName)
+		return &androidmanagement.EnrollmentToken{
+			Name:                "enterprises/LC00test/enrollmentTokens/global",
+			Value:               "global-token-value",
+			ExpirationTimestamp: time.Now().Add(100 * 365 * 24 * time.Hour).Format(time.RFC3339),
+		}, nil
+	}
+	mockDS.CreateZeroTouchEnrollmentTokenFunc = func(_ context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+		assert.False(t, token.UsesFleetPolicy)
+		return token, nil
+	}
+
+	resp, err := svc.GetZeroTouchConfiguration(premiumAdminCtx(t), nil)
+	require.NoError(t, err)
+	var extras dpcExtras
+	require.NoError(t, json.Unmarshal(resp.DPCExtras, &extras))
+	assert.Equal(t, "global-token-value", extras.AdminExtrasBundle.EnrollmentToken)
+	assert.True(t, mockDS.CreateZeroTouchEnrollmentTokenFuncInvoked)
+}
+
 func TestGetZeroTouchConfiguration_CreatesTokenWhenNoneExists(t *testing.T) {
 	svc, mockDS, apiClient := setupEEService(t)
 

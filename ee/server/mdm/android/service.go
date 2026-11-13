@@ -105,7 +105,9 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 		return buildDPCExtrasResponse(existing), nil
 	}
 
-	token, err := svc.newZeroTouchToken(ctx, teamID)
+	// A fleet without a token falls back to the global default policy rather than having none; the next
+	// view replaces it once the fleet's policy can be created. An existing token is simply kept.
+	token, err := svc.newZeroTouchToken(ctx, teamID, existing == nil)
 	if err != nil {
 		if existing == nil {
 			return nil, err
@@ -134,8 +136,9 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 	return buildDPCExtrasResponse(replaced), nil
 }
 
-// newZeroTouchToken creates a zero-touch enrollment token in AMAPI that points at the fleet's default policy.
-func (svc *Service) newZeroTouchToken(ctx context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
+// newZeroTouchToken creates a zero-touch enrollment token in AMAPI that points at the fleet's default policy,
+// or, if that policy can't be created and allowGlobalPolicy is set, at the global default policy.
+func (svc *Service) newZeroTouchToken(ctx context.Context, teamID *uint, allowGlobalPolicy bool) (*android.ZeroTouchToken, error) {
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
@@ -151,9 +154,16 @@ func (svc *Service) newZeroTouchToken(ctx context.Context, teamID *uint) (*andro
 	if teamID != nil {
 		policyTeamID = *teamID
 	}
+	usesFleetPolicy := true
 	policyName, err := svc.EnsureFleetDefaultPolicy(ctx, enterprise.Name(), policyTeamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "ensuring the fleet's default policy")
+		if !allowGlobalPolicy {
+			return nil, ctxerr.Wrap(ctx, err, "ensuring the fleet's default policy")
+		}
+		svc.logger.ErrorContext(ctx, "failed to ensure the fleet's android default policy, creating the zero-touch token on the global one",
+			"fleet_id", policyTeamID, "err", err)
+		usesFleetPolicy = false
+		policyName = fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID)
 	}
 
 	additionalData, err := json.Marshal(teamEnrollmentRequest{
@@ -187,7 +197,7 @@ func (svc *Service) newZeroTouchToken(ctx context.Context, teamID *uint) (*andro
 		TokenName:       amapiToken.Name,
 		TokenValue:      amapiToken.Value,
 		ExpiresAt:       expiresAt,
-		UsesFleetPolicy: true,
+		UsesFleetPolicy: usesFleetPolicy,
 	}, nil
 }
 
