@@ -33,6 +33,9 @@ type Datastore interface {
 	GetZeroTouchEnrollmentToken(ctx context.Context, teamID *uint) (*ZeroTouchToken, error)
 	// CreateZeroTouchEnrollmentToken inserts a new zero-touch enrollment token.
 	CreateZeroTouchEnrollmentToken(ctx context.Context, token *ZeroTouchToken) (*ZeroTouchToken, error)
+	// ReplaceZeroTouchEnrollmentToken replaces the token of token.TeamID if it's still named oldTokenName,
+	// and returns the stored token either way.
+	ReplaceZeroTouchEnrollmentToken(ctx context.Context, oldTokenName string, token *ZeroTouchToken) (*ZeroTouchToken, error)
 	// DeleteZeroTouchEnrollmentTokens deletes all zero-touch enrollment tokens.
 	DeleteZeroTouchEnrollmentTokens(ctx context.Context) error
 }

@@ -634,16 +634,18 @@ func TestMakeAndroidAppsAvailableForHostPolicyOrder(t *testing.T) {
 	}
 	w := &SoftwareWorker{Datastore: ds, AndroidModule: androidModule, Log: slog.New(slog.DiscardHandler)}
 
-	t.Run("default policy", func(t *testing.T) {
-		calls, patchPolicyErr, setAppsErr = nil, nil, nil
-		require.NoError(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, defaultPolicyID))
-		assert.Equal(t, []string{
-			"patch policy " + hostPolicyName,
-			"reset profiles " + hostUUID,
-			"set apps " + hostUUID,
-			"patch device " + enterpriseName + "/devices/device-id to " + hostPolicyName,
-		}, calls)
-	})
+	for _, enrollPolicyID := range []string{defaultPolicyID, android.FleetDefaultPolicyID(0), android.FleetDefaultPolicyID(5)} {
+		t.Run("enrollment policy "+enrollPolicyID, func(t *testing.T) {
+			calls, patchPolicyErr, setAppsErr = nil, nil, nil
+			require.NoError(t, w.makeAndroidAppsAvailableForHost(t.Context(), hostUUID, 1, enterpriseName, enrollPolicyID))
+			assert.Equal(t, []string{
+				"patch policy " + hostPolicyName,
+				"reset profiles " + hostUUID,
+				"set apps " + hostUUID,
+				"patch device " + enterpriseName + "/devices/device-id to " + hostPolicyName,
+			}, calls)
+		})
+	}
 
 	t.Run("policy patch fails", func(t *testing.T) {
 		calls, patchPolicyErr, setAppsErr = nil, errors.New("nope"), nil

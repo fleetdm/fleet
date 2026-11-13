@@ -186,7 +186,7 @@ func (v *SoftwareWorker) moveDeviceToHostSpecificPolicy(ctx context.Context, and
 }
 
 func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, hostUUID string, hostID uint, enterpriseName, policyID string) error {
-	onDefaultPolicy := policyID == fmt.Sprint(android.DefaultAndroidPolicyID)
+	onDefaultPolicy := android.IsDefaultPolicyID(policyID)
 	if onDefaultPolicy {
 		if err := v.prepareHostSpecificPolicy(ctx, hostUUID, enterpriseName); err != nil {
 			return ctxerr.Wrapf(ctx, err, "preparing host-specific policy for host %s", hostUUID)

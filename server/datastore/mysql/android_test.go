@@ -85,6 +85,7 @@ func TestAndroid(t *testing.T) {
 		{"HostAndroidSoftwareInstallsLifecycle", testHostAndroidSoftwareInstallsLifecycle},
 		{"UpdateAndroidAppConfigurationSetsConfigurationUpdatedAt", testUpdateAndroidAppConfigurationSetsConfigurationUpdatedAt},
 		{"GetAndroidAppStoreAppVersionsByID", testGetAndroidAppStoreAppVersionsByID},
+		{"AndroidFleetDefaultPolicies", testAndroidFleetDefaultPolicies},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -5417,4 +5418,117 @@ func setAndroidHostAppliedPolicy(t *testing.T, ds *Datastore, hostUUID string, p
 		_, err := q.ExecContext(t.Context(), `UPDATE android_devices SET applied_policy_id = ? WHERE enterprise_specific_id = ?`, policyID, hostUUID)
 		return err
 	})
+}
+
+func testAndroidFleetDefaultPolicies(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	teamA, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-a"})
+	require.NoError(t, err)
+	teamB, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-b"})
+	require.NoError(t, err)
+	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "default-policy-label", Query: "select 1"})
+	require.NoError(t, err)
+
+	newProfile := func(teamID uint, name, rawJSON string, labels ...fleet.ConfigurationProfileLabel) string {
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, fleet.MDMAndroidConfigProfile{
+			Name: name, TeamID: &teamID, RawJSON: []byte(rawJSON), LabelsIncludeAll: labels,
+		}, nil)
+		require.NoError(t, err)
+		return p.ProfileUUID
+	}
+	unassignedPasscode := newProfile(0, "unassigned passcode", `{"passwordPolicies": [{"passwordMinimumLength": 4}]}`)
+	teamARequirements := newProfile(teamA.ID, "a requirements", `{"passwordRequirements": {"passwordMinimumLength": 6}}`)
+	teamARules := newProfile(teamA.ID, "a rules", `{"policyEnforcementRules": [{"settingName": "passwordPolicies"}]}`)
+	newProfile(teamA.ID, "a camera", `{"cameraDisabled": true}`)
+	newProfile(teamA.ID, "a labeled passcode", `{"passwordPolicies": []}`,
+		fleet.ConfigurationProfileLabel{LabelID: lbl.ID, LabelName: lbl.Name, RequireAll: true})
+	newProfile(teamB.ID, "b nested key only", `{"openNetworkConfiguration": {"passwordPolicies": []}}`)
+
+	uuidsByTeam := func(profiles []*fleet.MDMAndroidConfigProfile) map[uint][]string {
+		got := map[uint][]string{}
+		for _, p := range profiles {
+			require.NotNil(t, p.TeamID)
+			require.NotEmpty(t, p.Name)
+			require.NotEmpty(t, p.RawJSON)
+			got[*p.TeamID] = append(got[*p.TeamID], p.ProfileUUID)
+		}
+		return got
+	}
+
+	all, err := ds.ListAndroidFleetDefaultPolicyProfiles(ctx, nil)
+	require.NoError(t, err)
+	got := uuidsByTeam(all)
+	require.Len(t, got, 2)
+	assert.ElementsMatch(t, []string{unassignedPasscode}, got[0])
+	assert.ElementsMatch(t, []string{teamARequirements, teamARules}, got[teamA.ID])
+
+	unassigned, err := ds.ListAndroidFleetDefaultPolicyProfiles(ctx, new(uint(0)))
+	require.NoError(t, err)
+	assert.Equal(t, map[uint][]string{0: {unassignedPasscode}}, uuidsByTeam(unassigned))
+
+	onlyB, err := ds.ListAndroidFleetDefaultPolicyProfiles(ctx, &teamB.ID)
+	require.NoError(t, err)
+	assert.Empty(t, onlyB)
+
+	checksums, err := ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, checksums)
+
+	// Without a previous checksum, only a missing row is inserted.
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, 0, []byte("0123456789abcdef"), nil))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("aaaaaaaaaaaaaaaa"), nil))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamB.ID, []byte("bbbbbbbbbbbbbbbb"), nil))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("xxxxxxxxxxxxxxxx"), nil))
+	// With one, only a row that still holds it is updated.
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("AAAAAAAAAAAAAAAA"), []byte("aaaaaaaaaaaaaaaa")))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamB.ID, []byte("yyyyyyyyyyyyyyyy"), []byte("stale-checksum-0")))
+
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, map[uint][]byte{
+		0:        []byte("0123456789abcdef"),
+		teamA.ID: []byte("AAAAAAAAAAAAAAAA"),
+		teamB.ID: []byte("bbbbbbbbbbbbbbbb"),
+	}, checksums)
+
+	// Marking a policy unverified overwrites any checksum, and creates a row for a fleet without one.
+	require.NoError(t, ds.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamA.ID))
+	teamC, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-c"})
+	require.NoError(t, err)
+	require.NoError(t, ds.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamC.ID))
+	// The reconciler's insert of a fleet it read without a row loses to the mark.
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamC.ID, []byte("cccccccccccccccc"), nil))
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	firstMark := checksums[teamA.ID]
+	assert.Len(t, firstMark, 16)
+	assert.NotEqual(t, []byte("AAAAAAAAAAAAAAAA"), firstMark)
+	assert.NotEqual(t, []byte("cccccccccccccccc"), checksums[teamC.ID])
+
+	// A second mark invalidates a save based on the first, so the reconciler sends the policy again.
+	require.NoError(t, ds.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamA.ID))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("AAAAAAAAAAAAAAAA"), firstMark))
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.NotEqual(t, firstMark, checksums[teamA.ID])
+	assert.NotEqual(t, []byte("AAAAAAAAAAAAAAAA"), checksums[teamA.ID])
+
+	deletedFleets, err := ds.ListAndroidFleetDefaultPolicyDeletedFleets(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, deletedFleets)
+
+	// Deleting a fleet keeps its row, since its zero-touch token can still enroll hosts.
+	require.NoError(t, ds.DeleteTeam(ctx, teamB.ID))
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.Len(t, checksums, 4)
+	deletedFleets, err = ds.ListAndroidFleetDefaultPolicyDeletedFleets(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, []uint{teamB.ID}, deletedFleets)
+
+	// The policies belong to the enterprise, so deleting it deletes every row.
+	require.NoError(t, ds.DeleteAllEnterprises(ctx))
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, checksums)
 }

@@ -3,6 +3,8 @@ package android
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
 	"testing"
 	"time"
@@ -48,7 +50,7 @@ func setupEEService(t *testing.T) (*Service, *ds_mock.Store, *android_mock.Clien
 	// Stub core service (returns ErrMissingLicense for GetZeroTouchConfiguration)
 	stubCore := &stubCoreService{}
 
-	svc, err := NewService(stubCore, mockDS, mockDS, apiClient, nil)
+	svc, err := NewService(stubCore, mockDS, mockDS, apiClient, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 
 	return svc, mockDS, apiClient
@@ -58,6 +60,16 @@ func setupEEService(t *testing.T) (*Service, *ds_mock.Store, *android_mock.Clien
 // ErrMissingLicense (matching the real core stub). Other methods panic if called.
 type stubCoreService struct {
 	android.Service
+	ensurePolicyErr     error
+	ensuredPolicyTeamID []uint
+}
+
+func (s *stubCoreService) EnsureFleetDefaultPolicy(_ context.Context, enterpriseName string, teamID uint) (string, error) {
+	s.ensuredPolicyTeamID = append(s.ensuredPolicyTeamID, teamID)
+	if s.ensurePolicyErr != nil {
+		return "", s.ensurePolicyErr
+	}
+	return enterpriseName + "/policies/" + android.FleetDefaultPolicyID(teamID), nil
 }
 
 func TestGetZeroTouchConfiguration_PremiumRequired(t *testing.T) {
@@ -94,8 +106,9 @@ func TestGetZeroTouchConfiguration_ReturnsExistingToken(t *testing.T) {
 	mockDS.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
 		assert.Nil(t, teamID)
 		return &android.ZeroTouchToken{
-			TokenValue: "existing-token-value",
-			ExpiresAt:  time.Now().Add(100 * 365 * 24 * time.Hour),
+			TokenValue:      "existing-token-value",
+			ExpiresAt:       time.Now().Add(100 * 365 * 24 * time.Hour),
+			UsesFleetPolicy: true,
 		}, nil
 	}
 
@@ -108,6 +121,115 @@ func TestGetZeroTouchConfiguration_ReturnsExistingToken(t *testing.T) {
 
 	assert.True(t, mockDS.GetZeroTouchEnrollmentTokenFuncInvoked)
 	assert.False(t, mockDS.CreateZeroTouchEnrollmentTokenFuncInvoked)
+	assert.False(t, mockDS.ReplaceZeroTouchEnrollmentTokenFuncInvoked)
+}
+
+// A token created against the global default policy is replaced the next time it's viewed, so admins who
+// copy the DPC extras again get the passcode during setup.
+func TestGetZeroTouchConfiguration_ReplacesLegacyToken(t *testing.T) {
+	teamID := uint(7)
+	legacy := &android.ZeroTouchToken{
+		TeamID:     &teamID,
+		TokenName:  "enterprises/LC00test/enrollmentTokens/legacy",
+		TokenValue: "legacy-token-value",
+		ExpiresAt:  time.Now().Add(100 * 365 * 24 * time.Hour),
+	}
+
+	setup := func(t *testing.T) (*Service, *ds_mock.Store, *android_mock.Client, *stubCoreService) {
+		svc, mockDS, apiClient := setupEEService(t)
+		mockDS.TeamExistsFunc = func(_ context.Context, id uint) (bool, error) { return true, nil }
+		mockDS.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, _ *uint) (*android.ZeroTouchToken, error) {
+			return legacy, nil
+		}
+		mockDS.GetEnterpriseFunc = func(_ context.Context) (*android.Enterprise, error) {
+			return &android.Enterprise{EnterpriseID: "LC00test"}, nil
+		}
+		apiClient.EnterprisesEnrollmentTokensCreateFunc = func(_ context.Context, _ string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
+			assert.Equal(t, "enterprises/LC00test/policies/fleet7", token.PolicyName)
+			return &androidmanagement.EnrollmentToken{
+				Name:                "enterprises/LC00test/enrollmentTokens/new",
+				Value:               "new-token-value",
+				ExpirationTimestamp: time.Now().Add(100 * 365 * 24 * time.Hour).Format(time.RFC3339),
+			}, nil
+		}
+		return svc, mockDS, apiClient, svc.Service.(*stubCoreService)
+	}
+	enrollmentToken := func(t *testing.T, resp *android.ZeroTouchConfigurationResponse) string {
+		var extras dpcExtras
+		require.NoError(t, json.Unmarshal(resp.DPCExtras, &extras))
+		return extras.AdminExtrasBundle.EnrollmentToken
+	}
+
+	t.Run("replaced", func(t *testing.T) {
+		svc, mockDS, _, core := setup(t)
+		mockDS.ReplaceZeroTouchEnrollmentTokenFunc = func(_ context.Context, oldTokenName string, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+			assert.Equal(t, legacy.TokenName, oldTokenName)
+			assert.Equal(t, &teamID, token.TeamID)
+			assert.True(t, token.UsesFleetPolicy)
+			return token, nil
+		}
+
+		resp, err := svc.GetZeroTouchConfiguration(premiumAdminCtx(t), &teamID)
+		require.NoError(t, err)
+		assert.Equal(t, "new-token-value", enrollmentToken(t, resp))
+		assert.Equal(t, []uint{teamID}, core.ensuredPolicyTeamID)
+		assert.False(t, mockDS.CreateZeroTouchEnrollmentTokenFuncInvoked)
+	})
+
+	t.Run("policy failure keeps the old token", func(t *testing.T) {
+		svc, mockDS, apiClient, core := setup(t)
+		core.ensurePolicyErr = errors.New("quota")
+
+		resp, err := svc.GetZeroTouchConfiguration(premiumAdminCtx(t), &teamID)
+		require.NoError(t, err)
+		assert.Equal(t, "legacy-token-value", enrollmentToken(t, resp))
+		assert.False(t, apiClient.EnterprisesEnrollmentTokensCreateFuncInvoked)
+		assert.False(t, mockDS.ReplaceZeroTouchEnrollmentTokenFuncInvoked)
+	})
+
+	t.Run("save failure keeps the old token", func(t *testing.T) {
+		svc, mockDS, _, _ := setup(t)
+		mockDS.ReplaceZeroTouchEnrollmentTokenFunc = func(_ context.Context, _ string, _ *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+			return nil, errors.New("db down")
+		}
+
+		resp, err := svc.GetZeroTouchConfiguration(premiumAdminCtx(t), &teamID)
+		require.NoError(t, err)
+		assert.Equal(t, "legacy-token-value", enrollmentToken(t, resp))
+	})
+}
+
+// A fleet without a token still gets one when its default policy can't be created; it points at the global
+// policy and is marked as such, so the next view replaces it.
+func TestGetZeroTouchConfiguration_NewTokenFallsBackToGlobalPolicy(t *testing.T) {
+	svc, mockDS, apiClient := setupEEService(t)
+	svc.Service.(*stubCoreService).ensurePolicyErr = errors.New("quota")
+
+	mockDS.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, _ *uint) (*android.ZeroTouchToken, error) {
+		return nil, &notFoundError{}
+	}
+	mockDS.GetEnterpriseFunc = func(_ context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{EnterpriseID: "LC00test"}, nil
+	}
+	apiClient.EnterprisesEnrollmentTokensCreateFunc = func(_ context.Context, _ string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
+		assert.Equal(t, "enterprises/LC00test/policies/1", token.PolicyName)
+		return &androidmanagement.EnrollmentToken{
+			Name:                "enterprises/LC00test/enrollmentTokens/global",
+			Value:               "global-token-value",
+			ExpirationTimestamp: time.Now().Add(100 * 365 * 24 * time.Hour).Format(time.RFC3339),
+		}, nil
+	}
+	mockDS.CreateZeroTouchEnrollmentTokenFunc = func(_ context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+		assert.False(t, token.UsesFleetPolicy)
+		return token, nil
+	}
+
+	resp, err := svc.GetZeroTouchConfiguration(premiumAdminCtx(t), nil)
+	require.NoError(t, err)
+	var extras dpcExtras
+	require.NoError(t, json.Unmarshal(resp.DPCExtras, &extras))
+	assert.Equal(t, "global-token-value", extras.AdminExtrasBundle.EnrollmentToken)
+	assert.True(t, mockDS.CreateZeroTouchEnrollmentTokenFuncInvoked)
 }
 
 func TestGetZeroTouchConfiguration_CreatesTokenWhenNoneExists(t *testing.T) {
@@ -126,6 +248,7 @@ func TestGetZeroTouchConfiguration_CreatesTokenWhenNoneExists(t *testing.T) {
 		assert.False(t, token.OneTimeOnly)
 		assert.Equal(t, "PERSONAL_USAGE_DISALLOWED", token.AllowPersonalUsage)
 		assert.Contains(t, token.AdditionalData, `"fleet_id"`)
+		assert.Equal(t, "enterprises/LC00test/policies/fleet0", token.PolicyName)
 		return &androidmanagement.EnrollmentToken{
 			Name:                "enterprises/LC00test/enrollmentTokens/abc123",
 			Value:               "new-token-value",
@@ -137,6 +260,7 @@ func TestGetZeroTouchConfiguration_CreatesTokenWhenNoneExists(t *testing.T) {
 		assert.Equal(t, "enterprises/LC00test/enrollmentTokens/abc123", token.TokenName)
 		assert.Equal(t, "new-token-value", token.TokenValue)
 		assert.Nil(t, token.TeamID)
+		assert.True(t, token.UsesFleetPolicy)
 		token.ID = 1
 		return token, nil
 	}
@@ -217,7 +341,7 @@ func TestGetZeroTouchConfiguration_FleetSelection(t *testing.T) {
 			mockDS.GetZeroTouchEnrollmentTokenFunc = func(_ context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
 				assert.Equal(t, c.wantTeamID, teamID)
 				if c.hasExistingToken {
-					return &android.ZeroTouchToken{TeamID: teamID, TokenValue: "existing-token-value"}, nil
+					return &android.ZeroTouchToken{TeamID: teamID, TokenValue: "existing-token-value", UsesFleetPolicy: true}, nil
 				}
 				return nil, &notFoundError{}
 			}

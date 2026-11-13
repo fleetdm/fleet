@@ -110,6 +110,30 @@ func (ds *AndroidDSWithMock) DeleteZeroTouchEnrollmentTokens(ctx context.Context
 	return ds.Datastore.DeleteZeroTouchEnrollmentTokens(ctx)
 }
 
+func (ds *AndroidDSWithMock) ReplaceZeroTouchEnrollmentToken(ctx context.Context, oldTokenName string, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+	return ds.Datastore.ReplaceZeroTouchEnrollmentToken(ctx, oldTokenName, token)
+}
+
+func (ds *AndroidDSWithMock) ListAndroidFleetDefaultPolicyProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+	return ds.Datastore.ListAndroidFleetDefaultPolicyProfiles(ctx, teamID)
+}
+
+func (ds *AndroidDSWithMock) GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (map[uint][]byte, error) {
+	return ds.Datastore.GetAndroidFleetDefaultPolicyChecksums(ctx)
+}
+
+func (ds *AndroidDSWithMock) ListAndroidFleetDefaultPolicyDeletedFleets(ctx context.Context) ([]uint, error) {
+	return ds.Datastore.ListAndroidFleetDefaultPolicyDeletedFleets(ctx)
+}
+
+func (ds *AndroidDSWithMock) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum, previous []byte) error {
+	return ds.Datastore.SetAndroidFleetDefaultPolicyChecksum(ctx, teamID, checksum, previous)
+}
+
+func (ds *AndroidDSWithMock) MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error {
+	return ds.Datastore.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamID)
+}
+
 // noopNewActivity is a no-op activity creation function for tests that don't verify activity creation.
 func noopNewActivity(_ context.Context, _ *fleet.User, _ fleet.ActivityDetails) error {
 	return nil

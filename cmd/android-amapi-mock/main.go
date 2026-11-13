@@ -325,7 +325,7 @@ func main() {
 	errorRate := flag.Float64("error-rate", 0.01, "Fraction of AMAPI requests that return 429/5xx errors [0, 1]")
 	requirePolicies := flag.Bool("require-policies", false, "Fail policy actions (e.g. modifyPolicyApplications) with 404 on a policy that was never created, as AMAPI does")
 	var policyOpts policyOptions
-	flag.BoolVar(&policyOpts.rejectDefaultPolicyApps, "reject-default-policy-apps", false, "Fail any change to the app list of the default policy (policies/1) with 400. Fleet only manages apps in host-specific policies, so such a request is a Fleet bug")
+	flag.BoolVar(&policyOpts.rejectDefaultPolicyApps, "reject-default-policy-apps", false, "Fail any change to the app list of a default policy (policies/1 or a fleet's policies/fleet<id>) with 400. Fleet only manages apps in host-specific policies, so such a request is a Fleet bug")
 	flag.Parse()
 
 	// Fall back to env var if flag not provided (for ECS Secrets Manager injection)

@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -1888,6 +1889,82 @@ func (ds *Datastore) GetMDMAndroidReconcileCursor(_ context.Context) (string, er
 // SetMDMAndroidReconcileCursor is a no-op on the bare mysql.Datastore;
 // the mysqlredis wrapper writes to Redis.
 func (ds *Datastore) SetMDMAndroidReconcileCursor(_ context.Context, _ string) error {
+	return nil
+}
+
+func (ds *Datastore) ListAndroidFleetDefaultPolicyProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+	stmt := `
+		SELECT p.profile_uuid, p.team_id, p.name, p.raw_json
+		FROM mdm_android_configuration_profiles p
+		WHERE JSON_CONTAINS_PATH(p.raw_json, 'one', '$.passwordPolicies', '$.passwordRequirements', '$.policyEnforcementRules')
+			AND NOT EXISTS (SELECT 1 FROM mdm_configuration_profile_labels l WHERE l.android_profile_uuid = p.profile_uuid)`
+	var args []any
+	if teamID != nil {
+		stmt += ` AND p.team_id = ?`
+		args = append(args, *teamID)
+	}
+	var profiles []*fleet.MDMAndroidConfigProfile
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing android fleet default policy profiles")
+	}
+	return profiles, nil
+}
+
+func (ds *Datastore) GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (map[uint][]byte, error) {
+	var rows []struct {
+		TeamID   uint   `db:"team_id"`
+		Checksum []byte `db:"checksum"`
+	}
+	const stmt = `SELECT team_id, checksum FROM android_fleet_default_policies`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting android fleet default policy checksums")
+	}
+	checksums := make(map[uint][]byte, len(rows))
+	for _, r := range rows {
+		checksums[r.TeamID] = r.Checksum
+	}
+	return checksums, nil
+}
+
+func (ds *Datastore) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum, previous []byte) error {
+	var err error
+	if previous == nil {
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT IGNORE INTO android_fleet_default_policies (team_id, checksum) VALUES (?, ?)`, teamID, checksum)
+	} else {
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE android_fleet_default_policies SET checksum = ? WHERE team_id = ? AND checksum = ?`, checksum, teamID, previous)
+	}
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting android fleet default policy checksum")
+	}
+	return nil
+}
+
+func (ds *Datastore) ListAndroidFleetDefaultPolicyDeletedFleets(ctx context.Context) ([]uint, error) {
+	const stmt = `
+		SELECT dp.team_id FROM android_fleet_default_policies dp
+		WHERE dp.team_id <> 0 AND NOT EXISTS (SELECT 1 FROM teams t WHERE t.id = dp.team_id)`
+	var teamIDs []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing deleted fleets with android default policies")
+	}
+	return teamIDs, nil
+}
+
+func (ds *Datastore) MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error {
+	// Random rather than a constant, so a second mark also fails a reconciler's save that read the first one.
+	// It never matches a real checksum, so the reconciler sends the policy again.
+	marker := make([]byte, 16)
+	if _, err := rand.Read(marker); err != nil {
+		return ctxerr.Wrap(ctx, err, "generating android fleet default policy marker")
+	}
+	const stmt = `
+		INSERT INTO android_fleet_default_policies (team_id, checksum) VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE checksum = VALUES(checksum)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, marker); err != nil {
+		return ctxerr.Wrap(ctx, err, "marking android fleet default policy unverified")
+	}
 	return nil
 }
 

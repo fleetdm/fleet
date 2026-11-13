@@ -4014,6 +4014,72 @@ func TestBatchSetMDMProfilesCustomHostVitalsAndroid(t *testing.T) {
 	})
 }
 
+func TestBatchSetMDMProfilesAndroidPasscodeVariables(t *testing.T) {
+	ds := new(mock.Store)
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) { return nil, nil }
+	// Expand like the real datastore, so the check must run on the content before expansion.
+	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
+		return strings.NewReplacer("$FLEET_SECRET_NAME", "expanded", "$FLEET_SECRET_PIN_LENGTH", "6").Replace(document), nil, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
+	}
+	ds.ValidateReferencedCustomHostVitalsFunc = func(ctx context.Context, documents []string) error { return nil }
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error { return nil }
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profVars []fleet.MDMProfileIdentifierFleetVariables) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, hostUUIDs []string) (fleet.MDMProfilesUpdates, error) {
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+
+	passcode := map[string]any{"passwordPolicies": []map[string]any{{"passwordScope": "SCOPE_DEVICE", "passwordMinimumLength": 6}}}
+	// Invalid JSON until the secret is expanded.
+	const unquotedSecret = `{"passwordPolicies": [{"passwordScope": "SCOPE_DEVICE", "passwordMinimumLength": $FLEET_SECRET_PIN_LENGTH}]}`
+
+	cases := []struct {
+		name      string
+		value     string
+		contents  string
+		dryRun    bool
+		errSubstr string
+	}{
+		{name: "no variables", value: "plain"},
+		{name: "secret", value: "$FLEET_SECRET_NAME", errSubstr: "$FLEET_SECRET_NAME"},
+		{name: "secret on dry run", value: "$FLEET_SECRET_NAME", dryRun: true, errSubstr: "$FLEET_SECRET_NAME"},
+		{name: "fleet variable", value: "$FLEET_VAR_HOST_UUID", errSubstr: "$FLEET_VAR_HOST_UUID"},
+		{name: "unquoted secret", contents: unquotedSecret, errSubstr: "$FLEET_SECRET_PIN_LENGTH"},
+		{name: "unquoted secret on dry run", contents: unquotedSecret, dryRun: true, errSubstr: "$FLEET_SECRET_PIN_LENGTH"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds.BatchSetMDMProfilesFuncInvoked = false
+			contents := []byte(c.contents)
+			if c.contents == "" {
+				contents = androidConfigProfileForTest(t, c.value, passcode).RawJSON
+			}
+			profiles := []fleet.MDMProfileBatchPayload{{Name: "passcode", Contents: contents}}
+			err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, c.dryRun, false, new(true), nil, false)
+			if c.errSubstr == "" {
+				require.NoError(t, err)
+				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
+				return
+			}
+			require.ErrorContains(t, err, c.errSubstr)
+			var invalidArgErr *fleet.InvalidArgumentError
+			require.ErrorAs(t, err, &invalidArgErr)
+			require.False(t, ds.BatchSetMDMProfilesFuncInvoked)
+		})
+	}
+}
+
 func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
 	if content == nil {
 		content = make(map[string]any)
