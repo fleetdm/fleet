@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -169,6 +170,7 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 		savedPrevious  map[uint][]byte
 		patchErrs      map[string]error
 		rejectPasscode bool
+		hang           string
 	)
 	ds.ListAndroidFleetDefaultPolicyProfilesFunc = func(_ context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
 		require.Nil(t, teamID)
@@ -185,10 +187,14 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 		savedPrevious[teamID] = previous
 		return nil
 	}
-	client.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		require.True(t, opts.ExcludeApps)
 		patchCount++
 		patched[policyName] = policy
+		if policyName == hang {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		}
 		if rejectPasscode && policy.PasswordPolicies != nil {
 			return nil, &googleapi.Error{Code: http.StatusBadRequest}
 		}
@@ -282,6 +288,17 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 		checksums = saved
 		run(t)
 		require.Zero(t, patchCount, "nothing is sent again until the profiles change")
+	})
+
+	t.Run("a hung patch times out without holding up the other fleets", func(t *testing.T) {
+		timeout := fleetDefaultPolicyPatchTimeout
+		fleetDefaultPolicyPatchTimeout = 10 * time.Millisecond
+		t.Cleanup(func() { fleetDefaultPolicyPatchTimeout, hang = timeout, "" })
+		profiles = []*fleet.MDMAndroidConfigProfile{pin(teamA, 6), pin(teamB, 7)}
+		checksums, patchErrs, hang = nil, nil, policyName(teamA)
+		run(t)
+		require.Len(t, patched, 2)
+		require.Equal(t, map[uint][]byte{teamB: checksumFor(pin(teamB, 7))}, saved, "the hung fleet is retried next run")
 	})
 
 	t.Run("a deleted fleet's policy follows Unassigned's", func(t *testing.T) {

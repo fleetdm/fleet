@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"slices"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -19,6 +20,10 @@ import (
 )
 
 const policyEnforcementRulesKey = "policyEnforcementRules"
+
+// fleetDefaultPolicyPatchTimeout bounds each default policy patch: the AMAPI client has no timeout, and the
+// reconciler syncs these before any host, so a hung call would hold up profile delivery to every host.
+var fleetDefaultPolicyPatchTimeout = time.Minute
 
 // buildFleetDefaultPolicy builds the policy a fleet's hosts enroll with from the fleet's label-less profiles,
 // so the end user sets the passcode during setup. Only the passcode settings are copied, and each key goes
@@ -116,7 +121,9 @@ func sendFleetDefaultPolicy(ctx context.Context, client androidmgmt.Client, logg
 ) error {
 	policyName := fleetDefaultPolicyName(enterpriseName, teamID)
 	patch := func(p *androidmanagement.Policy) error {
-		_, err := client.EnterprisesPoliciesPatch(ctx, policyName, p, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
+		patchCtx, cancel := context.WithTimeout(ctx, fleetDefaultPolicyPatchTimeout)
+		defer cancel()
+		_, err := client.EnterprisesPoliciesPatch(patchCtx, policyName, p, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
 		if err != nil && !androidmgmt.IsNotModifiedError(err) {
 			return err
 		}
