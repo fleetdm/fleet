@@ -1196,7 +1196,8 @@ GitHub issue: [#54190](https://github.com/fleetdm/fleet/issues/54190)
 
 #### What to do
 
-1. Remove these options from your server configuration.
+1. Remove these options from your server configuration before you upgrade.
+   - Fleet 5 doesn't start if any of them is still set as a config file key, environment variable, or command-line flag, even if the value is `false`.
    - Data still waiting in Redis when you upgrade is dropped and corrected on the next check-in.
 
 GitHub issue: [#54009](https://github.com/fleetdm/fleet/issues/54009)
