@@ -20,6 +20,7 @@ type OSVData struct {
 	ID            string     `json:"id"`
 	Published     string     `json:"published"`
 	Modified      string     `json:"modified"`
+	Withdrawn     string     `json:"withdrawn,omitempty"`
 	Details       string     `json:"details"`
 	Affected      []Affected `json:"affected"`
 	Upstream      []string   `json:"upstream,omitempty"`
@@ -214,6 +215,7 @@ func run(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesParsed := 0
 
 	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -227,6 +229,13 @@ func run(cfg Config) error {
 		osvData, err := parseOSVFile(path)
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
+			return err
+		}
+		if osvData.ID == "" {
+			return errors.New("OSV record is missing an ID")
+		}
+		filesParsed++
+		if osvData.Withdrawn != "" {
 			filesSkipped++
 			return nil
 		}
@@ -341,8 +350,32 @@ func run(cfg Config) error {
 		return fmt.Errorf("error walking directory: %w", err)
 	}
 
+	// Fail if no OSV records were parsed - incomplete input should not produce artifacts.
+	if filesParsed == 0 {
+		return errors.New("no OSV JSON records found in input directory")
+	}
+
 	log.Printf("Processed %d files, skipped %d files", filesProcessed, filesSkipped)
 	log.Printf("Discovered %d Ubuntu versions", len(artifacts))
+
+	ubuntuFileVersion := func(ver string) string { return strings.ReplaceAll(ver, ".", "") }
+	inScope := versionScope(targetVersions, excludedVersions, ubuntuFileVersion)
+	if err := removeStaleArtifacts(cfg.OutputDir, "osv-ubuntu-", "-"+cfg.DateStr+".json.gz",
+		fileVersions(artifacts, ubuntuFileVersion), inScope); err != nil {
+		return err
+	}
+	if generateTodayDeltas {
+		if err := removeStaleArtifacts(cfg.OutputDir, "osv-ubuntu-", "-delta-"+cfg.DateStr+".json.gz",
+			fileVersions(todayArtifacts, ubuntuFileVersion), inScope); err != nil {
+			return err
+		}
+	}
+	if generateYesterdayDeltas {
+		if err := removeStaleArtifacts(cfg.OutputDir, "osv-ubuntu-", "-delta-"+cfg.YesterdayStr+".json.gz",
+			fileVersions(yesterdayArtifacts, ubuntuFileVersion), inScope); err != nil {
+			return err
+		}
+	}
 
 	// Write full artifacts
 	for ver, artifact := range artifacts {
@@ -402,6 +435,78 @@ func run(cfg Config) error {
 	}
 
 	return nil
+}
+
+// removeStaleArtifacts deletes dated artifacts that an earlier run wrote into the
+// same output directory for a version this run produced nothing for, for
+// example because all of that version's advisories have since been withdrawn.
+// Without it a same-date rerun would leave the earlier file, still listing the
+// withdrawn advisories, beside the new ones. Only files named
+// prefix+<version>+suffix whose version is in this run's scope and absent from
+// produced are removed; other platforms, dates, artifact kinds and versions
+// excluded by the version filters are left alone.
+func removeStaleArtifacts(dir, prefix, suffix string, produced map[string]struct{}, inScope func(string) bool) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return fmt.Errorf("failed to read output directory: %w", err)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || len(name) <= len(prefix)+len(suffix) ||
+			!strings.HasPrefix(name, prefix) || !strings.HasSuffix(name, suffix) {
+			continue
+		}
+		// Versions never contain "-", so this also keeps a full artifact's
+		// suffix from matching a delta ("2404-delta") of the same date.
+		ver := name[len(prefix) : len(name)-len(suffix)]
+		if _, ok := produced[ver]; ok || strings.Contains(ver, "-") || !inScope(ver) {
+			continue
+		}
+		if err := os.Remove(filepath.Join(dir, name)); err != nil {
+			return fmt.Errorf("failed to remove stale artifact %s: %w", name, err)
+		}
+		log.Printf("Removed stale artifact %s", name)
+	}
+	return nil
+}
+
+// fileVersions returns the versions of artifacts as they appear in output file
+// names, mapped through fileVersion when it is not nil.
+func fileVersions[V any](artifacts map[string]V, fileVersion func(string) string) map[string]struct{} {
+	versions := make(map[string]struct{}, len(artifacts))
+	for ver := range artifacts {
+		if fileVersion != nil {
+			ver = fileVersion(ver)
+		}
+		versions[ver] = struct{}{}
+	}
+	return versions
+}
+
+// versionScope reports whether a version, as it appears in an output file name,
+// is one this run processes under the filters from buildVersionFilter.
+func versionScope(targetVersions, excludedVersions map[string]bool, fileVersion func(string) string) func(string) bool {
+	contains := func(set map[string]bool, ver string) bool {
+		for v := range set {
+			if fileVersion != nil {
+				v = fileVersion(v)
+			}
+			if v == ver {
+				return true
+			}
+		}
+		return false
+	}
+	return func(ver string) bool {
+		switch {
+		case targetVersions != nil:
+			return contains(targetVersions, ver)
+		case excludedVersions != nil:
+			return !contains(excludedVersions, ver)
+		default:
+			return true
+		}
+	}
 }
 
 func buildVersionFilter(versions, excludeVersions string) (targetVersions, excludedVersions map[string]bool) {
@@ -640,6 +745,7 @@ func runRHEL(cfg Config) error {
 
 	filesProcessed := 0
 	filesSkipped := 0
+	filesParsed := 0
 
 	err := filepath.WalkDir(cfg.InputDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -653,6 +759,13 @@ func runRHEL(cfg Config) error {
 		osvData, err := parseOSVFile(path)
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
+			return err
+		}
+		if osvData.ID == "" {
+			return errors.New("OSV record is missing an ID")
+		}
+		filesParsed++
+		if osvData.Withdrawn != "" {
 			filesSkipped++
 			return nil
 		}
@@ -738,8 +851,18 @@ func runRHEL(cfg Config) error {
 		return fmt.Errorf("error walking directory: %w", err)
 	}
 
+	// Fail if no OSV records were parsed - incomplete input should not produce artifacts.
+	if filesParsed == 0 {
+		return errors.New("no OSV JSON records found in input directory")
+	}
+
 	log.Printf("Processed %d files, skipped %d files", filesProcessed, filesSkipped)
 	log.Printf("Discovered %d RHEL versions", len(artifacts))
+
+	if err := removeStaleArtifacts(cfg.OutputDir, "osv-rhel-", "-"+cfg.DateStr+".json.gz",
+		fileVersions(artifacts, nil), versionScope(targetVersions, excludedVersions, nil)); err != nil {
+		return err
+	}
 
 	for ver, artifact := range artifacts {
 		artifact.Generated = cfg.GeneratedTimestamp
@@ -930,6 +1053,12 @@ func runAndroid(cfg Config) error {
 		osvData, err := parseOSVFile(path)
 		if err != nil {
 			log.Printf("Failed to parse %s: %v", path, err)
+			return err
+		}
+		if osvData.ID == "" {
+			return errors.New("OSV record is missing an ID")
+		}
+		if osvData.Withdrawn != "" {
 			filesSkipped++
 			return nil
 		}
@@ -1041,6 +1170,11 @@ func runAndroid(cfg Config) error {
 	// legitimate outcome of version filters, so that only warns.
 	if filesProcessed == 0 {
 		return fmt.Errorf("no Android OSV files with CVEs found in %s — check that the input directory contains valid Android OSV JSON files", cfg.InputDir)
+	}
+
+	if err := removeStaleArtifacts(cfg.OutputDir, "osv-android-", "-"+cfg.DateStr+".json.gz",
+		fileVersions(collected, nil), versionScope(targetVersions, excludedVersions, nil)); err != nil {
+		return err
 	}
 
 	if len(collected) == 0 {
