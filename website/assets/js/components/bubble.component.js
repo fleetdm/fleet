@@ -22,6 +22,13 @@ parasails.registerComponent('bubble', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function (){
     let rawType = this.type ? this.type.toLowerCase() : '';
+    if (rawType.includes('token') || rawType.includes('public')) {
+      rawType = 'public';
+    }
+    // "Global <role>" bubbles mark endpoints that fleet-level users with that role can't use.
+    if (rawType.startsWith('global ')) {
+      rawType = rawType.replace('global ', '');
+    }
     let roleLink = '';
 
     switch (rawType) {
