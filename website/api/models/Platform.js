@@ -42,6 +42,19 @@ module.exports = {
       description: 'A JS timestamp representing when the event details were last updated.',
     },
 
+    numAiGeneratedProfilesAllTime: {
+      type: 'number',
+      required: true,
+      description: 'The total number of configuration profiles generated with AI, summed from the latest usage statistics report of each Fleet deployment that reported in the past week.',
+      extendedDescription: 'Calculated by the send-aggregated-metrics-to-datadog script, since adding up the usage statistics takes too long to do when the profile generator usage page loads.',
+    },
+
+    aiGeneratedProfileStatsLastUpdatedAt: {
+      type: 'number',
+      required: true,
+      description: 'A JS timestamp representing when numAiGeneratedProfilesAllTime was last calculated, or 0 if it has never been calculated.',
+    },
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
