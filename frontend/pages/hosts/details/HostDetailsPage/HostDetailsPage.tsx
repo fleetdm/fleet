@@ -121,7 +121,11 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import {
+  getHostOSDisplayName,
+  normalizeEmptyValues,
+  wrapFleetHelper,
+} from "utilities/helpers";
 import local from "utilities/local";
 import permissions from "utilities/permissions";
 import { getPathWithQueryParams } from "utilities/url";
@@ -1540,7 +1544,7 @@ const HostDetailsPage = ({
 
   const showControlsTab = shouldShowControlsTab({
     platform: host.platform,
-    osVersion: host.os_version,
+    osVersion: getHostOSDisplayName(host.os_name, host.os_version),
     enrollmentStatus: host.mdm?.enrollment_status ?? null,
     hasControls: controls.length > 0,
     isPlatformMdmEnabled:

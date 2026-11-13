@@ -12,10 +12,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 // TestRemovedPaths covers every removed path in one place, so removing a path only means adding it to removedPathTemplates.
@@ -80,7 +82,7 @@ func TestRemovedPaths(t *testing.T) {
 					assert.Equal(t, "Gone", body.Message)
 					require.Len(t, body.Errors, 1)
 					want := fmt.Sprintf(`The "%s %s" endpoint is not available anymore. What to use instead: %s`,
-						method, strings.TrimPrefix(template, "/api/_version_/fleet"), removednames.GuideURL)
+						method, strings.TrimPrefix(entry.Old, "/api/_version_/fleet"), removednames.GuideURL)
 					assert.Equal(t, want, body.Errors[0]["reason"])
 				})
 			}
@@ -104,6 +106,10 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 		{"/api/latest/fleet/teams/1/policies/count", "/teams/{fleet_id}/policies/count"}, // a literal next to {policy_id}
 		{"/api/v1/fleet/teams/1/policies/7", "/teams/{fleet_id}/policies/{policy_id}"},
 		{"/api/v1/fleet/team/1/schedule/7", "/team/{fleet_id}/schedule/{report_id}"},
+		{"/api/v1/fleet/packs/schedule", "/packs/schedule"}, // a literal next to {id}
+		{"/api/latest/fleet/packs/schedule/7", "/packs/schedule/{id}"},
+		{"/api/v1/fleet/packs/id/7", "/packs/id/{id}"},
+		{"/api/v1/fleet/packs/my-pack", "/packs/{id}"},
 	} {
 		for _, method := range []string{http.MethodGet, http.MethodPost} {
 			t.Run(method+" "+c.path, func(t *testing.T) {
@@ -148,6 +154,8 @@ func TestRemovedPathOverlaps(t *testing.T) {
 		{http.MethodGet, "/api/v1/fleet/hosts/1/refetch", http.StatusMethodNotAllowed, http.MethodPost},
 		{http.MethodGet, "/api/v1/fleet/hosts/1/labels", http.StatusMethodNotAllowed, "POST, DELETE"},
 		{http.MethodGet, "/api/v1/fleet/hosts/1/nothing", http.StatusNotFound, ""},
+		{http.MethodGet, "/api/v1/fleet/packs/1/scheduled", http.StatusGone, ""},
+		{http.MethodGet, "/api/v1/fleet/packs/1/nothing", http.StatusNotFound, ""},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
 			t.Parallel()
@@ -175,4 +183,30 @@ func TestRemovedPathForEntryWithMethod(t *testing.T) {
 	unpinned := pinned
 	unpinned.Context = ""
 	assert.Empty(t, removedPathFor(template, unpinned).Methods)
+}
+
+// Send only requests that no route handles, because a handled request would increment the global
+// Prometheus request counters and make TestAPIRoutesMetrics fail with more requests than it expects.
+func TestRemovedSoftwarePathsNextToLiveRoutes(t *testing.T) {
+	svc, _ := newTestService(t, new(mock.Store), nil, nil)
+	limitStore, _ := memstore.New(0)
+	handler, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
+	require.NoError(t, err)
+
+	for _, c := range []struct {
+		path       string
+		wantStatus int
+	}{
+		// request POST-only software routes with GET, each should still return 405
+		{"/api/latest/fleet/software/package", http.StatusMethodNotAllowed},
+		{"/api/latest/fleet/software/batch", http.StatusMethodNotAllowed},
+		{"/api/latest/fleet/software/web_apps", http.StatusMethodNotAllowed},
+		// request software paths that are not a number, each should still return 404
+		{"/api/latest/fleet/software/foo", http.StatusNotFound},
+		{"/api/latest/fleet/software/123abc", http.StatusNotFound},
+	} {
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, c.path, nil))
+		require.Equal(t, c.wantStatus, rec.Code, c.path)
+	}
 }

@@ -39,6 +39,14 @@ if ($version -and (Test-Path -LiteralPath $installDir)) {
     }
 }
 
+# On Windows on Arm the installer refuses this x64 build with a message box
+# that hangs under SYSTEM. It has no switch to skip that check, but skips it
+# when TEAMCITY_VERSION is set. The app runs under x64 emulation.
+$nativeArch = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment').PROCESSOR_ARCHITECTURE
+if ($nativeArch -eq 'ARM64') {
+  $env:TEAMCITY_VERSION = "1"
+}
+
 $processOptions = @{
   FilePath = "$exeFilePath"
   ArgumentList = "/S"

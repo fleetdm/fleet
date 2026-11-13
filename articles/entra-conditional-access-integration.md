@@ -187,21 +187,12 @@ Make sure to assign the "Fleet conditional access" group to the Entra policy.
 
 ## Troubleshooting
 
-### "Couldn't connect. Please contact your Fleet administrator."
+If Fleet can't connect to Entra:
 
-Fleet shows this message when Microsoft returned an error while Fleet was setting up the integration (step 3), and Fleet has no specific message for that error.
+1. Confirm the "Fleet conditional access" group exists in Entra ([step 1](#step-1-create-a-fleet-conditional-access-group-in-entra)) and Fleet is added as a compliance partner in Intune ([step 2](#step-2-configure-fleet-in-intune)).
+2. Have an Entra admin who is also a Fleet admin sign in to Fleet, select **Connect**, and approve the permissions in the same session. Don't send Microsoft's consent link to someone else. Fleet creates a new link each time, and only the newest one works.
 
-To fix it:
-
-1. Have an Entra admin who can grant admin consent, and who is also a Fleet admin, sign in to Fleet.
-2. In Fleet, go to **Settings > Integrations > Conditional access** and select **Connect**. Enter the tenant ID, select **Save**, and approve the permissions in Microsoft in the same session. Don't use a consent link someone sent you earlier.
-3. In Entra, confirm admin consent was granted for Fleet's enterprise application and that the "Fleet conditional access" group exists.
-
-To see the underlying error, check the Fleet server logs for the `setup is not done` message, or the `setup_error` field in the response to the `POST /api/latest/fleet/conditional-access/microsoft/confirm` request (visible in your browser's developer tools).
-
-### "Couldn't update. Fleet didn't get permissions for Entra."
-
-Fleet didn't receive admin consent. This happens if the person approving the permissions isn't an Entra admin, cancels the Microsoft consent page, or uses a consent link that's out of date. Select **Connect** again and approve the permissions as described above.
+To see the underlying error, check the Fleet server logs for `setup is not done`, or the `setup_error` field in the `POST /api/latest/fleet/conditional-access/microsoft/confirm` response. If it keeps failing, [reach out to support](https://fleetdm.com/support).
 
 ## Disable
 

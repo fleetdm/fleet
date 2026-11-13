@@ -2340,7 +2340,7 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 
 	var queryParams []string
 	if teamID != nil {
-		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
+		queryParams = append(queryParams, "fleet_id", fmt.Sprintf("%d", *teamID))
 	}
 
 	var combined getMDMProfilesSummaryResponse

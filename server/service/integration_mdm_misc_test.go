@@ -1217,7 +1217,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 			{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{l1t1.Name}},
 			{DisplayName: "N3", Profile: declarationForTest("D1"), LabelsIncludeAll: []string{l1t1.Name}},
 		},
-	}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+	}, http.StatusNoContent, "fleet_id", fmt.Sprint(t1.ID))
 
 	// Create in-house app in team t1 that references l1t1.
 	payload := &fleet.UploadSoftwareInstallerPayload{
@@ -1559,14 +1559,16 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// because of time constraints (we haven't yet implemented test utilities for multipart uploads).
 
 		// Attempt to create a team profile with labels from another team (should fail).
-		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+		res := s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
 					DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"),
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
+		require.Contains(t, extractServerErrorText(res.Body),
+			fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the configuration profile.", l2t2.Name))
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
@@ -1574,7 +1576,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
@@ -1582,7 +1584,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
 
 		// Attempt to create a profile with a label on the same team (should succeed).
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
@@ -1592,7 +1594,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l1t1.Name},
 				},
 			},
-		}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusNoContent, "fleet_id", fmt.Sprint(t1.ID))
 
 		// Attempt to create a profile in "No team" with a label that belongs to a team (should fail).
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
@@ -1625,7 +1627,8 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			LabelsIncludeAny: []string{l2t2.Name},
 			Platform:         "linux",
 		}
-		s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusBadRequest, "")
+		s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusBadRequest,
+			fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", l2t2.Name))
 
 		// Attempt to create a software installer with a label on the same team (should succeed).
 		payloadRubyTm1 = &fleet.UploadSoftwareInstallerPayload{

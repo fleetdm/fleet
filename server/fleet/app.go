@@ -169,10 +169,10 @@ type VulnerabilitySettings struct {
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
 	Default          bool   `json:"default,omitempty"`
-	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
-	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
-	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
-	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
+	MacOSTeam        string `json:"macos_fleet"`
+	IOSTeam          string `json:"ios_fleet"`
+	IpadOSTeam       string `json:"ipados_fleet"`
+	BYODTeam         string `json:"byod_fleet"`
 }
 
 // CleanRemovedTeam unassigns removedTeamName, which for ABM is spelled as a
@@ -200,7 +200,7 @@ func (m *MDMAppleABMAssignmentInfo) RenameTeam(oldName, newName string) bool {
 // between a VPP token (via organization unit, formerly "location") and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
-	Teams    []string `json:"teams" renameto:"fleets"`
+	Teams    []string `json:"fleets"`
 }
 
 func (m *MDMAppleVolumePurchasingProgramInfo) RenameTeam(oldName, newName string) bool {
@@ -1119,6 +1119,10 @@ func (mos *MacOSSetup) ValidateAgainst(old MacOSSetup) error {
 		return NewInvalidArgumentError("macos_end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
 	}
 
+	// Only when the payload touches the pair, so an already invalid stored pair doesn't block unrelated settings.
+	if !mos.EnableManagedLocalAccount.Set && !mos.EndUserLocalAccountType.Set {
+		return nil
+	}
 	accountType := mos.EndUserLocalAccountType
 	if !accountType.Set || !accountType.Valid || accountType.Value == "" {
 		accountType = old.EndUserLocalAccountType
@@ -1896,7 +1900,6 @@ type ServerSettings struct {
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
 	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"discard_reports_data"`
-	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
 	MCPDisabled          bool   `json:"mcp_disabled"`
 	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
@@ -2209,7 +2212,7 @@ type ListOptions struct {
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`
 	// Used to request the pagination metadata in the response.
-	IncludeMetadata bool
+	IncludeMetadata bool `json:"-"`
 
 	// The following fields are for tests, to ensure a deterministic sort order
 	// when the single-column order key is not unique.

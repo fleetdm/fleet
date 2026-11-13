@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "156.0",
+      "version": "160.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (x64 en-US)' AND publisher = 'Mozilla';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '156.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Firefox Developer Edition (x64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '160.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/devedition/releases/156.0b2/win64/en-US/Firefox%20Setup%20156.0b2.exe",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/devedition/releases/160.0b3/win64/en-US/Firefox%20Setup%20160.0b3.exe",
       "install_script_ref": "8c6800a6",
       "uninstall_script_ref": "cc59b3f5",
-      "sha256": "16474c74b4c8456f283e2bbdc53ce1689582a816ae100555c459d6aebbecce8d",
+      "sha256": "4862953fab87a8e1094d355ea3d4652c029ccfc0b367b22a6682cfa920748df1",
       "default_categories": [
         "Browsers"
       ]

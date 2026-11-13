@@ -1,0 +1,14 @@
+{
+  "name": "FluidVoice",
+  "unique_identifier": "com.FluidApp.app",
+  "token": "fluidvoice",
+  "installer_format": "dmg",
+  "slug": "fluidvoice/darwin",
+  "default_categories": [
+    "Productivity"
+  ],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/fluidvoice-install.sh",
+  "post_uninstall_scripts": [
+    "trash \"$LOGGED_IN_USER\" '~/Library/Application Support/Fluid/RollbackBackups/FluidVoice'"
+  ]
+}

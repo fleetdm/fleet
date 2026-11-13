@@ -7,6 +7,8 @@
   critical: false
   description: |-
     Verifies UEFI Secure Boot is enabled.
-  resolution: |-
-    Enable Secure Boot in firmware (UEFI) settings. On managed PCs, please reach out in #help-it before changing firmware options.
+  resolution: >-
+    No action needed from you. IT reviews failing hosts and works with you to turn Secure Boot back on in the
+    firmware (UEFI) settings.
+  hidden: true
   platform: windows

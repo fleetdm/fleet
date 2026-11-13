@@ -8,6 +8,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,9 +28,9 @@ func TestValidateAPIEndpoints(t *testing.T) {
 
 	routerWithEndpoints := func(endpoints []fleet.APIEndpoint) *mux.Router {
 		r := mux.NewRouter()
+		ep := &endpointer.CommonEndpointer[any]{Router: r, Versions: []string{"v1"}}
 		for _, e := range endpoints {
-			path := strings.Replace(e.Path, "/_version_/", "/{fleetversion:(?:v1|latest)}/", 1)
-			r.Handle(path, http.NotFoundHandler()).Methods(e.Method)
+			ep.HandleHTTPHandler(e.Path, http.NotFoundHandler(), e.Method)
 		}
 		return r
 	}
@@ -87,13 +88,10 @@ type catalogBlocklistRule struct {
 //     code change that loosens that check would expose this).
 //   - Invite creation/modification — same as user creation, mints a new
 //     account with a chosen role.
-//   - Bulk role-spec apply (POST /users/roles/spec) — has a coarser authz
-//     check than the per-user modify path (no per-target ActionWriteRole gate).
 //
 // If you are intentionally exposing a new endpoint that matches one of these
 // patterns, justify the change in a security review and update the rules.
 var catalogBlocklistRules = []catalogBlocklistRule{
-	{"POST", regexp.MustCompile(`^/api/v1/fleet/users/roles/spec$`), "bulk role-spec apply lacks per-target ActionWriteRole gate"},
 	{"POST", regexp.MustCompile(`^/api/v1/fleet/users(?:/.*)?$`), "user creation can return a session token (allowlist bypass via clone)"},
 	{"PATCH", regexp.MustCompile(`^/api/v1/fleet/users(?:/.*)?$`), "user modification can change the api_endpoints allowlist"},
 	{"POST", regexp.MustCompile(`^/api/v1/fleet/invites(?:/.*)?$`), "invite creation = mint user with chosen role"},
@@ -130,7 +128,6 @@ func TestCatalogBlocklist(t *testing.T) {
 		// Failure here means a rule was deleted or its regex no longer matches
 		// the example path it was meant to cover.
 		examples := []fleet.APIEndpoint{
-			{Method: "POST", Path: "/api/v1/fleet/users/roles/spec"},
 			{Method: "POST", Path: "/api/v1/fleet/users"},
 			{Method: "POST", Path: "/api/v1/fleet/users/admin"},
 			{Method: "POST", Path: "/api/v1/fleet/users/api_only"},

@@ -108,18 +108,6 @@ controls:
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
       - path: ../lib/macos/declaration-profiles/Software Update settings.json
-      # --- Nudge configuration ---
-      # Edit both nudge-preferences*.mobileconfig files together, commit, then re-pin the SHA in Nudge settings.json's ProfileURL.
-      - path: ../lib/macos/configuration-profiles/nudge-background-task.mobileconfig
-      - path: ../lib/macos/declaration-profiles/Nudge settings.json
-        activation: ../lib/macos/declaration-profiles/Nudge activation.json
-        labels_exclude_any:
-          - "macOS 15 and older hosts"
-          - "Macs not enrolled through ADE"
-      - path: ../lib/macos/configuration-profiles/nudge-preferences-ungated.mobileconfig
-        labels_include_any:
-          - "macOS 15 and older hosts"
-          - "Macs not enrolled through ADE"
       - path: ../lib/macos/declaration-profiles/Disk management settings.json
         labels_exclude_any:
           - "Macs excluded from external storage restrictions"
@@ -170,7 +158,8 @@ controls:
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
-    - path: ../lib/macos/scripts/nudge-postinstall.sh
+    - path: ../lib/macos/scripts/uninstall-nudge.sh
+    - path: ../lib/macos/scripts/queue-macos-minor-update.sh
     - path: ../lib/macos/scripts/load-santa-system-extension.sh
     - path: ../lib/macos/scripts/hide-fleet-desktop-menu-bar.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
@@ -194,11 +183,11 @@ policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/latest-macos.yml
+  - path: ../lib/macos/policies/macos-minor-update-queued.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
-  - path: ../lib/macos/policies/nudge-installed.yml
-  - path: ../lib/macos/policies/install-nudge-assets.yml
+  - path: ../lib/macos/policies/nudge-removed.yml
   - path: ../lib/macos/policies/fleet-desktop-installed.yml
   - path: ../lib/macos/policies/install-fleet-desktop-launch-agent.yml
   - path: ../lib/macos/policies/fleet-desktop-menu-bar-hidden.yml
@@ -256,10 +245,6 @@ software:
         - "Keynote installed"
       categories:
         - Productivity
-    - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
-      self_service: false
-      categories:
-        - Utilities
     - path: ../lib/macos/software/fleet-desktop-launch-agent.yml
       self_service: false
       labels_include_any:
@@ -489,11 +474,6 @@ software:
         - Macs with Loom installed
       categories:
         - Productivity
-    - slug: nudge/darwin # Nudge for macOS
-      self_service: false
-      setup_experience: true
-      categories:
-        - Utilities
     - slug: spotify/darwin # Spotify for macOS
       self_service: true
       labels_include_any:

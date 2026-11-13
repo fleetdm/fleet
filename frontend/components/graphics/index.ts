@@ -4,10 +4,8 @@ import CollectingResults from "./CollectingResults";
 import DataError from "./DataError";
 import EmptyHosts from "./EmptyHosts";
 import EmptyIntegrations from "./EmptyIntegrations";
-import EmptyPacks from "./EmptyPacks";
 import EmptyPolicies from "./EmptyPolicies";
 import EmptyQueries from "./EmptyQueries";
-import EmptySchedule from "./EmptySchedule";
 import EmptySearchCheck from "./EmptySearchCheck";
 import EmptySearchExclamation from "./EmptySearchExclamation";
 import EmptySearchQuestion from "./EmptySearchQuestion";
@@ -41,8 +39,6 @@ export const GRAPHIC_MAP = {
   "empty-software": EmptySoftware,
   "empty-hosts": EmptyHosts,
   "empty-teams": EmptyTeams,
-  "empty-packs": EmptyPacks,
-  "empty-schedule": EmptySchedule,
   "empty-search-exclamation": EmptySearchExclamation,
   "empty-search-check": EmptySearchCheck,
   "empty-search-question": EmptySearchQuestion,

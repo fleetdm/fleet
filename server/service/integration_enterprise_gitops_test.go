@@ -218,14 +218,6 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	ggsr := getGlobalScheduleResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &ggsr)
 	require.NoError(t, ggsr.Err)
-	cpar := createPackResponse{}
-	var userPackID uint
-	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		Name:     new("Foobar"),
-		Disabled: new(false),
-	}, http.StatusOK, &cpar)
-	userPackID = cpar.Pack.Pack.ID
-	require.NotZero(t, userPackID)
 	cur := createUserResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
 		Email:      new("foo42@example.com"),
@@ -355,16 +347,13 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/labels", fleet.ListLabelsRequest{}, http.StatusOK, &fleet.ListLabelsResponse{})
 
 	// Attempt to delete a label, should allow.
-	s.DoJSON("DELETE", "/api/latest/fleet/labels/foo2", fleet.DeleteLabelRequest{}, http.StatusOK, &fleet.DeleteLabelResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", clr.Label.ID), nil, http.StatusOK, &fleet.DeleteLabelByIDResponse{})
 
 	// Listing software is allowed for gitops so they can reconcile software state.
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &listSoftwareVersionsResponse{})
-	s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusOK, &listSoftwareResponse{})
-	s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusOK, &countSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{})
 	// Getting a single software title or version still requires Host:list, which gitops doesn't have.
 	s.DoJSON("GET", "/api/latest/fleet/software/titles/1", getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResponse{})
-	s.DoJSON("GET", "/api/latest/fleet/software/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/versions/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 
 	// Attempt to read app config, should pass.
@@ -455,42 +444,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("POST", "/api/latest/fleet/queries/delete", fleet.DeleteQueriesRequest{IDs: []uint{cqr2.Query.ID}}, http.StatusOK, &fleet.DeleteQueriesResponse{})
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", cqr3.Query.ID), fleet.DeleteQueryByIDRequest{}, http.StatusOK, &fleet.DeleteQueryByIDResponse{})
 
-	// Attempt to add a query to a user pack, should allow.
-	sqr := fleet.ScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", fleet.ScheduleQueryRequest{
-		PackID:   userPackID,
-		QueryID:  cqr4.Query.ID,
-		Interval: 60,
-	}, http.StatusOK, &sqr)
-
-	// Attempt to edit a scheduled query in the global schedule, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), fleet.ModifyScheduledQueryRequest{
-		Interval: new(uint(30)),
-	}, http.StatusOK, &fleet.ScheduleQueryResponse{})
-
-	// Attempt to remove a query from the global schedule, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), fleet.DeleteScheduledQueryRequest{}, http.StatusOK, &fleet.DeleteScheduledQueryResponse{})
-
 	// Attempt to read the global schedule, should allow.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
-
-	// Attempt to create a pack, should allow.
-	cpr := createPackResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		Name: new("foo8"),
-	}, http.StatusOK, &cpr)
-
-	// Attempt to edit a pack, should allow.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", cpr.Pack.ID), modifyPackRequest{
-		Name: new("foo9"),
-	}, http.StatusOK, &modifyPackResponse{})
-
-	// Attempt to read a pack, should allow.
-	// This is an exception to the "write only" nature of gitops (packs can be viewed by gitops).
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/packs/%d", cpr.Pack.ID), nil, http.StatusOK, &getPackResponse{})
-
-	// Attempt to delete a pack, should allow.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/id/%d", cpr.Pack.ID), deletePackRequest{}, http.StatusOK, &deletePackResponse{})
 
 	// Attempt to create a global policy, should allow.
 	gplr := fleet.GlobalPolicyResponse{}
@@ -703,14 +658,6 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to read other team's schedule, should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
 
-	// Attempt to add a query to a user pack, should fail.
-	tsqr := fleet.ScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", fleet.ScheduleQueryRequest{
-		PackID:   userPackID,
-		QueryID:  cqr4.Query.ID,
-		Interval: 60,
-	}, http.StatusForbidden, &tsqr)
-
 	// Attempt to add a query to the team's schedule, should allow.
 	cqrt1 := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
@@ -869,11 +816,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	}, http.StatusForbidden, &fleet.CountTargetsResponse{})
 
 	// Listing software titles for the team it owns is allowed.
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{}, "team_id", fmt.Sprint(t1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{}, "fleet_id", fmt.Sprint(t1.ID))
 	// Listing software titles globally (no team) is forbidden for team gitops.
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{})
 	// Listing software titles for a team it does not own is forbidden.
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{}, "team_id", fmt.Sprint(t2.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{}, "fleet_id", fmt.Sprint(t2.ID))
 }
 
 func (s *integrationEnterpriseTestSuite) TestOrgLogoUploadGitOpsAuth() {
