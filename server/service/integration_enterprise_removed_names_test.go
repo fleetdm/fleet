@@ -51,6 +51,9 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"PUT", "/setup_experience/software", `{"team_id": 1, "platform": "macos"}`, "team_id"},
 		{"POST", "/certificates", `{"name": "a", "team_id": 1}`, "team_id"},
 		{"DELETE", "/spec/certificates", `{"team_id": 1, "names": ["a"]}`, "team_id"},
+		{"POST", "/software/app_store_apps", `{"app_store_id": "a", "team_id": 1}`, "team_id"},
+		{"PATCH", "/software/titles/1/app_store_app", `{"team_id": 1}`, "team_id"},
+		{"PATCH", "/fleets/1/secrets", `{"secrets": [{"secret": "a", "team_id": 1}]}`, "team_id"},
 	} {
 		reject(tc[0], tc[1], tc[2], tc[3])
 	}
@@ -63,10 +66,14 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"GET", "/setup_experience/software"}, {"GET", "/setup_experience/script"}, {"DELETE", "/setup_experience/script"},
 		{"GET", "/certificates"},
 		{"GET", "/hosts"}, {"GET", "/hosts/count"}, {"GET", "/hosts/report"}, {"GET", "/users"},
+		{"GET", "/vulnerabilities"}, {"GET", "/vulnerabilities/CVE-2021-1234"},
+		{"GET", "/software/fleet_maintained_apps"}, {"GET", "/software/fleet_maintained_apps/1"}, {"GET", "/software/app_store_apps"},
+		{"GET", "/software/titles/1/icon"}, {"DELETE", "/software/titles/1/icon"},
 	} {
 		reject(tc[0], tc[1], "", "team_id", "fleet_id", "0", "team_id", "1")
 	}
 	reject("POST", "/scripts/batch", "", "team_name", "team_name", "a")
+	reject("POST", "/software/app_store_apps/batch", "", "team_name", "team_name", "a")
 
 	// The rejected create calls did not create anything, and the new name is accepted.
 	require.Len(t, s.listReports(), reportsBefore)
