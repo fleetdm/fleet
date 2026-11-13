@@ -1559,13 +1559,6 @@ func TestDEPSyncTeamAssignment(t *testing.T) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
 	require.NoError(t, err)
 
-	// assign the team as the default team for DEP devices
-	ac, err := ds.AppConfig(ctx)
-	require.NoError(t, err)
-	ac.MDM.DeprecatedAppleBMDefaultTeam = team.Name
-	err = ds.SaveAppConfig(ctx, ac)
-	require.NoError(t, err)
-
 	depDevices = []godep.Device{
 		{SerialNumber: "abc", Model: "MacBook Pro", OS: "OSX", OpType: "added"},
 		{SerialNumber: "xyz", Model: "MacBook Pro", OS: "OSX", OpType: "added"},

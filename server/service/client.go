@@ -2526,10 +2526,8 @@ func (c *Client) DoGitOps(
 			return nil, errors.New("org_settings.mdm config is not a map")
 		}
 
-		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
-			if _, ok := mdmAppConfig["apple_business"]; !ok {
-				mdmAppConfig["apple_business"] = []any{}
-			}
+		if _, ok := mdmAppConfig["apple_business"]; !ok && appConfig.License.IsPremium() {
+			mdmAppConfig["apple_business"] = []any{}
 		}
 
 		// Put in default value for volume_purchasing_program to clear the configuration if it's not set.

@@ -23,6 +23,7 @@ import (
 	"slices"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -124,14 +125,21 @@ func (s *integrationTestSuite) TestTranslator() {
 	tm, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, s.ds.DeleteTeam(context.Background(), tm.ID)) })
-	for _, typ := range []string{fleet.TranslatorTypeTeam, fleet.TranslatorTypeFleet} {
-		payload = translatorResponse{}
-		params = translatorRequest{List: []fleet.TranslatePayload{{Type: typ, Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
-		s.DoJSON("POST", "/api/latest/fleet/translate", &params, http.StatusOK, &payload)
-		require.Len(t, payload.List, 1)
-		assert.Equal(t, typ, payload.List[0].Type)
-		assert.Equal(t, tm.ID, payload.List[0].Payload.ID)
-	}
+	payload = translatorResponse{}
+	params = translatorRequest{List: []fleet.TranslatePayload{{Type: fleet.TranslatorTypeFleet, Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
+	s.DoJSON("POST", "/api/latest/fleet/translate", &params, http.StatusOK, &payload)
+	require.Len(t, payload.List, 1)
+	assert.Equal(t, fleet.TranslatorTypeFleet, payload.List[0].Type)
+	assert.Equal(t, tm.ID, payload.List[0].Payload.ID)
+
+	// the team type was removed in Fleet 5
+	removedTeamType, ok := removednames.Find(removednames.KindTargetType, "team", "")
+	require.True(t, ok)
+	params = translatorRequest{List: []fleet.TranslatePayload{{Type: "team", Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
+	res := s.Do("POST", "/api/latest/fleet/translate", &params, http.StatusUnprocessableEntity)
+	name, reason := extractServerErrorNameReason(res.Body)
+	assert.Equal(t, "type", name)
+	assert.Contains(t, reason, removedTeamType.Message())
 
 	// empty body
 	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{}, http.StatusBadRequest, &payload)

@@ -56,8 +56,8 @@ func requireRejected(t *testing.T, err error, wantKey string) {
 }
 
 func TestRejectRemovedJSONKeys(t *testing.T) {
-	SetRemovedNames([]string{"team_id", "teams", "Team"}, nil, nil)
-	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
+	SetRemovedNames([]string{"team_id", "teams", "Team"}, nil, nil, nil)
+	t.Cleanup(func() { SetRemovedNames(nil, nil, nil, nil) })
 	typ := reflect.TypeFor[scanRequest]()
 
 	for _, tc := range []struct {
@@ -92,8 +92,8 @@ func TestRejectRemovedJSONKeys(t *testing.T) {
 }
 
 func TestRejectRemovedQueryParams(t *testing.T) {
-	SetRemovedNames(nil, []string{"team_id", "team_name"}, nil)
-	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
+	SetRemovedNames(nil, []string{"team_id", "team_name"}, []string{"team_name"}, nil)
+	t.Cleanup(func() { SetRemovedNames(nil, nil, nil, nil) })
 
 	type renamed struct {
 		FleetID *uint `query:"fleet_id,optional"`
@@ -108,6 +108,8 @@ func TestRejectRemovedQueryParams(t *testing.T) {
 		{name: "parameter names are case sensitive, like the decoder", query: "Team_ID=1"},
 		{name: "a parameter the type still declares", typ: reflect.TypeFor[scanRequest](), query: "team_id=1"},
 		{name: "declared through an embedded struct", typ: reflect.TypeFor[scanRequest](), query: "fleet_id=1&team_name=x", wantKey: "team_name"},
+		{name: "removed sort key", query: "order_key=team_name", wantKey: "team_name"},
+		{name: "sort keys are matched as values of order_key only", query: "order_key=fleet_name&sort=team_name"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			values, err := url.ParseQuery(tc.query)
@@ -118,8 +120,8 @@ func TestRejectRemovedQueryParams(t *testing.T) {
 }
 
 func TestMakeDecoderRemovedNames(t *testing.T) {
-	SetRemovedNames([]string{"team_id"}, []string{"team_id"}, []string{"/orbit/", "/device/"})
-	t.Cleanup(func() { SetRemovedNames(nil, nil, nil) })
+	SetRemovedNames([]string{"team_id"}, []string{"team_id"}, nil, []string{"/orbit/", "/device/"})
+	t.Cleanup(func() { SetRemovedNames(nil, nil, nil, nil) })
 
 	type request struct {
 		FleetID uint `json:"fleet_id"`

@@ -2,6 +2,7 @@ package endpointer
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"io"
 	"reflect"
@@ -15,6 +16,8 @@ import (
 // SetRemovedKeyMessage. It renders as the usual 422 validation error, {"message", "errors": [{"name", "reason"}]}.
 type RemovedKeyError struct {
 	Key string
+	// Param is the parameter whose value is the removed name, such as order_key; empty when Key is the parameter itself.
+	Param string
 }
 
 var removedKeyMessage atomic.Pointer[func(key string) string]
@@ -31,7 +34,7 @@ func (e *RemovedKeyError) Error() string {
 }
 
 func (e *RemovedKeyError) Invalid() []map[string]string {
-	return []map[string]string{{"name": e.Key, "reason": e.Error()}}
+	return []map[string]string{{"name": cmp.Or(e.Param, e.Key), "reason": e.Error()}}
 }
 
 func (e *RemovedKeyError) IsClientError() bool { return true }

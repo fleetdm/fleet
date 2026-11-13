@@ -16,7 +16,8 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 	t := s.T()
 	reportsBefore := len(s.listReports())
 
-	reject := func(method, path, body, key string, query ...string) {
+	// rejectNamed expects the error to name the field param, which differs from key only when key is a removed value.
+	rejectNamed := func(method, path, body, param, key string, query ...string) {
 		t.Run(method+" "+path+" "+key, func(t *testing.T) {
 			resp := s.DoRaw(method, "/api/latest/fleet"+path, []byte(body), http.StatusUnprocessableEntity, query...)
 			var got struct {
@@ -26,9 +27,12 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 			require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
 			require.Equal(t, "Validation Failed", got.Message)
 			require.Equal(t, []map[string]string{{
-				"name": key, "reason": `The "` + key + `" parameter is not available anymore. What to use instead: ` + removednames.GuideURL,
+				"name": param, "reason": `The "` + key + `" parameter is not available anymore. What to use instead: ` + removednames.GuideURL,
 			}}, got.Errors)
 		})
+	}
+	reject := func(method, path, body, key string, query ...string) {
+		rejectNamed(method, path, body, key, key, query...)
 	}
 
 	// Request body keys: fleet roles, selected fleets and the fleet of a created or targeted entity.
@@ -51,6 +55,7 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"PUT", "/setup_experience/software", `{"team_id": 1, "platform": "macos"}`, "team_id"},
 		{"POST", "/certificates", `{"name": "a", "team_id": 1}`, "team_id"},
 		{"DELETE", "/spec/certificates", `{"team_id": 1, "names": ["a"]}`, "team_id"},
+		{"PATCH", "/config", `{"mdm": {"apple_bm_default_team": "a"}}`, "apple_bm_default_team"},
 	} {
 		reject(tc[0], tc[1], tc[2], tc[3])
 	}
@@ -67,6 +72,14 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		reject(tc[0], tc[1], "", "team_id", "fleet_id", "0", "team_id", "1")
 	}
 	reject("POST", "/scripts/batch", "", "team_name", "team_name", "a")
+
+	// Removed sort keys are values of order_key, so the error names that parameter.
+	for _, tc := range [][]string{
+		{"/hosts", "team_name"}, {"/hosts", "team_id"}, {"/labels", "team_id"}, {"/labels/1/hosts", "team_name"},
+		{"/fleets/0/policies", "team_id"}, {"/reports", "team_id"}, {"/configuration_profiles", "team_id"},
+	} {
+		rejectNamed("GET", tc[0], "", "order_key", tc[1], "order_key", tc[1])
+	}
 
 	// The rejected create calls did not create anything, and the new name is accepted.
 	require.Len(t, s.listReports(), reportsBefore)

@@ -23,6 +23,7 @@ import (
 type removedNames struct {
 	jsonKeys    map[string]struct{} // lower case, JSON member names match case-insensitively
 	queryParams map[string]struct{} // exact, query parameter names are case-sensitive
+	sortKeys    map[string]struct{} // exact values of the order_key parameter
 	// skipPaths are request path segments, such as "/orbit/", whose requests the scan leaves alone.
 	skipPaths []string
 }
@@ -37,10 +38,11 @@ const maxRemovedNamesScanSize = 1 << 20
 var removedNamesList atomic.Pointer[removedNames]
 
 // SetRemovedNames sets the request names the scan rejects.
-func SetRemovedNames(jsonKeys, queryParams, skipPaths []string) {
+func SetRemovedNames(jsonKeys, queryParams, sortKeys, skipPaths []string) {
 	names := &removedNames{
 		jsonKeys:    make(map[string]struct{}, len(jsonKeys)),
 		queryParams: make(map[string]struct{}, len(queryParams)),
+		sortKeys:    make(map[string]struct{}, len(sortKeys)),
 		skipPaths:   skipPaths,
 	}
 	for _, k := range jsonKeys {
@@ -48,6 +50,9 @@ func SetRemovedNames(jsonKeys, queryParams, skipPaths []string) {
 	}
 	for _, p := range queryParams {
 		names.queryParams[p] = struct{}{}
+	}
+	for _, k := range sortKeys {
+		names.sortKeys[k] = struct{}{}
 	}
 	removedNamesList.Store(names)
 }
@@ -199,11 +204,16 @@ func jsonFields(t reflect.Type) map[string]reflect.Type {
 var queryNamesCache sync.Map // reflect.Type → map[string]struct{}
 
 // RejectRemovedQueryParams returns a *RemovedKeyError if the query string uses a removed parameter name that the request type t
-// does not declare in a `query` tag.
+// does not declare in a `query` tag, or sorts by a removed order_key.
 func RejectRemovedQueryParams(query url.Values, t reflect.Type) error {
 	names := removedNamesList.Load()
-	if names == nil || len(names.queryParams) == 0 || len(query) == 0 {
+	if names == nil || len(query) == 0 {
 		return nil
+	}
+	for _, key := range query["order_key"] {
+		if _, isRemoved := names.sortKeys[key]; isRemoved {
+			return &RemovedKeyError{Key: key, Param: "order_key"}
+		}
 	}
 	declared := declaredQueryNames(t)
 	for param := range query {
