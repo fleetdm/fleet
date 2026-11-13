@@ -1424,13 +1424,13 @@ The minimum time difference between the software's "last opened at" timestamp re
 
 ### osquery_ai_session_max_tool_calls
 
-Applies only to Fleet Premium. The maximum number of tool calls Fleet stores for each AI coding agent session.
+Applies only to Fleet Premium. The maximum number of tool calls Fleet stores for each AI coding agent session. Set it to 0 to store sessions without their tool calls. It can't be negative.
 
 Fleet stores each tool call with its arguments, which take around 1 KB in the database on average, so a single long session can add up. Once a session reaches the limit, Fleet stops collecting its tool calls. Fleet keeps a session's first tool calls rather than its latest, so for a session longer than the limit, the newest tool calls are the ones missing. The session's tool call count still shows how many it made in total.
 
 Raising the limit lets Fleet collect the rest of the tool calls of sessions that hit it, as long as they haven't expired and their transcripts are still on the host. Lowering it doesn't delete tool calls Fleet already stored; they're removed when the session expires, 30 days after it was last active.
 
-To stop collecting AI sessions altogether, use [`server_settings.ai_sessions_disabled`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) instead.
+Setting it to 0 stops Fleet from asking hosts for tool calls, which also keeps commands and their arguments out of Fleet. Sessions are still collected, and the **Host details** page shows them without events. To stop collecting AI sessions altogether, use [`server_settings.ai_sessions_disabled`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) instead.
 
 - Default value: 10000
 - Environment variable: `FLEET_OSQUERY_AI_SESSION_MAX_TOOL_CALLS`

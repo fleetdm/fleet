@@ -7651,7 +7651,7 @@ Lists the tool calls an AI coding agent made during a session, in the order they
 
 Only admins and maintainers, globally or of the host's fleet, can see AI sessions.
 
-Fleet collects a session's tool calls on the refresh after it collects the session, so they can trail the session by a refresh (one hour by default). Fleet stops collecting a session's tool calls once its transcript is gone from the host. Fleet stores a session's first 10,000 tool calls by default (see [`osquery_ai_session_max_tool_calls`](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-ai-session-max-tool-calls)), so a longer session lists fewer events than its `tool_call_count`.
+Fleet collects a session's tool calls on the refresh after it collects the session, so they can trail the session by a refresh (one hour by default). Fleet stops collecting a session's tool calls once its transcript is gone from the host. Fleet stores a session's first 10,000 tool calls by default, so a longer session lists fewer events than its `tool_call_count`. If [`osquery_ai_session_max_tool_calls`](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-ai-session-max-tool-calls) is set to 0, Fleet stores no tool calls and this endpoint returns an empty list.
 
 `GET /api/v1/fleet/hosts/:id/ai_sessions/:ai_session_id/events`
 
