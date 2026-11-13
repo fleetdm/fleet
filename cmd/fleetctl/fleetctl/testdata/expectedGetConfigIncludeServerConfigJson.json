@@ -21,6 +21,7 @@
       "enable_analytics": false,
       "deferred_save_host": false,
       "ai_features_disabled": false,
+      "ai_sessions_disabled": false,
       "mcp_disabled": false
     },
     "smtp_settings": {

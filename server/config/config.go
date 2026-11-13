@@ -290,8 +290,14 @@ type OsqueryConfig struct {
 	// TODO(lucas): We should at least add a warning if this field is populated.
 	ResultLogFile string `yaml:"result_log_file"`
 
-	EnableLogRotation                bool          `yaml:"enable_log_rotation"`
-	MaxJitterPercent                 int           `yaml:"max_jitter_percent"`
+	EnableLogRotation bool `yaml:"enable_log_rotation"`
+	MaxJitterPercent  int  `yaml:"max_jitter_percent"`
+	// AISessionMaxToolCalls is how many of an AI agent session's tool calls Fleet stores, its first ones. 0 stores the
+	// sessions without their tool calls.
+	AISessionMaxToolCalls int `yaml:"ai_session_max_tool_calls"`
+	// AISessionMaxToolCallsPerRefresh is how many new tool calls Fleet asks a host for per AI agent session at each
+	// refresh; 0 leaves it to what fits in the host's result.
+	AISessionMaxToolCallsPerRefresh  int           `yaml:"ai_session_max_tool_calls_per_refresh"`
 	EnableAsyncHostProcessing        string        `yaml:"enable_async_host_processing"` // true/false or per-task
 	AsyncHostCollectInterval         string        `yaml:"async_host_collect_interval"`  // duration or per-task
 	AsyncHostCollectMaxJitterPercent int           `yaml:"async_host_collect_max_jitter_percent"`
@@ -382,8 +388,9 @@ type OsqueryConfig struct {
 	MaxConcurrentQueryReportWrites int `yaml:"max_concurrent_query_report_writes"`
 }
 
-// Validate checks that osquery_host_identifier is one of the supported values.
-// The osquery agent uses this to determine which identifier is reported as the host UUID.
+// Validate checks that osquery_host_identifier is one of the supported values, and that
+// osquery_ai_session_max_tool_calls isn't negative.
+// The osquery agent uses the host identifier to determine which identifier is reported as the host UUID.
 func (o OsqueryConfig) Validate(initFatal func(err error, msg string)) {
 	allowed := map[string]struct{}{
 		"provided": {},
@@ -394,6 +401,10 @@ func (o OsqueryConfig) Validate(initFatal func(err error, msg string)) {
 	if _, ok := allowed[o.HostIdentifier]; !ok {
 		initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", o.HostIdentifier),
 			"set host identifier")
+	}
+	if o.AISessionMaxToolCalls < 0 {
+		initFatal(fmt.Errorf("%d is not a valid value for osquery_ai_session_max_tool_calls: it can't be negative", o.AISessionMaxToolCalls),
+			"set AI session max tool calls")
 	}
 }
 
@@ -1989,6 +2000,10 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
 	man.addConfigInt("osquery.max_jitter_percent", 10,
 		"Maximum percentage of the interval to add as jitter")
+	man.addConfigInt("osquery.ai_session_max_tool_calls", 10000,
+		"Maximum number of tool calls stored per host AI agent session (the first ones are kept)")
+	man.addConfigInt("osquery.ai_session_max_tool_calls_per_refresh", 0,
+		"Maximum number of new tool calls requested per host AI agent session at each detail refresh (0 for no limit)")
 	man.addConfigString("osquery.enable_async_host_processing", "false",
 		"Enable asynchronous processing of host-reported query results (either 'true'/'false' or set per task, e.g., 'label_membership=true&policy_membership=true')")
 	man.addConfigString("osquery.async_host_collect_interval", (30 * time.Second).String(),
@@ -2590,6 +2605,8 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 			DetailUpdateInterval:             man.getConfigDuration("osquery.detail_update_interval"),
 			EnableLogRotation:                man.getConfigBool("osquery.enable_log_rotation"),
 			MaxJitterPercent:                 man.getConfigInt("osquery.max_jitter_percent"),
+			AISessionMaxToolCalls:            man.getConfigInt("osquery.ai_session_max_tool_calls"),
+			AISessionMaxToolCallsPerRefresh:  man.getConfigInt("osquery.ai_session_max_tool_calls_per_refresh"),
 			EnableAsyncHostProcessing:        man.getConfigString("osquery.enable_async_host_processing"),
 			AsyncHostCollectInterval:         man.getConfigString("osquery.async_host_collect_interval"),
 			AsyncHostCollectMaxJitterPercent: man.getConfigInt("osquery.async_host_collect_max_jitter_percent"),
@@ -3296,6 +3313,7 @@ func TestConfig() FleetConfig {
 			AllowBodyAuthFallback: true,
 			ConfigETags:           true,
 			ConfigInMemoryCache:   true, // off in production; on here to cover the cache paths
+			AISessionMaxToolCalls: 10000,
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,

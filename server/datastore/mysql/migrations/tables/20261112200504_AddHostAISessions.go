@@ -10,36 +10,35 @@ func init() {
 }
 
 func Up_20261112200504(tx *sql.Tx) error {
-	// backfill marks a session that had been running for a while when Fleet first stored it, whose calls are read a
-	// few at a time. actions and event_count through events_empty_reads summarize the session's stored events, so
-	// picking the sessions that still need events at each detail refresh reads only this table.
-
+	// actions and event_count through events_empty_reads summarize the session's stored events, so picking the
+	// sessions that still need events at each detail refresh reads only this table. agent and
+	// agent_session_id compare exactly, as the host reports them: IDs differing only in case or trailing spaces are
+	// other sessions.
 	_, err := tx.Exec(`
 CREATE TABLE IF NOT EXISTS host_ai_sessions (
-	id                            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-	host_id                       INT UNSIGNED NOT NULL,
-	agent                         VARCHAR(32) NOT NULL,
-	agent_session_id              VARCHAR(255) NOT NULL,
-	agent_version                 VARCHAR(64) NOT NULL DEFAULT '',
-	username                      VARCHAR(255) NOT NULL DEFAULT '',
-	account_identifier            VARCHAR(255) NOT NULL DEFAULT '',
-	model                         VARCHAR(255) NOT NULL DEFAULT '',
-	project_path                  TEXT NOT NULL,
-	git_repository                VARCHAR(255) NOT NULL DEFAULT '',
-	git_branch                    VARCHAR(255) NOT NULL DEFAULT '',
-	started_at                    DATETIME(6) NULL DEFAULT NULL,
-	ended_at                      DATETIME(6) NULL DEFAULT NULL,
-	user_message_count            INT UNSIGNED NOT NULL DEFAULT 0,
-	assistant_message_count       INT UNSIGNED NOT NULL DEFAULT 0,
-	tool_call_count               INT UNSIGNED NOT NULL DEFAULT 0,
-	input_token_count             BIGINT UNSIGNED NOT NULL DEFAULT 0,
-	output_token_count            BIGINT UNSIGNED NOT NULL DEFAULT 0,
-	cache_read_token_count        BIGINT UNSIGNED NOT NULL DEFAULT 0,
-	cache_write_token_count       BIGINT UNSIGNED NOT NULL DEFAULT 0,
-	actions                       SET('read', 'write', 'execute', 'search', 'network', 'mcp', 'other') NOT NULL DEFAULT '',
-	transcript_path               TEXT NOT NULL,
-	transcript_size               BIGINT UNSIGNED NOT NULL DEFAULT 0,
-	backfill                        TINYINT(1) NOT NULL DEFAULT 0,
+	id                              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+	host_id                         INT UNSIGNED NOT NULL,
+	agent                           VARCHAR(32) COLLATE utf8mb4_0900_bin NOT NULL,
+	agent_session_id                VARCHAR(255) COLLATE utf8mb4_0900_bin NOT NULL,
+	agent_version                   VARCHAR(64) NOT NULL DEFAULT '',
+	username                        VARCHAR(255) NOT NULL DEFAULT '',
+	account_identifier              VARCHAR(255) NOT NULL DEFAULT '',
+	model                           VARCHAR(255) NOT NULL DEFAULT '',
+	project_path                    TEXT NOT NULL,
+	git_repository                  VARCHAR(255) NOT NULL DEFAULT '',
+	git_branch                      VARCHAR(255) NOT NULL DEFAULT '',
+	started_at                      DATETIME(6) NULL DEFAULT NULL,
+	ended_at                        DATETIME(6) NULL DEFAULT NULL,
+	user_message_count              INT UNSIGNED NOT NULL DEFAULT 0,
+	assistant_message_count         INT UNSIGNED NOT NULL DEFAULT 0,
+	tool_call_count                 INT UNSIGNED NOT NULL DEFAULT 0,
+	input_token_count               BIGINT UNSIGNED NOT NULL DEFAULT 0,
+	output_token_count              BIGINT UNSIGNED NOT NULL DEFAULT 0,
+	cache_read_token_count          BIGINT UNSIGNED NOT NULL DEFAULT 0,
+	cache_write_token_count         BIGINT UNSIGNED NOT NULL DEFAULT 0,
+	actions                         SET('read', 'write', 'execute', 'search', 'network', 'mcp', 'other') NOT NULL DEFAULT '',
+	transcript_path                 TEXT NOT NULL,
+	transcript_size                 BIGINT UNSIGNED NOT NULL DEFAULT 0,
 	event_count                     INT UNSIGNED NOT NULL DEFAULT 0,
 	first_undecided_tool_call_index INT UNSIGNED NULL DEFAULT NULL,
 	events_ended_at                 DATETIME(6) NULL DEFAULT NULL,
@@ -49,13 +48,15 @@ CREATE TABLE IF NOT EXISTS host_ai_sessions (
 	PRIMARY KEY (id),
 	UNIQUE KEY idx_host_ai_sessions_host_agent_session (host_id, agent, agent_session_id),
 	KEY idx_host_ai_sessions_host_ended_at (host_id, ended_at),
-	KEY idx_host_ai_sessions_started_at (started_at),
-	KEY idx_host_ai_sessions_updated_at_started_at (updated_at, started_at)
+	KEY idx_host_ai_sessions_ended_at (ended_at),
+	KEY idx_host_ai_sessions_updated_at_ended_at (updated_at, ended_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
 	if err != nil {
 		return fmt.Errorf("create host_ai_sessions table: %w", err)
 	}
 
+	// The cleanup deletes a session's events in batches before the session, so the cascade only removes those an
+	// ingest stored in between. Without it, deleting the session would fail on them.
 	_, err = tx.Exec(`
 CREATE TABLE IF NOT EXISTS host_ai_session_events (
 	id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -68,7 +69,6 @@ CREATE TABLE IF NOT EXISTS host_ai_session_events (
 	payload         JSON NOT NULL,
 	content_length  INT UNSIGNED NOT NULL DEFAULT 0,
 	truncated       TINYINT(1) NOT NULL DEFAULT 0,
-
 	created_at      DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 	updated_at      DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 	PRIMARY KEY (id),

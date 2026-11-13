@@ -23,10 +23,15 @@ const (
 // events never get a decision.
 const AISessionAgentCursor = "cursor"
 
-// HostAISessionsMaxAge is how far back sessions are collected: hosts report those that started this recently, and
-// Fleet keeps a session for as long after it started, or after Fleet last saw it change when its start is unknown or
-// in the future, including after its transcript is gone from the host.
+// HostAISessionsMaxAge is how long Fleet keeps a session after it was last active, or after Fleet last saw it change
+// when its end is unknown or in the future, including after its transcript is gone from the host. Hosts report the
+// sessions active in the last week.
 const HostAISessionsMaxAge = 30 * 24 * time.Hour
+
+// DefaultHostAISessionMaxEvents is how many of a session's tool calls Fleet stores unless the server is configured
+// otherwise. They are its first ones: the stored calls have to stay the session's first so reading can resume after
+// them.
+const DefaultHostAISessionMaxEvents = 10_000
 
 // HostAISession is an AI coding agent session on a host, as collected from fleetd's ai_agent_sessions table.
 type HostAISession struct {
@@ -41,8 +46,8 @@ type HostAISession struct {
 	ProjectPath       string `db:"project_path"`
 	GitRepository     string `db:"git_repository"`
 	GitBranch         string `db:"git_branch"`
-	// StartedAt and EndedAt bound the session's activity on the agent's clock; nil when the agent doesn't record it
-	// (Cursor has no start time).
+	// StartedAt and EndedAt bound the session's activity on the host's clock; nil when unknown. Hosts only report
+	// sessions with a known end, so a nil EndedAt is one past what a DATETIME holds.
 	StartedAt *time.Time `db:"started_at"`
 	EndedAt   *time.Time `db:"ended_at"`
 	// UserMessageCount is the prompts the person typed: tool results, sub-agent instructions and text the agent
@@ -99,8 +104,6 @@ type HostAISessionEventsCursor struct {
 	EndedAt        *time.Time `db:"ended_at"`
 	// EventCount is how many of the session's calls are stored: always its first EventCount, so reading resumes there.
 	EventCount uint `db:"event_count"`
-	// MaxToolCalls, when set, is how many calls to read at most: the session is a backfill, read a few calls at a time.
-	MaxToolCalls uint `db:"max_tool_calls"`
 	// RereadFromToolCallIndex is set when the session has events without a decision and has been active since they
 	// were read, so they're read again from the first of them.
 	RereadFromToolCallIndex *uint `db:"reread_from_tool_call_index"`

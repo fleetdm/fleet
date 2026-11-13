@@ -633,7 +633,6 @@ var hostRefs = []string{
 	"host_one_time_enroll_secrets",
 	"notifications_end_user",
 	"host_policy_automation_run_counts",
-	"host_ai_sessions",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not
@@ -657,6 +656,10 @@ var hostRefs = []string{
 // MDM-enrolled with Platform SSO active, and its registered keys must keep
 // authenticating token requests. ADE re-enrollment clears them via
 // MDMAppleResetOnReenrollment.
+
+// - host_ai_sessions (and host_ai_session_events, by its foreign key): a host can have too many events
+// to delete with it, so the cleanups cron deletes the sessions of deleted hosts in batches
+// (CleanupHostAISessions).
 
 // additionalHostRefsByUUID are host refs cannot be deleted using the host.id like the hostRefs
 // above. They use the host.uuid instead. Additionally, the column name that refers to
