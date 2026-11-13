@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.9.8.1",
+      "version": "8.9.9.1",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Notepad++ (ARM 64-bit)' AND publisher = 'Notepad++ Team') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Notepad++ (ARM 64-bit)' AND publisher = 'Notepad++ Team' AND version_compare(version, '8.9.8.1') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Notepad++ (ARM 64-bit)' AND publisher = 'Notepad++ Team' AND version_compare(version, '8.9.9.1') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'notepad++.exe');"
       },
-      "installer_url": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.8.1/npp.8.9.8.1.Installer.arm64.exe",
+      "installer_url": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.9.1/npp.8.9.9.1.Installer.arm64.exe",
       "install_script_ref": "46c6fee6",
       "uninstall_script_ref": "f0ad8cf4",
-      "sha256": "a53c5116b55ac93fedd7808e71096badecbf10a55f2be9b28b741591b8917a73",
+      "sha256": "e5ac20348d83693a2816f4ed8e4a3118d5759f258af07c8cec525d1e0cc026e9",
       "default_categories": [
         "Productivity"
       ]
