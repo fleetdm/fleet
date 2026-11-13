@@ -108,7 +108,36 @@
       }
     }
   }
-
+  // Rotating ticker ("One agent for ..."). Sized in ems so it scales with the heading at every breakpoint.
+  [purpose='ticker-container'] {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+  [purpose='option-container'] {
+    display: flex;
+    flex-direction: column;
+    height: 1.2em;
+  }
+  [purpose='bottom-cta-ticker-option'] {
+    display: block;
+    visibility: hidden;
+    height: 0px;
+    transform: translateY(1.6em);
+    transition: transform 0.3s ease-in-out;
+    &.visible {
+      visibility: visible;
+      position: relative;
+      transform: translateY(0%);
+    }
+    &.animating-out {
+      visibility: visible;
+      transform: translateY(-1.6em);
+    }
+  }
   [purpose='page-container'] {
     .page-container();
     padding-top: @section-160;
@@ -1299,6 +1328,22 @@
       }
     }
     [purpose='bottom-cta'] {
+      // On narrow screens the longer ticker options wrap, so reserve two lines.
+      [purpose='ticker-container'] {
+        white-space: normal;
+      }
+      [purpose='option-container'] {
+        height: 2.4em;
+      }
+      [purpose='bottom-cta-ticker-option'] {
+        transform: translateY(2.8em);
+        &.visible {
+          transform: translateY(0%);
+        }
+        &.animating-out {
+          transform: translateY(-2.8em);
+        }
+      }
       [purpose='button-row'] {
         max-width: 224px;
         margin-left: auto;
