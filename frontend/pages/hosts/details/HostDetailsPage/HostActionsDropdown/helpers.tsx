@@ -156,7 +156,6 @@ const canTransferTeam = (config: IHostActionConfigOptions) => {
 const canTurnOffMdm = (config: IHostActionConfigOptions) => {
   const {
     hostPlatform,
-    hostMdmDeviceStatus,
     hostMdmEnrollmentStatus,
     isGlobalAdmin,
     isGlobalMaintainer,
@@ -172,16 +171,6 @@ const canTurnOffMdm = (config: IHostActionConfigOptions) => {
     isAndroid(hostPlatform) &&
     isAndroidMdmEnabledAndConfigured &&
     isAndroidBYO(hostMdmEnrollmentStatus);
-
-  // Per Figma dev note (#41683): hide Unenroll for Android while any of Lock / Unenroll / Wipe /
-  // Clear passcode is pending. Apple Unenroll continues to ignore device_status as it does today.
-  if (
-    isAndroidWithUnenroll &&
-    hostMdmDeviceStatus &&
-    hostMdmDeviceStatus !== "unlocked"
-  ) {
-    return false;
-  }
 
   return (
     (isAndroidWithUnenroll ||
@@ -208,7 +197,6 @@ const canLockHost = ({
   isGlobalMaintainer,
   isTeamAdmin,
   isTeamMaintainer,
-  hostMdmDeviceStatus,
   hostMdmEnrollmentStatus,
 }: IHostActionConfigOptions) => {
   // apple device hosts can be locked if they are enrolled in MDM and the MDM is enabled
@@ -236,7 +224,6 @@ const canLockHost = ({
 
   return (
     isPremiumTier &&
-    hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
       isLockableMacOSDevice ||
@@ -258,7 +245,6 @@ const canWipeHost = ({
   isWindowsMdmEnabledAndConfigured,
   isAndroidMdmEnabledAndConfigured,
   hostPlatform,
-  hostMdmDeviceStatus,
   hostMdmEnrollmentStatus,
 }: IHostActionConfigOptions) => {
   const hostMdmEnabled =
@@ -292,7 +278,6 @@ const canWipeHost = ({
   return (
     (isPremiumTier || canWipeAndroid) &&
     !isPersonalIosOrIpadosDevice &&
-    hostMdmDeviceStatus === "unlocked" &&
     (isLinuxLike(hostPlatform) || canWipeWindowsOrAppleOS || canWipeAndroid) &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
@@ -498,14 +483,6 @@ const canClearPasscode = (config: IHostActionConfigOptions) => {
       return false;
     }
 
-    // Android: per Figma dev note (#41683) hide Clear passcode whenever any of Lock / Unenroll / Wipe / Clear passcode is pending.
-    if (
-      config.hostMdmDeviceStatus &&
-      config.hostMdmDeviceStatus !== "unlocked"
-    ) {
-      return false;
-    }
-
     return (
       config.isAndroidMdmEnabledAndConfigured &&
       config.isEnrolledInMdm &&
@@ -617,7 +594,8 @@ const removeUnavailableOptions = (
     options = options.filter((option) => option.value !== "runScript");
   }
 
-  if (!canLockHost(config)) {
+  // Unlock takes Lock's place while the host is locked.
+  if (!canLockHost(config) || canUnlock(config)) {
     options = options.filter((option) => option.value !== "lock");
   }
 
@@ -715,6 +693,28 @@ export const getDropdownOptionTooltipContent = (
   return undefined;
 };
 
+// Shown disabled rather than hidden while the host is locked, wiped, or has a
+// pending MDM command, so admins know they're only temporarily unavailable.
+const PENDING_GATED_OPTIONS: (string | number)[] = [
+  "mdmOff",
+  "lock",
+  "wipe",
+  "clearPasscode",
+];
+
+const DEVICE_STATUS_TOOLTIP_TEXT: Record<HostMdmDeviceStatusUIState, string> = {
+  unlocked: "unlocked",
+  locked: "locked",
+  unlocking: "unlocking",
+  locking: "locking",
+  wiped: "wiped",
+  wiping: "wiping",
+  clearing_passcode: "clearing passcode",
+  // Lost Mode with a location request pending; the host itself is locked.
+  locating: "locked",
+  unenrolling: "unenrolling",
+};
+
 /** for ios, ipad, and android we want to display different text for mdmOff.
  * The functionality is the same, but the action is called unenroll on those platforms.
  */
@@ -772,18 +772,6 @@ const modifyOptions = (
     });
   };
 
-  if (wipeAllowed === false) {
-    byodDisableOptions(options.filter((option) => option.value === "wipe"));
-  }
-  if (lockAllowed === false) {
-    byodDisableOptions(options.filter((option) => option.value === "lock"));
-  }
-  if (clearPasscodeAllowed === false) {
-    byodDisableOptions(
-      options.filter((option) => option.value === "clearPasscode")
-    );
-  }
-
   let optionsToDisable: IDropdownOption[] = [];
   // When the host is offline, always disable Query, but allow Unenroll for iOS/iPadOS and Android.
   if (!isHostOnline) {
@@ -792,16 +780,14 @@ const modifyOptions = (
     );
   }
 
-  // While device status is updating, or device is locked/wiped, disable Query and Turn off MDM
+  // While device status is updating, or device is locked/wiped, disable Query
   if (
     isDeviceStatusUpdating(hostMdmDeviceStatus) ||
     hostMdmDeviceStatus === "locked" ||
     hostMdmDeviceStatus === "wiped"
   ) {
     optionsToDisable = optionsToDisable.concat(
-      options.filter(
-        (option) => option.value === "query" || option.value === "mdmOff"
-      )
+      options.filter((option) => option.value === "query")
     );
   }
 
@@ -932,27 +918,35 @@ const modifyOptions = (
     }
   }
 
-  const clearPasscodeOption = options.find(
-    (option) => option.value === "clearPasscode"
-  );
-  if (
-    clearPasscodeOption &&
-    ["locked", "locking", "unlocking", "locating"].includes(hostMdmDeviceStatus)
-  ) {
-    clearPasscodeOption.disabled = true;
-    clearPasscodeOption.tooltipContent =
-      "Clear passcode is unavailable while host is in Lost Mode.";
-  } else if (
-    clearPasscodeOption &&
-    ["wiped", "wiping"].includes(hostMdmDeviceStatus)
-  ) {
-    clearPasscodeOption.disabled = true;
-    clearPasscodeOption.tooltipContent =
-      "Clear passcode is unavailable while host is pending wipe.";
-  }
-
   disableOptions(optionsToDisable);
   formatTurnOffOptionLabel(options, hostPlatform);
+
+  // Runs after the generic disables so the device status explanation wins over
+  // e.g. the scripts-disabled tooltip.
+  if (hostMdmDeviceStatus && hostMdmDeviceStatus !== "unlocked") {
+    options
+      .filter((option) => PENDING_GATED_OPTIONS.includes(option.value))
+      .forEach((option) => {
+        option.disabled = true;
+        option.tooltipContent = `${option.label} is unavailable while host is ${
+          DEVICE_STATUS_TOOLTIP_TEXT[hostMdmDeviceStatus] ?? hostMdmDeviceStatus
+        }.`;
+      });
+  }
+
+  // BYOD permissions are a lasting restriction, so their tooltip wins.
+  if (wipeAllowed === false) {
+    byodDisableOptions(options.filter((option) => option.value === "wipe"));
+  }
+  if (lockAllowed === false) {
+    byodDisableOptions(options.filter((option) => option.value === "lock"));
+  }
+  if (clearPasscodeAllowed === false) {
+    byodDisableOptions(
+      options.filter((option) => option.value === "clearPasscode")
+    );
+  }
+
   return options;
 };
 
