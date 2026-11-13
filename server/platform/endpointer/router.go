@@ -37,7 +37,7 @@ func (rt Route) clone() Route {
 // Router is Fleet's API router. It records every route registered through the endpointer, in registration order, and puts the
 // route template on the request context of each request it serves. The routes are also registered on a gorilla router
 // underneath, which still matches requests until the stdlib ServeMux replaces it. Register every route and call WrapHandlers
-// before serving: none of them are safe to call concurrently with each other or with ServeHTTP.
+// before serving.
 type Router struct {
 	gorilla *mux.Router
 	routes  []*registeredRoute
