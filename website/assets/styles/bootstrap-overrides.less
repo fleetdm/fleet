@@ -141,11 +141,10 @@ a.text-danger:hover, a.text-danger:focus {
   }
 
   &.btn-primary {
-    .primary-button();
-    .primary-button-large();
+    .primary-button(large);
     display: inline-flex;
     &.btn-sm {
-      .primary-button-normal();
+      .primary-button-size(normal);
     }
     &.btn-block {
       display: flex;
@@ -303,12 +302,12 @@ a.text-danger:hover, a.text-danger:focus {
   }
 }
 .form-control {
-	.text-input-large();
+	.text-input(large);
 	color: #192147;
 	border: 1px solid @core-fleet-black-10;
 }
 .form-control.form-control-sm {
-	.text-input-normal();
+	.text-input-size(normal);
 }
 .form-control:focus {
 	border: 1px solid @core-fleet-black;

@@ -70,7 +70,8 @@
     gap: @inner-gap-s;
   }
   [purpose='cta-button'] {
-    .cta-button();
+    .primary-button();
+    display: flex;
     min-width: 140px;
     font-weight: 700;
     white-space: nowrap;
@@ -353,7 +354,7 @@
       margin-bottom: 8px;
     }
     input {
-      .text-input-large();
+      .text-input(large);
       border: 1px solid #C5C7D1;
       background: #FFF;
       display: flex;

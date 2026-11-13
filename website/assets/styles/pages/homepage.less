@@ -73,7 +73,7 @@
     [purpose='hero-email-input'] {
       flex: 1 1 auto;
       input {
-        .text-input-large();
+        .text-input(large);
         // Matches the large button beside it; other inputs use the standard 8px.
         border-radius: 16px;
         border: 1px solid @core-fleet-black-10;
@@ -126,7 +126,8 @@
       text-decoration: none;
     }
     [purpose='cta-button'] {
-      .cta-button();
+      .primary-button();
+      display: flex;
       margin-right: 24px;
     }
   }
@@ -430,7 +431,8 @@
         margin-bottom: 0px;
       }
       [purpose='cta-button'] {
-        .cta-button();
+        .primary-button();
+        display: flex;
         margin-top: @inner-padding-xs;
         min-width: 140px;
       }

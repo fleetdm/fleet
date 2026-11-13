@@ -262,7 +262,8 @@
       text-decoration: none;
     }
     [purpose='cta-button'] {
-      .cta-button();
+      .primary-button();
+      display: flex;
       margin-right: 24px;
     }
   }
@@ -422,7 +423,8 @@
     }
   }
   [purpose='platform-button'] {
-    .cta-button();
+    .primary-button();
+    display: flex;
     width: fit-content;
     margin-top: 32px;
   }
@@ -502,7 +504,7 @@
     padding-top: 80px;
     [purpose='button-row'] {
       [purpose='cta-button'] {
-        .primary-button-large();
+        .primary-button-size(large);
       }
     }
   }

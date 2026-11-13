@@ -60,7 +60,7 @@ html, body {
   transition-duration: 500ms;
 }
 // The announcement banner (configured in config/announcement-banner.js): reeded glass, in the aqua of the domes in our cloud city art.
-// Each flute carries the same shine as our green CTA buttons (see .cta-button() in buttons.less).  Script in layout.ejs lights the
+// Each flute carries a diagonal shine.  Script in layout.ejs lights the
 // flutes: a broad shine at rest, a light that follows the cursor on hover, and the occasional glint.  On hover, the
 // glass near the cursor reflects a stretch of the cloud city.
 a[purpose='announcement-banner'] {
@@ -236,7 +236,8 @@ a[purpose='announcement-banner'] {
   }
 
   [purpose='glass-header-btn'] {
-    .cta-button();
+    .primary-button();
+    display: flex;
   }
 
   [purpose='mobile-nav-toggle-btn'] {
