@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.1.1",
+      "version": "2.2",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.ttinc.sc-menu';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ttinc.sc-menu' AND version_compare(bundle_short_version, '2.1.1') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.ttinc.sc-menu' AND version_compare(bundle_short_version, '2.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.ttinc.sc-menu' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/boberito/sc_menu/releases/download/2.1.1/SC_Menu.dmg",
+      "installer_url": "https://github.com/boberito/sc_menu/releases/download/2.2/SC_Menu.dmg",
       "install_script_ref": "44397cb6",
       "uninstall_script_ref": "fc22fa87",
-      "sha256": "e8ce8777d1b3d157f60b48dc5e6022e719e067e68e9a4d7d852792f7166f5cab",
+      "sha256": "482341d649c72d13c8ee266456325e74e498bc848c7f6af03609549d022aaff3",
       "default_categories": [
         "Productivity"
       ]

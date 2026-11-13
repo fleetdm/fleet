@@ -166,21 +166,17 @@ func TestDeleteOrgLogo(t *testing.T) {
 		require.NoError(t, svc.DeleteOrgLogo(ctx, fleet.OrgLogoModeDark))
 		assert.False(t, *fired, "no real change happened — no activity")
 		assert.Empty(t, stored.OrgInfo.OrgLogoURLDarkMode)
-		assert.Empty(t, stored.OrgInfo.OrgLogoURL)
 	})
 
 	t.Run("external URL, no blob: clears URL fields and fires activity", func(t *testing.T) {
 		svc, ctx, stored, fired := setup(t, &fleet.AppConfig{
 			OrgInfo: fleet.OrgInfo{
 				OrgLogoURLDarkMode: "https://placehold.co/100",
-				OrgLogoURL:         "https://placehold.co/100",
 			},
 		})
 		require.NoError(t, svc.DeleteOrgLogo(ctx, fleet.OrgLogoModeDark))
 		assert.True(t, *fired)
 		assert.Empty(t, stored.OrgInfo.OrgLogoURLDarkMode)
-		assert.Empty(t, stored.OrgInfo.OrgLogoURL,
-			"deprecated alias must be cleared too — NormalizeLogoFields would copy it back otherwise")
 	})
 
 	t.Run("blob only, URL already empty: deletes blob and fires activity", func(t *testing.T) {
@@ -191,7 +187,6 @@ func TestDeleteOrgLogo(t *testing.T) {
 		// out-of-band (the gitops PATCH-first flow before this change).
 		require.NoError(t, svc.UploadOrgLogo(ctx, fleet.OrgLogoModeDark, bytes.NewReader(testPNG(t))))
 		stored.OrgInfo.OrgLogoURLDarkMode = ""
-		stored.OrgInfo.OrgLogoURL = ""
 		*fired = false // UploadOrgLogo fires its own activity; reset.
 
 		require.NoError(t, svc.DeleteOrgLogo(ctx, fleet.OrgLogoModeDark))
@@ -206,38 +201,18 @@ func TestDeleteOrgLogo(t *testing.T) {
 		require.NoError(t, svc.DeleteOrgLogo(ctx, fleet.OrgLogoModeLight))
 		assert.True(t, *fired)
 		assert.Empty(t, stored.OrgInfo.OrgLogoURLLightMode)
-		assert.Empty(t, stored.OrgInfo.OrgLogoURLLightBackground)
 	})
 
 	t.Run("mode=all clears every mode", func(t *testing.T) {
 		svc, ctx, stored, fired := setup(t, &fleet.AppConfig{
 			OrgInfo: fleet.OrgInfo{
-				OrgLogoURLLightMode:       "https://example.com/light.png",
-				OrgLogoURLLightBackground: "https://example.com/light.png",
-				OrgLogoURLDarkMode:        "https://example.com/dark.png",
-				OrgLogoURL:                "https://example.com/dark.png",
+				OrgLogoURLLightMode: "https://example.com/light.png",
+				OrgLogoURLDarkMode:  "https://example.com/dark.png",
 			},
 		})
 		require.NoError(t, svc.DeleteOrgLogo(ctx, fleet.OrgLogoModeAll))
 		assert.True(t, *fired, "delete all should fire deleted_org_logo activity")
 		assert.Empty(t, stored.OrgInfo.OrgLogoURLLightMode)
-		assert.Empty(t, stored.OrgInfo.OrgLogoURLLightBackground)
-		assert.Empty(t, stored.OrgInfo.OrgLogoURLDarkMode)
-		assert.Empty(t, stored.OrgInfo.OrgLogoURL)
-	})
-
-	t.Run("legacy: only deprecated field set — DELETE still clears it", func(t *testing.T) {
-		// External URL written directly to the deprecated org_logo_url
-		// field (e.g. legacy DB row, before NormalizeLogoFields mirrored
-		// it). DELETE must still clear it.
-		svc, ctx, stored, fired := setup(t, &fleet.AppConfig{
-			OrgInfo: fleet.OrgInfo{
-				OrgLogoURL: "https://placehold.co/100",
-			},
-		})
-		require.NoError(t, svc.DeleteOrgLogo(ctx, fleet.OrgLogoModeDark))
-		assert.True(t, *fired)
-		assert.Empty(t, stored.OrgInfo.OrgLogoURL)
 		assert.Empty(t, stored.OrgInfo.OrgLogoURLDarkMode)
 	})
 }

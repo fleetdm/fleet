@@ -178,7 +178,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		ConfigurationProfiles: cfgProfResults,
 		AccountConfiguration:  acctCfgResult,
 		Software:              make([]*fleet.SetupExperienceStatusResult, 0),
-		OrgLogoURL:            fleet.AbsolutizeLogoURL(appCfg.OrgInfo.OrgLogoURLLightBackground, appCfg.ServerSettings.ServerURL),
+		OrgLogoURL:            fleet.AbsolutizeLogoURL(appCfg.OrgInfo.OrgLogoURLLightMode, appCfg.ServerSettings.ServerURL),
 		RequireAllSoftware:    requireAllSoftware,
 	}
 	for _, r := range res {

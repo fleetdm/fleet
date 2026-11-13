@@ -8,6 +8,7 @@ Fleet can help your end users connect to third-party tools like Wi-Fi or VPN by 
 - [EJBCA](#ejbca): macOS, iOS, and iPadOS
 - [Microsoft NDES](#microsoft-ndes): macOS, iOS, iPadOS and Windows
 - [Smallstep](#smallstep): macOS, iOS, and iPadOS
+- [SecureW2](#securew-2): macOS, iOS, and iPadOS
 - [Hydrant](#hydrant): Linux
 - [Any SCEP (Simple Certificate Enrollment Protocol) CA](#any-scep-simple-certificate-enrollment-protocol-ca): macOS, Windows, iOS, iPadOS, and Android
 - [Any EST (Enrollment over Secure Transport) CA](#any-est-enrollment-over-secure-transport-ca): Linux
@@ -683,6 +684,15 @@ When the profile is delivered to your hosts, Fleet will replace the variables. I
 </plist>
 ```
 
+## SecureW2
+
+[SecureW2](https://www.securew2.com/) JoinNow PKI can issue certificates to Fleet-managed Apple hosts in two ways:
+
+- **ACME**: SecureW2 generates a configuration profile with an ACME payload and a Wi-Fi payload. Add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to the ACME payload's `OU`, set your SSID, and upload the profile to Fleet. By default, the private key is hardware-bound, so only Apple's built-in clients (like Wi-Fi and the built-in VPN client) can use the certificate.
+- **SCEP**: Create a **SCEP (Multi-Vendor) Enrollment Token** in SecureW2 and add its SCEP URL and secret to Fleet as a [custom SCEP CA](#any-scep-simple-certificate-enrollment-protocol-ca). SecureW2's dynamic SCEP challenge doesn't work with Fleet's NDES integration.
+
+For the full SecureW2 and Fleet setup, including example profiles, follow the [SecureW2 guide](https://fleetdm.com/guides/deploy-securew2-certificates-with-fleet).
+
 ## Hydrant
 
 The following steps show how to deploy [Hydrant](https://www.hidglobal.com/solutions/pki-service) certificates.
@@ -1100,7 +1110,7 @@ Fleet automatically retries each failed macOS, iOS, iPadOS, and Android certific
 
 ### Managing CA configurations with GitOps
 
-NOTE: the following instructions are based on the example of configuring the [Okta CA for deploying SCEP certificates](#Okta). All CA integration options can be managed with GitOps. Below are the top-level keys for each integration type. (The attributes / values for each integration type will vary):
+NOTE: the following instructions are based on the example of configuring the [Okta CA for deploying SCEP certificates](#okta). All CA integration options can be managed with GitOps. Below are the top-level keys for each integration type. (The attributes / values for each integration type will vary):
 
 ```
   certificate_authorities:

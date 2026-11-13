@@ -43,6 +43,8 @@ func TestMessage(t *testing.T) {
 		{KindFlag, "team", "fleetctl get hosts", `The "--team" flag is not available anymore. What to use instead: ` + GuideURL},
 		{KindSAMLAttribute, "FLEET_JIT_USER_ROLE_TEAM_<ID>", "",
 			`The "FLEET_JIT_USER_ROLE_TEAM_<ID>" SAML attribute is not available anymore. What to use instead: ` + GuideURL},
+		{KindFleetVariable, "$FLEET_VAR_HOST_END_USER_EMAIL_IDP", "",
+			`The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: ` + GuideURL},
 		// A removed endpoint leaves the replacement to the guide. The request's method is added when a handler answers it.
 		{KindPath, pathPrefix + "/spec/teams", "", `The "/spec/teams" endpoint is not available anymore. What to use instead: ` + GuideURL},
 		{KindFlag, "t", "fleetctl user create", `The "-t" flag is not available anymore. What to use instead: ` + GuideURL},
@@ -234,10 +236,14 @@ func TestEntriesCoverDeprecatedSources(t *testing.T) {
 					"json": KindJSONKey, "query": KindQueryParam, "url": KindQueryParam, "form": KindFormField, "csv": KindCSVColumn,
 				} {
 					oldName, _, _ := strings.Cut(tag.Get(key), ",")
-					if renameTo == "" || !isTeamRelated(oldName) {
+					if renameTo == "" || oldName == "" {
 						continue
 					}
+					// Count every renamed tag, since group C left no team ones and the scan must still prove it parsed something.
 					found++
+					if !isTeamRelated(oldName) {
+						continue
+					}
 					scope := ScopeRequest | ScopeResponse
 					if filepath.ToSlash(rel) == "server/fleet/activities.go" {
 						scope = ScopeActivityDetails

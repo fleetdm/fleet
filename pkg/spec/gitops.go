@@ -36,7 +36,7 @@ const LabelAPIGlobalTeamName = "global"
 type LabelChangesSummary struct {
 	LabelsToUpdate  []string
 	LabelsToAdd     []string
-	LabelsToRemove  []string
+	LabelsToRemove  []LabelChange
 	LabelsMovements []LabelMovement
 }
 
@@ -64,7 +64,7 @@ func NewLabelChangesSummary(changes []LabelChange, moves []LabelMovement) LabelC
 
 			r.LabelsToAdd = append(r.LabelsToAdd, change.Name)
 		case "-":
-			r.LabelsToRemove = append(r.LabelsToRemove, change.Name)
+			r.LabelsToRemove = append(r.LabelsToRemove, change)
 		case "=":
 			r.LabelsToUpdate = append(r.LabelsToUpdate, change.Name)
 		}
@@ -72,16 +72,19 @@ func NewLabelChangesSummary(changes []LabelChange, moves []LabelMovement) LabelC
 	return r
 }
 
-// LabelMovement specifies a label movement, a label is moved if its removed from one team and added to another
+// LabelMovement specifies a label movement, a label is moved if its name is removed from the global level and added
+// to a fleet, or the reverse
 type LabelMovement struct {
 	FromTeamName string // Source team name
+	FromTeamID   *uint  // Source team ID, so the server only sets aside that fleet's label
 	ToTeamName   string // Dest. team name
-	Name         string // The globally unique label name
+	Name         string // The label name
 }
 
 // LabelChange used for keeping track of label operations
 type LabelChange struct {
-	Name     string // The globally unique label name
+	Name     string // The label name, unique among the labels this team can see
+	ID       uint   // The existing label's ID; zero for a label being added
 	Op       string // What operation to perform on the label. +:add, -:remove, =:no-op
 	TeamName string // The team this label belongs to.
 	FileName string // The filename that contains the label change
@@ -201,7 +204,7 @@ type GitOpsControls struct {
 	IOSUpdates     any               `json:"ios_updates"`
 	IPadOSUpdates  any               `json:"ipados_updates"`
 	MacOSSettings  any               `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSetup     *fleet.MacOSSetup `json:"setup_experience" removedkey:"macos_setup"`
 	MacOSMigration any               `json:"macos_migration"`
 
 	AppleAccountProvisioning *fleet.AppleAccountProvisioning `json:"apple_account_provisioning"`
@@ -926,8 +929,7 @@ func reanchorOrgSettingsPaths(orgSettings map[string]any, orgSettingsDir string)
 }
 
 // validateOrgInfoLogo rejects org_info configurations that specify both a path
-// and a URL for the same mode. Deprecated URL keys are already migrated to the
-// new mode-aware names by ApplyDeprecatedKeyMappings before this runs.
+// and a URL for the same mode.
 func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
 	orgInfo, _ := orgSettings["org_info"].(map[string]any)
 	if orgInfo == nil {
@@ -1448,7 +1450,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 	// Find the Fleet Secrets in the macos setup script file
 	if result.Controls.MacOSSetup != nil {
 		if result.Controls.MacOSSetup.Software.Set && len(result.Controls.MacOSSetup.Software.Value) > 0 {
-			logFn("[!] 'controls.setup_experience.software / controls.macos_setup.software' is deprecated; set 'setup_experience: true' on individual items under 'software.packages', 'software.app_store_apps', or 'software.fleet_maintained_apps' instead.\n")
+			logFn("[!] 'controls.setup_experience.software' is deprecated; set 'setup_experience: true' on individual items under 'software.packages', 'software.app_store_apps', or 'software.fleet_maintained_apps' instead.\n")
 		}
 		if result.Controls.MacOSSetup.Script.Set {
 			if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
@@ -1461,7 +1463,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 			startupScriptPath := resolveApplyRelativePath(controlsDir, result.Controls.MacOSSetup.Script.Value)
 			fileBytes, err := os.ReadFile(startupScriptPath)
 			if err != nil {
-				return multierror.Append(multiError, fmt.Errorf("failed to read macos_setup script file %s: %v", startupScriptPath, err))
+				return multierror.Append(multiError, fmt.Errorf("failed to read setup_experience script file %s: %v", startupScriptPath, err))
 			}
 			err = LookupEnvSecrets(string(fileBytes), result.FleetSecrets)
 			if err != nil {

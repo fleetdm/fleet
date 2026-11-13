@@ -1,33 +1,40 @@
 # /spec-story
 
-Breaks a Fleet story issue into implementable, parallelizable sub-issues with deep technical specs. On your approval, it creates them in GitHub and fills in the parent story's Engineering section.
+`/spec-story` splits a Fleet story into sub-issues that engineers can build in parallel. It writes a technical spec doc for the engineers and a short WHAT-only body for each sub-issue. Once you approve, it creates the sub-issues, links them under the parent story, and fills in the parent's Engineering section.
 
-## Invoke
+
+## Run it
 
 ```
 /spec-story <issue-number-or-url>
 ```
 
-It runs as a four-stage **Understand → Skeleton → Draft → Create** workflow and pauses for your explicit approval at each gate. Nothing is created in GitHub until you approve the drafted sub-issues.
+It works in four stages: Understand, Skeleton, Draft, and Create. It stops for your approval after each one. Nothing's created in GitHub until you approve the dry run.
 
-## What it already does
 
-These are built in, so you don't need to spell them out in your prompt:
+## What it does
 
-- **Research for context:** GitHub (issues, PRs, and discussions), Slack, Gong, and git history.
-- **Decomposition for parallel work:** splits by specialization (backend, frontend, fleetctl-GitOps, and agent) along code boundaries, so different engineers can work in parallel. It always adds a Documentation and QA sub-issue, and never mixes backend and frontend in one sub-issue.
-- **Schema-first grounding:** reads `server/datastore/mysql/schema.sql` and recent `migrations/tables/` before it greps code paths.
-- **Figma Ready page:** pulls the `Ready` page by `node-id` and copies dev notes, tooltip text, and message text verbatim. It skips the cover, which only links to the issue.
-- **Independent verification:** before it presents the draft, a separate skeptical subagent re-checks `file:line` references, schema, and GitHub claims against the real sources.
-- **High reasoning effort:** set in the skill's frontmatter, so you don't need to add "ultrathink".
+You don't need to ask for any of these:
+
+- **Research.** It searches GitHub issues and PRs, Slack, git history, and Gong (when the story names a customer). Each source gets its own parallel subagent.
+- **Schema first.** It reads `server/datastore/mysql/schema.sql` and the migrations since the Fleet 5 baseline before it digs into code.
+- **Figma.** It pulls the `Ready` page by `node-id` and copies dev notes, tooltips, and messages word for word. It skips the cover page, which only links to the issue.
+- **Split.** It splits work by skill (backend, frontend, fleetctl and GitOps, agent) and keeps tightly linked work together. It always adds a Documentation and engineering QA sub-issue.
+- **Checks.** Before the skeleton gate, it reviews the design for data model, security, scalability, simplicity, and scope. A separate subagent rechecks every `file:line`, schema, and GitHub claim, first on the skeleton and again on the draft.
+- **Labels.** Every sub-issue gets the parent story's `#g-*` product group label. It reads the story's t-shirt size from the Release planning project. Sub-issues don't get a size.
+- **Two outputs.** The spec doc holds the HOW, like code anchors, code shapes, and reasons. GitHub bodies hold the WHAT, since `fleetdm/fleet` is public and code anchors go stale.
+- **Style.** It writes in Fleet's plain, casual style from `handbook/company/writing.md`.
+
 
 ## What to give it
 
-Supply these up front so it doesn't have to stop and ask in Stage 1:
+Include these up front so it doesn't have to stop and ask:
 
-- **The story:** the issue number or URL. Required.
-- **The Figma Ready-page link** with its `node-id`, for example `.../design/...?node-id=2-130&m=dev`. Or tell it there's no design, which is common for backend-only stories.
-- **The accompanying doc-change PRs:** the REST API, GitOps, or audit-log PRs. They define the field names and shapes the spec must match, and conflicts between them need explicit reconciliation. Or tell it there are none.
+- **The story.** Give the issue number or URL. This one's required.
+- **The Figma Ready page link** with its `node-id`, like `.../design/...?node-id=2-130&m=dev`. Or say there's no design.
+- **The doc change PRs** for the REST API, GitOps, or audit log. They set the field names the spec has to match. Or say there aren't any.
+- **Where to save the spec doc.** Pick any place outside the repo.
+
 
 ## Prompt template
 
@@ -35,12 +42,14 @@ Supply these up front so it doesn't have to stop and ask in Stage 1:
 /spec-story https://github.com/fleetdm/fleet/issues/<N>
 
 Figma (Ready page): <figma design URL with node-id>
-Doc-change PRs: #<a>, #<b>, #<c>
+Doc change PRs: #<a>, #<b>
+Spec doc: <path outside the repo>
 ```
 
-That's all it needs. The skill handles research, schema grounding, decomposition, drafting, verification, and creation from there. Add a line only for story-specific scope it can't infer.
+To spec a batch of small stories without stopping at each gate, say so up front. For example, "batch mode, skip the gates, SME review waived." It still stops before it creates anything in GitHub, unless you tell it to create the issues too.
+
 
 ## Prerequisites
 
-- `gh`, authenticated with `gh auth login`.
-- Figma, Slack, and Gong context requires the matching MCP servers to be connected. These aren't part of the out-of-box team setup. Without them, the skill still runs but skips those sources.
+- `gh`, signed in with `gh auth login`.
+- Figma, Slack, and Gong need their MCP servers connected. Without them, the skill still runs and tells you which sources it skipped.

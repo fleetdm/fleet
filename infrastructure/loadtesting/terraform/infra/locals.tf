@@ -53,27 +53,25 @@ locals {
       CLOUDWATCH_REGION    = "us-east-2"
       # PROMETHEUS_SCRAPE_URL = "http://localhost:8080/metrics"
 
-      FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
-      FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
-      FLEET_LOGGING_JSON                         = "true"
-      FLEET_LOGGING_DEBUG                        = "true"
-      FLEET_OSQUERY_STATUS_LOG_PLUGIN            = "filesystem"
-      FLEET_FILESYSTEM_STATUS_LOG_FILE           = "/dev/null"
-      FLEET_OSQUERY_RESULT_LOG_PLUGIN            = "filesystem"
-      FLEET_FILESYSTEM_RESULT_LOG_FILE           = "/dev/null"
-      FLEET_MYSQL_MAX_OPEN_CONNS                 = tostring(var.mysql_max_open_conns)
-      FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = tostring(var.mysql_max_open_conns)
+      FLEET_VULNERABILITIES_DATABASES_PATH    = "/home/fleet"
+      FLEET_LOGGING_JSON                      = "true"
+      FLEET_LOGGING_DEBUG                     = "true"
+      FLEET_OSQUERY_STATUS_LOG_PLUGIN         = "filesystem"
+      FLEET_FILESYSTEM_STATUS_LOG_FILE        = "/dev/null"
+      FLEET_OSQUERY_RESULT_LOG_PLUGIN         = "filesystem"
+      FLEET_FILESYSTEM_RESULT_LOG_FILE        = "/dev/null"
+      FLEET_MYSQL_MAX_OPEN_CONNS              = tostring(var.mysql_max_open_conns)
+      FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS = tostring(var.mysql_max_open_conns)
       # 30 min: recycle connections often enough that pooled reader connections re-spread across replicas after a
       # replica reboot/failover, and proactively drop bad idles.
-      FLEET_MYSQL_CONN_MAX_LIFETIME                  = "1800"
-      FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME     = "1800"
-      FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT = "10000"
-      FLEET_REDIS_MAX_OPEN_CONNS                     = tostring(var.redis_max_open_conns)
-      FLEET_REDIS_MAX_IDLE_CONNS                     = tostring(var.redis_max_open_conns)
-      FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD         = "15m"
-      FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE            = "500"
-      FLEET_SERVER_GZIP_RESPONSES                    = "true"
-      FLEET_DEV_ANDROID_PROXY_ENDPOINT               = "http://${resource.aws_lb.internal.dns_name}/"
+      FLEET_MYSQL_CONN_MAX_LIFETIME              = "1800"
+      FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME = "1800"
+      FLEET_REDIS_MAX_OPEN_CONNS                 = tostring(var.redis_max_open_conns)
+      FLEET_REDIS_MAX_IDLE_CONNS                 = tostring(var.redis_max_open_conns)
+      FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD     = "15m"
+      FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE        = "500"
+      FLEET_SERVER_GZIP_RESPONSES                = "true"
+      FLEET_DEV_ANDROID_PROXY_ENDPOINT           = "http://${resource.aws_lb.internal.dns_name}/"
 
       # Load TLS Certificate for RDS Authentication
       FLEET_MYSQL_TLS_CA                  = local.cert_path

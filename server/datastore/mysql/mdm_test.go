@@ -4670,12 +4670,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	// make all hosts members of labels[1], [2], [3], [6] so that all profiles are
 	// excluded
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
-		{labels[1].ID, androidHost.ID},
-		{labels[2].ID, androidHost.ID},
-		{labels[3].ID, androidHost.ID},
-		{labels[6].ID, androidHost.ID},
-	})
+	err = ds.AddLabelsToHost(ctx, androidHost.ID, []uint{labels[1].ID, labels[2].ID, labels[3].ID, labels[6].ID})
 	require.NoError(t, err)
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{androidHost.ID}, nil, nil, nil)
@@ -4695,11 +4690,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	// make apple host member of labels[2], and windows and android host member of [3], which are irrelevant
 	// for their platforms' profiles, so they get all profiles
-	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
-		{labels[1].ID, androidHost.ID},
-		{labels[2].ID, androidHost.ID},
-		{labels[6].ID, androidHost.ID},
-	})
+	err = ds.RemoveLabelsFromHost(ctx, androidHost.ID, []uint{labels[1].ID, labels[2].ID, labels[6].ID})
 	require.NoError(t, err)
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{androidHost.ID}, nil, nil, nil)

@@ -42,22 +42,12 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"controls.android_settings.custom_settings", "controls.android_settings.configuration_profiles"},
 
 	// Controls: macos_setup -> setup_experience (parent first, then children)
-	{"controls.macos_setup", "controls.setup_experience"},
-	{"controls.setup_experience.bootstrap_package", "controls.setup_experience.macos_bootstrap_package"},
-	{"controls.setup_experience.macos_setup_assistant", "controls.setup_experience.apple_setup_assistant"},
-	{"controls.setup_experience.enable_release_device_manually", "controls.setup_experience.apple_enable_release_device_manually"},
-	{"controls.setup_experience.script", "controls.setup_experience.macos_script"},
-	{"controls.setup_experience.manual_agent_install", "controls.setup_experience.macos_manual_agent_install"},
 	{"controls.setup_experience.enable_managed_local_account", "controls.setup_experience.enable_create_local_admin_account"},
 
 	// Org settings: server_settings
 	{"org_settings.server_settings.live_query_disabled", "org_settings.server_settings.live_reporting_disabled"},
 	{"org_settings.server_settings.query_reports_disabled", "org_settings.server_settings.discard_reports_data"},
 	{"org_settings.server_settings.query_report_cap", "org_settings.server_settings.report_cap"},
-
-	// Org settings: org_info logo URL fields renamed to mode-aware variants.
-	{"org_settings.org_info.org_logo_url", "org_settings.org_info.org_logo_url_dark_mode"},
-	{"org_settings.org_info.org_logo_url_light_background", "org_settings.org_info.org_logo_url_light_mode"},
 
 	// org_settings.mdm.apple_business_manager -> apple_business (parent rename
 	// runs before the nested children below so they resolve against the new
@@ -99,7 +89,7 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 var DeprecatedGitOpsKeyScopes = map[string][]string{
 	// Deprecated spelling of the Apple toggle under setup_experience, but the canonical name of the Windows toggle under
 	// windows_settings.
-	"enable_managed_local_account": {"macos_setup", "setup_experience"},
+	"enable_managed_local_account": {"setup_experience"},
 }
 
 // RemovedGitOpsKeys are the team-related keys that Fleet 5 removed from GitOps files. They are rejected, not migrated

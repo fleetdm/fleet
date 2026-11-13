@@ -316,10 +316,10 @@ func TestSSOSettingsIsEmpty(t *testing.T) {
 }
 
 func TestMacOSMigrationModeIsValid(t *testing.T) {
-	require.True(t, (MacOSMigrationMode("forced")).IsValid())
-	require.True(t, (MacOSMigrationMode("voluntary")).IsValid())
-	require.False(t, (MacOSMigrationMode("")).IsValid())
-	require.False(t, (MacOSMigrationMode("foo")).IsValid())
+	require.True(t, MacOSMigrationMode("forced").IsValid())
+	require.True(t, MacOSMigrationMode("voluntary").IsValid())
+	require.False(t, MacOSMigrationMode("").IsValid())
+	require.False(t, MacOSMigrationMode("foo").IsValid())
 }
 
 func TestAppConfigDeprecatedFields(t *testing.T) {
@@ -772,117 +772,6 @@ func TestGoogleCalendarApiKeyMarshalUnmarshal(t *testing.T) {
 	})
 }
 
-func TestOrgInfoNormalizeLogoFields(t *testing.T) {
-	cases := []struct {
-		name    string
-		in      OrgInfo
-		want    OrgInfo
-		wantErr bool
-	}{
-		{
-			name: "all empty",
-			in:   OrgInfo{},
-			want: OrgInfo{},
-		},
-		{
-			name: "deprecated dark only -> mirrored to new",
-			in:   OrgInfo{OrgLogoURL: "https://example.com/d.png"},
-			want: OrgInfo{
-				OrgLogoURL:         "https://example.com/d.png",
-				OrgLogoURLDarkMode: "https://example.com/d.png",
-			},
-		},
-		{
-			name: "new dark only -> mirrored to deprecated",
-			in:   OrgInfo{OrgLogoURLDarkMode: "https://example.com/d.png"},
-			want: OrgInfo{
-				OrgLogoURL:         "https://example.com/d.png",
-				OrgLogoURLDarkMode: "https://example.com/d.png",
-			},
-		},
-		{
-			name: "deprecated light only -> mirrored to new",
-			in:   OrgInfo{OrgLogoURLLightBackground: "https://example.com/l.png"},
-			want: OrgInfo{
-				OrgLogoURLLightBackground: "https://example.com/l.png",
-				OrgLogoURLLightMode:       "https://example.com/l.png",
-			},
-		},
-		{
-			name: "new light only -> mirrored to deprecated",
-			in:   OrgInfo{OrgLogoURLLightMode: "https://example.com/l.png"},
-			want: OrgInfo{
-				OrgLogoURLLightBackground: "https://example.com/l.png",
-				OrgLogoURLLightMode:       "https://example.com/l.png",
-			},
-		},
-		{
-			name: "both modes via deprecated",
-			in: OrgInfo{
-				OrgLogoURL:                "https://example.com/d.png",
-				OrgLogoURLLightBackground: "https://example.com/l.png",
-			},
-			want: OrgInfo{
-				OrgLogoURL:                "https://example.com/d.png",
-				OrgLogoURLLightBackground: "https://example.com/l.png",
-				OrgLogoURLDarkMode:        "https://example.com/d.png",
-				OrgLogoURLLightMode:       "https://example.com/l.png",
-			},
-		},
-		{
-			name: "matching dark old + new -> kept",
-			in: OrgInfo{
-				OrgLogoURL:         "https://example.com/d.png",
-				OrgLogoURLDarkMode: "https://example.com/d.png",
-			},
-			want: OrgInfo{
-				OrgLogoURL:         "https://example.com/d.png",
-				OrgLogoURLDarkMode: "https://example.com/d.png",
-			},
-		},
-		{
-			name: "matching light old + new -> kept",
-			in: OrgInfo{
-				OrgLogoURLLightBackground: "https://example.com/l.png",
-				OrgLogoURLLightMode:       "https://example.com/l.png",
-			},
-			want: OrgInfo{
-				OrgLogoURLLightBackground: "https://example.com/l.png",
-				OrgLogoURLLightMode:       "https://example.com/l.png",
-			},
-		},
-		{
-			name: "conflicting dark old + new -> error",
-			in: OrgInfo{
-				OrgLogoURL:         "https://example.com/d1.png",
-				OrgLogoURLDarkMode: "https://example.com/d2.png",
-			},
-			wantErr: true,
-		},
-		{
-			name: "conflicting light old + new -> error",
-			in: OrgInfo{
-				OrgLogoURLLightBackground: "https://example.com/l1.png",
-				OrgLogoURLLightMode:       "https://example.com/l2.png",
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := tc.in
-			err := got.NormalizeLogoFields()
-			if tc.wantErr {
-				require.NotNil(t, err)
-				return
-			}
-			require.Nil(t, err)
-			require.Equal(t, tc.want, got)
-		})
-	}
-}
-
 func TestOrgInfoAbsolutizeLogoURLs(t *testing.T) {
 	const fleetHostedDark = "/api/latest/fleet/logo?mode=dark"
 	const fleetHostedLight = "/api/latest/fleet/logo?mode=light"
@@ -898,8 +787,8 @@ func TestOrgInfoAbsolutizeLogoURLs(t *testing.T) {
 		{
 			name:      "empty serverURL is no-op",
 			serverURL: "",
-			in:        OrgInfo{OrgLogoURL: fleetHostedDark},
-			want:      OrgInfo{OrgLogoURL: fleetHostedDark},
+			in:        OrgInfo{OrgLogoURLDarkMode: fleetHostedDark},
+			want:      OrgInfo{OrgLogoURLDarkMode: fleetHostedDark},
 		},
 		{
 			name:      "all empty fields stay empty",
@@ -911,28 +800,22 @@ func TestOrgInfoAbsolutizeLogoURLs(t *testing.T) {
 			name:      "fleet-hosted relative URL gets absolutized",
 			serverURL: "https://fleet.example.com",
 			in: OrgInfo{
-				OrgLogoURL:                fleetHostedDark,
-				OrgLogoURLDarkMode:        fleetHostedDark,
-				OrgLogoURLLightBackground: fleetHostedLight,
-				OrgLogoURLLightMode:       fleetHostedLight,
+				OrgLogoURLDarkMode:  fleetHostedDark,
+				OrgLogoURLLightMode: fleetHostedLight,
 			},
 			want: OrgInfo{
-				OrgLogoURL:                "https://fleet.example.com" + fleetHostedDark,
-				OrgLogoURLDarkMode:        "https://fleet.example.com" + fleetHostedDark,
-				OrgLogoURLLightBackground: "https://fleet.example.com" + fleetHostedLight,
-				OrgLogoURLLightMode:       "https://fleet.example.com" + fleetHostedLight,
+				OrgLogoURLDarkMode:  "https://fleet.example.com" + fleetHostedDark,
+				OrgLogoURLLightMode: "https://fleet.example.com" + fleetHostedLight,
 			},
 		},
 		{
 			name:      "external URLs are left unchanged",
 			serverURL: "https://fleet.example.com",
 			in: OrgInfo{
-				OrgLogoURL:          externalDark,
 				OrgLogoURLDarkMode:  externalDark,
 				OrgLogoURLLightMode: externalLight,
 			},
 			want: OrgInfo{
-				OrgLogoURL:          externalDark,
 				OrgLogoURLDarkMode:  externalDark,
 				OrgLogoURLLightMode: externalLight,
 			},
@@ -940,53 +823,53 @@ func TestOrgInfoAbsolutizeLogoURLs(t *testing.T) {
 		{
 			name:      "trailing slash on serverURL is stripped",
 			serverURL: "https://fleet.example.com/",
-			in:        OrgInfo{OrgLogoURL: fleetHostedDark},
-			want:      OrgInfo{OrgLogoURL: "https://fleet.example.com" + fleetHostedDark},
+			in:        OrgInfo{OrgLogoURLDarkMode: fleetHostedDark},
+			want:      OrgInfo{OrgLogoURLDarkMode: "https://fleet.example.com" + fleetHostedDark},
 		},
 		{
 			name:      "already-absolute fleet URL is left alone (idempotent)",
 			serverURL: "https://fleet.example.com",
 			in: OrgInfo{
-				OrgLogoURL: "https://fleet.example.com" + fleetHostedDark,
+				OrgLogoURLDarkMode: "https://fleet.example.com" + fleetHostedDark,
 			},
 			want: OrgInfo{
-				OrgLogoURL: "https://fleet.example.com" + fleetHostedDark,
+				OrgLogoURLDarkMode: "https://fleet.example.com" + fleetHostedDark,
 			},
 		},
 		{
 			name:      "mixed external and fleet-hosted",
 			serverURL: "https://fleet.example.com",
 			in: OrgInfo{
-				OrgLogoURL:          fleetHostedDark, // fleet-hosted
+				OrgLogoURLDarkMode:  fleetHostedDark, // fleet-hosted
 				OrgLogoURLLightMode: externalLight,   // external
 			},
 			want: OrgInfo{
-				OrgLogoURL:          "https://fleet.example.com" + fleetHostedDark,
+				OrgLogoURLDarkMode:  "https://fleet.example.com" + fleetHostedDark,
 				OrgLogoURLLightMode: externalLight,
 			},
 		},
 		{
 			name:      "subdomain serverURL",
 			serverURL: "https://eu.acme.fleet.example.com",
-			in:        OrgInfo{OrgLogoURL: fleetHostedDark},
+			in:        OrgInfo{OrgLogoURLDarkMode: fleetHostedDark},
 			want: OrgInfo{
-				OrgLogoURL: "https://eu.acme.fleet.example.com" + fleetHostedDark,
+				OrgLogoURLDarkMode: "https://eu.acme.fleet.example.com" + fleetHostedDark,
 			},
 		},
 		{
 			name:      "serverURL with explicit port",
 			serverURL: "https://fleet.example.com:8443",
-			in:        OrgInfo{OrgLogoURL: fleetHostedDark},
+			in:        OrgInfo{OrgLogoURLDarkMode: fleetHostedDark},
 			want: OrgInfo{
-				OrgLogoURL: "https://fleet.example.com:8443" + fleetHostedDark,
+				OrgLogoURLDarkMode: "https://fleet.example.com:8443" + fleetHostedDark,
 			},
 		},
 		{
 			name:      "serverURL with URL prefix path",
 			serverURL: "https://example.com/fleet",
-			in:        OrgInfo{OrgLogoURL: fleetHostedDark},
+			in:        OrgInfo{OrgLogoURLDarkMode: fleetHostedDark},
 			want: OrgInfo{
-				OrgLogoURL: "https://example.com/fleet" + fleetHostedDark,
+				OrgLogoURLDarkMode: "https://example.com/fleet" + fleetHostedDark,
 			},
 		},
 	}
@@ -1007,8 +890,8 @@ func TestMacOSSetupValidate(t *testing.T) {
 			wantErr *string
 		}{
 			{"empty", MacOSSetup{}, nil},
-			{"manual_agent_install without bootstrap package fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
-			{"manual_agent_install with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
+			{"macos_manual_agent_install without bootstrap package fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
+			{"macos_manual_agent_install with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
 			{"bootstrap package during manual enrollment without bootstrap package fails", MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true}, new("setup_experience.macos_enable_bootstrap_package_during_manual_enrollment Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a bootstrap package.")},
 			{"bootstrap package during migration without bootstrap package fails", MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true}, new("setup_experience.macos_enable_bootstrap_package_during_migration Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a bootstrap package.")},
 			{"bootstrap package settings with bootstrap package succeed", MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true, MacOSEnableBootstrapPackageDuringMigration: true, BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
@@ -1041,8 +924,8 @@ func TestMacOSSetupValidate(t *testing.T) {
 			wantErr *string
 		}{
 			{"empty against empty", MacOSSetup{}, MacOSSetup{}, nil},
-			{"manual_agent_install enabled against empty fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, MacOSSetup{}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
-			{"manual_agent_install enabled with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, MacOSSetup{}, nil},
+			{"macos_manual_agent_install enabled against empty fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, MacOSSetup{}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
+			{"macos_manual_agent_install enabled with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, MacOSSetup{}, nil},
 			{"end_user_local_account_type none against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, MacOSSetup{}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "none" for the end_user_local_account_type`)},
 			{"end_user_local_account_type standard against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard")}, MacOSSetup{}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "standard" for the end_user_local_account_type`)},
 			{"enable_end_user_local_account false against none user type fails", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "none" for the end_user_local_account_type`)},

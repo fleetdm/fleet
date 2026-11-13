@@ -76,8 +76,8 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 		// team tests for setup experience software/script
 		{"testdata/gitops/team_setup_software_valid.yml", ""},
 		{"testdata/gitops/team_setup_software_on_package.yml", ""},
-		{"testdata/gitops/team_setup_software_defined_in_conflicting_places.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
-		{"testdata/gitops/team_setup_software_defined_in_conflicting_places_vpp.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
+		{"testdata/gitops/team_setup_software_defined_in_conflicting_places.yml", " Setup experience may only be specified directly on software or within setup_experience, but not both."},
+		{"testdata/gitops/team_setup_software_defined_in_conflicting_places_vpp.yml", " Setup experience may only be specified directly on software or within setup_experience, but not both."},
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
 		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that fleet"},
 		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that fleet"},
@@ -389,7 +389,7 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 					},
 				}, nil
 			}
-			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 				return nil
 			}
 			ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
@@ -510,7 +510,7 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 					},
 				}, nil
 			}
-			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+			ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 				return nil
 			}
 			labelToIDs := map[string]uint{
@@ -589,35 +589,42 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 		{
 			"testdata/gitops/team_vpp_incorrect_type.yml", "Couldn't edit \"../../fleetctl/testdata/gitops/team_vpp_incorrect_type.yml\" at \"software.app_store_apps.0.app_store_id\", expected type string but got number",
 			time.Now().Add(24 * time.Hour),
-			map[string]uint{}, false,
+			map[string]uint{},
+			false,
 		},
 		{"testdata/gitops/team_vpp_empty_adamid.yml", "software app store id required", time.Now().Add(24 * time.Hour), map[string]uint{}, false},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_exclude_any.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2}, false,
+			map[string]uint{"label 1": 1, "label 2": 2},
+			false,
 		},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_include_any.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2}, false,
+			map[string]uint{"label 1": 1, "label 2": 2},
+			false,
 		},
 		{
 			"testdata/gitops/team_vpp_valid_app_labels_include_all.yml", "", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2}, false,
+			map[string]uint{"label 1": 1, "label 2": 2},
+			false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_exclude_any.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2}, false,
+			map[string]uint{"label 1": 1, "label 2": 2},
+			false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_include_any.yml",
 			"Please create the missing labels, or update your settings to not refer to these labels.", time.Now().Add(24 * time.Hour),
-			map[string]uint{"label 1": 1, "label 2": 2}, false,
+			map[string]uint{"label 1": 1, "label 2": 2},
+			false,
 		},
 		{
 			"testdata/gitops/team_vpp_invalid_app_labels_both.yml",
 			`only one of "labels_include_all", "labels_exclude_any" or "labels_include_any" can be specified for app store app`, time.Now().Add(24 * time.Hour),
-			map[string]uint{}, false,
+			map[string]uint{},
+			false,
 		},
 		// The dry run must report an unavailable app the same way the real apply
 		// does, including for a team that does not exist yet.

@@ -86,7 +86,7 @@ If you have access to Fleet, confirm that fleetd is running and the host has enr
 
 1. On the device, press Shift+F10 at the setup screen and run `sc query "Fleet osquery"`. The service's `STATE` should be `RUNNING`.
 2. In Fleet, go to **Hosts**, select the fleet, and search for the device's serial number.
-3. Select the host and confirm its details, such as the operating system, have loaded. If the **Refetch** button shows **Fetching fresh vitals...this may take a moment**, wait for it to finish.
+3. Select the host and confirm its details, such as the operating system, have loaded. If the host shows **Refetching... This can take up to 1 minute.**, wait for it to finish.
 
 A Hyper-V virtual machine is a fast way to repeat these steps while you test, without resetting real hardware.
 

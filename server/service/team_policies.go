@@ -740,6 +740,12 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		})
 	}
 
+	if p.ScriptID.Set && p.ScriptID.Valid && p.ScriptID.Value != 0 && teamID == nil {
+		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
+			Message: fmt.Sprintf("policy payload verification: %s", errPolicyAllFleetsForScripts),
+		})
+	}
+
 	p.Type = policy.Type
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{

@@ -411,7 +411,7 @@ These guidelines will evolve as AI tools and our use of them mature.
 
 ## Fleetdm.com
 
-Any change to fleetdm.com follows the same process as [making changes](https://fleetdm.com/handbook/company/product-groups#making-changes) to the core product. To propose a change to Fleet's website [create a website request](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-website&projects=&template=website-request.md&title=Website%20request%3A+__________________________) on the #g-website kanban board. 
+Any change to fleetdm.com follows the same process as [making changes](https://fleetdm.com/handbook/company/product-groups#making-changes) to the core product. To propose a change to Fleet's website [create a #g-first-impressions request](https://github.com/fleetdm/fleet/issues/new?labels=%23g-first-impressions&template=first-impressions-request.md) on the [#g-first-impressions kanban board](https://github.com/orgs/fleetdm/projects/105). 
 
 Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com. See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
 

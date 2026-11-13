@@ -15,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/go-kit/kit/transport"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/groob/finalizer/logutil"
 )
 
@@ -26,21 +25,22 @@ func MakeHTTPHandler(e *Endpoints, svc Service, logger *slog.Logger) http.Handle
 		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
-	r := mux.NewRouter()
-	r.Methods("GET").Handler(kithttp.NewServer(
-		e.GetEndpoint,
-		decodeSCEPRequest,
-		encodeSCEPResponse,
-		opts...,
-	))
-	r.Methods("POST").Handler(kithttp.NewServer(
-		e.PostEndpoint,
-		decodeSCEPRequest,
-		encodeSCEPResponse,
-		opts...,
-	))
+	getHandler := kithttp.NewServer(e.GetEndpoint, decodeSCEPRequest, encodeSCEPResponse, opts...)
+	postHandler := kithttp.NewServer(e.PostEndpoint, decodeSCEPRequest, encodeSCEPResponse, opts...)
 
-	return r
+	// A method switch rather than a ServeMux: a nested ServeMux overwrites r.Pattern, which otelhttp reads after the handler
+	// returns to set http.route on metrics.
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead:
+			getHandler.ServeHTTP(w, r)
+		case http.MethodPost:
+			postHandler.ServeHTTP(w, r)
+		default:
+			w.Header().Set("Allow", "GET, HEAD, POST")
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		}
+	})
 }
 
 func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *slog.Logger) http.Handler {
@@ -50,33 +50,16 @@ func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger *slog.L
 		kithttp.ServerFinalizer(logutil.NewHTTPLogger(kitLogger).LoggingFinalizer),
 	}
 
-	r := mux.NewRouter()
-	r.Path(rootPath + "{identifier}").Methods("GET").Handler(kithttp.NewServer(
-		e.GetEndpoint,
-		decodeSCEPRequestWithIdentifier,
-		encodeSCEPResponse,
-		opts...,
-	))
-	r.Path(rootPath + "{identifier}").Methods("POST").Handler(kithttp.NewServer(
-		e.PostEndpoint,
-		decodeSCEPRequestWithIdentifier,
-		encodeSCEPResponse,
-		opts...,
-	))
+	getHandler := kithttp.NewServer(e.GetEndpoint, decodeSCEPRequestWithIdentifier, encodeSCEPResponse, opts...)
+	postHandler := kithttp.NewServer(e.PostEndpoint, decodeSCEPRequestWithIdentifier, encodeSCEPResponse, opts...)
+
+	r := http.NewServeMux()
+	r.Handle("GET "+rootPath+"{identifier}", getHandler)
+	r.Handle("POST "+rootPath+"{identifier}", postHandler)
 	// For Windows SCEP client which appends pkiclient.exe to the URL and seemingly cannot be configured
 	// to not do that
-	r.Path(rootPath + "{identifier}/pkiclient.exe").Methods("GET").Handler(kithttp.NewServer(
-		e.GetEndpoint,
-		decodeSCEPRequestWithIdentifier,
-		encodeSCEPResponse,
-		opts...,
-	))
-	r.Path(rootPath + "{identifier}/pkiclient.exe").Methods("POST").Handler(kithttp.NewServer(
-		e.PostEndpoint,
-		decodeSCEPRequestWithIdentifier,
-		encodeSCEPResponse,
-		opts...,
-	))
+	r.Handle("GET "+rootPath+"{identifier}/pkiclient.exe", getHandler)
+	r.Handle("POST "+rootPath+"{identifier}/pkiclient.exe", postHandler)
 
 	return r
 }
@@ -149,7 +132,7 @@ func decodeSCEPRequestWithIdentifier(_ context.Context, r *http.Request) (interf
 	defer r.Body.Close()
 
 	operation := r.URL.Query().Get("operation")
-	identifier := mux.Vars(r)["identifier"]
+	identifier := r.PathValue("identifier")
 	if len(operation) == 0 {
 		return nil, &BadRequestError{Message: "missing operation"}
 	}
@@ -189,7 +172,7 @@ func rawQueryParam(rawQuery, key string) (value string, ok bool) {
 // extract message from request
 func message(r *http.Request) ([]byte, error) {
 	switch r.Method {
-	case "GET":
+	case "GET", "HEAD": // ServeMux routes HEAD to GET patterns
 		var msg string
 		q := r.URL.Query()
 		op := q.Get("operation")

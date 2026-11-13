@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "16.15-5",
+      "version": "16.16-1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE TRIM(name) = 'PostgreSQL 16' AND publisher = 'PostgreSQL Global Development Group';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE TRIM(name) = 'PostgreSQL 16' AND publisher = 'PostgreSQL Global Development Group' AND version_compare(version, '16.15-5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE TRIM(name) = 'PostgreSQL 16' AND publisher = 'PostgreSQL Global Development Group' AND version_compare(version, '16.16-1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'postgresql 16.exe');"
       },
-      "installer_url": "https://get.enterprisedb.com/postgresql/postgresql-16.15-5-windows-x64.exe",
+      "installer_url": "https://get.enterprisedb.com/postgresql/postgresql-16.16-1-windows-x64.exe",
       "install_script_ref": "7fc6e5b7",
       "uninstall_script_ref": "e0ac4456",
-      "sha256": "4065dbc5ffb52010e7357dfd6a74934878f1c6faf7a75cad1411a22e11b7b929",
+      "sha256": "37cad2be2c9ff2b43ab230a0614e571bc0ce48455fa0b6c68c9706a5b34fe2b3",
       "default_categories": [
         "Developer tools"
       ]

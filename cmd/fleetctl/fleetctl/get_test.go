@@ -559,9 +559,6 @@ func TestGetHosts(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		return make([]*fleet.Pack, 0), nil
-	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
 		return nil, nil
 	}
@@ -787,9 +784,6 @@ func TestGetHostsMDM(t *testing.T) {
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		return make([]*fleet.Pack, 0), nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
 		return nil, nil
@@ -1070,7 +1064,6 @@ spec:
   source: chrome_extensions
   extension_for: chrome
   display_name: ""
-  browser: chrome
   versions:
   - id: 0
     version: 0.0.1
@@ -1097,7 +1090,6 @@ spec:
   source: deb_packages
   extension_for: ""
   display_name: ""
-  browser: ""
   versions:
   - id: 0
     version: 0.0.3
@@ -1116,7 +1108,6 @@ spec:
       "source": "chrome_extensions",
       "extension_for": "chrome",
       "display_name": "",
-      "browser": "chrome",
       "hosts_count": 2,
       "icon_url": null,
       "versions_count": 3,
@@ -1155,7 +1146,6 @@ spec:
       "source": "deb_packages",
       "display_name": "",
       "extension_for": "",
-      "browser": "",
       "hosts_count": 0,
       "icon_url": null,
       "versions_count": 1,
@@ -1234,7 +1224,6 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
-  browser: chrome
   extension_for: chrome
   display_name: ""
   version: 0.0.1
@@ -1251,7 +1240,6 @@ spec:
   source: chrome_extensions
   version: 0.0.2
   extension_id: xyz
-  browser: edge
   extension_for: edge
   display_name: ""
   vulnerabilities: null
@@ -1259,7 +1247,6 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
-  browser: chrome
   extension_for: chrome
   display_name: ""
   version: 0.0.3
@@ -1270,7 +1257,6 @@ spec:
   last_opened_at: "2022-01-01T00:00:00Z"
   name: bar
   source: deb_packages
-  browser: ""
   extension_for: ""
   display_name: ""
   version: 0.0.3
@@ -1287,7 +1273,6 @@ spec:
       "name": "foo",
       "version": "0.0.1",
       "source": "chrome_extensions",
-	  "browser": "chrome",
 	  "extension_for": "chrome",
 	  "display_name": "",
       "generated_cpe": "somecpe",
@@ -1310,7 +1295,6 @@ spec:
       "version": "0.0.2",
       "source": "chrome_extensions",
       "extension_id": "xyz",
-      "browser": "edge",
 	  "extension_for": "edge",
 	  "display_name": "",
       "generated_cpe": "",
@@ -1321,7 +1305,6 @@ spec:
       "name": "foo",
       "version": "0.0.3",
       "source": "chrome_extensions",
-	  "browser": "chrome",
 	  "extension_for": "chrome",
 	  "display_name": "",
       "generated_cpe": "someothercpewithoutvulns",
@@ -1334,7 +1317,6 @@ spec:
       "bundle_identifier": "bundle",
       "source": "deb_packages",
       "display_name": "",
-      "browser": "",
 	  "extension_for": "",
       "generated_cpe": "",
       "vulnerabilities": null,
@@ -1486,165 +1468,6 @@ spec:
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets", "--yaml"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "enroll_secrets", "--json"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
-}
-
-func TestGetPacks(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-
-	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
-		return []*fleet.PackSpec{
-			{
-				ID:          7,
-				Name:        "pack1",
-				Description: "some desc",
-				Platform:    "darwin",
-				Disabled:    false,
-			},
-		}, nil
-	}
-
-	expected := `+-------+----------+-------------+----------+
-| NAME  | PLATFORM | DESCRIPTION | DISABLED |
-+-------+----------+-------------+----------+
-| pack1 | darwin   | some desc   | false    |
-+-------+----------+-------------+----------+
-Found 1 2017 "Packs".
-
-Querying in Fleet is becoming more powerful. To learn more, visit:
-https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs
-
-To retrieve "Pack" data in a portable format for upgrading, run ` + "`fleetctl upgrade-packs`" + `.
-`
-	expectedYaml := `---
-apiVersion: v1
-kind: pack
-spec:
-  description: some desc
-  disabled: false
-  id: 7
-  name: pack1
-  platform: darwin
-  targets:
-    fleets: null
-    labels: null
-    teams: null
-`
-	expectedJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": {
-    "id": 7,
-    "name": "pack1",
-    "description": "some desc",
-    "platform": "darwin",
-    "disabled": false,
-    "targets": {
-      "labels": null,
-      "fleets": null,
-      "teams": null
-    }
-  }
-}
-`
-
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
-
-	// test output when there are no packs
-	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
-		return nil, nil
-	}
-
-	expected = `No 2017 "Packs" found.
-`
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--json"}))
-}
-
-func TestGetPack(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-
-	ds.PackByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
-		if name != "pack1" {
-			return nil, false, nil
-		}
-		return &fleet.Pack{
-			ID:          7,
-			Name:        "pack1",
-			Description: "some desc",
-			Platform:    "darwin",
-			Disabled:    false,
-		}, true, nil
-	}
-	ds.GetPackSpecFunc = func(ctx context.Context, name string) (*fleet.PackSpec, error) {
-		if name != "pack1" {
-			return nil, nil
-		}
-		return &fleet.PackSpec{
-			ID:          7,
-			Name:        "pack1",
-			Description: "some desc",
-			Platform:    "darwin",
-			Disabled:    false,
-		}, nil
-	}
-
-	expectedYaml := `---
-apiVersion: v1
-kind: pack
-spec:
-  description: some desc
-  disabled: false
-  id: 7
-  name: pack1
-  platform: darwin
-  targets:
-    fleets: null
-    labels: null
-    teams: null
-`
-	expectedJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": {
-    "id": 7,
-    "name": "pack1",
-    "description": "some desc",
-    "platform": "darwin",
-    "disabled": false,
-    "targets": {
-      "labels": null,
-      "fleets": null,
-      "teams": null
-    }
-  }
-}
-`
-
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
-
-	expectedEmptyYaml := `---
-apiVersion: v1
-kind: pack
-spec: null
-`
-
-	expectedEmptyJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": null
-}`
-
-	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "no-such-pack"}))
-	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "no-such-pack"}))
-	assert.JSONEq(t, expectedEmptyJson, runAppForTest(t, []string{"get", "packs", "--json", "no-such-pack"}))
 }
 
 func TestGetQueries(t *testing.T) {
@@ -2422,7 +2245,7 @@ func TestEnrichedAppConfig(t *testing.T) {
       {
         "org_info": {
           "org_name": "Fleet for osquery",
-          "org_logo_url": ""
+          "org_logo_url_dark_mode": ""
         },
         "server_settings": {
           "server_url": "https://localhost:8412",
