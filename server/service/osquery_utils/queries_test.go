@@ -739,6 +739,16 @@ func TestGetDetailQueries(t *testing.T) {
 	require.Len(t, queriesPremium, len(premiumQueries))
 	sortedKeysCompare(t, queriesPremium, premiumQueries)
 
+	// collecting AI sessions can be turned off in the org settings
+	aiSessionsOff := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{AISessionsDisabled: true}}
+	queriesPremiumNoAISessions := GetDetailQueries(premiumCtx, config.FleetConfig{}, aiSessionsOff, nil, Integrations{}, nil)
+	require.NotContains(t, queriesPremiumNoAISessions, "ai_agent_sessions")
+	require.NotContains(t, queriesPremiumNoAISessions, "ai_agent_session_events")
+	require.Contains(t, queriesPremiumNoAISessions, "entra_join_user_windows")
+	queriesPremiumAISessions := GetDetailQueries(premiumCtx, config.FleetConfig{}, &fleet.AppConfig{}, nil, Integrations{}, nil)
+	require.Contains(t, queriesPremiumAISessions, "ai_agent_sessions")
+	require.Contains(t, queriesPremiumAISessions, "ai_agent_session_events")
+
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
 	qs = append(qs, "users", "users_chrome", "scheduled_query_stats")

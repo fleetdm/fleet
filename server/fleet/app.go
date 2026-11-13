@@ -1893,6 +1893,9 @@ type ServerSettings struct {
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
 	MCPDisabled          bool   `json:"mcp_disabled"`
 	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
+	// AISessionsDisabled stops Fleet from collecting AI agent sessions and their tool calls from hosts. Those
+	// already collected are kept until they expire.
+	AISessionsDisabled bool `json:"ai_sessions_disabled"`
 }
 
 const DefaultMaxQueryReportRows int = 1000

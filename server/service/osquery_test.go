@@ -2384,7 +2384,7 @@ func TestQueriesAndHostFeatures(t *testing.T) {
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
-	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int) ([]*fleet.HostAISessionEventsCursor, error) {
+	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error) {
 		return nil, nil
 	}
 

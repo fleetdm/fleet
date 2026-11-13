@@ -574,6 +574,23 @@ func (s *integrationEnterpriseTestSuite) TestAIAgentSessionsDetailQueries() {
 	require.False(t, truncated[0].Truncated)
 	require.EqualValues(t, 90000, truncated[2].ContentLength)
 	require.True(t, truncated[2].Truncated)
+
+	// Turned off in the org settings, neither query is sent, and the stored sessions stay.
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"server_settings":{"ai_sessions_disabled":true}}`), http.StatusOK)
+	t.Cleanup(func() {
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"server_settings":{"ai_sessions_disabled":false}}`), http.StatusOK)
+	})
+	dqResp = readQueries()
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_ai_agent_sessions")
+	require.NotContains(t, dqResp.Queries, "fleet_detail_query_ai_agent_session_events")
+	var storedSessions int
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storedSessions, `SELECT COUNT(*) FROM host_ai_sessions WHERE host_id = ?`, host.ID)
+	})
+	require.Positive(t, storedSessions)
+
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"server_settings":{"ai_sessions_disabled":false}}`), http.StatusOK)
+	require.Contains(t, readQueries().Queries, "fleet_detail_query_ai_agent_sessions")
 }
 
 func genDistributedReqWithEntraJoinUser(host *fleet.Host, userEmail string) submitDistributedQueryResultsRequestShim {

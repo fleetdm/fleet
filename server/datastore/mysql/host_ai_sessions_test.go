@@ -214,7 +214,7 @@ func testHostAISessionEventsIncremental(t *testing.T, ds *Datastore) {
 	s := newTestAISession("s1", now, 4)
 	storeTestAISessions(t, ds, host.ID, s)
 
-	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.Equal(t, "claude_code", cursors[0].Agent)
@@ -233,7 +233,7 @@ func testHostAISessionEventsIncremental(t *testing.T, ds *Datastore) {
 	}))
 
 	// The stored events are the first event_count calls from where collection started, so the next read resumes there.
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.EqualValues(t, 2, cursors[0].EventCount)
@@ -272,14 +272,14 @@ func testHostAISessionEventsIncremental(t *testing.T, ds *Datastore) {
 	require.Equal(t, "read,execute", stored[0].Actions)
 
 	// Complete and decided: nothing left to read.
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
 
 	// New tool calls on the host make it incomplete again, resuming after the stored events.
 	s = newTestAISession("s1", now.Add(time.Minute), 5)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{s}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.EqualValues(t, 4, cursors[0].EventCount)
@@ -327,7 +327,7 @@ func testHostAISessionEventsDecisions(t *testing.T, ds *Datastore) {
 	require.EqualValues(t, 1, *stored[1].FirstUndecidedToolCallIndex)
 
 	// No activity since the events were read: no decision can have been recorded.
-	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
 
@@ -336,7 +336,7 @@ func testHostAISessionEventsDecisions(t *testing.T, ds *Datastore) {
 	cursor = newTestAISession("c1", now.Add(time.Minute), 2)
 	cursor.Agent = fleet.AISessionAgentCursor
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{s, cursor}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.Equal(t, "s1", cursors[0].AgentSessionID)
@@ -358,7 +358,7 @@ func testHostAISessionEventsDecisions(t *testing.T, ds *Datastore) {
 	require.Len(t, stored, 2)
 	require.Nil(t, stored[1].FirstUndecidedToolCallIndex)
 
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
 
@@ -373,7 +373,7 @@ func testHostAISessionEventsDecisions(t *testing.T, ds *Datastore) {
 	s = newTestAISession("s1", now.Add(2*time.Minute), 5)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{s}))
 	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, nil, []*fleet.HostAISessionEvent{newTestAISessionEvent(s, 3, "")}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.Nil(t, cursors[0].RereadFromToolCallIndex)
@@ -381,12 +381,12 @@ func testHostAISessionEventsDecisions(t *testing.T, ds *Datastore) {
 
 	// Once caught up, the undecided call is reread on the next activity.
 	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, nil, []*fleet.HostAISessionEvent{newTestAISessionEvent(s, 4, "allowed")}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
 	s = newTestAISession("s1", now.Add(3*time.Minute), 5)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{s}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.NotNil(t, cursors[0].RereadFromToolCallIndex)
@@ -415,7 +415,7 @@ func testHostAISessionEventsDecisions(t *testing.T, ds *Datastore) {
 	require.Nil(t, stored[1].FirstUndecidedToolCallIndex)
 	s = newTestAISession("s1", now.Add(3*time.Hour), 76)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{s}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
 
@@ -426,11 +426,11 @@ func testHostAISessionEventsDecisions(t *testing.T, ds *Datastore) {
 	undecided := newTestAISessionEvent(unknownEnd, 0, "")
 	undecided.ExecutedAt = &now
 	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, nil, []*fleet.HostAISessionEvent{undecided}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{newTestAISession("u1", now, 1)}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.Equal(t, "u1", cursors[0].AgentSessionID)
@@ -453,14 +453,14 @@ func testHostAISessionEventsUndecidedBeforeCatchUp(t *testing.T, ds *Datastore) 
 		newTestAISessionEvent(s, 3, "allowed"),
 		newTestAISessionEvent(s, 4, "allowed"),
 	}))
-	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
 
 	// One write on the host records call 2's result along with calls 5 to 8. Catching up comes first.
 	s = newTestAISession("s1", now.Add(time.Minute), 9)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{s}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.Nil(t, cursors[0].RereadFromToolCallIndex)
@@ -474,7 +474,7 @@ func testHostAISessionEventsUndecidedBeforeCatchUp(t *testing.T, ds *Datastore) 
 
 	// The read that caught up started after the undecided call, so the write it read may hold its decision: once caught
 	// up, the session is reread from that call even though it hasn't been active since.
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.NotNil(t, cursors[0].RereadFromToolCallIndex)
@@ -486,12 +486,12 @@ func testHostAISessionEventsUndecidedBeforeCatchUp(t *testing.T, ds *Datastore) 
 		reread = append(reread, newTestAISessionEvent(s, i, "allowed"))
 	}
 	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, cursors, reread))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
 	s = newTestAISession("s1", now.Add(2*time.Minute), 9)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{s}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.NotNil(t, cursors[0].RereadFromToolCallIndex)
@@ -514,7 +514,7 @@ func testHostAISessionEventsRereadCut(t *testing.T, ds *Datastore) {
 	}))
 	s = newTestAISession("s1", now.Add(time.Minute), 5)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{s}))
-	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.EqualValues(t, 1, *cursors[0].RereadFromToolCallIndex)
@@ -524,7 +524,7 @@ func testHostAISessionEventsRereadCut(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, cursors, []*fleet.HostAISessionEvent{
 		newTestAISessionEvent(s, 1, "allowed"),
 	}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.NotNil(t, cursors[0].RereadFromToolCallIndex)
@@ -535,7 +535,7 @@ func testHostAISessionEventsRereadCut(t *testing.T, ds *Datastore) {
 		newTestAISessionEvent(s, 3, ""),
 		newTestAISessionEvent(s, 4, "allowed"),
 	}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
 }
@@ -552,7 +552,7 @@ func testHostAISessionEventsEmptyReads(t *testing.T, ds *Datastore) {
 	// Requested sessions that return no events are given up on after a few reads, so one whose transcript is gone from
 	// the host doesn't keep its place ahead of the others.
 	for i := 1; i < hostAISessionMaxEmptyEventReads; i++ {
-		cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 1)
+		cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 1, fleet.DefaultHostAISessionMaxEvents)
 		require.NoError(t, err)
 		require.Len(t, cursors, 1)
 		require.Equal(t, "gone", cursors[0].AgentSessionID)
@@ -562,17 +562,17 @@ func testHostAISessionEventsEmptyReads(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, i, stored[0].EventsEmptyReads)
 		require.Zero(t, stored[1].EventsEmptyReads)
 	}
-	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 1)
+	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 1, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, cursors, nil))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.Equal(t, "other", cursors[0].AgentSessionID)
 
 	// Reported again unchanged, it stays given up on.
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{gone}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.Equal(t, "other", cursors[0].AgentSessionID)
@@ -581,7 +581,7 @@ func testHostAISessionEventsEmptyReads(t *testing.T, ds *Datastore) {
 	// from its own metadata.
 	gone = newTestAISession("gone", now, 3)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{gone}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 2)
 	require.Equal(t, "gone", cursors[0].AgentSessionID)
@@ -592,7 +592,7 @@ func testHostAISessionEventsEmptyReads(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	gone = newTestAISession("gone", now.Add(time.Minute), 3)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{gone}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 2)
 	require.Equal(t, "gone", cursors[0].AgentSessionID)
@@ -611,44 +611,35 @@ func testHostAISessionEventsCap(t *testing.T, ds *Datastore) {
 	host := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
 	now := time.Now().UTC().Truncate(time.Second)
 
-	oldMax := hostAISessionMaxEvents
-	hostAISessionMaxEvents = 3
-	t.Cleanup(func() { hostAISessionMaxEvents = oldMax })
-
 	s := newTestAISession("s1", now, 5)
 	storeTestAISessions(t, ds, host.ID, s)
+	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, nil, []*fleet.HostAISessionEvent{
+		newTestAISessionEvent(s, 0, "allowed"),
+		newTestAISessionEvent(s, 1, "allowed"),
+		newTestAISessionEvent(s, 2, ""),
+	}))
 
-	// Calls past the limit aren't stored, should a host send them.
-	var events []*fleet.HostAISessionEvent
-	for i := range uint(5) {
-		decision := "allowed"
-		if i == 2 {
-			decision = ""
-		}
-		events = append(events, newTestAISessionEvent(s, i, decision))
-	}
-	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, nil, events))
-	require.Len(t, listStoredAISessionEvents(t, ds, host.ID, "s1"), 3)
-	stored := listStoredAISessions(t, ds, host.ID)
-	require.Len(t, stored, 1)
-	require.EqualValues(t, 3, stored[0].EventCount)
-
-	// With the limit reached the session is no longer behind, however many calls it has.
-	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	// With the limit reached the session is no longer behind, however many calls it has. Under a higher limit it is.
+	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, 3)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, 4)
+	require.NoError(t, err)
+	require.Len(t, cursors, 1)
+	require.EqualValues(t, 3, cursors[0].EventCount)
+	require.Nil(t, cursors[0].RereadFromToolCallIndex)
 
 	// Its undecided calls are still reread once it's active again.
 	s = newTestAISession("s1", now.Add(time.Minute), 8)
 	storeTestAISessions(t, ds, host.ID, s)
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, 3)
 	require.NoError(t, err)
 	require.Len(t, cursors, 1)
 	require.NotNil(t, cursors[0].RereadFromToolCallIndex)
 	require.EqualValues(t, 2, *cursors[0].RereadFromToolCallIndex)
 
 	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, cursors, []*fleet.HostAISessionEvent{newTestAISessionEvent(s, 2, "denied")}))
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, 3)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
 }
@@ -671,13 +662,13 @@ func testListHostAISessionsNeedingEventsOrderAndScope(t *testing.T, ds *Datastor
 	)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host2.ID, []*fleet.HostAISession{newTestAISession("other", now.Add(time.Hour), 1)}))
 
-	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host1.ID, 2)
+	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host1.ID, 2, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 2)
 	require.Equal(t, "latest", cursors[0].AgentSessionID)
 	require.Equal(t, "middle", cursors[1].AgentSessionID)
 
-	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host1.ID, 10)
+	cursors, err = ds.ListHostAISessionsNeedingEvents(ctx, host1.ID, 10, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Len(t, cursors, 3)
 	require.Equal(t, "oldest", cursors[2].AgentSessionID)
@@ -712,7 +703,7 @@ func testListHostAISessionsNeedingEventsSkipsExpiring(t *testing.T, ds *Datastor
 		cutoff.Add(hostAISessionsCleanupMargin-time.Minute))
 	require.NoError(t, err)
 
-	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 10)
+	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 10, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	var ids []string
 	for _, c := range cursors {
@@ -816,7 +807,7 @@ func testCleanupHostAISessionsBudget(t *testing.T, ds *Datastore) {
 	// Reported again before the next run, e2 has nothing left to read.
 	e2 := newTestAISession("e2", now, 3)
 	require.NoError(t, ds.UpsertHostAISessions(ctx, host.ID, []*fleet.HostAISession{e2}))
-	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5)
+	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, fleet.DefaultHostAISessionMaxEvents)
 	require.NoError(t, err)
 	require.Empty(t, cursors)
 

@@ -28,9 +28,10 @@ const AISessionAgentCursor = "cursor"
 // sessions active in the last week.
 const HostAISessionsMaxAge = 30 * 24 * time.Hour
 
-// HostAISessionMaxEvents is how many of a session's tool calls Fleet stores, its first ones: the stored calls have to
-// stay the session's first so reading can resume after them.
-const HostAISessionMaxEvents = 10_000
+// DefaultHostAISessionMaxEvents is how many of a session's tool calls Fleet stores unless the server is configured
+// otherwise. They are its first ones: the stored calls have to stay the session's first so reading can resume after
+// them.
+const DefaultHostAISessionMaxEvents = 10_000
 
 // HostAISession is an AI coding agent session on a host, as collected from fleetd's ai_agent_sessions table.
 type HostAISession struct {

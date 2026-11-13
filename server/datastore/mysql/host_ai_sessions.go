@@ -18,8 +18,6 @@ var (
 	hostAISessionEventsBatchSize = 200
 
 	hostAISessionsCleanupBatchSize = 500
-
-	hostAISessionMaxEvents uint = fleet.HostAISessionMaxEvents
 )
 
 // hostAISessionsCleanupMargin is how long before the cleanup deletes a session its events stop being read, so they
@@ -228,14 +226,14 @@ func sameAISessionTime(a, b *time.Time) bool {
 	return a.Equal(*b)
 }
 
-func (ds *Datastore) ListHostAISessionsNeedingEvents(ctx context.Context, hostID uint, limit int) ([]*fleet.HostAISessionEventsCursor, error) {
+func (ds *Datastore) ListHostAISessionsNeedingEvents(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error) {
 	// Catching up comes before rereading undecided events: an active session's ended_at moves at every refresh, so
 	// rereading first would re-send the same events each time and never reach the new ones. An undecided event can
 	// only get its decision if the agent wrote to the transcript after the event was read, so a caught-up session is
 	// reread only once its ended_at moves past the one its events were read at. Sessions the cleanup is about to
 	// delete are left out: those that ended in the past go by their end, and the IF's NULL condition sends those whose
-	// end is unknown to the updated_at check, as it does those ending in the future. A session with as many events
-	// stored as Fleet keeps is caught up.
+	// end is unknown to the updated_at check, as it does those ending in the future. A session with maxEvents events
+	// stored is caught up.
 	const stmt = `
 SELECT
 	agent, agent_session_id, transcript_path, ended_at, event_count,
@@ -252,8 +250,8 @@ LIMIT ?`
 	activeAfter := now.Add(-fleet.HostAISessionsMaxAge).Add(hostAISessionsCleanupMargin)
 	var cursors []*fleet.HostAISessionEventsCursor
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cursors, stmt,
-		hostAISessionMaxEvents, hostID, hostAISessionMaxEmptyEventReads, now, activeAfter, activeAfter,
-		hostAISessionMaxEvents, fleet.AISessionAgentCursor, limit); err != nil {
+		maxEvents, hostID, hostAISessionMaxEmptyEventReads, now, activeAfter, activeAfter,
+		maxEvents, fleet.AISessionAgentCursor, limit); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host ai sessions needing events")
 	}
 	return cursors, nil
@@ -321,11 +319,6 @@ UPDATE host_ai_sessions SET
 	events_ended_at = IF(first_undecided_tool_call_index < ? OR ? + 1 < event_count, events_ended_at, ?),
 	events_empty_reads = 0
 WHERE id = ?`
-
-	// The query doesn't ask for calls past the limit, so these only come from a host that ignored its bound.
-	events = slices.DeleteFunc(slices.Clone(events), func(e *fleet.HostAISessionEvent) bool {
-		return e.ToolCallIndex >= hostAISessionMaxEvents
-	})
 
 	// Sessions in the order their events first appear, with the ended_at their events were read at and the indexes
 	// the read started from and got to.

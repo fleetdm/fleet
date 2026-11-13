@@ -4444,8 +4444,11 @@ func GetDetailQueries(
 	// IdP host vitals and AI agent sessions are premium features.
 	if license.IsPremium(ctx) {
 		generatedMap["entra_join_user_windows"] = windowsEntraJoinUser
-		generatedMap["ai_agent_sessions"] = aiAgentSessions
-		generatedMap["ai_agent_session_events"] = aiAgentSessionEvents
+		if appConfig == nil || !appConfig.ServerSettings.AISessionsDisabled {
+			generatedMap["ai_agent_sessions"] = aiAgentSessions
+			generatedMap["ai_agent_session_events"] = aiAgentSessionEventsQuery(
+				fleetConfig.Osquery.AISessionMaxToolCalls, fleetConfig.Osquery.AISessionMaxToolCallsPerRefresh)
+		}
 	}
 
 	// the host fleet's setting is effective when the host is on a fleet

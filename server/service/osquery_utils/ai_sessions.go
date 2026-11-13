@@ -49,12 +49,22 @@ WHERE ended_at >= (SELECT unix_time FROM time) - 604800`,
 	DirectIngestFunc: directIngestAIAgentSessions,
 }
 
-// aiAgentSessionEvents reads the tool calls of sessions stored on earlier refreshes, a few sessions at a time.
-var aiAgentSessionEvents = DetailQuery{
-	QueryFunc:        buildAIAgentSessionEventsQuery,
-	Platforms:        aiSessionsPlatforms,
-	Discovery:        aiSessionsDiscovery("ai_agent_session_messages", "tool_call_index"),
-	DirectIngestFunc: directIngestAIAgentSessionEvents,
+// aiAgentSessionEventsQuery reads the tool calls of sessions stored on earlier refreshes, a few sessions at a time,
+// up to each session's first maxEvents and, when maxEventsPerRefresh is set, that many new ones per session.
+func aiAgentSessionEventsQuery(maxEvents, maxEventsPerRefresh int) DetailQuery {
+	if maxEvents <= 0 {
+		maxEvents = fleet.DefaultHostAISessionMaxEvents
+	}
+	return DetailQuery{
+		QueryFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
+			return buildAIAgentSessionEventsQuery(ctx, logger, host, ds, uint(maxEvents), uint(max(maxEventsPerRefresh, 0)))
+		},
+		Platforms: aiSessionsPlatforms,
+		Discovery: aiSessionsDiscovery("ai_agent_session_messages", "tool_call_index"),
+		DirectIngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+			return directIngestAIAgentSessionEvents(ctx, logger, host, ds, rows, uint(maxEvents))
+		},
+	}
 }
 
 func sqliteQuote(s string) string {
@@ -69,10 +79,11 @@ func sqliteQuote(s string) string {
 //
 // A session is resumed after the calls Fleet has stored (or from its first undecided call, when rereading). fleetd
 // applies the tool_call_index bound itself, so a call's first row is always one Fleet lacks: the arms share fleetd's
-// ~1 MiB result budget, and once it is spent each arm returns only that row. Calls past those Fleet stores per session
-// aren't asked for.
-func buildAIAgentSessionEventsQuery(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
-	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, aiSessionsPerEventsQuery)
+// ~1 MiB result budget, and once it is spent each arm returns only that row. Calls from maxEvents on aren't asked for,
+// and a session catching up is asked for at most maxEventsPerRefresh calls when that is set. A reread isn't limited: its
+// calls are stored already, and one cut before the last stored call is repeated at the next refresh.
+func buildAIAgentSessionEventsQuery(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, maxEvents, maxEventsPerRefresh uint) (string, bool) {
+	cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, aiSessionsPerEventsQuery, maxEvents)
 	if err != nil {
 		logger.ErrorContext(ctx, "QueryFunc - ai agent session events", "component", "service", "host_id", host.ID, "err", err)
 		return "", false
@@ -84,9 +95,11 @@ func buildAIAgentSessionEventsQuery(ctx context.Context, logger *slog.Logger, ho
 		if c.EndedAt != nil {
 			endedAt = c.EndedAt.Unix()
 		}
-		from := c.EventCount
+		from, to := c.EventCount, maxEvents
 		if c.RereadFromToolCallIndex != nil {
 			from = *c.RereadFromToolCallIndex
+		} else if maxEventsPerRefresh > 0 {
+			to = min(to, from+maxEventsPerRefresh)
 		}
 		arms = append(arms,
 			fmt.Sprintf(`SELECT '%s' AS agent, '%s' AS session_id, 0 AS tool_call_index, '' AS tool_name, '' AS tool_use_id, '' AS action, '' AS target, '' AS decision, 0 AS timestamp, '' AS content, 0 AS content_length, 0 AS truncated, %d AS session_ended_at, 1 AS requested`,
@@ -94,7 +107,7 @@ func buildAIAgentSessionEventsQuery(ctx context.Context, logger *slog.Logger, ho
 			fmt.Sprintf(`SELECT agent, session_id, tool_call_index, tool_name, tool_use_id, action, target, decision, timestamp, content, content_length, truncated, %d AS session_ended_at, 0 AS requested
 FROM ai_agent_session_messages
 WHERE transcript_path = '%s' AND block_type = 'tool_use' AND tool_call_index >= %d AND tool_call_index < %d`,
-				endedAt, sqliteQuote(c.TranscriptPath), from, fleet.HostAISessionMaxEvents))
+				endedAt, sqliteQuote(c.TranscriptPath), from, to))
 	}
 	if len(arms) == 0 {
 		return "", false
@@ -220,7 +233,7 @@ func directIngestAIAgentSessions(ctx context.Context, logger *slog.Logger, host 
 	return nil
 }
 
-func directIngestAIAgentSessionEvents(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestAIAgentSessionEvents(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string, maxEvents uint) error {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -237,6 +250,10 @@ func directIngestAIAgentSessionEvents(ctx context.Context, logger *slog.Logger, 
 		toolCallIndex, err := strconv.ParseUint(row["tool_call_index"], 10, 32)
 		if row["agent"] == "" || row["session_id"] == "" || err != nil {
 			logger.DebugContext(ctx, "ai agent session event without session or position", "component", "service", "host_id", host.ID)
+			continue
+		}
+		// The query doesn't ask for these, so they only come from a host that ignored its bound.
+		if toolCallIndex >= uint64(maxEvents) {
 			continue
 		}
 		events = append(events, &fleet.HostAISessionEvent{

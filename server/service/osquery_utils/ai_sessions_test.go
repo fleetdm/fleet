@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"math"
 	"slices"
@@ -70,7 +71,7 @@ func TestAIAgentSessionsDiscovery(t *testing.T) {
 		column    string
 	}{
 		{"sessions", aiAgentSessions.Discovery, "ai_agent_sessions", "account_identifier"},
-		{"events", aiAgentSessionEvents.Discovery, "ai_agent_session_messages", "tool_call_index"},
+		{"events", aiAgentSessionEventsQuery(0, 0).Discovery, "ai_agent_session_messages", "tool_call_index"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			discover := func(columns string) bool {
@@ -155,25 +156,27 @@ func TestBuildAIAgentSessionEventsQuery(t *testing.T) {
 	logger := slog.New(slog.DiscardHandler)
 	host := &fleet.Host{ID: 1}
 	endedAt := time.Unix(1_800_000_000, 0).UTC()
+	const maxEvents = 40
 
 	ds := new(mock.Store)
 	var cursors []*fleet.HostAISessionEventsCursor
-	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int) ([]*fleet.HostAISessionEventsCursor, error) {
+	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int, maxEventsArg uint) ([]*fleet.HostAISessionEventsCursor, error) {
 		require.EqualValues(t, 1, hostID)
 		require.Equal(t, aiSessionsPerEventsQuery, limit)
+		require.EqualValues(t, maxEvents, maxEventsArg)
 		return cursors, nil
 	}
 
-	_, ok := buildAIAgentSessionEventsQuery(ctx, logger, host, ds)
+	_, ok := buildAIAgentSessionEventsQuery(ctx, logger, host, ds, maxEvents, 0)
 	require.False(t, ok)
 
-	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int) ([]*fleet.HostAISessionEventsCursor, error) {
+	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error) {
 		return nil, errors.New("boom")
 	}
-	_, ok = buildAIAgentSessionEventsQuery(ctx, logger, host, ds)
+	_, ok = buildAIAgentSessionEventsQuery(ctx, logger, host, ds, maxEvents, 0)
 	require.False(t, ok)
 
-	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int) ([]*fleet.HostAISessionEventsCursor, error) {
+	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*fleet.HostAISessionEventsCursor, error) {
 		return cursors, nil
 	}
 	cursors = []*fleet.HostAISessionEventsCursor{
@@ -186,7 +189,7 @@ func TestBuildAIAgentSessionEventsQuery(t *testing.T) {
 		// Paths come from the host.
 		{Agent: "claude_code", AgentSessionID: "quoted", TranscriptPath: "/u/o'brien/x' OR '1'='1.jsonl", EndedAt: &endedAt},
 	}
-	query, ok := buildAIAgentSessionEventsQuery(ctx, logger, host, ds)
+	query, ok := buildAIAgentSessionEventsQuery(ctx, logger, host, ds, maxEvents, 0)
 	require.True(t, ok)
 
 	db, err := sql.Open("sqlite3", ":memory:")
@@ -218,9 +221,9 @@ func TestBuildAIAgentSessionEventsQuery(t *testing.T) {
 			insert(s.id, s.path, i, "tool_use")
 		}
 	}
-	// Calls past the limit Fleet stores per session aren't asked for.
-	insert("fresh", "/u/a/fresh.jsonl", fleet.HostAISessionMaxEvents-1, "tool_use")
-	insert("fresh", "/u/a/fresh.jsonl", fleet.HostAISessionMaxEvents, "tool_use")
+	// Calls from the limit on aren't asked for.
+	insert("fresh", "/u/a/fresh.jsonl", maxEvents-1, "tool_use")
+	insert("fresh", "/u/a/fresh.jsonl", maxEvents, "tool_use")
 
 	rows, err := db.Query(query)
 	require.NoError(t, err)
@@ -258,7 +261,7 @@ func TestBuildAIAgentSessionEventsQuery(t *testing.T) {
 	require.Equal(t, []string{"claude_code/fresh", "claude_code/cut", "codex_cli/undecided", "claude_code/quoted"}, requestedSessions)
 	all := []int{0, 1, 2, 3, 4, 5}
 	require.Equal(t, map[string][]int{
-		"fresh":     append(slices.Clone(all), fleet.HostAISessionMaxEvents-1),
+		"fresh":     append(slices.Clone(all), maxEvents-1),
 		"cut":       {3, 4, 5},
 		"undecided": {2, 3, 4, 5},
 		"quoted":    all,
@@ -268,11 +271,52 @@ func TestBuildAIAgentSessionEventsQuery(t *testing.T) {
 
 	// A session ID is quoted as a path is.
 	cursors = []*fleet.HostAISessionEventsCursor{{Agent: "claude_code", AgentSessionID: "x' OR '1'='1", TranscriptPath: "/u/a/x.jsonl"}}
-	query, ok = buildAIAgentSessionEventsQuery(ctx, logger, host, ds)
+	query, ok = buildAIAgentSessionEventsQuery(ctx, logger, host, ds, maxEvents, 0)
 	require.True(t, ok)
 	var requestedID string
 	require.NoError(t, db.QueryRow(`SELECT session_id FROM (`+query+`) WHERE requested = 1`).Scan(&requestedID))
 	require.Equal(t, "x' OR '1'='1", requestedID)
+
+	// With a limit per refresh, a session catching up is asked for that many calls after those stored. One rereading
+	// its undecided calls isn't limited: those are stored already, and a reread cut short would be repeated.
+	cursors = []*fleet.HostAISessionEventsCursor{
+		{Agent: "claude_code", AgentSessionID: "fresh", TranscriptPath: "/u/a/fresh.jsonl"},
+		{Agent: "claude_code", AgentSessionID: "cut", TranscriptPath: "/u/a/cut.jsonl", EventCount: 3},
+		{Agent: "codex_cli", AgentSessionID: "undecided", TranscriptPath: "/u/a/undecided.jsonl", EventCount: 6, RereadFromToolCallIndex: new(uint(2))},
+	}
+	query, ok = buildAIAgentSessionEventsQuery(ctx, logger, host, ds, maxEvents, 2)
+	require.True(t, ok)
+	limited, err := db.Query(query)
+	require.NoError(t, err)
+	defer limited.Close()
+	got = map[string][]int{}
+	for limited.Next() {
+		var sessionID string
+		var toolCallIndex, requested int
+		var skip any
+		require.NoError(t, limited.Scan(&skip, &sessionID, &toolCallIndex, &skip, &skip, &skip, &skip, &skip, &skip, &skip, &skip, &skip, &skip, &requested))
+		if requested == 0 {
+			got[sessionID] = append(got[sessionID], toolCallIndex)
+		}
+	}
+	require.NoError(t, limited.Err())
+	require.Equal(t, map[string][]int{"fresh": {0, 1}, "cut": {3, 4}, "undecided": {2, 3, 4, 5}}, got)
+	// The limit per session still applies.
+	query, ok = buildAIAgentSessionEventsQuery(ctx, logger, host, ds, 4, 2)
+	require.True(t, ok)
+	require.Contains(t, query, "tool_call_index >= 3 AND tool_call_index < 4")
+
+	cursors = cursors[:1]
+	// The detail query asks with the configured limit, or the default when none is set.
+	for configured, want := range map[int]uint{7: 7, 0: fleet.DefaultHostAISessionMaxEvents} {
+		ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int, maxEventsArg uint) ([]*fleet.HostAISessionEventsCursor, error) {
+			require.Equal(t, want, maxEventsArg)
+			return cursors, nil
+		}
+		query, ok = aiAgentSessionEventsQuery(configured, 0).QueryFunc(ctx, logger, host, ds)
+		require.True(t, ok)
+		require.Contains(t, query, fmt.Sprintf("tool_call_index < %d", want))
+	}
 }
 
 func TestDirectIngestAIAgentSessions(t *testing.T) {
@@ -359,6 +403,7 @@ func TestDirectIngestAIAgentSessions(t *testing.T) {
 
 func TestDirectIngestAIAgentSessionEvents(t *testing.T) {
 	ctx := t.Context()
+	const maxEvents = 40
 	logger := slog.New(slog.DiscardHandler)
 	host := &fleet.Host{ID: 7}
 
@@ -372,7 +417,7 @@ func TestDirectIngestAIAgentSessionEvents(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, directIngestAIAgentSessionEvents(ctx, logger, host, ds, nil))
+	require.NoError(t, directIngestAIAgentSessionEvents(ctx, logger, host, ds, nil, maxEvents))
 	require.False(t, ds.UpsertHostAISessionEventsFuncInvoked)
 
 	// The rows naming the sessions asked for come back even when they have no tool calls to return.
@@ -385,7 +430,7 @@ func TestDirectIngestAIAgentSessionEvents(t *testing.T) {
 		{Agent: "claude_code", AgentSessionID: "s1"},
 		{Agent: "cursor", AgentSessionID: "s2"},
 	}
-	require.NoError(t, directIngestAIAgentSessionEvents(ctx, logger, host, ds, markers))
+	require.NoError(t, directIngestAIAgentSessionEvents(ctx, logger, host, ds, markers, maxEvents))
 	require.True(t, ds.UpsertHostAISessionEventsFuncInvoked)
 	require.Equal(t, wantRequested, gotRequested)
 	require.Empty(t, got)
@@ -410,8 +455,10 @@ func TestDirectIngestAIAgentSessionEvents(t *testing.T) {
 		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "bogus"},
 		{"agent": "claude_code", "session_id": "s1", "tool_name": "Bash"},
 		{"agent": "", "session_id": "s1", "tool_call_index": "4"},
+		// A call from the limit on is dropped, should a host send one.
+		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "40", "tool_name": "Bash"},
 	})
-	require.NoError(t, directIngestAIAgentSessionEvents(ctx, logger, host, ds, rows))
+	require.NoError(t, directIngestAIAgentSessionEvents(ctx, logger, host, ds, rows, maxEvents))
 	require.Equal(t, wantRequested, gotRequested)
 	require.Len(t, got, 3)
 
@@ -447,5 +494,5 @@ func TestDirectIngestAIAgentSessionEvents(t *testing.T) {
 	ds.UpsertHostAISessionEventsFunc = func(ctx context.Context, hostID uint, requested []*fleet.HostAISessionEventsCursor, events []*fleet.HostAISessionEvent) error {
 		return errors.New("boom")
 	}
-	require.Error(t, directIngestAIAgentSessionEvents(ctx, logger, host, ds, rows))
+	require.Error(t, directIngestAIAgentSessionEvents(ctx, logger, host, ds, rows, maxEvents))
 }
