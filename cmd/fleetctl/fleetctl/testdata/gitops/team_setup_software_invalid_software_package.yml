@@ -10,7 +10,7 @@ settings:
     host_expiry_window: 30
 agent_options:
 controls:
-  macos_setup:
+  setup_experience:
     software:
       - app_store_id: "1"
       - package_path: lib/no_such_software.yml

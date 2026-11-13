@@ -330,7 +330,7 @@ func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.R
 
 type patchVPPTokensTeamsRequest struct {
 	ID      uint   `url:"id"`
-	TeamIDs []uint `json:"teams" renameto:"fleets"`
+	TeamIDs []uint `json:"fleets"`
 }
 
 type patchVPPTokensTeamsResponse struct {

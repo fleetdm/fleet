@@ -39,9 +39,12 @@ if ($version -and (Test-Path -LiteralPath $installDir)) {
     }
 }
 
+# On Windows on Arm the installer refuses this x64 build with a message box
+# that hangs under SYSTEM. /IGNORE_ARCH skips that check; the app runs under
+# x64 emulation.
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "/S"
+  ArgumentList = "/S /IGNORE_ARCH"
   PassThru = $true
   Wait = $true
 }

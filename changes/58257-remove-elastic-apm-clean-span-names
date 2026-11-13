@@ -1,0 +1,2 @@
+- **Breaking change:** Removed Elastic APM support. If `logging.tracing_type` is set to `elasticapm`, Fleet now turns tracing off and logs a warning at startup. Use OpenTelemetry instead.
+- OpenTelemetry span names and the `http.route` attribute for Fleet API requests no longer contain router regex syntax. For example, `GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id:[0-9]+}` is now `GET /api/_version_/fleet/hosts/{id}`. Update any dashboards or alerts that filter on the old names.

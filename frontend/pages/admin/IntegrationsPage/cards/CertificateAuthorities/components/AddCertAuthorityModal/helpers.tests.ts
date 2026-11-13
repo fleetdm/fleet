@@ -45,6 +45,27 @@ describe("AddCertAuthorityModal helpers", () => {
   });
 
   describe("getDisplayErrMessage", () => {
+    it("links the guide in a Fleet 5 removed variable error instead of the generic error", () => {
+      render(
+        React.createElement(
+          "div",
+          null,
+          getDisplayErrMessage(
+            apiError(
+              'Couldn\'t add certificate authority. The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration'
+            )
+          )
+        )
+      );
+
+      expect(
+        screen.getByText(/variable is not available anymore/)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /fleet-5-migration/ })
+      ).toBeInTheDocument();
+    });
+
     // The server names the CA type in the message ("Invalid NDES SCEP admin URL or
     // credentials"), so the match can't assume the reason starts with "invalid admin URL".
     it.each([
@@ -281,5 +302,30 @@ describe("EJBCA server errors", () => {
       `${prefix}Private key must be configured. Learn more`
     );
     expect(screen.getByRole("link", { name: /Learn more/ })).toBeVisible();
+  });
+
+  it("shows a Fleet 5 removed variable error next to the field that uses it", () => {
+    const setFieldErrors = jest.fn();
+    const notifyError = jest.spyOn(notify, "error").mockImplementation();
+    const removed =
+      'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration';
+
+    handleEJBCAServerError(
+      {
+        errors: [
+          {
+            name: "certificate_common_name",
+            reason: `Couldn't edit certificate authority. ${removed}`,
+          },
+        ],
+      },
+      "edit",
+      setFieldErrors
+    );
+
+    expect(setFieldErrors).toHaveBeenCalledTimes(1);
+    expect(setFieldErrors).toHaveBeenCalledWith({ commonName: removed });
+    expect(notifyError).not.toHaveBeenCalled();
+    notifyError.mockRestore();
   });
 });

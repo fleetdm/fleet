@@ -15,7 +15,7 @@ import (
 //
 // ADDING A DATASTORE METHOD: decide whether it can change what
 // Service.GetClientConfig returns — agent options (global or team), scheduled
-// reports, 2017 packs, or label membership that reports are scoped to. Indirect
+// reports, or label membership that reports are scoped to. Indirect
 // changes count: a method that edits a label a report targets changes the
 // config for every host whose membership shifts.
 //
@@ -84,17 +84,6 @@ func (d *Datastore) invalidate(ctx context.Context, reason string) {
 	}
 	d.logger.InfoContext(ctx, "config etag deployment invalidation (write fence armed)",
 		"source", reason)
-}
-
-// invalidateAndResetLegacyFlag additionally drops the cached deployment-wide
-// "legacy packs present" gate flag — pack CRUD is what adds/removes 2017
-// packs, so the answer may have just changed in either direction.
-func (d *Datastore) invalidateAndResetLegacyFlag(ctx context.Context, reason string) {
-	d.invalidate(ctx, reason)
-	if err := d.store.ResetLegacyPacksFlag(ctx); err != nil {
-		d.logger.ErrorContext(ctx, "config etag legacy packs flag reset failed; flag will expire via its TTL",
-			"reason", reason, "err", err)
-	}
 }
 
 // invalidateAndResetLabelScopes additionally drops the cached label-scope
@@ -228,71 +217,6 @@ func (d *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 }
 
 // ///////////////////////////////////////////////////////////////////////////
-// 2017 "legacy" packs and their scheduled queries. Pack CRUD also resets
-// the cached "legacy packs present" gate flag, since it is exactly what
-// adds/removes the hard-bypass blocker.
-// ///////////////////////////////////////////////////////////////////////////
-
-func (d *Datastore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) error {
-	if err := d.Datastore.ApplyPackSpecs(ctx, specs); err != nil {
-		return err
-	}
-	d.invalidateAndResetLegacyFlag(ctx, "ApplyPackSpecs")
-	return nil
-}
-
-func (d *Datastore) NewPack(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
-	p, err := d.Datastore.NewPack(ctx, pack, opts...)
-	if err != nil {
-		return nil, err
-	}
-	d.invalidateAndResetLegacyFlag(ctx, "NewPack")
-	return p, nil
-}
-
-func (d *Datastore) SavePack(ctx context.Context, pack *fleet.Pack) error {
-	if err := d.Datastore.SavePack(ctx, pack); err != nil {
-		return err
-	}
-	d.invalidateAndResetLegacyFlag(ctx, "SavePack")
-	return nil
-}
-
-func (d *Datastore) DeletePack(ctx context.Context, name string) error {
-	if err := d.Datastore.DeletePack(ctx, name); err != nil {
-		return err
-	}
-	d.invalidateAndResetLegacyFlag(ctx, "DeletePack")
-	return nil
-}
-
-func (d *Datastore) NewScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-	s, err := d.Datastore.NewScheduledQuery(ctx, sq, opts...)
-	if err != nil {
-		return nil, err
-	}
-	d.invalidate(ctx, "NewScheduledQuery")
-	return s, nil
-}
-
-func (d *Datastore) SaveScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	s, err := d.Datastore.SaveScheduledQuery(ctx, sq)
-	if err != nil {
-		return nil, err
-	}
-	d.invalidate(ctx, "SaveScheduledQuery")
-	return s, nil
-}
-
-func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
-	if err := d.Datastore.DeleteScheduledQuery(ctx, id); err != nil {
-		return err
-	}
-	d.invalidate(ctx, "DeleteScheduledQuery")
-	return nil
-}
-
-// ///////////////////////////////////////////////////////////////////////////
 // Labels: deletion and manual membership edits.
 // ///////////////////////////////////////////////////////////////////////////
 
@@ -303,8 +227,8 @@ func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
 // rare admin action, so the deployment-wide invalidation costs nothing; the
 // label-scope mode state is reset too, since the last label-scoped report of
 // a scope may just have become unscoped.
-func (d *Datastore) DeleteLabel(ctx context.Context, name string, filter fleet.TeamFilter) error {
-	if err := d.Datastore.DeleteLabel(ctx, name, filter); err != nil {
+func (d *Datastore) DeleteLabel(ctx context.Context, id uint) error {
+	if err := d.Datastore.DeleteLabel(ctx, id); err != nil {
 		return err
 	}
 	d.invalidateAndResetLabelScopes(ctx, "DeleteLabel")

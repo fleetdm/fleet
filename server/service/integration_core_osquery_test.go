@@ -342,7 +342,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Saved:              true,
 	})
 	require.NoError(t, err)
-	nonScheduledGlobalQuery, err := s.ds.NewQuery(context.Background(), &fleet.Query{
+	_, err = s.ds.NewQuery(context.Background(), &fleet.Query{
 		Name:               "non-scheduled-global-query",
 		TeamID:             nil,
 		Interval:           0,
@@ -406,24 +406,6 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		Saved:              true,
 	})
 	require.NoError(t, err)
-	// Create a legacy 2017 user pack with one query.
-	userPack1TargetTeam1, err := s.ds.NewPack(context.Background(), &fleet.Pack{
-		Name:    "2017 Pack",
-		Type:    nil,
-		Teams:   []fleet.Target{{TargetID: team1.ID, Type: fleet.TargetTeam}},
-		TeamIDs: []uint{team1.ID},
-	})
-	require.NoError(t, err)
-	scheduledQueryOnPack1, err := s.ds.NewScheduledQuery(context.Background(), &fleet.ScheduledQuery{
-		Name:     "scheduled-query-pack1",
-		PackID:   userPack1TargetTeam1.ID,
-		QueryID:  nonScheduledGlobalQuery.ID,
-		Interval: 60,
-		Snapshot: new(true),
-		Removed:  new(true),
-	})
-	require.NoError(t, err)
-
 	// Simulate the osquery instance of the global host calling the osquery/config endpoint
 	// and test the returned scheduled queries.
 	req := getClientConfigRequest{NodeKey: *globalHost.NodeKey}
@@ -441,7 +423,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	resp = getClientConfigResponse{}
 	s.DoJSON("POST", "/api/osquery/config", req, http.StatusOK, &resp)
 	packs = resp.Config["packs"].(map[string]any)
-	require.Len(t, packs, 3)
+	require.Len(t, packs, 2)
 	globalQueries = packs["Global"].(map[string]any)["queries"].(map[string]any)
 	require.Len(t, globalQueries, 1)
 	require.Contains(t, globalQueries, scheduledGlobalQuery.Name)
@@ -449,9 +431,6 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	require.Len(t, team1Queries, 2)
 	require.Contains(t, team1Queries, scheduledTeam1Query1.Name)
 	require.Contains(t, team1Queries, scheduledTeam1Query2.Name)
-	userPack1Queries := packs[userPack1TargetTeam1.Name].(map[string]any)["queries"].(map[string]any)
-	require.Len(t, userPack1Queries, 1)
-	require.Contains(t, userPack1Queries, scheduledQueryOnPack1.Name)
 
 	// Now let's simulate a osquery instance running in the team host returning the
 	// stats in the distributed/write (osquery_schedule table)
@@ -473,25 +452,6 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 			"last_system_time":  "7",
 			"average_memory":    "8",
 			"last_memory":       "9",
-			"delimiter":         "/",
-		},
-		{
-			"name":              "pack/2017 Pack/scheduled-query-pack1",
-			"query":             "SELECT * FROM osquery_info;",
-			"interval":          "60",
-			"executions":        "20",
-			"last_executed":     "1693476842",
-			"denylisted":        "0",
-			"output_size":       "9620",
-			"wall_time":         "9",
-			"wall_time_ms":      "8",
-			"last_wall_time_ms": "7",
-			"user_time":         "6",
-			"last_user_time":    "5",
-			"system_time":       "4",
-			"last_system_time":  "3",
-			"average_memory":    "2",
-			"last_memory":       "1",
 			"delimiter":         "/",
 		},
 		{
@@ -566,27 +526,18 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 			team1Host.ID,
 		)
 	})
-	require.Len(t, scheduledQueriesStats, 4)
+	require.Len(t, scheduledQueriesStats, 3)
 	rowsMap := make(map[string]map[string]string)
 	for _, row := range rows {
 		parts := strings.Split(row["name"], "/")
-		queryName := parts[len(parts)-1]
-		// we need to map this because 2017 packs send the name of the schedule and not
-		// the name of the query.
-		if queryName == "scheduled-query-pack1" {
-			queryName = "non-scheduled-global-query"
-		}
-		rowsMap[queryName] = row
+		rowsMap[parts[len(parts)-1]] = row
 	}
 	for _, sqs := range scheduledQueriesStats {
-		row := rowsMap[sqs.ScheduledQueryName]
+		row, ok := rowsMap[sqs.ScheduledQueryName]
+		require.True(t, ok, sqs.ScheduledQueryName)
 		require.Equal(t, fmt.Sprint(sqs.AverageMemory), row["average_memory"])
 		require.Equal(t, fmt.Sprint(sqs.Executions), row["executions"])
-		interval := row["interval"]
-		if sqs.ScheduledQueryName == "non-scheduled-global-query" {
-			interval = "0" // this query has metrics because it runs on a pack.
-		}
-		require.Equal(t, strconv.FormatInt(int64(sqs.Interval), 10), interval)
+		require.Equal(t, strconv.FormatInt(int64(sqs.Interval), 10), row["interval"])
 		lastExecuted, err := strconv.ParseInt(row["last_executed"], 10, 64)
 		require.NoError(t, err)
 		require.WithinDuration(t, sqs.LastExecuted, time.Unix(lastExecuted, 0), 1*time.Second)
@@ -660,6 +611,30 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	require.Equal(t, fmt.Sprint(sqs.SystemTime), row["system_time"])
 	require.Equal(t, fmt.Sprint(sqs.UserTime), row["user_time"])
 	require.Equal(t, fmt.Sprint(sqs.WallTime), row["wall_time_ms"])
+
+	// pack_stats on host details and My device still has the report entries.
+	requireReportPackStats := func(body io.ReadCloser) {
+		defer body.Close()
+		var resp struct {
+			Host struct {
+				PackStats []fleet.PackStats `json:"pack_stats"`
+			} `json:"host"`
+		}
+		require.NoError(t, json.NewDecoder(body).Decode(&resp))
+		names := make([]string, 0, len(resp.Host.PackStats))
+		for _, ps := range resp.Host.PackStats {
+			names = append(names, ps.PackName)
+		}
+		require.ElementsMatch(t, []string{"Global", "Team: " + team1.Name}, names)
+	}
+
+	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", team1Host.ID), nil, http.StatusOK)
+	requireReportPackStats(res.Body)
+
+	token := "token-" + team1Host.UUID
+	require.NoError(t, s.ds.SetOrUpdateDeviceAuthToken(context.Background(), team1Host.ID, token))
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token, nil, http.StatusOK)
+	requireReportPackStats(res.Body)
 }
 
 func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.104.5",
+      "version": "1.104.7",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.' AND version_compare(version, '1.104.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Tailscale' AND publisher = 'Tailscale Inc.' AND version_compare(version, '1.104.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'tailscale.exe');"
       },
-      "installer_url": "https://pkgs.tailscale.com/stable/tailscale-setup-1.104.5-amd64.msi",
+      "installer_url": "https://pkgs.tailscale.com/stable/tailscale-setup-1.104.7-amd64.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "b665a7bd",
-      "sha256": "3c41318c83c5d95d0b017b1baa08ba7c99fd5334166122bbb1931e55af99839c",
+      "sha256": "676b5b32fdd1aeaee90d8e8f38e222635b216fbdfbf877bf01cb1d7cda330ec5",
       "default_categories": [
         "Productivity"
       ],

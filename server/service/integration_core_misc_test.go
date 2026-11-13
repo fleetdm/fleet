@@ -310,7 +310,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{}, http.StatusPaymentRequired, &resp,
-		"team_id", "1",
+		"fleet_id", "1",
 	)
 
 	// a request with a premium vulnerability filter returns a license error
@@ -353,11 +353,11 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/wipe", wipeHost.ID), nil, http.StatusPaymentRequired)
 
-	// try to update the enable_release_device_manually setting, requires premium.
+	// try to update the apple_enable_release_device_manually setting, requires premium.
 	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: new(true)}, http.StatusPaymentRequired)
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
+		"mdm": { "setup_experience": { "apple_enable_release_device_manually": true } }
 	}`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "missing or invalid license")
@@ -617,13 +617,20 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	require.NotZero(t, createResp.Scheduled.ID)
 
 	// list the scheduled queries with the new endpoint, but the old version
-	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusMethodNotAllowed)
+	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusNotFound)
 	res.Body.Close()
 
 	// list again, this time with the correct version
 	gs := fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/2022-04/fleet/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
+
+	// the removed pack GET /schedule/{id} shares its path with the report-backed
+	// PATCH and DELETE on 2022-04+, so it is 405 there and 404 on v1
+	res = s.DoRaw("GET", fmt.Sprintf("/api/2022-04/fleet/schedule/%d", createResp.Scheduled.ID), nil, http.StatusMethodNotAllowed)
+	res.Body.Close()
+	res = s.DoRaw("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)
+	res.Body.Close()
 
 	// delete using the old endpoint but on the wrong new version
 	res = s.DoRaw("DELETE", fmt.Sprintf("/api/2022-04/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)

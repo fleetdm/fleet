@@ -1,0 +1,1 @@
+- Fixed a bug where report performance stats were not saved when async host processing was enabled for scheduled query stats (`osquery.enable_async_host_processing`).
