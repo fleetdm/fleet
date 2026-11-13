@@ -10,6 +10,17 @@ import { createCustomRenderer } from "test/test-utils";
 
 import EditConfigurationModal from "./EditConfigurationModal";
 
+// Fire the debounced validator synchronously so tests don't wait 3s for the
+// on-type validation pass.
+jest.mock("use-debounce", () => ({
+  useDebouncedCallback: <T extends (...args: unknown[]) => unknown>(fn: T) => {
+    const callback = (...args: Parameters<T>) => fn(...args);
+    callback.cancel = () => undefined;
+    callback.flush = () => undefined;
+    return callback;
+  },
+}));
+
 const androidInstaller = createMockAppStoreAppAndroid();
 const iosVppInstaller = createMockAppStoreAppIos();
 const iosInHouseInstaller = createMockSoftwarePackageIos();
@@ -139,7 +150,7 @@ describe("EditConfigurationModal", () => {
       });
     });
 
-    it("disables Save button when configuration JSON is invalid and shows the error", async () => {
+    it("surfaces the parse error and keeps Save enabled when configuration JSON is invalid", async () => {
       const render = createCustomRenderer({ withBackendMock: true });
       const { user } = render(<EditConfigurationModal {...ANDROID_PROPS} />);
 
@@ -152,12 +163,11 @@ describe("EditConfigurationModal", () => {
       await user.type(configInput, "{{ invalid json");
 
       await waitFor(() => {
-        expect(saveButton).toBeDisabled();
+        expect(
+          screen.getByText(/Expected property name or '}'/i)
+        ).toBeInTheDocument();
       });
-
-      expect(
-        screen.getByText(/Expected property name or '}'/i)
-      ).toBeInTheDocument();
+      expect(saveButton).toBeEnabled();
     });
 
     it("links to Android learn more URL", () => {
