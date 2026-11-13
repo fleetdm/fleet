@@ -66,7 +66,7 @@ func TestPrepareDesktopTLSFiles(t *testing.T) {
 	t.Run("rejects nonexistent user", func(t *testing.T) {
 		_, _, err := d.prepareDesktopTLSFiles("nonexistent_user_abc123")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "lookup user")
+		assert.Contains(t, err.Error(), "lookup uid")
 	})
 
 	t.Run("fails when cert source missing", func(t *testing.T) {

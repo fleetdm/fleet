@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	osuser "os/user"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -2058,17 +2057,15 @@ func (d *desktopRunner) prepareDesktopTLSFiles(username string) (certPath, keyPa
 		return "", "", errors.New("cannot prepare TLS files without a target username")
 	}
 
-	u, err := osuser.Lookup(username)
+	// Use the id command instead of os/user.Lookup because the Linux arm64
+	// build has CGO disabled, so os/user cannot resolve LDAP/SSSD users.
+	uid, err := lookupUID(username)
 	if err != nil {
-		return "", "", fmt.Errorf("lookup user %q: %w", username, err)
+		return "", "", err
 	}
-	uid, err := strconv.Atoi(u.Uid)
+	gid, err := lookupGID(username)
 	if err != nil {
-		return "", "", fmt.Errorf("parse uid: %w", err)
-	}
-	gid, err := strconv.Atoi(u.Gid)
-	if err != nil {
-		return "", "", fmt.Errorf("parse gid: %w", err)
+		return "", "", err
 	}
 
 	certDst := filepath.Join(d.rootDir, ".desktop_fleet_client.crt")
@@ -2090,17 +2087,60 @@ func (d *desktopRunner) prepareDesktopTLSFiles(username string) (certPath, keyPa
 		return "", "", fmt.Errorf("chown cert: %w", err)
 	}
 
-	if err := os.WriteFile(keyDst, key, 0o600); err != nil {
-		return "", "", fmt.Errorf("write key copy: %w", err)
+	// Write key to a temp file and rename to avoid a previous user retaining
+	// a read descriptor on the destination inode.
+	tmpKey, err := os.CreateTemp(d.rootDir, ".desktop_fleet_client_key_*")
+	if err != nil {
+		return "", "", fmt.Errorf("create temp key file: %w", err)
 	}
-	if err := os.Chown(keyDst, uid, gid); err != nil {
-		return "", "", fmt.Errorf("chown key: %w", err)
+	tmpKeyPath := tmpKey.Name()
+	if _, err := tmpKey.Write(key); err != nil {
+		tmpKey.Close()
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("write key temp: %w", err)
 	}
-	if err := os.Chmod(keyDst, 0o400); err != nil {
-		return "", "", fmt.Errorf("chmod key: %w", err)
+	if err := tmpKey.Chmod(0o400); err != nil {
+		tmpKey.Close()
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("chmod key temp: %w", err)
+	}
+	tmpKey.Close()
+	if err := os.Chown(tmpKeyPath, uid, gid); err != nil {
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("chown key temp: %w", err)
+	}
+	if err := os.Rename(tmpKeyPath, keyDst); err != nil {
+		os.Remove(tmpKeyPath)
+		return "", "", fmt.Errorf("rename key to final path: %w", err)
 	}
 
 	return certDst, keyDst, nil
+}
+
+// lookupUID returns the numeric UID for the given username using the id command.
+func lookupUID(username string) (int, error) {
+	out, err := exec.Command("id", "-u", username).Output()
+	if err != nil {
+		return 0, fmt.Errorf("lookup uid for %q: %w", username, err)
+	}
+	uid, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil {
+		return 0, fmt.Errorf("parse uid for %q: %w", username, err)
+	}
+	return uid, nil
+}
+
+// lookupGID returns the numeric primary GID for the given username using the id command.
+func lookupGID(username string) (int, error) {
+	out, err := exec.Command("id", "-g", username).Output()
+	if err != nil {
+		return 0, fmt.Errorf("lookup gid for %q: %w", username, err)
+	}
+	gid, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil {
+		return 0, fmt.Errorf("parse gid for %q: %w", username, err)
+	}
+	return gid, nil
 }
 
 // setServerOverrides overrides specific variables in c with values fetched from Fleet.
@@ -2363,25 +2403,6 @@ func (d *desktopRunner) Execute() error {
 		execuser.WithEnv("FLEET_DESKTOP_TUF_UPDATE_ROOT", d.updateRoot),
 	}
 
-	// On Windows, env vars are passed securely via os.Setenv (not in process
-	// cmdline), so passing cert/key content directly is safe.
-	if runtime.GOOS == "windows" && d.fleetClientCertPath != "" && d.fleetClientKeyPath != "" {
-		crtData, err := os.ReadFile(d.fleetClientCertPath)
-		if err != nil {
-			log.Warn().Err(err).Msg("reading TLS client certificate for desktop")
-		}
-		keyData, err := os.ReadFile(d.fleetClientKeyPath)
-		if err != nil {
-			log.Warn().Err(err).Msg("reading TLS client key for desktop")
-		}
-		if len(crtData) > 0 && len(keyData) > 0 {
-			baseOpts = append(baseOpts,
-				execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE", string(crtData)),
-				execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(keyData)),
-			)
-		}
-	}
-
 	if d.fleetRootCA != "" {
 		baseOpts = append(baseOpts, execuser.WithEnv("FLEET_DESKTOP_FLEET_ROOT_CA", d.fleetRootCA))
 	}
@@ -2421,17 +2442,37 @@ func (d *desktopRunner) Execute() error {
 				opts = append(opts, execuser.WithUser(*loggedInUser))
 			}
 
-			// On Linux/macOS, pass TLS cert/key as file paths (not content)
-			// to avoid exposing secrets in process argv.
-			if runtime.GOOS != "windows" && d.fleetClientCertPath != "" && d.fleetClientKeyPath != "" {
-				certCopy, keyCopy, err := d.prepareDesktopTLSFiles(*loggedInUser)
-				if err != nil {
-					log.Warn().Err(err).Msg("preparing TLS files for desktop, launching without TLS client cert")
+			if d.fleetClientCertPath != "" && d.fleetClientKeyPath != "" {
+				if runtime.GOOS == "windows" {
+					// On Windows, env vars are passed securely via os.Setenv
+					// (not in process cmdline). Read on each attempt to pick
+					// up rotated credentials.
+					crtData, err := os.ReadFile(d.fleetClientCertPath)
+					if err != nil {
+						log.Warn().Err(err).Msg("reading TLS client certificate for desktop")
+					}
+					keyData, err := os.ReadFile(d.fleetClientKeyPath)
+					if err != nil {
+						log.Warn().Err(err).Msg("reading TLS client key for desktop")
+					}
+					if len(crtData) > 0 && len(keyData) > 0 {
+						opts = append(opts,
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE", string(crtData)),
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY", string(keyData)),
+						)
+					}
 				} else {
-					opts = append(opts,
-						execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE_PATH", certCopy),
-						execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY_PATH", keyCopy),
-					)
+					// On Linux/macOS, pass file paths (not content) to avoid
+					// exposing secrets in process argv.
+					certCopy, keyCopy, err := d.prepareDesktopTLSFiles(*loggedInUser)
+					if err != nil {
+						log.Warn().Err(err).Msg("preparing TLS files for desktop, launching without TLS client cert")
+					} else {
+						opts = append(opts,
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_CERTIFICATE_PATH", certCopy),
+							execuser.WithEnv("FLEET_DESKTOP_FLEET_TLS_CLIENT_KEY_PATH", keyCopy),
+						)
+					}
 				}
 			}
 
