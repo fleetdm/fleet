@@ -282,8 +282,7 @@ func BadRequestErr(publicMsg string, internalErr error) error {
 }
 
 func UintFromRequest(r *http.Request, name string) (uint64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return 0, ErrBadRoute
 	}
@@ -295,8 +294,7 @@ func UintFromRequest(r *http.Request, name string) (uint64, error) {
 }
 
 func IntFromRequest(r *http.Request, name string) (int64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return 0, ErrBadRoute
 	}
@@ -308,8 +306,7 @@ func IntFromRequest(r *http.Request, name string) (int64, error) {
 }
 
 func StringFromRequest(r *http.Request, name string) (string, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return "", ErrBadRoute
 	}
@@ -662,6 +659,13 @@ func MakeDecoder(
 	}
 
 	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		scanRemovedNames := !SkipsRemovedNamesScan(r.URL.Path)
+		if scanRemovedNames && r.URL.RawQuery != "" {
+			if err := RejectRemovedQueryParams(r.URL.Query(), t); err != nil {
+				return nil, err
+			}
+		}
+
 		v := reflect.New(t)
 		nilBody := false
 		var rewriter *JSONKeyRewriteReader
@@ -690,6 +694,32 @@ func MakeDecoder(
 				} else {
 					body = gzr
 				}
+			}
+
+			// A body without a size limit is not buffered here, and one over maxRemovedNamesScanSize is decoded unscanned and streamed.
+			if scanRemovedNames && maxRequestBodySize != -1 && (isBodyDecoder == nil || !isBodyDecoder(v)) {
+				// The Content-Length hint is client-controlled, so it is capped, and a gzipped body's is its compressed size.
+				var data bytes.Buffer
+				if cl := r.ContentLength; cl > 0 && !gzipped {
+					data.Grow(int(min(cl, maxRemovedNamesPresize, maxRequestBodySize)))
+				}
+				n, err := data.ReadFrom(io.LimitReader(body, maxRemovedNamesScanSize+1))
+				if err != nil {
+					if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+						return nil, platform_http.PayloadTooLargeError{
+							ContentLength:  r.Header.Get("Content-Length"),
+							MaxRequestSize: maxRequestBodySize,
+							Gzipped:        gzipped,
+						}
+					}
+					return nil, jsonDecodeErr(err)
+				}
+				if n <= maxRemovedNamesScanSize {
+					if err := RejectRemovedJSONKeys(data.Bytes(), t); err != nil {
+						return nil, err
+					}
+				}
+				body = io.MultiReader(&data, body)
 			}
 
 			// Insert the JSON key rewriter into the reader pipeline
@@ -994,24 +1024,24 @@ func LogDeprecatedPathAlias(ctx context.Context, _ *http.Request) context.Contex
 // can log deprecation warnings.
 func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *HandlerRegistry, aliases []DeprecatedPathAlias) {
 	allVersions := append(append([]string{}, versions...), "latest")
-	versionRegex := strings.Join(allVersions, "|")
 	for _, alias := range aliases {
 		handler := registry.handlers[handlerKey{alias.Method, alias.PrimaryPath}]
 		if handler == nil {
 			panic(fmt.Sprintf("deprecated alias: no handler registered for %s %s", alias.Method, alias.PrimaryPath))
 		}
 		for _, path := range alias.DeprecatedPaths {
-			// Replace the version placeholder in the deprecated path with a regex that matches all versions,
-			// so that the same handler can be used for all versions of the deprecated path.
-			pathForHandler := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
 			info := deprecatedPathInfo{deprecatedPath: path, primaryPath: alias.PrimaryPath}
 			// Wrap the handler to inject deprecation info into the context for logging.
 			wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				ctx := context.WithValue(r.Context(), deprecatedPathInfoKey{}, info)
 				handler.ServeHTTP(w, r.WithContext(ctx))
 			})
-			nameAndVerb := getNameFromPathAndVerb(alias.Method, path, "")
-			r.Handle(pathForHandler, wrappedHandler).Name(nameAndVerb).Methods(alias.Method)
+			handleRoute(r, Route{
+				Name:     getNameFromPathAndVerb(alias.Method, path, ""),
+				Methods:  []string{alias.Method},
+				Path:     path,
+				Versions: allVersions,
+			}, wrappedHandler)
 		}
 	}
 }
@@ -1286,25 +1316,23 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 		versions = append(versions, "latest")
 	}
 
-	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-	nameAndVerb := getNameFromPathAndVerb(verb, path, e.startingAtVersion)
-	handler := pathHandler(versionedPath)
-	if e.usePathPrefix {
-		e.Router.PathPrefix(versionedPath).Handler(handler).Name(nameAndVerb).Methods(verb)
-	} else {
-		e.Router.Handle(versionedPath, handler).Name(nameAndVerb).Methods(verb)
+	route := Route{
+		Name:     getNameFromPathAndVerb(verb, path, e.startingAtVersion),
+		Methods:  []string{verb},
+		Path:     path,
+		Versions: slices.Clone(versions), // versions can share e.Versions' backing array
+		Prefix:   e.usePathPrefix,
 	}
+	handler := pathHandler(route.Template())
+	handleRoute(e.Router, route, handler)
 	if e.HandlerRegistry != nil {
 		e.HandlerRegistry.handlers[handlerKey{verb, path}] = handler
 	}
 	for _, alias := range e.alternativePaths {
-		nameAndVerb := getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
-		versionedPath := strings.Replace(alias, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
-		if e.usePathPrefix {
-			e.Router.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
-		} else {
-			e.Router.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
-		}
+		aliasRoute := route
+		aliasRoute.Name = getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
+		aliasRoute.Path = alias
+		handleRoute(e.Router, aliasRoute, pathHandler(aliasRoute.Template()))
 	}
 }
 

@@ -268,69 +268,6 @@ func (d *Datastore) DeleteQueries(ctx context.Context, ids []uint) (uint, error)
 }
 
 // ///////////////////////////////////////////////////////////////////////////
-// 2017 "legacy" packs: rare, so every write notifies every host.
-// ///////////////////////////////////////////////////////////////////////////
-
-func (d *Datastore) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) error {
-	if err := d.Datastore.ApplyPackSpecs(ctx, specs); err != nil {
-		return err
-	}
-	d.publishScope(ctx, fleet.AgentNotificationScopeGlobal, fleet.AgentWSReasonReports, "ApplyPackSpecs")
-	return nil
-}
-
-func (d *Datastore) NewPack(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
-	p, err := d.Datastore.NewPack(ctx, pack, opts...)
-	if err != nil {
-		return nil, err
-	}
-	d.publishScope(ctx, fleet.AgentNotificationScopeGlobal, fleet.AgentWSReasonReports, "NewPack")
-	return p, nil
-}
-
-func (d *Datastore) SavePack(ctx context.Context, pack *fleet.Pack) error {
-	if err := d.Datastore.SavePack(ctx, pack); err != nil {
-		return err
-	}
-	d.publishScope(ctx, fleet.AgentNotificationScopeGlobal, fleet.AgentWSReasonReports, "SavePack")
-	return nil
-}
-
-func (d *Datastore) DeletePack(ctx context.Context, name string) error {
-	if err := d.Datastore.DeletePack(ctx, name); err != nil {
-		return err
-	}
-	d.publishScope(ctx, fleet.AgentNotificationScopeGlobal, fleet.AgentWSReasonReports, "DeletePack")
-	return nil
-}
-
-func (d *Datastore) NewScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-	s, err := d.Datastore.NewScheduledQuery(ctx, sq, opts...)
-	if err != nil {
-		return nil, err
-	}
-	d.publishScope(ctx, fleet.AgentNotificationScopeGlobal, fleet.AgentWSReasonReports, "NewScheduledQuery")
-	return s, nil
-}
-
-func (d *Datastore) SaveScheduledQuery(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) {
-	s, err := d.Datastore.SaveScheduledQuery(ctx, sq)
-	if err != nil {
-		return nil, err
-	}
-	d.publishScope(ctx, fleet.AgentNotificationScopeGlobal, fleet.AgentWSReasonReports, "SaveScheduledQuery")
-	return s, nil
-}
-
-func (d *Datastore) DeleteScheduledQuery(ctx context.Context, id uint) error {
-	if err := d.Datastore.DeleteScheduledQuery(ctx, id); err != nil {
-		return err
-	}
-	d.publishScope(ctx, fleet.AgentNotificationScopeGlobal, fleet.AgentWSReasonReports, "DeleteScheduledQuery")
-	return nil
-}
-
-// ///////////////////////////////////////////////////////////////////////////
 // Labels.
 // ///////////////////////////////////////////////////////////////////////////
 

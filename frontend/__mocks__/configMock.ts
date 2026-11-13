@@ -94,8 +94,8 @@ export const DEFAULT_LICENSE_MOCK: ILicense = {
 const DEFAULT_CONFIG_MOCK: IConfig = {
   org_info: {
     org_name: "fleet",
-    org_logo_url: "",
-    org_logo_url_light_background: "",
+    org_logo_url_dark_mode: "",
+    org_logo_url_light_mode: "",
     contact_url: "https://fleetdm.com/company/contact",
   },
   server_settings: {

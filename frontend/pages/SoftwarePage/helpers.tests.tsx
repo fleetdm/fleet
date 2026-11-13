@@ -114,18 +114,19 @@ describe("getAutomaticInstallPoliciesCount", () => {
             ...createMockSoftwarePackage(),
             automatic_install_policies: makePolicies(count),
           },
-          app_store_app: null,
+          app_store_apps: null,
         });
         expect(getAutomaticInstallPoliciesCount(softwareTitle)).toBe(count);
       });
 
-      it(`returns ${count} for app_store_app (ISoftwareTitle)`, () => {
+      it(`returns ${count} for app_store_apps[0] (ISoftwareTitle)`, () => {
         const softwareTitle = createMockSoftwareTitle({
           software_package: null,
-          app_store_app: {
-            ...createMockAppStoreApp(),
-            automatic_install_policies: makePolicies(count),
-          },
+          app_store_apps: [
+            createMockAppStoreAppVersion({
+              automatic_install_policies: makePolicies(count),
+            }),
+          ],
         });
         expect(getAutomaticInstallPoliciesCount(softwareTitle)).toBe(count);
       });
@@ -162,12 +163,12 @@ describe("getAutomaticInstallPoliciesCount", () => {
     expect(getAutomaticInstallPoliciesCount(hostSoftware)).toBe(0);
   });
 
-  it("returns 0 if neither software_package nor app_store_app is present (ISoftwareTitle)", () => {
-    const hostSoftware = createMockSoftwareTitle({
+  it("returns 0 if neither software_package nor app_store_apps is present (ISoftwareTitle)", () => {
+    const softwareTitle = createMockSoftwareTitle({
       software_package: null,
-      app_store_app: null,
+      app_store_apps: null,
     });
-    expect(getAutomaticInstallPoliciesCount(hostSoftware)).toBe(0);
+    expect(getAutomaticInstallPoliciesCount(softwareTitle)).toBe(0);
   });
 });
 

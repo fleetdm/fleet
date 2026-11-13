@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.29.15",
+      "version": "3.30.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.230313mzl4w4u92';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.230313mzl4w4u92' AND version_compare(bundle_short_version, '3.29.15') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.todesktop.230313mzl4w4u92' AND version_compare(bundle_short_version, '3.30.8') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.todesktop.230313mzl4w4u92' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.cursor.com/production/86776fcb52ca505783155631089b65d646f9b03f/darwin/arm64/Cursor-darwin-arm64.zip",
+      "installer_url": "https://downloads.cursor.com/production/4a44c846d0b817fab060823f93c63ea2861ac192/darwin/arm64/Cursor-darwin-arm64.zip",
       "install_script_ref": "869447d8",
       "uninstall_script_ref": "089be820",
-      "sha256": "8fa25e50a63b04e8d8a8645834e7471d0d102b229b8c16bf9e06dd623e694986",
+      "sha256": "040d927d5e818064fbca7ac069032199e7b5963c38d2fbd80dcfa196148e86a3",
       "default_categories": [
         "Developer tools"
       ]

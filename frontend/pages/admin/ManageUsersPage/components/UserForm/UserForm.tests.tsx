@@ -147,6 +147,23 @@ describe("UserForm - component", () => {
     expect(screen.getByText("Enter a valid email")).toBeInTheDocument();
   });
 
+  it.each([
+    ["new user", true, "Add"],
+    ["existing user", false, "Save"],
+  ])(
+    "runs Fleet's validation, not the browser's, on an email without @ (%s)",
+    async (_, isNewUser, buttonText) => {
+      const { user } = renderWithSetup(
+        <UserForm {...defaultProps} isNewUser={isNewUser} />
+      );
+
+      await user.type(screen.getByLabelText("Email"), "not-an-email");
+      await user.click(screen.getByText(buttonText));
+
+      expect(screen.getByText("Enter a name")).toBeInTheDocument();
+    }
+  );
+
   it("clears the Email error on focus, not on typing", async () => {
     const { user } = renderWithSetup(<UserForm {...defaultProps} />);
 
