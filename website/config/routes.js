@@ -427,6 +427,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /admin/profile-generator-usage': {
+    action: 'admin/view-profile-generator-usage',
+    locals: {
+      hideFooterLinks: true,
+      showAdminLinks: true,
+    }
+  },
+
 
   'GET /connect-vanta': {
     action: 'view-connect-vanta',

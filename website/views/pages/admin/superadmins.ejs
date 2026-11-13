@@ -3,14 +3,6 @@
     <h3>Superadmins</h3>
     <p>Users with superadmin access to the Fleet website. Revoking access does not delete the user's account.</p>
 
-    <div purpose="ai-autofill-stats" class="card card-body mb-4">
-      <h4>AI autofill</h4>
-      <p class="mb-1">Configuration profiles generated with AI (all time, from the latest report of each Fleet deployment that reported in the past week): <strong>{{aiAutofillStats.numAiProfilesGeneratedAllTime}}</strong></p>
-      <p class="mb-1">Profile generation requests this month (Fleet Free): <strong>{{aiAutofillStats.numFreeProfileRequestsThisMonth}}</strong></p>
-      <p class="mb-1">Name and description requests this month (Fleet Free): <strong>{{aiAutofillStats.numFreeNameAndDescriptionRequestsThisMonth}}</strong></p>
-      <p class="mb-0 text-muted">Error rate: not available yet. Failed AI autofill requests are not recorded.</p>
-    </div>
-
     <div purpose="grant-form" class="card card-body">
       <ajax-form :syncing.sync="syncingGrant" :cloud-error.sync="grantCloudError" :form-errors.sync="grantFormErrors" :form-data="grantFormData" :form-rules="grantFormRules" action="grantSuperadmin" @submitted="submittedGrantForm($event)">
         <div class="form-group mb-3">
