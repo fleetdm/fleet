@@ -6,7 +6,7 @@ You can install Microsoft Store apps on Windows hosts, for all users, with a scr
 
 - Fleet 4.89.0 or later. The uninstall script, pre-install query, and post-install script on script-only packages were added in this release.
 - Windows hosts enrolled in Fleet with scripts enabled. See the [scripts guide](https://fleetdm.com/guides/scripts) if you deployed Fleet's agent without `--enable-scripts`.
-- A free Microsoft Store app that uses the Store's own MSIX installer. Paid apps fail to install with a licensing error.
+- A free Microsoft Store app. Paid apps fail to install with a licensing error.
 
 > **Note:** The Microsoft Store install service is documented for Microsoft's own apps, such as winget, and isn't officially supported for third parties. Microsoft could change it.
 
@@ -25,7 +25,7 @@ You need two identifiers.
 
    For Company Portal, `InstallerType` is `msstore` and `PackageFamilyName` is `Microsoft.CompanyPortal_8wekyb3d8bbwe`.
 
-> **Note:** Only apps whose `InstallerType` is `msstore` (MSIX) are supported. Their Store IDs start with `9`. Apps that use their own installer (MSI or EXE) have Store IDs that start with `XP`. Add those as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps) or [custom package](https://fleetdm.com/guides/deploy-software-packages) instead.
+> **Note:** The scripts in this guide are written for MSIX apps: `InstallerType` is `msstore`, and the Store ID starts with `9`. Apps that use their own installer (MSI or EXE) have Store IDs that start with `XP`. They have no package family name, and their installer decides whether to install for one user or all users, so the scripts' all-users check fails for them. You can adapt the scripts, or add these apps as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps) or [custom package](https://fleetdm.com/guides/deploy-software-packages).
 
 ## Step 2: Write the install script
 
@@ -273,7 +273,7 @@ software:
 
 **The install fails with "The app isn't installed for all users even though the install reported success."** Check that `$packageFamilyName` in the install script matches the package family name from Step 1.
 
-**The app doesn't show up in Step 1, or `InstallerType` isn't `msstore`.** The app uses its own installer. Add it as a Fleet-maintained app or custom package instead.
+**`InstallerType` in Step 1 isn't `msstore`.** The app uses its own installer, and the scripts' all-users check fails for it. Adapt the scripts, or add the app as a Fleet-maintained app or custom package.
 
 ## Further reading
 
