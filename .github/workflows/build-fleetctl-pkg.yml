@@ -32,13 +32,14 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: write # Needed to upload release assets
-  id-token: write # Needed for attestations
-  attestations: write # Needed to create build provenance attestations
+permissions: {}
 
 jobs:
   build-fleetctl-pkg:
+    permissions:
+      contents: write # Needed to upload release assets
+      id-token: write # Needed for attestations
+      attestations: write # Needed to create build provenance attestations
     runs-on: macos-latest
     timeout-minutes: 120
     steps:

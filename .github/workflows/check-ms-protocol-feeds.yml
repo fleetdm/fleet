@@ -8,6 +8,8 @@ on:
     # Daily at 8:35pm CDT (1:35am UTC) -- run during off-hours to prevent hitting GitHub API rate limit
     - cron: "35 1 * * *"
 
+permissions: {}
+
 jobs:
   check-ms-mdm-protocol-docs:
     if: github.event.repository.owner.login == 'fleetdm'

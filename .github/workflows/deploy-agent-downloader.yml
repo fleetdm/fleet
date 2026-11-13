@@ -6,8 +6,7 @@ on:
     paths:
       - 'ee/fleet-agent-downloader/**'
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.

@@ -33,8 +33,7 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
@@ -85,7 +84,6 @@ jobs:
     needs: build
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
-      contents: read
       id-token: write # required for attestations
       attestations: write # required for attestations
     with:

@@ -26,11 +26,12 @@ env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   LOG_LEVEL: ${{ inputs.log_level }}
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   validate:
+    permissions:
+      contents: read
     runs-on: ${{ inputs.runner }}
 
     steps:

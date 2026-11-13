@@ -23,12 +23,13 @@ env:
   TF_ACTIONS_WORKING_DIR: infrastructure/dogfood/terraform/aws-tf-module/signoz
   TF_VAR_otel_bearer_token: ${{ secrets.DOGFOOD_SIGNOZ_OTEL_BEARER_TOKEN }}
 
-permissions:
-  id-token: write
-  contents: read
+permissions: {}
 
 jobs:
   deploy:
+    permissions:
+      contents: read
+      id-token: write
     name: Deploy Dogfood SigNoz
     runs-on: ubuntu-latest
     steps:

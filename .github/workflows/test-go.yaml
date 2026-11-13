@@ -54,8 +54,7 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   # ──────────────────────────────────────────────────────────────────────────────
@@ -63,6 +62,8 @@ jobs:
   # These always run, including on draft PRs.
   # ──────────────────────────────────────────────────────────────────────────────
   test-go-no-db:
+    permissions:
+      contents: read
     strategy:
       matrix:
         suite: ["fast", "scripts"]
@@ -81,6 +82,8 @@ jobs:
   # make sure to update supported versions docs when MySQL versions change
   # ──────────────────────────────────────────────────────────────────────────
   test-go:
+    permissions:
+      contents: read
     strategy:
       matrix:
         suite: ${{ fromJSON((github.event_name == 'pull_request' && github.event.pull_request.draft) && '["service"]' || '["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]') }}
@@ -99,6 +102,8 @@ jobs:
   # Tests the same DB-dependent suites against the other supported versions.
   # ──────────────────────────────────────────────────────────────────────────
   test-go-extended-mysql:
+    permissions:
+      contents: read
     if: github.event_name == 'schedule'
     strategy:
       matrix:
@@ -122,6 +127,8 @@ jobs:
   # make sure to update supported versions docs when Redis/Valkey versions change
   # ──────────────────────────────────────────────────────────────────────────
   test-go-extended-redis:
+    permissions:
+      contents: read
     if: github.event_name == 'schedule'
     strategy:
       matrix:
@@ -139,6 +146,8 @@ jobs:
 
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
+    permissions:
+      contents: read
     # Skipped on draft PRs along with the rest of the non-fast tier.
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: 'ubuntu-latest'
@@ -260,6 +269,8 @@ jobs:
 
   # We upload all backend coverage in one step so that we're less like to end up in a situation with a partial coverage report.
   upload-coverage:
+    permissions:
+      contents: read
     needs: [test-go-no-db, test-go, test-go-extended-mysql, test-go-extended-redis, test-go-nanomdm]
     # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
     # Skipped on draft PRs: only the fast tier runs there, so uploading would

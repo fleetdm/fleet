@@ -21,8 +21,7 @@ on:
         default: "20"
         type: string
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   # Shard every darwin app in apps.json on a cheap Linux runner, then fan out
@@ -30,6 +29,8 @@ jobs:
   # caps concurrent macOS jobs well below Linux/Windows, so shards beyond the
   # cap queue and run in waves.
   partition:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       has_darwin_apps: ${{ steps.partition.outputs.has_apps }}

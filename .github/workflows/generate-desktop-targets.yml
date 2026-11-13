@@ -11,8 +11,7 @@ defaults:
     shell: bash
 
 # Least-privilege default; jobs that build attestations grant id-token/attestations at the job level.
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   set-version:
@@ -108,6 +107,8 @@ jobs:
           path: desktop.app.tar.gz
 
   desktop-windows:
+    permissions:
+      contents: read
     needs: set-version
     runs-on: ubuntu-latest
     steps:
@@ -143,7 +144,6 @@ jobs:
     needs: desktop-windows
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
-      contents: read
       id-token: write # required for code-sign-windows
       attestations: write # required for code-sign-windows
     with:
@@ -158,6 +158,8 @@ jobs:
       DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
 
   desktop-windows-arm64:
+    permissions:
+      contents: read
     needs: set-version
     runs-on: ubuntu-latest
     steps:
@@ -193,7 +195,6 @@ jobs:
     needs: desktop-windows-arm64
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
-      contents: read
       id-token: write # required for code-sign-windows
       attestations: write # required for code-sign-windows
     with:

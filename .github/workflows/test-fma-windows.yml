@@ -21,8 +21,7 @@ on:
         default: "20"
         type: string
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   # Partition every Windows app in apps.json by installer architecture on a
@@ -32,6 +31,8 @@ jobs:
   # always go to windows-11-arm (the x64 runner is Windows Server). Each
   # architecture bucket is split into shards that validate in parallel.
   partition:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       has_windows_apps: ${{ steps.partition.outputs.has_apps }}

@@ -29,11 +29,12 @@ defaults:
     # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
     shell: bash
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   build-binaries:
+    permissions:
+      contents: read
     runs-on: ubuntu-4core
     steps:
       - name: Harden Runner
