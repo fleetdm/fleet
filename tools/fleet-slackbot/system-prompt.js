@@ -109,14 +109,14 @@ controls:
           - "Label Name"
         labels_include_all: []
         labels_exclude_any: []
-  macos_setup:
-    bootstrap_package: ""
+  setup_experience:
+    macos_bootstrap_package: ""
     enable_end_user_authentication: true
-    macos_setup_assistant: ../lib/macos/enrollment-profiles/<name>.dep.json
-    script: ../lib/macos/scripts/<name>.sh
-    manual_agent_install: false
+    apple_setup_assistant: ../lib/macos/enrollment-profiles/<name>.dep.json
+    macos_script: ../lib/macos/scripts/<name>.sh
+    macos_manual_agent_install: false
     require_all_software: false
-    enable_release_device_manually: false
+    apple_enable_release_device_manually: false
   macos_updates:
     deadline: "YYYY-MM-DD"
     minimum_version: ""

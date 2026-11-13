@@ -560,10 +560,10 @@ type errConflictingSoftwareSetupExperienceDeclarations struct {
 }
 
 func (e errConflictingSoftwareSetupExperienceDeclarations) Error() string {
-	return fmt.Sprintf("Couldn't edit software (%s). Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.", e.URL)
+	return fmt.Sprintf("Couldn't edit software (%s). Setup experience may only be specified directly on software or within setup_experience, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.", e.URL)
 }
 
-var errConflictingVPPSetupExperienceDeclarations = errors.New("Couldn't edit app store apps. Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.")
+var errConflictingVPPSetupExperienceDeclarations = errors.New("Couldn't edit app store apps. Setup experience may only be specified directly on software or within setup_experience, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.")
 
 // TODO: as confirmed by Noah and Marko on Slack:
 //
@@ -615,6 +615,10 @@ func (c *Client) ApplyGroup(
 		if logf != nil {
 			logf(format, args...)
 		}
+	}
+
+	if err := checkRemovedSpecKeys(specs); err != nil {
+		return nil, nil, nil, nil, err
 	}
 
 	if len(specs.Queries) > 0 {
@@ -1600,6 +1604,35 @@ func getAppStoreAppConfig(platform, path string) (json.RawMessage, error) {
 	return nil, nil
 }
 
+// checkRemovedSpecKeys runs the server's removed-key check on the config and fleet specs. The server would reject them
+// too, but only after ApplyGroup has already uploaded bootstrap packages and applied earlier specs.
+func checkRemovedSpecKeys(specs *spec.Group) error {
+	if specs.AppConfig != nil {
+		data, err := json.Marshal(specs.AppConfig)
+		if err != nil {
+			return fmt.Errorf("marshal app config: %w", err)
+		}
+		if data, err = endpointer.RewriteOldToNewKeys(data, endpointer.ExtractAliasRules(fleet.AppConfig{})); err != nil {
+			return err
+		}
+		if err := endpointer.CheckRemovedKeys(data, endpointer.ExtractRemovedKeyRules(fleet.AppConfig{})); err != nil {
+			return err
+		}
+	}
+	aliasRules := endpointer.ExtractAliasRules(fleet.TeamSpec{})
+	removedRules := endpointer.ExtractRemovedKeyRules(fleet.TeamSpec{})
+	for _, tm := range specs.Teams {
+		data, err := endpointer.RewriteOldToNewKeys(tm, aliasRules)
+		if err != nil {
+			return err
+		}
+		if err := endpointer.CheckRemovedKeys(data, removedRules); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
@@ -1611,18 +1644,18 @@ func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 	}
 
 	// GitOps
-	mosGitOps, ok := mmdm["macos_setup"].(*fleet.MacOSSetup)
+	mosGitOps, ok := mmdm["setup_experience"].(*fleet.MacOSSetup)
 	if ok {
 		return mosGitOps
 	}
 
 	// Legacy fleetctl apply
-	mos, ok := mmdm["macos_setup"].(map[string]interface{})
+	mos, ok := mmdm["setup_experience"].(map[string]any)
 	if !ok || mos == nil {
 		return nil
 	}
-	bp, _ := mos["bootstrap_package"].(string) // if not a string, bp == ""
-	msa, _ := mos["macos_setup_assistant"].(string)
+	bp, _ := mos["macos_bootstrap_package"].(string) // if not a string, bp == ""
+	msa, _ := mos["apple_setup_assistant"].(string)
 	return &fleet.MacOSSetup{
 		BootstrapPackage:    optjson.SetString(bp),
 		MacOSSetupAssistant: optjson.SetString(msa),
@@ -2155,14 +2188,14 @@ func extractTmSpecsScripts(tmSpecs []json.RawMessage) map[string][]string {
 	return m
 }
 
-// returns the macos_setup keyed by team name.
+// returns the setup_experience keyed by team name.
 func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOSSetup {
 	var m map[string]*fleet.MacOSSetup
 	for _, tm := range tmSpecs {
 		var spec struct {
 			Name string `json:"name"`
 			MDM  struct {
-				MacOSSetup fleet.MacOSSetup `json:"macos_setup"`
+				MacOSSetup fleet.MacOSSetup `json:"setup_experience"`
 			} `json:"mdm"`
 		}
 		if err := json.Unmarshal(tm, &spec); err != nil {
@@ -2287,15 +2320,18 @@ func (c *Client) DoGitOps(
 			changeManagementURL := strings.TrimRight(appConfig.ServerSettings.ServerURL, "/") + "/settings/integrations/change-management"
 			if exceptions.Labels && incoming.LabelsPresent {
 				return nil, fmt.Errorf(
-					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
+					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL,
+				)
 			}
 			if exceptions.Secrets && incoming.SecretsPresent {
 				return nil, fmt.Errorf(
-					`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
+					`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL,
+				)
 			}
 			if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
 				return nil, fmt.Errorf(
-					`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL)
+					`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings at %s`, changeManagementURL,
+				)
 			}
 		}
 	}
@@ -2837,12 +2873,12 @@ func (c *Client) DoGitOps(
 		// update_new_hosts is only used for macOS so ignore any values posted for iPadOS
 		iPadOSUpdates["update_new_hosts"] = nil
 
-		// Put in default values for macos_setup
+		// Put in default values for setup_experience
 		if incoming.Controls.MacOSSetup != nil {
 			incoming.Controls.MacOSSetup.SetDefaultsIfNeeded()
-			mdmAppConfig["macos_setup"] = incoming.Controls.MacOSSetup
+			mdmAppConfig["setup_experience"] = incoming.Controls.MacOSSetup
 		} else {
-			mdmAppConfig["macos_setup"] = fleet.NewMacOSSetupWithDefaults()
+			mdmAppConfig["setup_experience"] = fleet.NewMacOSSetupWithDefaults()
 		}
 		// Put in default values for windows_settings
 		if incoming.Controls.WindowsSettings != nil {
@@ -4194,7 +4230,8 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, appConfig *fle
 	// Premium checks; reuse rather than refetch.
 	if numCerts > 0 && (appConfig == nil || appConfig.License == nil || !appConfig.License.IsPremium()) {
 		return newGitOpsValidationError(
-			"Android certificate templates require a custom SCEP CA, which is available in Fleet Premium only.")
+			"Android certificate templates require a custom SCEP CA, which is available in Fleet Premium only.",
+		)
 	}
 
 	if dryRun {

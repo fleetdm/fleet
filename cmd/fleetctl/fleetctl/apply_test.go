@@ -1675,8 +1675,8 @@ spec:
   fleet:
     name: Team1
     mdm:
-      macos_setup:
-        macos_setup_assistant: %s
+      setup_experience:
+        apple_setup_assistant: %s
 `, emptySetupAsst))
 
 	// first apply with dry-run
@@ -1718,7 +1718,7 @@ spec:
   fleet:
     name: Team1
     mdm:
-      macos_setup:
+      setup_experience:
         macos_bootstrap_package: %s
 `, bootstrapURL))
 
@@ -2498,8 +2498,8 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigSet.yml"))
 		require.NoError(t, err)
-		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup)
-		expectedAppCfgSetReleaseEnabled := strings.ReplaceAll(expectedAppCfgSet, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
+		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup)
+		expectedAppCfgSetReleaseEnabled := strings.ReplaceAll(expectedAppCfgSet, `apple_enable_release_device_manually: false`, `apple_enable_release_device_manually: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
 		require.NoError(t, err)
@@ -2508,7 +2508,7 @@ spec:
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
 		expectedTm1Set := fmt.Sprintf(string(b), "", "")
-		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
+		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `apple_enable_release_device_manually: false`, `apple_enable_release_device_manually: true`)
 		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `macos_require_all_software: false`, `macos_require_all_software: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Empty.yml"))
@@ -2796,6 +2796,28 @@ spec:
 		assert.Equal(t, srv.URL, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
 		assert.True(t, mockStore.appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
 		mockStore.Unlock()
+	})
+
+	t.Run("removed key rejected before bootstrap package upload", func(t *testing.T) {
+		pkgName := "signed.pkg"
+		srv, _ := testing_utils.ServeMDMBootstrapPackage(t, filepath.Join("../../../server/service/testdata/bootstrap-packages", pkgName),
+			pkgName)
+		ds := setupServer(t, true)
+
+		spec := `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    setup_experience:
+      macos_bootstrap_package: %s
+      manual_agent_install: true
+`
+		tmpFilename := writeTmpYml(t, fmt.Sprintf(spec, srv.URL))
+
+		runAppCheckErr(t, []string{"apply", "-f", tmpFilename}, `"manual_agent_install" parameter is not available anymore`)
+		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
+		assert.False(t, ds.SaveAppConfigFuncInvoked)
 	})
 
 	t.Run("replace bootstrap package", func(t *testing.T) {
@@ -3931,7 +3953,7 @@ spec:
   mdm:
     enable_recovery_lock_password: true
 `,
-			wantErr: `422 Validation Failed: The "enable_recovery_lock_password" parameter is not available anymore. ` +
+			wantErr: `The "enable_recovery_lock_password" parameter is not available anymore. ` +
 				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
@@ -3947,7 +3969,7 @@ spec:
         require_all_software_windows: true
 `,
 			flags: []string{"--force"},
-			wantErr: `422 Validation Failed: The "require_all_software_windows" parameter is not available anymore. ` +
+			wantErr: `The "require_all_software_windows" parameter is not available anymore. ` +
 				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
@@ -4194,7 +4216,7 @@ spec:
   mdm:
     windows_migration_enabled: true
 `,
-			wantErr: `422 Validation Failed: The "windows_migration_enabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "windows_migration_enabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
 			desc: "app config removed windows mdm enabled key",
@@ -4205,7 +4227,7 @@ spec:
   mdm:
     windows_enabled_and_configured: true
 `,
-			wantErr: `422 Validation Failed: The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
 			desc: "activities_webhook empty destination_url",

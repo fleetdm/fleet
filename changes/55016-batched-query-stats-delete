@@ -1,0 +1,1 @@
+- Fixed performance stats of deleted reports being left behind on large instances when their delete hit a lock wait timeout. They are now deleted in batches.
