@@ -280,10 +280,7 @@ If an end user already installed the app themselves, Fleet installs it for all u
 
 If the app is open during a reinstall, the Microsoft Store closes it to install the update. The app doesn't open again on its own.
 
-Before you deploy an app to many hosts, test it on one host:
-
-- **Paid apps** fail to install with a licensing error. Only free apps are supported.
-- **Region:** the Microsoft Store uses the region set on the host (**Settings > Time & language > Language & region > Country or region**). If the app isn't available in that region, the install fails with a licensing error.
+Only free apps are supported. Paid apps fail to install with a licensing error.
 
 #### Let end users install only the apps you allow
 
