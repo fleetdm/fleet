@@ -106,10 +106,6 @@
         gap: 8px;
         white-space: nowrap;
       }
-      img {
-        width: 16px;
-        height: 16px;
-      }
     }
   }
 
@@ -195,6 +191,9 @@
     h2 {
       margin-bottom: 16px;
     }
+    > p {
+      margin-bottom: @section-gap;
+    }
   }
 
   // Everything you need, nothing you don't
@@ -248,37 +247,21 @@
         background-color: #FFF;
       }
       [purpose='linux-logo'] {
-        width: 24px;
-        height: 24px;
+        width: 30px;
+        height: 30px;
       }
       [purpose='android-logo'] {
-        width: 28px;
-        height: 16px;
+        width: 35px;
+        height: 20px;
       }
       &:hover {
         box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
       }
     }
     [purpose='no-icon'] {
-      border: 1px solid @core-fleet-black-10;
-      background-color: #FFF;
       img {
-        width: 26px;
-        height: 26px;
-      }
-      [purpose='entra-icon'] {
-        width: 32px;
-        height: 32px;
-      }
-      &::after {
-        content: ' ';
-        position: absolute;
-        top: -1px;
-        left: -1px;
         width: 64px;
         height: 64px;
-        background-image: url('/images/icon-no-sign-64x64.svg');
-        background-size: 64px 64px;
       }
     }
   }
@@ -382,9 +365,9 @@
       gap: 24px;
     }
     [purpose='island-label'] {
-      font-size: 13px;
-      line-height: normal;
-      font-weight: 500;
+      font-size: 14px;
+      line-height: 20px;
+      font-weight: 400;
       color: #6B7088;
     }
     [purpose='island-logos'] {
@@ -601,7 +584,7 @@
   [purpose='show-more-row'] {
     display: flex;
     justify-content: center;
-    margin-top: @section-64;
+    margin-top: @section-gap;
   }
   // Same as the "Show all features" button on the pricing page.
   [purpose='show-more-button'] {
@@ -638,15 +621,6 @@
     text-align: center;
     h1 span {
       color: @core-fleet-black-75;
-    }
-  }
-
-  [purpose='comparison-section'] {
-    [purpose='button-row'] {
-      [purpose='cta-button'] {
-        padding: 16px 32px;
-        height: 53px;
-      }
     }
   }
 
@@ -844,7 +818,9 @@
   [purpose='comparison-table'] {
     border-radius: 8px;
     border: 1px solid #E2E4EA;
-    margin-bottom: 64px;
+    // Clip the striped rows' square backgrounds to the rounded corners.
+    overflow: hidden;
+    margin-bottom: @section-gap;
     [purpose='table-row'] {
       [purpose='red-x'] {
         height: 12px;
@@ -1045,7 +1021,7 @@
       }
     }
     [purpose='show-more-row'] {
-      margin-top: @section-64-lg;
+      margin-top: 28px;
     }
     [purpose='video-modal'] {
       [purpose='modal-dialog'] {
@@ -1120,7 +1096,7 @@
       }
     }
     [purpose='show-more-row'] {
-      margin-top: @section-64-md;
+      margin-top: @section-gap-sm;
     }
     [purpose='comparison-column'] {
       max-width: 140px;
@@ -1259,7 +1235,7 @@
       }
     }
     [purpose='show-more-row'] {
-      margin-top: @section-64-sm;
+      margin-top: 20px;
     }
     [purpose='video-modal'] {
       [purpose='modal-dialog'] {
