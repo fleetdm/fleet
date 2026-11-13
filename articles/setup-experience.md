@@ -345,8 +345,6 @@ Company-owned Android hosts come with Google apps, like Chrome, already installe
 | Google Messages | `com.google.android.apps.messaging` |
 | Gemini | `com.google.android.apps.bard` |
 
-Which Google apps come preinstalled depends on the device maker.
-
 ### Python (.py) packages on macOS
 
 A new Mac doesn't include a Python interpreter. Python comes with Apple's Command Line Tools (CLT). Without CLT, `.py` packages in setup experience fail with an `xcode-select: error: No developer tools were found` error.
