@@ -595,6 +595,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /compare': {
+    action: 'view-compare',
+    locals: {
+      pageTitleForMeta: 'Compare Fleet',
+      pageDescriptionForMeta: 'Side-by-side comparisons of Fleet and the device management tools IT teams run today.',
+    }
+  },
+
   'GET /compare/:slug': {
     action: 'articles/view-basic-comparison'
   },
@@ -740,8 +748,8 @@ module.exports.routes = {
   'GET /cybersecurity': {
     action: 'view-cybersecurity',
     locals: {
-      pageTitleForMeta: 'Device management for cybersecurity',
-      pageDescriptionForMeta: 'See which AI agents and apps are running on every Mac, PC, and Linux machine, and check that your security controls are working. Device management built for security teams.',
+      pageTitleForMeta: 'Device management for cybersecurity companies',
+      pageDescriptionForMeta: 'AI-native device management for cybersecurity companies. See which AI agents and apps are running on every Mac, PC, and Linux machine, and check that your security controls are working.',
     }
   },
 
@@ -791,6 +799,15 @@ module.exports.routes = {
       hideHeaderLinks: true,
       pageTitleForMeta: 'Replace Jamf with AI-native device management',
       pageDescriptionForMeta: 'Replace Jamf with Fleet, AI-native device management for Apple, Windows, and Linux. Make changes in plain language, review every change, and move Macs without a wipe.'
+    }
+  },
+
+  'GET /lp/replace-workspace-one': {
+    action: 'landing-pages/view-replace-workspace-one',
+    locals: {
+      hideHeaderLinks: true,
+      pageTitleForMeta: 'Move off Workspace ONE without wiping a single device',
+      pageDescriptionForMeta: 'Move off Workspace ONE without wiping devices. Manage macOS, Windows, Linux, iOS, and Android in one place, with vulnerability detection and compliance built in.'
     }
   },
 

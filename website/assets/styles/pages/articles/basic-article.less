@@ -844,26 +844,26 @@
   [purpose='article-cta'] {
     border-top: 2px solid #E2E4EA;
     padding: 64px 0px;
-    h2 {
-      .section-heading();
-      margin-top: 0px;
-      margin-bottom: 8px;
+    // Articles are narrower than the pages this form was designed for, so stack it in one column.
+    [purpose='demo-request-section'] {
+      flex-direction: column;
+      gap: 32px;
+      padding: 0;
     }
-    p {
-      .body-l();
+    [purpose='demo-request-card'] {
+      width: 100%;
     }
-    [purpose='button-row'] {
-      display: flex;
-      flex-direction: row;
-      gap: 24px;
-      [purpose='cta-button'] {
-        .cta-button();
-        padding: 8px 16px;
-        color: #FFF;
-        text-align: center;
-        font-size: 14px;
-        font-weight: 700;
-        line-height: 21px;
+    [purpose='demo-request-submit'] {
+      max-width: 240px;
+    }
+    // The article body's heading and paragraph margins otherwise leak into the demo form.
+    [purpose='demo-request-intro'] {
+      h2 {
+        .section-heading();
+        margin: 0;
+      }
+      p {
+        margin-bottom: 0;
       }
     }
   }
@@ -977,18 +977,6 @@
       [purpose='next-steps-button'] {
         width: 100%;
         margin-bottom: 32px;
-      }
-    }
-    [purpose='article-cta'] {
-      [purpose='button-row'] {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 16px;
-        [purpose='cta-button'] {
-          width: 100%;
-        }
-
       }
     }
     [purpose='article-details'] {

@@ -2,9 +2,9 @@
   <div purpose="page-content" class="container-fluid mx-auto">
     <div class="px-0 d-flex flex-column justify-content-center pt-5 mx-auto">
       <div purpose="hero-text">
-        <h2 class="text-center mb-5">
+        <h1 class="text-center mb-5">
           Compare plans and pricing
-        </h2>
+        </h1>
       </div>
       <div purpose="pricing-tiers" class="d-flex flex-column flex-lg-row justify-content-center">
         <%// Fleet Free tier card %>
@@ -19,9 +19,17 @@
                     <h2>Free</h2>
                     <h3>Basic features, no support</h3>
                     <div purpose="tier-price" class="d-flex flex-row align-items-center">
-                      <h1><span purpose="price-dollar-sign">$</span>0</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
+                      <p purpose="price"><span purpose="price-dollar-sign">$</span>0</p><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
                     </div>
                   </div>
+                </div>
+              </div>
+              <div purpose="tier-features">
+                <p purpose="features-heading">Includes:</p>
+                <div purpose="tier-checklist">
+                  <p>Multi-platform device support</p>
+                  <p>Device inventory and search</p>
+                  <p>Community support</p>
                 </div>
               </div>
               <div purpose="button-container" class="d-flex flex-row align-items-center">
@@ -44,9 +52,17 @@
                     <h2>Premium</h2>
                     <h3>Manage and protect endpoints</h3>
                     <div purpose="tier-price" class="d-flex flex-row align-items-center justify-content-start">
-                      <h1><span purpose="price-dollar-sign">$</span>7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
+                      <p purpose="price"><span purpose="price-dollar-sign">$</span>7.00</p><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
                     </div>
                   </div>
+                </div>
+              </div>
+              <div purpose="tier-features">
+                <p purpose="features-heading">Everything in Free, plus:</p>
+                <div purpose="tier-checklist">
+                  <p>Zero-touch setup</p>
+                  <p>Remote lock and wipe</p>
+                  <p>Quick, professional support (24/5)</p>
                 </div>
               </div>
               <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/new-license">Get started</a>
@@ -64,12 +80,24 @@
                 <div class="d-flex flex-column justify-content-between">
                   <div class="d-flex flex-column justify-content-center">
                     <h2>Custom</h2>
-                    <h3>For teams who can move quickly with large deployments.</h3>
+                    <h3>Fleet can host it for you</h3>
+                    <div purpose="tier-price" class="d-flex flex-row align-items-center justify-content-start">
+                      <p purpose="price">500+</p><strong>employees</strong>
+                    </div>
                   </div>
                 </div>
               </div>
+              <div purpose="tier-features">
+                <p purpose="features-heading">On the call, you’ll see:</p>
+                <div purpose="tier-checklist">
+                  <p>How other teams are using Fleet</p>
+                  <p>How Fleet works across PCs, Macs, and mobile</p>
+                  <p>Where Fleet fits next to what you already run</p>
+                  <p>Support and certifications for your team</p>
+                </div>
+              </div>
               <div>
-                <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/contact?talkToUs">Talk to sales</a>
+                <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/contact?talkToUs">Get a demo</a>
               </div>
             </div>
           </div>
@@ -154,7 +182,25 @@
       </div>
       <div class="d-flex flex-row justify-content-center"><a :class="[showExpandedTable ? 'expanded' : '']" @click="showExpandedTable = !showExpandedTable" purpose="show-all-features-button">Show all features<span></span></a></div>
     </div>
+    <%// Customer quote %>
+    <div purpose="pricing-quote">
+      <img purpose="quote-logo" alt="NVIDIA logo" src="/images/logos/logo-nvidia-color-161x32@2x.png">
+      <p purpose="quote-text">“We wanted an MDM to easily use infrastructure-as-code, deliver the best possible experience for our employees, and make security happy.”</p>
+      <div purpose="quote-author-info">
+        <img purpose="quote-author-image" alt="Kenny Botelho" src="/images/testimonial-author-kenny-botelho-2-48x48@2x.png">
+        <div>
+          <p purpose="quote-author-name">Kenny Botelho</p>
+          <p purpose="quote-author-title">Lead Client Platform Engineer at NVIDIA</p>
+        </div>
+      </div>
+    </div>
     <%// Bottom call to action %>
+    <div purpose="pricing-bottom-cta">
+      <h4>Plans and pricing</h4>
+      <h2>Not sure which plan fits your fleet?</h2>
+      <a purpose="bottom-cta-button" href="/contact?talkToUs">Get a demo</a>
+    </div>
+    <demo-request-form class="w-100 px-0" style="max-width: none;"></demo-request-form>
     <div purpose="faq" class="d-flex flex-column flex-md-row justify-content-center">
       <div purpose="faq-header">
         <h2>Frequently <br>asked questions</h2>
@@ -162,6 +208,15 @@
       <div purpose="accordion" class="d-flex flex-column justify-content-start">
         <div purpose="accordion-body">
           <div purpose="accordion-item" class="mt-md-0">
+            <p purpose="accordion-header" id="accordion__header0" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body0" aria-controls="accordion__body0">
+              How much does Fleet cost?
+              <span class="fa fa-angle-down"></span>
+            </p>
+            <p purpose="faq-answer" id="accordion__body0" class="collapse" aria-labelledby="accordion__header0">
+              Fleet Free costs $0. Fleet Premium costs $7 per host per month. Organizations with 500+ employees can get custom pricing and have Fleet host it for them.
+            </p>
+          </div>
+          <div purpose="accordion-item">
             <p purpose="accordion-header" id="accordion__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#accordion__body1" aria-controls="accordion__body1">
               <%
               //  ███████╗ █████╗  ██████╗      ██████╗  ██╗
@@ -239,11 +294,10 @@
           </div>
         </div>
         <div class="d-flex flex-row justify-content-start">
-          <p purpose="contact-note">Couldn’t find an answer? <a href="/docs/get-started/faq">Read the FAQ</a> or <a href="/contact">talk to an engineer</a>.</p>
+          <p purpose="contact-note">Couldn’t find an answer? <a href="/docs/get-started/faq">Read the FAQ</a> or <a href="/contact?talkToUs">get a demo</a>.</p>
         </div>
       </div>
     </div>
-    <demo-request-form class="w-100 px-0" style="max-width: none;"></demo-request-form>
   </div>
   <modal purpose="mobile-tooltip" v-if="modal === 'mobileTooltip'" @close="closeModal()">
     <div>

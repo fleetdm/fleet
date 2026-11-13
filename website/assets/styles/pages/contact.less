@@ -27,6 +27,30 @@
     color: #515774;
     font-size: 14px;
   }
+  [purpose='bottom-demo-button'] {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    padding: 64px 0px;
+    [purpose='cta-button'] {
+      .cta-button();
+      height: 36px;
+      min-width: 140px;
+      padding: 8px 16px;
+      font-size: 14px;
+      line-height: 150%;
+    }
+  }
+  [purpose='demo-checklist'] {
+    margin-bottom: 24px;
+    > p {
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    [purpose='checklist'] {
+      .checklist();
+    }
+  }
   [purpose='note'] {
     display: flex;
     flex-direction: row;

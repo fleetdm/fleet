@@ -23,6 +23,7 @@ module.exports.policies = {
   'view-faq': true,
   'view-contact': true,
   'view-pricing': true,
+  'view-compare': true,
   'legal/view-terms': true,
   'legal/view-privacy': true,
   'deliver-contact-form-message': true,
