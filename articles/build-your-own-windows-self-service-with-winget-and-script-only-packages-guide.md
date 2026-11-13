@@ -65,8 +65,6 @@ software:
         path: ../lib/windows/scripts/uninstall-company-portal.ps1
 ```
 
-> **Note:** Script-only packages don't support automatic install through a policy. Install them from the host's **Host details** page or through self-service.
-
 ## Verify
 
 1. Install the app on a test host from **Host details > Software**.
