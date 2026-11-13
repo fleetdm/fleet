@@ -2213,35 +2213,34 @@ func TestGenerateControls(t *testing.T) {
 	// Check that the controls do not contain a setup_experience section
 	_, ok := controlsRaw["setup_experience"]
 	require.False(t, ok, "Expected no setup_experience section for no-team controls")
-	// The disabled Windows managed local account is not emitted (absent key means disabled).
-	if windowsSection, ok := controlsRaw["windows_settings"].(map[string]any); ok {
-		require.NotContains(t, windowsSection, "enable_managed_local_account")
-	}
 
-	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled,
-	// and the Windows managed local account enabled.
+	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled.
 	mdmConfig = fleet.TeamMDM{
 		MacOSSetup: fleet.MacOSSetup{
 			EnableEndUserAuthentication: true,
-		},
-		WindowsSettings: fleet.WindowsSettings{
-			EnableManagedLocalAccount: optjson.SetBool(true),
 		},
 	}
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
 	require.NoError(t, err)
 	// Check that the controls do contain a macos_setup section
 	verifyControlsHasMacosSetup(t, controlsRaw)
-	// The enabled Windows managed local account is emitted.
-	windowsSettings, ok := controlsRaw["windows_settings"].(map[string]any)
-	require.True(t, ok, "expected a windows_settings section")
-	require.Equal(t, true, windowsSettings["enable_managed_local_account"])
 
-	// The same key name is the deprecated spelling of the Apple toggle, so make sure it is correct.
-	controlsYaml, err := yamlMarshalRenamed(controlsRaw)
-	require.NoError(t, err)
-	require.Contains(t, string(controlsYaml), "enable_managed_local_account: true")
-	require.NotContains(t, string(controlsYaml), "enable_create_local_admin_account")
+	// The Windows managed local account alone needs the placeholder too, also with only Windows MDM on.
+	mdmConfig = fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EnableManagedLocalAccountWindows: optjson.SetBool(true),
+		},
+	}
+	for _, appleMDM := range []bool{true, false} {
+		cmd.AppConfig.MDM.EnabledAndConfigured = appleMDM
+		controlsRaw, err = cmd.generateControls(new(uint(0)), "no_team", &mdmConfig)
+		require.NoError(t, err)
+		verifyControlsHasMacosSetup(t, controlsRaw)
+		controlsYaml, err := yamlMarshalRenamed(controlsRaw)
+		require.NoError(t, err)
+		require.NotContains(t, string(controlsYaml), "enable_managed_local_account")
+	}
+	cmd.AppConfig.MDM.EnabledAndConfigured = true
 
 	b, err = os.ReadFile("./testdata/generateGitops/teamConfig.json")
 	require.NoError(t, err)

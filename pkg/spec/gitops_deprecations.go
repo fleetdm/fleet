@@ -41,9 +41,6 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	// Controls: android_settings children
 	{"controls.android_settings.custom_settings", "controls.android_settings.configuration_profiles"},
 
-	// Controls: macos_setup -> setup_experience (parent first, then children)
-	{"controls.setup_experience.enable_managed_local_account", "controls.setup_experience.enable_create_local_admin_account"},
-
 	// Org settings: server_settings
 	{"org_settings.server_settings.live_query_disabled", "org_settings.server_settings.live_reporting_disabled"},
 	{"org_settings.server_settings.query_reports_disabled", "org_settings.server_settings.discard_reports_data"},
@@ -90,11 +87,7 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 // that happens to use it.
 //
 // Keep in sync with the `renamescope` struct tags, which do the same job for the API request/response layer.
-var DeprecatedGitOpsKeyScopes = map[string][]string{
-	// Deprecated spelling of the Apple toggle under setup_experience, but the canonical name of the Windows toggle under
-	// windows_settings.
-	"enable_managed_local_account": {"setup_experience"},
-}
+var DeprecatedGitOpsKeyScopes = map[string][]string{}
 
 // RemovedGitOpsKeys are the team-related keys that Fleet 5 removed from GitOps files. They are rejected, not migrated
 // (RejectRemovedKeys), and buildAliasRules also reads them, because the structs that fleetctl serializes still carry the old names.

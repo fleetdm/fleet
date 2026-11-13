@@ -12,9 +12,9 @@ import (
 )
 
 type removedKeysInner struct {
-	RequireAll bool `json:"macos_require_all_software" removedkey:"require_all_software_macos"`
-	Scoped     bool `json:"new_scoped" removedkey:"old_scoped" renamescope:"setup"`
-	Ignored    bool `json:"-" removedkey:"never_registered"`
+	RequireAll bool     `json:"macos_require_all_software" removedkey:"require_all_software_macos"`
+	Scoped     bool     `json:"new_scoped" removedkey:"old_scoped" renamescope:"setup"`
+	_          struct{} `json:"-" removedkey:"moved_away" renamescope:"setup"`
 }
 
 type removedKeysRequest struct {
@@ -36,7 +36,8 @@ func TestExtractRemovedKeyRules(t *testing.T) {
 		{Key: "team_name"},
 		{Key: "require_all_software_macos"},
 		{Key: "old_scoped", Scope: []string{"setup"}},
-	}, rules, "found through pointers and slices, deduplicated, json:\"-\" skipped")
+		{Key: "moved_away", Scope: []string{"setup"}},
+	}, rules, "found through pointers and slices, deduplicated, including on a json:\"-\" marker")
 
 	// renameto rules are unaffected by removedkey tags.
 	require.Equal(t, []AliasRule{{OldKey: "name", NewKey: "display_name"}}, ExtractAliasRules(removedKeysRequest{}))
