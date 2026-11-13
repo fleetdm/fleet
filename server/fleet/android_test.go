@@ -793,6 +793,8 @@ func TestValidateUserProvided_PasscodeProfileVariables(t *testing.T) {
 }
 
 func TestValidateAndroidPasscodeProfileVariables(t *testing.T) {
+	// A JSON escape for "$", which a scan of the raw text misses.
+	const escapedDollar = `\u0024`
 	tests := []struct {
 		name      string
 		rawJSON   string
@@ -800,17 +802,17 @@ func TestValidateAndroidPasscodeProfileVariables(t *testing.T) {
 	}{
 		{
 			name:      "escaped fleet variable",
-			rawJSON:   `{"passwordRequirements": {}, "name": "$FLEET_VAR_HOST_UUID"}`,
+			rawJSON:   `{"passwordRequirements": {}, "name": "` + escapedDollar + `FLEET_VAR_HOST_UUID"}`,
 			errSubstr: "$FLEET_VAR_HOST_UUID",
 		},
 		{
 			name:      "escaped secret",
-			rawJSON:   `{"passwordRequirements": {}, "name": "$FLEET_SECRET_NAME"}`,
+			rawJSON:   `{"passwordRequirements": {}, "name": "` + escapedDollar + `FLEET_SECRET_NAME"}`,
 			errSubstr: "$FLEET_SECRET_NAME",
 		},
 		{
 			name:      "escaped custom host vital in a key",
-			rawJSON:   `{"passwordRequirements": {"$FLEET_HOST_VITAL_7": 1}}`,
+			rawJSON:   `{"passwordRequirements": {"` + escapedDollar + `FLEET_HOST_VITAL_7": 1}}`,
 			errSubstr: "$FLEET_HOST_VITAL_7",
 		},
 		{
@@ -829,7 +831,7 @@ func TestValidateAndroidPasscodeProfileVariables(t *testing.T) {
 		},
 		{
 			name:    "dollar text that isn't a variable",
-			rawJSON: `{"passwordRequirements": {}, "name": "$100 $HOME"}`,
+			rawJSON: `{"passwordRequirements": {}, "name": "$100 ` + escapedDollar + `HOME"}`,
 		},
 	}
 	for _, tt := range tests {
