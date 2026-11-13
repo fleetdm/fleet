@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -276,4 +278,38 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 		run(t)
 		require.Zero(t, patchCount, "nothing is sent again until the profiles change")
 	})
+}
+
+// The premium zero-touch service calls EnsureFleetDefaultPolicy with a client of its own, so this service's
+// client may never have been authenticated; it must authenticate before sending the policy.
+func TestEnsureFleetDefaultPolicyAuthenticatesItsClient(t *testing.T) {
+	client := android_mock.Client{}
+	client.InitCommonMocks()
+	var calls []string
+	client.SetAuthenticationSecretFunc = func(secret string) error {
+		calls = append(calls, "auth "+secret)
+		return nil
+	}
+	client.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, _ androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		calls = append(calls, "patch "+policyName)
+		return policy, nil
+	}
+
+	fleetDS := InitCommonDSMocks()
+	fleetDS.Store.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, _ []fleet.MDMAssetName, _ sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		return map[fleet.MDMAssetName]fleet.MDMConfigAsset{fleet.MDMAssetAndroidFleetServerSecret: {Value: []byte("server-secret")}}, nil
+	}
+	fleetDS.Store.GetAndroidFleetDefaultPolicyChecksumsFunc = func(_ context.Context) (map[uint][]byte, error) { return nil, nil }
+	fleetDS.Store.ListAndroidFleetDefaultPolicyProfilesFunc = func(_ context.Context, _ *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+		return nil, nil
+	}
+	fleetDS.Store.MarkAndroidFleetDefaultPolicyUnverifiedFunc = func(_ context.Context, _ uint) error { return nil }
+	svc, err := NewServiceWithClient(slog.New(slog.DiscardHandler), fleetDS, &client, "test-private-key", &fleetDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
+	require.NoError(t, err)
+	calls = nil
+
+	policyName, err := svc.EnsureFleetDefaultPolicy(t.Context(), "enterprises/LC00test", 2)
+	require.NoError(t, err)
+	require.Equal(t, "enterprises/LC00test/policies/fleet2", policyName)
+	require.Equal(t, []string{"auth server-secret", "patch enterprises/LC00test/policies/fleet2"}, calls)
 }

@@ -1994,9 +1994,11 @@ func testFleetDefaultPolicies(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		patched[policyName] = policy
 		return policy, nil
 	}
+	// Through the whole reconcile, so the sync being wired into it is tested too.
 	run := func() {
 		patched = map[string]*androidmanagement.Policy{}
-		require.NoError(t, reconciler.reconcileFleetDefaultPolicies(ctx))
+		_, err := reconciler.ReconcileProfiles(ctx, "", 0)
+		require.NoError(t, err)
 	}
 	policyName := fmt.Sprintf("%s/policies/%s", reconciler.Enterprise.Name(), android.FleetDefaultPolicyID(team.ID))
 	sent := func() *androidmanagement.Policy {
