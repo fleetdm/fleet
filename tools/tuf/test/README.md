@@ -40,6 +40,15 @@ GENERATE_MSI=1 \
 GENERATE_MSI_ARM64=1 \
 GENERATE_PKG_TAR_ZST=1 \
 GENERATE_PKG_TAR_ZST_ARM64=1 \
+PKG_OUTFILE=fleet-macos.pkg \
+DEB_OUTFILE=fleet-linux-amd64.deb \
+DEB_ARM64_OUTFILE=fleet-linux-arm64.deb \
+RPM_OUTFILE=fleet-linux-amd64.rpm \
+RPM_ARM64_OUTFILE=fleet-linux-arm64.rpm \
+MSI_OUTFILE=fleet-windows-amd64.msi \
+MSI_ARM64_OUTFILE=fleet-windows-arm64.msi \
+PKG_TAR_ZST_OUTFILE=fleet-linux-amd64.pkg.tar.zst \
+PKG_TAR_ZST_ARM64_OUTFILE=fleet-linux-arm64.pkg.tar.zst \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 DEBUG=1 \
@@ -47,6 +56,8 @@ DEBUG=1 \
 ```
 
 > Separate `*_FLEET_URL` and `*_TUF_URL` variables are defined for each package type to support different setups.
+
+> The `*_OUTFILE` variables set the name and destination of each generated package (the values above are the defaults).
 
 To publish test extensions you can set comma-separated executable paths in the `{MACOS|WINDOWS|LINUX}_TEST_EXTENSIONS` environment variables:
 Here's a sample to use the `hello_world` and `hello_mars` test extensions:
