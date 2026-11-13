@@ -32,7 +32,7 @@ import { getFileDetails } from "utilities/file/fileUtils";
 
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
 
-import { getErrorMessage, isNonSideEffectOnlyChange } from "./helpers";
+import { getErrorMessage, hasChangeSideEffects } from "./helpers";
 
 const baseClass = "edit-software-modal";
 
@@ -271,11 +271,7 @@ const EditSoftwareModal = ({
   const onClickSavePackage = (formData: IPackageFormData) => {
     const softwarePackage = softwareInstaller as ISoftwarePackage;
 
-    // currentData mirrors the form's shape so deepDifference only reports real
-    // changes. `software` is seeded to the installer so the form's initial
-    // installer reference compares equal when no new file was picked;
-    // `automaticInstall` is always false on edit (the deploy slider is
-    // add-only).
+    // Mirror IPackageFormData init in PackageForm.tsx so deepDifference only reports real changes.
     const currentData = {
       software: (softwarePackage as unknown) as File | null,
       installScript: softwarePackage.install_script || "",
@@ -301,10 +297,10 @@ const EditSoftwareModal = ({
       formData.categories = [""];
     }
 
-    if (isNonSideEffectOnlyChange(updates)) {
-      onEditPackage(formData);
-    } else {
+    if (hasChangeSideEffects(updates)) {
       setShowConfirmSaveChangesModal(true);
+    } else {
+      onEditPackage(formData);
     }
   };
 
@@ -355,10 +351,10 @@ const EditSoftwareModal = ({
 
     const updates = deepDifference(formData, currentData);
 
-    if (isNonSideEffectOnlyChange(updates)) {
-      onEditVpp(formData);
-    } else {
+    if (hasChangeSideEffects(updates)) {
       setShowConfirmSaveChangesModal(true);
+    } else {
+      onEditVpp(formData);
     }
   };
 
