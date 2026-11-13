@@ -542,13 +542,13 @@ This activity does not contain any detail fields.
 
 ### added_conditional_access_integration_google
 
-Generated when Google conditional access is configured.
+Generated when Google conditional access is configured. Also generated, after `deleted_conditional_access_integration_google`, when the Google customer ID is changed.
 
 This activity does not contain any detail fields.
 
 ### deleted_conditional_access_integration_google
 
-Generated when Google conditional access is removed.
+Generated when Google conditional access is removed. Hosts stay marked as managed in Google.
 
 This activity does not contain any detail fields.
 
@@ -1178,12 +1178,15 @@ This activity contains the following fields:
 
 ### set_host_google_device_id
 
-Generated when a host is marked as company-owned in Google by saving its Google device ID, for example by the registration page from the Google conditional access guide. Not generated when the same ID is set again.
+Generated when a host is marked as company-owned in Google by saving its Google device ID. Not generated when the same ID is set again.
+
+The activity has no Fleet user when the end user's Google sign-in registered the host (iOS and iPadOS) or when Fleet registered it automatically (Android).
 
 This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "google_device_id": The host's device ID in Google.
+- "google_email": The Google account that signed in. Only present when the end user's Google sign-in registered the host.
 
 #### Example
 
@@ -1191,13 +1194,14 @@ This activity contains the following fields:
 {
   "host_id": 1,
   "host_display_name": "Anna's iPhone",
-  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12"
+  "google_device_id": "c3d1a9e2-7b4f-4e8a-9f1d-2a6b8c0e4f12",
+  "google_email": "anna@example.com"
 }
 ```
 
 ### deleted_host_google_device_id
 
-Generated when a user unmarks a host as company-owned in Google by removing its Google device ID. Not generated when the host has no Google device ID.
+Generated when a user removes a host's Google device ID. Fleet unmarks the host in Google within 5 minutes. Not generated when the host has no Google device ID, or when Fleet unmarks a host because it was deleted or unenrolled.
 
 This activity contains the following fields:
 - "host_id": ID of the host.

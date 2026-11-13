@@ -85,10 +85,13 @@ If you would like to use Fleet's Android features, the following endpoints need 
 
 ## Conditional access: Google
 
-If you would like Fleet to automatically mark company-owned iOS, iPadOS, and Android hosts as managed in Google ([Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration)), the following endpoints need to be exposed to fleetdm.com:
+If you would like Fleet to automatically mark company-owned iOS and iPadOS hosts as managed in Google ([Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration)), the following endpoint needs to be exposed to fleetdm.com:
 
-- `/api/*/fleet/google_conditional_access/*`: Allows fleetdm.com to check that a host is company-owned and enrolled to Fleet before it marks the host as managed in Google.
-- `/api/*/fleet/hosts/*/google_device_id`: Allows fleetdm.com to save the host's Google device ID.
+- `/api/*/fleet/google_conditional_access/*`: Allows fleetdm.com to tell Fleet which device in Google a host is, after the end user signs in to Google. Fleet then marks the host as managed in Google.
+
+The **Self-service** web clip, where the end user's Google sign-in starts, also needs `/device/*`, `/assets/*`, and `/api/*/fleet/device/*` exposed.
+
+Android hosts don't need an endpoint for this. Fleet finds them in Google by itself.
 
 ## SCEP proxy
 

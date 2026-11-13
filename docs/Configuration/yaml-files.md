@@ -1225,6 +1225,7 @@ org_settings:
     google_conditional_access:
       customer_id: C01234abc
       admin_email: fleet-admin@example.com
+      api_key_json: $GOOGLE_CONDITIONAL_ACCESS_API_KEY_JSON
     jira:
       - url: https://example.atlassian.net
         username: user1
@@ -1285,8 +1286,11 @@ Turning on Google conditional access marks company-owned iOS, iPadOS, and Androi
 
 - `customer_id` is your Google customer ID (for example, `C01234abc`). Find it in the Google Admin console under **Account > Account settings** (default: `""`).
 - `admin_email` is the email of the Google Workspace admin Fleet uses to mark hosts as managed (default: `""`).
+- `api_key_json` is the contents of the JSON file downloaded when you create your service account key. The service account must have domain-wide delegation for the `https://www.googleapis.com/auth/cloud-identity.devices` scope. If you leave it out, Fleet keeps the key that's already uploaded (default: `""`).
 
-To turn off Google conditional access, remove `google_conditional_access`.
+Fleet checks the key with Google when it changes, including in a dry run (`fleetctl gitops --dry-run`).
+
+To turn off Google conditional access, remove `google_conditional_access`. This deletes the key, so you need to set `api_key_json` to turn it back on. It doesn't unmark hosts in Google. Learn how to [disable Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration#disable).
 
 Can be configured for "All fleets" (`org_settings`).
 
