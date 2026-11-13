@@ -3,12 +3,10 @@ package fleet
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -318,10 +316,10 @@ func TestSSOSettingsIsEmpty(t *testing.T) {
 }
 
 func TestMacOSMigrationModeIsValid(t *testing.T) {
-	require.True(t, (MacOSMigrationMode("forced")).IsValid())
-	require.True(t, (MacOSMigrationMode("voluntary")).IsValid())
-	require.False(t, (MacOSMigrationMode("")).IsValid())
-	require.False(t, (MacOSMigrationMode("foo")).IsValid())
+	require.True(t, MacOSMigrationMode("forced").IsValid())
+	require.True(t, MacOSMigrationMode("voluntary").IsValid())
+	require.False(t, MacOSMigrationMode("").IsValid())
+	require.False(t, MacOSMigrationMode("foo").IsValid())
 }
 
 func TestAppConfigDeprecatedFields(t *testing.T) {
@@ -448,7 +446,6 @@ func TestFeaturesCopy(t *testing.T) {
 		require.Equal(t, f.EnableHostUsers, clone.EnableHostUsers)
 		require.Equal(t, f.EnableSoftwareInventory, clone.EnableSoftwareInventory)
 		require.Nil(t, clone.AdditionalQueries)
-		require.Nil(t, clone.DetailQueryOverrides)
 	})
 
 	t.Run("copy AdditionalQueries", func(t *testing.T) {
@@ -460,25 +457,6 @@ func TestFeaturesCopy(t *testing.T) {
 		require.NotNil(t, clone.AdditionalQueries)
 		require.NotSame(t, f.AdditionalQueries, clone.AdditionalQueries)
 		require.Equal(t, *f.AdditionalQueries, *clone.AdditionalQueries)
-	})
-
-	t.Run("copy DetailQueryOverrides", func(t *testing.T) {
-		f := &Features{
-			DetailQueryOverrides: map[string]*string{
-				"foo": ptr.String("bar"),
-				"baz": nil,
-			},
-		}
-		clone := f.Copy()
-		require.NotNil(t, clone.DetailQueryOverrides)
-		require.NotEqual(t,
-			reflect.ValueOf(f.DetailQueryOverrides).Pointer(),
-			reflect.ValueOf(clone.DetailQueryOverrides).Pointer(),
-		)
-		// map values are pointers, check that they have been cloned
-		require.NotSame(t, f.DetailQueryOverrides["foo"], clone.DetailQueryOverrides["foo"])
-		// the map content itself is equal
-		require.Equal(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
 	})
 
 	t.Run("copy HistoricalData is independent", func(t *testing.T) {
@@ -1029,8 +1007,8 @@ func TestMacOSSetupValidate(t *testing.T) {
 			wantErr *string
 		}{
 			{"empty", MacOSSetup{}, nil},
-			{"manual_agent_install without bootstrap package fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
-			{"manual_agent_install with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
+			{"macos_manual_agent_install without bootstrap package fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
+			{"macos_manual_agent_install with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
 			{"bootstrap package during manual enrollment without bootstrap package fails", MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true}, new("setup_experience.macos_enable_bootstrap_package_during_manual_enrollment Couldn't enable macos_enable_bootstrap_package_during_manual_enrollment. To use this option, first specify a bootstrap package.")},
 			{"bootstrap package during migration without bootstrap package fails", MacOSSetup{MacOSEnableBootstrapPackageDuringMigration: true}, new("setup_experience.macos_enable_bootstrap_package_during_migration Couldn't enable macos_enable_bootstrap_package_during_migration. To use this option, first specify a bootstrap package.")},
 			{"bootstrap package settings with bootstrap package succeed", MacOSSetup{MacOSEnableBootstrapPackageDuringManualEnrollment: true, MacOSEnableBootstrapPackageDuringMigration: true, BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, nil},
@@ -1063,8 +1041,8 @@ func TestMacOSSetupValidate(t *testing.T) {
 			wantErr *string
 		}{
 			{"empty against empty", MacOSSetup{}, MacOSSetup{}, nil},
-			{"manual_agent_install enabled against empty fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, MacOSSetup{}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
-			{"manual_agent_install enabled with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, MacOSSetup{}, nil},
+			{"macos_manual_agent_install enabled against empty fails", MacOSSetup{ManualAgentInstall: optjson.SetBool(true)}, MacOSSetup{}, new("Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.")},
+			{"macos_manual_agent_install enabled with bootstrap package succeeds", MacOSSetup{ManualAgentInstall: optjson.SetBool(true), BootstrapPackage: optjson.SetString("https://example.com/bootstrap.pkg")}, MacOSSetup{}, nil},
 			{"end_user_local_account_type none against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, MacOSSetup{}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "none" for the end_user_local_account_type`)},
 			{"end_user_local_account_type standard against empty fails", MacOSSetup{EndUserLocalAccountType: optjson.SetString("standard")}, MacOSSetup{}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "standard" for the end_user_local_account_type`)},
 			{"enable_end_user_local_account false against none user type fails", MacOSSetup{EnableManagedLocalAccount: optjson.SetBool(false)}, MacOSSetup{EndUserLocalAccountType: optjson.SetString("none")}, new(`enable_create_local_admin_account enable_create_local_admin_account is required to be enabled when using "none" for the end_user_local_account_type`)},

@@ -57,6 +57,7 @@ func TestSoftware(t *testing.T) {
 		{"UpdateHostSoftware", testUpdateHostSoftware},
 		{"GoBinaries", testSoftwareGoBinaries},
 		{"AITool", testSoftwareAITool},
+		{"UpdateHostSoftwarePreserveSources", testUpdateHostSoftwarePreserveSources},
 		{"UpdateHostSoftwareDeadlock", testUpdateHostSoftwareDeadlock},
 		{"UpdateHostSoftwareUpdatesSoftware", testUpdateHostSoftwareUpdatesSoftware},
 		{"UpdateHostSoftwareSameBundleIDDifferentNames", testUpdateHostSoftwareSameBundleIDDifferentNames},
@@ -11523,7 +11524,7 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 		}, nil)
 		require.NoError(t, err)
 
-		_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
+		_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw}, fleet.UpdateHostSoftwareOptions{})
 		require.NoError(t, err)
 
 		var removed int
@@ -11560,7 +11561,7 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 			}, nil)
 			require.NoError(t, err)
 
-			_, err = ds.applyChangesForNewSoftwareDB(ctx, host.ID, []fleet.Software{*updateSw})
+			_, err = ds.applyChangesForNewSoftwareDB(ctx, host.ID, []fleet.Software{*updateSw}, fleet.UpdateHostSoftwareOptions{})
 			require.NoError(t, err)
 		}
 
@@ -11748,17 +11749,17 @@ func testUpdateHostBundleIDRenameWithNewSoftware(t *testing.T, ds *Datastore) {
 }
 
 // testUpdateHostBrowserExtensions explicitly tests browser extension handling.
-// Browser extensions have extension IDs and browser fields, but no bundle identifiers.
+// Browser extensions have extension IDs but no bundle identifiers.
 func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "ext-test-host", "", "extkey", "extuuid", time.Now())
 
 	// Test Case 1: Add multiple browser extensions
 	extensions := []fleet.Software{
-		{Name: "1Password", Version: "1.45.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "chrome"},
-		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb", Browser: "chrome"},
-		{Name: "Grammarly", Version: "14.1.0", Source: "browser_plugins", ExtensionID: "kbfnbcaeplbcioakkpcpgfkobkghlhen", Browser: "chrome"},
-		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "firefox"}, // Same ext ID, different browser
+		{Name: "1Password", Version: "1.45.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},
+		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb"},
+		{Name: "Grammarly", Version: "14.1.0", Source: "browser_plugins", ExtensionID: "kbfnbcaeplbcioakkpcpgfkobkghlhen"},
+		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, extensions)
@@ -11786,11 +11787,11 @@ func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 
 	// Test Case 2: Update extension version (same extension ID, new version)
 	updatedExtensions := []fleet.Software{
-		{Name: "1Password", Version: "1.46.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "chrome"},             // Version update
-		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb", Browser: "chrome"}, // No change
+		{Name: "1Password", Version: "1.46.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},             // Version update
+		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb"}, // No change
 		// Grammarly removed
-		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "firefox"},
-		{Name: "Bitwarden", Version: "2023.10.1", Source: "browser_plugins", ExtensionID: "nngceckbapebfimnlniiiahkandclblb", Browser: "chrome"}, // New extension
+		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm"},
+		{Name: "Bitwarden", Version: "2023.10.1", Source: "browser_plugins", ExtensionID: "nngceckbapebfimnlniiiahkandclblb"}, // New extension
 	}
 
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, updatedExtensions)
@@ -11814,9 +11815,9 @@ func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 	// Test Case 3: Extensions with same name but different browsers/extension IDs
 	// This simulates cross-browser extensions
 	crossBrowserExtensions := []fleet.Software{
-		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "gighmmpiobklfepjocnamgkkbiglidom", Browser: "chrome"},
-		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "jid1-NIfFY2CA8fy1tg", Browser: "firefox"},
-		{Name: "Adblock", Version: "4.9", Source: "browser_plugins", ExtensionID: "pdffkfellgipmhklpdmokmckkkfcopbh", Browser: "edge"},
+		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "gighmmpiobklfepjocnamgkkbiglidom"},
+		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "jid1-NIfFY2CA8fy1tg"},
+		{Name: "Adblock", Version: "4.9", Source: "browser_plugins", ExtensionID: "pdffkfellgipmhklpdmokmckkkfcopbh"},
 	}
 
 	host2 := test.NewHost(t, ds, "ext-test-host2", "", "extkey2", "extuuid2", time.Now())
@@ -16082,6 +16083,130 @@ func testSoftwareAITool(t *testing.T, ds *Datastore) {
 		}
 		require.Equal(t, map[string]bool{"Claude": true, "Safari": false, "github": true, "Codex": true}, got, orderKey)
 	}
+}
+
+func testUpdateHostSoftwarePreserveSources(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "preserve1", "", "preserve1key", "preserve1uuid", time.Now(), test.WithPlatform("darwin"))
+
+	safari := fleet.Software{Name: "Safari", Version: "18.0", Source: "apps", BundleIdentifier: "com.apple.Safari"}
+	notes := fleet.Software{Name: "Notes", Version: "1.0", Source: "apps", BundleIdentifier: "com.apple.Notes"}
+	codex := fleet.Software{Name: "codex", Version: "0.46.0", Source: "ai_clis", AITool: new(true)}
+	github := fleet.Software{Name: "github", Source: "mcp_servers", AITool: new(true)}
+	skill := fleet.Software{Name: "CLAUDE.md", Source: "ai_skills", AITool: new(true)}
+	preserveAISources := fleet.PreserveSoftwareSources("ai_clis", "mcp_servers", "ai_skills")
+
+	pathKey := func(sw fleet.Software, path string) string {
+		return fleet.HostSoftwareInstalledPathKey{InstalledPath: path, SoftwareUniqueStr: sw.ToUniqueStr()}.String()
+	}
+	names := func(software []fleet.Software) []string {
+		out := make([]string, 0, len(software))
+		for _, sw := range software {
+			out = append(out, sw.Name)
+		}
+		sort.Strings(out)
+		return out
+	}
+	installedNames := func() []string {
+		current, err := ds.ListSoftwareByHostIDShort(ctx, host.ID)
+		require.NoError(t, err)
+		return names(current)
+	}
+	storedPaths := func() []string {
+		stored, err := ds.getHostSoftwareInstalledPaths(ctx, host.ID)
+		require.NoError(t, err)
+		out := make([]string, 0, len(stored))
+		for _, p := range stored {
+			out = append(out, p.InstalledPath)
+		}
+		sort.Strings(out)
+		return out
+	}
+	softwareUpdatedAt := func() time.Time {
+		var updatedAt time.Time
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &updatedAt, `SELECT software_updated_at FROM host_updates WHERE host_id = ?`, host.ID))
+		return updatedAt
+	}
+
+	// A source the host has no rows of is a no-op.
+	result, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari, notes}, preserveAISources)
+	require.NoError(t, err)
+	require.Len(t, result.Inserted, 2)
+	require.Empty(t, result.Preserved)
+
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari, notes, codex, github, skill})
+	require.NoError(t, err)
+	require.Len(t, result.Inserted, 3)
+	require.Empty(t, result.Preserved)
+	safariPaths := map[string]fleet.ExecutableHashes{pathKey(safari, "/Applications/Safari.app"): nil}
+	allPaths := map[string]fleet.ExecutableHashes{
+		pathKey(safari, "/Applications/Safari.app"):  nil,
+		pathKey(codex, "/usr/local/bin/codex"):       nil,
+		pathKey(github, "/Users/a/.cursor/mcp.json"): nil,
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, allPaths, result))
+	require.Equal(t, []string{"/Applications/Safari.app", "/Users/a/.cursor/mcp.json", "/usr/local/bin/codex"}, storedPaths())
+
+	// The ai_tools query did not run: its rows and their paths survive, while a removed app
+	// is still deleted.
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari}, preserveAISources)
+	require.NoError(t, err)
+	require.Equal(t, []string{"Notes"}, names(result.Deleted))
+	require.Empty(t, result.Inserted)
+	require.Equal(t, []string{"CLAUDE.md", "codex", "github"}, names(result.Preserved))
+	require.Equal(t, []string{"CLAUDE.md", "Safari", "codex", "github"}, names(result.CurrInstalled()))
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, safariPaths, result))
+	require.Equal(t, []string{"CLAUDE.md", "Safari", "codex", "github"}, installedNames())
+	require.Equal(t, []string{"/Applications/Safari.app", "/Users/a/.cursor/mcp.json", "/usr/local/bin/codex"}, storedPaths())
+
+	// The same report again changes nothing and never reaches the writer.
+	_, err = ds.writer(ctx).ExecContext(ctx, `UPDATE host_updates SET software_updated_at = '2000-01-01 00:00:00' WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	before := softwareUpdatedAt()
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari}, preserveAISources)
+	require.NoError(t, err)
+	require.Empty(t, result.Deleted)
+	require.Empty(t, result.Inserted)
+	require.Equal(t, []string{"CLAUDE.md", "codex", "github"}, names(result.Preserved))
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, safariPaths, result))
+	require.Equal(t, before, softwareUpdatedAt())
+	require.Equal(t, []string{"CLAUDE.md", "Safari", "codex", "github"}, installedNames())
+	require.Equal(t, []string{"/Applications/Safari.app", "/Users/a/.cursor/mcp.json", "/usr/local/bin/codex"}, storedPaths())
+
+	// A preserved source the report does contain is reconciled as usual: only the absent rows
+	// are preserved, and the reported row's paths are replaced rather than duplicated.
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari, codex}, preserveAISources)
+	require.NoError(t, err)
+	require.Empty(t, result.Deleted)
+	require.Empty(t, result.Inserted)
+	require.Equal(t, []string{"CLAUDE.md", "github"}, names(result.Preserved))
+	movedCodexPaths := map[string]fleet.ExecutableHashes{
+		pathKey(safari, "/Applications/Safari.app"): nil,
+		pathKey(codex, "/opt/homebrew/bin/codex"):   nil,
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, movedCodexPaths, result))
+	require.Equal(t, []string{"/Applications/Safari.app", "/Users/a/.cursor/mcp.json", "/opt/homebrew/bin/codex"}, storedPaths())
+
+	// The query ran and reported fewer rows: the usual full replace.
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari, codex})
+	require.NoError(t, err)
+	require.Equal(t, []string{"CLAUDE.md", "github"}, names(result.Deleted))
+	require.Empty(t, result.Preserved)
+	codexPaths := map[string]fleet.ExecutableHashes{
+		pathKey(safari, "/Applications/Safari.app"): nil,
+		pathKey(codex, "/usr/local/bin/codex"):      nil,
+	}
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, codexPaths, result))
+	require.Equal(t, []string{"Safari", "codex"}, installedNames())
+	require.Equal(t, []string{"/Applications/Safari.app", "/usr/local/bin/codex"}, storedPaths())
+
+	// Without the option, the ai_tools rows are deleted like any other source.
+	result, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{safari})
+	require.NoError(t, err)
+	require.Equal(t, []string{"codex"}, names(result.Deleted))
+	require.NoError(t, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, safariPaths, result))
+	require.Equal(t, []string{"Safari"}, installedNames())
+	require.Equal(t, []string{"/Applications/Safari.app"}, storedPaths())
 }
 
 func testListSoftwareAIToolFilter(t *testing.T, ds *Datastore) {

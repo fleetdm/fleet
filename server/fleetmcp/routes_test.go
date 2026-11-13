@@ -41,7 +41,7 @@ func TestToolRoutesMatchTools(t *testing.T) {
 		"get_endpoints":           {nil, {"fleet": "Workstations", "label": "Engineering"}},
 		"get_fleets":              {nil},
 		// "alpha" matches one hostname; no hostname matches a UUID, so that
-		// falls back to the identifier route.
+		// falls back to an identifier lookup on GET /hosts/:id.
 		"get_host":                 {{"host_id": "42"}, {"identifier": "alpha"}, {"identifier": "uuid-42"}},
 		"get_host_policies":        {{"host_id": "42"}, {"identifier": "uuid-42"}},
 		"get_host_users":           {{"host_id": "42"}, {"host_identifier": "uuid-42"}},
@@ -264,8 +264,8 @@ routes:
 }
 
 var fakeHosts = []map[string]any{
-	{"id": 42, "uuid": "uuid-42", "hostname": "alpha.local", "platform": "darwin", "status": "online", "team_id": 1, "team_name": "Workstations"},
-	{"id": 43, "uuid": "uuid-43", "hostname": "beta.local", "platform": "darwin", "status": "online", "team_id": 1, "team_name": "Workstations"},
+	{"id": 42, "uuid": "uuid-42", "hostname": "alpha.local", "platform": "darwin", "status": "online", "fleet_id": 1, "fleet_name": "Workstations"},
+	{"id": 43, "uuid": "uuid-43", "hostname": "beta.local", "platform": "darwin", "status": "online", "fleet_id": 1, "fleet_name": "Workstations"},
 }
 
 // fakeFleetResponse returns the minimal body each route needs for the tools to
@@ -287,7 +287,7 @@ func fakeFleetResponse(route Route, params map[string]string, query url.Values) 
 
 	switch route.Path {
 	case "/api/v1/fleet/fleets":
-		return map[string]any{"teams": []any{map[string]any{"id": 1, "name": "Workstations"}}}, true
+		return map[string]any{"fleets": []any{map[string]any{"id": 1, "name": "Workstations"}}}, true
 	case "/api/v1/fleet/fleets/:id/policies", "/api/v1/fleet/global/policies":
 		return map[string]any{"policies": []any{policy}}, true
 	case "/api/v1/fleet/fleets/:fleet_id/policies/:policy_id", "/api/v1/fleet/global/policies/:id":
@@ -306,10 +306,8 @@ func fakeFleetResponse(route Route, params map[string]string, query url.Values) 
 	case "/api/v1/fleet/hosts/count":
 		return map[string]any{"count": len(fakeHosts)}, true
 	case "/api/v1/fleet/hosts/:id":
-		return hostDetail(func(h map[string]any) bool { return params["id"] == fmt.Sprint(h["id"]) })
-	case "/api/v1/fleet/hosts/identifier/:identifier":
 		return hostDetail(func(h map[string]any) bool {
-			return params["identifier"] == h["uuid"] || params["identifier"] == h["hostname"]
+			return params["id"] == fmt.Sprint(h["id"]) || params["id"] == h["uuid"] || params["id"] == h["hostname"]
 		})
 	case "/api/v1/fleet/hosts/:id/software":
 		return map[string]any{"software": []any{map[string]any{"id": 9, "name": "Chrome", "source": "apps"}}}, true
@@ -348,6 +346,7 @@ func TestPathSegment(t *testing.T) {
 }
 
 func TestRouteForLogRedactsIdentifiers(t *testing.T) {
-	assert.Equal(t, "/api/v1/fleet/hosts/identifier/:identifier", routeForLog("/api/v1/fleet/hosts/identifier/alice-macbook?populate_policies=true"))
+	assert.Equal(t, "/api/v1/fleet/hosts/:id", routeForLog("/api/v1/fleet/hosts/alice-macbook?populate_policies=true"))
+	assert.Equal(t, "/api/v1/fleet/hosts/count", routeForLog("/api/v1/fleet/hosts/count?query=alice"))
 	assert.Equal(t, "/api/v1/fleet/hosts", routeForLog("/api/v1/fleet/hosts?query=alice@example.com"))
 }

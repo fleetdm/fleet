@@ -18,6 +18,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -214,248 +215,58 @@ func (ds *Datastore) SerialUpdateHost(ctx context.Context, host *fleet.Host) err
 }
 
 func (ds *Datastore) SaveHostPackStats(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
-	return saveHostPackStatsDB(ctx, ds.writer(ctx), teamID, hostID, stats)
-}
-
-func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID uint, stats []fleet.PackStats) error {
-	// NOTE: this implementation must be kept in sync with the async/batch version
-	// in AsyncBatchSaveHostsScheduledQueryStats (in scheduled_queries.go) - that is,
-	// the behaviour per host must be the same.
-
-	var (
-		userPacksArgs              []interface{}
-		userPacksQueryCount        = 0
-		scheduledQueriesArgs       []interface{}
-		scheduledQueriesQueryCount = 0
-	)
-
+	// Stats for any pack other than the report packs ("Global" and the host's
+	// "team-<id>") can't be attributed to a report and are skipped.
+	type pendingStat struct {
+		name fleet.TeamScopedQueryName
+		stat fleet.ScheduledQueryStats
+	}
+	var pending []pendingStat
 	for _, pack := range stats {
-		if pack.PackName == "Global" || (teamID != nil && pack.PackName == fmt.Sprintf("team-%d", *teamID)) {
-			for _, query := range pack.QueryStats {
-				scheduledQueriesQueryCount++
-
-				teamIDArg := uint(0)
-				if pack.PackName != "Global" {
-					teamIDArg = *teamID
-				}
-				// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
-				if query.WallTimeMs == 0 && query.WallTime != 0 {
-					query.WallTimeMs = query.WallTime * 1000
-				}
-				scheduledQueriesArgs = append(
-					scheduledQueriesArgs,
-					teamIDArg,
-					query.ScheduledQueryName,
-
-					hostID,
-					query.AverageMemory,
-					query.Denylisted,
-					query.Executions,
-					query.Interval,
-					query.LastExecuted,
-					query.OutputSize,
-					query.SystemTime,
-					query.UserTime,
-					query.WallTimeMs,
-				)
-			}
-		} else { // User 2017 packs
-			for _, query := range pack.QueryStats {
-				userPacksQueryCount++
-				// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
-				if query.WallTimeMs == 0 && query.WallTime != 0 {
-					query.WallTimeMs = query.WallTime * 1000
-				}
-
-				userPacksArgs = append(
-					userPacksArgs,
-					query.PackName,
-					query.ScheduledQueryName,
-
-					hostID,
-					query.AverageMemory,
-					query.Denylisted,
-					query.Executions,
-					query.Interval,
-					query.LastExecuted,
-					query.OutputSize,
-					query.SystemTime,
-					query.UserTime,
-					query.WallTimeMs,
-				)
-			}
+		var packTeamID *uint
+		switch {
+		case pack.PackName == "Global":
+		case teamID != nil && pack.PackName == fmt.Sprintf("team-%d", *teamID):
+			packTeamID = teamID
+		default:
+			continue
+		}
+		for _, qs := range pack.QueryStats {
+			pending = append(pending, pendingStat{
+				name: fleet.TeamScopedQueryName{TeamID: packTeamID, Name: qs.ScheduledQueryName},
+				stat: qs,
+			})
 		}
 	}
-
-	if userPacksQueryCount == 0 && scheduledQueriesQueryCount == 0 {
+	if len(pending) == 0 {
 		return nil
 	}
 
-	if scheduledQueriesQueryCount > 0 {
-		// This query will import stats for queries (new format).
-		values := strings.TrimSuffix(strings.Repeat("((SELECT q.id FROM queries q WHERE COALESCE(q.team_id, 0) = ? AND q.name = ?),?,?,?,?,?,?,?,?,?,?),", scheduledQueriesQueryCount), ",")
-		sql := fmt.Sprintf(`
-			INSERT IGNORE INTO scheduled_query_stats (
-				scheduled_query_id,
-				host_id,
-				average_memory,
-				denylisted,
-				executions,
-				schedule_interval,
-				last_executed,
-				output_size,
-				system_time,
-				user_time,
-				wall_time
-			)
-			VALUES %s ON DUPLICATE KEY UPDATE
-				scheduled_query_id = VALUES(scheduled_query_id),
-				host_id = VALUES(host_id),
-				average_memory = VALUES(average_memory),
-				denylisted = VALUES(denylisted),
-				executions = VALUES(executions),
-				schedule_interval = VALUES(schedule_interval),
-				last_executed = VALUES(last_executed),
-				output_size = VALUES(output_size),
-				system_time = VALUES(system_time),
-				user_time = VALUES(user_time),
-				wall_time = VALUES(wall_time)
-		`, values)
-		if _, err := db.ExecContext(ctx, sql, scheduledQueriesArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert query schedule stats")
-		}
+	names := make([]fleet.TeamScopedQueryName, 0, len(pending))
+	for _, p := range pending {
+		names = append(names, p.name)
 	}
-
-	if userPacksQueryCount > 0 {
-		// This query will import stats for 2017 packs.
-		// NOTE(lucas): If more than one scheduled query reference the same query then only one of the stats will be written.
-		values := strings.TrimSuffix(strings.Repeat("((SELECT sq.query_id FROM scheduled_queries sq JOIN packs p ON (sq.pack_id = p.id) WHERE p.pack_type IS NULL AND p.name = ? AND sq.name = ?),?,?,?,?,?,?,?,?,?,?),", userPacksQueryCount), ",")
-		sql := fmt.Sprintf(`
-				INSERT IGNORE INTO scheduled_query_stats (
-					scheduled_query_id,
-					host_id,
-					average_memory,
-					denylisted,
-					executions,
-					schedule_interval,
-					last_executed,
-					output_size,
-					system_time,
-					user_time,
-					wall_time
-				)
-				VALUES %s ON DUPLICATE KEY UPDATE
-					scheduled_query_id = VALUES(scheduled_query_id),
-					host_id = VALUES(host_id),
-					average_memory = VALUES(average_memory),
-					denylisted = VALUES(denylisted),
-					executions = VALUES(executions),
-					schedule_interval = VALUES(schedule_interval),
-					last_executed = VALUES(last_executed),
-					output_size = VALUES(output_size),
-					system_time = VALUES(system_time),
-					user_time = VALUES(user_time),
-					wall_time = VALUES(wall_time)
-			`, values)
-		if _, err := db.ExecContext(ctx, sql, userPacksArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert pack stats")
-		}
-	}
-
-	return nil
-}
-
-// loadhostPacksStatsDB will load all the "2017 pack" stats for the given host. The scheduled
-// queries that haven't run yet are returned with zero values.
-func loadHostPackStatsDB(ctx context.Context, db sqlx.QueryerContext, hid uint, hostPlatform string) ([]fleet.PackStats, error) {
-	packs, err := listPacksForHost(ctx, db, hid)
+	// Read the primary so stats for a report created moments ago aren't
+	// dropped because it hasn't reached the replica yet.
+	reports, err := ds.QueriesByName(ctxdb.RequirePrimary(ctx, true), names)
 	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "list packs for host: %d", hid)
+		return ctxerr.Wrap(ctx, err, "resolve report ids for host stats")
 	}
-	if len(packs) == 0 {
-		return nil, nil
+	resolved := make([]fleet.ScheduledQueryStats, 0, len(pending))
+	for _, p := range pending {
+		report, ok := reports[p.name.Key()]
+		if !ok || report == nil {
+			continue
+		}
+		p.stat.ScheduledQueryID = report.ID
+		resolved = append(resolved, p.stat)
 	}
-	packIDs := make([]uint, len(packs))
-	packTypes := make(map[uint]*string)
-	for i := range packs {
-		packIDs[i] = packs[i].ID
-		packTypes[packs[i].ID] = packs[i].Type
+	if len(resolved) == 0 {
+		return nil
 	}
-	ds := dialect.From(goqu.I("scheduled_queries").As("sq")).Select(
-		goqu.I("sq.name").As("scheduled_query_name"),
-		goqu.I("sq.id").As("scheduled_query_id"),
-		goqu.I("sq.query_name").As("query_name"),
-		goqu.I("q.description").As("description"),
-		goqu.I("p.name").As("pack_name"),
-		goqu.I("p.id").As("pack_id"),
-		goqu.COALESCE(goqu.I("sqs.average_memory"), 0).As("average_memory"),
-		goqu.COALESCE(goqu.I("sqs.denylisted"), false).As("denylisted"),
-		goqu.COALESCE(goqu.I("sqs.executions"), 0).As("executions"),
-		goqu.I("sq.interval").As("schedule_interval"),
-		goqu.COALESCE(goqu.I("sqs.last_executed"), goqu.L("timestamp(?)", common_mysql.DefaultNonZeroTime)).As("last_executed"),
-		goqu.COALESCE(goqu.I("sqs.output_size"), 0).As("output_size"),
-		goqu.COALESCE(goqu.I("sqs.system_time"), 0).As("system_time"),
-		goqu.COALESCE(goqu.I("sqs.user_time"), 0).As("user_time"),
-		goqu.COALESCE(goqu.I("sqs.wall_time"), 0).As("wall_time"),
-	).Join(
-		dialect.From("packs").As("p").Select(
-			goqu.I("id"),
-			goqu.I("name"),
-		).Where(goqu.I("id").In(packIDs)),
-		goqu.On(goqu.I("sq.pack_id").Eq(goqu.I("p.id"))),
-	).Join(
-		goqu.I("queries").As("q"),
-		goqu.On(goqu.I("sq.query_id").Eq(goqu.I("q.id"))),
-	).LeftJoin(
-		goqu.L(
-			`
-		(SELECT
-			stats.scheduled_query_id,
-			CAST(AVG(stats.average_memory) AS UNSIGNED) AS average_memory,
-			MAX(stats.denylisted) AS denylisted,
-			SUM(stats.executions) AS executions,
-			MAX(stats.last_executed) AS last_executed,
-			SUM(stats.output_size) AS output_size,
-			SUM(stats.system_time) AS system_time,
-			SUM(stats.user_time) AS user_time,
-			SUM(stats.wall_time) AS wall_time
-		FROM scheduled_query_stats stats WHERE stats.host_id = ? GROUP BY stats.scheduled_query_id) as sqs
-		`, hid,
-		),
-		goqu.On(goqu.I("sqs.scheduled_query_id").Eq(goqu.I("sq.query_id"))),
-	).Where(
-		goqu.Or(
-			// sq.platform empty or NULL means the scheduled query is set to
-			// run on all hosts.
-			goqu.I("sq.platform").Eq(""),
-			goqu.I("sq.platform").IsNull(),
-			// scheduled_queries.platform can be a comma-separated list of
-			// platforms, e.g. "darwin,windows".
-			goqu.L("FIND_IN_SET(?, sq.platform)", fleet.PlatformFromHost(hostPlatform)).Neq(0),
-		),
-	)
-	sql, args, err := ds.ToSQL()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sql build")
-	}
-	var stats []fleet.ScheduledQueryStats
-	if err := sqlx.SelectContext(ctx, db, &stats, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "load pack stats")
-	}
-	packStats := map[uint]fleet.PackStats{}
-	for _, query := range stats {
-		pack := packStats[query.PackID]
-		pack.PackName = query.PackName
-		pack.PackID = query.PackID
-		pack.Type = getPackTypeFromDBField(packTypes[pack.PackID])
-		pack.QueryStats = append(pack.QueryStats, query)
-		packStats[pack.PackID] = pack
-	}
-	var ps []fleet.PackStats
-	for _, pack := range packStats {
-		ps = append(ps, pack)
-	}
-	return ps, nil
+
+	_, err = saveHostsScheduledQueryStatsDB(ctx, ds.writer(ctx), map[uint][]fleet.ScheduledQueryStats{hostID: resolved}, len(resolved))
+	return err
 }
 
 // loadHostScheduledQueryStatsDB will load all the scheduled query stats for the given host.
@@ -552,13 +363,6 @@ func loadHostScheduledQueryStatsDB(ctx context.Context, db sqlx.QueryerContext, 
 		return nil, ctxerr.Wrap(ctx, err, "load query stats")
 	}
 	return stats, nil
-}
-
-func getPackTypeFromDBField(t *string) string {
-	if t == nil {
-		return "pack"
-	}
-	return *t
 }
 
 func loadHostUsersDB(ctx context.Context, db sqlx.QueryerContext, hostID uint) ([]fleet.HostUser, error) {
@@ -764,15 +568,6 @@ func deleteHosts(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) error 
 		}
 	}
 
-	stmt, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type = ? AND target_id IN (?)`, fleet.TargetHost, hostIDs)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "building delete statement for pack_targets for hosts %v", hostIDs)
-	}
-	_, err = tx.ExecContext(ctx, stmt, args...)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "deleting pack_targets for hosts %v", hostIDs)
-	}
-
 	// no point trying the uuid-based tables if the host's uuid is missing
 	if len(hostUUIDs) != 0 {
 		for table, col := range additionalHostRefsByUUID {
@@ -886,6 +681,22 @@ func omitUnknownLinuxDiskEncryption(host *fleet.Host) {
 	}
 }
 
+// hostOSSelect and hostOSJoin load the host's operating_systems row into Host.OSName and Host.OSVersionOnly, the
+// values the os_name and os_version host filters match. Only loaders whose host reaches the API need them.
+const (
+	hostOSSelect = `
+  COALESCE(os.name, '') AS os_name,
+  COALESCE(os.version, '') AS os_version_only`
+	hostOSJoin = `
+  LEFT JOIN host_operating_system hos ON hos.host_id = h.id
+  LEFT JOIN operating_systems os ON os.id = hos.os_id`
+)
+
+// setHostAPIOS turns the OS inventory row loaded by hostOSSelect into the os_name and os_version the API returns.
+func setHostAPIOS(h *fleet.Host) {
+	h.OSName, h.OSVersionOnly = fleet.HostAPIOS(h.OSName, h.OSVersionOnly, h.OSVersion)
+}
+
 func (ds *Datastore) Host(ctx context.Context, id uint) (*fleet.Host, error) {
 	sqlStatement := `
 SELECT
@@ -955,12 +766,12 @@ SELECT
   hoi.desktop_version AS fleet_desktop_version,
   hoi.scripts_enabled AS scripts_enabled,
   IF(hdep.host_id AND ISNULL(hdep.deleted_at), true, false) AS dep_assigned_to_fleet,
-  had.group_tag AS group_tag
+  had.group_tag AS group_tag,` + hostOSSelect + `
   ` + hostMDMSelect + `
 FROM
   hosts h
   LEFT JOIN teams t ON (h.team_id = t.id)
-  LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
+  LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)` + hostOSJoin + `
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
   LEFT JOIN host_disks hd ON hd.host_id = h.id
   LEFT JOIN host_orbit_info hoi ON hoi.host_id = h.id
@@ -983,12 +794,8 @@ LIMIT
 		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
 	omitUnknownLinuxDiskEncryption(&host)
+	setHostAPIOS(&host)
 
-	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
-	if err != nil {
-		return nil, err
-	}
-	host.PackStats = packStats
 	queriesStats, err := loadHostScheduledQueryStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform, host.TeamID)
 	if err != nil {
 		return nil, err
@@ -1240,7 +1047,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
     h.timezone,
     hoi.version AS orbit_version,
     hoi.desktop_version AS fleet_desktop_version,
-    had.group_tag AS group_tag
+    had.group_tag AS group_tag,` + hostOSSelect + `
 	`
 
 	sql += hostMDMSelect
@@ -1303,6 +1110,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	}
 	for _, host := range hosts {
 		omitUnknownLinuxDiskEncryption(host)
+		setHostAPIOS(host)
 	}
 
 	return hosts, nil
@@ -1431,15 +1239,9 @@ func (ds *Datastore) applyHostFilters(
 
 	softwareStatusJoin := ""
 	softwareFilter := "TRUE"
-	var softwareIDFilter *uint
 	if opt.SoftwareVersionIDFilter != nil {
-		softwareIDFilter = opt.SoftwareVersionIDFilter
-	} else if opt.SoftwareIDFilter != nil {
-		softwareIDFilter = opt.SoftwareIDFilter
-	}
-	if softwareIDFilter != nil {
 		softwareFilter = "EXISTS (SELECT 1 FROM host_software hs WHERE hs.host_id = h.id AND hs.software_id = ?)"
-		whereParams = append(whereParams, *softwareIDFilter)
+		whereParams = append(whereParams, *opt.SoftwareVersionIDFilter)
 	} else if opt.SoftwareTitleIDFilter != nil {
 		// Reject a version or package filter that isn't one of the title's in the fleet
 		if opt.AppStoreAppVersionIDFilter != nil {
@@ -1561,7 +1363,11 @@ func (ds *Datastore) applyHostFilters(
 	}
 
 	operatingSystemJoin := ""
-	if opt.OSIDFilter != nil || (opt.OSNameFilter != nil && opt.OSVersionFilter != nil) || opt.OSVersionIDFilter != nil {
+	switch {
+	case mode == hostFilterList:
+		// The list SELECT returns the OS row; the OS filters below reuse its hos alias.
+		operatingSystemJoin = hostOSJoin
+	case opt.OSIDFilter != nil || (opt.OSNameFilter != nil && opt.OSVersionFilter != nil) || opt.OSVersionIDFilter != nil:
 		operatingSystemJoin = `JOIN host_operating_system hos ON h.id = hos.host_id`
 	}
 
@@ -1852,8 +1658,17 @@ func filterHostsByOS(sql string, opt fleet.HostListOptions, params []interface{}
 		sql += ` AND hos.os_id = ?`
 		params = append(params, *opt.OSIDFilter)
 	} else if opt.OSNameFilter != nil && opt.OSVersionFilter != nil {
-		sql += ` AND hos.os_id IN (SELECT id FROM operating_systems WHERE name = ? AND version = ?)`
-		params = append(params, *opt.OSNameFilter, *opt.OSVersionFilter)
+		if fleet.IsArchGroupedOSName(*opt.OSNameFilter) {
+			// The OS inventory records these hosts as "Arch Linux"; only their display string has their own name and version.
+			// Requiring the inventory row matches what fleet.HostAPIOS returns and keeps list and count in step.
+			inventoryName, _ := fleet.InventoryOSName(*opt.OSNameFilter)
+			sql += ` AND h.os_version = ? AND hos.os_id IN (SELECT id FROM operating_systems WHERE name = ?)`
+			params = append(params, *opt.OSNameFilter+" "+*opt.OSVersionFilter, inventoryName)
+		} else {
+			names := fleet.InventoryOSNames(*opt.OSNameFilter)
+			sql += ` AND hos.os_id IN (SELECT id FROM operating_systems WHERE name IN (?, ?) AND version = ?)`
+			params = append(params, names[0], names[len(names)-1], *opt.OSVersionFilter)
+		}
 	} else if opt.OSVersionIDFilter != nil {
 		sql += ` AND hos.os_id IN (SELECT id FROM operating_systems WHERE os_version_id = ?)`
 		params = append(params, *opt.OSVersionIDFilter)
@@ -3768,12 +3583,12 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
     COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
     hd.gigs_all_disk_space as gigs_all_disk_space,
     COALESCE(hst.seen_time, h.created_at) AS seen_time,
-	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+	COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,` + hostOSSelect + `
 	` + hostMDMSelect + `
   FROM hosts h
   LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
   LEFT JOIN host_updates hu ON (h.id = hu.host_id)
-  LEFT JOIN host_disks hd ON hd.host_id = h.id
+  LEFT JOIN host_disks hd ON hd.host_id = h.id` + hostOSJoin + `
   ` + hostMDMJoin + `
   WHERE ` + platformFilter + ` AND `
 
@@ -3807,11 +3622,11 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	var args []interface{}
 	if len(matchingHostIDs) > 0 {
 		args = append(args, matchingHostIDs)
-		query += " id IN (?) AND "
+		query += " h.id IN (?) AND "
 	}
 	if len(omit) > 0 {
 		args = append(args, omit)
-		query += " id NOT IN (?) AND "
+		query += " h.id NOT IN (?) AND "
 	}
 	query += ds.whereFilterHostsByTeams(filter, "h")
 	query += ` ORDER BY h.id DESC LIMIT 10`
@@ -3829,11 +3644,22 @@ func (ds *Datastore) SearchHosts(ctx context.Context, filter fleet.TeamFilter, m
 	if err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "searching hosts")
 	}
+	for _, host := range hosts {
+		setHostAPIOS(host)
+	}
 
 	return hosts, nil
 }
 
 func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+	return ds.hostIDsByIdentifier(ctx, filter, hostIdentifiers, "hostname", "uuid", "hardware_serial", "node_key", "osquery_host_id")
+}
+
+func (ds *Datastore) HostIDsByLabelIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string) ([]uint, error) {
+	return ds.hostIDsByIdentifier(ctx, filter, hostIdentifiers, "uuid", "hardware_serial")
+}
+
+func (ds *Datastore) hostIDsByIdentifier(ctx context.Context, filter fleet.TeamFilter, hostIdentifiers []string, identColumns ...string) ([]uint, error) {
 	// A blank identifier would match every host with an empty hostname, UUID or serial (whitespace-only
 	// ones too, since these columns use PAD SPACE collations).
 	hostIdentifiers = slices.DeleteFunc(slices.Clone(hostIdentifiers), func(ident string) bool {
@@ -3843,26 +3669,29 @@ func (ds *Datastore) HostIDsByIdentifier(ctx context.Context, filter fleet.TeamF
 		return []uint{}, nil
 	}
 
+	conditions := make([]string, 0, len(identColumns))
+	identArgs := make([]any, 0, len(identColumns))
+	for _, col := range identColumns {
+		conditions = append(conditions, col+" IN (?)")
+		identArgs = append(identArgs, hostIdentifiers)
+	}
 	sqlStatement := fmt.Sprintf(
 		`
 			SELECT
 				DISTINCT id FROM hosts
 			WHERE
-				(hostname IN (?)
-				OR uuid IN (?)
-				OR hardware_serial IN (?)
-				OR node_key IN (?)
-				OR osquery_host_id IN (?))
+				(%s)
 			AND %s
-		`, ds.whereFilterHostsByTeams(filter, "hosts"),
+		`, strings.Join(conditions, " OR "), ds.whereFilterHostsByTeams(filter, "hosts"),
 	)
 
-	sql, args, err := sqlx.In(sqlStatement, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers)
+	sql, args, err := sqlx.In(sqlStatement, identArgs...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building query to get host IDs by identifier")
 	}
 
-	var hostIDs []uint
+	// Non-nil when nothing matches: SaveLabel treats nil host IDs as "leave membership unchanged".
+	hostIDs := []uint{}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostIDs, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host IDs by identifier")
 	}
@@ -4049,13 +3878,13 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
       COALESCE(hd.percent_disk_space_available, 0) as percent_disk_space_available,
       COALESCE(hd.gigs_total_disk_space, 0) as gigs_total_disk_space,
       COALESCE(hst.seen_time, h.created_at) AS seen_time,
-      COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at
+      COALESCE(hu.software_updated_at, h.created_at) AS software_updated_at,` + hostOSSelect + `
     ` + hostMDMSelect + `
     FROM hosts h
     LEFT JOIN teams t ON t.id = h.team_id
     LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
     LEFT JOIN host_updates hu ON (h.id = hu.host_id)
-    LEFT JOIN host_disks hd ON hd.host_id = h.id
+    LEFT JOIN host_disks hd ON hd.host_id = h.id` + hostOSJoin + `
     ` + hostMDMJoin + `
     ` + hostByIdentifierWhere + `
 	`
@@ -4067,12 +3896,7 @@ func (ds *Datastore) HostByIdentifier(ctx context.Context, identifier string) (*
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
-
-	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
-	if err != nil {
-		return nil, err
-	}
-	host.PackStats = packStats
+	setHostAPIOS(host)
 
 	return host, nil
 }
@@ -4148,12 +3972,6 @@ func (ds *Datastore) HostByUUID(ctx context.Context, uuid string) (*fleet.Host, 
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host by uuid")
 	}
-
-	packStats, err := loadHostPackStatsDB(ctx, ds.reader(ctx), host.ID, host.Platform)
-	if err != nil {
-		return nil, err
-	}
-	host.PackStats = packStats
 
 	return host, nil
 }
@@ -6947,9 +6765,17 @@ func (ds *Datastore) OSVersions(
 	}
 
 	// filter by platform, name, and version
+	var inventoryNames []string
+	if name != nil {
+		inventoryNames = fleet.InventoryOSNames(*name)
+	}
+	// Ignores case, like the os_name hosts filter (a SQL comparison on a case-insensitive column).
+	matchesName := func(nameOnly string) bool {
+		return slices.ContainsFunc(inventoryNames, func(n string) bool { return strings.EqualFold(n, nameOnly) })
+	}
 	var filtered []fleet.OSVersion
 	for _, os := range counts {
-		if (platform == nil || *platform == os.Platform || (*platform == "linux" && fleet.IsLinux(os.Platform))) && (name == nil || version == nil || (*name == os.NameOnly && *version == os.Version)) {
+		if (platform == nil || *platform == os.Platform || (*platform == "linux" && fleet.IsLinux(os.Platform))) && (name == nil || version == nil || (matchesName(os.NameOnly) && *version == os.Version)) {
 			filtered = append(filtered, os)
 		}
 	}
@@ -7457,19 +7283,28 @@ WHERE
 
 func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHealth, error) {
 	sqlStmt := `
-		SELECT h.os_version, h.updated_at, h.platform, h.team_id, hd.encrypted as disk_encryption_enabled FROM hosts h
+		SELECT COALESCE(os.name, '') AS os_name, COALESCE(os.version, '') AS os_version, h.os_version AS os_display,
+			h.updated_at, h.platform, h.team_id, hd.encrypted as disk_encryption_enabled
+		FROM hosts h
 		LEFT JOIN host_disks hd ON hd.host_id = h.id
-		WHERE id = ?
+		LEFT JOIN host_operating_system hos ON hos.host_id = h.id
+		LEFT JOIN operating_systems os ON os.id = hos.os_id
+		WHERE h.id = ?
 	`
 
-	var hh fleet.HostHealth
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hh, sqlStmt, id); err != nil {
+	var row struct {
+		fleet.HostHealth
+		OSDisplay string `db:"os_display"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, sqlStmt, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Host Health").WithID(id))
 		}
 
 		return nil, ctxerr.Wrap(ctx, err, "loading host health")
 	}
+	hh := row.HostHealth
+	hh.OSName, hh.OsVersion = fleet.HostAPIOS(hh.OSName, hh.OsVersion, row.OSDisplay)
 
 	// LoadHostSoftware joins full CVE metadata, which is costly on a frequently polled endpoint.
 	// NO_SEMIJOIN keeps the plan host-driven; as a semijoin MySQL may full-scan software_cve.

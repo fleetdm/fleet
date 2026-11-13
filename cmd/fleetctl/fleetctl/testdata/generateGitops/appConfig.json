@@ -78,7 +78,6 @@
     ],
     "deferred_save_host": false,
     "query_reports_disabled": false,
-    "scripts_disabled": false,
     "ai_features_disabled": false,
     "mcp_disabled": false,
     "query_report_cap": 1
@@ -113,10 +112,6 @@
     "additional_queries": {
       "time": "SELECT * FROM time",
       "macs": "SELECT mac FROM interface_details"
-    },
-    "detail_query_overrides": {
-      "users": null,
-      "mdm": "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
     },
     "historical_data": {
       "uptime": true,
@@ -228,14 +223,14 @@
       {
         "organization_name": "Fleet Device Management Inc.",
         "default": true,
-        "macos_team": "💻 Workstations",
-        "ios_team": "📱🏢 Company-owned mobile devices",
-        "ipados_team": "📱🏢 Company-owned mobile devices",
-        "byod_team": "📱🔐 Personal mobile devices"
+        "macos_fleet": "💻 Workstations",
+        "ios_fleet": "📱🏢 Company-owned mobile devices",
+        "ipados_fleet": "📱🏢 Company-owned mobile devices",
+        "byod_fleet": "📱🔐 Personal mobile devices"
       },
       {
         "organization_name": "Second Org LLC",
-        "macos_team": "💻 Workstations"
+        "macos_fleet": "💻 Workstations"
       }
     ],
     "apple_bm_enabled_and_configured": true,
@@ -266,11 +261,11 @@
     "linux_settings": {
       "enable_escrow_disk_encryption_key": true
     },
-    "macos_setup": {
+    "setup_experience": {
       "enable_end_user_authentication": true,
-      "macos_setup_assistant": "",
-      "enable_release_device_manually": false,
-      "script": "",
+      "apple_setup_assistant": "",
+      "apple_enable_release_device_manually": false,
+      "macos_script": "",
       "software": []
     },
     "macos_migration": {
@@ -278,7 +273,7 @@
       "mode": "voluntary",
       "webhook_url": "https://some-macos-migration-webhook-url.com"
     },
-    "windows_migration_enabled": true,
+    "windows_mdm_migration_enabled": true,
     "enable_turn_on_windows_mdm_manually": false,
     "windows_entra_tenant_ids": [
       "5b84b6dd-d257-415e-b8b4-0240666ba4d4",
@@ -296,7 +291,7 @@
       "metadata_url": "http://some-mdm-metadata-url.com",
       "idp_name": "some-other-idp-name"
     },
-    "windows_enabled_and_configured": true,
+    "windows_mdm_enabled": true,
     "name_template": "No team Mac $FLEET_VAR_HOST_UUID",
     "windows_settings": {
       "custom_settings": [],

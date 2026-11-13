@@ -222,16 +222,25 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 		{name: "literal report beats the host identifier", method: "GET", path: "/api/latest/fleet/hosts/report", wantServedBy: byFastPath},
 		{name: "unknown API version", method: "GET", path: "/api/v9/fleet/hosts/1"},
 		{
-			name: "identifier beats the numeric host id", method: "GET",
+			name: "removed host identifier spelling of a subresource", method: "GET",
 			path: "/api/latest/fleet/hosts/identifier/device_mapping", wantServedBy: byGorilla,
 		},
 		{
-			name: "host by identifier", method: "GET",
-			path: "/api/latest/fleet/hosts/identifier/somehost", wantServedBy: byGorilla,
+			name: "removed host identifier", method: "GET",
+			path: "/api/latest/fleet/hosts/identifier/somehost", wantServedBy: byFastPath,
+		},
+		{name: "removed host identifier on another method", method: "POST", path: "/api/latest/fleet/hosts/identifier/somehost"},
+		{
+			name: "live host subresource wins the overlap", method: "GET",
+			path: "/api/latest/fleet/hosts/1/device_mapping", wantServedBy: byFastPath,
 		},
 		{
-			name: "host subresource excluded alongside it", method: "GET",
-			path: "/api/latest/fleet/hosts/1/device_mapping", wantServedBy: byGorilla,
+			name: "wrong method on a live host subresource", method: "GET",
+			path: "/api/latest/fleet/hosts/1/refetch", wantServedBy: byFastPath,
+		},
+		{
+			name: "unknown host subresource", method: "GET",
+			path: "/api/latest/fleet/hosts/1/nothing", wantServedBy: byFastPath,
 		},
 		{
 			name: "live batch host results wins the overlap", method: "GET",
@@ -367,46 +376,6 @@ func TestFastPathAppliesRouterMiddlewareInGorillaOrder(t *testing.T) {
 	require.Equal(t, viaGorilla.Header().Values("X-Middleware"), viaFastPath.Header().Values("X-Middleware"))
 }
 
-// TestFastPathExclusionsCoverEveryAmbiguousRoute keeps fastPathExcluded in sync with the route table. It covers the drift the
-// server itself cannot report, so unlike buildFastPathMux it registers every route, the excluded ones included.
-func TestFastPathExclusionsCoverEveryAmbiguousRoute(t *testing.T) {
-	router := newRouterForTest(t)
-
-	registered := make(map[string]struct{})
-	fast := http.NewServeMux()
-
-	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		tpl, err := route.GetPathTemplate()
-		if err != nil || strings.HasSuffix(tpl, "/") {
-			return nil
-		}
-		methods, err := route.GetMethods()
-		if err != nil {
-			return nil
-		}
-		if _, supported := supportedVarMatchers(tpl); !supported {
-			return nil
-		}
-		for _, method := range methods {
-			key := unversionedKey(method, tpl)
-			registered[key] = struct{}{}
-			for _, pattern := range expandToStdlibPatterns(tpl) {
-				if conflictErr := tryRegister(fast, method+" "+pattern, noopHandler); conflictErr != nil {
-					assert.Containsf(t, fastPathExcluded, key,
-						"route %q is ambiguous on a stdlib ServeMux; add it and the route it collides with to fastPathExcluded (%v)",
-						key, conflictErr)
-				}
-			}
-		}
-		return nil
-	}))
-
-	for key := range fastPathExcluded {
-		assert.Containsf(t, registered, key,
-			"fastPathExcluded entry %q no longer matches a registered route and should be removed", key)
-	}
-}
-
 // TestFastPathHandlerIsIntrospectableByEndpointValidation covers the startup path in cmd/fleet, which validates the endpoint
 // catalog against the handler MakeHandler returns and fails startup if it cannot read the route table out of it.
 func TestFastPathHandlerIsIntrospectableByEndpointValidation(t *testing.T) {
@@ -472,16 +441,16 @@ func TestFastPathErrorsWhenARouteIsAmbiguous(t *testing.T) {
 	require.Nil(t, h)
 	require.Error(t, err, "an ambiguous route must fail startup, not degrade quietly")
 	require.Contains(t, err.Error(), "get_host_by_identifier", "the error must name the offending route")
-	require.Contains(t, err.Error(), "fastPathExcluded", "the error must name the fix")
+	require.Contains(t, err.Error(), "change the route's path", "the error must name the fix")
 }
 
 // TestTryRegisterRepanicsOnNonConflict checks the narrowing: only a pattern-conflict panic becomes an error. A malformed
-// pattern is a different bug, and reporting it as an ambiguity would send the reader to edit fastPathExcluded for no reason.
+// pattern is a different bug, and reporting it as an ambiguity would send the reader to change a route path for no reason.
 func TestTryRegisterRepanicsOnNonConflict(t *testing.T) {
 	t.Run("conflict becomes an error", func(t *testing.T) {
 		m := http.NewServeMux()
 		require.NoError(t, tryRegister(m, "GET /a/identifier/{identifier}", noopHandler))
-		require.ErrorContains(t, tryRegister(m, "GET /a/{id}/software", noopHandler), "fastPathExcluded")
+		require.ErrorContains(t, tryRegister(m, "GET /a/{id}/software", noopHandler), "ambiguous on a stdlib ServeMux")
 	})
 
 	t.Run("malformed pattern still panics", func(t *testing.T) {
@@ -492,7 +461,7 @@ func TestTryRegisterRepanicsOnNonConflict(t *testing.T) {
 			panicErr, ok := r.(error)
 			require.True(t, ok)
 			require.Contains(t, panicErr.Error(), "parsing", "the stdlib diagnosis has to survive")
-			require.NotContains(t, panicErr.Error(), "fastPathExcluded", "and must not be relabelled as a route conflict")
+			require.NotContains(t, panicErr.Error(), "ambiguous on a stdlib ServeMux", "and must not be relabelled as a route conflict")
 		}()
 		_ = tryRegister(m, "GET /a/{bad", noopHandler)
 	})
@@ -534,27 +503,36 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 			wantSpan: "POST /api/osquery/distributed/write", wantTier: tracing.TierHighVolume,
 		},
 		{
-			name: "versioned route keeps the unexpanded template", method: "GET", path: "/api/latest/fleet/config",
-			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/config", wantTier: tracing.TierStandard,
+			name: "versioned route is named with the _version_ placeholder", method: "GET", path: "/api/latest/fleet/config",
+			wantSpan: "GET /api/_version_/fleet/config", wantTier: tracing.TierStandard,
 		},
 		{
-			name: "path variable stays in the span name", method: "GET", path: "/api/latest/fleet/hosts/1",
-			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/{id}", wantTier: tracing.TierStandard,
+			name: "path variable drops its regex constraint", method: "GET", path: "/api/latest/fleet/hosts/1",
+			wantSpan: "GET /api/_version_/fleet/hosts/{id}", wantTier: tracing.TierStandard,
 		},
 		{
 			name:     "token variable stays unexpanded on the fast path",
 			method:   "HEAD",
 			path:     "/api/latest/fleet/device/6f36ab2c-1a40-4c3f-9f8e-1b3c2d4e5f60/ping",
-			wantSpan: "HEAD /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/device/{token}/ping",
+			wantSpan: "HEAD /api/_version_/fleet/device/{token}/ping",
 			wantTier: tracing.TierHighVolume,
 		},
 		{
-			// An excluded route reaches gorilla through the fast path's catch-all, so otelmux, not otelhttp, names its span.
+			// An encoded path reaches gorilla through the fast path's catch-all, so otelmux, not otelhttp, names its span.
 			name:     "route served by gorilla is named by otelmux the same way",
 			method:   "GET",
-			path:     "/api/latest/fleet/hosts/identifier/abc",
-			wantSpan: "GET /api/{fleetversion:(?:v1|2022-04|latest)}/fleet/hosts/identifier/{identifier}",
+			path:     "/api/latest/fleet/hosts/a%2Cb",
+			wantSpan: "GET /api/_version_/fleet/hosts/{id}",
 			wantTier: tracing.TierStandard,
+		},
+		{
+			name: "constrained variable drops its regex on the fast path", method: "PATCH", path: "/api/latest/fleet/fleets/1/secrets",
+			wantSpan: "PATCH /api/_version_/fleet/fleets/{fleet_id}/secrets", wantTier: tracing.TierAlways,
+		},
+		{
+			// %31 is "1", but the non-canonical encoding leaves RawPath set, which sends the request to gorilla.
+			name: "constrained variable drops its regex on gorilla", method: "PATCH", path: "/api/latest/fleet/fleets/%31/secrets",
+			wantSpan: "PATCH /api/_version_/fleet/fleets/{fleet_id}/secrets", wantTier: tracing.TierAlways,
 		},
 	}
 
@@ -571,13 +549,15 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 					matched = span
 				}
 			}
-			require.NotNilf(t, matched, "span name must stay %q; got %v", c.wantSpan, names)
+			require.NotNilf(t, matched, "span name must be %q; got %v", c.wantSpan, names)
 			// Both spellings of the route have to agree, or a reader correlating a trace to the route keyed server metrics
 			// has two routes for one request.
 			require.Equal(t, []string{strings.TrimPrefix(c.wantSpan, c.method+" ")}, spanRoutes(matched))
 
 			tier, found := registry.Lookup(c.wantSpan)
-			require.Truef(t, found, "%q must resolve in the tier registry, otherwise it samples at 100%%", c.wantSpan)
+			if c.wantTier != tracing.TierAlways {
+				require.Truef(t, found, "%q must resolve in the tier registry, otherwise it samples at 100%%", c.wantSpan)
+			}
 			require.Equal(t, c.wantTier, tier)
 		})
 	}

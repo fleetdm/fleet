@@ -5,7 +5,6 @@ export interface ILibrarySettingsLocation {
   search: string;
   query: {
     fleet_id?: string;
-    team_id?: string;
     add_category?: string;
   };
   hash?: string;

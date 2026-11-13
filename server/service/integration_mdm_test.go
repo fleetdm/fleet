@@ -261,6 +261,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	androidMockClient.SetAuthenticationSecretFunc = func(secret string) error {
 		return nil
 	}
+	androidMockClient.InitDeviceLookupMocks()
 	androidSvc, err := android_service.NewServiceWithClient(wlog, s.ds, androidMockClient, "test-private-key", s.ds,
 		func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 			return s.fleetSvc.NewActivity(ctx, user, activity)
@@ -1749,7 +1750,7 @@ func (s *integrationMDMTestSuite) assertWindowsConfigProfilesByName(teamID *uint
 }
 
 // generates the body and headers part of a multipart request ready to be
-// used via s.DoRawWithHeaders to POST /api/_version_/fleet/mdm/apple/profiles.
+// used via s.DoRawWithHeaders to POST /api/_version_/fleet/configuration_profiles.
 func generateNewProfileMultipartRequest(t *testing.T,
 	fileName string, fileContent []byte, token string, extraFields map[string][]string,
 ) (*bytes.Buffer, map[string]string) {
@@ -1918,7 +1919,7 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T, lockEndUserInfo bool
 					"idp_name": "SimpleSAML",
 					"metadata_url": "%s"
 				},
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true,
 					"lock_end_user_info": %t
 				}
@@ -1942,7 +1943,7 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T, lockEndUserInfo bool
 						"idp_name": "",
 						"metadata_url": ""
 					},
-					"macos_setup": {
+					"setup_experience": {
 						"enable_end_user_authentication": false,
 						"lock_end_user_info": false
 					}
@@ -2331,7 +2332,7 @@ func (s *integrationMDMTestSuite) newSecurityTokenMsg(encodedBinToken string, de
 	return requestBytes, nil
 }
 
-func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary, expectedAppleSummary *fleet.MDMProfilesSummary) {
+func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMProfilesSummary) {
 	// The Windows profiles summary reads the maintained host_mdm_windows_profiles_status rollup. Some tests simulate device reports
 	// by writing host_mdm_windows_profiles directly, bypassing the write paths that maintain the rollup, so reconcile it before
 	// reading.
@@ -2339,16 +2340,7 @@ func (s *integrationMDMTestSuite) checkMDMProfilesSummaries(t *testing.T, teamID
 
 	var queryParams []string
 	if teamID != nil {
-		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
-	}
-
-	if expectedAppleSummary != nil {
-		var apple getMDMAppleProfilesSummaryResponse
-		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/profiles/summary", getMDMAppleProfilesSummaryRequest{}, http.StatusOK, &apple, queryParams...)
-		require.Equal(t, expectedSummary.Failed, apple.Failed, "failed summary count doesn't match")
-		require.Equal(t, expectedSummary.Pending, apple.Pending, "pending summary count doesn't match")
-		require.Equal(t, expectedSummary.Verifying, apple.Verifying, "verifying summary count doesn't match")
-		require.Equal(t, expectedSummary.Verified, apple.Verified, "verified summary count doesn't match")
+		queryParams = append(queryParams, "fleet_id", fmt.Sprintf("%d", *teamID))
 	}
 
 	var combined getMDMProfilesSummaryResponse
@@ -2538,7 +2530,7 @@ func (s *integrationMDMTestSuite) uploadABMToken(encryptedToken []byte, expected
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/abm_tokens", b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/ab_tokens", b.Bytes(), expectedStatus, headers)
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, wantErr)

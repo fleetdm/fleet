@@ -412,8 +412,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if payload.MDM.EnableRecoveryLockPassword.Valid {
 			recoveryLockPasswordUpdated = team.Config.MDM.EnableRecoveryLockPassword != payload.MDM.EnableRecoveryLockPassword.Value
 			if recoveryLockPasswordUpdated && !appCfg.MDM.EnabledAndConfigured {
-				return nil, fleet.NewInvalidArgumentError("mdm.enable_recovery_lock_password",
-					`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`)
+				return nil, fleet.NewInvalidArgumentError("mdm.macos_recovery_lock_password_enabled",
+					`Couldn't update macos_recovery_lock_password_enabled because MDM features aren't turned on in Fleet.`)
 			}
 			team.Config.MDM.EnableRecoveryLockPassword = payload.MDM.EnableRecoveryLockPassword.Value
 		}
@@ -462,8 +462,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		if payload.MDM.MacOSSetup != nil {
-			macOSEnableEndUserAuthUpdated = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != payload.MDM.MacOSSetup.EnableEndUserAuthentication
-			if macOSEnableEndUserAuthUpdated && payload.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
+			enableEUA := payload.MDM.MacOSSetup.EnableEndUserAuthentication
+			macOSEnableEndUserAuthUpdated = enableEUA.Set && team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != enableEUA.Value
+			if macOSEnableEndUserAuthUpdated && enableEUA.Value && appCfg.MDM.EndUserAuthentication.IsEmpty() {
 				// TODO: update this error message to include steps to resolve the issue once docs for IdP
 				// config are available
 				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication",
@@ -474,7 +475,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, err
 			}
 
-			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
+			if enableEUA.Set {
+				team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = enableEUA.Value
+			}
 			// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA (Apple-only).
 			// Also sync when EUA was just disabled so the Lock-requires-EUA invariant below stays satisfied.
 			if macOSEnableEndUserAuthUpdated && !payload.MDM.MacOSSetup.LockEndUserInfo.Valid &&
@@ -1771,8 +1774,8 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if macOSSetup.RequireAllSoftwareWindows && !appCfg.MDM.WindowsEnabledAndConfigured {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software_windows",
-			`Couldn't update setup_experience.require_all_software_windows. `+fleet.ErrWindowsMDMNotConfigured.Error()))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_require_all_software",
+			`Couldn't update setup_experience.windows_require_all_software. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 	}
 
 	// Default the value of "lock_end_user_info" to the value of "enable_end_user_authentication" if not explicitly set in the spec to keep prior
@@ -2209,8 +2212,8 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.EnableRecoveryLockPassword.Valid {
 		didUpdateRecoveryLockPassword = team.Config.MDM.EnableRecoveryLockPassword != spec.MDM.EnableRecoveryLockPassword.Value
 		if didUpdateRecoveryLockPassword && !appCfg.MDM.EnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.enable_recovery_lock_password",
-				`Couldn't update enable_recovery_lock_password because MDM features aren't turned on in Fleet.`))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm.macos_recovery_lock_password_enabled",
+				`Couldn't update macos_recovery_lock_password_enabled because MDM features aren't turned on in Fleet.`))
 		}
 		team.Config.MDM.EnableRecoveryLockPassword = spec.MDM.EnableRecoveryLockPassword.Value
 	}
@@ -2316,8 +2319,8 @@ func (svc *Service) editTeamFromSpec(
 	didUpdateMacOSRequireAllSoftware := spec.MDM.MacOSSetup.RequireAllSoftware != oldMacOSSetup.RequireAllSoftware
 	if didUpdateMacOSRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftware {
 		if !appCfg.MDM.EnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software",
-				`Couldn't update setup_experience.require_all_software because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.macos_require_all_software",
+				`Couldn't update setup_experience.macos_require_all_software because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftware = spec.MDM.MacOSSetup.RequireAllSoftware
@@ -2347,8 +2350,8 @@ func (svc *Service) editTeamFromSpec(
 	}
 	if didUpdateWindowsRequireAllSoftware && spec.MDM.MacOSSetup.RequireAllSoftwareWindows {
 		if !windowsEnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.require_all_software_windows",
-				`Couldn't update setup_experience.require_all_software_windows. `+fleet.ErrWindowsMDMNotConfigured.Error()))
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_require_all_software",
+				`Couldn't update setup_experience.windows_require_all_software. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 		}
 	}
 	team.Config.MDM.MacOSSetup.RequireAllSoftwareWindows = spec.MDM.MacOSSetup.RequireAllSoftwareWindows

@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/rand"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -52,17 +53,12 @@ func TestAggregatedStats(t *testing.T) {
 	var args []interface{}
 
 	batchSize := 4000
-	hostCount := 10           // 2000
-	scheduledQueryCount := 20 // 400
-	queryCount := 30          // 1000
+	hostCount := 10  // 2000
+	queryCount := 30 // 1000
 
 	start := time.Now()
 	for i := 0; i < queryCount; i++ {
 		_, err := ds.writer(context.Background()).Exec(`INSERT INTO queries(name, query, description) VALUES (?,?,?)`, fmt.Sprint(i), fmt.Sprint(i), fmt.Sprint(i))
-		require.NoError(t, err)
-	}
-	for i := 0; i < scheduledQueryCount; i++ {
-		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id, name, query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 	insertScheduledQuerySQL := `INSERT IGNORE INTO scheduled_query_stats(host_id, scheduled_query_id, system_time, user_time, executions, query_type) VALUES %s`
@@ -90,13 +86,9 @@ func TestAggregatedStats(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// Make sure we have some queries and scheduled queries that don't have stats
+	// Make sure we have some queries that don't have stats
 	for i := queryCount; i < queryCount+4; i++ {
 		_, err := ds.writer(context.Background()).Exec(`INSERT INTO queries(name, query, description) VALUES (?,?,?)`, fmt.Sprint(i), fmt.Sprint(i), fmt.Sprint(i))
-		require.NoError(t, err)
-	}
-	for i := scheduledQueryCount; i < scheduledQueryCount+4; i++ {
-		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id, name, query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 
@@ -180,4 +172,60 @@ func TestAggregatedStatsSkipsDeletedQueries(t *testing.T) {
 	require.NoError(t, ds.writer(ctx).SelectContext(ctx, &ids,
 		`SELECT id FROM aggregated_stats WHERE type = ?`, fleet.AggregatedStatsTypeScheduledQuery))
 	require.Equal(t, []uint{live.ID}, ids)
+}
+
+var deleteQueryStatsBatchSizeMu sync.Mutex
+
+// setDeleteQueryStatsBatchSize holds a lock until the test ends, since MySQL tests run in parallel.
+func setDeleteQueryStatsBatchSize(t *testing.T, size int) {
+	deleteQueryStatsBatchSizeMu.Lock()
+	orig := deleteQueryStatsBatchSize
+	deleteQueryStatsBatchSize = size
+	t.Cleanup(func() {
+		deleteQueryStatsBatchSize = orig
+		deleteQueryStatsBatchSizeMu.Unlock()
+	})
+}
+
+func TestDeleteOrphanedQueryStats(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	setDeleteQueryStatsBatchSize(t, 2)
+
+	live := test.NewQuery(t, ds, nil, "live", "select 1", 0, true)
+	deleted := test.NewQuery(t, ds, nil, "deleted", "select 2", 0, true)
+	for _, id := range []uint{live.ID, deleted.ID} {
+		for hostID := 1; hostID <= 3; hostID++ {
+			_, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO scheduled_query_stats
+				(host_id, scheduled_query_id, average_memory, executions, output_size, system_time, user_time, wall_time)
+				VALUES (?, ?, 1, 1, 1, 1, 1, 1)`, hostID, id)
+			require.NoError(t, err)
+		}
+	}
+	require.NoError(t, ds.UpdateQueryAggregatedStats(ctx))
+	// Another type's row with the same id must stay.
+	_, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO aggregated_stats (id, type, global_stats, json_value) VALUES (?, ?, 0, '{}')`,
+		deleted.ID, aggregatedStatsTypeMunkiVersions)
+	require.NoError(t, err)
+	// A deleted report with an aggregated row but no stats rows left.
+	aggOnly := test.NewQuery(t, ds, nil, "aggregated only", "select 3", 0, true)
+	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO aggregated_stats (id, type, global_stats, json_value) VALUES (?, ?, 0, '{}')`,
+		aggOnly.ID, fleet.AggregatedStatsTypeScheduledQuery)
+	require.NoError(t, err)
+	// Delete only the report rows, leaving their stats behind like a failed deleteQueryStats.
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM queries WHERE id IN (?, ?)`, deleted.ID, aggOnly.ID)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.DeleteOrphanedQueryStats(ctx))
+
+	var statIDs []uint
+	require.NoError(t, ds.writer(ctx).SelectContext(ctx, &statIDs, `SELECT scheduled_query_id FROM scheduled_query_stats`))
+	require.Equal(t, []uint{live.ID, live.ID, live.ID}, statIDs)
+	var aggregated []string
+	require.NoError(t, ds.writer(ctx).SelectContext(ctx, &aggregated, `SELECT CONCAT(type, ':', id) FROM aggregated_stats ORDER BY type`))
+	require.Equal(t, []string{
+		fmt.Sprintf("%s:%d", aggregatedStatsTypeMunkiVersions, deleted.ID),
+		fmt.Sprintf("%s:%d", fleet.AggregatedStatsTypeScheduledQuery, live.ID),
+	}, aggregated)
 }

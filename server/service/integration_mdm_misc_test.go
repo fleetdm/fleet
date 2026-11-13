@@ -532,7 +532,8 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			var wantMacOSSetup fleet.MacOSSetup
 			if checkMDM != nil {
 				if checkMDM.MacOSSetup != nil {
-					wantMacOSSetup = *checkMDM.MacOSSetup
+					wantMacOSSetup = checkMDM.MacOSSetup.MacOSSetup
+					wantMacOSSetup.EnableEndUserAuthentication = checkMDM.MacOSSetup.EnableEndUserAuthentication.Value
 					// bootstrap package always ignored by modify team endpoint so expect original value
 					wantMacOSSetup.BootstrapPackage = team.Config.MDM.MacOSSetup.BootstrapPackage
 					// setup assistant always ignored by modify team endpoint so expect original value
@@ -588,9 +589,9 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 				"mdm all zero values",
 				&fleet.TeamPayloadMDM{
 					EnableDiskEncryption: optjson.SetBool(false),
-					MacOSSetup: &fleet.MacOSSetup{
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
 						BootstrapPackage:            optjson.SetString(""),
-						EnableEndUserAuthentication: false,
+						EnableEndUserAuthentication: optjson.SetBool(false),
 						MacOSSetupAssistant:         optjson.SetString(""),
 					},
 				},
@@ -599,7 +600,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"bootstrap package",
 				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
 						BootstrapPackage: optjson.SetString("some-package"),
 					},
 				},
@@ -609,7 +610,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"setup assistant",
 				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
 						MacOSSetupAssistant: optjson.SetString("some-setup-assistant"),
 					},
 				},
@@ -627,8 +628,8 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 			{
 				"enable end user auth",
 				&fleet.TeamPayloadMDM{
-					MacOSSetup: &fleet.MacOSSetup{
-						EnableEndUserAuthentication: true,
+					MacOSSetup: &fleet.TeamPayloadMacOSSetup{
+						EnableEndUserAuthentication: optjson.SetBool(true),
 					},
 				},
 				// disk encryption requires mdm enabled and configured
@@ -878,7 +879,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -893,7 +894,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -923,7 +924,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "",
 				"metadata_url": ""
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -958,7 +959,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -970,7 +971,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": false,
 					},
 				},
@@ -998,7 +999,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true
 			}
 		}
@@ -1010,7 +1011,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": true,
 					},
 				},
@@ -1038,7 +1039,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": false,
 					},
 				},
@@ -1073,7 +1074,7 @@ func (s *integrationMDMTestSuite) TestCustomConfigurationWebURL() {
 			map[string]any{
 				"name": t.Name(),
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"enable_end_user_authentication": true,
 					},
 				},
@@ -1216,7 +1217,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsTeamDeletion() {
 			{DisplayName: "N2", Profile: syncMLForTest("./Foo/Bar"), LabelsIncludeAll: []string{l1t1.Name}},
 			{DisplayName: "N3", Profile: declarationForTest("D1"), LabelsIncludeAll: []string{l1t1.Name}},
 		},
-	}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+	}, http.StatusNoContent, "fleet_id", fmt.Sprint(t1.ID))
 
 	// Create in-house app in team t1 that references l1t1.
 	payload := &fleet.UploadSoftwareInstallerPayload{
@@ -1388,12 +1389,12 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// 1.B.1 Attempt to create a team policy that references l2t2 (should fail).
 		tpResp := fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 			Name:             "t1 policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 			Name:             "t1 policy exclude",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
@@ -1401,13 +1402,13 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// 1.B.2 Attempt to create a team policy with a global label and same team label (should succeed).
 		tpResp = fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 			Name:             "t1 policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name, l1t1.Name},
 		}, http.StatusOK, &tpResp)
 		teamPolicyID := tpResp.Policy.ID
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", t1.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", t1.ID), fleet.TeamPolicyRequest{
 			Name:             "t1 policy 2",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l1t1.Name},
@@ -1415,34 +1416,34 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// 1.B.3 Attempt to edit a team policy to reference l2t2 (should fail; label is outside team).
 		mtplr := fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 
 		// 1.B.3 Attempt to edit a team policy to reference a team label on the same team (should succeed).
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{l1t1.Name},
 		}, http.StatusOK, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies/%d", t1.ID, teamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{l1t1.Name, globalLabel.Name},
 		}, http.StatusOK, &mtplr)
 
 		// 1.C.1 Attempt to create a "No team" policy that references l1t1 (should fail).
 		tpResp = fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
 			Name:             "no team policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name, l2t2.Name},
 		}, http.StatusBadRequest, &tpResp)
-		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
 			Name:             "no team policy exclude",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name, l2t2.Name},
@@ -1450,13 +1451,13 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// 1.B.2 Attempt to create a "No team" policy with a global label (should succeed).
 		tpResp = fleet.TeamPolicyResponse{}
-		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
 			Name:             "no team policy",
 			Query:            "SELECT 1;",
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &tpResp)
 		noTeamPolicyID := tpResp.Policy.ID
-		s.DoJSON("POST", "/api/latest/fleet/teams/0/policies", fleet.TeamPolicyRequest{
+		s.DoJSON("POST", "/api/latest/fleet/fleets/0/policies", fleet.TeamPolicyRequest{
 			Name:             "no team policy 2",
 			Query:            "SELECT 1;",
 			LabelsExcludeAny: []string{globalLabel.Name},
@@ -1464,22 +1465,22 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 
 		// 1.B.3 Attempt to edit a "No team" policy with a team policy that references l2t2 (should fail).
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{l2t2.Name},
 		}, http.StatusBadRequest, &mtplr)
 
 		// 1.B.3 Attempt to edit a team policy to reference a global label (should succeed).
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &mtplr)
 		mtplr = fleet.ModifyTeamPolicyResponse{}
-		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/0/policies/%d", noTeamPolicyID), fleet.ModifyTeamPolicyRequest{
 			LabelsIncludeAny: []string{},
 			LabelsExcludeAny: []string{globalLabel.Name},
 		}, http.StatusOK, &mtplr)
@@ -1558,14 +1559,16 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 		// because of time constraints (we haven't yet implemented test utilities for multipart uploads).
 
 		// Attempt to create a team profile with labels from another team (should fail).
-		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
+		res := s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
 					DisplayName: "N1", Profile: mobileconfigForTestWithContent("N1", "I1", "com.test.profile.content", "test inner type", "test inner name"),
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
+		require.Contains(t, extractServerErrorText(res.Body),
+			fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the configuration profile.", l2t2.Name))
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
@@ -1573,7 +1576,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: []fleet.BatchModifyMDMConfigProfilePayload{
 				{
@@ -1581,7 +1584,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l2t2.Name},
 				},
 			},
-		}, http.StatusBadRequest, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusBadRequest, "fleet_id", fmt.Sprint(t1.ID))
 
 		// Attempt to create a profile with a label on the same team (should succeed).
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
@@ -1591,7 +1594,7 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 					LabelsIncludeAll: []string{l1t1.Name},
 				},
 			},
-		}, http.StatusNoContent, "team_id", fmt.Sprint(t1.ID))
+		}, http.StatusNoContent, "fleet_id", fmt.Sprint(t1.ID))
 
 		// Attempt to create a profile in "No team" with a label that belongs to a team (should fail).
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
@@ -1624,7 +1627,8 @@ func (s *integrationMDMTestSuite) TestTeamLabelsAssociationsCheck() {
 			LabelsIncludeAny: []string{l2t2.Name},
 			Platform:         "linux",
 		}
-		s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusBadRequest, "")
+		s.uploadSoftwareInstaller(t, payloadRubyTm1, http.StatusBadRequest,
+			fmt.Sprintf("Couldn't update. Label %q doesn't exist. Please remove the label from the software.", l2t2.Name))
 
 		// Attempt to create a software installer with a label on the same team (should succeed).
 		payloadRubyTm1 = &fleet.UploadSoftwareInstallerPayload{

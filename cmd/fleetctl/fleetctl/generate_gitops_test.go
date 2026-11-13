@@ -205,7 +205,8 @@ func (c MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigP
 			})
 		}
 		if c.WithCollidingProfileNames {
-			profiles = append(profiles,
+			profiles = append(
+				profiles,
 				&fleet.MDMConfigProfilePayload{ProfileUUID: "team-win-uuid", Name: "Team Win", Platform: "windows"},
 				&fleet.MDMConfigProfilePayload{ProfileUUID: "team-dash-win-uuid", Name: "Team-Win", Platform: "windows"},
 			)
@@ -580,7 +581,8 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 	}
 	// Only add FMA and package install policies for actual teams, not unassigned.
 	if *teamID != 0 {
-		policies = append(policies,
+		policies = append(
+			policies,
 			&fleet.Policy{
 				PolicyData: fleet.PolicyData{
 					ID:          4,
@@ -3425,7 +3427,7 @@ func TestGenerateControlsMDMEnabledAndConfigured(t *testing.T) {
 			controls, err := cmd.generateControls(tc.teamID, "some_team", &fleet.TeamMDM{})
 			require.NoError(t, err)
 
-			for _, key := range []string{"windows_enabled_and_configured", "android_enabled_and_configured"} {
+			for _, key := range []string{"windows_mdm_enabled", "android_enabled_and_configured"} {
 				if tc.wantEmit {
 					assert.Equal(t, true, controls[key], key)
 				} else {
@@ -3822,7 +3824,8 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 	pngBody := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01, 0x02}
 
 	t.Run("Fleet-hosted logo is downloaded and emitted as a path key", func(t *testing.T) {
-		cmd, _ := newOrgLogoCommand(t,
+		cmd, _ := newOrgLogoCommand(
+			t,
 			&orgLogoStub{MockClient: &MockClient{}, body: pngBody, contentType: "image/png"},
 			fleet.OrgInfo{
 				OrgName:             "ACME",
@@ -3848,7 +3851,8 @@ func TestGenerateGitopsExportOrgLogos(t *testing.T) {
 
 	t.Run("SVG logo is exported with an .svg extension", func(t *testing.T) {
 		svgBody := []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8"/></svg>`)
-		cmd, _ := newOrgLogoCommand(t,
+		cmd, _ := newOrgLogoCommand(
+			t,
 			&orgLogoStub{MockClient: &MockClient{}, body: svgBody, contentType: "image/svg+xml"},
 			fleet.OrgInfo{
 				OrgName:            "ACME",

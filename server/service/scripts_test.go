@@ -53,7 +53,7 @@ func TestHostRunScript(t *testing.T) {
 	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 		return &fleet.HostScriptResult{HostID: request.HostID, ScriptContents: request.ScriptContents, ExecutionID: "abc"}, nil
 	}
-	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 		return nil, nil
 	}
 	ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
@@ -961,7 +961,7 @@ func TestBatchScriptExecute(t *testing.T) {
 			return &fleet.Script{ID: id}, nil
 		}
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"team_id": float64(1)}, nil)
+		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]any{"fleet_id": float64(1)}, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "too_many_hosts")
 	})
@@ -998,7 +998,7 @@ func TestBatchScriptExecute(t *testing.T) {
 		require.Equal(t, []uint{1, 2}, requestedHostIds)
 
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		_, err = svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"team_id": float64(1)}, nil)
+		_, err = svc.BatchScriptExecute(ctx, 1, nil, &map[string]any{"fleet_id": float64(1)}, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "ok")
 		require.Equal(t, []uint{3, 4}, requestedHostIds)
@@ -1282,7 +1282,7 @@ func TestScriptFleetVariablesValidation(t *testing.T) {
 		ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 			return &fleet.Host{ID: hostID, SeenTime: time.Now(), OrbitNodeKey: new("abc")}, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {

@@ -651,6 +651,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 
+	// The request decoder's rewriter didn't see the raw body, so removed keys are rejected here, before strict decoding
+	// would report them as unknown fields.
+	if err := endpointer.CheckRemovedKeys(p, endpointer.ExtractRemovedKeyRules(fleet.AppConfig{})); err != nil {
+		if _, ok := errors.AsType[*endpointer.RemovedKeyError](err); !ok {
+			err = &fleet.BadRequestError{Message: "failed to decode app config", InternalErr: err}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+	}
+
 	// Rewrite deprecated JSON field names (e.g. team_id → fleet_id) before
 	// unmarshaling into AppConfig, since the request body was captured as
 	// json.RawMessage and wasn't processed by the request decoder's rewriter.
@@ -2352,7 +2361,7 @@ func (svc *Service) validateMDM(
 		invalid.Append("windows_settings.enable_managed_local_account", ErrMissingLicense.Error())
 	}
 	if mdm.WindowsMigrationEnabled && !lic.IsPremium() {
-		invalid.Append("windows_migration_enabled", ErrMissingLicense.Error())
+		invalid.Append("mdm.windows_mdm_migration_enabled", ErrMissingLicense.Error())
 	}
 	if mdm.EnableTurnOnWindowsMDMManually && !lic.IsPremium() {
 		invalid.Append("enable_turn_on_windows_mdm_manually", ErrMissingLicense.Error())
@@ -2549,7 +2558,7 @@ func (svc *Service) validateMDM(
 			firstInvalidErr := invalidArgErr.Errors[0] // We only expect one invalid argument error entry from the validate
 			invalid.AppendInvalidArgument(firstInvalidErr)
 		} else {
-			invalid.Append("macos_setup", err.Error())
+			invalid.Append("setup_experience", err.Error())
 		}
 	}
 
@@ -2657,12 +2666,12 @@ func (svc *Service) validateMDM(
 	// Windows validation
 	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
 		if mdm.WindowsEnabledAndConfigured {
-			invalid.Append("mdm.windows_enabled_and_configured", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
+			invalid.Append("mdm.windows_mdm_enabled", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
 			return nil
 		}
 	}
 	if !mdm.WindowsEnabledAndConfigured && mdm.WindowsMigrationEnabled {
-		invalid.Append("mdm.windows_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
+		invalid.Append("mdm.windows_mdm_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
 	}
 
 	if !mdm.WindowsEnabledAndConfigured && mdm.EnableTurnOnWindowsMDMManually {

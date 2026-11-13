@@ -1,6 +1,6 @@
 # Fleet-maintained apps (FMA)
 
-> **Using Claude Code?** The `new-fma` skill ([.claude/skills/new-fma/SKILL.md](../../.claude/skills/new-fma/SKILL.md)) automates this workflow and bakes in the gotchas this README doesn't cover — verifying the installed app's identity with `msiinfo`/`PlistBuddy` instead of trusting winget/cask metadata, handling bootstrapper installers, parsing unquoted `UninstallString`s, version-matching quirks, and more. Just ask it to "add X as a macOS/Windows FMA."
+> **Using Claude Code?** The `fleet-maintained-apps` skill ([.claude/skills/fleet-maintained-apps/SKILL.md](../../.claude/skills/fleet-maintained-apps/SKILL.md)) automates this workflow and bakes in the gotchas this README doesn't cover — verifying the installed app's identity with `msiinfo`/`PlistBuddy` instead of trusting winget/cask metadata, handling bootstrapper installers, parsing unquoted `UninstallString`s, version-matching quirks, and more. Just ask it to "add X as a macOS/Windows FMA."
 
 ## Adding a new app (macOS)
 
@@ -117,13 +117,16 @@ go run cmd/maintained-apps/main.go --slug="box-drive/windows" --debug
 | `unique_identifier`      | string       | **Required.** Platform-specific unique identifier. For Windows, this is the `DisplayName`.                                                                                                                                                                       |
 | `package_identifier`                  | string       | **Required.** The `PackageIdentifier` from winget. Fleet uses this to pull the correct metadata for the app.                                                                                                                                                             |
 | `slug`                   | string       | **Required.** Identifies the app/platform combination (e.g., `box-drive/windows`). Used to name manifest files and reference the app in [Fleet's best practice GitOps](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps). Format: `<app-name>/<platform>`, where app name is filesystem-friendly and platform is `darwin`.             |
-| `installer_arch`       | string       | **Required.** `x64`, `x86`, or `arm64` (most apps use `x64`). ARM64 builds are separate FMAs with an `-arm64` slug suffix and an `(ARM64)` name suffix, e.g. `firefox@nightly-arm64/windows`; CI validates them on the `windows-11-arm` runner. For `arm64`, the generated `exists` and `patched` queries pass on non-ARM hosts, which can't run those builds; `x64` builds run on ARM through emulation and stay unscoped.                                                        |
+| `installer_arch`       | string       | **Required.** `x64`, `x86`, or `arm64` (most apps use `x64`). ARM64 builds are separate FMAs with an `-arm64` slug suffix and an `(ARM64)` name suffix, e.g. `firefox@nightly-arm64/windows`; CI validates them on the `windows-11-arm` runner. For `arm64`, the generated `exists` and `patched` queries pass on non-ARM hosts, which can't run those builds; `x64` builds run on ARM through emulation and stay unscoped. When both builds register the same DisplayName, or their MSIs share an upgrade code, they resolve to one software title, so only one of them can be added to a fleet.                                                        |
 | `installer_type`       | string       | **Required.** `exe`, `msi`, or `msix` (file type, not vendor tech like "wix")                                                        |
 | `installer_scope`       | string       | **Required.** `machine` or `user` (prefer `machine` for managed installs)                                                        |
+| `nested_installer_type`  | string       | For `zip` installers, only select the winget installer whose `NestedInstallerType` matches this value (e.g., `wix`). Use it when the manifest lists several zips for the same architecture and scope that differ only in what they contain. Paint.NET ships an `exe` setup front end and a `wix` MSI, and only the MSI installs silently as SYSTEM.  |
 | `default_categories`     | string       | **Required.** Default categories for self-service if none are specified. Valid values: `Browsers`, `Communication`, `Developer Tools`, `Productivity`.                                                                                                      |
 | `install_script_path`    | string        | Filepath to a custom install script (`.ps1`). Overrides the generated install script. Script must be placed in `inputs/winget/scripts/`. For `.msi` apps, the ingestor automatically generates install scripts. Do not add scripts unless you need to override the generated behavior. For `.exe` apps, you must provide PowerShell scripts that run the installer file directly. Fleet stores the installer and sends it to the host at install time; your script must execute it using the `INSTALLER_PATH` environment variable.                                                                                                |
 | `uninstall_script_path`  | string        | Filepath to a custom uninstall script (`.ps1`). Overrides the generated uninstall script. Script must be placed in `inputs/winget/scripts/`. For `.msi` apps, the ingestor automatically generates uninstall scripts. Do not add scripts unless you need to override the generated behavior. For `.exe` apps, you must provide a script to uninstall the app. Scripts for `.exe` apps are vendor-specific. Use the vendor’s documented silent uninstall switch or the registered UninstallString (if available), ensuring the script runs silently and returns the installer’s exit code.                  |
 | `fuzzy_match_name`       | boolean       | If the `unique_identifier` doesn't match the `DisplayName`, use `fuzzy_match_name` to specify that Fleet uses "fuzzy matching" to match the Fleet-maintained app and the inventoried software. For example, for Pritunl, the `unique_identifier` is "Pritunl" and the inventories software's `DisplayName` is "Pritunl Client". With `fuzzy_match_name` set to true, Pritunl app will be matched to the inventories software.  |
+| `open_process_names`     | array of strings | Executable filenames the "app is open" (pre-install) query matches, for apps whose process isn't `<name>.exe`. For example, use `["studio64.exe"]` for Android Studio, or several names for an app with more than one executable. Fleet lowercases and escapes the names. Inspect the `Path` property returned by `Get-Process` while the app is open and use its filename, including `.exe`. The displayed `ProcessName` omits the extension.  |
+| `open_process_name_prefix` | string     | Matches any process whose name starts with this prefix (e.g., `onedrive`), for apps whose process names vary. Fleet generates `LOWER(name) LIKE '<prefix>%'` and escapes `%` and `_`, so the prefix matches literally. Can't be combined with `open_process_names`.  |
 | `ignore_upgrade_code`    | boolean       | Set to `true` when the vendor gives every MSI build a new `UpgradeCode` (e.g., QGIS). Fleet links a Windows Fleet-maintained app to its software title by upgrade code, so a per-build code would move the app to a new title with each update. With this set, the title is linked by `unique_identifier` instead, so give each app that sets it a distinct `unique_identifier`.  |
 | `requires_client_os`     | boolean       | Set to `true` when the installer refuses to run on Windows Server SKUs (e.g., Dell Display and Peripheral Manager). Fleet's ingestion ignores this field; CI reads it to route validation to the `windows-11-arm` runner (the only GitHub-hosted client-OS Windows runner) instead of the default Windows Server x64 runner.  |
 
@@ -187,13 +190,21 @@ Add a test in `ingesters/homebrew/ingester_test.go`.
 
 The default query checks for a running `<app name>.exe`.
 
-To match other process names, add the app's `name` to `windowsOpenQueryOverrides` in `pkg/patch_policy/patch_policy.go`. The value replaces `<value>` in `SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) <value>);`.
+To match other process names, set `open_process_names` in the app's input manifest. Fleet lowercases and escapes the names and generates `LOWER(name) = '...'` (one name) or `LOWER(name) IN (...)` (several):
 
-```go
-"7-zip": "IN ('7zfm.exe','7zg.exe')",
+```json
+"open_process_names": ["7zfm.exe", "7zg.exe"]
 ```
 
-To replace the whole query, set `out.Queries.Open` in `ingesters/winget/ingester.go` after `GenerateOpenQuery`, in a `switch input.Slug` block (add one if it doesn't exist). Add a test in `ingesters/winget/ingester_test.go`.
+ARM64 builds need this too, set to their x64 sibling's executables: the default would look for `<name> (ARM64).exe`.
+
+To match every process whose name starts with a prefix, set `open_process_name_prefix` instead (the two can't be combined):
+
+```json
+"open_process_name_prefix": "onedrive"
+```
+
+To replace the whole query, set `out.Queries.Open` in `ingesters/winget/ingester.go` after `windowsOpenQuery`, in a `switch input.Slug` block (add one if it doesn't exist). Add a test in `ingesters/winget/ingester_test.go`.
 
 ```go
 switch input.Slug {
@@ -210,7 +221,7 @@ case "example-app/windows":
    go run cmd/maintained-apps/main.go --slug="<slug-name>" --debug
    ```
 
-2. Open a PR. Go changes need [@fleetdm/go](https://github.com/orgs/fleetdm/teams/go) approval.
+2. Open a PR.
 
 No Fleet release needed. Fleet servers pick up the new query on the next FMA auto-update, except for apps pinned to a specific version.
 

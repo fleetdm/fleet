@@ -386,7 +386,7 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		// ($FLEET_HOST_SECRET_*) secrets are per-host, so expand them here so the
 		// host-specific value (e.g. the Platform SSO device registration token)
 		// is injected only at delivery time and never stored in the command nor
-		// shown on the /mdm/commands endpoint. This is a no-op when the profile
+		// shown on the /commands endpoint. This is a no-op when the profile
 		// carries no host secrets.
 		hostExpanded, didError := expandHostSecrets(string(cmd.Raw), func(hostUUID string, errorMsg string) {
 			logger.Info("level", "error", "msg", "failed to expand host secrets for profile", "host_uuid", hostUUID, "err", errorMsg)

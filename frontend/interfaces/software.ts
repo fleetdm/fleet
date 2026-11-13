@@ -18,15 +18,6 @@ export default PropTypes.shape({
   vulnerabilities: PropTypes.arrayOf(vulnerabilityInterface),
 });
 
-export interface ISoftwareResponse {
-  counts_updated_at: string;
-  software: ISoftware[];
-}
-
-export interface ISoftwareCountResponse {
-  count: number;
-}
-
 export interface IGetSoftwareByIdResponse {
   software: ISoftware;
 }
@@ -280,8 +271,6 @@ export interface ISoftwareTitle {
   auto_update_window_end?: string;
   /** Fleet marked this software as an AI tool (Premium; always false on Free). */
   ai_tool?: boolean;
-  /** @deprecated Use extension_for instead */
-  browser?: string;
 }
 
 export interface ISoftwareTitleDetails {
@@ -317,8 +306,6 @@ export interface ISoftwareTitleDetails {
   auto_update_window_end?: string;
   /** Fleet marked this software as an AI tool (Premium; always false on Free). */
   ai_tool?: boolean;
-  /** @deprecated Use extension_for instead */
-  browser?: string;
 }
 
 export interface ISoftwareVulnerability {
@@ -352,8 +339,6 @@ export interface ISoftwareVersion {
   hosts_count?: number;
   /** Fleet marked this software as an AI tool (Premium; always false on Free). */
   ai_tool?: boolean;
-  /** @deprecated Use extension_for instead */
-  browser?: string;
 }
 
 export type SoftwareTypePlatform =

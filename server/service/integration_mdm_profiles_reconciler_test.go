@@ -630,8 +630,8 @@ func (s *integrationMDMTestSuite) TestAppleProfileTransferKeepsPendingInstallFor
 	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_B"})
 	require.NoError(t, err)
 	for _, tm := range []*fleet.Team{teamA, teamB} {
-		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{shared}},
-			http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{shared}),
+			http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 	}
 
 	profileUUIDForTeam := func(teamID uint) string {
@@ -757,8 +757,8 @@ func (s *integrationMDMTestSuite) TestAppleProfileTransferKeepsManagedCertificat
 	teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_B"})
 	require.NoError(t, err)
 	for _, tm := range []*fleet.Team{teamA, teamB} {
-		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{shared}},
-			http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{shared}),
+			http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 	}
 
 	type hostProfileRow struct {
@@ -1111,7 +1111,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationResendConfigurationProfile
 	// confirm only the former triggers a resend.
 	newPolicy := func(name string, profileUUID *string) *fleet.Policy {
 		var resp fleet.TeamPolicyResponse
-		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", tm.ID), fleet.TeamPolicyRequest{
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", tm.ID), fleet.TeamPolicyRequest{
 			Name:        name,
 			Query:       "SELECT 1;",
 			Platform:    "darwin",
@@ -1231,7 +1231,7 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 		mobileconfigForTest("N2", "I2"),
 	}
 
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(globalProfiles), http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 
 	// The profiles should be associated with the host we made + the standard fleet configs
@@ -1263,7 +1263,7 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	}
 
 	// remove the profiles
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 
 	// On the host side, return errors for the two profile removal actions
@@ -1355,7 +1355,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 		mobileconfigForTest("N1", ident),
 		mobileconfigForTest("N2", "I2"),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(globalProfiles), http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 	mdmDeviceRespond(mdmDevice)
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
@@ -1435,7 +1435,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	globalProfiles = [][]byte{
 		mobileconfigForTest("N3", ident),
 	}
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(globalProfiles), http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 
 	getHostResp = getHostResponse{}
@@ -1451,7 +1451,7 @@ func (s *integrationMDMTestSuite) TestRemoveFailedProfiles() {
 	}
 
 	// delete the custom profile
-	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", profUUID), &deleteMDMAppleConfigProfileRequest{}, http.StatusOK)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profUUID), nil, http.StatusOK)
 	s.awaitTriggerProfileSchedule(t)
 
 	getHostResp = getHostResponse{}

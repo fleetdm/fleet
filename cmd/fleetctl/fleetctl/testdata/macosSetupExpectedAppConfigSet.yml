@@ -48,12 +48,12 @@ spec:
     apple_bm_enabled_and_configured: false
     apple_bm_terms_expired: false
     enabled_and_configured: true
-    windows_enabled_and_configured: false
+    windows_mdm_enabled: false
     enable_disk_encryption: false
     name_template: null
-    enable_recovery_lock_password: false
+    macos_recovery_lock_password_enabled: false
     windows_require_bitlocker_pin: false
-    windows_migration_enabled: false
+    windows_mdm_migration_enabled: false
     enable_turn_on_windows_mdm_manually: false
     windows_entra_tenant_ids: null
     windows_entra_client_ids: null
@@ -86,33 +86,19 @@ spec:
       custom_settings: null
       configuration_profiles: null
       certificates: null
-    macos_setup:
-      bootstrap_package: %s
-      enable_end_user_authentication: false
-      enable_managed_local_account: false
-      end_user_local_account_type: "admin"
-      lock_end_user_info: false
-      macos_setup_assistant: %s
-      manual_agent_install: null
-      macos_enable_bootstrap_package_during_manual_enrollment: false
-      macos_enable_bootstrap_package_during_migration: false
-      require_all_software_macos: false
-      require_all_software_windows: false
-      enable_release_device_manually: false
-      script: null
-      software: null
     setup_experience:
       macos_bootstrap_package: %s
       enable_create_local_admin_account: false
       enable_end_user_authentication: false
+      enable_managed_local_account: false
       end_user_local_account_type: "admin"
       lock_end_user_info: false
       apple_setup_assistant: %s
       macos_manual_agent_install: null
       macos_enable_bootstrap_package_during_manual_enrollment: false
       macos_enable_bootstrap_package_during_migration: false
-      require_all_software_macos: false
-      require_all_software_windows: false
+      macos_require_all_software: false
+      windows_require_all_software: false
       apple_enable_release_device_manually: false
       macos_script: null
       software: null
@@ -158,7 +144,6 @@ spec:
     report_cap: 0
     discard_reports_data: false
     server_url: https://example.org
-    scripts_disabled: false
     ai_features_disabled: false
     mcp_disabled: false
   smtp_settings:

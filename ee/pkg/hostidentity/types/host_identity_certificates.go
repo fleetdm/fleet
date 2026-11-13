@@ -20,6 +20,16 @@ type RenewalData struct {
 	Signature    string `json:"sig"` // Base64-encoded ECDSA signature
 }
 
+// RenewalKeyBindingCapability is advertised in GetCACaps by servers that verify RenewalChallenge proofs.
+const RenewalKeyBindingCapability = "Fleet-Renewal-Key-Binding"
+
+// RenewalChallenge returns the message the old certificate's key signs (SHA-256) to renew. It covers the new CSR's public
+// key (PKIX SubjectPublicKeyInfo DER), so a captured proof can't certify a different key.
+func RenewalChallenge(serialNumber string, newPublicKeyDER []byte) []byte {
+	msg := []byte("fleet-host-identity-renewal-v1|" + serialNumber + "|")
+	return append(msg, newPublicKeyDER...)
+}
+
 type HostIdentityCertificate struct {
 	SerialNumber  uint64    `db:"serial"`
 	CommonName    string    `db:"name"`

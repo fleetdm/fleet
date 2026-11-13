@@ -621,7 +621,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 		var teamFilter string
 		if teamID != nil {
-			teamFilter = fmt.Sprintf("&team_id=%d", *teamID)
+			teamFilter = fmt.Sprintf("&fleet_id=%d", *teamID)
 		}
 		var gotHostsResp listHostsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts?os_settings=%s%s", wantStatus, teamFilter), nil, http.StatusOK, &gotHostsResp)
@@ -709,7 +709,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, nil, label)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
 		Verified: 1,
-	}, nil)
+	})
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
@@ -730,7 +730,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, nil, label)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
 		Verified: 1,
-	}, nil)
+	})
 	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
@@ -741,7 +741,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, nil, label)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
 		Verified: 1,
-	}, nil)
+	})
 	// force another profile to failed, does impact filtered hosts results and summaries
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
@@ -754,7 +754,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
 		Failed:   1,
 		Verified: 0,
-	}, nil)
+	})
 
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
@@ -838,7 +838,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, &tm.ID, label)
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
 		Verified: 1,
-	}, nil)
+	})
 	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
@@ -849,7 +849,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, &tm.ID, label)
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
 		Verified: 1,
-	}, nil)
+	})
 	// force another profile to failed, does impact filtered hosts results and summaries
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `UPDATE host_mdm_windows_profiles SET status = 'failed' WHERE profile_uuid = ?`
@@ -862,13 +862,13 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
 		Failed:   1,
 		Verified: 0,
-	}, nil)
+	})
 
 	// Resend the failed profile. Should succeed
 	s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusAccepted)
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
 		Pending: 1,
-	}, nil)
+	})
 	// Try resending, should fail since it's pending
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, teamProfiles[0]), nil, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)
@@ -980,7 +980,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "edit-locuri-test", Contents: []byte(twoLocURIProfile)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// Trigger profile sync: device gets the new profile + delete commands for old profiles.
 		// Drain all commands from the device without asserting exact counts (cleanup varies).
@@ -994,7 +994,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "edit-locuri-test", Contents: []byte(oneLocURIProfile)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// Trigger profile sync: device should get:
 		// - 1 <Delete> for the removed AllowCortana LocURI (enqueued by the reconciler)
@@ -1058,7 +1058,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "shared-locuri-A", Contents: []byte(profileA)},
 				{Name: "shared-locuri-B", Contents: []byte(profileB)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// Drain install commands.
 		drainCommands(mdmDevice)
@@ -1070,7 +1070,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "shared-locuri-A", Contents: []byte(profileAEdited)},
 				{Name: "shared-locuri-B", Contents: []byte(profileB)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// Trigger sync: should get an install for the updated A, but NO delete
 		// for AllowCamera since profile B still uses it.
@@ -1108,7 +1108,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "fully-protected-A", Contents: []byte(sharedProfile)},
 				{Name: "fully-protected-B", Contents: []byte(sharedProfile)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// Deliver both profiles so profile A has a host row to leak.
 		drainCommands(mdmDevice)
@@ -1132,7 +1132,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "fully-protected-B", Contents: []byte(sharedProfile)},
-			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+			}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 		// No <Delete> goes out, since profile B still enforces the LocURI.
 		for _, c := range drainCommands(mdmDevice) {
@@ -1387,7 +1387,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesWithFleetVariables() {
 				resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 					batchSetMDMProfilesRequest{Profiles: tc.profiles},
 					tc.wantStatus,
-					"team_id", fmt.Sprint(*tc.teamID))
+					"fleet_id", fmt.Sprint(*tc.teamID))
 			} else {
 				resp = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
 					batchSetMDMProfilesRequest{Profiles: tc.profiles},
@@ -1441,7 +1441,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 			{Name: "TeamProfileWithVar", Contents: teamProfile},
 		}},
 		http.StatusNoContent,
-		"team_id", fmt.Sprint(tm.ID))
+		"fleet_id", fmt.Sprint(tm.ID))
 
 	// Helper to verify profile contains substituted UUID
 	verifyProfileSubstitution := func(device *mdmtest.TestWindowsMDMClient, expectedUUID string, expectedData string) {

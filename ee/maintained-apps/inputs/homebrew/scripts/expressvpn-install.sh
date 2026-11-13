@@ -59,7 +59,7 @@ quit_application() {
 }
 
 # extract contents
-unzip "$INSTALLER_PATH" -d "$TMPDIR"
+unzip "$INSTALLER_PATH" -d "$TMPDIR" || exit 1
 
 # discover the installer app by finding any .app that contains an installer executable
 INSTALLER_APP=""

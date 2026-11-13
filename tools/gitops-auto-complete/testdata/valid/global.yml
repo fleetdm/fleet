@@ -43,7 +43,7 @@ controls: # Controls added to "No team"
   ipados_updates:
     deadline: null
     minimum_version: null
-  windows_enabled_and_configured: true
+  windows_mdm_enabled: true
   windows_updates:
     deadline_days: null
     grace_period_days: null
@@ -133,7 +133,6 @@ org_settings:
     live_reporting_disabled: false
     report_cap: 2000
     discard_reports_data: false
-    scripts_disabled: false
     server_url: $FLEET_SERVER_URL
     ai_features_disabled: true
   org_info:

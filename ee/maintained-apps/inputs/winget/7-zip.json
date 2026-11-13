@@ -3,6 +3,7 @@
   "slug": "7-zip/windows",
   "package_identifier": "7zip.7zip",
   "unique_identifier": "7-Zip",
+  "open_process_names": ["7zfm.exe", "7zg.exe"],
   "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "msi",

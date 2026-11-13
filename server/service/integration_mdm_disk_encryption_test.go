@@ -1312,9 +1312,8 @@ func (s *integrationMDMTestSuite) TestTeamPatchPerPlatformDiskEncryption() {
 	patch(`{"mdm":{"windows_settings":{"enable_disk_encryption": true}}}`, http.StatusOK)
 	require.Equal(t, before, s.lastActivityMatches("", "", 0))
 
-	// the GET response carries every per-platform key, so a GET-modify-PATCH
-	// round trip can see them. The macOS object comes back under its new
-	// apple_settings name only, though requests accept either name.
+	// the GET response carries every per-platform key. The macOS object comes back under both its new apple_settings name and
+	// its deprecated macos_settings name, and requests accept either name (but not both).
 	res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", tm.ID), nil, http.StatusOK)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
@@ -1345,7 +1344,8 @@ func (s *integrationMDMTestSuite) TestTeamPatchPerPlatformDiskEncryption() {
 	require.NotNil(t, gotMDM.AppleSettings)
 	require.NotNil(t, gotMDM.AppleSettings.EnableDiskEncryption)
 	require.NotNil(t, gotMDM.AppleSettings.EnableEscrowDiskEncryptionKey)
-	require.Nil(t, gotMDM.MacOSSettings, "the response uses the apple_settings name only")
+	require.NotNil(t, gotMDM.MacOSSettings, "the response also carries the deprecated macos_settings name")
+	require.Equal(t, gotMDM.AppleSettings.EnableDiskEncryption, gotMDM.MacOSSettings.EnableDiskEncryption)
 	require.NotNil(t, gotMDM.WindowsSettings)
 	require.NotNil(t, gotMDM.WindowsSettings.EnableDiskEncryption)
 	require.NotNil(t, gotMDM.WindowsSettings.RequireBitLockerPIN)
@@ -1438,8 +1438,8 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// call update endpoint with no changes
-	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
-		fleet.MDMAppleSettingsPayload{}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption",
+		updateDiskEncryptionRequest{}, http.StatusNoContent)
 	s.lastActivityMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
 		``, enabledDiskActID)
 
@@ -1451,8 +1451,8 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
 
-	// mdm/apple/settings works for windows as well as it's being used by
-	// clients (UI) this way
+	// the disk encryption endpoint works with only Windows MDM enabled, as
+	// clients (UI) use it this way
 	appConf, err := s.ds.AppConfig(context.Background())
 	s.Require().NoError(err)
 	appConf.MDM.EnabledAndConfigured = false
@@ -1488,9 +1488,9 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 
 	// no hosts with any disk encryption status's
 	expectedNoTeamDiskEncryptionSummary := fleet.MDMDiskEncryptionSummary{}
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary)
 	expectedNoTeamProfilesSummary := fleet.MDMProfilesSummary{}
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary)
 
 	// 10 new hosts
 	var hosts []*fleet.Host
@@ -1553,30 +1553,30 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 	// hosts 1,2 have disk encryption "applied" status
 	generateAggregateValue(hosts[0:2], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, true) // nolint:nilaway // hosts is populated with 10 hosts above
 	expectedNoTeamDiskEncryptionSummary.Verifying.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary)
 	expectedNoTeamProfilesSummary.Verifying = 2
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary)
 
 	// hosts 3,4 have disk encryption "action required" status
 	generateAggregateValue(hosts[2:4], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, false)
 	expectedNoTeamDiskEncryptionSummary.ActionRequired.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary)
 	expectedNoTeamProfilesSummary.Pending = 2
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary)
 
 	// hosts 5,6 have disk encryption "enforcing" status
 
 	// host profiles status are `pending`
 	generateAggregateValue(hosts[4:6], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, true)
 	expectedNoTeamDiskEncryptionSummary.Enforcing.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary)
 	expectedNoTeamProfilesSummary.Pending = 4
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary)
 
 	// host profiles status dont exist
 	generateAggregateValue(hosts[4:6], fleet.MDMOperationTypeInstall, nil, true)
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary) // no change
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary)             // no change
 
 	// host profile is applied but decryptable key does not exist
 	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1589,22 +1589,22 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 		require.NoError(t, err)
 		return err
 	})
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary) // no change
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary)             // no change
 
 	// hosts 7,8 have disk encryption "failed" status
 	generateAggregateValue(hosts[6:8], fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryFailed, true)
 	expectedNoTeamDiskEncryptionSummary.Failed.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary)
 	expectedNoTeamProfilesSummary.Failed = 2
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary)
 
 	// hosts 9,10 have disk encryption "removing enforcement" status
 	generateAggregateValue(hosts[8:10], fleet.MDMOperationTypeRemove, &fleet.MDMDeliveryPending, true)
 	expectedNoTeamDiskEncryptionSummary.RemovingEnforcement.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary)
 	expectedNoTeamProfilesSummary.Pending = 6
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary)
 
 	// team tests ====
 
@@ -1628,28 +1628,28 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 
 	var expectedTeamDiskEncryptionSummary fleet.MDMDiskEncryptionSummary
 	expectedTeamDiskEncryptionSummary.Verifying.MacOS = 2
-	s.checkMDMDiskEncryptionSummaries(t, &tm.ID, expectedTeamDiskEncryptionSummary, true)
+	s.checkMDMDiskEncryptionSummaries(t, &tm.ID, expectedTeamDiskEncryptionSummary)
 
 	expectedNoTeamDiskEncryptionSummary.Verifying.MacOS = 0 // now 0 because hosts 1,2 were added to team 1
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary)
 
 	expectedTeamProfilesSummary := fleet.MDMProfilesSummary{Verifying: 2}
-	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamProfilesSummary, &expectedTeamProfilesSummary)
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamProfilesSummary)
 
 	expectedNoTeamProfilesSummary = fleet.MDMProfilesSummary{
 		Verifying: 0, // now 0 because hosts 1,2 were added to team 1
 		Pending:   6,
 		Failed:    2,
 	}
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary)
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary)
 
 	// verified status for host 1
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, hosts[0], map[string]*fleet.HostMacOSProfile{prof.Identifier: {Identifier: prof.Identifier, DisplayName: prof.Name, InstallDate: time.Now()}}))
 	// TODO: Why is there no change to the verification status of host 1 reflected in the summaries?
-	s.checkMDMDiskEncryptionSummaries(t, &tm.ID, expectedTeamDiskEncryptionSummary, true)              // no change
-	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary, true)               // no change
-	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamProfilesSummary, &expectedTeamProfilesSummary)  // no change
-	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary, &expectedNoTeamProfilesSummary) // no change
+	s.checkMDMDiskEncryptionSummaries(t, &tm.ID, expectedTeamDiskEncryptionSummary) // no change
+	s.checkMDMDiskEncryptionSummaries(t, nil, expectedNoTeamDiskEncryptionSummary)  // no change
+	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamProfilesSummary)             // no change
+	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamProfilesSummary)              // no change
 }
 
 func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
@@ -1713,8 +1713,8 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings.description': expected string but got float64`)
 
 	// apply an empty set of batch profiles to the team
-	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: nil},
-		http.StatusUnprocessableEntity, "team_id", fmt.Sprint(team.ID), "team_name", team.Name)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest(nil),
+		http.StatusUnprocessableEntity, "fleet_id", fmt.Sprint(team.ID), "fleet_name", team.Name)
 
 	// the configuration profile is still there
 	s.assertConfigProfilesByIdentifier(new(team.ID), mobileconfig.FleetFileVaultPayloadIdentifier, true)
@@ -1814,8 +1814,8 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
 
 	// use the MDM settings endpoint with no changes
-	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
-		fleet.MDMAppleSettingsPayload{TeamID: new(team.ID)}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/disk_encryption",
+		updateDiskEncryptionRequest{TeamID: new(team.ID)}, http.StatusNoContent)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEditedDiskEncryptionSettings{}.ActivityName(),
 		``, lastDiskActID)
 
@@ -1830,8 +1830,8 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	s.Do("POST", "/api/latest/fleet/disk_encryption",
 		updateDiskEncryptionRequest{TeamID: new(uint(9999)), EnableDiskEncryption: new(true)}, http.StatusNotFound)
 
-	// mdm/apple/settings works for windows as well as it's being used by
-	// clients (UI) this way
+	// the disk encryption endpoint works with only Windows MDM enabled, as
+	// clients (UI) use it this way
 	appConf, err := s.ds.AppConfig(context.Background())
 	s.Require().NoError(err)
 	appConf.MDM.EnabledAndConfigured = false
@@ -2216,21 +2216,10 @@ func (s *integrationMDMTestSuite) TestHostDiskEncryptionKey() {
 	})
 }
 
-func (s *integrationMDMTestSuite) checkMDMDiskEncryptionSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMDiskEncryptionSummary, checkFileVaultSummary bool) {
+func (s *integrationMDMTestSuite) checkMDMDiskEncryptionSummaries(t *testing.T, teamID *uint, expectedSummary fleet.MDMDiskEncryptionSummary) {
 	var queryParams []string
 	if teamID != nil {
-		queryParams = append(queryParams, "team_id", fmt.Sprintf("%d", *teamID))
-	}
-
-	if checkFileVaultSummary {
-		var fileVault getMDMAppleFileVaultSummaryResponse
-		s.DoJSON("GET", "/api/v1/fleet/mdm/apple/filevault/summary", getMDMProfilesSummaryRequest{}, http.StatusOK, &fileVault, queryParams...)
-		require.Equal(t, expectedSummary.Failed.MacOS, fileVault.Failed)
-		require.Equal(t, expectedSummary.Enforcing.MacOS, fileVault.Enforcing)
-		require.Equal(t, expectedSummary.ActionRequired.MacOS, fileVault.ActionRequired)
-		require.Equal(t, expectedSummary.Verifying.MacOS, fileVault.Verifying)
-		require.Equal(t, expectedSummary.Verified.MacOS, fileVault.Verified)
-		require.Equal(t, expectedSummary.RemovingEnforcement.MacOS, fileVault.RemovingEnforcement)
+		queryParams = append(queryParams, "fleet_id", fmt.Sprintf("%d", *teamID))
 	}
 
 	var combined getMDMDiskEncryptionSummaryResponse
@@ -2359,8 +2348,8 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 
-	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{}, nil)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{})
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{})
 
 	// enable disk encryption
 	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{EnableDiskEncryption: new(true)}, http.StatusNoContent)
@@ -2369,7 +2358,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 
 	// all profiles counts are expected to be 0 (no host is MDM-enrolled in Fleet)
-	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{}, nil)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{})
 
 	// filter hosts with any OS Settings status, should have none
 	statuses := []fleet.OSSettingsStatus{
@@ -2381,7 +2370,7 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	}
 
 	// all disk encryption counts are expected to be 0 (no host is MDM-enrolled in Fleet)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{})
 
 	// filter hosts with any Disk Encryption status, should have none
 	diskStatuses := []fleet.DiskEncryptionStatus{
@@ -2397,8 +2386,8 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	enrollWindowsHostInMDMViaOrbit(t, winHost1, s.ds, s.server.URL)
 
 	// stats should now count this host
-	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1}, nil)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}}, false)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1})
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}})
 
 	// filters should return this host
 	s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(fleet.OSSettingsPending), winHost1.ID)
@@ -2409,8 +2398,8 @@ func (s *integrationMDMTestSuite) TestNonMDWindowsHostsIgnoredInDiskEncryptionSt
 	require.NoError(t, err)
 
 	// stats should NOT count winHost2 (not in Fleet MDM)
-	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1}, nil)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}}, false)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1})
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{Windows: 1}})
 
 	// filters should NOT return this host
 	s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(fleet.OSSettingsPending), winHost1.ID)
@@ -2456,7 +2445,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 
 	// all profiles counts are expected to be 0
-	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{}, nil)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{})
 
 	// filter hosts with any OS Settings status, should have none
 	statuses := []fleet.OSSettingsStatus{
@@ -2468,7 +2457,7 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	}
 
 	// all disk encryption counts are expected to be 0 (not enabled)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{}, false)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{})
 
 	// filter hosts with any Disk Encryption status, should have none
 	diskStatuses := []fleet.DiskEncryptionStatus{
@@ -2487,9 +2476,9 @@ func (s *integrationMDMTestSuite) TestLinuxHostsIgnoredInOSSettingsStats() {
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 
 	// the 2 LUKS-supported linux hosts should show up
-	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 2}, nil)
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 2})
 	s.checkListHostsFilter(t, allHostsLblID, "os_settings", string(fleet.OSSettingsPending), linuxHost1.ID, linuxHost2.ID)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{Linux: 2}}, false)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{Linux: 2}})
 	s.checkListHostsFilter(t, allHostsLblID, "os_settings_disk_encryption", string(fleet.DiskEncryptionActionRequired), linuxHost1.ID, linuxHost2.ID)
 }
 
@@ -2961,38 +2950,38 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEscrowOnly() {
 
 	setProfileStatus(fleet.MDMDeliveryPending)
 	checkHost(fleet.DiskEncryptionEnforcing, nil)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}})
 
 	// profile installed, nothing enforces FileVault and the disk is still off
 	setProfileStatus(fleet.MDMDeliveryVerified)
 	s.submitDarwinDiskEncryptionResults(*host.NodeKey, false)
 	checkHost(fleet.DiskEncryptionActionRequired, &turnOnEncryption)
 	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}})
 
 	// disk encrypted by a third party, no key escrowed yet
 	s.submitDarwinDiskEncryptionResults(*host.NodeKey, true)
 	checkHost(fleet.DiskEncryptionActionRequired, &rotateKey)
 	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
 	checkHostListFilter(fleet.DiskEncryptionVerified, false)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}})
 
 	// Escrow Buddy rotated the key and osquery reported it
 	s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "ABC-111-222")
 	checkHost(fleet.DiskEncryptionVerifying, nil)
 	checkHostListFilter(fleet.DiskEncryptionVerifying, true)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verifying: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verifying: fleet.MDMPlatformsCounts{MacOS: 1}})
 
 	// the cron decrypted the key
 	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now()))
 	checkHost(fleet.DiskEncryptionVerified, nil)
 	checkHostListFilter(fleet.DiskEncryptionVerified, true)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}})
 
 	// undecryptable key: back to action required despite the encrypted disk
 	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now()))
 	checkHost(fleet.DiskEncryptionActionRequired, &rotateKey)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}})
 }
 
 // Enforcement without escrow: status follows the reported disk state —
@@ -3020,34 +3009,34 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryptionEnforceOnly() {
 
 	setProfileStatus(fleet.MDMDeliveryPending)
 	checkHost(fleet.DiskEncryptionEnforcing, nil)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Enforcing: fleet.MDMPlatformsCounts{MacOS: 1}})
 
 	// profile installed, osquery hasn't reported the disk state yet
 	setProfileStatus(fleet.MDMDeliveryVerified)
 	checkHost(fleet.DiskEncryptionVerifying, nil)
 	checkHostListFilter(fleet.DiskEncryptionVerifying, true)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verifying: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verifying: fleet.MDMPlatformsCounts{MacOS: 1}})
 
 	// FileVault is deferred until the user logs out, so the disk is still unencrypted
 	s.submitDarwinDiskEncryptionResults(*host.NodeKey, false)
 	checkHost(fleet.DiskEncryptionActionRequired, &logOut)
 	checkHostListFilter(fleet.DiskEncryptionActionRequired, true)
 	checkHostListFilter(fleet.DiskEncryptionVerified, false)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
-	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1}, &fleet.MDMProfilesSummary{Pending: 1})
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{ActionRequired: fleet.MDMPlatformsCounts{MacOS: 1}})
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Pending: 1})
 
 	// the user logged out and FileVault turned on
 	s.submitDarwinDiskEncryptionResults(*host.NodeKey, true)
 	checkHost(fleet.DiskEncryptionVerified, nil)
 	checkHostListFilter(fleet.DiskEncryptionVerified, true)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
-	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Verified: 1}, &fleet.MDMProfilesSummary{Verified: 1})
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}})
+	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{Verified: 1})
 
 	// a key, in any state, doesn't affect enforce-only derivation
 	s.submitDarwinFileVaultKey(ctx, *host.NodeKey, "ABC-111-222")
 	require.NoError(t, s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now()))
 	checkHost(fleet.DiskEncryptionVerified, nil)
-	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}}, true)
+	s.checkMDMDiskEncryptionSummaries(t, nil, fleet.MDMDiskEncryptionSummary{Verified: fleet.MDMPlatformsCounts{MacOS: 1}})
 }
 
 // The archived-key lookup can fall back to matching on hardware_serial, which is

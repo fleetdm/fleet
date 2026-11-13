@@ -71,13 +71,13 @@ func CreateApp(
 		},
 		triggerCommand(),
 		mdmCommand(),
-		upgradePacksCommand(),
 		runScriptCommand(),
 		gitopsCommand(),
 		generateGitopsCommand(),
 		newCommand(),
 	}
 	registerRemovedCommands(app)
+	registerRemovedFlags(app)
 	return app
 }
 

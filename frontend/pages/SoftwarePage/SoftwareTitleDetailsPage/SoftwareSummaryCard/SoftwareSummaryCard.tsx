@@ -182,7 +182,6 @@ const SoftwareSummaryCard = ({
     ? ([
         [isFleetMaintainedApp, "Fleet-maintained"],
         [isAppleVpp, "App Store (VPP)"],
-        [isAndroidPlayStoreApp, "Play Store"],
         [isCustomPackage, customPackageChipLabel],
       ] as const).find(([flag]) => flag)?.[1]
     : undefined;

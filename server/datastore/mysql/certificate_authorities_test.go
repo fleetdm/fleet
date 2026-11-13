@@ -311,8 +311,8 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		EJBCACertificateProfileName:   new("certificate-profile"),
 		EJBCAEndEntityProfileName:     new("end-entity-profile"),
 		EJBCAUsernameTemplate:         new("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
-		CertificateCommonName:         new("$FLEET_VAR_HOST_END_USER_EMAIL_IDP"),
-		CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+		CertificateCommonName:         new("$FLEET_VAR_HOST_END_USER_IDP_USERNAME"),
+		CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"},
 		MTLSCertExpiresAt:             &ejbcaNotAfter,
 	}
 	ejbcaCA2 := &fleet.CertificateAuthority{
@@ -598,7 +598,7 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		EJBCACertificateProfileName: new("certificate-profile"),
 		EJBCAEndEntityProfileName:   new("end-entity-profile"),
 		EJBCAUsernameTemplate:       new("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
-		CertificateCommonName:       new("$FLEET_VAR_HOST_END_USER_EMAIL_IDP"),
+		CertificateCommonName:       new("$FLEET_VAR_HOST_END_USER_IDP_USERNAME"),
 	}
 
 	googleCASCA1 := &fleet.CertificateAuthority{

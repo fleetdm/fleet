@@ -12,7 +12,6 @@ import {
   DiskEncryptionStatus,
   HostNameSettingStatus,
 } from "./mdm";
-import packInterface, { IPack } from "./pack";
 import { HostPlatform } from "./platform";
 import hostPolicyInterface, { IHostPolicy } from "./policy";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
@@ -35,6 +34,7 @@ export default PropTypes.shape({
   osquery_version: PropTypes.string,
   orbit_version: PropTypes.string,
   fleet_desktop_version: PropTypes.string,
+  os_name: PropTypes.string,
   os_version: PropTypes.string,
   build: PropTypes.string,
   platform_like: PropTypes.string,
@@ -73,7 +73,6 @@ export default PropTypes.shape({
   // `gigs_all_disk_space` includes disk space from all partitions
   gigs_all_disk_space: PropTypes.number,
   labels: PropTypes.arrayOf(labelInterface),
-  packs: PropTypes.arrayOf(packInterface),
   software: PropTypes.arrayOf(softwareInterface),
   status: PropTypes.string,
   display_name: PropTypes.string,
@@ -219,14 +218,14 @@ export interface IHostMdmData {
   encryption_key_available: boolean;
   /**
    * encryption_key_archived indicates where there is any archived key for the host. It is only
-   * populated for GET /hosts/:id and GET /hosts/identifiers/:identifier endpoints. It is not
-   * populated for list hosts or other hosts endpoints.
+   * populated for the GET /hosts/:id endpoint. It is not populated for list hosts or other hosts
+   * endpoints.
    */
   encryption_key_archived?: boolean;
   /**
    * bootstrap_token_escrowed indicates whether Fleet has escrowed a bootstrap token for
    * the macOS host. Only applicable to macOS hosts. It is only populated for
-   * GET /hosts/:id and GET /hosts/identifiers/:identifier endpoints.
+   * the GET /hosts/:id endpoint.
    */
   bootstrap_token_escrowed?: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
@@ -510,6 +509,9 @@ export interface IHost {
   osquery_version: string;
   orbit_version: string | null;
   fleet_desktop_version: string | null;
+  /** e.g. "macOS" or "Windows 11 Pro 24H2"; use getHostOSDisplayName to show it */
+  os_name: string;
+  /** The version without the name, e.g. "15.2" */
   os_version: string;
   build: string;
   platform_like: string; // TODO: replace with more specific union type
@@ -545,7 +547,6 @@ export interface IHost {
   // `gigs_all_disk_space` includes disk space from all partitions
   gigs_all_disk_space?: number;
   labels: ILabel[];
-  packs: IPack[];
   software?: ISoftware[];
   issues: IHostIssues;
   status: HostStatus;

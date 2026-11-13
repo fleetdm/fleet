@@ -137,9 +137,8 @@ func testZeroTouchDestinationFleets(t *testing.T, s *Suite) {
 	assert.JSONEq(t, fmt.Sprintf(`{"fleet_id":%d}`, fleetA.ID), (*amapiCalls)[1])
 	assert.NotEqual(t, unassignedToken, fleetAToken)
 
-	// Repeat requests, including via the deprecated team_id name, reuse the stored token.
+	// Repeat requests reuse the stored token.
 	assert.Equal(t, fleetAToken, getZeroTouchToken(t, s, "fleet_id", fleetAID))
-	assert.Equal(t, fleetAToken, getZeroTouchToken(t, s, "team_id", fleetAID))
 	require.Len(t, *amapiCalls, 2)
 
 	fleetBToken := getZeroTouchToken(t, s, "fleet_id", fleetBID)
@@ -156,7 +155,6 @@ func testZeroTouchDestinationFleets(t *testing.T, s *Suite) {
 	// A fleet that doesn't exist is a 404 and never reaches AMAPI.
 	s.Do(t, "GET", zeroTouchConfigPath, nil, http.StatusNotFound, "fleet_id", "999999")
 	s.Do(t, "GET", zeroTouchConfigPath, nil, http.StatusBadRequest, "fleet_id", "abc")
-	s.Do(t, "GET", zeroTouchConfigPath, nil, http.StatusBadRequest, "fleet_id", fleetAID, "team_id", fleetBID)
 	assert.Len(t, *amapiCalls, 3)
 	assert.Equal(t, 3, countZeroTouchTokens(t, s))
 }

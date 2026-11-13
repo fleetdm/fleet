@@ -102,7 +102,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	}}, http.StatusNoContent)
 
 	var resp listMDMConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N1", resp.Profiles[0].Name)
@@ -116,7 +116,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "N4", Contents: decls[3]},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
@@ -131,7 +131,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "N5", Contents: decls[4]},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
@@ -146,7 +146,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "N5", Contents: newDeclBytes(4, `"bing": "baz"`)},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N3", resp.Profiles[0].Name)
@@ -171,7 +171,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "N6", Contents: decls[6], LabelsIncludeAll: []string{lbl1.Name}},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N5", resp.Profiles[0].Name)
@@ -195,7 +195,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		{Name: "DeviceScoped", Contents: deviceScoped},
 	}}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 	require.Len(t, resp.Profiles, 2)
 	uuidByName := make(map[string]string, len(resp.Profiles))
 	for _, p := range resp.Profiles {
@@ -547,7 +547,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent, "dry_run", "true")
 
 	var resp listMDMConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 	require.Empty(t, resp.Profiles)
 
 	// Add secrets to server
@@ -564,7 +564,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 
 	// Now real run
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent)
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
 	require.Len(t, resp.Profiles, len(decls))
 	checkedProfiles := 0
@@ -723,7 +723,7 @@ WHERE name = ?`
 	require.NoError(t, s.ds.SaveAppConfig(t.Context(), appCfg))
 	s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+nameToUUID["N1"], nil, http.StatusOK)
 
-	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 	require.Empty(t, resp.Profiles)
 }
 
@@ -1760,7 +1760,7 @@ WHERE name = ?`
 		{Name: "BadDecl.json", Contents: badDecl},
 	}}
 	badRes := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", badReq, http.StatusBadRequest,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 	errMsg := extractServerErrorText(badRes.Body)
 	require.Contains(t, errMsg, "$FLEET_VAR_NDES_SCEP_CHALLENGE is not supported in DDM")
 
@@ -1772,7 +1772,7 @@ WHERE name = ?`
 		{Name: "Plain.json", Contents: declPlain},
 	}}
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	// Verify raw JSON stored as-is (variables not expanded in storage)
 	dbDeclUUID := getDeclaration(t, "VarUUID.json")
@@ -1855,7 +1855,7 @@ WHERE name = ?`
 		{Name: "NewDecl.json", Contents: newDecl},
 	}}
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReqWithNew, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	dbNewDecl := getDeclaration(t, "NewDecl.json")
 	assert.Contains(t, string(dbNewDecl.RawJSON), "new-stuff")
@@ -1896,7 +1896,7 @@ WHERE name = ?`
 
 	// new decl is not in profilesReq, so it will be deleted
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	s.awaitTriggerProfileSchedule(t)
 
@@ -1932,7 +1932,7 @@ WHERE name = ?`
 	// === No resend on no-op GitOps batch upload ===
 
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	s.awaitTriggerProfileSchedule(t)
 
@@ -2013,7 +2013,7 @@ WHERE name = ?`
 
 	// Verify stable state: no-op batch upload triggers no commands for anyone
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReq, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 	s.awaitTriggerProfileSchedule(t)
 	checkNoCommands(mdmDevice1)
 	checkNoCommands(mdmDevice2)
@@ -2072,7 +2072,7 @@ WHERE name = ?`
 		{Name: "VarIdpUsername.json", Contents: declWithIdpUsername},
 	}}
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReqWithIdp, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	dbDeclIdpUsername := getDeclaration(t, "VarIdpUsername.json")
 
@@ -2161,7 +2161,7 @@ WHERE name = ?`
 		{Name: "VarIdpUsername.json", Contents: declWithIdpUsername},
 	}}
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", profilesReqVarRemoved, http.StatusNoContent,
-		"team_id", teamIDStr)
+		"fleet_id", teamIDStr)
 
 	// Re-read the declaration from DB — content and token should have changed
 	dbDeclUUIDUpdated := getDeclaration(t, "VarUUID.json")

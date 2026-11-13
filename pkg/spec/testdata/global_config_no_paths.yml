@@ -9,15 +9,15 @@ controls: # Controls added to "No team"
   scripts:
     - path: ./lib/collect-fleetd-logs.sh
   enable_disk_encryption: true
-  enable_recovery_lock_password: true
+  macos_recovery_lock_password_enabled: true
   macos_migration:
     enable: false
     mode: ""
     webhook_url: ""
-  macos_setup:
-    bootstrap_package: null
+  setup_experience:
+    macos_bootstrap_package: null
     enable_end_user_authentication: false
-    macos_setup_assistant: null
+    apple_setup_assistant: null
   macos_updates:
     deadline: null
     minimum_version: null
@@ -27,8 +27,8 @@ controls: # Controls added to "No team"
   ipados_updates:
     deadline: null
     minimum_version: null
-  windows_enabled_and_configured: true
-  windows_migration_enabled: false
+  windows_mdm_enabled: true
+  windows_mdm_migration_enabled: false
   enable_turn_on_windows_mdm_manually: false
   windows_entra_tenant_ids: []
   windows_entra_client_ids: []
@@ -119,7 +119,6 @@ org_settings:
     live_query_disabled: false
     query_report_cap: 2000
     query_reports_disabled: false
-    scripts_disabled: false
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://fleetdm.com/company/contact

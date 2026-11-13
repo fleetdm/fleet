@@ -44,7 +44,7 @@ const (
 	OSUpdatesAlreadyConfiguredErrorMessage                       = "Couldn't add profile. OS updates are already configured. Remove the OS updates settings first."
 	CouldNotUpdateAppleOSSettingsWithCustomProfileErrorMessage   = "Couldn't update OS updates settings. A custom OS updates declaration profile already exists. Remove the custom profile first."
 	CouldNotUpdateWindowsOSSettingsWithCustomProfileErrorMessage = "Couldn't update OS updates settings. A custom OS updates profile already exists. Remove the custom profile first."
-	WindowsMDMNotTurnedOnMessage                                 = `Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`
+	WindowsMDMNotTurnedOnMessage                                 = `Windows MDM isn’t turned on. This can be enabled by setting "controls.windows_mdm_enabled: true" in the default configuration. Visit https://fleetdm.com/guides/windows-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`
 )
 
 // FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
@@ -72,7 +72,6 @@ const (
 	// (not doing it now because of time constraints to finish the story for the release).
 
 	// Host variables
-	FleetVarHostEndUserEmailIDP             FleetVarName = "HOST_END_USER_EMAIL_IDP" // legacy variable, avoid to use in new replacements
 	FleetVarHostHardwareSerial              FleetVarName = "HOST_HARDWARE_SERIAL"
 	FleetVarHostEndUserIDPUsername          FleetVarName = "HOST_END_USER_IDP_USERNAME"
 	FleetVarHostEndUserIDPUsernameLocalPart FleetVarName = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
@@ -102,7 +101,7 @@ const (
 	// v2) payload. It resolves to the FLEET_HOST_SECRET_ placeholder of the same
 	// name at profile-send time and is expanded to a per-host, Fleet-signed JWT
 	// at command-fetch time (so the token is never stored and never visible on
-	// the /mdm/commands endpoint).
+	// the /commands endpoint).
 	FleetVarPSSODeviceRegistrationToken FleetVarName = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: variable name, not a credential
 
 	// FleetVarSilentMigrationSCEPChallenge marks the SCEP challenge in the FLEET_SILENT_MIGRATION_ENROLLMENT_PROFILE
@@ -180,11 +179,6 @@ var (
 	FleetVarPSSODeviceRegistrationTokenRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarPSSODeviceRegistrationToken))
 	FleetVarConditionalAccessSCEPURLRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarConditionalAccessSCEPURL))
 
-	// Fleet variable replacement failed errors
-	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
-		"Fleet couldn't populate $FLEET_VAR_%s. "+
-		"[Learn more](https://fleetdm.com/learn-more-about/idp-email)", FleetVarHostEndUserEmailIDP)
-
 	IDPFleetVariables = []FleetVarName{
 		FleetVarHostEndUserIDPUsername,
 		FleetVarHostEndUserIDPUsernameLocalPart,
@@ -196,7 +190,6 @@ var (
 	// FleetVarsSupportedInDigiCert lists the variables allowed in a DigiCert CA's common name, seat ID, and UPN.
 	// The IdP variables come from IDPFleetVariables because that's the list the CA field substitution resolves.
 	FleetVarsSupportedInDigiCert = slices.Concat([]FleetVarName{
-		FleetVarHostEndUserEmailIDP,
 		FleetVarHostHardwareSerial,
 		FleetVarHostPlatform,
 		FleetVarHostUUID,
@@ -216,20 +209,6 @@ func (a AppleMDM) AuthzType() string {
 	return "mdm_apple"
 }
 
-type AppleBM struct {
-	AppleID      string    `json:"apple_id"`
-	OrgName      string    `json:"org_name"`
-	MDMServerURL string    `json:"mdm_server_url"`
-	RenewDate    time.Time `json:"renew_date"`
-	DefaultTeam  string    `json:"default_team" renameto:"default_fleet"`
-}
-
-func (a AppleBM) AuthzType() string {
-	return "mdm_apple"
-}
-
-// TODO: during API implementation, remove AppleBM above or reconciliate those
-// two types. We'll likely need a new authz type for the ABM token.
 type ABMToken struct {
 	ID               uint      `db:"id" json:"id"`
 	AppleID          string    `db:"apple_id" json:"apple_id"`
@@ -264,23 +243,23 @@ type ABMToken struct {
 	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
-	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
-	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
-	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
-	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
+	MacOSTeam  ABMTokenTeam `json:"macos_fleet"`
+	IOSTeam    ABMTokenTeam `json:"ios_fleet"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_fleet"`
+	BYODTeam   ABMTokenTeam `json:"byod_fleet"`
+}
+
+func (a ABMToken) AuthzType() string {
+	return "mdm_apple"
 }
 
 type ABMTokenTeam struct {
 	Name string `json:"name"`
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
+	ID   uint   `json:"fleet_id"`
 }
 
-type AppleCSR struct {
-	// NOTE: []byte automatically JSON-encodes as a base64-encoded string
-	APNsKey  []byte `json:"apns_key"`
-	SCEPCert []byte `json:"scep_cert"`
-	SCEPKey  []byte `json:"scep_key"`
-}
+// AppleCSR is the authorization subject of the Apple MDM setup endpoints.
+type AppleCSR struct{}
 
 func (a AppleCSR) AuthzType() string {
 	return "mdm_apple"
@@ -311,7 +290,7 @@ type MDMIdPAccount struct {
 
 type MDMAppleBootstrapPackage struct {
 	Name      string    `json:"name"`
-	TeamID    uint      `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID    uint      `json:"fleet_id" db:"team_id"`
 	Bytes     []byte    `json:"bytes,omitempty" db:"bytes"`
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
@@ -330,7 +309,7 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgURL.Path = "/api/latest/fleet/mdm/bootstrap"
+	pkgURL.Path = "/api/latest/fleet/bootstrap"
 	pkgURL.RawQuery = fmt.Sprintf("token=%s", bp.Token)
 	return pkgURL.String(), nil
 }
@@ -527,8 +506,8 @@ type CommandEnqueueResult struct {
 // MDMCommandAuthz is used to check user authorization to read/write an
 // MDM command.
 type MDMCommandAuthz struct {
-	TeamID   *uint  `json:"team_id" renameto:"fleet_id"` // required for authorization by team
-	Platform string `json:"platform"`                    // Platform of the targeted host
+	TeamID   *uint  `json:"fleet_id"` // required for authorization by team
+	Platform string `json:"platform"` // Platform of the targeted host
 }
 
 // SetTeamID implements the TeamIDSetter interface.
@@ -616,7 +595,7 @@ type MDMCommandListOptions struct {
 	Filters MDMCommandFilters
 }
 
-// Pagination bounds for the list-MDM-commands endpoints (GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands).
+// Pagination bounds for the list-MDM-commands endpoint (GET /api/v1/fleet/commands).
 const (
 	// DefaultMDMCommandsPerPage is the per_page value used when none is specified on the request.
 	DefaultMDMCommandsPerPage uint = 10
@@ -796,7 +775,7 @@ func (o MDMOperationType) IsValid() bool {
 // MDMConfigProfileAuthz is used to check user authorization to read/write an
 // MDM configuration profile.
 type MDMConfigProfileAuthz struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	TeamID *uint `json:"fleet_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -808,7 +787,7 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
 	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
-	TeamID      *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"` // null for no-team
+	TeamID      *uint  `json:"fleet_id" db:"team_id"` // null for no-team
 	Name        string `json:"name" db:"name"`
 	Description string `json:"description" db:"description"`
 	Platform    string `json:"platform" db:"platform"`               // "windows", "android" or "darwin"
@@ -1302,6 +1281,9 @@ const (
 
 	// MDMAssetVPPProxyBearerToken is the bearer token Fleet uses to communicate with the fleetdm.com VPP metadata proxy
 	MDMAssetVPPProxyBearerToken MDMAssetName = "vpp_proxy_bearer_token" //nolint:gosec // no, this is not a credential
+	// MDMAssetProfileGeneratorFleetServerSecret is the bearer token Fleet sends to the fleetdm.com configuration
+	// profile generator when it has no unexpired Premium license to send instead.
+	MDMAssetProfileGeneratorFleetServerSecret MDMAssetName = "profile_generator_fleet_server_secret" //nolint:gosec // no, this is not a credential
 	// MDMAssetPSSOSigningKey is the EC P-256 private key Fleet uses to sign Platform SSO responses
 	// and publishes via the PSSO JWKS endpoint for the Mac extension to verify.
 	MDMAssetPSSOSigningKey MDMAssetName = "psso_signing_key" //nolint:gosec // private key, not a credential string
@@ -1531,7 +1513,7 @@ type VPPTokenDB struct {
 	// uploaded; may be empty for tokens uploaded before this field was added,
 	// in which case it is lazily backfilled.
 	CountryCode string      `db:"country_code" json:"country_code"`
-	Teams       []TeamTuple `json:"teams" renameto:"fleets"`
+	Teams       []TeamTuple `json:"fleets"`
 	CreatedAt   *time.Time  `db:"created_at" json:"created_at"`
 }
 
@@ -1545,7 +1527,7 @@ func (t *VPPTokenDB) AvailableToTeam(teamID uint) bool {
 }
 
 type TeamTuple struct {
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
+	ID   uint   `json:"fleet_id"`
 	Name string `json:"name"`
 }
 
