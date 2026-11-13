@@ -1255,6 +1255,7 @@ GitHub issue: [#53925](https://github.com/fleetdm/fleet/issues/53925)
 | `created_team`, `deleted_team`, `applied_spec_team`, `changed_user_team_role`, and `deleted_user_team_role` | `created_fleet`, `deleted_fleet`, `applied_spec_fleet`, `changed_user_fleet_role`, and `deleted_user_fleet_role` |
 | `team_id`, `team_name`, and `teams` in an activity's `details` | `fleet_id`, `fleet_name`, and `fleets` |
 | `enabled_macos_disk_encryption` and `disabled_macos_disk_encryption` | `edited_disk_encryption_settings` |
+| `viewed_host_recovery_lock_password` | `read_host_recovery_lock_password` |
 | `created_pack`, `edited_pack`, `deleted_pack`, and `applied_spec_pack` | Removed. Fleet 5 keeps existing activities with these types but doesn't create new ones. |
 
 See the [activity types reference](https://fleetdm.com/docs/api/global-audit-logs) for the full list.
@@ -1263,7 +1264,7 @@ See the [activity types reference](https://fleetdm.com/docs/api/global-audit-log
 
 Update anything that filters or parses activities, like SIEM rules and log pipelines, to use the new types.
 
-GitHub issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481](https://github.com/fleetdm/fleet/issues/53481), [#53470](https://github.com/fleetdm/fleet/issues/53470)
+GitHub issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481](https://github.com/fleetdm/fleet/issues/53481), [#57745](https://github.com/fleetdm/fleet/issues/57745), [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 
 ## fleetd
