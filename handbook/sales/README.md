@@ -116,7 +116,7 @@ In order to be transparent, Fleet sends quotes within 30 days of opportunity cre
 
 1. Follow the process to [create a quote](https://fleetdm.com/handbook/company/go-to-market-operations#create-a-quote) in Salesforce. The quote is automatically routed to the appropriate approver.
 
-> **IMPORTANT** To ensure product language is consistent, any changes to the standard quote template (including subscription appendix) must be submitted to ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval.
+> **IMPORTANT** To ensure product language is consistent, any changes to the standard quote template (including subscription appendix) must be submitted to the ["🦢 Product design intake & outtake" board](https://github.com/orgs/fleetdm/projects/67) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval.
 
 2. Once the quote is approved, generate the PDF in Salesforce and send it to the prospect.
 3. Copy the quote URL to the "Order form URL" field on the Salesforce opportunity.
