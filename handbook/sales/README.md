@@ -47,8 +47,8 @@ Use the following steps to add an account to Salesforce if one doesn't exist alr
 
 ### Respond to a customer feature comparison request
 
-AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spreadsheets from prospects to the "🎐🗣 Design review (:help-design)" meeting for CEO review. The rep will:
-- Add themselves and [Deal Desk](https://fleetdm.com/handbook/finance#team) to the "🎐🗣 Design review (:help-design)" calendar event (on the Office hours calendar).
+AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spreadsheets from prospects to [#g-first-impressions](https://fleetdm.com/handbook/company/product-groups#first-impressions-group) for CEO review. The rep will:
+- [Create a #g-first-impressions request](https://github.com/fleetdm/fleet/issues/new?labels=%23g-first-impressions&template=first-impressions-request.md) and add [Deal Desk](https://fleetdm.com/handbook/finance#team) to the issue.
 - Review with the CEO, and iterate on the comparison until approved by the CEO to provide to the prospect.  
 
 
