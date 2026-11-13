@@ -347,7 +347,7 @@ func guardPolicyRequest(opts policyOptions, next http.HandlerFunc) http.HandlerF
 			mask := r.URL.Query().Get("updateMask")
 			changesApps = mask == "" || slices.Contains(strings.Split(mask, ","), "applications")
 		}
-		if opts.rejectDefaultPolicyApps && changesApps && id == strconv.Itoa(android.DefaultAndroidPolicyID) {
+		if opts.rejectDefaultPolicyApps && changesApps && android.IsDefaultPolicyID(id) {
 			writeAMAPIError(w, http.StatusBadRequest, "FAILED_PRECONDITION",
 				"mock: Fleet must not change the apps of the default policy "+policyName(r))
 			return
