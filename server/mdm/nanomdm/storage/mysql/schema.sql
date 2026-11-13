@@ -194,6 +194,7 @@ CREATE TABLE nano_command_results (
 -- capture results in the case they're malformed.
 CHECK (status != ''),
     INDEX (status),
+    INDEX idx_ncr_lookup (id, command_uuid, status),
     CHECK (SUBSTRING(result FROM 1 FOR 5) = '<?xml')
 );
 
