@@ -21,7 +21,7 @@ parasails.registerPage('homepage', {
     testimonialsVisibleHeight: 600,
     testimonialsHeightIncrement: 560,// « Roughly one to two rows of cards.
     allTestimonialsVisible: false,
-
+    animationDelayInMs: 2000,
     // For MDM comparison table
     comparisonModeForIt: 'intune',
     comparisonModeFriendlyNames: {
@@ -58,6 +58,7 @@ parasails.registerPage('homepage', {
     }
   },
   mounted: async function() {
+    this.animateTicker('bottom-cta-ticker-option');
     $('[data-toggle="tooltip"]').tooltip({
       container: '#homepage',
       trigger: 'hover',
@@ -95,6 +96,27 @@ parasails.registerPage('homepage', {
         qualified('showFormExperience', 'experience-1772126772950');
       }
       this.goto(report.eventUrl);
+    },
+    animateTicker: function(tickerOptionPurpose) {
+      let tickerOptionSelector = `[purpose="${tickerOptionPurpose}"]`;
+      setInterval(()=>{
+        let currentTickerOption = $(`${tickerOptionSelector}.visible`);
+        if (currentTickerOption.length === 0) {
+          $(tickerOptionSelector).first().addClass('visible');
+          return;
+        }
+        // [?]:https://api.jquery.com/nextAll/#nextAll-selector
+        let nextTickerOption = currentTickerOption.nextAll(tickerOptionSelector).first();
+        // If we've reached the end of the list, pick the first option to be the next ticker option
+        if (nextTickerOption.length === 0) {
+          nextTickerOption = $(tickerOptionSelector).first();
+        }
+        currentTickerOption.removeClass('visible').addClass('animating-out');
+        nextTickerOption.addClass('visible');
+        setTimeout(()=>{
+          currentTickerOption.removeClass('animating-out');
+        }, 1000);
+      }, this.animationDelayInMs);
     },
     clickShowMoreTestimonials: function() {
       // Measured on each click, since the masonry's height changes with the viewport width.
