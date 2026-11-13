@@ -1925,6 +1925,24 @@ func expandGlobPattern(pattern string, baseDir string, entityType string, opts G
 	return result, nil
 }
 
+// checkGlobBaseDir returns an error if the directory a glob pattern starts
+// from (its longest prefix without glob metacharacters) is not an existing directory.
+func checkGlobBaseDir(pattern string, baseDir string, entityType string) error {
+	absPattern := filepath.ToSlash(filepath.Clean(resolveApplyRelativePath(baseDir, pattern)))
+	dir, _ := doublestar.SplitPattern(absPattern)
+	dir = filepath.FromSlash(dir)
+	info, err := os.Stat(dir)
+	switch {
+	case os.IsNotExist(err):
+		return fmt.Errorf(`%s "paths" %q matched no files: directory %q does not exist`, entityType, pattern, dir)
+	case err != nil:
+		return fmt.Errorf(`failed to stat %s "paths" directory %q: %w`, entityType, dir, err)
+	case !info.IsDir():
+		return fmt.Errorf(`%s "paths" %q matched no files: %q is not a directory`, entityType, pattern, dir)
+	}
+	return nil
+}
+
 // expandBaseItems validates path/paths fields on each entity (e.g. Label), expands glob
 // patterns in "paths" entries, and returns a flat list where every entity with
 // a file reference has only Path set (resolved to an absolute path). Entities
@@ -1997,6 +2015,14 @@ func expandBaseItems[T any, PT interface {
 				continue
 			}
 			if len(expanded) == 0 {
+				// A missing directory is almost always a typo; treating it as an
+				// empty list would delete every existing entity of this type. An
+				// existing empty directory is a legitimate placeholder (the
+				// `fleetctl new` scaffold globs over .gitkeep-only folders).
+				if err := checkGlobBaseDir(*baseItem.Paths, baseDir, entityType); err != nil {
+					errs = append(errs, err)
+					continue
+				}
 				opts.LogFn("[!] glob pattern %q matched no %s files\n", *baseItem.Paths, entityType)
 				continue
 			}
