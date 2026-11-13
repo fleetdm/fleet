@@ -731,6 +731,14 @@ func TestGetHosts(t *testing.T) {
 			require.NotContains(t, spec, "team_name", "spec should not contain deprecated 'team_name' key with --remove-deprecated-keys")
 		}
 	})
+
+	t.Run("gitops user", func(t *testing.T) {
+		ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+			return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+		}
+		_, err := runAppNoChecks([]string{"get", "hosts", "test_host"})
+		require.ErrorContains(t, err, fleet.GitOpsViewHostByIdentifierErrorMessage)
+	})
 }
 
 func TestGetHostsMDM(t *testing.T) {

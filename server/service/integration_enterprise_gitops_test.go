@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
@@ -300,6 +301,37 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	})
 	require.NoError(t, err)
 
+	requireForbiddenMessage := func(method, path string, body any, message string) {
+		t.Helper()
+		res := s.Do(method, path, body, http.StatusForbidden)
+		assert.Equal(t, message, extractServerErrorText(res.Body), "%s %s", method, path)
+	}
+	// GitOps users get a message for getting a host by identifier or id, deleting it, and transferring it to any fleet, also
+	// when the host doesn't exist, so hosts can't be probed. The host stays where it was.
+	noSuchHost := &fleet.Host{ID: 999999, Hostname: "no-such-host"}
+	requireGitOpsHostMessages := func(h *fleet.Host, toTeamIDs ...*uint) {
+		t.Helper()
+		filters := &map[string]any{"query": h.Hostname}
+		requireForbiddenMessage("GET", "/api/latest/fleet/hosts/"+h.Hostname, nil, fleet.GitOpsViewHostByIdentifierErrorMessage)
+		requireForbiddenMessage("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, fleet.GitOpsViewHostByIdentifierErrorMessage)
+		requireForbiddenMessage("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, fleet.GitOpsDeleteHostErrorMessage)
+		requireForbiddenMessage("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{h.ID}},
+			fleet.GitOpsDeleteHostErrorMessage)
+		requireForbiddenMessage("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{Filters: filters},
+			fleet.GitOpsDeleteHostErrorMessage)
+		for _, toTeamID := range toTeamIDs {
+			requireForbiddenMessage("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: toTeamID, HostIDs: []uint{h.ID}},
+				fleet.GitOpsTransferHostErrorMessage)
+			requireForbiddenMessage("POST", "/api/latest/fleet/hosts/transfer/filter",
+				addHostsToTeamByFilterRequest{TeamID: toTeamID, Filters: filters}, fleet.GitOpsTransferHostErrorMessage)
+		}
+		if h != noSuchHost {
+			stored, err := s.ds.HostLite(ctx, h.ID)
+			require.NoError(t, err)
+			assert.Equal(t, h.TeamID, stored.TeamID)
+		}
+	}
+
 	//
 	// Start running permission tests with user gitops1.
 	//
@@ -311,22 +343,12 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to retrieve hosts, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden, &listHostsResponse{})
 
-	// GET /hosts/:id is denied for an identifier and for an id, and doesn't reveal which values match a host.
-	for _, identifier := range []string{h1.Hostname, fmt.Sprint(h1.ID), "no-such-host"} {
-		s.Do("GET", "/api/latest/fleet/hosts/"+identifier, nil, http.StatusForbidden)
-	}
+	// Attempt to get, delete, or transfer hosts, should fail with a message.
+	requireGitOpsHostMessages(h1, &t1.ID, nil)
+	requireGitOpsHostMessages(noSuchHost, &t1.ID)
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusOK, &listHostsResponse{})
-
-	// Attempt to delete hosts, should fail.
-	s.DoJSON("DELETE", "/api/latest/fleet/hosts/1", nil, http.StatusForbidden, &deleteHostResponse{})
-
-	// Attempt to transfer host from global to a team, should allow.
-	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
-		TeamID:  &t1.ID,
-		HostIDs: []uint{h1.ID},
-	}, http.StatusOK, &addHostsToTeamResponse{})
 
 	// Attempt to create a label, should allow.
 	clr := fleet.CreateLabelResponse{}
@@ -610,6 +632,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	s.setTokenForTest(t, "gitops2@example.com", test.GoodPassword)
 
+	// Attempt to get, delete, or transfer hosts of its fleets or of no fleet, to any destination, should fail with a message.
+	requireGitOpsHostMessages(team1Host, &t3.ID, nil, &t2.ID)
+	requireGitOpsHostMessages(globalHost, &t1.ID)
+	requireGitOpsHostMessages(noSuchHost, &t1.ID)
+
 	// Attempt to create queries in global domain, should fail.
 	tcqr := fleet.CreateQueryResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/queries", fleet.CreateQueryRequest{
@@ -821,6 +848,49 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{})
 	// Listing software titles for a team it does not own is forbidden.
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{}, "fleet_id", fmt.Sprint(t2.ID))
+
+	//
+	// Users with GitOps on t1 and another role on t2 can list hosts, so they get the messages only for t1: for its hosts, and
+	// as a transfer destination.
+	//
+	team2Host, err := s.ds.NewHost(ctx, &fleet.Host{
+		NodeKey:  new(t.Name() + "4"),
+		UUID:     t.Name() + "4",
+		Hostname: strings.ReplaceAll(t.Name()+"bar.local", "/", "_"),
+		TeamID:   &t2.ID,
+	})
+	require.NoError(t, err)
+	newMixedRoleUser := func(email, t2Role string) {
+		u := &fleet.User{
+			Name:  email,
+			Email: email,
+			Teams: []fleet.UserTeam{{Team: *t1, Role: fleet.RoleGitOps}, {Team: *t2, Role: t2Role}},
+		}
+		require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+		_, err := s.ds.NewUser(ctx, u)
+		require.NoError(t, err)
+		s.setTokenForTest(t, email, test.GoodPassword)
+	}
+
+	newMixedRoleUser("gitops-observer@example.com", fleet.RoleObserver)
+	requireForbiddenMessage("GET", "/api/latest/fleet/hosts/"+team1Host.Hostname, nil, fleet.GitOpsViewHostByIdentifierErrorMessage)
+	requireForbiddenMessage("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", team1Host.ID), nil, fleet.GitOpsDeleteHostErrorMessage)
+	requireForbiddenMessage("POST", "/api/latest/fleet/hosts/delete", deleteHostsRequest{IDs: []uint{team1Host.ID}},
+		fleet.GitOpsDeleteHostErrorMessage)
+	s.DoJSON("GET", "/api/latest/fleet/hosts/"+team2Host.Hostname, nil, http.StatusOK, &getHostResponse{})
+	requireForbiddenMessage("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", team2Host.ID), nil, authz.ForbiddenErrorMessage)
+
+	newMixedRoleUser("gitops-maintainer@example.com", fleet.RoleMaintainer)
+	requireForbiddenMessage("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &t2.ID, HostIDs: []uint{team1Host.ID}},
+		fleet.GitOpsTransferHostErrorMessage)
+	requireForbiddenMessage("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &t1.ID, HostIDs: []uint{team2Host.ID}},
+		fleet.GitOpsTransferHostErrorMessage)
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{TeamID: &t2.ID, HostIDs: []uint{team2Host.ID}},
+		http.StatusOK, &addHostsToTeamResponse{})
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", team2Host.ID), nil, http.StatusOK, &deleteHostResponse{})
+	stored, err := s.ds.HostLite(ctx, team1Host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, &t1.ID, stored.TeamID)
 }
 
 func (s *integrationEnterpriseTestSuite) TestOrgLogoUploadGitOpsAuth() {

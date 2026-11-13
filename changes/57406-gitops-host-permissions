@@ -1,0 +1,1 @@
+- **Breaking change:** Users with the GitOps role can no longer delete hosts or transfer them between fleets. Their requests to get, delete, or transfer hosts now return a 403 with a link to the Fleet 5 upgrade guide.

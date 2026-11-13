@@ -160,6 +160,15 @@ func TestHostsTransferByLabel(t *testing.T) {
 	assert.Empty(t, runAppForTest(t, []string{"hosts", "transfer", "--fleet", "", "--label", "label1"}))
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+
+	// GitOps users get the server's message, and no host moves.
+	ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+		return &fleet.User{ID: id, GlobalRole: new(fleet.RoleGitOps)}, nil
+	}
+	ds.AddHostsToTeamFuncInvoked = false
+	_, err := runAppNoChecks([]string{"hosts", "transfer", "--fleet", "team1", "--label", "label1"})
+	require.ErrorContains(t, err, fleet.GitOpsTransferHostErrorMessage)
+	assert.False(t, ds.AddHostsToTeamFuncInvoked)
 }
 
 func TestHostsTransferByStatus(t *testing.T) {
