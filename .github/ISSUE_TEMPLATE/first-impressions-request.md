@@ -1,8 +1,8 @@
 ---
-name: 🕸️ Website request
-about: Propose a new feature or enhancement to fleetdm.com.
-title: 'Website request: _________________'
-labels: '#g-website'
+name: '🕸️ #g-first-impressions request'
+about: Propose a change to fleetdm.com, landing pages, or marketing operations.
+title: ''
+labels: '#g-first-impressions'
 assignees: ''
 
 ---
