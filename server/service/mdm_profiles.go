@@ -170,13 +170,15 @@ func (n *NDESVarsFound) SetRenewalID() (*NDESVarsFound, bool) {
 }
 
 // ConditionalAccessVarsFound tracks the variables that point a SCEP profile at Fleet's conditional access SCEP server.
-// The challenge is a global enroll secret the admin writes into the profile, so there is no challenge variable.
+// The challenge variable is optional: profiles written before it existed carry a global enroll secret instead.
 type ConditionalAccessVarsFound struct {
 	urlFound       bool
+	challengeFound bool
 	renewalIdFound bool
 }
 
-// Ok makes sure that URL and renewal ID are present.
+// Ok makes sure that URL and renewal ID are present. A challenge variable without the URL variable fails too, so a
+// one-time challenge is never sent to another SCEP server.
 func (c *ConditionalAccessVarsFound) Ok() bool {
 	if c == nil {
 		return true
@@ -189,7 +191,11 @@ func (c *ConditionalAccessVarsFound) Found() bool {
 }
 
 func (c *ConditionalAccessVarsFound) RenewalOnly() bool {
-	return c != nil && !c.urlFound && c.renewalIdFound
+	return c != nil && !c.urlFound && !c.challengeFound && c.renewalIdFound
+}
+
+func (c *ConditionalAccessVarsFound) ChallengeFound() bool {
+	return c != nil && c.challengeFound
 }
 
 func (c *ConditionalAccessVarsFound) ErrorMessage() string {
@@ -202,6 +208,15 @@ func (c *ConditionalAccessVarsFound) SetURL() (*ConditionalAccessVarsFound, bool
 	}
 	alreadyPresent := c.urlFound
 	c.urlFound = true
+	return c, !alreadyPresent
+}
+
+func (c *ConditionalAccessVarsFound) SetChallenge() (*ConditionalAccessVarsFound, bool) {
+	if c == nil {
+		c = &ConditionalAccessVarsFound{}
+	}
+	alreadyPresent := c.challengeFound
+	c.challengeFound = true
 	return c, !alreadyPresent
 }
 
@@ -569,6 +584,9 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		case k == string(fleet.FleetVarConditionalAccessSCEPURL):
 			caFound = true
 			conditionalAccessVars, ok = conditionalAccessVars.SetURL()
+		case k == string(fleet.FleetVarConditionalAccessSCEPChallenge):
+			caFound = true
+			conditionalAccessVars, ok = conditionalAccessVars.SetChallenge()
 		case k == string(fleet.FleetVarSCEPRenewalID), k == string(fleet.FleetVarCertificateRenewalID):
 			caFound = true
 			// Custom SCEP, NDES, Smallstep, and conditional access all share the

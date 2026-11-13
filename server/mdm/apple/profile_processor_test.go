@@ -1247,6 +1247,53 @@ func TestPreprocessProfileContentsPSSORegistrationToken(t *testing.T) {
 	})
 }
 
+func TestPreprocessProfileContentsConditionalAccess(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	appCfg := &fleet.AppConfig{}
+	appCfg.ServerSettings.ServerURL = "https://test.example.com"
+	appCfg.MDM.EnabledAndConfigured = true
+	svc := scep.NewSCEPConfigService(logger, nil)
+	digiCertService := digicert.NewService(digicert.WithLogger(logger))
+
+	const hostUUID = "host-1"
+	const cmdUUID = "cmd-1"
+	ds := new(mock.Store)
+	ds.BulkUpsertMDMAppleHostProfilesFunc = func(context.Context, []*fleet.MDMAppleBulkUpsertHostProfilePayload) error { return nil }
+	targets := map[string]*fleet.CmdTarget{
+		"p1": {CmdUUID: cmdUUID, ProfileIdentifier: fleet.ConditionalAccessOktaProfileIdentifier, EnrollmentIDs: []string{hostUUID}},
+	}
+	profileContents := map[string]mobileconfig.Mobileconfig{
+		"p1": []byte("<key>URL</key><string>" + fleet.FleetVarConditionalAccessSCEPURL.WithPrefix() + "</string>" +
+			"<key>Challenge</key><string>${FLEET_VAR_" + string(fleet.FleetVarConditionalAccessSCEPChallenge) + "}</string>" +
+			"<string>OU</string><string>" + fleet.FleetVarCertificateRenewalID.WithPrefix() + "</string>"),
+	}
+	hostProfiles := map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{HostUUID: hostUUID, ProfileUUID: "p1"}: {
+			ProfileUUID:       "p1",
+			ProfileIdentifier: fleet.ConditionalAccessOktaProfileIdentifier,
+			HostUUID:          hostUUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryPending,
+			CommandUUID:       cmdUUID,
+			Scope:             fleet.PayloadScopeUser,
+		},
+	}
+
+	err := preprocessProfileContents(t.Context(), appCfg, ds, svc, digiCertService, noEJBCAService, logger, targets, profileContents,
+		hostProfiles, make(map[string]string), &fleet.GroupedCertificateAuthorities{})
+	require.NoError(t, err)
+	// The per-host profile keeps the challenge placeholder, which is expanded when the command is sent.
+	require.NotContains(t, targets, "p1")
+	require.Len(t, targets, 1)
+	for tempUUID := range targets {
+		hostContents := string(profileContents[tempUUID])
+		require.Contains(t, hostContents, "<string>https://test.example.com/api/fleet/conditional_access/scep</string>")
+		require.Contains(t, hostContents, "<string>"+fleet.HostSecretPlaceholder(fleet.HostSecretConditionalAccessSCEPChallenge)+"</string>")
+		require.Contains(t, hostContents, "<string>fleet-p1</string>")
+		require.NotContains(t, hostContents, "FLEET_VAR_")
+	}
+}
+
 func TestPreprocessProfileContentsEJBCA(t *testing.T) {
 	t.Parallel()
 	hostsByUUID := map[string]*fleet.Host{

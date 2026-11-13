@@ -89,6 +89,7 @@ var fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 	fleet.FleetVarSCEPRenewalID, fleet.FleetVarCertificateRenewalID,
 	fleet.FleetVarHostUUID, fleet.FleetVarHostPlatform,
 	fleet.FleetVarPSSODeviceRegistrationToken,
+	fleet.FleetVarConditionalAccessSCEPURL, fleet.FleetVarConditionalAccessSCEPChallenge,
 }
 
 // fleetVarsSupportedInDDMDeclarations is the list of Fleet variables
@@ -340,10 +341,11 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 	}
 
 	err := validateProfileCertificateAuthorityVariables(contents, lic, groupedCAs, caVarValidators{
-		digiCert:   additionalDigiCertValidation,
-		customSCEP: additionalCustomSCEPValidation,
-		ndes:       additionalNDESValidation,
-		smallstep:  additionalSmallstepValidation,
+		digiCert:          additionalDigiCertValidation,
+		customSCEP:        additionalCustomSCEPValidation,
+		ndes:              additionalNDESValidation,
+		smallstep:         additionalSmallstepValidation,
+		conditionalAccess: additionalConditionalAccessValidation,
 	})
 	// We avoid checking for all nil here (due to no variables, as we ran our own variable check above.)
 	if err != nil {
@@ -752,6 +754,35 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 			Message: "Variable \"$FLEET_VAR_" +
 				string(fleet.FleetVarNDESSCEPProxyURL) + "\" must be in the SCEP certificate's \"URL\" field.",
 			InternalErr: fmt.Errorf("URL: %s", payloadURL),
+		}
+	}
+	return nil
+}
+
+// additionalConditionalAccessValidation checks that the conditional access SCEP URL variable, and the challenge variable
+// when present, are each the whole value of their field in the profile's one SCEP payload, and that the renewal ID is in
+// its subject. Each variable can appear only once, so that also keeps them out of every other field. A literal challenge
+// is a global enroll secret, which profiles written before the challenge variable carry.
+func additionalConditionalAccessValidation(contents string, conditionalAccessVars *ConditionalAccessVarsFound) error {
+	scepProf, err := unmarshalSCEPProfile(contents)
+	if err != nil {
+		return err
+	}
+	scepPayloadContent, err := checkThatOnlyOneSCEPPayloadIsPresent(scepProf)
+	if err != nil {
+		return err
+	}
+	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
+		return &fleet.BadRequestError{Message: renewalIDNotInSubjectMsg}
+	}
+	if !isFleetVar(scepPayloadContent.URL, fleet.FleetVarConditionalAccessSCEPURL) {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"URL\" field.", fleet.FleetVarConditionalAccessSCEPURL.WithPrefix()),
+		}
+	}
+	if conditionalAccessVars.ChallengeFound() && !isFleetVar(scepPayloadContent.Challenge, fleet.FleetVarConditionalAccessSCEPChallenge) {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Variable %q must be in the SCEP certificate's \"Challenge\" field.", fleet.FleetVarConditionalAccessSCEPChallenge.WithPrefix()),
 		}
 	}
 	return nil

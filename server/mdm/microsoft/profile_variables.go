@@ -95,6 +95,7 @@ type ProfilePreprocessParams struct {
 //   - $FLEET_VAR_NDES_SCEP_CHALLENGE or ${FLEET_VAR_NDES_SCEP_CHALLENGE}: Replaced with the one-time NDES challenge password
 //   - $FLEET_VAR_NDES_SCEP_PROXY_URL or ${FLEET_VAR_NDES_SCEP_PROXY_URL}: Replaced with the Fleet SCEP proxy URL for NDES
 //   - $FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL or ${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL}: Replaced with Fleet's conditional access SCEP URL
+//   - $FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE or ${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE}: Replaced with a host secret placeholder, which becomes a one-time challenge for the host when the command is sent
 //
 // Why we don't use Go templates here:
 //  1. Error handling: Go templates don't provide fine-grained error handling for individual variable
@@ -229,8 +230,7 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 			if err != nil {
 				return profileContents, ctxerr.Wrap(deps.Context, err, "building conditional access SCEP URL")
 			}
-			// The URL variable is what marks the certificate as Fleet-tracked; the challenge is the admin's global enroll
-			// secret and passes through.
+			// The URL variable is what marks the certificate as Fleet-tracked, whichever challenge the profile carries.
 			*deps.ManagedCertificatePayloads = append(*deps.ManagedCertificatePayloads, &fleet.MDMManagedCertificate{
 				HostUUID:             params.HostUUID,
 				ProfileUUID:          params.ProfileUUID,
@@ -239,6 +239,12 @@ func preprocessWindowsProfileContents(deps ProfilePreprocessDependencies, params
 				CAName:               fleet.ConditionalAccessManagedCertificateCAName,
 			})
 			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarConditionalAccessSCEPURLRegexp, result, scepURL)
+
+		case fleetVar == string(fleet.FleetVarConditionalAccessSCEPChallenge):
+			// The challenge is created when the command is sent, so the stored command never holds one and a host that
+			// picks it up late still gets a valid one.
+			result = profiles.ReplaceFleetVariableInXML(fleet.FleetVarConditionalAccessSCEPChallengeRegexp, result,
+				fleet.HostSecretPlaceholder(fleet.HostSecretConditionalAccessSCEPChallenge))
 		}
 	}
 

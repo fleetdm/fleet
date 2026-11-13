@@ -170,21 +170,29 @@ func (svc *Service) expandWindowsHostSecrets(ctx context.Context, document strin
 
 	secretValues := make(map[string]string, len(hostSecrets))
 	for _, secretType := range hostSecrets {
-		if secretType != fleet.HostSecretEnrollSecret {
+		switch secretType {
+		case fleet.HostSecretEnrollSecret:
+			// Using primary: the fleetd install and the push to a deleted host's enrollment are minted and delivered in the
+			// same management session, so a replica even slightly behind would resolve to nothing.
+			secret, err := svc.ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctxdb.RequirePrimary(ctx, true), enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "resolving one-time enroll secret for windows mdm enrollment %d", enrollmentID)
+			}
+			// Empty once the secret is consumed. The value is then delivered empty on purpose.
+			secretValues[secretType] = secret
+		case fleet.HostSecretConditionalAccessSCEPChallenge:
+			challenge, err := svc.ds.FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "resolving conditional access scep challenge for windows mdm enrollment %d", enrollmentID)
+			}
+			secretValues[secretType] = challenge
+		default:
 			return "", undeliverableWindowsCommandError{fmt.Errorf("host secret type %s is not supported on Windows", secretType)}
 		}
-		// Using primary: the fleetd install and the push to a deleted host's enrollment are minted and delivered in the same
-		// management session, so a replica even slightly behind would resolve to nothing.
-		secret, err := svc.ds.GetLiveWindowsMDMOneTimeEnrollSecret(ctxdb.RequirePrimary(ctx, true), enrollmentID)
-		if err != nil {
-			return "", ctxerr.Wrapf(ctx, err, "resolving one-time enroll secret for windows mdm enrollment %d", enrollmentID)
-		}
-		// Empty once the secret is consumed. The value is then delivered empty on purpose.
-		secretValues[secretType] = secret
 	}
 
-	// Windows profiles and commands are always XML, so the substituted value is XML-escaped. The tokens are URL-safe base64 and
-	// so never actually need it, but the escaping is what keeps that an implementation detail.
+	// Windows profiles and commands are always XML, so the substituted value is XML-escaped. The values are URL-safe base64 or
+	// hex and so never actually need it, but the escaping is what keeps that an implementation detail.
 	return fleet.MaybeExpand(document, func(s string, _, _ int) (string, bool) {
 		if !strings.HasPrefix(s, fleet.HostSecretPrefix) {
 			return "", false

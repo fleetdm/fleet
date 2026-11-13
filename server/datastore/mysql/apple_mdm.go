@@ -9608,47 +9608,66 @@ func newAppleSCEPChallengeDB(ctx context.Context, q sqlx.ExecerContext, info fle
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "generating apple scep challenge")
 	}
-	_, err = q.ExecContext(ctx, `INSERT INTO mdm_apple_scep_challenges
-		(challenge, purpose, host_uuid, hardware_serial, idp_account_uuid, expires_at)
-		VALUES (?, ?, ?, ?, ?, NOW(6) + INTERVAL ? MICROSECOND)`,
-		challenge, info.Purpose, info.UUID, info.Serial, info.IDPAccountUUID, ttl.Microseconds())
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "insert apple scep challenge")
+	if err := insertSCEPChallengeDB(ctx, q, string(challenge), info, ttl); err != nil {
+		return "", err
 	}
 	return string(challenge), nil
 }
 
-// findOrCreateAppleSCEPRenewalChallenge returns the enrollment's unconsumed, unexpired renewal challenge, creating
-// one if there's none. enrollmentID is the enrollment's device channel ID.
-func (ds *Datastore) findOrCreateAppleSCEPRenewalChallenge(ctx context.Context, enrollmentID string) (string, error) {
+func insertSCEPChallengeDB(ctx context.Context, q sqlx.ExecerContext, challenge string, info fleet.AppleSCEPChallengeInfo, ttl time.Duration) error {
+	_, err := q.ExecContext(ctx, `INSERT INTO mdm_apple_scep_challenges
+		(challenge, purpose, host_uuid, hardware_serial, idp_account_uuid, expires_at)
+		VALUES (?, ?, ?, ?, ?, NOW(6) + INTERVAL ? MICROSECOND)`,
+		challenge, info.Purpose, info.UUID, info.Serial, info.IDPAccountUUID, ttl.Microseconds())
+	return ctxerr.Wrap(ctx, err, "insert scep challenge")
+}
+
+// findOrCreateSCEPChallengeDB returns the host's unconsumed, unexpired challenge for purpose, creating one with
+// newToken if there's none. Locking the challenges table alone doesn't serialize concurrent callers: two transactions
+// that both find no row hold compatible gap locks and can both insert. The caller must lock a row that serializes calls
+// for the host.
+func findOrCreateSCEPChallengeDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string, purpose fleet.AppleMDMCertPurpose,
+	ttl time.Duration, newToken func() ([]byte, error),
+) (string, error) {
+	var challenge string
+	err := sqlx.GetContext(ctx, tx, &challenge, `SELECT challenge FROM mdm_apple_scep_challenges
+		WHERE host_uuid = ? AND purpose = ? AND consumed_at IS NULL AND expires_at > NOW(6)
+		ORDER BY id DESC LIMIT 1`, hostUUID, purpose)
+	switch {
+	case err == nil:
+		return challenge, nil
+	case !errors.Is(err, sql.ErrNoRows):
+		return "", ctxerr.Wrapf(ctx, err, "getting %s scep challenge", purpose)
+	}
+
+	token, err := newToken()
+	if err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "generating %s scep challenge", purpose)
+	}
+	info := fleet.AppleSCEPChallengeInfo{Purpose: purpose, UUID: &hostUUID}
+	if err := insertSCEPChallengeDB(ctx, tx, string(token), info, ttl); err != nil {
+		return "", err
+	}
+	return string(token), nil
+}
+
+// findOrCreateAppleEnrollmentSCEPChallenge returns the enrollment's unconsumed, unexpired challenge for purpose,
+// creating one if there's none. enrollmentID is the enrollment's device channel ID.
+func (ds *Datastore) findOrCreateAppleEnrollmentSCEPChallenge(ctx context.Context, enrollmentID string, purpose fleet.AppleMDMCertPurpose,
+	ttl time.Duration, newToken func() ([]byte, error),
+) (string, error) {
 	var challenge string
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		challenge = ""
-		// Locking the challenges table alone doesn't serialize concurrent deliveries: two transactions that both find
-		// no row hold compatible gap locks and can both insert. Every enrollment has a nano_enrollments row keyed by
-		// exactly this ID, ADUE included.
+		// Every enrollment has a nano_enrollments row keyed by exactly this ID, ADUE included.
 		var lockedID string
 		if err := sqlx.GetContext(ctx, tx, &lockedID, `SELECT id FROM nano_enrollments WHERE id = ? FOR UPDATE`, enrollmentID); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
-				return ctxerr.Wrap(ctx, notFound("NanoEnrollment").WithName(enrollmentID), "creating scep renewal challenge")
+				return ctxerr.Wrapf(ctx, notFound("NanoEnrollment").WithName(enrollmentID), "creating %s scep challenge", purpose)
 			}
-			return ctxerr.Wrap(ctx, err, "locking nano enrollment for scep renewal challenge")
+			return ctxerr.Wrapf(ctx, err, "locking nano enrollment for %s scep challenge", purpose)
 		}
-
-		err := sqlx.GetContext(ctx, tx, &challenge, `SELECT challenge FROM mdm_apple_scep_challenges
-			WHERE host_uuid = ? AND purpose = ? AND consumed_at IS NULL AND expires_at > NOW(6)
-			ORDER BY id DESC LIMIT 1`, enrollmentID, fleet.AppleMDMCertPurposeSCEPRenewal)
-		switch {
-		case err == nil:
-			return nil
-		case !errors.Is(err, sql.ErrNoRows):
-			return ctxerr.Wrap(ctx, err, "getting scep renewal challenge")
-		}
-
-		challenge, err = newAppleSCEPChallengeDB(ctx, tx, fleet.AppleSCEPChallengeInfo{
-			Purpose: fleet.AppleMDMCertPurposeSCEPRenewal,
-			UUID:    &enrollmentID,
-		}, fleet.AppleSCEPRenewalChallengeTTL)
+		var err error
+		challenge, err = findOrCreateSCEPChallengeDB(ctx, tx, enrollmentID, purpose, ttl, newToken)
 		return err
 	})
 	return challenge, err
@@ -9663,8 +9682,8 @@ func (ds *Datastore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge st
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		rows, err := tx.ExecContext(ctx, `UPDATE mdm_apple_scep_challenges
 			SET consumed_at = NOW(6)
-			WHERE challenge = ? AND consumed_at IS NULL AND expires_at > NOW(6)
-		`, challenge)
+			WHERE challenge = ? AND purpose <> ? AND consumed_at IS NULL AND expires_at > NOW(6)
+		`, challenge, fleet.ConditionalAccessSCEPChallengePurpose)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "consume apple scep challenge")
 		}
