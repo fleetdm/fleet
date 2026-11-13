@@ -1525,6 +1525,58 @@ func TestApplyTeamSpecsCustomSettingsWithoutMDMConfigured(t *testing.T) {
 // TestApplyTeamSpecsClearBootstrapPackageAlreadyDeleted verifies that clearing
 // a bootstrap package via GitOps succeeds even when the actual package row has
 // already been deleted (e.g. via the GUI), leaving a stale URL in team config.
+// A GitOps dry run that turns on Windows MDM in the global file and creates a fleet with Windows setup settings
+// validates the new fleet against that assumed state, since the global change isn't saved yet.
+func TestApplyTeamSpecsCreateDryRunWindowsMDMAssumption(t *testing.T) {
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	ctx := test.UserContext(context.Background(), &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)})
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil // Windows MDM is off
+	}
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) { return nil, &notFoundError{} }
+	ds.TeamByFilenameFunc = func(ctx context.Context, name string) (*fleet.Team, error) { return nil, &notFoundError{} }
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, newB bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+	svc := &Service{
+		Service: &svcmock.Service{},
+		ds:      ds,
+		config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+		authz:   authorizer,
+		logger:  slog.New(slog.DiscardHandler),
+	}
+
+	for _, tc := range []struct {
+		name    string
+		setup   fleet.MacOSSetup
+		wantErr string
+	}{
+		{"managed local account", fleet.MacOSSetup{EnableManagedLocalAccountWindows: optjson.SetBool(true)},
+			"setup_experience.windows_managed_local_account_enabled"},
+		{"require all software", fleet.MacOSSetup{RequireAllSoftwareWindows: true}, "setup_experience.windows_require_all_software"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			specs := []*fleet.TeamSpec{{Name: "new fleet", MDM: fleet.TeamSpecMDM{MacOSSetup: tc.setup}}}
+
+			_, err := svc.ApplyTeamSpecs(ctx, specs, fleet.ApplyTeamSpecOptions{DryRun: true})
+			require.ErrorContains(t, err, tc.wantErr)
+
+			_, err = svc.ApplyTeamSpecs(ctx, specs, fleet.ApplyTeamSpecOptions{
+				DryRun:            true,
+				DryRunAssumptions: &fleet.TeamSpecsDryRunAssumptions{WindowsEnabledAndConfigured: optjson.SetBool(true)},
+			})
+			require.NoError(t, err)
+			require.False(t, ds.NewTeamFuncInvoked)
+		})
+	}
+}
+
 func TestApplyTeamSpecsClearBootstrapPackageAlreadyDeleted(t *testing.T) {
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
@@ -1676,6 +1728,39 @@ func TestModifyTeamMDMManagedLocalAccountRequiresMDM(t *testing.T) {
 		require.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value)
 		require.False(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 		require.Equal(t, []string{"enabled_managed_local_account:windows"}, activities)
+	})
+
+	// The Windows setting lives under setup_experience, so a Windows-only change must not trip the Apple-only checks.
+	t.Run("windows-only change ignores the custom setup assistant and a stored macOS pair", func(t *testing.T) {
+		windowsMDMConfigured = true
+		mockSvc.HasCustomSetupAssistantConfigurationWebURLFunc = func(context.Context, *uint) (bool, error) {
+			return true, nil
+		}
+		ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+			tm := &fleet.Team{ID: tid, Name: "team-1"}
+			tm.Config.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+			tm.Config.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("none")
+			return tm, nil
+		}
+
+		team, err := svc.ModifyTeam(ctx, 1, windowsPayload)
+		require.NoError(t, err)
+		require.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccountWindows.Value)
+
+		// Both checks still apply when the request touches what they guard.
+		_, err = svc.ModifyTeam(ctx, 1, fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+			MacOSSetup: &fleet.TeamPayloadMacOSSetup{EndUserLocalAccountType: optjson.SetString("standard")},
+		}})
+		require.ErrorContains(t, err, "macos_managed_local_account_enabled is required")
+		ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+			ac := &fleet.AppConfig{}
+			ac.MDM.EndUserAuthentication.EntityID = "idp"
+			return ac, nil
+		}
+		_, err = svc.ModifyTeam(ctx, 1, fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+			MacOSSetup: &fleet.TeamPayloadMacOSSetup{EnableEndUserAuthentication: optjson.SetBool(true)},
+		}})
+		require.ErrorContains(t, err, fleet.EndUserAuthDEPWebURLConfiguredErrMsg)
 	})
 }
 

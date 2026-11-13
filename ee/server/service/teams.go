@@ -471,8 +471,12 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 					`Couldn't enable setup_experience.enable_end_user_authentication because no IdP is configured for MDM features.`))
 			}
 
-			if err := svc.validateEndUserAuthenticationAndSetupAssistant(ctx, &team.ID); err != nil {
-				return nil, err
+			// Like Update setup experience, only when the request turns end user authentication on, so other
+			// setup_experience changes (such as the Windows managed local account) aren't blocked.
+			if enableEUA.Valid && enableEUA.Value {
+				if err := svc.validateEndUserAuthenticationAndSetupAssistant(ctx, &team.ID); err != nil {
+					return nil, err
+				}
 			}
 
 			if enableEUA.Set {
@@ -1659,7 +1663,7 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 				})
 			}
 
-			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets, applyOpts.DryRun)
+			team, err := svc.createTeamFromSpec(ctx, spec, appConfig, secrets, applyOpts)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "creating team from spec")
 			}
@@ -1723,7 +1727,7 @@ func (svc *Service) createTeamFromSpec(
 	spec *fleet.TeamSpec,
 	appCfg *fleet.AppConfig,
 	secrets []*fleet.EnrollSecret,
-	dryRun bool,
+	opts fleet.ApplyTeamSpecOptions,
 ) (*fleet.Team, error) {
 	agentOptions := &spec.AgentOptions
 	if len(spec.AgentOptions) == 0 {
@@ -1776,11 +1780,16 @@ func (svc *Service) createTeamFromSpec(
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.lock_end_user_info", `"enable_end_user_authentication" must be set to "true" in order to enable "lock_end_user_info"`))
 	}
 
-	if macOSSetup.RequireAllSoftwareWindows && !appCfg.MDM.WindowsEnabledAndConfigured {
+	// A dry run validates against the Windows MDM state the global config would set, as editTeamFromSpec does.
+	windowsEnabledAndConfigured := appCfg.MDM.WindowsEnabledAndConfigured
+	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
+		windowsEnabledAndConfigured = opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value
+	}
+	if macOSSetup.RequireAllSoftwareWindows && !windowsEnabledAndConfigured {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_require_all_software",
 			`Couldn't update setup_experience.windows_require_all_software. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 	}
-	if macOSSetup.EnableManagedLocalAccountWindows.Value && !appCfg.MDM.WindowsEnabledAndConfigured {
+	if macOSSetup.EnableManagedLocalAccountWindows.Value && !windowsEnabledAndConfigured {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.windows_managed_local_account_enabled",
 			`Couldn't enable setup_experience.windows_managed_local_account_enabled. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 	}
@@ -1886,7 +1895,7 @@ func (svc *Service) createTeamFromSpec(
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
-		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, dryRun, invalid)
+		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, opts.DryRun, invalid)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validate team calendar integrations")
 		}
@@ -1905,7 +1914,7 @@ func (svc *Service) createTeamFromSpec(
 		conditionalAccessEnabled = optjson.SetBool(*spec.Integrations.ConditionalAccessEnabled)
 	}
 
-	if dryRun {
+	if opts.DryRun {
 		for _, secret := range secrets {
 			available, err := svc.ds.IsEnrollSecretAvailable(ctx, secret.Secret, true, nil)
 			if err != nil {
@@ -1922,7 +1931,7 @@ func (svc *Service) createTeamFromSpec(
 		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
-	if dryRun {
+	if opts.DryRun {
 		return &fleet.Team{Name: spec.Name}, nil
 	}
 

@@ -1119,6 +1119,10 @@ func (mos *MacOSSetup) ValidateAgainst(old MacOSSetup) error {
 		return NewInvalidArgumentError("macos_end_user_local_account_type", `only "admin", "standard", and "none" are supported`)
 	}
 
+	// Only when the payload touches the pair, so an already invalid stored pair doesn't block unrelated settings.
+	if !mos.EnableManagedLocalAccount.Set && !mos.EndUserLocalAccountType.Set {
+		return nil
+	}
 	accountType := mos.EndUserLocalAccountType
 	if !accountType.Set || !accountType.Valid || accountType.Value == "" {
 		accountType = old.EndUserLocalAccountType
