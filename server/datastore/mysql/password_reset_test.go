@@ -60,7 +60,6 @@ func testPasswordResetRequests(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.Equal(t, req.ID, found.ID)
 		assert.Equal(t, tt.userID, found.UserID)
-		assert.Equal(t, tt.token, found.Token)
 		assert.WithinDuration(t, tt.expires, found.ExpiresAt, 1*time.Minute)
 	}
 }
@@ -70,49 +69,43 @@ func testPasswordResetTokenExpiration(t *testing.T, ds *Datastore) {
 	users := createTestUsers(t, ds)
 
 	expiryTests := []struct {
-		request    fleet.PasswordResetRequest
+		token      string
+		userID     uint
+		expiresAt  time.Time
 		shouldFail bool
 	}{
 		{
-			request: fleet.PasswordResetRequest{
-				UserID:    users[0].ID,
-				Token:     "3XP1r3D70K3N",
-				ExpiresAt: time.Now().UTC().Add(-1 * time.Hour),
-			},
+			token:      "3XP1r3D70K3N",
+			userID:     users[0].ID,
+			expiresAt:  time.Now().UTC().Add(-1 * time.Hour),
 			shouldFail: true,
 		},
 		{
-			request: fleet.PasswordResetRequest{
-				UserID:    users[1].ID,
-				Token:     "V411D70K3N",
-				ExpiresAt: time.Now().UTC().Add(1 * time.Hour),
-			},
+			token:      "V411D70K3N",
+			userID:     users[1].ID,
+			expiresAt:  time.Now().UTC().Add(1 * time.Hour),
 			shouldFail: false,
 		},
 	}
 
 	for _, tt := range expiryTests {
-		req := tt.request
-
-		stmt := `INSERT INTO password_reset_requests ( user_id, token, expires_at)
-			VALUES (?,?, ?)`
-		res, err := ds.writer(ctx).ExecContext(ctx, stmt, req.UserID, req.Token, req.ExpiresAt)
+		stmt := `INSERT INTO password_reset_requests ( user_id, token_hash, expires_at)
+			VALUES (?, UNHEX(SHA2(?, 256)), ?)`
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, tt.userID, tt.token, tt.expiresAt)
 		require.NoError(t, err)
 
 		id, _ := res.LastInsertId()
-		req.ID = uint(id) //nolint:gosec // dismiss G115
 
-		found, err := ds.FindPasswordResetByToken(context.Background(), req.Token)
+		found, err := ds.FindPasswordResetByToken(context.Background(), tt.token)
 
 		if tt.shouldFail {
 			assert.ErrorIs(t, err, sql.ErrNoRows)
 			assert.Nil(t, found)
 		} else {
 			require.NoError(t, err)
-			assert.Equal(t, req.ID, found.ID)
-			assert.Equal(t, req.UserID, found.UserID)
-			assert.Equal(t, req.Token, found.Token)
-			assert.WithinDuration(t, req.ExpiresAt.Truncate(time.Minute), found.ExpiresAt.Truncate(time.Minute), time.Minute)
+			assert.Equal(t, uint(id), found.ID) //nolint:gosec // dismiss G115
+			assert.Equal(t, tt.userID, found.UserID)
+			assert.WithinDuration(t, tt.expiresAt.Truncate(time.Minute), found.ExpiresAt.Truncate(time.Minute), time.Minute)
 		}
 	}
 }
@@ -136,7 +129,7 @@ func testResetPasswordIsAtomic(t *testing.T, ds *Datastore) {
 
 	// An expired token returns a not-found error.
 	_, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO password_reset_requests (user_id, token, expires_at) VALUES (?, ?, ?)`,
+		`INSERT INTO password_reset_requests (user_id, token_hash, expires_at) VALUES (?, UNHEX(SHA2(?, 256)), ?)`,
 		user.ID, "expired-token", time.Now().UTC().Add(-time.Hour))
 	require.NoError(t, err)
 	require.True(t, fleet.IsNotFound(ds.ResetPassword(ctx, "expired-token", userWithPassword("Expired!Pass123"))))
@@ -212,7 +205,7 @@ func testPasswordResetTokenCaseSensitivity(t *testing.T, ds *Datastore) {
 	// The exact token matches.
 	found, err := ds.FindPasswordResetByToken(ctx, token)
 	require.NoError(t, err)
-	require.Equal(t, token, found.Token)
+	require.Equal(t, users[0].ID, found.UserID)
 
 	// A case-mutated copy of the token must NOT match.
 	for _, mutated := range []string{
@@ -229,8 +222,8 @@ func testPasswordResetTokenCaseSensitivity(t *testing.T, ds *Datastore) {
 func testCleanupExpiredPasswordResetRequests(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	stmt := `INSERT INTO password_reset_requests ( user_id, token, expires_at)
-			VALUES (?,?, DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? HOUR))`
+	stmt := `INSERT INTO password_reset_requests ( user_id, token_hash, expires_at)
+			VALUES (?, UNHEX(SHA2(?, 256)), DATE_ADD(CURRENT_TIMESTAMP, INTERVAL ? HOUR))`
 
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, uint(1), "now", 0)
 	require.NoError(t, err)
@@ -239,17 +232,22 @@ func testCleanupExpiredPasswordResetRequests(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(ctx).ExecContext(ctx, stmt, uint(1), "yesterday", -24)
 	require.NoError(t, err)
 
-	var res1 []fleet.PasswordResetRequest
-	err = ds.writer(ctx).SelectContext(ctx, &res1, `SELECT * FROM password_reset_requests`)
+	type resetRow struct {
+		ID        uint      `db:"id"`
+		ExpiresAt time.Time `db:"expires_at"`
+		UserID    uint      `db:"user_id"`
+	}
+
+	var res1 []resetRow
+	err = ds.writer(ctx).SelectContext(ctx, &res1, `SELECT id, expires_at, user_id FROM password_reset_requests`)
 	require.NoError(t, err)
 	require.Len(t, res1, 3)
 
 	err = ds.CleanupExpiredPasswordResetRequests(ctx)
 	require.NoError(t, err)
 
-	var res2 []fleet.PasswordResetRequest
-	err = ds.writer(ctx).SelectContext(ctx, &res2, `SELECT * FROM password_reset_requests`)
+	var res2 []resetRow
+	err = ds.writer(ctx).SelectContext(ctx, &res2, `SELECT id, expires_at, user_id FROM password_reset_requests`)
 	require.NoError(t, err)
 	require.Len(t, res2, 1)
-	require.Equal(t, "tomorrow", res2[0].Token)
 }

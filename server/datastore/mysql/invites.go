@@ -12,6 +12,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// inviteColumns lists the columns to select from the invites table.
+// token_hash is excluded because the Invite struct does not map it.
+const inviteColumns = `id, created_at, updated_at, invited_by, email, name, position, sso_enabled, mfa_enabled, global_role`
+
 var inviteSearchColumns = []string{"name", "email"}
 
 // inviteAllowedOrderKeys defines the allowed order keys for ListInvites.
@@ -33,8 +37,8 @@ func (ds *Datastore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Inv
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		sqlStmt := `
-	INSERT INTO invites ( invited_by, email, name, position, token, sso_enabled, mfa_enabled, global_role )
-	  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO invites ( invited_by, email, name, position, token_hash, sso_enabled, mfa_enabled, global_role )
+	  VALUES ( ?, ?, ?, ?, UNHEX(SHA2(?, 256)), ?, ?, ?)
 	`
 
 		result, err := tx.ExecContext(ctx, sqlStmt, i.InvitedBy, i.Email,
@@ -77,7 +81,7 @@ func (ds *Datastore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Inv
 // using the opt parameter. See fleet.ListOptions
 func (ds *Datastore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]*fleet.Invite, error) {
 	invites := []*fleet.Invite{}
-	query := "SELECT * FROM invites WHERE true"
+	query := "SELECT " + inviteColumns + " FROM invites WHERE true"
 	query, params := searchLike(query, nil, opt.MatchQuery, inviteSearchColumns...)
 	query, params, err := appendListOptionsWithCursorToSQLSecure(query, params, &opt, inviteAllowedOrderKeys)
 	if err != nil {
@@ -101,7 +105,7 @@ func (ds *Datastore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]
 // Invite returns Invite identified by id.
 func (ds *Datastore) Invite(ctx context.Context, id uint) (*fleet.Invite, error) {
 	var invite fleet.Invite
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &invite, "SELECT * FROM invites WHERE id = ?", id)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &invite, "SELECT " + inviteColumns + " FROM invites WHERE id = ?", id)
 	if err == sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, notFound("Invite").WithID(id))
 	} else if err != nil {
@@ -118,7 +122,7 @@ func (ds *Datastore) Invite(ctx context.Context, id uint) (*fleet.Invite, error)
 // InviteByEmail finds an Invite with a particular email, if one exists.
 func (ds *Datastore) InviteByEmail(ctx context.Context, email string) (*fleet.Invite, error) {
 	var invite fleet.Invite
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &invite, "SELECT * FROM invites WHERE email = ?", email)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &invite, "SELECT " + inviteColumns + " FROM invites WHERE email = ?", email)
 	if err == sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, notFound("Invite").
 			WithMessage(fmt.Sprintf("with email %s", email)))
@@ -136,10 +140,10 @@ func (ds *Datastore) InviteByEmail(ctx context.Context, email string) (*fleet.In
 // InviteByToken finds an Invite with a particular token, if one exists.
 func (ds *Datastore) InviteByToken(ctx context.Context, token string) (*fleet.Invite, error) {
 	var invite fleet.Invite
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &invite, "SELECT * FROM invites WHERE token = ?", token)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &invite, "SELECT " + inviteColumns + " FROM invites WHERE token_hash = UNHEX(SHA2(?, 256))", token)
 	if err == sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, notFound("Invite").
-			WithMessage(fmt.Sprintf("with token %s", token)))
+			WithMessage("with provided token"))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx get invite by token")
 	}
