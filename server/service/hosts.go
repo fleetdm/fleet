@@ -2203,6 +2203,9 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.DeviceStatus = ptr.String(string(mdmActions.DeviceStatus()))
 	host.MDM.PendingAction = ptr.String(string(mdmActions.PendingAction()))
 	suppressAndroidBYODWipeStatus(host)
+	if host.FleetPlatform() == "android" {
+		host.MDM.UnlockPINAvailable = new(mdmActions.IsAndroidUnlockPINAvailable())
+	}
 
 	// Populate wipe/lock/clear_passcode allowed flags for manually-enrolled Apple hosts.
 	if fleet.IsApplePlatform(host.Platform) &&

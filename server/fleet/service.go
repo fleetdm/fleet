@@ -1440,7 +1440,7 @@ type Service interface {
 
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
-	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
+	UnlockHost(ctx context.Context, hostID uint) (*HostUnlockResult, error)
 	WipeHost(ctx context.Context, hostID uint, metadata *MDMWipeMetadata) error
 
 	// ClearPasscode is a method that clears the passcode on a host, primarily mobile devices.

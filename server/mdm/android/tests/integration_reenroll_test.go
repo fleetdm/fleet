@@ -124,10 +124,10 @@ func (s *reenrollTestSuite) TestClearsStateOnReenrollment() {
 		CommandUUID:   uuid.NewString(),
 		HostUUID:      hostUUID,
 		OperationName: "operations/lock-" + enterpriseSpecificID,
-		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 		Status:        string(android.MDMAndroidCommandStatusPending),
 	}
-	require.NoError(t, s.DS.Datastore.LockHostViaAndroidMDM(ctx, host.Host, lockCmd))
+	require.NoError(t, s.DS.Datastore.LockHostViaAndroidMDM(ctx, host.Host, lockCmd, "258147"))
 
 	// A pending software install.
 	vppApp, err := s.DS.Datastore.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{

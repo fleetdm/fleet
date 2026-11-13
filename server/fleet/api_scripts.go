@@ -381,9 +381,19 @@ type UnlockHostRequest struct {
 type UnlockHostResponse struct {
 	HostID        *uint               `json:"host_id,omitempty"`
 	UnlockPIN     string              `json:"unlock_pin,omitempty"`
+	LockedAt      *time.Time          `json:"locked_at,omitempty"`
 	DeviceStatus  DeviceStatus        `json:"device_status,omitempty"`
 	PendingAction PendingDeviceAction `json:"pending_action,omitempty"`
 	Err           error               `json:"error,omitempty"`
+}
+
+// HostUnlockResult is the result of a successful UnlockHost call.
+type HostUnlockResult struct {
+	UnlockPIN string
+	// LockedAt is when the device acknowledged the lock. Android only.
+	LockedAt      *time.Time
+	DeviceStatus  DeviceStatus
+	PendingAction PendingDeviceAction
 }
 
 func (r UnlockHostResponse) Error() error { return r.Err }

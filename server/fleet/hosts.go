@@ -809,6 +809,10 @@ type MDMHostData struct {
 	WipeAllowed          *bool `json:"wipe_allowed,omitempty" db:"-" csv:"-"`
 	LockAllowed          *bool `json:"lock_allowed,omitempty" db:"-" csv:"-"`
 	ClearPasscodeAllowed *bool `json:"clear_passcode_allowed,omitempty" db:"-" csv:"-"`
+
+	// UnlockPINAvailable is set for Android hosts only: true when the current enrollment has an
+	// acknowledged Fleet lock with a stored PIN. Only populated by getHostDetails.
+	UnlockPINAvailable *bool `json:"unlock_pin_available,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {

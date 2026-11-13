@@ -15138,9 +15138,9 @@ func testGetHostsLockWipeStatusBatch(t *testing.T, ds *Datastore) {
 		CommandUUID:   androidLockUUID,
 		HostUUID:      andHost.UUID,
 		OperationName: "enterprises/E/devices/D/operations/lock-pending",
-		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 		Status:        string(android.MDMAndroidCommandStatusPending),
-	}))
+	}, "258147"))
 
 	statusMap, err = ds.GetHostsLockWipeStatusBatch(ctx, androidHosts)
 	require.NoError(t, err)
@@ -15306,18 +15306,18 @@ func testGetHostsLockWipeStatusBatchAndroidMultiHost(t *testing.T, ds *Datastore
 		CommandUUID:   lockA,
 		HostUUID:      hostA.UUID,
 		OperationName: "enterprises/E/devices/" + hostA.UUID + "/operations/lock-a",
-		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 		Status:        string(android.MDMAndroidCommandStatusPending),
-	}))
+	}, "258147"))
 
 	lockB := uuid.NewString()
 	require.NoError(t, ds.LockHostViaAndroidMDM(ctx, hostB, &android.MDMAndroidCommand{
 		CommandUUID:   lockB,
 		HostUUID:      hostB.UUID,
 		OperationName: "enterprises/E/devices/" + hostB.UUID + "/operations/lock-b",
-		CommandType:   string(android.MDMAndroidCommandTypeLock),
+		CommandType:   string(android.MDMAndroidCommandTypeResetPassword),
 		Status:        string(android.MDMAndroidCommandStatusPending),
-	}))
+	}, "369258"))
 	require.NoError(t, ds.UpdateMDMAndroidCommandStatus(ctx, lockB,
 		string(android.MDMAndroidCommandStatusAcknowledged), nil, nil, nil))
 

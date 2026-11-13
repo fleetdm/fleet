@@ -811,7 +811,7 @@ type BatchScriptCancelFunc func(ctx context.Context, batchExecutionID string) er
 
 type LockHostFunc func(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
 
-type UnlockHostFunc func(ctx context.Context, hostID uint) (unlockPIN string, err error)
+type UnlockHostFunc func(ctx context.Context, hostID uint) (*fleet.HostUnlockResult, error)
 
 type WipeHostFunc func(ctx context.Context, hostID uint, metadata *fleet.MDMWipeMetadata) error
 
@@ -5230,7 +5230,7 @@ func (s *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlo
 	return s.LockHostFunc(ctx, hostID, viewPIN)
 }
 
-func (s *Service) UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error) {
+func (s *Service) UnlockHost(ctx context.Context, hostID uint) (*fleet.HostUnlockResult, error) {
 	s.mu.Lock()
 	s.UnlockHostFuncInvoked = true
 	s.mu.Unlock()

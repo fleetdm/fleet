@@ -717,8 +717,8 @@ type HostLockWipeStatus struct {
 	// windows and linux hosts use a script to lock
 	LockScript *HostScriptResult
 
-	// macOS hosts must manually unlock using a secret PIN, which is stored here
-	// when the lock request is sent.
+	// macOS and Android hosts must manually unlock using a secret PIN, which is
+	// stored here when the lock request is sent.
 	UnlockPIN string
 	// macOS records the timestamp of the unlock request in the "unlock_ref",
 	// which is then stored here.
@@ -864,14 +864,35 @@ func (s HostLockWipeStatus) IsLocked() bool {
 	}
 
 	if s.HostFleetPlatform == "android" {
-		// Android device unlock happens locally via the user's PIN; AMAPI does not deliver a "device unlocked" notification, and Fleet
-		// has no UNLOCK command.
+		// The end user unlocks with the PIN Fleet set on lock, and AMAPI doesn't report it, so Fleet can't tell when the device
+		// is unlocked. Reporting "locked" would also block Lock (needed to generate a new PIN) and Wipe, since no unlock is ever sent.
 		return false
 	}
 
 	// locked if a script was sent and succeeded
 	return s.LockScript != nil && s.LockScript.ExitCode != nil &&
 		*s.LockScript.ExitCode == 0
+}
+
+// IsAndroidUnlockPINAvailable reports whether the current enrollment has an acknowledged Fleet lock
+// (RESET_PASSWORD under lock_ref) with a stored PIN, and hasn't been wiped since. Hosts locked before Fleet 5 have a
+// LOCK row and no PIN.
+func (s HostLockWipeStatus) IsAndroidUnlockPINAvailable() bool {
+	return s.HostFleetPlatform == "android" &&
+		s.UnlockPIN != "" &&
+		s.LockMDMCommand != nil &&
+		s.LockMDMCommand.RequestType == string(android.MDMAndroidCommandTypeResetPassword) &&
+		s.LockMDMCommandResult != nil &&
+		s.LockMDMCommandResult.Status == string(android.MDMAndroidCommandStatusAcknowledged) &&
+		!s.IsWiped()
+}
+
+// AndroidLockedAt returns when the device acknowledged the lock. Zero unless IsAndroidUnlockPINAvailable.
+func (s HostLockWipeStatus) AndroidLockedAt() time.Time {
+	if !s.IsAndroidUnlockPINAvailable() {
+		return time.Time{}
+	}
+	return s.LockMDMCommandResult.UpdatedAt
 }
 
 func (s HostLockWipeStatus) IsUnlocked() bool {
