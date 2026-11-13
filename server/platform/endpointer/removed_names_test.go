@@ -186,6 +186,7 @@ func TestMakeDecoderRemovedFormFields(t *testing.T) {
 	// The decoder fails without fleet_id, but the removed name is the error reported.
 	requireRejected(t, upload("/", map[string]string{"team_id": "1"}), "team_id")
 	require.EqualError(t, upload("/", map[string]string{"other": "1"}), "fleet_id is required")
+	requireRejected(t, upload("/?team_id=1", map[string]string{"fleet_id": "1"}), "team_id")
 	require.NoError(t, upload("/api/fleet/orbit/upload", map[string]string{"fleet_id": "1", "team_id": "1"}))
 }
 

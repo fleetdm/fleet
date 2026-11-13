@@ -169,7 +169,7 @@ type jsonValueWrapper interface{ JSONValueType() reflect.Type }
 var (
 	jsonValueWrapperType = reflect.TypeFor[jsonValueWrapper]()
 	unmarshalerType      = reflect.TypeFor[json.Unmarshaler]()
-	jsonFieldsCache sync.Map // reflect.Type → map[string]reflect.Type
+	jsonFieldsCache      sync.Map // reflect.Type → map[string]reflect.Type
 )
 
 // isOpaque reports whether t decodes itself, so its members are not struct fields the scan can see.

@@ -43,6 +43,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mdmmock "github.com/fleetdm/fleet/v4/server/mock/mdm"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/pkcs7"
@@ -5868,9 +5869,10 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 	// from `fleet.HostListOptions` and iterate to test that only a limited subset of filter (i.e.
 	// label_id, team_id, status, query) are allowed for bulk operations.
 	tc := []struct {
-		name      string
-		filters   *map[string]interface{}
-		has400Err bool
+		name       string
+		filters    *map[string]interface{}
+		has400Err  bool
+		removedKey string
 	}{
 		{
 			name: "valid status filter",
@@ -5911,7 +5913,7 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 			filters: &map[string]any{
 				"team_id": float64(1),
 			},
-			has400Err: true,
+			removedKey: "team_id",
 		},
 		{
 			name: "valid label_id filter",
@@ -5999,20 +6001,25 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		},
 	}
 
-	checkErr := func(t *testing.T, err error, has400Err bool) {
-		if has400Err {
+	checkErr := func(t *testing.T, err error, has400Err bool, removedKey string) {
+		switch {
+		case removedKey != "":
+			rke, ok := errors.AsType[*endpointer.RemovedKeyError](err)
+			require.True(t, ok, "got %v", err)
+			require.Equal(t, removedKey, rke.Key)
+		case has400Err:
 			require.Error(t, err)
 			var be *fleet.BadRequestError
 			require.ErrorAs(t, err, &be)
-		} else {
+		default:
 			require.NoError(t, err)
 		}
 	}
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
-			checkErr(t, svc.AddHostsToTeamByFilter(viewerCtx, nil, tt.filters), tt.has400Err)
-			checkErr(t, svc.DeleteHosts(viewerCtx, nil, tt.filters), tt.has400Err)
+			checkErr(t, svc.AddHostsToTeamByFilter(viewerCtx, nil, tt.filters), tt.has400Err, tt.removedKey)
+			checkErr(t, svc.DeleteHosts(viewerCtx, nil, tt.filters), tt.has400Err, tt.removedKey)
 		})
 	}
 }

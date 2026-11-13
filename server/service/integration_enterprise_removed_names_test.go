@@ -72,17 +72,24 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		reject(tc[0], tc[1], tc[2], tc[3])
 	}
 
-	// Multipart uploads: the old field is rejected whether or not fleet_id is also sent.
+	// Multipart uploads: the old field is rejected whether or not fleet_id is also sent, and in the query string too.
 	for _, path := range []string{"/software/package", "/scripts", "/configuration_profiles", "/setup_experience/script", "/bootstrap"} {
-		for _, fields := range []map[string]string{{"team_id": "0"}, {"fleet_id": "0", "team_id": "0"}} {
-			t.Run("POST "+path+" form field team_id", func(t *testing.T) {
+		for _, tc := range []struct {
+			query  string
+			fields map[string]string
+		}{
+			{fields: map[string]string{"team_id": "0"}},
+			{fields: map[string]string{"fleet_id": "0", "team_id": "0"}},
+			{query: "?team_id=0", fields: map[string]string{"fleet_id": "0"}},
+		} {
+			t.Run("POST "+path+tc.query+" form field team_id", func(t *testing.T) {
 				var body bytes.Buffer
 				w := multipart.NewWriter(&body)
-				for name, value := range fields {
+				for name, value := range tc.fields {
 					require.NoError(t, w.WriteField(name, value))
 				}
 				require.NoError(t, w.Close())
-				resp := s.DoRawWithHeaders("POST", "/api/latest/fleet"+path, body.Bytes(), http.StatusUnprocessableEntity,
+				resp := s.DoRawWithHeaders("POST", "/api/latest/fleet"+path+tc.query, body.Bytes(), http.StatusUnprocessableEntity,
 					map[string]string{"Content-Type": w.FormDataContentType(), "Authorization": "Bearer " + s.token})
 				var got struct {
 					Errors []map[string]string `json:"errors"`
