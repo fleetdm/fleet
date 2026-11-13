@@ -1,6 +1,8 @@
 # Windows zero touch without Entra or Autopilot
 
-Fleet supports two ways to do [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot). The first is a [provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package): a partner preinstalls Fleet's agent (fleetd), and new computers enroll in Fleet the first time they're online. The second, starting in Fleet 5.2.0, is a Fleet factory image. It also signs the end user in with your identity provider (IdP) and installs their software before they reach the Windows desktop. Fleet builds the Windows image for you and sends it to your PC maker (OEM), and the OEM ships computers straight to your end users.
+The best way to do [Autopilot without Autopilot](https://fleetdm.com/articles/autopilot-without-autopilot) is a Fleet factory image ([coming soon](https://github.com/fleetdm/fleet/issues/57617)). It signs the end user in with your identity provider (IdP) and installs their software before they reach the Windows desktop. Fleet builds the Windows image for you and sends it to your PC maker (OEM), and the OEM ships computers straight to your end users. Watch a [preview](https://www.youtube.com/watch?v=RHd214noYKs) of what end users see.
+
+You can do zero touch today with a [provisioning package](https://fleetdm.com/guides/preinstall-fleets-agent-on-windows-with-a-provisioning-package): a partner preinstalls Fleet's agent (fleetd), and new computers enroll in Fleet the first time they're online.
 
 ## What's new
 
