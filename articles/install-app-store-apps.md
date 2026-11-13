@@ -134,7 +134,7 @@ The Microsoft Store updates apps automatically. To make sure automatic updates s
 
 After the profile is applied, **App updates** in the Microsoft Store's **Settings** is turned on and grayed out, so end users can't turn it off. To let end users turn automatic updates on or off again, delete the profile.
 
-To update an app right away, select **Reinstall** on the host's **Host details** page. Fleet installs the latest version from the Microsoft Store.
+To update an app right away (if new version available), select **Reinstall** on the host's **Host details** page. Fleet installs the latest version from the Microsoft Store.
 
 ## Managed configuration
 
