@@ -246,6 +246,8 @@ GitHub issues: [#53080](https://github.com/fleetdm/fleet/issues/53080), [#58203]
 | `PATCH /abm_tokens/:id/renew` | `PATCH /ab_tokens/:id/renew` |
 | `GET /mdm/apple/abm_public_key` | `GET /mdm/apple/ab_public_key` |
 | `abm_token`, `abm_tokens`, and `host_dep_assignment.abm_token_id` in responses | `ab_token`, `ab_tokens`, and `ab_token_id` |
+| `macos_team`, `ios_team`, `ipados_team`, and `byod_team` in [List Apple Business (AB) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-apple-business-ab-tokens) and in `mdm.apple_business` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) | `macos_fleet`, `ios_fleet`, `ipados_fleet`, and `byod_fleet` |
+| `teams` for each token in the List VPP tokens response | `fleets` |
 | `mdm.apple_business_manager`, `mdm.apple_bm_enabled_and_configured`, and `mdm.apple_bm_terms_expired` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) | `mdm.apple_business`, `mdm.apple_business_enabled_and_configured`, and `mdm.apple_business_terms_expired` |
 | `mdm.apple_bm_default_team` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | Removed |
 
