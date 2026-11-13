@@ -5723,6 +5723,10 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 			require.Equal(t, androidHost.ID, id)
 			return &hostWithMDM, nil
 		}
+		ds.GetHostLockWipeStatusFunc = func(_ context.Context, h *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+			require.Equal(t, androidHost.ID, h.ID)
+			return &fleet.HostLockWipeStatus{HostFleetPlatform: "android"}, nil
+		}
 		return ds
 	}
 
@@ -5802,6 +5806,83 @@ func TestRunMDMCommandAndroid(t *testing.T) {
 						assert.NotNil(t, capturedActivity)
 					})
 				}
+			}
+		}
+	})
+
+	t.Run("refuses WIPE while a lock or wipe is pending or the host is wiped", func(t *testing.T) {
+		wipeCmd := &fleet.MDMCommand{CommandUUID: "wipe-uuid", RequestType: "WIPE"}
+		lockCmd := &fleet.MDMCommand{CommandUUID: "lock-uuid", RequestType: "LOCK"}
+		cases := []struct {
+			name       string
+			status     fleet.HostLockWipeStatus
+			wantMsg    string
+			wantStatus int
+		}{
+			{
+				name:       "pending wipe",
+				status:     fleet.HostLockWipeStatus{WipeMDMCommand: wipeCmd},
+				wantMsg:    "Host has pending wipe request. The host will be wiped when it comes online.",
+				wantStatus: http.StatusUnprocessableEntity,
+			},
+			{
+				name:       "pending lock",
+				status:     fleet.HostLockWipeStatus{LockMDMCommand: lockCmd},
+				wantMsg:    "Host has pending lock request. Host cannot be wiped until lock is complete.",
+				wantStatus: http.StatusUnprocessableEntity,
+			},
+			{
+				name: "already wiped",
+				status: fleet.HostLockWipeStatus{
+					WipeMDMCommand:       wipeCmd,
+					WipeMDMCommandResult: &fleet.MDMCommandResult{Status: string(android.MDMAndroidCommandStatusAcknowledged)},
+				},
+				wantMsg:    "Host is already wiped.",
+				wantStatus: http.StatusConflict,
+			},
+		}
+		payloads := []string{`{"type":"WIPE","wipeParams":{}}`, `{"wipeParams":{}}`}
+
+		for _, tc := range cases {
+			for _, payload := range payloads {
+				t.Run(tc.name+"/"+payload, func(t *testing.T) {
+					ds := setupWipeDS(t, fleet.MDMEnrollmentStatusPersonal)
+					ds.GetHostLockWipeStatusFunc = func(_ context.Context, _ *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+						status := tc.status
+						status.HostFleetPlatform = "android"
+						return &status, nil
+					}
+					androidMock := &mockAndroidService{
+						IssueCustomCommandFunc: func(_ context.Context, _ uint, _ []byte) (*android.MDMAndroidCommand, error) {
+							t.Error("no command should be sent to AMAPI")
+							return nil, errors.New("unexpected AMAPI call")
+						},
+					}
+					opts := &TestServerOpts{
+						SkipCreateTestUsers: true,
+						AndroidModule:       androidMock,
+					}
+					svc, ctx := newTestService(t, ds, nil, nil, opts)
+					ctx = test.UserContext(ctx, test.UserAdmin)
+					opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+						t.Error("no activity should be created")
+						return nil
+					}
+
+					encoded := base64.StdEncoding.EncodeToString([]byte(payload))
+					_, err := svc.RunMDMCommand(ctx, encoded, []string{androidHost.UUID})
+					require.Error(t, err)
+					require.ErrorContains(t, err, tc.wantMsg)
+					var clientErr interface{ IsClientError() bool }
+					require.ErrorAs(t, err, &clientErr)
+					require.True(t, clientErr.IsClientError())
+					gotStatus := http.StatusUnprocessableEntity
+					var statusErr interface{ Status() int }
+					if errors.As(err, &statusErr) {
+						gotStatus = statusErr.Status()
+					}
+					require.Equal(t, tc.wantStatus, gotStatus)
+				})
 			}
 		}
 	})

@@ -2241,6 +2241,17 @@ func (svc *Service) clearPasscodeAndroid(ctx context.Context, host *fleet.Host, 
 		})
 	}
 
+	// Read from the primary so a Clear passcode right after a Wipe sees the wipe_ref it wrote.
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctxdb.RequirePrimary(ctx, true), host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
+	}
+	if lockWipe.IsPendingWipe() {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(
+			"host_id", "Host has pending wipe request. Cannot process clear passcode requests once host is wiped.",
+		))
+	}
+
 	commandUUID, err := svc.androidModule.ClearAndroidPasscode(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "issuing android clear-passcode")
