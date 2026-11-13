@@ -1,12 +1,14 @@
 // Text inputs and selects come in the same two heights as primary buttons, so a field
 // and its submit button line up: normal (36px) and large (48px).
-// Use .text-input() for normal or .text-input(large). .text-input-size() sets only the size.
+// Use .text-input() for normal or .text-input(large).
 .text-input(@size: normal) {
-  .text-input-size(@size);
+  .text-input-size-internal(@size);
   .text-input-focus();
 }
 
-.text-input-size(normal) {
+// Internal: use .text-input() instead. Only .form-control-sm in bootstrap-overrides.less calls
+// this directly, since .form-control already has the focus style.
+.text-input-size-internal(normal) {
   height: 36px;
   padding: 6.5px 12px;
   border-radius: 8px;
@@ -14,7 +16,7 @@
   line-height: 150%;
 }
 
-.text-input-size(large) {
+.text-input-size-internal(large) {
   height: 48px;
   padding: 11px 16px;
   border-radius: 8px;

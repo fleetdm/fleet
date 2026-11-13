@@ -35,8 +35,7 @@
 
 // Primary buttons come in two sizes: normal (36px) and large (48px). The look is shared.
 // Use .primary-button() for normal or .primary-button(large), and set display where needed.
-// .primary-button-size() sets only the size, for switching sizes without repeating the look.
-// Bootstrap's .btn-primary already uses these (see bootstrap-overrides.less).
+// Bootstrap's .btn-primary already uses it (see bootstrap-overrides.less).
 // The hover spotlight follows the cursor via --spotlight-x/--spotlight-y, which
 // assets/js/utilities/primary-button-spotlight.js sets on any element with --primary-button.
 @primary-button-ring: #008A70;
@@ -118,13 +117,15 @@
       transition: none;
     }
   }
-  .primary-button-size(@size);
+  .primary-button-size-internal(@size);
 }
 
 // Vertical padding + line-height add up to the height (7.5 + 21 + 7.5 = 36, 12 + 24 + 12 = 48),
 // so labels stay centered even where a page sets display: block on the button. min-height lets a
 // label that has to wrap (zoomed text, long translations) grow the button instead of being clipped.
-.primary-button-size(normal) {
+// Internal: use .primary-button() instead. Only .btn-sm in bootstrap-overrides.less calls this
+// directly, to switch an existing .btn-primary to normal without repeating the look.
+.primary-button-size-internal(normal) {
   min-height: 36px;
   padding: 7.5px 16px;
   border-radius: 12px;
@@ -132,7 +133,7 @@
   line-height: 150%;
 }
 
-.primary-button-size(large) {
+.primary-button-size-internal(large) {
   min-height: 48px;
   padding: 12px 24px;
   border-radius: 16px;

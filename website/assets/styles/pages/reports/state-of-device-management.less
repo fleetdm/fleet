@@ -31,14 +31,10 @@
     @media (min-width: 576px) {
       align-items: center;
     }
-    a {
+    a:not(.btn-primary) {
       padding: 16px 60px;
       font-size: 16px;
       font-weight: 400;
-      &.btn-primary {
-        .primary-button-size(large);
-        font-weight: 700;
-      }
       img {
         height: 16px;
         width: 16px;
@@ -183,11 +179,6 @@
           line-height: 14px;
           margin-bottom: 8px;
         }
-      }
-    }
-    [purpose='cta-btns'] {
-      [purpose='get-started-btn'] {
-        .primary-button-size(large);
       }
     }
 
