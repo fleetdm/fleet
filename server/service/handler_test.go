@@ -90,11 +90,10 @@ func TestAPIRoutesMetrics(t *testing.T) {
 	require.NoError(t, err)
 	router := h.(interface{ Router() *endpointer.Router }).Router()
 
-	// replace all handlers with mocks, and collect the requests to make to each
-	// route.
+	// collect the requests to make to each route, then replace all handlers with mocks
 	var reqs []*http.Request
 	err = router.Gorilla().Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
-		verb, path, err := mockRouteHandler(route, http.StatusOK)
+		verb, path, err := routeTestRequest(route)
 		if path == "" || err != nil { // failure or no method set
 			return err
 		}
@@ -111,7 +110,7 @@ func TestAPIRoutesMetrics(t *testing.T) {
 	addMetrics(router)
 
 	// add the handler that returns the metrics, itself instrumented
-	router.Gorilla().Handle("/metrics", promhttp.Handler()).Name("metrics")
+	router.Handle(endpointer.Route{Name: "metrics", Path: "/metrics"}, promhttp.Handler())
 
 	// collect the route names
 	routeNames := make(map[string]bool)
@@ -305,6 +304,16 @@ var reSimpleVar, reNumVar = regexp.MustCompile(`\{(\w+)\}`), regexp.MustCompile(
 // replaces the handler of route with one that simply responds with the status
 // code. Returns a verb and path that triggers this route or an error.
 func mockRouteHandler(route *mux.Route, status int) (verb, path string, err error) {
+	verb, path, err = routeTestRequest(route)
+	if path == "" || err != nil {
+		return verb, path, err
+	}
+	route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) })
+	return verb, path, nil
+}
+
+// routeTestRequest returns a method and a concrete path that match route. The path is empty for a route without methods.
+func routeTestRequest(route *mux.Route) (verb, path string, err error) {
 	name := route.GetName()
 	path, err = route.GetPathTemplate()
 	if err != nil {
@@ -334,7 +343,6 @@ func mockRouteHandler(route *mux.Route, status int) (verb, path string, err erro
 		return "1"
 	})
 
-	route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(status) })
 	return meths[0], path, nil
 }
 

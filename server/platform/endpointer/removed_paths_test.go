@@ -17,10 +17,10 @@ func TestRegisterRemovedPaths(t *testing.T) {
 	t.Parallel()
 
 	r := NewRouter()
-	r.Gorilla().HandleFunc("/api/v1/fleet/kept", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	ok := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Handle(Route{Name: "kept", Path: "/api/v1/fleet/kept"}, ok)
 	// A live route with the same shape as the method-limited removed path below, registered first as in the API.
-	r.Gorilla().HandleFunc("/api/v1/fleet/partly/{id:[0-9]+}", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }).
-		Methods(http.MethodGet)
+	r.Handle(Route{Name: "partly", Methods: []string{http.MethodGet}, Path: "/api/v1/fleet/partly/{id:[0-9]+}"}, ok)
 	var logs bytes.Buffer
 	RegisterRemovedPaths(r, []string{"v1", "2022-04"}, slog.New(slog.NewJSONHandler(&logs, nil)), []RemovedPath{
 		{

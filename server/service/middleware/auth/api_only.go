@@ -57,8 +57,8 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 		requestMethod, _ := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
 		routeTemplate, _ := eu.RouteTemplateFromContext(ctx)
 
-		// Missing method or route template means the transport wasn't wired
-		// with RouteTemplateRequestFunc; fail closed naming the misconfiguration.
+		// A missing method means the transport wasn't wired with kithttp.PopulateRequestContext, and a missing route template means
+		// the route wasn't registered through endpointer.Router; fail closed naming the misconfiguration.
 		if requestMethod == "" {
 			return nil, endpointRestrictionDenied(ctx, routeTemplate, "request method missing from request context")
 		}

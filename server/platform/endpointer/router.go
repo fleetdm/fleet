@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/gorilla/mux"
 )
@@ -37,19 +36,24 @@ func (rt Route) clone() Route {
 
 // Router is Fleet's API router. It records every route registered through the endpointer, in registration order, and puts the
 // route template on the request context of each request it serves. The routes are also registered on a gorilla router
-// underneath, which still matches requests until the stdlib ServeMux replaces it.
+// underneath, which still matches requests until the stdlib ServeMux replaces it. Register every route and call WrapHandlers
+// before serving: none of them are safe to call concurrently with each other or with ServeHTTP.
 type Router struct {
 	gorilla *mux.Router
-
-	mu     sync.Mutex
-	routes []registeredRoute
+	routes  []*registeredRoute
 }
 
 type registeredRoute struct {
 	Route
-	// handler is the route's handler before the router adds the route template, so WrapHandlers can wrap it again.
+	// template is computed once at registration, since every request reads it.
+	template string
+	// handler is the route's current handler, without the route template. The router registers a fixed handler underneath
+	// that calls this one, so WrapHandlers never has to change what the underlying router holds.
 	handler http.Handler
-	gorilla *mux.Route
+}
+
+func (rr *registeredRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	rr.handler.ServeHTTP(w, req.WithContext(WithRouteTemplate(req.Context(), rr.template)))
 }
 
 // NewRouter returns an empty Router.
@@ -57,7 +61,7 @@ func NewRouter() *Router {
 	return &Router{gorilla: mux.NewRouter()}
 }
 
-// ServeHTTP serves r with the route that matches it.
+// ServeHTTP serves req with the route that matches it.
 func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	r.gorilla.ServeHTTP(w, req)
 }
@@ -68,11 +72,9 @@ func (r *Router) Gorilla() *mux.Router { return r.gorilla }
 
 // Routes returns a copy of the recorded routes, in registration order.
 func (r *Router) Routes() []Route {
-	r.mu.Lock()
-	defer r.mu.Unlock()
 	routes := make([]Route, 0, len(r.routes))
-	for _, rt := range r.routes {
-		routes = append(routes, rt.clone())
+	for _, rr := range r.routes {
+		routes = append(routes, rr.clone())
 	}
 	return routes
 }
@@ -80,26 +82,21 @@ func (r *Router) Routes() []Route {
 // WrapHandlers replaces the handler of every route registered so far with wrap(route, handler). The route template stays on
 // the request context of the wrapped handler.
 func (r *Router) WrapHandlers(wrap func(rt Route, h http.Handler) http.Handler) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	for i := range r.routes {
-		rt := &r.routes[i]
-		rt.handler = wrap(rt.clone(), rt.handler)
-		rt.gorilla.Handler(withRouteTemplateHandler(rt.Template(), rt.handler))
+	for _, rr := range r.routes {
+		rr.handler = wrap(rr.clone(), rr.handler)
 	}
 }
 
 // Handle registers handler for rt. The endpointer registers every API route through it; code outside the endpointer only
 // needs it for a handler that is not a kit endpoint.
 func (r *Router) Handle(rt Route, handler http.Handler) {
+	rr := &registeredRoute{Route: rt.clone(), template: rt.Template(), handler: handler}
 	var route *mux.Route
-	h := withRouteTemplateHandler(rt.Template(), handler)
 	if rt.Prefix {
-		route = r.gorilla.PathPrefix(rt.Template()).Handler(h)
+		route = r.gorilla.PathPrefix(rr.template).Handler(rr)
 	} else {
-		route = r.gorilla.Handle(rt.Template(), h)
+		route = r.gorilla.Handle(rr.template, rr)
 	}
-	rt = rt.clone()
 	route.Name(rt.Name)
 	if len(rt.Methods) > 0 {
 		// gorilla keeps, and uppercases in place, the slice it is given. An empty list would match no method at all.
@@ -110,13 +107,5 @@ func (r *Router) Handle(rt Route, handler http.Handler) {
 		// but never matches it, so the route would be listed without being served.
 		panic(fmt.Sprintf("invalid route %s %s: %v", strings.Join(rt.Methods, ","), rt.Path, err))
 	}
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.routes = append(r.routes, registeredRoute{Route: rt, handler: handler, gorilla: route})
-}
-
-func withRouteTemplateHandler(tpl string, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		next.ServeHTTP(w, r.WithContext(WithRouteTemplate(r.Context(), tpl)))
-	})
+	r.routes = append(r.routes, rr)
 }
