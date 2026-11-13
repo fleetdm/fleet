@@ -313,7 +313,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 
 	// remove the setup experience script, run the new setup experience flow when
 	// there is no setup experience item to process (so it is bypassed)
-	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
+	s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "fleet_id", fmt.Sprint(tm.ID))
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;bypass_flow", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
@@ -327,7 +327,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	}
 
 	t.Run("manual agent install (no fleetd)", func(t *testing.T) {
-		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "team_id", fmt.Sprint(tm.ID))
+		s.Do("DELETE", "/api/latest/fleet/setup_experience/script", nil, http.StatusOK, "fleet_id", fmt.Sprint(tm.ID))
 		s.runDEPEnrollReleaseDeviceTest(t, teamDevice, DEPEnrollTestOpts{
 			EnableReleaseManually: true,
 			TeamID:                &tm.ID,

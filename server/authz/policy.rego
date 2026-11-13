@@ -1565,10 +1565,10 @@ allow {
 
 # Team admins, maintainers and gitops can read and write certificate templates on their teams.
 allow {
-  not is_null(object.team_id)
-  object.team_id != 0
+  not is_null(object.fleet_id)
+  object.fleet_id != 0
   object.type == "certificate_template"
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
 }
 

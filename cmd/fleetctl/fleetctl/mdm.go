@@ -106,14 +106,14 @@ func mdmRunCommand() *cli.Command {
 					var sce kithttp.StatusCoder
 					if errors.As(err, &sce) {
 						if sce.StatusCode() == http.StatusForbidden {
+							// GitOps users can't read hosts, so the lookup is where they are denied.
+							if me, meErr := client.Me(); meErr == nil && isGitOpsUser(me) {
+								return errors.New(fleet.GitOpsMDMCommandErrorMessage)
+							}
 							return fmt.Errorf("You don't have permission to run an MDM command on one or more specified hosts: %w", err)
 						}
 					}
 					return err
-				}
-				// Only GitOps users get an ID-only host (until that's removed in Fleet 5), and they can't run MDM commands.
-				if host.UUID == "" && host.HardwareSerial == "" && host.CreatedAt.IsZero() {
-					return errors.New(fleet.GitOpsMDMCommandErrorMessage)
 				}
 
 				mdmHostPlatform := fleet.ClassicMDMPlatform(host.Platform)
@@ -385,4 +385,16 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 	}
 
 	return client, host, nil
+}
+
+// isGitOpsUser reports whether every role the user holds is GitOps. A 403 on the host lookup doesn't say which fleet was denied, so a
+// user with other roles too can't be told apart from one denied ordinary cross-fleet access.
+func isGitOpsUser(user *fleet.User) bool {
+	if user == nil {
+		return false
+	}
+	if user.GlobalRole != nil {
+		return *user.GlobalRole == fleet.RoleGitOps
+	}
+	return len(user.Teams) > 0 && !slices.ContainsFunc(user.Teams, func(t fleet.UserTeam) bool { return t.Role != fleet.RoleGitOps })
 }
