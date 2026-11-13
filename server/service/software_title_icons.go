@@ -18,7 +18,7 @@ import (
 
 type getSoftwareTitleIconsRequest struct {
 	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
+	TeamID  *uint `query:"fleet_id"`
 }
 type getSoftwareTitleIconsResponse struct {
 	Err         error  `json:"error,omitempty"`
@@ -62,7 +62,7 @@ func getSoftwareTitleIconsEndpoint(ctx context.Context, request interface{}, svc
 	req := request.(*getSoftwareTitleIconsRequest)
 
 	if req.TeamID == nil {
-		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "team_id is required"}}, nil
+		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "fleet_id is required"}}, nil
 	}
 	if req.TitleID == 0 {
 		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "invalid title_id"}}, nil
@@ -96,7 +96,7 @@ func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 
 type putSoftwareTitleIconRequest struct {
 	TitleID    uint  `url:"title_id"`
-	TeamID     *uint `query:"team_id" renameto:"fleet_id"`
+	TeamID     *uint `query:"fleet_id"`
 	File       *multipart.FileHeader
 	HashSHA256 *string
 	Filename   *string
@@ -123,21 +123,16 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 	if titleIDUint64 > math.MaxUint {
 		return nil, &fleet.BadRequestError{Message: "title_id value too large"}
 	}
-	// Accept both fleet_id and team_id without deprecation warning, since
-	// persisted icon URLs may still contain team_id.
 	teamID := r.URL.Query().Get("fleet_id")
 	if teamID == "" {
-		teamID = r.URL.Query().Get("team_id")
-	}
-	if teamID == "" {
-		return nil, &fleet.BadRequestError{Message: "team_id is required"}
+		return nil, &fleet.BadRequestError{Message: "fleet_id is required"}
 	}
 	teamIDUint64, err := strconv.ParseUint(teamID, 10, 64)
 	if err != nil {
-		return nil, &fleet.BadRequestError{Message: "invalid team_id"}
+		return nil, &fleet.BadRequestError{Message: "invalid fleet_id"}
 	}
 	if teamIDUint64 > math.MaxUint {
-		return nil, &fleet.BadRequestError{Message: "team_id value too large"}
+		return nil, &fleet.BadRequestError{Message: "fleet_id value too large"}
 	}
 	teamIDUint := uint(teamIDUint64)
 
@@ -280,7 +275,7 @@ func ValidateIcon(file io.ReadSeeker) error {
 
 type deleteSoftwareTitleIconRequest struct {
 	TitleID uint  `url:"title_id"`
-	TeamID  *uint `query:"team_id" renameto:"fleet_id"`
+	TeamID  *uint `query:"fleet_id"`
 }
 
 type deleteSoftwareTitleIconResponse struct {
@@ -295,7 +290,7 @@ func deleteSoftwareTitleIconEndpoint(ctx context.Context, request interface{}, s
 	req := request.(*deleteSoftwareTitleIconRequest)
 
 	if req.TeamID == nil {
-		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "team_id is required"}}, nil
+		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "fleet_id is required"}}, nil
 	}
 	if req.TitleID == 0 {
 		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "invalid title_id"}}, nil

@@ -64,7 +64,7 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 
 	// add VPP app
 	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "fleet_id", "0")
 	require.NoError(t, appResp.Err)
 	require.NotEmpty(t, appResp.AppStoreApps)
 	addedApp := appResp.AppStoreApps[0]
@@ -187,7 +187,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 
 	// add VPP app
 	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "fleet_id", "0")
 	require.NoError(t, appResp.Err)
 	require.NotEmpty(t, appResp.AppStoreApps)
 	addedApp := appResp.AppStoreApps[0]
