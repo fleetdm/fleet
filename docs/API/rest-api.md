@@ -35,7 +35,7 @@ Authorization: Bearer <your token>
 
 ### Log in
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Authenticates the user with the specified credentials and returns a new API token. Use the token returned from this endpoint to authenticate further API requests.
 
@@ -147,7 +147,7 @@ Each successful request creates a new session with its own token. The `token_exp
 
 ### Log out
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Logs out the authenticated user.
 
@@ -165,7 +165,7 @@ Logs out the authenticated user.
 
 ### Forgot password
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Sends a password reset email to the specified email. Requires that SMTP or SES is configured for your Fleet server.
 
@@ -213,7 +213,7 @@ Sends a password reset email to the specified email. Requires that SMTP or SES i
 
 ### Update password
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 `POST /api/v1/fleet/change_password`
 
@@ -261,7 +261,7 @@ Changes the password for the authenticated user.
 
 ### Reset password
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Resets a user's password. Which user is determined by the password reset token used. The password reset token can be found in the password reset email sent to the desired user.
 
@@ -298,7 +298,7 @@ Resets a user's password. Which user is determined by the password reset token u
 
 ### Me
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Retrieves the user data for the authenticated user.
 
@@ -355,7 +355,7 @@ Retrieves the user data for the authenticated user.
 
 ### Perform required password reset
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Resets the password of the authenticated user. Requires that `force_password_reset` is set to `true` prior to the request.
 
@@ -400,7 +400,7 @@ Resets the password of the authenticated user. Requires that `force_password_res
 
 ### SSO config
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Gets the current SSO configuration.
 
@@ -428,7 +428,7 @@ Gets the current SSO configuration.
 
 ### Initiate SSO
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 `POST /api/v1/fleet/sso`
 
@@ -479,7 +479,7 @@ Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; M
 
 ### SSO callback
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 This is the callback endpoint that the identity provider will use to send security assertions to Fleet. This is where Fleet receives and processes the response from the identify provider.
 
@@ -527,7 +527,7 @@ Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 
 ### List activities
 
-((Global admin)) ((Global maintainer)) ((Global technician)) ((Global observer)) ((Global observer+))
+((Global admin)) ((Global maintainer)) ((Global technician)) ((Global observer+)) ((Global observer))
 
 Returns a list of the activities that have been performed in Fleet. For a comprehensive list of activity types and detailed information, please see the [audit logs](https://fleetdm.com/docs/using-fleet/audit-activities) page.
 
@@ -622,7 +622,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### List policy automation activities
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/policies/:id/automation_activities`
 
@@ -1437,7 +1437,7 @@ Resends a certificate for the specified host. Currently, only Android certificat
 
 ### Get chart data
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns time-series data for a dashboard chart, as a list of per-bucket distinct host counts over a recent window.
 
@@ -1750,7 +1750,7 @@ The Fleet server exposes API endpoints that handle the configuration of Fleet as
 
 ### Get Fleet certificate
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns the Fleet certificate.
 
@@ -1776,7 +1776,7 @@ None.
 
 ### Get configuration
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns all information about the Fleet's configuration.
 
@@ -3437,7 +3437,7 @@ Delete all global enroll secrets.
 
 ### Get fleet-level enroll secrets
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns the fleet's enroll secrets.
 
@@ -3543,7 +3543,7 @@ Delete all of a fleet's existing enroll secrets
 
 ### Get version
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Get version and build information from the Fleet server.
 
@@ -3645,7 +3645,7 @@ the `software` table.
 
 ### List hosts
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/hosts`
 
@@ -3995,7 +3995,7 @@ Response payload with the `munki_issue_id` filter provided:
 
 ### Count hosts
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/hosts/count`
 
@@ -4061,7 +4061,7 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 
 ### Get hosts summary
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns the count of all hosts organized by status. `online_count` includes all hosts currently enrolled in Fleet. `offline_count` includes all hosts that haven't checked into Fleet recently. `mia_count` includes all hosts that haven't been seen by Fleet in more than 30 days. `new_count` includes the hosts that have been enrolled to Fleet in the last 24 hours.
 
@@ -4205,7 +4205,7 @@ For iOS, iPadOS, and Android hosts, which don't run osquery, `online`/`offline` 
 
 ### Get host
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns the information of the specified host.
 
@@ -5136,7 +5136,7 @@ Entries in `mdm.profiles` that represent an Android certificate carry a `certifi
 
 ### Get host by identifier
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns the information of the host specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier.
 
@@ -6184,7 +6184,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 ### Refetch host
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Flags the host details, labels and policies to be refetched the next time the host checks in. Note that we cannot be certain when the host will actually check in. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
@@ -6577,7 +6577,7 @@ Removes the host's device ID in Google, so another device can register as this h
 
 ### Get host's device health report
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Retrieves information about a single host's device health.
 
@@ -6663,7 +6663,7 @@ Retrieves the end user url for the host's **My device** page.
 
 ### Get host's mobile device management (MDM) information
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Currently supports Windows and macOS.
 
@@ -6700,7 +6700,7 @@ If the host exists but is not enrolled to an MDM server, then this API returns `
 
 ### Get mobile device management (MDM) status
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Currently supports Windows and macOS.
 
@@ -6757,7 +6757,7 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 
 ### Get host's mobile device management (MDM) and Munki information
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
@@ -6811,7 +6811,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 ### Get hosts' aggregate mobile device management (MDM) and Munki information
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Currently supported only on macOS.
 
@@ -6902,7 +6902,7 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 
 ### Get host's software
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/hosts/:id/software`
 
@@ -7242,7 +7242,7 @@ Each entry in `installed_versions` includes `release` when set. For `rpm_package
 
 ### Get hosts report in CSV
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns the list of hosts corresponding to the search criteria in CSV format, ready for download when
 requested by a web browser.
@@ -7301,7 +7301,7 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 
 ### Get host's disk encryption key
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Retrieves the disk encryption key for a host.
 
@@ -7379,7 +7379,7 @@ Requirements:
 
 ### Get host's Recovery Lock password
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Retrieves the Recovery Lock password for a host.
 
@@ -7438,7 +7438,7 @@ Rotates the Recovery Lock password for a host.
 
 ### Get host's certificates
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Available for macOS, iOS, iPadOS, and Windows hosts only. Requires Fleet's MDM to be [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
@@ -7671,7 +7671,7 @@ To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on.
 
 ### Send APNs ping to host
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Sends an APNs push notification to the specified macOS, iOS, or iPadOS host. This prompts the device to check in with the Fleet server and pick up any pending MDM commands or configuration profiles.
 
@@ -7695,7 +7695,7 @@ The host must have MDM turned on and be enrolled via Apple MDM. If the host is o
 
 ### Get host's past activity
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/hosts/:id/activities`
 
@@ -7769,7 +7769,7 @@ The host must have MDM turned on and be enrolled via Apple MDM. If the host is o
 
 ### Get host's upcoming activity
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/hosts/:id/activities/upcoming`
 
@@ -8133,7 +8133,7 @@ On macOS, Fleet generates the new password and sends it to the host in an MDM co
 
 ### Get host's managed account password
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Retrieves the managed account password for a macOS host.
 
@@ -8370,7 +8370,7 @@ The `hostname` host identifier is deprecated. Please use `host_ids`, `hardware_s
 
 ### Get label
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns the specified label.
 
@@ -8415,7 +8415,7 @@ Returns the specified label.
 
 ### Get labels summary
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns a list of labels in Fleet, including basic information on each label.
 
@@ -8492,7 +8492,7 @@ Returns a list of labels in Fleet, including basic information on each label.
 
 ### List labels
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns a list of labels.
 
@@ -8631,7 +8631,7 @@ When `include_host_counts` is `true` (or omitted), `host_count` will only be inc
 
 ### List label's hosts
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns a list of the hosts that belong to the specified label.
 
@@ -10487,7 +10487,7 @@ Body: <blob>
 
 ### List setup experience software
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 _Available in Fleet Premium_
 
@@ -10637,7 +10637,7 @@ script="myscript.sh"
 
 ### Get or download setup experience script
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 _Available in Fleet Premium_
 
@@ -10797,7 +10797,7 @@ Note that the Apple `EraseDevice` and `DeviceLock` commands and the Android `LOC
 
 ### Get MDM command results
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 > The `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint, deprecated as of Fleet 4.40, was removed in Fleet 4.93. Use the API endpoint below instead.
 
@@ -10881,7 +10881,7 @@ Fleet deletes old MDM command history on a schedule. Once a command is deleted, 
 
 ### List MDM commands
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 > `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.  [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#list-custom-mdm-commands) is available for the deprecated endpoint.
 
@@ -12255,7 +12255,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
 
 ### List policies
 
-((Admin)) ((Maintainer)) ((Global GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Global GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/global/policies`
 
@@ -12329,7 +12329,7 @@ For example, a policy might ask "Is Gatekeeper enabled on macOS devices?" This p
 
 ### List fleet-level policies
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 _Available in Fleet Premium_
 
@@ -12546,7 +12546,7 @@ _Available in Fleet Premium_
 
 ### Get policies count
 
-((Admin)) ((Maintainer)) ((Global GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Global GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/policies/count`
 
@@ -12575,7 +12575,7 @@ _Available in Fleet Premium_
 
 ### Get fleet-level policies count
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 _Available in Fleet Premium_
 
@@ -12608,7 +12608,7 @@ _Available in Fleet Premium_
 
 ### Get policy
 
-((Admin)) ((Maintainer)) ((Global GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Global GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/global/policies/:id`
 
@@ -12654,7 +12654,7 @@ _Available in Fleet Premium_
 
 ### Get fleet-level policy
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 _Available in Fleet Premium_
 
@@ -13218,7 +13218,7 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 
 ### List reports
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns a list of reports. To see each report's data, use the [get report data](#get-report-data) endpoint.
 
@@ -13379,7 +13379,7 @@ Returns a list of reports. To see each report's data, use the [get report data](
 
 ### List host's reports
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Lists the saved reports that run on a host, along with the first result for each report that saves results.
 
@@ -13464,7 +13464,7 @@ Lists the saved reports that run on a host, along with the first result for each
 
 ### Get report
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns the report specified by ID.
 
@@ -13530,7 +13530,7 @@ Returns the report specified by ID.
 
 ### Get report data
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns a specific report's data.
 
@@ -13636,7 +13636,7 @@ If a report has no results stored, then `results` will be an empty array:
 
 ### Get host's report data
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns a specific report's data for a single host.
 
@@ -14014,7 +14014,7 @@ Deletes the reports specified by ID. Returns the count of reports successfully d
 
 ### Run live report
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 > This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.43.0, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.42.0/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility.
 
@@ -14084,7 +14084,7 @@ The live report will stop if the request times out. Timeouts happen if targeted 
 
 ### Run live report (ad hoc)
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Runs the specified report as a live report on the specified hosts or group of hosts. This starts a new active report, represented in the response as the `campaign` object.
 
@@ -14186,7 +14186,7 @@ One of `query` and `query_id` must be specified.
 
 ### Run live report by target name (ad hoc)
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Runs the specified saved report as a live report on the targets (`selected`) specified by name instead of ID. This starts a new active report, represented in the response as the `campaign` object.
 
@@ -14321,7 +14321,7 @@ One of `query` and `query_id` must be specified.
 
 ### Retrieve live report results (standard WebSocket API)
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 You can retrieve the results of a live report using the [standard WebSocket API](#https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications).
 
@@ -14465,7 +14465,7 @@ o
 
 ### Retrieve live report results (SockJS)
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 You can also retrieve live report results with a [SockJS client](https://github.com/sockjs/sockjs-client). The script to handle the request and response messages will look similar to the standard WebSocket API script with slight variations. For example, the constructor used for SockJS is `SockJS` while the constructor used for the standard WebSocket API is `WebSocket`.
 
@@ -14675,7 +14675,7 @@ By default, script runs time out after 5 minutes. You can modify this default in
 
 ### Get script result
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Gets the result of a script that was executed.
 
@@ -14787,7 +14787,7 @@ Request (using `filters`):
 
 ### List batch scripts
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns a list of batch script executions.
 
@@ -14854,7 +14854,7 @@ Returns a list of batch script executions.
 
 ### Get batch script
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns a summary of a batch-run script, including host counts and current status.
 
@@ -14903,7 +14903,7 @@ Returns a summary of a batch-run script, including host counts and current statu
 
 ### List hosts targeted in batch script
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns a list hosts targeted in a batch script run, along with their script execution status.
 
@@ -15074,7 +15074,7 @@ Deletes an existing script.
 
 ### List scripts
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/scripts`
 
@@ -15125,7 +15125,7 @@ Deletes an existing script.
 
 ### List host's scripts
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/hosts/:id/scripts`
 
@@ -15188,7 +15188,7 @@ Deletes an existing script.
 
 ### Get or download script
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 `GET /api/v1/fleet/scripts/:id`
 
@@ -15245,7 +15245,7 @@ echo "hello"
 
 ### Get session
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns the session information for the session specified by ID.
 
@@ -15275,7 +15275,7 @@ Returns the session information for the session specified by ID.
 
 ### Delete session
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Deletes the session specified by ID. When the user associated with the session next attempts to access Fleet, they will be asked to log in.
 
@@ -15326,7 +15326,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ### List software
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Get a list of all software.
 
@@ -15488,7 +15488,7 @@ A software title can have more than one package. The `packages` array lists all 
 
 ### List software versions
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 > For optimal performance, we recommend Fleet Premium users set `without_vulnerability_details` to `true` whenever possible. If set to `false` a large amount of data will be included in the response. If you need vulnerability details, consider using the [Get vulnerability](#get-vulnerability) endpoint.
 
@@ -15620,7 +15620,7 @@ Get a list of all software versions.
 
 ### List operating systems
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns a list of all operating systems.
 
@@ -15684,7 +15684,7 @@ Windows and macOS listed vulnerabilities are based on OS version-specific data. 
 
 ### Get software
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
 
@@ -15918,7 +15918,7 @@ For Apple App Store and Google Play apps, the `software_package` field is `null`
 
 ### Get software version
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Returns information about the specified software version.
 
@@ -15983,7 +15983,7 @@ Returns information about the specified software version.
 
 ### Get operating system version
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Retrieves information about the specified operating system (OS) version.
 
@@ -16971,7 +16971,7 @@ Install self-service software on a macOS, Windows, or Linux host. The software m
 
 ### Get software install result
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 _Available in Fleet Premium._
 
@@ -17052,7 +17052,7 @@ When a new fleet is created, Fleet seeds it with the following default categorie
 
 ### List self-service categories
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Lists all self-service categories on the specified fleet.
 
@@ -17209,7 +17209,7 @@ Deletes the specified self-service category. Software assigned to the deleted ca
 
 ### List vulnerabilities
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Retrieves a list of all CVEs affecting software and/or OS versions.
 
@@ -17261,7 +17261,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 
 ### Get vulnerability
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 Retrieve details about a vulnerability and its affected software and OS versions.
 
@@ -17338,7 +17338,7 @@ In Fleet, targets are used to run reports against specific hosts or groups of ho
 
 ### Search targets
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 The search targets endpoint returns two lists. The first list includes the possible target hosts in Fleet given the search query provided and the hosts already selected as targets. The second list includes the possible target labels in Fleet given the search query provided and the labels already selected as targets.
 
@@ -17510,7 +17510,7 @@ The returned lists are filtered based on the hosts the requesting user has acces
 
 ### List fleets
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 _Available in Fleet Premium_
 
@@ -17620,7 +17620,7 @@ _Available in Fleet Premium_
 
 ### Get fleet
 
-((Admin)) ((Maintainer)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((Technician)) ((Observer+)) ((Observer))
 
 _Available in Fleet Premium_
 
@@ -18690,7 +18690,7 @@ _Available in Fleet Premium_
 
 ### Translate IDs
 
-((Global admin)) ((Global maintainer)) ((Global technician)) ((Global observer)) ((Global observer+))
+((Global admin)) ((Global maintainer)) ((Global technician)) ((Global observer+)) ((Global observer))
 
 Transforms a host name into a host id. For example, the Fleet UI uses this endpoint when sending live reports to a set of hosts.
 
@@ -18802,7 +18802,7 @@ The Fleet server exposes API endpoints that handles common user management opera
 
 ### List users
 
-((Admin)) ((Global maintainer)) ((Global technician)) ((Global observer)) ((Global observer+))
+((Admin)) ((Global maintainer)) ((Global technician)) ((Global observer+)) ((Global observer))
 
 Returns a list of all enabled users
 
@@ -19092,7 +19092,7 @@ The same error will be returned whenever one of the required parameters fails th
 
 ### Get user
 
-((Admin)) ((Global maintainer)) ((Global technician)) ((Global observer)) ((Global observer+))
+((Admin)) ((Global maintainer)) ((Global technician)) ((Global observer+)) ((Global observer))
 
 Returns all information about a specific user.
 
@@ -20025,7 +20025,7 @@ At least one field is required. Ratios outside the `[0, 1]` range are rejected.
 
 ### List custom variables
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Lists all custom variables that can be used in scripts, configuration profiles, and host name templates prefixed with `$FLEET_SECRET_`.
 
@@ -20139,7 +20139,7 @@ Removes a custom variable from Fleet.
 
 ### List custom host vitals
 
-((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer)) ((Observer+))
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
 
 Lists all [custom host vitals](https://fleetdm.com/guides/custom-host-vitals), which can be referenced as `$FLEET_HOST_VITAL_<id>` in scripts and configuration profiles, or as `custom_host_vital_id` in a Host vitals label's [`criteria`](#criteria).
 
