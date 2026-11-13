@@ -233,7 +233,8 @@ func (ds *Datastore) ListHostAISessionsNeedingEvents(ctx context.Context, hostID
 	// reread only once its ended_at moves past the one its events were read at. Sessions the cleanup is about to
 	// delete are left out: those that ended in the past go by their end, and the IF's NULL condition sends those whose
 	// end is unknown to the updated_at check, as it does those ending in the future. A session with maxEvents events
-	// stored is caught up.
+	// stored is caught up, and calls from maxEvents on aren't read again, as when the limit was lowered after they
+	// were stored.
 	const stmt = `
 SELECT
 	agent, agent_session_id, transcript_path, ended_at, event_count,
@@ -242,7 +243,7 @@ FROM host_ai_sessions
 WHERE host_id = ? AND transcript_path <> '' AND events_empty_reads < ? AND
 	IF(ended_at <= ?, ended_at >= ?, updated_at >= ?) AND (
 	event_count < LEAST(tool_call_count, ?) OR
-	(agent <> ? AND first_undecided_tool_call_index IS NOT NULL AND ended_at > COALESCE(events_ended_at, '1000-01-01'))
+	(agent <> ? AND first_undecided_tool_call_index < ? AND ended_at > COALESCE(events_ended_at, '1000-01-01'))
 )
 ORDER BY ended_at DESC
 LIMIT ?`
@@ -251,7 +252,7 @@ LIMIT ?`
 	var cursors []*fleet.HostAISessionEventsCursor
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &cursors, stmt,
 		maxEvents, hostID, hostAISessionMaxEmptyEventReads, now, activeAfter, activeAfter,
-		maxEvents, fleet.AISessionAgentCursor, limit); err != nil {
+		maxEvents, fleet.AISessionAgentCursor, maxEvents, limit); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host ai sessions needing events")
 	}
 	return cursors, nil

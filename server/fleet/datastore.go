@@ -586,7 +586,8 @@ type Datastore interface {
 	// ended first: those with tool calls after their stored events, and those caught up but with recent undecided
 	// events that may have had their decision recorded since they were read (except Cursor sessions, which never
 	// record decisions). Sessions whose last few reads returned no events are left out until they are active again.
-	// A session with maxEvents events stored is caught up, however many tool calls it has.
+	// A session with maxEvents events stored is caught up, however many tool calls it has, and calls from maxEvents on
+	// aren't read again.
 	ListHostAISessionsNeedingEvents(ctx context.Context, hostID uint, limit int, maxEvents uint) ([]*HostAISessionEventsCursor, error)
 	// UpsertHostAISessionEvents stores tool calls of the host's stored sessions by (session, tool call index),
 	// updating the decision of those already stored, and updates their sessions' event summary. Events of sessions
