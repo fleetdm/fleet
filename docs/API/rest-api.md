@@ -1470,6 +1470,10 @@ The available metrics are:
 - [Get Okta certificate](#get-okta-certificate)
 - [Get Okta configuration profile](#get-okta-configuration-profile)
 - [Delete Microsoft Entra ID](#disconnect-microsoft-entra-id)
+- [Connect Google](#connect-google)
+- [Get Google](#get-google)
+- [Update Google](#update-google)
+- [Delete Google](#delete-google)
 
 ### Get Okta certificate
 
@@ -1524,6 +1528,208 @@ None.
 ##### Default response
 
 `Status: 200`
+
+### Connect Google
+
+_Available in Fleet Premium._
+
+Connects Fleet to Google to mark company-owned iOS, iPadOS, and Android hosts as managed, for [conditional access with Google](https://fleetdm.com/guides/google-conditional-access-integration). Fleet checks the service account's domain-wide delegation with Google before saving anything.
+
+If Google is already connected, this replaces the settings and the key. To change only some of them, use [Update Google](#update-google).
+
+Requires the global admin role and a [server private key](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
+
+`POST /api/v1/fleet/conditional_access/google`
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                                                 |
+| ------------------- | ------ | ---- | --------------------------------------------------------------------------- |
+| customer_id         | string | body | **Required**. Your Google customer ID, with its leading `C` (for example, `C01234abc`). Find it in the Google Admin console under **Account > Account settings**. |
+| admin_email         | string | body | **Required**. The email of the Google Workspace admin Fleet uses to mark hosts as managed. |
+| service_account_key | object | body | **Required**. The service account JSON key, with domain-wide delegation for the `https://www.googleapis.com/auth/cloud-identity.devices` scope. Fleet stores it encrypted and never returns it. |
+
+#### Example
+
+`POST /api/v1/fleet/conditional_access/google`
+
+##### Request body
+
+```json
+{
+  "customer_id": "C01234abc",
+  "admin_email": "fleet-admin@example.com",
+  "service_account_key": {
+    "type": "service_account",
+    "project_id": "fleet-conditional-access",
+    "private_key_id": "<private key id>",
+    "private_key": "-----BEGIN PRIVATE KEY-----\n<private key>\n-----END PRIVATE KEY-----\n",
+    "client_email": "fleet-conditional-access@fleet-conditional-access.iam.gserviceaccount.com",
+    "client_id": "<client id>",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "universe_domain": "googleapis.com"
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "customer_id": "C01234abc",
+  "admin_email": "fleet-admin@example.com",
+  "service_account_key_configured": true,
+  "state": "connected",
+  "error_message": null
+}
+```
+
+##### Google refused the service account
+
+Nothing is saved.
+
+`Status: 422`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "service_account_key",
+      "reason": "Couldn't connect to Google: <Google's reason>"
+    }
+  ]
+}
+```
+
+##### fleetdm.com is unreachable
+
+The settings and the key are saved, and `state` is `"registration_failed"`. To try again, send the same request, or [Update Google](#update-google) with an empty body.
+
+`Status: 502`
+
+### Get Google
+
+_Available in Fleet Premium._
+
+Returns the Google conditional access settings and the connection status. The service account key is never returned.
+
+`GET /api/v1/fleet/conditional_access/google`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/conditional_access/google`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "customer_id": "C01234abc",
+  "admin_email": "fleet-admin@example.com",
+  "service_account_key_configured": true,
+  "state": "connected",
+  "error_message": null
+}
+```
+
+`state` is one of:
+
+- `""`: Google isn't configured. `customer_id` and `admin_email` are `""`.
+- `"pending"`: Fleet is connecting.
+- `"connected"`: Fleet marks hosts as managed in Google.
+- `"delegation_failed"`: Google refuses the service account. Fleet checks every 5 minutes, and `error_message` has Google's reason. Hosts that are already marked stay marked.
+- `"registration_failed"`: Fleet couldn't register with fleetdm.com. `error_message` has the reason.
+- `"deleted"`: A delete didn't finish. [Delete Google](#delete-google) again.
+
+### Update Google
+
+_Available in Fleet Premium._
+
+Changes the Google conditional access settings. Fields you leave out keep their value, so you can change the admin email without sending the key, or replace the key on its own. Fleet checks the result with Google before saving anything.
+
+Changing `admin_email` or `service_account_key` doesn't change which hosts are marked. Changing `customer_id` connects Fleet to a different Google Workspace: hosts register again there, and hosts stay marked in the previous Google Workspace.
+
+An empty request body tries a connection that didn't complete again.
+
+Requires the global admin role.
+
+`PATCH /api/v1/fleet/conditional_access/google`
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                                                 |
+| ------------------- | ------ | ---- | --------------------------------------------------------------------------- |
+| customer_id         | string | body | Your Google customer ID, with its leading `C`. |
+| admin_email         | string | body | The email of the Google Workspace admin Fleet uses to mark hosts as managed. |
+| service_account_key | object | body | The service account JSON key. |
+
+#### Example
+
+`PATCH /api/v1/fleet/conditional_access/google`
+
+##### Request body
+
+```json
+{
+  "admin_email": "new-admin@example.com"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "customer_id": "C01234abc",
+  "admin_email": "new-admin@example.com",
+  "service_account_key_configured": true,
+  "state": "connected",
+  "error_message": null
+}
+```
+
+##### Google isn't configured
+
+Use [Connect Google](#connect-google) instead.
+
+`Status: 400`
+
+### Delete Google
+
+_Available in Fleet Premium._
+
+Disconnects Fleet from Google and deletes the service account key. This won't unmark hosts: they stay marked as managed in Google. Learn how to [disable Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration#disable).
+
+Requires the global admin role.
+
+`DELETE /api/v1/fleet/conditional_access/google`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`DELETE /api/v1/fleet/conditional_access/google`
+
+##### Default response
+
+`Status: 200`
+
+##### fleetdm.com is unreachable
+
+Nothing is deleted. Try again.
+
+`Status: 502`
 
 ---
 
@@ -1787,7 +1993,12 @@ None.
     "okta_assertion_consumer_service_url": "https://example.okta.com/sso/saml2/0ogmbinlfy9hvGs7cx492",
     "okta_audience_uri": "https://www.okta.com/saml2/service-provider/asdhjlksoewpoasn",
     "okta_certificate": "-----BEGIN CERTIFICATE-----\nMIIC...\n-----END CERTIFICATE-----",
-    "bypass_disabled": false
+    "bypass_disabled": false,
+    "google": {
+      "service_account_key_configured": true,
+      "state": "connected",
+      "error_message": null
+    }
   },
   "host_expiry_settings": {
     "host_expiry_enabled": false,
@@ -2038,6 +2249,11 @@ None.
          }
       }
     ],
+    "google_conditional_access": {
+      "customer_id": "C01234abc",
+      "admin_email": "fleet-admin@example.com",
+      "api_key_json": "********"
+    },
     "jira": [],
     "zendesk": [],
     "certificates_idp_introspection_urls": [],
@@ -2403,6 +2619,11 @@ Modifies the Fleet's configuration with the supplied information.
         "api_key_json": null
       }
     ],
+    "google_conditional_access": {
+      "customer_id": "C01234abc",
+      "admin_email": "fleet-admin@example.com",
+      "api_key_json": "********"
+    },
     "jira": [
       {
         "url": "https://jiraserver.com",
@@ -2773,6 +2994,7 @@ _Available in Fleet Premium._
 | zendesk         | array  | See [`integrations.zendesk`](#integrations-zendesk).                 |
 | google_calendar | array  | See [`integrations.google_calendar`](#integrations-google-calendar). |
 | google_workspace | array | See [`integrations.google_workspace`](#integrations-google-workspace). |
+| google_conditional_access | object | See [`integrations.google_conditional_access`](#integrations-google-conditional-access). |
 
 <br/>
 
@@ -2835,6 +3057,24 @@ _Available in Fleet Premium._
 
 <br/>
 
+##### integrations.google_conditional_access
+
+_Available in Fleet Premium._
+
+`integrations.google_conditional_access` is an object with the following structure. When set, Fleet marks company-owned iOS, iPadOS, and Android hosts as managed in Google, so Google Context-Aware Access can block sign-in from hosts that aren't managed by Fleet. Only global admins can set it. Learn more in the [Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration) guide.
+
+| Name         | Type   | Description |
+| ------------ | ------ | ----------- |
+| customer_id  | string | Your Google customer ID (for example, `C01234abc`). Find it in the Google Admin console under **Account > Account settings**. |
+| admin_email  | string | The email of the Google Workspace admin Fleet uses to mark hosts as managed. |
+| api_key_json | object | The service account JSON key, with domain-wide delegation for the `https://www.googleapis.com/auth/cloud-identity.devices` scope. If omitted, Fleet keeps the key that's already uploaded. Returned as `"********"` when a key is uploaded. |
+
+If `integrations.google_conditional_access` is omitted or `null`, the settings don't change. To turn it off, use [Delete Google](#delete-google). You can also set it with [Connect Google](#connect-google) and [Update Google](#update-google).
+
+The connection status is in the read-only `google` object in [`conditional_access`](#conditional-access).
+
+<br/>
+
 ##### Example request body
 
 ```json
@@ -2863,7 +3103,12 @@ _Available in Fleet Premium._
         "impersonated_user_email": "admin@example.com",
         "api_key_json": "<API KEY JSON>"
       }
-    ]
+    ],
+    "google_conditional_access": {
+      "customer_id": "C01234abc",
+      "admin_email": "fleet-admin@example.com",
+      "api_key_json": "<API KEY JSON>"
+    }
   }
 }
 ```
@@ -2881,6 +3126,8 @@ _Available in Fleet Premium._
 | bypass_disabled                    | boolean  | Disables the per-policy setting to allow bypassing Okta conditional access. (Default: `false`.) |
 
 When updating conditional access config, all `conditional_access` fields must either be empty or included in the request.
+
+In responses, `conditional_access.google` is a read-only object with the Google connection status: `service_account_key_configured`, `state`, and `error_message`. See [Get Google](#get-google) for the possible values. It's ignored in requests. To change the Google settings, use [`integrations.google_conditional_access`](#integrations-google-conditional-access).
 
 ##### Example request body
 
@@ -5796,7 +6043,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 > - `security_update_version` is the host's Android security patch level. It's also folded into `os_version`, for example `Android 16 (2026-05-01)`.
 
 
-> Note: `google_device_id` is only returned for iOS, iPadOS, and Android hosts. It's `""` when the host isn't bound to a device ID in Google. To bind it, use [Update host's Google device ID](#update-hosts-google-device-id).
+> Note: `google_device_id` is only returned for iOS, iPadOS, and Android hosts. It's `""` when the host isn't registered with a device in Google. With [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration) connected, Fleet sets it when the end user signs in to Google (iOS and iPadOS) and automatically after enrollment (Android). You can also set it with [Update host's Google device ID](#update-hosts-google-device-id).
 
 ### Get host by Fleet Desktop token
 
@@ -5893,6 +6140,7 @@ For iOS/iPadOS hosts, Fleet omits identifying details from the response: `uuid`,
     "status": "online",
     "display_text": "Annas-MacBook-Pro.local",
     "self_service": true,
+    "google_conditional_access_sign_in_required": false,
     "org_logo_url_dark_mode": "https://example.com/logo.png",
     "org_logo_url_light_mode": "https://example.com/logo-light.png",
     "org_logo_url": "https://example.com/logo.png",
@@ -6063,6 +6311,8 @@ A profile with `"status": null` is a self-service profile the host can install b
 `release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
 
 > `global_config.mdm.enabled_and_configured` only represents Apple MDM, and will return false if Apple MDM is not configured even if other platforms have MDM enabled and configured.
+
+> `google_conditional_access_sign_in_required` is `true` when the host is a company-owned iOS or iPadOS host, [Google conditional access](https://fleetdm.com/guides/google-conditional-access-integration) is connected, and the host isn't registered with Google yet. The **Self-service** web clip then starts the end user's Google sign-in. It's always `false` for other hosts.
 
 > Note: Android hosts can't be reached through this endpoint. They don't run Fleet Desktop, so they never get a token, and certificate authentication is limited to iOS and iPadOS. To read an Android host's vitals, use ["Get host"](#get-host) or ["Get host by identifier"](#get-host-by-identifier).
 
@@ -6358,7 +6608,11 @@ _Available in Fleet Premium._
 
 `PUT /api/v1/fleet/hosts/:id/google_device_id`
 
-Binds an iOS, iPadOS, or Android host to its device ID in Google, for [conditional access with Google](https://fleetdm.com/guides/google-conditional-access-integration). Setting the same ID again does nothing. Fleet refuses a different ID than the one already saved, so a registration link copied to another device can't take over the host. Each ID can only be bound to one host. Once set, the ID stays until you remove it with [Delete host's Google device ID](#delete-hosts-google-device-id) or the host is deleted. Wiping the host and enrolling it again doesn't remove it.
+Registers a company-owned iOS, iPadOS, or Android host with its device in Google and marks the device as managed, for [conditional access with Google](https://fleetdm.com/guides/google-conditional-access-integration). Fleet marks every Google Workspace account on the device.
+
+You usually don't need this endpoint: Fleet registers hosts when the end user signs in to Google (iOS and iPadOS) and automatically after enrollment (Android).
+
+Requires [Google to be connected](#connect-google) and a host with the **On (automatic)** MDM status. Setting the same ID again does nothing. Fleet refuses a different ID than the one already saved, and a device that's registered to another host. Once set, the ID stays until you remove it with [Delete host's Google device ID](#delete-hosts-google-device-id), or the host is deleted or unenrolled.
 
 #### Parameters
 
@@ -6422,6 +6676,22 @@ Binds an iOS, iPadOS, or Android host to its device ID in Google, for [condition
 }
 ```
 
+##### Google device is registered to another host
+
+`Status: 409`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "This Google device is already registered to another host."
+    }
+  ]
+}
+```
+
 ##### Host isn't an iOS, iPadOS, or Android host
 
 `Status: 422`
@@ -6438,13 +6708,71 @@ Binds an iOS, iPadOS, or Android host to its device ID in Google, for [condition
 }
 ```
 
+##### Google isn't connected
+
+`Status: 422`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "Google conditional access isn't connected. Connect it in Settings > Integrations > Conditional access."
+    }
+  ]
+}
+```
+
+##### Host isn't company-owned
+
+`Status: 422`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "Google device ID is only supported on company-owned hosts (MDM status: On (automatic))."
+    }
+  ]
+}
+```
+
+##### Google doesn't have the device
+
+Also returned, with the reason "This device has no users in Google.", when no Google Workspace account is signed in on the device.
+
+`Status: 422`
+
+```json
+{
+  "message": "Validation Failed",
+  "errors": [
+    {
+      "name": "google_device_id",
+      "reason": "Google has no device with this ID."
+    }
+  ]
+}
+```
+
+##### Google is unreachable
+
+Nothing is saved. Try again.
+
+`Status: 502`
+
 ### Delete host's Google device ID
 
 _Available in Fleet Premium._
 
 `DELETE /api/v1/fleet/hosts/:id/google_device_id`
 
-Removes the host's device ID in Google, so another device can register as this host. Use it after the device is wiped, since Google gives it a new device ID. If the host has no Google device ID, this does nothing.
+Removes the host's device ID in Google. Fleet unmarks the host as managed in Google within 5 minutes. If the host has no Google device ID, this does nothing.
+
+Removing the ID resets the host. A company-owned iOS or iPadOS host registers again the next time the end user opens **Self-service**. A company-owned Android host that's still enrolled is registered again automatically. Use it after a device is wiped, since Google gives it a new device ID.
 
 #### Parameters
 

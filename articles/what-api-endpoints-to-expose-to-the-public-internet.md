@@ -83,6 +83,16 @@ If you would like to use Fleet's Android features, the following endpoints need 
 - `/api/*/fleet/android_enterprise/pubsub`: Allows Fleet to receive enrollment and status report [notifications from the Android Management API](https://developers.google.com/android/management/reference/rest/v1/enterprises).
 - `/api/fleetd/*`: Allows deploying certificates for [connecting end users to Wi-Fi/VPN](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#basic-article).
 
+## Conditional access: Google
+
+If you would like Fleet to automatically mark company-owned iOS and iPadOS hosts as managed in Google ([Conditional access: Google](https://fleetdm.com/guides/google-conditional-access-integration)), the following endpoint needs to be exposed to fleetdm.com:
+
+- `/api/*/fleet/google_conditional_access/*`: Allows fleetdm.com to tell Fleet which device in Google a host is, after the end user signs in to Google. Fleet then marks the host as managed in Google.
+
+The **Self-service** web clip, where the end user's Google sign-in starts, also needs `/device/*`, `/assets/*`, and `/api/*/fleet/device/*` exposed.
+
+Android hosts don't need an endpoint for this. Fleet finds them in Google by itself.
+
 ## SCEP proxy
 
 If you would like to use Fleet as a SCEP proxy, the following endpoint needs to be exposed:
