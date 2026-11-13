@@ -183,6 +183,9 @@ func validateAndroidProfileFleetVariables(rawJSON []byte, decoded map[string]any
 	}
 
 	if len(varNames) > 0 {
+		if err := FindRemovedFleetVariable(varNames...); err != nil {
+			return err
+		}
 		if name := FindUnsupportedAndroidFleetVar(contents); name != "" {
 			return fmt.Errorf("Unsupported Fleet variable $FLEET_VAR_%s.", name)
 		}
@@ -357,7 +360,6 @@ var FleetVarsSupportedInAndroidAppConfig = []FleetVarName{
 	FleetVarHostUUID,
 	FleetVarHostHardwareSerial,
 	FleetVarHostPlatform,
-	FleetVarHostEndUserEmailIDP,
 	FleetVarHostEndUserIDPUsername,
 	FleetVarHostEndUserIDPUsernameLocalPart,
 	FleetVarHostEndUserIDPGroups,
@@ -629,6 +631,9 @@ func ValidateAndroidAppConfiguration(config json.RawMessage) error {
 		return err
 	}
 
+	if err := FindRemovedFleetVariable(variables.Find(string(config))...); err != nil {
+		return err
+	}
 	if name := FindUnsupportedAndroidFleetVar(string(config)); name != "" {
 		return &BadRequestError{
 			Message: fmt.Sprintf("Couldn't update configuration. Unsupported variable $FLEET_VAR_%s.", name),

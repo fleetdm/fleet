@@ -330,11 +330,6 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "delete team %d", tid)
 		}
 
-		_, err = tx.ExecContext(ctx, `DELETE FROM pack_targets WHERE type = ? AND target_id = ?`, fleet.TargetTeam, tid)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "deleting pack_targets for team %d", tid)
-		}
-
 		return nil
 	})
 	if err != nil {

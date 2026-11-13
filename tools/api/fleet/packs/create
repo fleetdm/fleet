@@ -1,9 +1,0 @@
-#!/bin/bash
-source $FLEET_ENV_PATH
-endpoint="api/latest/fleet/packs"
-jq -n \
-  --arg name "$1" \
-  '.name = $name 
-  |.disabled = false
-  '|\
-  curl $CURL_FLAGS -H "Authorization: Bearer $TOKEN" "$SERVER_URL/$endpoint" -d@- 

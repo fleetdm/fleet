@@ -130,7 +130,7 @@ func registerPrepareLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 				"hostname":     h.Name,
 				"display_name": h.DisplayName,
 				"platform":     h.Platform,
-				"team_name":    h.TeamName,
+				"fleet_name":   h.TeamName,
 				"status":       h.Status,
 			})
 		}
@@ -297,7 +297,7 @@ func registerRunLiveQuery(s *server.MCPServer, fleetClient *FleetClient) {
 				"hostname":     h.Name,
 				"display_name": h.DisplayName,
 				"platform":     h.Platform,
-				"team_name":    h.TeamName,
+				"fleet_name":   h.TeamName,
 				"status":       h.Status,
 			})
 		}

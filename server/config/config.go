@@ -455,8 +455,8 @@ type LoggingConfig struct {
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
 	TracingEnabled       bool          `yaml:"tracing_enabled"`
-	// TracingType can be set to TracingTypeElasticAPM to send traces to Elastic APM.
-	// By default (empty or any other value), traces are sent to OpenTelemetry (OTEL).
+	// TracingType selects the tracing backend. OpenTelemetry (OTEL) is the only one supported. The removed "elasticapm" value
+	// disables tracing at startup.
 	TracingType string `yaml:"tracing_type"`
 	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
 	// When enabled, logs are sent to both stderr and the OTLP endpoint.
@@ -1084,7 +1084,7 @@ type FleetConfig struct {
 }
 
 func (f FleetConfig) OTELEnabled() bool {
-	return f.Logging.TracingEnabled && f.Logging.TracingType != "elasticapm"
+	return f.Logging.TracingEnabled
 }
 
 type PartnershipsConfig struct {
@@ -2020,7 +2020,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("osquery.redis_config_etags", false,
 		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. Off by default; requires Redis (no effect without it) and requires osquery.config_etags to be enabled as well. While off, every config request takes the always-full-build path.")
 	man.addConfigBool("osquery.config_in_memory_cache", false,
-		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for hosts with 2017 packs and for fleets with label-scoped reports, whose config differs per host.")
+		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for fleets with label-scoped reports, whose config differs per host.")
 	man.addConfigInt("osquery.max_concurrent_query_report_reads", 40,
 		"Maximum number of osquery log requests per Fleet server that read a host's stored report results from the database at once, to skip writing results that haven't changed. Requests over the limit skip storing report results (log destinations are unaffected). 0 disables the limit.")
 	man.addConfigInt("osquery.max_concurrent_query_report_writes", 20,
@@ -2048,7 +2048,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("logging.tracing_enabled", false,
 		"Enable Tracing, further configured via standard env variables")
 	man.addConfigString("logging.tracing_type", "",
-		"Select the kind of tracing, defaults to OpenTelemetry, can also be elasticapm")
+		"Select the kind of tracing, only OpenTelemetry is supported")
 	man.addConfigBool("logging.otel_logs_enabled", false,
 		"Enable exporting logs to an OpenTelemetry collector (requires tracing_enabled)")
 	man.addConfigString("logging.enable_topics", "",

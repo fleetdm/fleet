@@ -47,8 +47,8 @@ Use the following steps to add an account to Salesforce if one doesn't exist alr
 
 ### Respond to a customer feature comparison request
 
-AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spreadsheets from prospects to the "🎐🗣 Design review (:help-design)" meeting for CEO review. The rep will:
-- Add themselves and [Deal Desk](https://fleetdm.com/handbook/finance#team) to the "🎐🗣 Design review (:help-design)" calendar event (on the Office hours calendar).
+AEs, SEs, and CSMs will bring any feature comparison / evaluation matrices / spreadsheets from prospects to [#g-first-impressions](https://fleetdm.com/handbook/company/product-groups#first-impressions) for CEO review. The rep will:
+- [Create a #g-first-impressions request](https://github.com/fleetdm/fleet/issues/new?labels=%23g-first-impressions&template=first-impressions-request.md) and add [Deal Desk](https://fleetdm.com/handbook/finance#team) to the issue.
 - Review with the CEO, and iterate on the comparison until approved by the CEO to provide to the prospect.  
 
 
@@ -116,7 +116,7 @@ In order to be transparent, Fleet sends quotes within 30 days of opportunity cre
 
 1. Follow the process to [create a quote](https://fleetdm.com/handbook/company/go-to-market-operations#create-a-quote) in Salesforce. The quote is automatically routed to the appropriate approver.
 
-> **IMPORTANT** To ensure product language is consistent, any changes to the standard quote template (including subscription appendix) must be submitted to ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval.
+> **IMPORTANT** To ensure product language is consistent, any changes to the standard quote template (including subscription appendix) must be submitted to the ["🦢 Product design intake & outtake" board](https://github.com/orgs/fleetdm/projects/67) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval.
 
 2. Once the quote is approved, generate the PDF in Salesforce and send it to the prospect.
 3. Copy the quote URL to the "Order form URL" field on the Salesforce opportunity.

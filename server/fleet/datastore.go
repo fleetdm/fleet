@@ -119,11 +119,11 @@ type Datastore interface {
 	// DeleteQueries deletes the existing query objects with the provided IDs. The number of deleted queries is returned
 	// along with any error.
 	DeleteQueries(ctx context.Context, ids []uint) (uint, error)
-	// Query returns the query associated with the provided ID. Associated packs should also be loaded.
+	// Query returns the query associated with the provided ID.
 	Query(ctx context.Context, id uint) (*Query, error)
 	// ListQueries returns a list of queries filtered with the provided sorting and pagination
 	// options, a count of total queries on all pages, a count of inherited (global) queries, and
-	// pagination metadata. Associated packs should also be loaded.
+	// pagination metadata.
 	// The inherited count is only computed when TeamID is set and MergeInherited is true; otherwise it is 0.
 	ListQueries(ctx context.Context, opt ListQueryOptions) ([]*Query, int, int, *PaginationMetadata, error)
 	// ListScheduledQueriesForAgents returns a list of scheduled queries (without stats) for the
@@ -212,37 +212,6 @@ type Datastore interface {
 	DistributedQueryCampaignsForQuery(ctx context.Context, queryID uint) ([]*DistributedQueryCampaign, error)
 
 	///////////////////////////////////////////////////////////////////////////////
-	// PackStore is the datastore interface for managing query packs.
-
-	// ApplyPackSpecs applies a list of PackSpecs to the datastore, creating and updating packs as necessary.
-	ApplyPackSpecs(ctx context.Context, specs []*PackSpec) error
-	// GetPackSpecs returns all of the stored PackSpecs.
-	GetPackSpecs(ctx context.Context) ([]*PackSpec, error)
-	// GetPackSpec returns the spec for the named pack.
-	GetPackSpec(ctx context.Context, name string) (*PackSpec, error)
-
-	// NewPack creates a new pack in the datastore.
-	NewPack(ctx context.Context, pack *Pack, opts ...OptionalArg) (*Pack, error)
-
-	// SavePack updates an existing pack in the datastore.
-	SavePack(ctx context.Context, pack *Pack) error
-
-	// DeletePack deletes a pack record from the datastore.
-	DeletePack(ctx context.Context, name string) error
-
-	// Pack retrieves a pack from the datastore by ID.
-	Pack(ctx context.Context, pid uint) (*Pack, error)
-
-	// ListPacks lists all packs in the datastore.
-	ListPacks(ctx context.Context, opt PackListOptions) ([]*Pack, error)
-
-	// PackByName fetches pack if it exists, if the pack exists the bool return value is true
-	PackByName(ctx context.Context, name string, opts ...OptionalArg) (*Pack, bool, error)
-
-	// ListPacksForHost lists the "user packs" that a host should execute.
-	ListPacksForHost(ctx context.Context, hid uint) (packs []*Pack, err error)
-
-	///////////////////////////////////////////////////////////////////////////////
 	// LabelStore
 
 	// ApplyLabelSpecs applies a list of LabelSpecs to the datastore, creating and updating labels as necessary.
@@ -250,8 +219,9 @@ type Datastore interface {
 	// ApplyLabelSpecs does the same as ApplyLabelSpecs, additionally allowing an author ID to be set for the labels.
 	ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*LabelSpec, authorId *uint) error
 	// SetAsideLabels moves a set of labels out of the way if those labels *aren't* on the specified team and *are*
-	// writable by the specified user
-	SetAsideLabels(ctx context.Context, notOnTeamID *uint, names []string, user User) error
+	// writable by the specified user. When notOnTeamID is nil, a fleet label with one of the names on a fleet that isn't
+	// listed as moving it is a conflict instead.
+	SetAsideLabels(ctx context.Context, notOnTeamID *uint, labels []LabelToMove, user User) error
 	// GetLabelSpecs returns all of the stored LabelSpecs that the user can see, optionally filtered to
 	// a specific team (or global-only); in this case the team filter does *not* include global
 	// labels if the user asks for a specific team
@@ -285,8 +255,7 @@ type Datastore interface {
 	// members of this label, or an error. When hostIDs is non-nil, the label's
 	// manual membership is replaced with exactly those hosts.
 	SaveLabel(ctx context.Context, label *Label, hostIDs []uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
-	DeleteLabel(ctx context.Context, name string, filter TeamFilter) error
-	LabelByName(ctx context.Context, name string, filter TeamFilter) (*Label, error)
+	DeleteLabel(ctx context.Context, id uint) error
 	// Label returns the label and an array of host IDs members of this label, or an error.
 	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
 	// LabelMembershipHostIDs returns every host_id row in label_membership for
@@ -322,8 +291,11 @@ type Datastore interface {
 
 	SearchLabels(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
-	// LabelIDsByName retrieves the IDs associated with the given label names
+	// LabelIDsByName retrieves the IDs associated with the given label names. It returns a conflict error when a name
+	// matches labels on several fleets; use AllLabelIDsByName when that's expected.
 	LabelIDsByName(ctx context.Context, labels []string, filter TeamFilter) (map[string]uint, error)
+	// AllLabelIDsByName is like LabelIDsByName, but a name used by labels on several fleets maps to all their IDs.
+	AllLabelIDsByName(ctx context.Context, names []string, filter TeamFilter) (map[string][]uint, error)
 	// LabelsByName retrieves the labels associated with the given label names
 	LabelsByName(ctx context.Context, names []string, filter TeamFilter) (map[string]*Label, error)
 
@@ -724,20 +696,9 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// ScheduledQueryStore
 
-	// ListScheduledQueriesInPackWithStats loads a pack's scheduled queries and its aggregated stats.
-	ListScheduledQueriesInPackWithStats(ctx context.Context, id uint, opts ListOptions) ([]*ScheduledQuery, error)
-	NewScheduledQuery(ctx context.Context, sq *ScheduledQuery, opts ...OptionalArg) (*ScheduledQuery, error)
-	SaveScheduledQuery(ctx context.Context, sq *ScheduledQuery) (*ScheduledQuery, error)
-	DeleteScheduledQuery(ctx context.Context, id uint) error
-	ScheduledQuery(ctx context.Context, id uint) (*ScheduledQuery, error)
 	// CleanupExpiredHostsBatch deletes up to batchSize hosts that exceeded their expiry window and
 	// returns the details of the hosts it deleted. Callers loop until it returns no hosts.
 	CleanupExpiredHostsBatch(ctx context.Context, batchSize int) ([]DeletedHostDetails, error)
-	// ScheduledQueryIDsByName loads the IDs associated with the given pack and
-	// query names. It returns a slice of IDs in the same order as
-	// packAndSchedQueryNames, with the ID set to 0 if the corresponding
-	// scheduled query did not exist.
-	ScheduledQueryIDsByName(ctx context.Context, batchSize int, packAndSchedQueryNames ...[2]string) ([]uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// QueryResultsStore
@@ -1420,9 +1381,6 @@ type Datastore interface {
 
 	// UpdateHost updates a host.
 	UpdateHost(ctx context.Context, host *Host) error
-
-	// ListScheduledQueriesInPack lists all the scheduled queries of a pack.
-	ListScheduledQueriesInPack(ctx context.Context, packID uint) (ScheduledQueryList, error)
 
 	// UpdateHostRefetchRequested updates a host's refetch requested field.
 	UpdateHostRefetchRequested(ctx context.Context, hostID uint, value bool) error
@@ -4814,8 +4772,6 @@ type Cloner interface {
 }
 
 const (
-	// Default batch size to use for ScheduledQueryIDsByName.
-	DefaultScheduledQueryIDsByNameBatchSize = 1000
 	// Default batch size for loading IDs of or inserting new munki issues.
 	DefaultMunkiIssuesBatchSize = 100
 )

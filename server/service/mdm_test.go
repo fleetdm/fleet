@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -2322,7 +2323,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			ptr.Uint(1),
 			ptr.String("team"),
 			nil,
-			"cannot specify both team_id and team_name",
+			"cannot specify both fleet_id and fleet_name",
 			false,
 		},
 		{
@@ -2361,10 +2362,50 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			[]fleet.MDMProfileBatchPayload{
 				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 				{Name: "N2", Contents: mobileconfigForTest("N2", "I2")},
-				{Name: "N3", Contents: mobileconfigForTest("N3", "I3 $FLEET_VAR_HOST_END_USER_EMAIL_IDP")},
+				{Name: "N3", Contents: mobileconfigForTest("N3", "I3 $FLEET_VAR_HOST_END_USER_IDP_USERNAME")},
 				{Name: "N4", Contents: declBytesForTest("D1", "d1content")},
 			},
 			``,
+			false,
+		},
+		{
+			"macOS profile with a removed Fleet variable",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			true,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+				{Name: "N2", Contents: mobileconfigForTest("N2", "I2 ${FLEET_VAR_HOST_END_USER_EMAIL_IDP}")},
+			},
+			`The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`,
+			false,
+		},
+		{
+			"dry run of profiles with a removed Fleet variable and a secret",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			true,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: androidConfigProfileForTest(t, "A1 $FLEET_SECRET_X $FLEET_VAR_HOST_END_USER_EMAIL_IDP", nil).RawJSON},
+				{Name: "N2", Contents: []byte(strings.ReplaceAll(string(mobileconfigForTest("N2", "I2", "HOST_END_USER_EMAIL_IDP")),
+					"$FLEET_VAR_HOST_END_USER_EMAIL_IDP", "$FLEET_SECRET_X ${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"))},
+			},
+			`The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`,
+			true,
+		},
+		{
+			"Android profile with a removed Fleet variable",
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+			true,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: androidConfigProfileForTest(t, "A1", nil).RawJSON},
+				{Name: "N2", Contents: androidConfigProfileForTest(t, "A2 $FLEET_VAR_HOST_END_USER_EMAIL_IDP", nil).RawJSON},
+			},
+			`The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`,
 			false,
 		},
 		{
@@ -4245,6 +4286,24 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			require.False(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
 		})
 	}
+}
+
+func TestNewMDMAndroidConfigProfileRemovedFleetVariable(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+
+	// A 422 with the Fleet 5 message, not the 400 "Couldn't add." of the other validation errors.
+	_, err := svc.NewMDMAndroidConfigProfile(ctx, 0, "removed", []byte(`{"name": "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"}`), nil,
+		fleet.LabelsIncludeAll, nil, "", false, false)
+	removedErr, ok := errors.AsType[*fleet.RemovedFleetVariableError](err)
+	require.True(t, ok, err)
+	require.Equal(t, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. `+
+		`What to use instead: `+removednames.GuideURL, removedErr.Error())
+	require.False(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
 }
 
 func TestNewMDMAndroidConfigProfileCustomHostVitals(t *testing.T) {
