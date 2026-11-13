@@ -60,9 +60,9 @@ var (
 )
 
 // newFastPathHandler builds the fast path from an already-registered gorilla router. It has to run after every route is
-// registered and after addMetrics, because the handlers it promotes are the fully wrapped ones. middlewares are the
-// route-agnostic wrappers gorilla applies through Use; they are applied again here because a request served by the fast path
-// never enters the gorilla router.
+// registered, because it copies gorilla's route list; handlers wrapped later still apply, since the Router's per-route
+// handler looks up the current one on each request. middlewares are the route-agnostic wrappers gorilla applies through
+// Use; they are applied again here because a request served by the fast path never enters the gorilla router.
 func newFastPathHandler(r *endpointer.Router, middlewares []mux.MiddlewareFunc, cfg config.FleetConfig) (http.Handler, error) {
 	fast, err := buildFastPathMux(r.Gorilla(), middlewares, cfg)
 	if err != nil {
