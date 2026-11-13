@@ -426,7 +426,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		if errors.As(err, &existsErr) {
 			err = fleet.NewInvalidArgumentError("script", "A script with this name already exists.").WithStatus(http.StatusConflict)
 		} else if errors.As(err, &fkErr) {
-			err = fleet.NewInvalidArgumentError("team_id/fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
+			err = fleet.NewInvalidArgumentError("fleet_id", "The fleet does not exist.").WithStatus(http.StatusNotFound)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "create script")
 	}
