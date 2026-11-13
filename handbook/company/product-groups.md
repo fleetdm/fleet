@@ -364,7 +364,7 @@ If there are design changes, the user story stays in drafting to address the gap
 
 ### Release demo (every 3 weeks)
 
-On the last day of each three-week release cycle, product groups demo shipped changes for the upcoming release alongside stakeholders. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they contributed. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. (These meetings are recorded and posted publicly, so participants should avoid mentioning customer names. Instead of a customer name, use a general description like "a publicly-traded hosting company", or the [customer's codename](https://fleetdm.com/handbook/customer-success#assign-a-customer-codename).)
+On the last day of each three-week release cycle, product groups demo shipped changes for the upcoming release alongside stakeholders. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they contributed. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. (These meetings are recorded and posted publicly, so participants should avoid mentioning customer names. Instead of a customer name, use a general description like "a publicly-traded hosting company", or the [customer's codename](https://github.com/fleetdm/confidential/labels?q=customer-).)
 
 ### Release retro (30 minutes, every 3 weeks)
 
