@@ -7612,6 +7612,8 @@ To repurpose a Windows host for another end user, use [Reset host](#reset-host).
 
 ### Reset host
 
+((Admin)) ((Maintainer))
+
 _Available in Fleet Premium._
 
 Sends a command to reset the specified Windows host so it can be repurposed for another end user. The host is reset once it comes online.
@@ -9088,6 +9090,8 @@ Update a configuration profile to target hosts with specific labels.
 
 ### Autofill configuration profile name and description
 
+((Admin)) ((Maintainer)) ((GitOps))
+
 Generates a name and description for a configuration profile using AI.
 
 The generated name is meant for declaration (DDM) and Windows profiles. A .mobileconfig profile carries its own name, which [Autofill configuration profile content](#autofill-configuration-profile-content) returns as `name`.
@@ -9187,6 +9191,8 @@ Returned on Fleet Free, or with an expired license, when the Fleet server has no
 ---
 
 ### Autofill configuration profile content
+
+((Admin)) ((Maintainer)) ((GitOps))
 
 Generates configuration profile content using AI.
 
@@ -11156,6 +11162,8 @@ None.
 
 ### Add Volume Purchasing Program (VPP) token
 
+((Global admin))
+
 _Available in Fleet Premium_
 
 `POST /api/v1/fleet/vpp_tokens`
@@ -11262,6 +11270,8 @@ None.
 ```
 
 ### Update Volume Purchasing Program (VPP) token's fleets
+
+((Global admin))
 
 _Available in Fleet Premium_
 
@@ -12861,6 +12871,8 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 ---
 
 ### Autofill policy
+
+((Admin)) ((Maintainer)) ((GitOps))
 
 Generates a human-readable description and resolution for a policy query using AI. 
 
