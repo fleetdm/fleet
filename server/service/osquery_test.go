@@ -2632,6 +2632,73 @@ func TestLabelQueries(t *testing.T) {
 	assert.Zero(t, acc)
 }
 
+func TestDistributedReadSkipsUnsavedResend(t *testing.T) {
+	ds := new(mock.Store)
+	mockClock := clock.NewMockClock()
+	lq := live_query_mock.New(t)
+	kv := memoryKVStore()
+	var ttls []time.Duration
+	set := kv.SetFunc
+	kv.SetFunc = func(ctx context.Context, key, value string, expireTime time.Duration) error {
+		ttls = append(ttls, expireTime)
+		return set(ctx, key, value, expireTime)
+	}
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, lq, &TestServerOpts{Clock: mockClock, KeyValueStore: kv})
+
+	host := &fleet.Host{ID: 1, Platform: "linux", OsqueryHostID: new("very_random")}
+	ctx = hostctx.NewContext(ctx, host)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.LabelQueriesForHostFunc = func(context.Context, *fleet.Host) (map[string]string, error) {
+		return map[string]string{}, nil
+	}
+	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
+		return map[string]string{"1": "SELECT 1;"}, nil
+	}
+	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
+		return false, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
+	}
+	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
+
+	sent := func() (detail, policy bool) {
+		queries, _, _, err := svc.GetDistributedQueries(ctx)
+		require.NoError(t, err)
+		for name := range queries {
+			detail = detail || strings.HasPrefix(name, hostDetailQueryPrefix)
+			policy = policy || strings.HasPrefix(name, hostPolicyQueryPrefix)
+		}
+		return detail, policy
+	}
+
+	detail, policy := sent()
+	require.True(t, detail)
+	require.True(t, policy)
+
+	// The results were never saved (e.g. the write failed), so the next check-in doesn't resend them.
+	mockClock.AddTime(10 * time.Second)
+	detail, policy = sent()
+	require.False(t, detail)
+	require.False(t, policy)
+	host.RefetchRequested = true
+	detail, policy = sent()
+	require.False(t, detail)
+	require.False(t, policy)
+
+	// Once a write saves the timestamps, a refetch goes out right away.
+	host.DetailUpdatedAt = mockClock.Now()
+	host.PolicyUpdatedAt = mockClock.Now()
+	detail, policy = sent()
+	require.True(t, detail)
+	require.True(t, policy)
+	for _, ttl := range ttls {
+		require.Equal(t, unsavedResendTTL, ttl)
+	}
+}
+
 func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	ds := new(mock.Store)
 	mockClock := clock.NewMockClock()

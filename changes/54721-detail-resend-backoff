@@ -1,0 +1,1 @@
+- Fixed hosts being resent their full detail and policy queries on every check-in after a failed or canceled distributed/write.
