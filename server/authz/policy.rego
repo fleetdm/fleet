@@ -343,17 +343,17 @@ allow {
 	action == write_host_label
 }
 
-# Global admin, maintainers, technicians, and gitops can transfer hosts between fleets.
+# Global admin, maintainers, and technicians can transfer hosts between fleets.
 allow {
 	object.type == "host"
-	subject.global_role == [admin, maintainer, technician, gitops][_]
+	subject.global_role == [admin, maintainer, technician][_]
 	action == transfer_host
 }
 
-# Global admin, maintainers, technicians, and gitops can delete hosts.
+# Global admin, maintainers, and technicians can delete hosts.
 allow {
 	object.type == "host"
-	subject.global_role == [admin, maintainer, technician, gitops][_]
+	subject.global_role == [admin, maintainer, technician][_]
 	action == delete_host
 }
 
@@ -392,20 +392,20 @@ allow {
 	action == write_host_label
 }
 
-# Team admins, maintainers, technicians, and gitops can transfer hosts of their own team.
+# Team admins, maintainers, and technicians can transfer hosts of their own team.
 # This is needed both for write access to the source team (where the host currently
 # is) and the destination team (where the host is being transferred to); the service
 # layer authorizes both sides separately.
 allow {
 	object.type == "host"
-	team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer, technician][_]
 	action == transfer_host
 }
 
-# Team admins, maintainers, technicians, and gitops can delete hosts of their own team.
+# Team admins, maintainers, and technicians can delete hosts of their own team.
 allow {
 	object.type == "host"
-	team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer, technician][_]
 	action == delete_host
 }
 
