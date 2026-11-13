@@ -1,0 +1,1 @@
+- Fixed Fleet Desktop `notify` opening a second toast when the notification lock file is deleted while a toast is on screen. Another `notify` now exits 50 until that toast goes away.
