@@ -25,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -248,7 +247,7 @@ func runServerForTests(t *testing.T, logger *slog.Logger, fleetSvc fleet.Service
 		),
 	}
 
-	r := mux.NewRouter()
+	r := endpointer.NewRouter()
 	service.GetRoutes(fleetSvc, androidSvc)(r, fleetAPIOptions)
 	rootMux := http.NewServeMux()
 	rootMux.HandleFunc("/api/", r.ServeHTTP)

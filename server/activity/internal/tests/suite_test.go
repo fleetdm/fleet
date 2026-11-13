@@ -12,8 +12,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/activity/internal/mysql"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/service"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/testutils"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,7 +40,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSuite {
 	svc := service.NewService(authorizer, ds, providers, tdb.Logger)
 
 	// Create router with routes
-	router := mux.NewRouter()
+	router := endpointer.NewRouter()
 	// Pass-through auth middleware (authzcheck middleware handles creating the authz context)
 	authMiddleware := func(e endpoint.Endpoint) endpoint.Endpoint { return e }
 	routesFn := service.GetRoutes(svc, authMiddleware)

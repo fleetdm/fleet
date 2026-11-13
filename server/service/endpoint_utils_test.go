@@ -302,7 +302,7 @@ type stringErrorer string
 func (s stringErrorer) Error() error { return nil }
 
 func TestEndpointer(t *testing.T) {
-	r := mux.NewRouter()
+	r := endpointer.NewRouter()
 	ds := new(mock.Store)
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return &fleet.Session{
@@ -419,7 +419,7 @@ func TestEndpointer(t *testing.T) {
 		request := http.Request{Method: method, URL: &testURL, Header: map[string][]string{"Authorization": {"Bearer asd"}}, Body: io.NopCloser(strings.NewReader(""))}
 		routeMatch := mux.RouteMatch{}
 
-		res := r.Match(&request, &routeMatch)
+		res := r.Gorilla().Match(&request, &routeMatch)
 		if routeMatch.Route != nil {
 			rec := httptest.NewRecorder()
 			routeMatch.Handler.ServeHTTP(rec, &request)
@@ -443,7 +443,7 @@ func TestEndpointer(t *testing.T) {
 }
 
 func TestEndpointerCustomMiddleware(t *testing.T) {
-	r := mux.NewRouter()
+	r := endpointer.NewRouter()
 	ds := new(mock.Store)
 	svc, _ := newTestService(t, ds, nil, nil)
 
@@ -496,7 +496,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 	req := httptest.NewRequest("GET", "/none/", nil)
 	var m1 mux.RouteMatch
 
-	require.True(t, r.Match(req, &m1))
+	require.True(t, r.Gorilla().Match(req, &m1))
 	rec := httptest.NewRecorder()
 	m1.Handler.ServeHTTP(rec, req)
 	require.Equal(t, "H1", buf.String())
@@ -505,7 +505,7 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 	req = httptest.NewRequest("GET", "/mw/", nil)
 	var m2 mux.RouteMatch
 
-	require.True(t, r.Match(req, &m2))
+	require.True(t, r.Gorilla().Match(req, &m2))
 	rec = httptest.NewRecorder()
 	m2.Handler.ServeHTTP(rec, req)
 	require.Equal(t, "ABCH2", buf.String())

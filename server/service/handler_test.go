@@ -33,7 +33,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	cfg := config.TestConfig()
 	h, err := MakeHandler(svc, cfg, slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
 	require.NoError(t, err)
-	router := h.(interface{ Router() *mux.Router }).Router()
+	router := h.(interface{ Router() *endpointer.Router }).Router()
 
 	type testCase struct {
 		name string
@@ -49,7 +49,7 @@ func TestAPIRoutesConflicts(t *testing.T) {
 	// conflicts with it and took precedence - a route conflict. The route's name
 	// is used to name the sub-test for that route.
 	status := 200
-	err = router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
+	err = router.Gorilla().Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
 		_, path, err := mockRouteHandler(route, status)
 		if path == "" || err != nil { // failure or no method set
 			return err
@@ -88,12 +88,12 @@ func TestAPIRoutesMetrics(t *testing.T) {
 	limitStore, _ := memstore.New(0)
 	h, err := MakeHandler(svc, config.TestConfig(), slog.New(slog.DiscardHandler), limitStore, nil, nil, nil)
 	require.NoError(t, err)
-	router := h.(interface{ Router() *mux.Router }).Router()
+	router := h.(interface{ Router() *endpointer.Router }).Router()
 
 	// replace all handlers with mocks, and collect the requests to make to each
 	// route.
 	var reqs []*http.Request
-	err = router.Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
+	err = router.Gorilla().Walk(func(route *mux.Route, router *mux.Router, ancestores []*mux.Route) error {
 		verb, path, err := mockRouteHandler(route, http.StatusOK)
 		if path == "" || err != nil { // failure or no method set
 			return err
@@ -103,16 +103,19 @@ func TestAPIRoutesMetrics(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+	router.WrapHandlers(func(endpointer.Route, http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+	})
 
 	// wrap the handlers with the metric handlers
 	addMetrics(router)
 
 	// add the handler that returns the metrics, itself instrumented
-	router.Handle("/metrics", promhttp.Handler()).Name("metrics")
+	router.Gorilla().Handle("/metrics", promhttp.Handler()).Name("metrics")
 
 	// collect the route names
 	routeNames := make(map[string]bool)
-	err = router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+	err = router.Gorilla().Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		if _, ok := routeNames[route.GetName()]; ok {
 			path, _ := route.GetPathTemplate()
 			t.Errorf("duplicate route name: %s (%s)", route.GetName(), path)
@@ -351,11 +354,11 @@ func TestGzipResponses(t *testing.T) {
 		// The response body is what the assertions inspect; a write error surfaces there.
 		_, _ = w.Write(data)
 	})
-	testRoute := func(r *mux.Router, opts []kithttp.ServerOption) {
-		r.Handle("/api/test-gzip", gzipTestHandler)
+	testRoute := func(r *endpointer.Router, opts []kithttp.ServerOption) {
+		r.Handle(endpointer.Route{Name: "test_gzip", Path: "/api/test-gzip"}, gzipTestHandler)
 		// A method-scoped route is served by the stdlib fast path rather than gorilla, which applies the router middleware
 		// itself, so gzip has to be exercised on both.
-		r.Handle("/api/test-gzip-fast", gzipTestHandler).Methods("GET")
+		r.Handle(endpointer.Route{Name: "test_gzip_fast", Methods: []string{"GET"}, Path: "/api/test-gzip-fast"}, gzipTestHandler)
 	}
 
 	t.Run("Enabled", func(t *testing.T) {

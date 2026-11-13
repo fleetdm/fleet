@@ -15,8 +15,8 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 )
 
-// RouteTemplateRequestFunc captures the gorilla/mux route template for the
-// matched request and stores it in the context. Alias of the platform
+// RouteTemplateRequestFunc copies the route template of the matched request
+// into the context. Alias of the platform
 // implementation, re-exported so callers that already import this package can
 // continue to reference it here.
 var RouteTemplateRequestFunc = eu.RouteTemplateRequestFunc
@@ -25,7 +25,7 @@ var RouteTemplateRequestFunc = eu.RouteTemplateRequestFunc
 // access control for API-only users (api_only=true) that have configured
 // endpoint restrictions. It must be wired inside AuthenticatedUser (so a Viewer
 // is already in context when it runs) and the enclosing transport must register
-// RouteTemplateRequestFunc as a ServerBefore option so the mux route template
+// RouteTemplateRequestFunc as a ServerBefore option so the route template
 // is available in context.
 //
 // The check is skipped entirely for: non-API-only users, requests with no
