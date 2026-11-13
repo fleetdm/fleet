@@ -105,6 +105,12 @@ func (ds *AndroidDatastore) DeleteAllEnterprises(ctx context.Context) error {
 			return ctxerr.Wrap(ctx, err, "deleting all android app store apps")
 		}
 
+		// The default policies belonged to the deleted enterprise; a new one starts without any.
+		_, err = tx.ExecContext(ctx, `DELETE FROM android_fleet_default_policies`)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting android fleet default policies")
+		}
+
 		return nil
 	})
 
