@@ -10,7 +10,7 @@
             <div class="invalid-feedback" v-if="heroFormErrors.emailAddress || heroCloudError === 'invalidEmailDomain'">Please enter a valid work email address.</div>
             <cloud-error class="p-0 mt-1 mb-0 bg-transparent" v-if="heroCloudError && heroCloudError !== 'invalidEmailDomain'"></cloud-error>
           </div>
-          <ajax-button purpose="hero-email-button" type="submit" syncing-message="Looking up availability…" :syncing="syncing" class="btn btn-primary">Get a demo<img alt="" src="/images/arrow-right-white-16x16@2x.png"></ajax-button>
+          <ajax-button purpose="hero-email-button" type="submit" syncing-message="Looking up availability…" :syncing="syncing" class="btn btn-primary">Get a demo</ajax-button>
         </ajax-form>
       </div>
       <ai-tool-graphic></ai-tool-graphic>
@@ -432,8 +432,7 @@
         </div>
 
         <div purpose="button-row">
-          <a purpose="cta-button" href="/pricing">Compare all features</a>
-          <animated-arrow-button href="/customers">See case studies</animated-arrow-button>
+          <animated-arrow-button href="/pricing">Compare all features</animated-arrow-button>
         </div>
       </div>
 
@@ -456,12 +455,11 @@
             <h3>Nothing you don’t</h3>
             <p>No waiting days to patch or hours to test a change. No duplicative work in different tools. No Microsoft E3/E5 bundle required. No black box: ask your AI exactly how Fleet works.</p>
           </div>
-          <%/* TODO: These icons aren't final. They match the current Figma (v6) placeholders. */%>
           <div purpose="platform-card-icons">
-            <div purpose="no-icon"><img alt="No Microsoft bundle" src="/images/icon-bundle-26x26.svg"></div>
-            <div purpose="no-icon"><img purpose="entra-icon" alt="No waiting on Microsoft Entra" src="/images/icon-microsoft-entra-32x32.svg"></div>
-            <div purpose="no-icon"><img alt="No tool sprawl" src="/images/icon-tool-sprawl-26x26.svg"></div>
-            <div purpose="no-icon"><img alt="No black box" src="/images/icon-black-box-26x26.svg"></div>
+            <div purpose="no-icon"><img alt="No waiting" src="/images/icon-no-waiting-64x64.svg"></div>
+            <div purpose="no-icon"><img alt="No duplicative work" src="/images/icon-no-duplicate-work-64x64.svg"></div>
+            <div purpose="no-icon"><img alt="No Microsoft E3/E5 bundle" src="/images/icon-no-e3-e5-64x64.svg"></div>
+            <div purpose="no-icon"><img alt="No black box" src="/images/icon-no-black-box-64x64.svg"></div>
           </div>
         </div>
       </div>
@@ -549,7 +547,7 @@
       <%/* AI certification */%>
       <div purpose="workshop-banner">
         <div purpose="banner-image">
-          <img alt="" src="/images/workshop-banner-366x225@2x.png">
+          <img alt="" src="/images/workshop-banner-ai-certification-366x225@2x.png">
         </div>
         <div purpose="banner-text">
           <h4>Get your team AI certified</h4>
