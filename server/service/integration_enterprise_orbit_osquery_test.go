@@ -18,7 +18,9 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -445,7 +447,16 @@ func (s *integrationEnterpriseTestSuite) TestAIAgentSessionsDetailQueries() {
 		s.DoJSON("POST", "/api/osquery/distributed/read", getDistributedQueriesRequest{NodeKey: *host.NodeKey}, http.StatusOK, &dqResp)
 		return dqResp
 	}
+	// Times in the rows are written T+<seconds> from a start a few hours ago: the events query only asks for sessions
+	// active within the retention window, so fixed dates would stop it from being built once they're old enough.
+	base := time.Now().Add(-3 * time.Hour).Unix()
+	hostTimeRe := regexp.MustCompile(`T\+(\d+)`)
 	submit := func(name, rows string) {
+		rows = hostTimeRe.ReplaceAllStringFunc(rows, func(m string) string {
+			offset, err := strconv.ParseInt(m[2:], 10, 64)
+			require.NoError(t, err)
+			return strconv.FormatInt(base+offset, 10)
+		})
 		var resp submitDistributedQueryResultsResponse
 		s.DoJSON("POST", "/api/osquery/distributed/write", submitDistributedQueryResultsRequestShim{
 			NodeKey:  *host.NodeKey,
@@ -465,11 +476,11 @@ func (s *integrationEnterpriseTestSuite) TestAIAgentSessionsDetailQueries() {
 	// Every session is collected from its first call.
 	submit("fleet_detail_query_ai_agent_sessions", `[{
 		"agent": "claude_code", "session_id": "s1", "username": "alice", "account_identifier": "alice@example.com",
-		"started_at": "1800000000", "ended_at": "1800007200", "tool_calls": "4",
+		"started_at": "T+0", "ended_at": "T+7200", "tool_calls": "4",
 		"transcript_path": "/Users/alice/.claude/projects/app/s1.jsonl"
 	}, {
 		"agent": "claude_code", "session_id": "s2", "username": "alice", "account_identifier": "alice@example.com",
-		"started_at": "1800005000", "ended_at": "1800007100", "tool_calls": "1",
+		"started_at": "T+5000", "ended_at": "T+7100", "tool_calls": "1",
 		"transcript_path": "/Users/alice/.claude/projects/app/s2.jsonl"
 	}]`)
 	dqResp = readQueries()
@@ -477,26 +488,26 @@ func (s *integrationEnterpriseTestSuite) TestAIAgentSessionsDetailQueries() {
 	eventsQuery := dqResp.Queries["fleet_detail_query_ai_agent_session_events"]
 	require.Contains(t, eventsQuery, "transcript_path = '/Users/alice/.claude/projects/app/s1.jsonl' AND block_type = 'tool_use' AND tool_call_index >= 0 AND tool_call_index < 10000\n")
 	require.Contains(t, eventsQuery, "transcript_path = '/Users/alice/.claude/projects/app/s2.jsonl' AND block_type = 'tool_use' AND tool_call_index >= 0")
-	require.Contains(t, eventsQuery, "1800007200 AS session_ended_at")
+	require.Contains(t, eventsQuery, fmt.Sprintf("%d AS session_ended_at", base+7200))
 	require.Contains(t, dqResp.Discovery["fleet_detail_query_ai_agent_session_events"], "name = 'ai_agent_session_messages'")
 
 	// s1's call 3 was still running when read.
 	submit("fleet_detail_query_ai_agent_session_events", `[
 		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "0", "tool_name": "Read",
-		 "tool_use_id": "toolu_0", "action": "read", "target": "go.mod", "decision": "allowed", "timestamp": "1800001000",
-		 "content": "{\"file_path\":\"go.mod\"}", "content_length": "22", "truncated": "0", "session_ended_at": "1800007200"},
+		 "tool_use_id": "toolu_0", "action": "read", "target": "go.mod", "decision": "allowed", "timestamp": "T+1000",
+		 "content": "{\"file_path\":\"go.mod\"}", "content_length": "22", "truncated": "0", "session_ended_at": "T+7200"},
 		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "1", "tool_name": "Bash",
-		 "tool_use_id": "toolu_1", "action": "execute", "target": "ls", "decision": "allowed", "timestamp": "1800005000",
-		 "content": "{\"command\":\"ls\"}", "content_length": "16", "truncated": "0", "session_ended_at": "1800007200"},
+		 "tool_use_id": "toolu_1", "action": "execute", "target": "ls", "decision": "allowed", "timestamp": "T+5000",
+		 "content": "{\"command\":\"ls\"}", "content_length": "16", "truncated": "0", "session_ended_at": "T+7200"},
 		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "2", "tool_name": "Bash",
-		 "tool_use_id": "toolu_2", "action": "execute", "target": "cat big.txt", "decision": "allowed", "timestamp": "1800006000",
-		 "content": "{\"command\":\"cat big.txt\"}", "content_length": "90000", "truncated": "1", "session_ended_at": "1800007200"},
+		 "tool_use_id": "toolu_2", "action": "execute", "target": "cat big.txt", "decision": "allowed", "timestamp": "T+6000",
+		 "content": "{\"command\":\"cat big.txt\"}", "content_length": "90000", "truncated": "1", "session_ended_at": "T+7200"},
 		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "3", "tool_name": "Agent",
-		 "tool_use_id": "toolu_3", "action": "other", "target": "", "decision": "", "timestamp": "1800007000",
-		 "content": "{\"prompt\":\"explore\"}", "session_ended_at": "1800007200"},
+		 "tool_use_id": "toolu_3", "action": "other", "target": "", "decision": "", "timestamp": "T+7000",
+		 "content": "{\"prompt\":\"explore\"}", "session_ended_at": "T+7200"},
 		{"agent": "claude_code", "session_id": "s2", "tool_call_index": "0", "tool_name": "Read",
-		 "tool_use_id": "toolu_4", "action": "read", "target": "main.go", "decision": "allowed", "timestamp": "1800007000",
-		 "content": "{\"file_path\":\"main.go\",\"offset\":1e999}", "session_ended_at": "1800007100"}
+		 "tool_use_id": "toolu_4", "action": "read", "target": "main.go", "decision": "allowed", "timestamp": "T+7000",
+		 "content": "{\"file_path\":\"main.go\",\"offset\":1e999}", "session_ended_at": "T+7100"}
 	]`)
 
 	// Both sessions are caught up, and neither has been active since: nothing to ask for.
@@ -507,7 +518,7 @@ func (s *integrationEnterpriseTestSuite) TestAIAgentSessionsDetailQueries() {
 	// One write on the host recorded call 3's result along with call 4: catching up comes first.
 	submit("fleet_detail_query_ai_agent_sessions", `[{
 		"agent": "claude_code", "session_id": "s1", "username": "alice", "account_identifier": "alice@example.com",
-		"started_at": "1800000000", "ended_at": "1800010000", "tool_calls": "5",
+		"started_at": "T+0", "ended_at": "T+10000", "tool_calls": "5",
 		"transcript_path": "/Users/alice/.claude/projects/app/s1.jsonl"
 	}]`)
 	dqResp = readQueries()
@@ -516,8 +527,8 @@ func (s *integrationEnterpriseTestSuite) TestAIAgentSessionsDetailQueries() {
 	require.NotContains(t, eventsQuery, "s2.jsonl")
 	submit("fleet_detail_query_ai_agent_session_events", `[
 		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "4", "tool_name": "Bash",
-		 "tool_use_id": "toolu_5", "action": "execute", "target": "go test", "decision": "allowed", "timestamp": "1800009000",
-		 "content": "{\"command\":\"go test\"}", "session_ended_at": "1800010000"}
+		 "tool_use_id": "toolu_5", "action": "execute", "target": "go test", "decision": "allowed", "timestamp": "T+9000",
+		 "content": "{\"command\":\"go test\"}", "session_ended_at": "T+10000"}
 	]`)
 
 	// Caught up, the write that may hold call 3's decision is read again from that call.
@@ -526,11 +537,11 @@ func (s *integrationEnterpriseTestSuite) TestAIAgentSessionsDetailQueries() {
 	require.Contains(t, eventsQuery, "transcript_path = '/Users/alice/.claude/projects/app/s1.jsonl' AND block_type = 'tool_use' AND tool_call_index >= 3")
 	submit("fleet_detail_query_ai_agent_session_events", `[
 		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "3", "tool_name": "Agent",
-		 "tool_use_id": "toolu_3", "action": "other", "target": "", "decision": "allowed", "timestamp": "1800007000",
-		 "content": "{\"prompt\":\"explore\"}", "session_ended_at": "1800010000"},
+		 "tool_use_id": "toolu_3", "action": "other", "target": "", "decision": "allowed", "timestamp": "T+7000",
+		 "content": "{\"prompt\":\"explore\"}", "session_ended_at": "T+10000"},
 		{"agent": "claude_code", "session_id": "s1", "tool_call_index": "4", "tool_name": "Bash",
-		 "tool_use_id": "toolu_5", "action": "execute", "target": "go test", "decision": "allowed", "timestamp": "1800009000",
-		 "content": "{\"command\":\"go test\"}", "session_ended_at": "1800010000"}
+		 "tool_use_id": "toolu_5", "action": "execute", "target": "go test", "decision": "allowed", "timestamp": "T+9000",
+		 "content": "{\"command\":\"go test\"}", "session_ended_at": "T+10000"}
 	]`)
 	dqResp = readQueries()
 	require.NotContains(t, dqResp.Queries, "fleet_detail_query_ai_agent_session_events")
