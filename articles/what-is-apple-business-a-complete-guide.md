@@ -12,7 +12,7 @@ Apple Business (AB) is Apple's free service for tracking the provenance of an or
 
 The backend of the AB infrastructure handles connecting institutionally-owned devices to Apple activation servers after first boot. Devices negotiate with AB and become associated to an organization's MDM server to receive an enrollment profile. When a device is enrolled, users are walked through a partially or fully automated Setup Assistant process, usually followed by a customized provisioning workflow. The "Out Of the Box" (OOB) experience for a new employee is easy to understand and hassle-free, resulting in a completely configured, fully-managed device that is ready for work without manual or IT intervention.
 
-Apple consolidated AB in 2018 from two previously separate programs: the Device Enrollment Program (DEP) for automated enrollment and the Volume Purchase Program (VPP) for app licensing. The consolidation eliminated operational silos of managing device enrollment in one system and app distribution in another.
+Apple consolidated two previously separate programs into Apple Business Manager (ABM) in 2018: the Device Enrollment Program (DEP) for automated enrollment and the Volume Purchase Program (VPP) for app licensing. The consolidation eliminated operational silos of managing device enrollment in one system and app distribution in another. In 2026, Apple replaced ABM, Apple Business Essentials, and Apple Business Connect with Apple Business.
 
 AB is a single-portal for:
 
@@ -42,8 +42,7 @@ AB has three core capabilities that work together to automate device provisionin
 
 Automated Device Enrollment (ADE) streamlines MDM enrollment by handling initial device setup through Apple's activation infrastructure.
 
-ADE enrollment ties a device to your AB account. If a device needs to be permanently removed from your organization's AB (for example, during asset disposal, resale, or transfer to another organization) your MDM can call Apple's Disown Device API to release it. In Fleet, admins can do this directly from the Host details page or via the REST API. Once disowned, the device will no longer automatically enroll through your 
-AB on reset. **This action is irreversible.**
+ADE enrollment ties a device to your AB account. If a device needs to be permanently removed from your organization's AB (for example, during asset disposal, resale, or transfer to another organization) your MDM can call Apple's Disown Device API to release it. In Fleet, admins can do this directly from the Host details page or via the REST API. Once disowned, the device will no longer automatically enroll through your AB on reset. **This action is irreversible.**
 
 ### Volume purchasing and app distribution
 
@@ -77,17 +76,19 @@ AB eliminates manual device setup, reduces administrative overhead through autom
   - Managed Apple Accounts can help to keep work data separate from personal information
   - Role-based access controls in AB allow organizations to engage in best practices
 
-- **Vendor flexibility:** AB integrates with any MDM solution, preventing vendor lock-in. Select the MDM solution that fits your organization bwest and switch MDM vendors without rebuilding your enrollment infrastructure via Managed Device Migration.
+- **Vendor flexibility:** AB integrates with any MDM solution, preventing vendor lock-in. Select the MDM solution that fits your organization best and switch MDM vendors without rebuilding your enrollment infrastructure via Managed Device Migration.
 
 ## Who should use Apple Business?
 
-Small US-only teams with fewer than 500 employees and basic security needs might be able to use ABE. Organizations managing Apple devices at scale should use AB paired with a third-party MDM solution, such as [Fleet](https://fleetdm.com/device-management).
+AB includes a basic built-in MDM, which may be enough for small teams with simple needs. Organizations managing Apple devices at scale should pair AB with a third-party MDM solution, such as [Fleet](https://fleetdm.com/device-management).
 
-Value emerges for enterprises with distributed teams, international operations, or those planning to exceed 500 employees. Large enterprises with multi-location operations will appreciate AB's global availability and unlimited scale.
+Value emerges for enterprises with distributed teams or international operations. Large enterprises with multi-location operations will appreciate AB's global availability and unlimited scale.
 
 Fleet pairs well with AB. Fleet's MDM features are built on top of [osquery](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems), Fleet provides deep endpoint visibility through 300+ queryable data tables and delivers device reporting in under 30 seconds. Its cross-platform support extends beyond the Apple ecosystem to Windows, Linux, Chromebooks and Android devices. For organizations with data residency requirements, Fleet offers both hosted, cloud-managed and self-hosted server deployment options, while native GitOps and API-first design integrate with the modern, infrastructure-as-code practices large enterprises are adopting to thrive.
 
 ## What about Apple devices in education and the public sector?
+
+### Education
 
 Educational institutions use Apple School Manager (ASM) instead of AB. ASM includes the features of AB, plus features designed for K-12 and higher education like Shared iPad, Apple Classroom and Schoolwork, and Managed Apple Account provisioning for students and teachers. Schools don't need both portals and only need to pair ASM with an MDM solution.
 
@@ -101,10 +102,13 @@ Fleet doesn't support:
 - **Apple Classroom and Schoolwork:** Features for managing teachers, students, classes, and Managed Apple Account roles for education.
 - **Books:** Distributing books purchased through ASM.
 
-AB works with all MDM solutions and provides detailed procurement, enrollment and compliance data. Government and public sector agencies managing Apple devices that:
+### Government and public sector
 
-Must meet strict vendor flexibility and audit requirements
-Operate under strict procurement and regulatory frameworks
+Government and public sector agencies use AB, not ASM. AB works with all MDM solutions and provides detailed procurement, enrollment and compliance data. Agencies managing Apple devices that:
+
+- Must meet strict vendor flexibility and audit requirements
+- Operate under strict procurement and regulatory frameworks
+
 should require AB as part of their technology stack.
 
 Fleet helps these organizations [meet compliance requirements](https://fleetdm.com/securing/get-and-stay-compliant-across-your-devices-with-fleet) through automated vulnerability detection, policy enforcement, continuous monitoring, and deployment flexibility with both cloud-hosted and self-hosted options that address data residency requirements.
