@@ -8,11 +8,14 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
@@ -1229,6 +1232,58 @@ func TestBatchScriptCancel(t *testing.T) {
 			require.False(t, fleet.IsNotFound(err))
 		})
 	})
+}
+
+func TestBatchScriptCancelReplicaLag(t *testing.T) {
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
+	defer ds.Close()
+
+	serverOpts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true}
+	svc, ctx := newTestService(t, ds, nil, nil, serverOpts)
+
+	var canceledActivities []fleet.ActivityTypeBatchScriptCanceled
+	serverOpts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		if a, ok := activity.(fleet.ActivityTypeBatchScriptCanceled); ok {
+			canceledActivities = append(canceledActivities, a)
+		}
+		return nil
+	}
+
+	user := test.NewUser(t, ds, "admin", "admin@example.com", true)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.1", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.2", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "10.0.0.3", "host3key", "host3uuid", time.Now())
+	test.SetOrbitEnrollment(t, host1, ds)
+	test.SetOrbitEnrollment(t, host2, ds)
+	test.SetOrbitEnrollment(t, host3, ds)
+
+	script, err := ds.NewScript(ctx, &fleet.Script{Name: "script1.sh", ScriptContents: "echo hi"})
+	require.NoError(t, err)
+
+	// start a batch run on all 3 hosts and make it available to the replica
+	batchID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	opts.RunReplication()
+	err = ds.RunScheduledBatchActivity(ctx, batchID)
+	require.NoError(t, err)
+	opts.RunReplication()
+
+	// cancel the batch without replicating, the activity should have the canceled count from the primary
+	err = svc.BatchScriptCancel(ctx, batchID)
+	require.NoError(t, err)
+	require.Len(t, canceledActivities, 1)
+	require.Equal(t, batchID, canceledActivities[0].BatchExecutionID)
+	require.Equal(t, uint(3), canceledActivities[0].HostCount)
+	require.Equal(t, uint(3), canceledActivities[0].CanceledCount)
+
+	// read the batch from the replica, it should not have the canceled count yet
+	replicaBatch, err := ds.GetBatchActivity(ctx, batchID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ScheduledBatchExecutionStarted, replicaBatch.Status)
+	require.Nil(t, replicaBatch.NumCanceled)
 }
 
 func TestBatchScriptExecutionStatus(t *testing.T) {
