@@ -25,18 +25,19 @@ var maintainedAppsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 func (ds *Datastore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	const upsertStmt = `
 INSERT INTO
-	fleet_maintained_apps (name, slug, platform, unique_identifier)
+	fleet_maintained_apps (name, slug, platform, unique_identifier, exact_name_match)
 VALUES
-	(?, ?, ?, ?)
+	(?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
 	name = VALUES(name),
 	platform = VALUES(platform),
-	unique_identifier = VALUES(unique_identifier)
+	unique_identifier = VALUES(unique_identifier),
+	exact_name_match = VALUES(exact_name_match)
 `
 
 	var appID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Slug, app.Platform, app.UniqueIdentifier)
+		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Slug, app.Platform, app.UniqueIdentifier, app.ExactNameMatch)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert maintained app")
 		}
@@ -258,7 +259,8 @@ func (ds *Datastore) renameWithRetry(ctx context.Context, stmt string, args ...a
 // rows, so software is re-pointed from one to the other.
 //
 // References to the merged-away title are moved onto the destination and the title is
-// then deleted, which collapses duplicate Windows program titles.
+// then deleted, which collapses duplicate Windows program titles. Before merging, it
+// moves software off an exact-name app's title that only shares the app's name prefix.
 func (ds *Datastore) ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Context) error {
 	fmaMatches, err := ds.GetWindowsFMAMatches(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
@@ -270,6 +272,9 @@ func (ds *Datastore) ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Con
 	// is nothing to merge, which is the steady state: ingestion already files new
 	// software under the right title, so this pass usually finds nothing.
 	allPrefixes := windowsFMAPrefixes(fmaMatches)
+	if err := ds.splitExactNameWindowsFMATitles(ctx, fmaMatches, allPrefixes); err != nil {
+		return err
+	}
 	staleByDestination, err := ds.staleWindowsTitlesByDestination(ctx, fmaMatches, allPrefixes)
 	if err != nil {
 		return err
@@ -278,6 +283,139 @@ func (ds *Datastore) ReconcileWindowsMaintainedAppSoftwareTitles(ctx context.Con
 	for destinationID, staleIDs := range staleByDestination {
 		if err := ds.mergeWindowsFMATitle(ctx, destinationID, staleIDs); err != nil {
 			return ctxerr.Wrapf(ctx, err, "merge onto windows software title %d", destinationID)
+		}
+	}
+
+	return nil
+}
+
+// escapeLikePrefix escapes LIKE wildcards so a name containing % or _ can't widen the
+// match. Callers state the ESCAPE clause explicitly rather than relying on the default.
+func escapeLikePrefix(s string) string {
+	for _, c := range []string{`\`, `%`, `_`} {
+		s = strings.ReplaceAll(s, c, `\`+c)
+	}
+	return s
+}
+
+// splitExactNameWindowsFMATitles moves software that an exact-name app's title holds
+// only because its name starts with the app's onto a title of its own. Software keeps
+// the title it was first filed under, so without this, programs filed before the app
+// was marked exact-name ("Microsoft Teams Meeting Add-in for Microsoft Office" under
+// "Microsoft Teams") would stay counted as the app.
+func (ds *Datastore) splitExactNameWindowsFMATitles(
+	ctx context.Context,
+	fmaMatches []fleet.MaintainedApp,
+	allPrefixes []windowsFMAPrefix,
+) error {
+	var titleIDs []uint
+	var nameConds []string
+	args := []any{nil} // the title IDs, filled in below
+	for i := range fmaMatches {
+		app := &fmaMatches[i]
+		prefixes := app.WinMatchPrefixes()
+		if !app.ExactNameMatch || len(prefixes) == 0 {
+			continue
+		}
+		titleIDs = append(titleIDs, *app.TitleID)
+		for _, prefix := range prefixes {
+			nameConds = append(nameConds, `s.name LIKE ? ESCAPE '\\'`)
+			args = append(args, escapeLikePrefix(prefix)+" %")
+		}
+	}
+	if len(titleIDs) == 0 {
+		return nil
+	}
+	args[0] = titleIDs
+
+	// Software that reports an upgrade code joins its title through it, never by name.
+	stmt, args, err := sqlx.In(`
+		SELECT s.id, s.name, s.title_id, s.upgrade_code
+		FROM software s
+		WHERE s.title_id IN (?) AND s.source = 'programs' AND s.extension_for = ''
+			AND (s.upgrade_code IS NULL OR s.upgrade_code = '')
+			AND (`+strings.Join(nameConds, " OR ")+`)`, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build misfiled windows software statement")
+	}
+	var rows []struct {
+		ID          uint    `db:"id"`
+		Name        string  `db:"name"`
+		TitleID     uint    `db:"title_id"`
+		UpgradeCode *string `db:"upgrade_code"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &rows, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select software misfiled under exact-name windows titles")
+	}
+
+	// Group by source title and name: every version of a misfiled program moves onto
+	// one title, as ingestion would have filed it.
+	type splitKey struct {
+		sourceID uint
+		name     string
+	}
+	type splitGroup struct {
+		sourceID    uint
+		name        string
+		upgradeCode *string
+		softwareIDs []uint
+	}
+	groups := make(map[splitKey]*splitGroup)
+	for _, r := range rows {
+		if match, ok := matchWindowsFMATitle(r.Name, allPrefixes); ok && match.titleID == r.TitleID {
+			continue
+		}
+		key := splitKey{sourceID: r.TitleID, name: normalizeSoftwareNameForMatch(r.Name)}
+		g, ok := groups[key]
+		if !ok {
+			g = &splitGroup{sourceID: r.TitleID, name: r.Name, upgradeCode: r.UpgradeCode}
+			groups[key] = g
+		}
+		g.softwareIDs = append(g.softwareIDs, r.ID)
+	}
+
+	for _, g := range groups {
+		var newTitleID uint
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// Reuse the program's title if one exists, such as one an earlier group in
+			// this pass created for the same name on a sibling app's title.
+			if _, err := tx.ExecContext(ctx,
+				`INSERT IGNORE INTO software_titles (name, source, extension_for, upgrade_code) VALUES (?, 'programs', '', ?)`,
+				g.name, g.upgradeCode,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "insert split windows title")
+			}
+			if err := sqlx.GetContext(ctx, tx, &newTitleID,
+				`SELECT id FROM software_titles WHERE unique_identifier = ? AND source = 'programs' AND extension_for = ''`,
+				g.name,
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "get split windows title")
+			}
+			if newTitleID == g.sourceID {
+				return nil
+			}
+			updateStmt, updateArgs, err := sqlx.In(
+				`UPDATE software SET title_id = ? WHERE id IN (?) AND title_id = ?`,
+				newTitleID, g.softwareIDs, g.sourceID,
+			)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build split software statement")
+			}
+			if _, err := tx.ExecContext(ctx, updateStmt, updateArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "move software to split windows title")
+			}
+			return nil
+		}); err != nil {
+			return ctxerr.Wrapf(ctx, err, "split software off windows software title %d", g.sourceID)
+		}
+
+		if ds.logger != nil && newTitleID != g.sourceID {
+			ds.logger.InfoContext(ctx, "moved Windows software off a Fleet-maintained app's title whose name it only starts with",
+				"source_title_id", g.sourceID,
+				"destination_title_id", newTitleID,
+				"software_name", g.name,
+				"software_count", len(g.softwareIDs),
+			)
 		}
 	}
 
@@ -297,15 +435,15 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 	var nameConds []string
 	var args []any
 	for i := range fmaMatches {
-		for _, prefix := range fmaMatches[i].WinMatchPrefixes() {
-			// Escape LIKE wildcards so a name containing % or _ can't widen the match. The
-			// ESCAPE clause is stated explicitly rather than relying on the default.
-			escaped := prefix
-			for _, c := range []string{`\`, `%`, `_`} {
-				escaped = strings.ReplaceAll(escaped, c, `\`+c)
+		app := &fmaMatches[i]
+		for _, prefix := range app.WinMatchPrefixes() {
+			if app.ExactNameMatch {
+				nameConds = append(nameConds, `st.name = ?`)
+				args = append(args, prefix)
+				continue
 			}
 			nameConds = append(nameConds, `st.name = ? OR st.name LIKE ? ESCAPE '\\'`)
-			args = append(args, prefix, escaped+" %")
+			args = append(args, prefix, escapeLikePrefix(prefix)+" %")
 		}
 	}
 	if len(nameConds) == 0 {
@@ -728,14 +866,14 @@ func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.Maintain
 	// platform is selected even though it is also filtered on, because WinMatchPrefixes
 	// checks it and would otherwise return nothing for every row.
 	query := `
-		SELECT fma.name, fma.unique_identifier, fma.platform,
+		SELECT fma.name, fma.unique_identifier, fma.platform, fma.exact_name_match,
 			MIN(si.title_id) AS software_title_id, MIN(st.name) AS title_name
 		FROM fleet_maintained_apps fma
 		JOIN software_installers si
 			ON si.fleet_maintained_app_id = fma.id AND si.title_id IS NOT NULL
 		JOIN software_titles st ON st.id = si.title_id
 		WHERE fma.platform = 'windows' AND fma.name != ''
-		GROUP BY fma.id, fma.name, fma.unique_identifier, fma.platform
+		GROUP BY fma.id, fma.name, fma.unique_identifier, fma.platform, fma.exact_name_match
 		HAVING COUNT(DISTINCT si.title_id) = 1`
 
 	var apps []fleet.MaintainedApp

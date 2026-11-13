@@ -57,6 +57,9 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAMergeMultipleDestinations", testWindowsFMAMergeMultipleDestinations},
 		{"WindowsFMAIngestIgnoresOtherSources", testWindowsFMAIngestIgnoresOtherSources},
 		{"WindowsFMAReconcileIndependentOfCatalogSync", testWindowsFMAReconcileIndependentOfCatalogSync},
+		{"WindowsFMAExactNameMatchOnIngest", testWindowsFMAExactNameMatchOnIngest},
+		{"WindowsFMAReconcileSplitsExactNameTitle", testWindowsFMAReconcileSplitsExactNameTitle},
+		{"WindowsFMAReconcileSplitReusesTitle", testWindowsFMAReconcileSplitReusesTitle},
 		{"ReconcileSoftwareNames", testReconcileSoftwareNames},
 		{"ReconcileSoftwareNamesSharedIdentifier", testReconcileSoftwareNamesSharedIdentifier},
 		{"ReconcileSoftwareNamesBatched", testReconcileSoftwareNamesBatched},
@@ -131,6 +134,22 @@ func testSync(t *testing.T, ds *Datastore) {
 		return sqlx.SelectContext(context.Background(), q, &actualSlugs, "SELECT slug FROM fleet_maintained_apps ORDER BY slug")
 	})
 	require.ElementsMatch(t, expectedSlugs, actualSlugs)
+
+	exactBySlug := make(map[string]bool)
+	var rows []struct {
+		Slug  string `db:"slug"`
+		Exact bool   `db:"exact_name_match"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(context.Background(), q, &rows, "SELECT slug, exact_name_match FROM fleet_maintained_apps")
+	})
+	for _, r := range rows {
+		exactBySlug[r.Slug] = r.Exact
+	}
+	require.True(t, exactBySlug["microsoft-teams/windows"], "Teams reports exactly its identifier")
+	require.False(t, exactBySlug["granola/windows"], "Granola reports a versioned name")
+	require.False(t, exactBySlug["microsoft-office/windows"], "a custom exists query doesn't vouch for an exact name")
+	require.False(t, exactBySlug["microsoft-teams/darwin"])
 }
 
 func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
@@ -1738,10 +1757,22 @@ func testGetWindowsFMAMatches(t *testing.T, ds *Datastore) {
 	// Platform must be selected, since WinMatchPrefixes gates on it.
 	require.Equal(t, "windows", byName["Granola"].Platform)
 
+	granola := byName["Granola"]
+	require.NotNil(t, granola)
+	require.False(t, granola.ExactNameMatch)
+
 	// All name fields are offered as match candidates, longest first.
 	require.Equal(t, []string{"CPUID CPU-Z", "CPU-Z"}, byName["CPU-Z"].WinMatchPrefixes())
 	// Deduplicated when they are the same.
 	require.Equal(t, []string{"Granola"}, byName["Granola"].WinMatchPrefixes())
+
+	addWindowsFMAWithInstaller(t, ds, user.ID, "Microsoft Teams", "Microsoft Teams", "microsoft-teams/windows")
+	setWindowsFMAExactNameMatch(t, ds, "Microsoft Teams", "Microsoft Teams", "microsoft-teams/windows")
+	names, err = ds.GetWindowsFMAMatches(ctx)
+	require.NoError(t, err)
+	for _, n := range names {
+		require.Equal(t, n.Name == "Microsoft Teams", n.ExactNameMatch, n.Name)
+	}
 
 	// A darwin app yields no prefixes even if the other fields are populated.
 	darwin := fleet.MaintainedApp{
@@ -2824,4 +2855,185 @@ func testWindowsFMAReconcilePinConflict(t *testing.T, ds *Datastore) {
 		return sqlx.GetContext(ctx, q, &total, `SELECT COUNT(*) FROM software_title_team_pins`)
 	})
 	require.Equal(t, 1, total, "the skipped pin is cascaded away with its title")
+}
+
+// setWindowsFMAExactNameMatch marks a Windows FMA exact-name, as the apps list sync
+// does for an app whose apps.json entry carries exact_name_match.
+func setWindowsFMAExactNameMatch(t *testing.T, ds *Datastore, name, uniqueIdentifier, slug string) {
+	t.Helper()
+	_, err := ds.UpsertMaintainedApp(t.Context(), &fleet.MaintainedApp{
+		Name:             name,
+		Slug:             slug,
+		Platform:         "windows",
+		UniqueIdentifier: uniqueIdentifier,
+		ExactNameMatch:   true,
+	})
+	require.NoError(t, err)
+}
+
+// testWindowsFMAExactNameMatchOnIngest: an exact-name app's title takes only the
+// program named exactly like it. A program whose name merely starts with the app's,
+// like the Teams add-in for Office, keeps a title of its own.
+func testWindowsFMAExactNameMatchOnIngest(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	teamsTitleID := addWindowsFMAWithInstaller(t, ds, user.ID, "Microsoft Teams", "Microsoft Teams", "microsoft-teams/windows")
+	setWindowsFMAExactNameMatch(t, ds, "Microsoft Teams", "Microsoft Teams", "microsoft-teams/windows")
+	// A fuzzy-name app keeps matching versioned names.
+	granolaTitleID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+
+	const addIn = "Microsoft Teams Meeting Add-in for Microsoft Office"
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Microsoft Teams", Version: "26288.2004.5269.3420", Source: "programs"},
+		{Name: addIn, Version: "1.26.21803", Source: "programs"},
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, "Microsoft Teams", titleNameForSoftware(t, ds, "Microsoft Teams"))
+	require.Equal(t, teamsTitleID, titleIDForTitleNamed(t, ds, "Microsoft Teams"))
+	require.Equal(t, addIn, titleNameForSoftware(t, ds, addIn))
+	require.Equal(t, "Granola", titleNameForSoftware(t, ds, "Granola 7.373.2"))
+	require.Equal(t, granolaTitleID, titleIDForTitleNamed(t, ds, "Granola"))
+
+	// The reconcile pass agrees and leaves the add-in's title alone.
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, addIn, titleNameForSoftware(t, ds, addIn))
+	require.Equal(t, 1, countTitlesNamed(t, ds, addIn))
+}
+
+// testWindowsFMAReconcileSplitsExactNameTitle: software filed under an app's title by
+// name prefix before the app was marked exact-name moves to a title of its own on the
+// next reconcile, since ingestion never re-files software it has seen.
+func testWindowsFMAReconcileSplitsExactNameTitle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+
+	const (
+		addIn   = "Microsoft Teams Meeting Add-in for Microsoft Office"
+		classic = "Microsoft Teams classic"
+		msi     = "Microsoft Teams Machine-Wide Installer"
+	)
+
+	softwareIDs := func(name string) []uint {
+		var ids []uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &ids, `SELECT id FROM software WHERE name = ? ORDER BY id`, name)
+		})
+		return ids
+	}
+	titleIDOf := func(softwareID uint) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT title_id FROM software WHERE id = ?`, softwareID)
+		})
+		return id
+	}
+
+	// host1 reports one add-in version before the app is added, so it has its own title.
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: addIn, Version: "1.26.21803", Source: "programs"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, countTitlesNamed(t, ds, addIn))
+
+	// With prefix matching, the reconcile merges that title onto the app's, and later
+	// versions, finding no title of their own name, join the app's title by prefix.
+	teamsTitleID := addWindowsFMAWithInstaller(t, ds, user.ID, "Microsoft Teams", "Microsoft Teams", "microsoft-teams/windows")
+	ds.clearWindowsFMAMatchesCache()
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Zero(t, countTitlesNamed(t, ds, addIn))
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: "Microsoft Teams", Version: "26288.2004.5269.3420", Source: "programs"},
+		{Name: addIn, Version: "1.26.21900", Source: "programs"},
+		{Name: classic, Version: "1.7.00.13456", Source: "programs"},
+		{Name: msi, Version: "1.5.0.30767", Source: "programs", UpgradeCode: new("{39AF0813-FA7B-4860-ADBE-93B9B214B914}")},
+	})
+	require.NoError(t, err)
+	addInIDs := softwareIDs(addIn)
+	require.Len(t, addInIDs, 2)
+	require.Equal(t, teamsTitleID, titleIDOf(addInIDs[0]))
+	require.Equal(t, teamsTitleID, titleIDOf(addInIDs[1]))
+	require.Equal(t, "Microsoft Teams", titleNameForSoftware(t, ds, classic))
+
+	// A program on the app's title through its upgrade code belongs there by that link,
+	// not by name, and must stay.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software SET title_id = ? WHERE name = ?`, teamsTitleID, msi)
+		return err
+	})
+
+	// Until the catalog marks the app exact-name, reconcile keeps the prefix rule.
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, teamsTitleID, titleIDOf(addInIDs[1]))
+
+	setWindowsFMAExactNameMatch(t, ds, "Microsoft Teams", "Microsoft Teams", "microsoft-teams/windows")
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+
+	// Both add-in versions share one new title; classic Teams gets its own.
+	require.Equal(t, 1, countTitlesNamed(t, ds, addIn))
+	newAddInTitleID := titleIDForTitleNamed(t, ds, addIn)
+	require.NotEqual(t, teamsTitleID, newAddInTitleID)
+	require.Equal(t, newAddInTitleID, titleIDOf(addInIDs[0]))
+	require.Equal(t, newAddInTitleID, titleIDOf(addInIDs[1]))
+	require.Equal(t, classic, titleNameForSoftware(t, ds, classic))
+	// The app's own program and the upgrade-code program stay.
+	require.Equal(t, teamsTitleID, titleIDOf(softwareIDs("Microsoft Teams")[0]))
+	require.Equal(t, teamsTitleID, titleIDOf(softwareIDs(msi)[0]))
+	// The app's title is still the installer's.
+	require.Equal(t, teamsTitleID, titleIDForTitleNamed(t, ds, "Microsoft Teams"))
+
+	// Idempotent.
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, newAddInTitleID, titleIDOf(addInIDs[1]))
+	require.Equal(t, teamsTitleID, titleIDOf(softwareIDs("Microsoft Teams")[0]))
+
+	// A version first seen now goes straight to the add-in's title.
+	ds.clearWindowsFMAMatchesCache()
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, []fleet.Software{
+		{Name: addIn, Version: "1.27.0", Source: "programs"},
+	})
+	require.NoError(t, err)
+	addInIDs = softwareIDs(addIn)
+	require.Len(t, addInIDs, 3)
+	require.Equal(t, newAddInTitleID, titleIDOf(addInIDs[2]))
+}
+
+// testWindowsFMAReconcileSplitReusesTitle: a misfiled program whose name already has
+// a title of its own moves onto that title instead of a duplicate.
+func testWindowsFMAReconcileSplitReusesTitle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	const addIn = "Microsoft Teams Meeting Add-in for Microsoft Office"
+	teamsTitleID := addWindowsFMAWithInstaller(t, ds, user.ID, "Microsoft Teams", "Microsoft Teams", "microsoft-teams/windows")
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: addIn, Version: "1.26.21900", Source: "programs"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "Microsoft Teams", titleNameForSoftware(t, ds, addIn))
+
+	// A title of the add-in's name appears later, such as from a package an admin uploads.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source, extension_for) VALUES (?, 'programs', '')`, addIn)
+		return err
+	})
+	addInTitleID := titleIDForTitleNamed(t, ds, addIn)
+	require.NotEqual(t, teamsTitleID, addInTitleID)
+
+	setWindowsFMAExactNameMatch(t, ds, "Microsoft Teams", "Microsoft Teams", "microsoft-teams/windows")
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+
+	require.Equal(t, addIn, titleNameForSoftware(t, ds, addIn))
+	require.Equal(t, addInTitleID, titleIDForTitleNamed(t, ds, addIn))
+	require.Equal(t, 1, countTitlesNamed(t, ds, addIn))
 }

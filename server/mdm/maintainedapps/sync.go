@@ -22,6 +22,7 @@ type appListing struct {
 	Slug             string `json:"slug"`
 	Platform         string `json:"platform"`
 	UniqueIdentifier string `json:"unique_identifier"`
+	ExactNameMatch   bool   `json:"exact_name_match"`
 }
 
 type AppsList struct {
@@ -143,6 +144,7 @@ func upsertMaintainedApps(ctx context.Context, appsList *AppsList, ds fleet.Data
 			Slug:             app.Slug,
 			Platform:         app.Platform,
 			UniqueIdentifier: app.UniqueIdentifier,
+			ExactNameMatch:   app.ExactNameMatch,
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert maintained app")
 		}
