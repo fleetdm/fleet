@@ -79,7 +79,7 @@ Fleet adds default install and uninstall scripts that install and uninstall the 
 
 #### Supported Microsoft Store apps
 
-Fleet supports MSIX apps from the Microsoft Store. Most apps built for the Microsoft Store are MSIX apps. Some apps in the Microsoft Store use their own installer (MSI or EXE) instead, and Fleet can't add them. To install one of these apps, add it as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps) or a [custom package](https://fleetdm.com/guides/deploy-software-packages).
+Fleet supports modern (MSIX) apps from the Microsoft Store. Some apps in the Microsoft Store use their own installer (e.g. MSI or EXE) instead, and Fleet can't add them. To install one of these apps, add it as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps) or a [custom package](https://fleetdm.com/guides/deploy-software-packages).
 
 To check an app before you add it, look at the ID at the end of its Microsoft Store URL:
 
