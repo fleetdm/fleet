@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/WatchBeam/clock"
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -29,7 +28,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/google/uuid"
@@ -501,12 +499,11 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 			EnableScheduledQueryStats: true,
 		},
 	}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
-	task := async.NewTask(s.ds, nil, clock.C, nil)
-	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
+	err = detailQueries["scheduled_query_stats"].DirectIngestFunc(
 		context.Background(),
 		slog.New(slog.DiscardHandler),
 		team1Host,
-		task,
+		s.ds,
 		rows,
 	)
 	require.NoError(t, err)
@@ -571,11 +568,11 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		},
 	}
 
-	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
+	err = detailQueries["scheduled_query_stats"].DirectIngestFunc(
 		context.Background(),
 		slog.New(slog.DiscardHandler),
 		globalHost,
-		task,
+		s.ds,
 		rows,
 	)
 	require.NoError(t, err)

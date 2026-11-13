@@ -1418,12 +1418,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	})
 
 	// make hosts members of labels [1], [2], [3] and [4], meaning that none of the profiles apply anymore
-	err = s.ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
-		{labels[1].ID, appleHost.ID},
-		{labels[2].ID, appleHost.ID},
-		{labels[3].ID, appleHost.ID},
-		{labels[4].ID, appleHost.ID},
-	})
+	err = s.ds.AddLabelsToHost(ctx, appleHost.ID, []uint{labels[1].ID, labels[2].ID, labels[3].ID, labels[4].ID})
 	require.NoError(t, err)
 
 	s.awaitTriggerProfileSchedule(t)
@@ -1439,9 +1434,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	// remove membership of [4] for Apple, meaning
 	// that only D3 will be installed on Apple (as the Windows host is still
 	// member of an excluded label)
-	err = s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
-		{labels[4].ID, appleHost.ID},
-	})
+	err = s.ds.RemoveLabelsFromHost(ctx, appleHost.ID, []uint{labels[4].ID})
 	require.NoError(t, err)
 
 	s.awaitTriggerProfileSchedule(t)
@@ -1504,7 +1497,8 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 	appleHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// simulate reporting label results for the new host, otherwise exclude-any
 	// profiles are withheld until label membership is known
-	require.NoError(t, s.ds.AsyncBatchUpdateLabelTimestamp(ctx, []uint{appleHost2.ID}, time.Now()))
+	appleHost2.LabelUpdatedAt = time.Now()
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, appleHost2, map[uint]*bool{}, appleHost2.LabelUpdatedAt, false))
 	s.awaitRunAppleMDMWorkerSchedule()
 	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+appleHost2.UUID)
 	require.NoError(t, err)
@@ -1622,17 +1616,9 @@ func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 
 	// make hosts members of labels [1], [2], [3] and [4], meaning that each of the "include any"
 	// labels will now match at least one host
-	err = s.ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
-		{labels[0].ID, appleHost.ID},
-		{labels[1].ID, appleHost.ID},
-		{labels[2].ID, appleHost.ID},
-		{labels[3].ID, appleHost.ID},
-		{labels[4].ID, appleHost.ID},
-		{labels[1].ID, windowsHost.ID},
-		{labels[2].ID, windowsHost.ID},
-		{labels[3].ID, windowsHost.ID},
-		{labels[4].ID, windowsHost.ID},
-	})
+	err = s.ds.AddLabelsToHost(ctx, appleHost.ID, []uint{labels[0].ID, labels[1].ID, labels[2].ID, labels[3].ID, labels[4].ID})
+	require.NoError(t, err)
+	err = s.ds.AddLabelsToHost(ctx, windowsHost.ID, []uint{labels[1].ID, labels[2].ID, labels[3].ID, labels[4].ID})
 	require.NoError(t, err)
 
 	triggerReconcileProfiles()
@@ -1653,11 +1639,9 @@ func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 	// remove membership of labels [2] for Windows, and [1] and [4] for Apple, meaning
 	// that D3 will be removed on Apple, A1 will remain on Apple because the host is still a member
 	// of [0], and W2 will remain on Windows because the host is still a member of [3]
-	err = s.ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
-		{labels[1].ID, appleHost.ID},
-		{labels[4].ID, appleHost.ID},
-		{labels[2].ID, windowsHost.ID},
-	})
+	err = s.ds.RemoveLabelsFromHost(ctx, appleHost.ID, []uint{labels[1].ID, labels[4].ID})
+	require.NoError(t, err)
+	err = s.ds.RemoveLabelsFromHost(ctx, windowsHost.ID, []uint{labels[2].ID})
 	require.NoError(t, err)
 
 	s.awaitTriggerProfileSchedule(t)
