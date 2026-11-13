@@ -3,7 +3,6 @@ import PropTypes from "prop-types";
 
 import { IFormField } from "./form_field";
 import { ILabelQuery } from "./label";
-import { IPack } from "./pack";
 import {
   CommaSeparatedPlatformString,
   QueryablePlatform,
@@ -30,7 +29,6 @@ export interface ISchedulableQuery {
   author_email: string;
   observer_can_run: boolean;
   discard_data: boolean;
-  packs: IPack[];
   stats: ISchedulableQueryStats;
   editingExistingQuery?: boolean;
   labels_include_any?: ILabelQuery[];

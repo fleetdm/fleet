@@ -353,6 +353,17 @@ module.exports = {
         docsUrl: '/guides/connect-end-user-to-wifi-with-certificate#digicert',
         docsLabel: 'Docs',
       },
+      {
+        slug: 'securew2',
+        name: 'SecureW2',
+        category: 'certificates',
+        logo: '/images/logo-securew2-137x28@2x.png',
+        summary: 'Deploy SecureW2 certificates over ACME or SCEP so end users join Wi-Fi and VPN without passwords.',
+        description: 'SecureW2 is a managed PKI and cloud RADIUS platform. Use Fleet to deploy SecureW2 certificates to macOS, iOS, and iPadOS hosts over ACME or SCEP, so end users join Wi-Fi and VPN without passwords or manual setup.',
+        learnMoreUrl: 'https://www.securew2.com/',
+        docsUrl: '/guides/deploy-securew2-certificates-with-fleet',
+        docsLabel: 'Docs',
+      },
 
       // GitOps & CI/CD
       {

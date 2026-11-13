@@ -23,6 +23,7 @@ import (
 	"golang.org/x/net/http2/h2c"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
@@ -454,8 +455,8 @@ type LoggingConfig struct {
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
 	TracingEnabled       bool          `yaml:"tracing_enabled"`
-	// TracingType can be set to TracingTypeElasticAPM to send traces to Elastic APM.
-	// By default (empty or any other value), traces are sent to OpenTelemetry (OTEL).
+	// TracingType selects the tracing backend. OpenTelemetry (OTEL) is the only one supported. The removed "elasticapm" value
+	// disables tracing at startup.
 	TracingType string `yaml:"tracing_type"`
 	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
 	// When enabled, logs are sent to both stderr and the OTLP endpoint.
@@ -1083,7 +1084,7 @@ type FleetConfig struct {
 }
 
 func (f FleetConfig) OTELEnabled() bool {
-	return f.Logging.TracingEnabled && f.Logging.TracingType != "elasticapm"
+	return f.Logging.TracingEnabled
 }
 
 type PartnershipsConfig struct {
@@ -1225,12 +1226,12 @@ type MDMConfig struct {
 	appleSCEPPEMCert []byte
 	appleSCEPPEMKey  []byte
 
-	AppleBMServerToken      string `yaml:"apple_bm_server_token"`
-	AppleBMServerTokenBytes string `yaml:"apple_bm_server_token_bytes"`
-	AppleBMCert             string `yaml:"apple_bm_cert"`
-	AppleBMCertBytes        string `yaml:"apple_bm_cert_bytes"`
-	AppleBMKey              string `yaml:"apple_bm_key"`
-	AppleBMKeyBytes         string `yaml:"apple_bm_key_bytes"`
+	AppleBMServerToken      string `yaml:"apple_business_server_token"`
+	AppleBMServerTokenBytes string `yaml:"apple_business_server_token_bytes"`
+	AppleBMCert             string `yaml:"apple_business_cert"`
+	AppleBMCertBytes        string `yaml:"apple_business_cert_bytes"`
+	AppleBMKey              string `yaml:"apple_business_key"`
+	AppleBMKeyBytes         string `yaml:"apple_business_key_bytes"`
 
 	// the following fields hold the PEM-encoded bytes for the certificate
 	// and private key set the first time AppleBM is called
@@ -2019,7 +2020,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("osquery.redis_config_etags", false,
 		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. Off by default; requires Redis (no effect without it) and requires osquery.config_etags to be enabled as well. While off, every config request takes the always-full-build path.")
 	man.addConfigBool("osquery.config_in_memory_cache", false,
-		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for hosts with 2017 packs and for fleets with label-scoped reports, whose config differs per host.")
+		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for fleets with label-scoped reports, whose config differs per host.")
 	man.addConfigInt("osquery.max_concurrent_query_report_reads", 40,
 		"Maximum number of osquery log requests per Fleet server that read a host's stored report results from the database at once, to skip writing results that haven't changed. Requests over the limit skip storing report results (log destinations are unaffected). 0 disables the limit.")
 	man.addConfigInt("osquery.max_concurrent_query_report_writes", 20,
@@ -2047,7 +2048,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("logging.tracing_enabled", false,
 		"Enable Tracing, further configured via standard env variables")
 	man.addConfigString("logging.tracing_type", "",
-		"Select the kind of tracing, defaults to OpenTelemetry, can also be elasticapm")
+		"Select the kind of tracing, only OpenTelemetry is supported")
 	man.addConfigBool("logging.otel_logs_enabled", false,
 		"Enable exporting logs to an OpenTelemetry collector (requires tracing_enabled)")
 	man.addConfigString("logging.enable_topics", "",
@@ -2323,12 +2324,12 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_scep_cert_bytes", "", "Apple SCEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
 	man.addConfigString("mdm.apple_scep_key_bytes", "", "Apple SCEP PEM-encoded private key bytes")
-	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business encrypted server token path (.p7m file)")
-	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business encrypted server token bytes")
-	man.addConfigString("mdm.apple_bm_cert", "", "Apple Business PEM-encoded certificate path")
-	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business PEM-encoded certificate bytes")
-	man.addConfigString("mdm.apple_bm_key", "", "Apple Business PEM-encoded private key path")
-	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business PEM-encoded private key bytes")
+	man.addConfigString("mdm.apple_business_server_token", "", "Apple Business encrypted server token path (.p7m file)")
+	man.addConfigString("mdm.apple_business_server_token_bytes", "", "Apple Business encrypted server token bytes")
+	man.addConfigString("mdm.apple_business_cert", "", "Apple Business PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_business_cert_bytes", "", "Apple Business PEM-encoded certificate bytes")
+	man.addConfigString("mdm.apple_business_key", "", "Apple Business PEM-encoded private key path")
+	man.addConfigString("mdm.apple_business_key_bytes", "", "Apple Business PEM-encoded private key bytes")
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
 	man.addConfigBool("mdm.apple_machineinfo_verify", true, "Verify the signature on Apple's x-apple-aspen-deviceinfo (MachineInfo) blob during enrollment")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
@@ -2425,6 +2426,11 @@ func (man Manager) addConfigs() {
 		"Notify connected agents of osquery config changes so they can poll it less often (requires websocket.transport_enabled)")
 	man.addConfigDuration("websocket.osquery_config_poll_interval", 10*time.Minute,
 		"Fallback osquery config poll interval of connected agents, when websocket.osquery_config_enabled is set")
+
+	for _, e := range removednames.Filter(removednames.KindConfigKey, 0) {
+		man.addConfigString(e.Old, "", "Removed in Fleet 5") // need to register it to see the --flag format come through and show the Fleet 5 message.
+		man.hideConfig(e.Old)
+	}
 }
 
 func (man Manager) hideConfig(name string) {
@@ -2434,10 +2440,32 @@ func (man Manager) hideConfig(name string) {
 	}
 }
 
+// removedConfigMessage names the removed key the way it was set: as a flag, an environment variable, or a config file key. Viper
+// doesn't say which source set a key, so this checks them in viper's precedence order.
+func (man Manager) removedConfigMessage(e removednames.Entry) string {
+	kind, convert := removednames.KindYAMLKey, func(s string) string { return s }
+	if f := man.command.PersistentFlags().Lookup(flagNameFromConfigKey(e.Old)); f != nil && f.Changed {
+		kind, convert = removednames.KindFlag, flagNameFromConfigKey
+	} else if _, ok := os.LookupEnv(envNameFromConfigKey(e.Old)); ok {
+		kind, convert = removednames.KindEnvVar, envNameFromConfigKey
+	}
+	newName := e.New
+	if newName != "" {
+		newName = convert(newName)
+	}
+	return removednames.Entry{Kind: kind, Old: convert(e.Old), New: newName, Format: removednames.ReplacedFormat{}}.Message()
+}
+
 // LoadConfig will load the config variables into a fully initialized
 // FleetConfig struct
-func (man Manager) LoadConfig() FleetConfig {
+func (man Manager) LoadConfig() (FleetConfig, error) {
 	man.loadConfigFile()
+
+	for _, removedKey := range removednames.Filter(removednames.KindConfigKey, 0) {
+		if man.IsSet(removedKey.Old) {
+			return FleetConfig{}, errors.New(man.removedConfigMessage(removedKey))
+		}
+	}
 
 	loadMysqlConfig := func(prefix string) MysqlConfig {
 		return MysqlConfig{
@@ -2746,12 +2774,12 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleSCEPCertBytes:                man.getConfigString("mdm.apple_scep_cert_bytes"),
 			AppleSCEPKey:                      man.getConfigString("mdm.apple_scep_key"),
 			AppleSCEPKeyBytes:                 man.getConfigString("mdm.apple_scep_key_bytes"),
-			AppleBMServerToken:                man.getConfigString("mdm.apple_bm_server_token"),
-			AppleBMServerTokenBytes:           man.getConfigString("mdm.apple_bm_server_token_bytes"),
-			AppleBMCert:                       man.getConfigString("mdm.apple_bm_cert"),
-			AppleBMCertBytes:                  man.getConfigString("mdm.apple_bm_cert_bytes"),
-			AppleBMKey:                        man.getConfigString("mdm.apple_bm_key"),
-			AppleBMKeyBytes:                   man.getConfigString("mdm.apple_bm_key_bytes"),
+			AppleBMServerToken:                man.getConfigString("mdm.apple_business_server_token"),
+			AppleBMServerTokenBytes:           man.getConfigString("mdm.apple_business_server_token_bytes"),
+			AppleBMCert:                       man.getConfigString("mdm.apple_business_cert"),
+			AppleBMCertBytes:                  man.getConfigString("mdm.apple_business_cert_bytes"),
+			AppleBMKey:                        man.getConfigString("mdm.apple_business_key"),
+			AppleBMKeyBytes:                   man.getConfigString("mdm.apple_business_key_bytes"),
 			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
 			AppleMachineInfoVerify:            man.getConfigBool("mdm.apple_machineinfo_verify"),
 			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
@@ -2829,7 +2857,7 @@ func (man Manager) LoadConfig() FleetConfig {
 		cfg.Osquery.AsyncConfigForTask(task)
 	}
 
-	return cfg
+	return cfg, nil
 }
 
 func (man Manager) loadS3Config() S3Config {

@@ -596,7 +596,7 @@ CREATE TABLE `fleet_variables` (
   UNIQUE KEY `idx_fleet_variables_name_is_prefix` (`name`,`is_prefix`)
 ) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `fleet_variables` VALUES (1,'FLEET_VAR_NDES_SCEP_CHALLENGE',0,'2025-04-22 00:00:00.000000'),(2,'FLEET_VAR_NDES_SCEP_PROXY_URL',0,'2025-04-22 00:00:00.000000'),(3,'FLEET_VAR_HOST_END_USER_EMAIL_IDP',0,'2025-04-22 00:00:00.000000'),(4,'FLEET_VAR_HOST_HARDWARE_SERIAL',0,'2025-04-22 00:00:00.000000'),(5,'FLEET_VAR_HOST_END_USER_IDP_USERNAME',0,'2025-04-22 00:00:00.000000'),(6,'FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART',0,'2025-04-22 00:00:00.000000'),(7,'FLEET_VAR_HOST_END_USER_IDP_GROUPS',0,'2025-04-22 00:00:00.000000'),(8,'FLEET_VAR_DIGICERT_DATA_',1,'2025-04-22 00:00:00.000000'),(9,'FLEET_VAR_DIGICERT_PASSWORD_',1,'2025-04-22 00:00:00.000000'),(10,'FLEET_VAR_CUSTOM_SCEP_CHALLENGE_',1,'2025-04-22 00:00:00.000000'),(11,'FLEET_VAR_CUSTOM_SCEP_PROXY_URL_',1,'2025-04-22 00:00:00.000000'),(12,'FLEET_VAR_SCEP_RENEWAL_ID',0,'2025-04-30 00:00:00.000000'),(13,'FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT',0,'2025-06-27 00:00:00.000000'),(14,'FLEET_VAR_HOST_UUID',0,'2025-08-08 00:00:00.000000'),(15,'FLEET_VAR_HOST_END_USER_IDP_FULL_NAME',0,'2025-08-25 00:00:00.000000'),(16,'FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID',0,'2025-10-22 00:00:00.000000'),(17,'FLEET_VAR_HOST_PLATFORM',0,'2025-11-19 00:00:00.000000'),(18,'FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN',0,'2026-06-19 00:00:00.000000'),(19,'FLEET_VAR_HOST_TARGET_OS_VERSION',0,'2026-07-27 00:00:00.000000'),(20,'FLEET_VAR_HOST_TARGET_OS_DEADLINE',0,'2026-07-27 00:00:00.000000'),(21,'FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID',0,'2026-10-13 00:00:00.000000'),(22,'FLEET_VAR_EJBCA_DATA_',1,'2026-10-15 00:00:00.000000'),(23,'FLEET_VAR_EJBCA_PASSWORD_',1,'2026-10-15 00:00:00.000000'),(24,'FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL',0,'2026-10-15 00:00:00.000000');
+INSERT INTO `fleet_variables` VALUES (1,'FLEET_VAR_NDES_SCEP_CHALLENGE',0,'2025-04-22 00:00:00.000000'),(2,'FLEET_VAR_NDES_SCEP_PROXY_URL',0,'2025-04-22 00:00:00.000000'),(4,'FLEET_VAR_HOST_HARDWARE_SERIAL',0,'2025-04-22 00:00:00.000000'),(5,'FLEET_VAR_HOST_END_USER_IDP_USERNAME',0,'2025-04-22 00:00:00.000000'),(6,'FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART',0,'2025-04-22 00:00:00.000000'),(7,'FLEET_VAR_HOST_END_USER_IDP_GROUPS',0,'2025-04-22 00:00:00.000000'),(8,'FLEET_VAR_DIGICERT_DATA_',1,'2025-04-22 00:00:00.000000'),(9,'FLEET_VAR_DIGICERT_PASSWORD_',1,'2025-04-22 00:00:00.000000'),(10,'FLEET_VAR_CUSTOM_SCEP_CHALLENGE_',1,'2025-04-22 00:00:00.000000'),(11,'FLEET_VAR_CUSTOM_SCEP_PROXY_URL_',1,'2025-04-22 00:00:00.000000'),(12,'FLEET_VAR_SCEP_RENEWAL_ID',0,'2025-04-30 00:00:00.000000'),(13,'FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT',0,'2025-06-27 00:00:00.000000'),(14,'FLEET_VAR_HOST_UUID',0,'2025-08-08 00:00:00.000000'),(15,'FLEET_VAR_HOST_END_USER_IDP_FULL_NAME',0,'2025-08-25 00:00:00.000000'),(16,'FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID',0,'2025-10-22 00:00:00.000000'),(17,'FLEET_VAR_HOST_PLATFORM',0,'2025-11-19 00:00:00.000000'),(18,'FLEET_VAR_PSSO_DEVICE_REGISTRATION_TOKEN',0,'2026-06-19 00:00:00.000000'),(19,'FLEET_VAR_HOST_TARGET_OS_VERSION',0,'2026-07-27 00:00:00.000000'),(20,'FLEET_VAR_HOST_TARGET_OS_DEADLINE',0,'2026-07-27 00:00:00.000000'),(21,'FLEET_VAR_HOST_END_USER_IDP_EXTERNAL_ID',0,'2026-10-13 00:00:00.000000'),(22,'FLEET_VAR_EJBCA_DATA_',1,'2026-10-15 00:00:00.000000'),(23,'FLEET_VAR_EJBCA_PASSWORD_',1,'2026-10-15 00:00:00.000000'),(24,'FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL',0,'2026-10-15 00:00:00.000000');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `host_additional` (
@@ -1957,7 +1957,7 @@ CREATE TABLE `labels` (
   `criteria` json DEFAULT NULL,
   `team_id` int unsigned DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_label_unique_name` (`name`),
+  UNIQUE KEY `idx_label_unique_name_team` (`name`,(coalesce(`team_id`,0))),
   KEY `author_id` (`author_id`),
   KEY `team_id` (`team_id`),
   FULLTEXT KEY `labels_search` (`name`),
@@ -2983,33 +2983,6 @@ CREATE TABLE `osquery_options` (
 INSERT INTO `osquery_options` VALUES (1,0,'','{\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/v1/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `pack_targets` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `pack_id` int unsigned DEFAULT NULL,
-  `type` int DEFAULT NULL,
-  `target_id` int unsigned NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `constraint_pack_target_unique` (`pack_id`,`target_id`,`type`),
-  CONSTRAINT `pack_targets_ibfk_1` FOREIGN KEY (`pack_id`) REFERENCES `packs` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `packs` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `disabled` tinyint(1) NOT NULL DEFAULT '0',
-  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `pack_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_pack_unique_name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `password_reset_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `expires_at` timestamp NOT NULL,
@@ -3232,34 +3205,6 @@ CREATE TABLE `query_results` (
   PRIMARY KEY (`id`),
   KEY `idx_query_id_host_id_last_fetched` (`query_id`,`host_id`,`last_fetched`),
   KEY `idx_query_id_has_data_host_id_last_fetched` (`query_id`,`has_data`,`host_id`,`last_fetched`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `scheduled_queries` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `pack_id` int unsigned DEFAULT NULL,
-  `query_id` int unsigned DEFAULT NULL,
-  `interval` int unsigned DEFAULT NULL,
-  `snapshot` tinyint(1) DEFAULT NULL,
-  `removed` tinyint(1) DEFAULT NULL,
-  `platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '',
-  `version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '',
-  `shard` int unsigned DEFAULT NULL,
-  `query_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` varchar(1023) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '',
-  `denylist` tinyint(1) DEFAULT NULL,
-  `team_id_char` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_names_in_packs` (`name`,`pack_id`),
-  KEY `scheduled_queries_pack_id` (`pack_id`),
-  KEY `scheduled_queries_query_name` (`query_name`),
-  KEY `fk_scheduled_queries_queries` (`team_id_char`,`query_name`),
-  CONSTRAINT `scheduled_queries_ibfk_1` FOREIGN KEY (`team_id_char`, `query_name`) REFERENCES `queries` (`team_id_char`, `name`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `scheduled_queries_pack_id` FOREIGN KEY (`pack_id`) REFERENCES `packs` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
