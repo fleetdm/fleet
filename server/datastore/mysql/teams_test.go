@@ -19,6 +19,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestTeams(t *testing.T) {
@@ -30,6 +31,7 @@ func TestTeams(t *testing.T) {
 	}{
 		{"GetSetDelete", testTeamsGetSetDelete},
 		{"Users", testTeamsUsers},
+		{"UpdateUsers", testTeamsUpdateUsers},
 		{"List", testTeamsList},
 		{"Summary", testTeamsSummary},
 		{"Search", testTeamsSearch},
@@ -413,6 +415,80 @@ func testTeamsUsers(t *testing.T, ds *Datastore) {
 	team2, err = ds.TeamWithExtras(context.Background(), team2.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, team2Users, team2.Users)
+}
+
+func testTeamsUpdateUsers(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	users := createTestUsers(t, ds)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + " other"})
+	require.NoError(t, err)
+	unknownID := users[1].ID + 100000
+
+	roleIn := func(user fleet.User, teamID uint) string {
+		for _, userTeam := range user.Teams {
+			if userTeam.ID == teamID {
+				return userTeam.Role
+			}
+		}
+		return ""
+	}
+	set := func(id uint, role string) fleet.TeamUser {
+		return fleet.TeamUser{ID: id, Role: role}
+	}
+
+	_, err = ds.UpdateTeamUsers(ctx, otherTeam.ID, []fleet.TeamUser{set(users[0].ID, fleet.RoleAdmin)}, nil)
+	require.NoError(t, err)
+
+	previous, err := ds.UpdateTeamUsers(ctx, team.ID, []fleet.TeamUser{set(users[0].ID, fleet.RoleObserver), set(users[1].ID, fleet.RoleObserver)}, nil)
+	require.NoError(t, err)
+	assert.Empty(t, roleIn(previous[users[0].ID], team.ID))
+	assert.Equal(t, fleet.RoleAdmin, roleIn(previous[users[0].ID], otherTeam.ID))
+	assert.Equal(t, users[0].Email, previous[users[0].ID].Email)
+
+	// Changing one member leaves the other member's role in place.
+	previous, err = ds.UpdateTeamUsers(ctx, team.ID, []fleet.TeamUser{set(users[0].ID, fleet.RoleMaintainer)}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, fleet.RoleObserver, roleIn(previous[users[0].ID], team.ID))
+	got, err := ds.TeamWithExtras(ctx, team.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{fleet.RoleMaintainer, fleet.RoleObserver}, []string{got.Users[0].Role, got.Users[1].Role})
+
+	previous, err = ds.UpdateTeamUsers(ctx, team.ID, nil, []uint{users[0].ID, unknownID})
+	require.NoError(t, err)
+	require.Len(t, previous, 1)
+	assert.Equal(t, fleet.RoleMaintainer, roleIn(previous[users[0].ID], team.ID))
+	got, err = ds.TeamWithExtras(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, got.Users, 1)
+	assert.Equal(t, users[1].ID, got.Users[0].ID)
+	otherGot, err := ds.TeamWithExtras(ctx, otherTeam.ID)
+	require.NoError(t, err)
+	require.Len(t, otherGot.Users, 1)
+
+	// Whichever update runs second must see the first one's role.
+	for range 25 {
+		_, err = ds.UpdateTeamUsers(ctx, team.ID, []fleet.TeamUser{set(users[0].ID, fleet.RoleObserver)}, nil)
+		require.NoError(t, err)
+
+		roles := []string{fleet.RoleAdmin, fleet.RoleMaintainer}
+		seen := make([]string, len(roles))
+		var g errgroup.Group
+		for i, role := range roles {
+			g.Go(func() error {
+				previous, err := ds.UpdateTeamUsers(ctx, team.ID, []fleet.TeamUser{set(users[0].ID, role)}, nil)
+				if err != nil {
+					return err
+				}
+				seen[i] = roleIn(previous[users[0].ID], team.ID)
+				return nil
+			})
+		}
+		require.NoError(t, g.Wait())
+		assert.Contains(t, seen, fleet.RoleObserver)
+		assert.False(t, seen[0] == fleet.RoleObserver && seen[1] == fleet.RoleObserver, "both updates read the role before either saved: %v", seen)
+	}
 }
 
 func testTeamsList(t *testing.T, ds *Datastore) {
