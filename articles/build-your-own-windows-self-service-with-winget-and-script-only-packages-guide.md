@@ -8,11 +8,20 @@ You need two identifiers.
 
 1. Find the app on the [Microsoft Store website](https://apps.microsoft.com). The **Store ID** is the last part of the URL. For Company Portal (`https://apps.microsoft.com/detail/9WZDNCRFJ3PZ`), it's `9WZDNCRFJ3PZ`.
 
-2. Get the **package family name**. Run this on any computer, replacing the Store ID:
+2. Get the **package family name**. Run one of these, replacing the Store ID.
+
+   On Windows (PowerShell):
 
    ```powershell
    (Invoke-RestMethod "https://storeedgefd.dsx.mp.microsoft.com/v9.0/packageManifests/9WZDNCRFJ3PZ?Market=US").Data.Versions.Installers |
        Select-Object InstallerType, PackageFamilyName -Unique
+   ```
+
+   On macOS or Linux (requires [jq](https://jqlang.org)):
+
+   ```sh
+   curl -s "https://storeedgefd.dsx.mp.microsoft.com/v9.0/packageManifests/9WZDNCRFJ3PZ?Market=US" |
+     jq '[.Data.Versions[].Installers[] | {InstallerType, PackageFamilyName}] | unique'
    ```
 
    For Company Portal, `InstallerType` is `msstore` and `PackageFamilyName` is `Microsoft.CompanyPortal_8wekyb3d8bbwe`.
