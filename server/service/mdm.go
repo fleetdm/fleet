@@ -2892,7 +2892,8 @@ func (svc *Service) BatchSetMDMProfiles(
 			}
 			continue
 		}
-		if mdm.GetRawProfilePlatform(p.Contents) == "android" {
+		// Not detected by platform: an unquoted variable makes Android JSON invalid until secrets are expanded.
+		if bytes.HasPrefix(bytes.TrimSpace(p.Contents), []byte("{")) {
 			if err := fleet.ValidateAndroidPasscodeProfileVariables(p.Contents); err != nil {
 				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
 			}

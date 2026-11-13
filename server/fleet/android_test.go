@@ -792,6 +792,59 @@ func TestValidateUserProvided_PasscodeProfileVariables(t *testing.T) {
 	}
 }
 
+func TestValidateAndroidPasscodeProfileVariables(t *testing.T) {
+	tests := []struct {
+		name      string
+		rawJSON   string
+		errSubstr string
+	}{
+		{
+			name:      "escaped fleet variable",
+			rawJSON:   `{"passwordRequirements": {}, "name": "$FLEET_VAR_HOST_UUID"}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+		{
+			name:      "escaped secret",
+			rawJSON:   `{"passwordRequirements": {}, "name": "$FLEET_SECRET_NAME"}`,
+			errSubstr: "$FLEET_SECRET_NAME",
+		},
+		{
+			name:      "escaped custom host vital in a key",
+			rawJSON:   `{"passwordRequirements": {"$FLEET_HOST_VITAL_7": 1}}`,
+			errSubstr: "$FLEET_HOST_VITAL_7",
+		},
+		{
+			name:      "unquoted secret makes the raw JSON invalid",
+			rawJSON:   `{"passwordPolicies": [{"passwordMinimumLength": $FLEET_SECRET_PIN_LENGTH}]}`,
+			errSubstr: "$FLEET_SECRET_PIN_LENGTH",
+		},
+		{
+			name:      "unquoted braced fleet variable",
+			rawJSON:   `{"passwordRequirements": {"passwordMinimumLength": ${FLEET_VAR_HOST_UUID}}}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+		{
+			name:    "unquoted secret in a non-passcode profile",
+			rawJSON: `{"maximumTimeToLock": $FLEET_SECRET_LOCK}`,
+		},
+		{
+			name:    "dollar text that isn't a variable",
+			rawJSON: `{"passwordRequirements": {}, "name": "$100 $HOME"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateAndroidPasscodeProfileVariables([]byte(tt.rawJSON))
+			if tt.errSubstr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tt.errSubstr)
+		})
+	}
+}
+
 func TestIsAndroidPasscodeProfile(t *testing.T) {
 	tests := []struct {
 		name    string

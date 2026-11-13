@@ -4026,7 +4026,7 @@ func TestBatchSetMDMProfilesAndroidPasscodeVariables(t *testing.T) {
 	ds.ListAppleDDMAssetsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.DDMAsset, error) { return nil, nil }
 	// Expand like the real datastore, so the check must run on the content before expansion.
 	ds.ExpandEmbeddedSecretsAndUpdatedAtFunc = func(ctx context.Context, document string) (string, *time.Time, error) {
-		return strings.ReplaceAll(document, "$FLEET_SECRET_NAME", "expanded"), nil, nil
+		return strings.NewReplacer("$FLEET_SECRET_NAME", "expanded", "$FLEET_SECRET_PIN_LENGTH", "6").Replace(document), nil, nil
 	}
 	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 		return &fleet.GroupedCertificateAuthorities{}, nil
@@ -4041,10 +4041,13 @@ func TestBatchSetMDMProfilesAndroidPasscodeVariables(t *testing.T) {
 	}
 
 	passcode := map[string]any{"passwordPolicies": []map[string]any{{"passwordScope": "SCOPE_DEVICE", "passwordMinimumLength": 6}}}
+	// Invalid JSON until the secret is expanded.
+	const unquotedSecret = `{"passwordPolicies": [{"passwordScope": "SCOPE_DEVICE", "passwordMinimumLength": $FLEET_SECRET_PIN_LENGTH}]}`
 
 	cases := []struct {
 		name      string
 		value     string
+		contents  string
 		dryRun    bool
 		errSubstr string
 	}{
@@ -4052,12 +4055,17 @@ func TestBatchSetMDMProfilesAndroidPasscodeVariables(t *testing.T) {
 		{name: "secret", value: "$FLEET_SECRET_NAME", errSubstr: "$FLEET_SECRET_NAME"},
 		{name: "secret on dry run", value: "$FLEET_SECRET_NAME", dryRun: true, errSubstr: "$FLEET_SECRET_NAME"},
 		{name: "fleet variable", value: "$FLEET_VAR_HOST_UUID", errSubstr: "$FLEET_VAR_HOST_UUID"},
+		{name: "unquoted secret", contents: unquotedSecret, errSubstr: "$FLEET_SECRET_PIN_LENGTH"},
+		{name: "unquoted secret on dry run", contents: unquotedSecret, dryRun: true, errSubstr: "$FLEET_SECRET_PIN_LENGTH"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ds.BatchSetMDMProfilesFuncInvoked = false
-			prof := androidConfigProfileForTest(t, c.value, passcode)
-			profiles := []fleet.MDMProfileBatchPayload{{Name: "passcode", Contents: prof.RawJSON}}
+			contents := []byte(c.contents)
+			if c.contents == "" {
+				contents = androidConfigProfileForTest(t, c.value, passcode).RawJSON
+			}
+			profiles := []fleet.MDMProfileBatchPayload{{Name: "passcode", Contents: contents}}
 			err := svc.BatchSetMDMProfiles(ctx, nil, nil, profiles, c.dryRun, false, new(true), nil, false)
 			if c.errSubstr == "" {
 				require.NoError(t, err)

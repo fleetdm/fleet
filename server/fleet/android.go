@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"os"
 	"reflect"
 	"regexp"
 	"slices"
@@ -171,14 +172,35 @@ func IsAndroidPasscodeProfile(rawJSON []byte) bool {
 // and applies during setup, before Fleet knows the host. Callers that expand secrets before validating
 // must pass the content as the user provided it.
 func ValidateAndroidPasscodeProfileVariables(rawJSON []byte) error {
-	if !IsAndroidPasscodeProfile(rawJSON) {
+	prefixes := []string{ServerVarPrefix, ServerSecretPrefix, CustomHostVitalPrefix}
+	// An unquoted variable (e.g. a number from a secret) makes the raw JSON invalid, so the passcode keys are
+	// looked for with every variable replaced by a value.
+	withValues := os.Expand(string(rawJSON), func(name string) string {
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(name, prefix) {
+				return "0"
+			}
+		}
+		return "$" + name
+	})
+	if !IsAndroidPasscodeProfile([]byte(withValues)) {
 		return nil
 	}
-	contents := string(rawJSON)
-	for _, prefix := range []string{ServerVarPrefix, ServerSecretPrefix, CustomHostVitalPrefix} {
-		if names := ContainsPrefixVars(contents, prefix); len(names) > 0 {
-			return fmt.Errorf(`Profiles with "passwordPolicies" or "passwordRequirements" can't include variables ($%s%s). `+
-				"The passcode is required during setup, before Fleet knows which host it is.", prefix, names[0])
+
+	// JSON escapes (\u0024) would hide a variable from a scan of the raw text; re-encoding decodes them.
+	texts := []string{string(rawJSON)}
+	var decoded any
+	if err := json.Unmarshal(rawJSON, &decoded); err == nil {
+		if b, err := json.Marshal(decoded); err == nil {
+			texts = append(texts, string(b))
+		}
+	}
+	for _, text := range texts {
+		for _, prefix := range prefixes {
+			if names := ContainsPrefixVars(text, prefix); len(names) > 0 {
+				return fmt.Errorf(`Profiles with "passwordPolicies" or "passwordRequirements" can't include variables ($%s%s). `+
+					"The passcode is required during setup, before Fleet knows which host it is.", prefix, names[0])
+			}
 		}
 	}
 	return nil
