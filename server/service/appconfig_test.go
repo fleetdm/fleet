@@ -1477,8 +1477,7 @@ func TestMDMConfig(t *testing.T) {
 				OAuthIdPTokenURL: optjson.String{Set: true},
 				OAuthIdPClientID: optjson.String{Set: true},
 			},
-			AppleBusinessManager:         optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
-			DeprecatedAppleBMDefaultTeam: "",
+			AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 			MacOSSetup: fleet.MacOSSetup{
 				BootstrapPackage:            optjson.String{Set: true},
 				MacOSSetupAssistant:         optjson.String{Set: true},
@@ -1517,7 +1516,10 @@ func TestMDMConfig(t *testing.T) {
 	}
 
 	const licenseErr = "missing or invalid license"
-	const notFoundErr = "not found"
+	const notFoundErr = "doesn't exist"
+	abm := func(team string) optjson.Slice[fleet.MDMAppleABMAssignmentInfo] {
+		return optjson.SetSlice([]fleet.MDMAppleABMAssignmentInfo{{OrganizationName: "abm-org", Default: true, MacOSTeam: team}})
+	}
 	testCases := []struct {
 		name          string
 		licenseTier   string
@@ -1537,39 +1539,39 @@ func TestMDMConfig(t *testing.T) {
 		{
 			name:          "newDefaultTeamNoLicense",
 			licenseTier:   "free",
-			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
+			newMDM:        fleet.MDM{AppleBusinessManager: abm("foobar")},
 			expectedError: licenseErr,
 		},
 		{
 			name:          "notFoundNew",
 			licenseTier:   "premium",
-			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
+			newMDM:        fleet.MDM{AppleBusinessManager: abm("foobar")},
 			expectedError: notFoundErr,
 		},
 		{
 			name:          "notFoundEdit",
 			licenseTier:   "premium",
-			oldMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
-			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
+			oldMDM:        fleet.MDM{AppleBusinessManager: abm("foobar")},
+			newMDM:        fleet.MDM{AppleBusinessManager: abm("bar")},
 			expectedError: notFoundErr,
 		},
 		{
 			name:        "foundNew",
 			licenseTier: "premium",
 			findTeam:    true,
-			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
+			newMDM:      fleet.MDM{AppleBusinessManager: abm("foobar")},
 			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
-				m.DeprecatedAppleBMDefaultTeam = "foobar"
+				m.AppleBusinessManager = abm("foobar")
 			}),
 		},
 		{
 			name:        "foundEdit",
 			licenseTier: "premium",
 			findTeam:    true,
-			oldMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
-			newMDM:      fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
+			oldMDM:      fleet.MDM{AppleBusinessManager: abm("bar")},
+			newMDM:      fleet.MDM{AppleBusinessManager: abm("foobar")},
 			expectedMDM: defaultMDMAppConfig(func(m *fleet.MDM) {
-				m.DeprecatedAppleBMDefaultTeam = "foobar"
+				m.AppleBusinessManager = abm("foobar")
 			}),
 		},
 		{
@@ -2057,7 +2059,19 @@ func TestMDMConfig(t *testing.T) {
 				return []*fleet.VPPTokenDB{}, nil
 			}
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-				return []*fleet.ABMToken{{OrganizationName: t.Name()}}, nil
+				return []*fleet.ABMToken{{OrganizationName: "abm-org"}}, nil
+			}
+			ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+				return 1, nil
+			}
+			ds.SetABMTokenDefaultFunc = func(ctx context.Context, tokenID uint) error {
+				return nil
+			}
+			ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+				if tt.findTeam {
+					return []*fleet.TeamSummary{{ID: 1, Name: "foobar"}}, nil
+				}
+				return nil, nil
 			}
 
 			ac, err := svc.AppConfigObfuscated(ctx)

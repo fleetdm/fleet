@@ -1653,7 +1653,7 @@ func (svc *Service) applyABMTokenAssignments(
 		}
 	}
 
-	if (appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid) || appConfig.MDM.DeprecatedAppleBMDefaultTeam != "" {
+	if appConfig.MDM.AppleBusinessManager.Set && appConfig.MDM.AppleBusinessManager.Valid {
 		for _, tok := range abmAssignments {
 			if err := svc.ds.SaveABMToken(ctx, tok); err != nil {
 				return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
@@ -1706,7 +1706,7 @@ func (svc *Service) applyVPPTokenAssignments(
 	// 2. Set VPP assignments that are defined in the config.
 	for tokenID, tokenTeams := range vppAssignments {
 		if _, err := svc.ds.UpdateVPPTokenTeams(ctx, tokenID, tokenTeams); err != nil {
-			return ctxerr.Wrap(ctx, err, "saving ABM token assignments")
+			return ctxerr.Wrap(ctx, err, "saving VPP token assignments")
 		}
 	}
 	return nil
@@ -2769,44 +2769,6 @@ func (svc *Service) validateABMAssignments(
 	invalid *fleet.InvalidArgumentError,
 	lic *fleet.LicenseInfo,
 ) (tokensToSave []*fleet.ABMToken, defaultTokenID *uint, err error) {
-	if mdm.DeprecatedAppleBMDefaultTeam != "" && mdm.AppleBusinessManager.Set && mdm.AppleBusinessManager.Valid {
-		invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-		return nil, nil, nil
-	}
-
-	if name := mdm.DeprecatedAppleBMDefaultTeam; name != "" && name != oldMdm.DeprecatedAppleBMDefaultTeam {
-		if !lic.IsPremium() {
-			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
-			return nil, nil, nil
-		}
-		team, err := svc.ds.TeamByName(ctx, name)
-		if err != nil {
-			invalid.Append("mdm.apple_bm_default_team", "team name not found")
-			return nil, nil, nil
-		}
-		tokens, err := svc.ds.ListABMTokens(ctx)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		if len(tokens) > 1 {
-			invalid.Append("mdm.apple_bm_default_team", fleet.AppleABMDefaultTeamDeprecatedMessage)
-			return nil, nil, nil
-		}
-
-		if len(tokens) == 0 {
-			invalid.Append("mdm.apple_bm_default_team", "no ABM tokens found")
-			return nil, nil, nil
-		}
-
-		tok := tokens[0]
-		tok.MacOSDefaultTeamID = &team.ID
-		tok.IOSDefaultTeamID = &team.ID
-		tok.IPadOSDefaultTeamID = &team.ID
-		tok.BYODDefaultTeamID = &team.ID
-		return []*fleet.ABMToken{tok}, nil, nil
-	}
-
 	if mdm.AppleBusinessManager.Set && len(mdm.AppleBusinessManager.Value) > 0 {
 		if !lic.IsPremium() {
 			invalid.Append("mdm.apple_business", ErrMissingLicense.Error())

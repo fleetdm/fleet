@@ -233,19 +233,16 @@ type MDM struct {
 	// If not set, the server will use Fleet server URL (recommended).
 	AppleServerURL string `json:"apple_server_url"`
 
-	// Deprecated: use AppleBusinessManager instead
-	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"` //nolint:apiparamcheck // not renaming already-deprecated field
-
 	// AppleBusinessManager defines the associations between AB tokens
 	// and the fleets used to assign hosts when they're ingested from Apple
 	// Business.
-	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business_manager" renameto:"apple_business,inline"`
+	AppleBusinessManager optjson.Slice[MDMAppleABMAssignmentInfo] `json:"apple_business" removedkey:"apple_business_manager" renamescope:"mdm"`
 
 	// AppleBMEnabledAndConfigured is set to true if Fleet has been
 	// configured with the required Apple BM key pair or token. It can't be set
 	// manually via the PATCH /config API, it's only set automatically when
 	// the server starts.
-	AppleBMEnabledAndConfigured bool `json:"apple_bm_enabled_and_configured"`
+	AppleBMEnabledAndConfigured bool `json:"apple_business_enabled_and_configured" removedkey:"apple_bm_enabled_and_configured" renamescope:"mdm"`
 
 	// AppleBMTermsExpired is set to true if an Apple Business request
 	// failed due to Apple's terms and conditions having changed and need the
@@ -257,7 +254,7 @@ type MDM struct {
 	// It is set to true as soon as one of the ABM tokens receives this error
 	// code, and is set to false only once all ABM tokens have agreed to the new
 	// terms.
-	AppleBMTermsExpired bool `json:"apple_bm_terms_expired"`
+	AppleBMTermsExpired bool `json:"apple_business_terms_expired" removedkey:"apple_bm_terms_expired" renamescope:"mdm"`
 
 	// EnabledAndConfigured is set to true if Fleet has been
 	// configured with the required APNS and SCEP certificates. It can't be set
@@ -346,6 +343,8 @@ type MDM struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+
+	_ struct{} `removedkey:"apple_bm_default_team" renamescope:"mdm"`
 }
 
 // IsAppleMDMSCEPBlocked reports whether Apple MDM SCEP endpoints are blocked altogether. This blocks enrollments

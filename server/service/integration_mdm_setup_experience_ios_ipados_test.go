@@ -51,7 +51,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-			       "apple_business_manager": [{
+			       "apple_business": [{
 			         "organization_name": %q,
 			         "macos_fleet": %q,
 			         "ios_fleet": %q,
@@ -236,7 +236,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": {
-			       "apple_business_manager": [{
+			       "apple_business": [{
 			         "organization_name": %q,
 			         "macos_fleet": %q,
 			         "ios_fleet": %q,

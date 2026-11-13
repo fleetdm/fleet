@@ -345,7 +345,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
-			"apple_business_manager": [{
+			"apple_business": [{
 			  "organization_name": %q,
 			  "macos_fleet": %q,
 			  "ios_fleet": %q,
@@ -356,7 +356,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"apple_business_manager": []
+				"apple_business": []
 			}
 		}`), http.StatusOK, &acResp)
 	})
@@ -1918,7 +1918,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"mdm": {
-			"apple_business_manager": [{
+			"apple_business": [{
 				"organization_name": %q,
 				"macos_fleet": %q,
 				"ios_fleet": "",

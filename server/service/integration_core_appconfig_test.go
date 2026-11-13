@@ -1815,17 +1815,17 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/spec/enroll_secret", nil, http.StatusOK, &specResp)
 	require.Empty(t, specResp.Spec.Secrets)
 
-	// try to update the apple bm terms flag via PATCH /config
+	// try to update the apple business terms flag via PATCH /config
 	// request is ok but modified value is ignored
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "apple_bm_terms_expired": false }
+		"mdm": { "apple_business_terms_expired": false }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.AppleBMTermsExpired)
 
 	// try to update the mdm configured flags via PATCH /config
 	// request is ok but modified value is ignored
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-	  "mdm": { "enabled_and_configured": false, "apple_bm_enabled_and_configured": false }
+	  "mdm": { "enabled_and_configured": false, "apple_business_enabled_and_configured": false }
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnabledAndConfigured)
 	assert.True(t, acResp.MDM.AppleBMEnabledAndConfigured)
@@ -1843,11 +1843,6 @@ func (s *integrationTestSuite) TestAppConfig() {
   }`), http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	assert.Contains(t, errMsg, "missing or invalid license")
-
-	// try to set the apple bm default team, which is premium only
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "apple_bm_default_team": "xyz" }
-  }`), http.StatusUnprocessableEntity, &acResp)
 
 	// try to set Okta conditional access settings, which is premium only
 	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{

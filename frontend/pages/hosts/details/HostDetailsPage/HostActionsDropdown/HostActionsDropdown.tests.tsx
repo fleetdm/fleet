@@ -3029,7 +3029,7 @@ describe("Host Actions Dropdown", () => {
           isGlobalAdmin: true,
           isPremiumTier: true,
           currentUser: createMockUser(),
-          config: { mdm: { apple_bm_enabled_and_configured: true } },
+          config: { mdm: { apple_business_enabled_and_configured: true } },
         },
       },
     });
@@ -3069,7 +3069,7 @@ describe("Host Actions Dropdown", () => {
             isGlobalAdmin: true,
             isPremiumTier: true,
             currentUser: createMockUser(),
-            config: { mdm: { apple_bm_enabled_and_configured: true } },
+            config: { mdm: { apple_business_enabled_and_configured: true } },
           },
         },
       });
@@ -3105,7 +3105,7 @@ describe("Host Actions Dropdown", () => {
             currentUser: createMockUser({
               fleets: [createMockTeam({ id: teamID, role: "admin" })],
             }),
-            config: { mdm: { apple_bm_enabled_and_configured: true } },
+            config: { mdm: { apple_business_enabled_and_configured: true } },
           },
         },
       });
@@ -3142,7 +3142,7 @@ describe("Host Actions Dropdown", () => {
             currentUser: createMockUser({
               fleets: [createMockTeam({ id: 2, role: "admin" })],
             }),
-            config: { mdm: { apple_bm_enabled_and_configured: true } },
+            config: { mdm: { apple_business_enabled_and_configured: true } },
           },
         },
       });
@@ -3177,7 +3177,7 @@ describe("Host Actions Dropdown", () => {
             isGlobalAdmin: true,
             isPremiumTier: true,
             currentUser: createMockUser(),
-            config: { mdm: { apple_bm_enabled_and_configured: false } },
+            config: { mdm: { apple_business_enabled_and_configured: false } },
           },
         },
       });

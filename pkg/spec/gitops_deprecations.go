@@ -59,11 +59,6 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"org_settings.org_info.org_logo_url", "org_settings.org_info.org_logo_url_dark_mode"},
 	{"org_settings.org_info.org_logo_url_light_background", "org_settings.org_info.org_logo_url_light_mode"},
 
-	// org_settings.mdm.apple_business_manager -> apple_business (parent rename
-	// runs before the nested children below so they resolve against the new
-	// parent name).
-	{"org_settings.mdm.apple_business_manager", "org_settings.mdm.apple_business"},
-
 	// The following entries are renameto tags on struct fields that appear in serialized
 	// API output (fleetctl get and fleetctl apply) but are not gitops input keys. They are
 	// included here so that buildAliasRules can derive them. The paths are leaf-only (no dots)
@@ -116,7 +111,7 @@ var RemovedGitOpsKeys = []DeprecatedKeyMapping{
 
 // removedKeyParents are the old spellings of a parent key in RemovedGitOpsKeys that ApplyDeprecatedKeyMappings renames, so a removed key
 // is found under either spelling, including in a file that ApplyDeprecatedKeyMappings never sees (a file-backed org_settings).
-var removedKeyParents = map[string][]string{"apple_business": {"apple_business", "apple_business_manager"}}
+var removedKeyParents = map[string][]string{}
 
 // RejectRemovedKeys returns an error naming the file and the removed key for every key of RemovedGitOpsKeys found in the YAML data map.
 func RejectRemovedKeys(data map[string]any, filePath string) error {
