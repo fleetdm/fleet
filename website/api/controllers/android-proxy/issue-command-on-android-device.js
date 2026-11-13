@@ -194,7 +194,8 @@ module.exports = {
       if([502, 503, 504].includes(err.status)) {
         return {'managementApiError': `The Android management API returned a transient 5xx error: ${err}`};
       }
-      return new Error(`When attempting to issue a command to a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${require('util').inspect(err)}`);
+      // Don't inspect the whole error: its request config includes the body, which holds the device's new password for RESET_PASSWORD commands.
+      return new Error(`When attempting to issue a ${type} command to a device for an Android enterprise (${androidEnterpriseId}), an error occurred. Error: ${err.message} (status: ${err.status}) ${require('util').inspect(err.response ? err.response.data : undefined)}`);
     });
 
 
