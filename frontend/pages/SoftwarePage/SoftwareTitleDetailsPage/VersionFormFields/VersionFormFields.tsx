@@ -1,4 +1,5 @@
 import React from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import CustomLink from "components/CustomLink";
 import Editor from "components/Editor";
@@ -248,6 +249,23 @@ const VersionFormFields = ({
   const isIosOrIpados = platform === "ios" || platform === "ipados";
   const editorMode = isIosOrIpados ? "xml" : "json";
 
+  const configFieldProps = getTextFieldProps("configuration");
+
+  // 3s pause after the last keystroke surfaces the configuration error
+  // without flashing mid-edit, matching the SQL editor's behavior. Blur and
+  // submit still validate immediately via useFormValidation.
+  const debounceValidateConfig = useDebouncedCallback(() => {
+    configFieldProps.onBlur();
+  }, 3000);
+
+  const onChangeConfiguration = (value: string) => {
+    configFieldProps.onChange(value);
+    // Clear any existing error immediately; the 3s debounce re-adds it if
+    // the content is still invalid once the user stops typing.
+    configFieldProps.onFocus();
+    debounceValidateConfig();
+  };
+
   const onSelectCategory = ({
     name,
     value,
@@ -301,7 +319,8 @@ const VersionFormFields = ({
       />
 
       <Editor
-        {...getTextFieldProps("configuration")}
+        {...configFieldProps}
+        onChange={onChangeConfiguration}
         label="Configuration"
         mode={editorMode}
         helpText={configHelpText}

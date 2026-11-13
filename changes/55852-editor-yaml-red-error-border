@@ -1,0 +1,1 @@
+- Fixed the Script editor (Controls > Scripts) and YAML editor (Software > Android app configuration, agent options, custom profile) so the red error border shows when the field has an error, matching the SQL editor and text inputs.

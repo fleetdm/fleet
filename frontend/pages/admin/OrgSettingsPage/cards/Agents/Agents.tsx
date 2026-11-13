@@ -1,5 +1,6 @@
 import yaml from "js-yaml";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -43,32 +44,39 @@ const Agents = ({
 
   const { agentOptions } = formData;
 
-  const handleAgentOptionsChange = (value: string) => {
-    setFormData({ ...formData, agentOptions: value });
-  };
-
-  const validateForm = () => {
+  const runYamlValidation = (value?: string): IAgentOptionsFormErrors => {
     const errors: IAgentOptionsFormErrors = {};
-
-    if (agentOptions) {
-      const { error: yamlError, isValid: yamlValid } = validateYaml(
-        agentOptions
-      );
+    if (value) {
+      const { error: yamlError, isValid: yamlValid } = validateYaml(value);
       if (!yamlValid) {
         errors.agent_options = constructErrorString(yamlError);
       }
     }
-
-    setFormErrors(errors);
+    return errors;
   };
 
-  // onChange basic yaml validation only
-  useEffect(() => {
-    validateForm();
-  }, [agentOptions]);
+  // 3s pause after the last keystroke surfaces the error without flashing
+  // mid-token. Submit still validates immediately.
+  const debounceValidate = useDebouncedCallback((value: string) => {
+    setFormErrors(runYamlValidation(value));
+  }, 3000);
+
+  const handleAgentOptionsChange = (value: string) => {
+    setFormData({ ...formData, agentOptions: value });
+    if (formErrors.agent_options) {
+      setFormErrors({});
+    }
+    debounceValidate(value);
+  };
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    const errors = runYamlValidation(agentOptions);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
 
     // Formatting of API not UI and allows empty agent options
     const formDataToSubmit: any = agentOptions
@@ -131,7 +139,7 @@ const Agents = ({
           renderChildren={(disableChildren) => (
             <Button
               type="submit"
-              disabled={Object.keys(formErrors).length > 0 || disableChildren}
+              disabled={disableChildren}
               className="button-wrap"
               isLoading={isUpdatingSettings}
             >

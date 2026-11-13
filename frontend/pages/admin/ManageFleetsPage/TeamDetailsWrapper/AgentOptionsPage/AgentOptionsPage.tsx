@@ -1,7 +1,8 @@
 import yaml from "js-yaml";
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState } from "react";
 import { useErrorHandler } from "react-error-boundary";
 import { useQuery } from "react-query";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -54,6 +55,23 @@ const AgentOptionsPage = ({
 
   const handlePageError = useErrorHandler();
 
+  const runYamlValidation = (value?: string): any => {
+    const errors: any = {};
+    if (value) {
+      const { error: yamlError, isValid: yamlValid } = validateYaml(value);
+      if (!yamlValid) {
+        errors.agent_options = constructErrorString(yamlError);
+      }
+    }
+    return errors;
+  };
+
+  // 3s pause after the last keystroke surfaces the error without flashing
+  // mid-token. Submit still validates immediately.
+  const debounceValidate = useDebouncedCallback((value: string) => {
+    setFormErrors(runYamlValidation(value));
+  }, 3000);
+
   const {
     isFetching: isFetchingTeamOptions,
     refetch: refetchTeamOptions,
@@ -64,9 +82,13 @@ const AgentOptionsPage = ({
       enabled: isRouteOk && !!teamIdForApi,
       select: (data: ILoadTeamResponse) => data.fleet,
       onSuccess: (data) => {
-        setFormData({
-          agentOptions: agentOptionsToYaml(data.agent_options),
-        });
+        // Switching fleets reuses this page, so stale errors and queued
+        // validation from the previous fleet must be dropped before the new
+        // fleet's options replace formData.
+        debounceValidate.cancel();
+        const nextAgentOptions = agentOptionsToYaml(data.agent_options);
+        setFormData({ agentOptions: nextAgentOptions });
+        setFormErrors(runYamlValidation(nextAgentOptions));
         setTeamName(data.name);
       },
       onError: (error) => handlePageError(error),
@@ -74,28 +96,14 @@ const AgentOptionsPage = ({
     }
   );
 
-  const validateForm = () => {
-    const errors: any = {};
-
-    if (agentOptions) {
-      const { error: yamlError, isValid: yamlValid } = validateYaml(
-        agentOptions
-      );
-      if (!yamlValid) {
-        errors.agent_options = constructErrorString(yamlError);
-      }
-    }
-
-    setFormErrors(errors);
-  };
-
-  // onChange basic yaml validation only
-  useEffect(() => {
-    validateForm();
-  }, [formData]);
-
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();
+
+    const errors = runYamlValidation(agentOptions);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
 
     setIsUpdatingAgentOptions(true);
 
@@ -139,6 +147,10 @@ const AgentOptionsPage = ({
 
   const handleAgentOptionsChange = (value: string) => {
     setFormData({ ...formData, agentOptions: value });
+    if (formErrors.agent_options) {
+      setFormErrors({});
+    }
+    debounceValidate(value);
   };
 
   return (
@@ -182,7 +194,7 @@ const AgentOptionsPage = ({
             renderChildren={(disableChildren) => (
               <Button
                 type="submit"
-                disabled={Object.keys(formErrors).length > 0 || disableChildren}
+                disabled={disableChildren}
                 className="save-loading"
                 isLoading={isUpdatingAgentOptions}
               >

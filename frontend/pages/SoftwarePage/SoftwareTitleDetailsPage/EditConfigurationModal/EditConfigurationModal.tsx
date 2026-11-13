@@ -1,5 +1,6 @@
 import { Ace } from "ace-builds";
 import React, { useCallback, useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -89,7 +90,6 @@ const EditConfigurationModal = ({
   const initialValue = getInitialValue();
 
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
-  const [canSaveForm, setCanSaveForm] = useState(!validateForm(initialValue));
   const [formData, setFormData] = useState<string>(initialValue);
   // Seed from validateForm so the error is visible on open if the stored config
   // is somehow invalid (unlikely — the backend validates on save, but guards
@@ -116,9 +116,15 @@ const EditConfigurationModal = ({
   const onEditConfiguration = async (
     evt: React.MouseEvent<HTMLFormElement>
   ) => {
-    setIsUpdatingConfiguration(true);
-
     evt.preventDefault();
+
+    const error = validateForm(formData);
+    if (error) {
+      setFormError(error);
+      return;
+    }
+
+    setIsUpdatingConfiguration(true);
 
     try {
       if (isInHouseApp) {
@@ -157,12 +163,24 @@ const EditConfigurationModal = ({
     setIsUpdatingConfiguration(false);
   };
 
+  // 3s pause after the last keystroke surfaces the error without flashing
+  // mid-edit. Submit still validates immediately.
+  const debounceValidate = useDebouncedCallback((value: string) => {
+    setFormError(validateForm(value));
+  }, 3000);
+
   const onInputChange = (value: string) => {
     setFormData(value);
+    if (formError) {
+      setFormError(null);
+    }
+    debounceValidate(value);
+  };
 
-    const error = validateForm(value);
-    setFormError(error);
-    setCanSaveForm(!error);
+  const onInputBlur = () => {
+    // Beat the pending debounce so tabbing away surfaces the error immediately.
+    debounceValidate.cancel();
+    setFormError(validateForm(formData));
   };
 
   const editorMode = isApplePlatform ? "xml" : "json";
@@ -215,6 +233,7 @@ const EditConfigurationModal = ({
       value={formData}
       helpText={renderHelpText()}
       onChange={onInputChange}
+      onBlur={onInputBlur}
       onLoad={onEditorLoad}
       readOnly={isUpdatingConfiguration}
       disabled={gitOpsModeEnabled}
@@ -261,7 +280,7 @@ const EditConfigurationModal = ({
           type="submit"
           onClick={onEditConfiguration}
           isLoading={isUpdatingConfiguration}
-          disabled={!canSaveForm || isUpdatingConfiguration || !!gitOpsDisabled}
+          disabled={isUpdatingConfiguration || !!gitOpsDisabled}
         >
           Save
         </Button>
