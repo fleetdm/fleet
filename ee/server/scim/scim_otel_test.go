@@ -82,6 +82,12 @@ func TestSCIMOTELMiddleware(t *testing.T) {
 			expectedSpan: "GET /api/v1/fleet/scim/ResourceTypes",
 		},
 		{
+			name:         "Individual resource type",
+			path:         "ResourceTypes/User",
+			method:       "GET",
+			expectedSpan: "GET /api/v1/fleet/scim/ResourceTypes/{id}",
+		},
+		{
 			name:         "Unknown path - fixed label",
 			path:         "SomethingElse",
 			method:       "GET",
