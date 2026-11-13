@@ -140,11 +140,11 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 
 A patch policy's `query` automatically updates. Hosts will fail this policy if they're not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
-To force patch the app when this policy fails, whether or not the app is open, set `install_software` to `true`.
+To patch the app when this policy fails, set one of these options to `true`. Only one can be `true`. If none are set, the policy only reports hosts that aren't running the latest version, and Fleet doesn't patch the app.
 
-To silently patch the app when this policy fails and app is not open, set both `install_software` and `patch_when_closed to `true`. 
-
-To notify the end user before the app is patched, set `install_software` and `notify_before_patching` to `true`. Fleet checks if the app is open, and if yes shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
+- `force_patch`: Fleet patches the app when this policy fails, whether or not the app is open.
+- `patch_when_closed`: Fleet silently patches the app when this policy fails and the app isn't open.
+- `notify_before_patching`: Fleet checks if the app is open, and if yes shows a notification listing the apps that will be updated, waits 1 hour, then installs the patch. A reminder is shown 5 minutes before the install. This option is only available on macOS, and requires the Fleet Desktop app (available as a Fleet-maintained app).
 
 Fleet adds a read-only pre-install query that checks if the app is open when `patch_when_closed` or `notify_before_patching` is set to `true`. Also, `continuous_automations_enabled` is automatically set to `true` when one of these options is enabled. The Fleet-managed pre-install query is ignored for self-service, host details page, and setup experience installs.
 
@@ -256,7 +256,6 @@ policies:
   type: patch
   fleet_maintained_app_slug: zoom/darwin
   continuous_automations_enabled: true
-  install_software: true
   patch_when_closed: true
 - name: Slack
   description: Outdated software might introduce security vulnerabilities or compatibility issues.
@@ -264,13 +263,12 @@ policies:
   type: patch
   fleet_maintained_app_slug: slack/darwin
   continuous_automations_enabled: true
-  install_software: true
+  force_patch: true
 - name: 1Password up to date
   description: Outdated software might introduce security vulnerabilities or compatibility issues.
   resolution: Install the latest version from self-service.
   type: patch
   fleet_maintained_app_slug: 1password/darwin
-  install_software: true
   notify_before_patching: true
 ```
 
@@ -885,8 +883,29 @@ App Store apps support `path:` (single file) and `paths:` (glob pattern) referen
 - `auto_update_enabled` enables automatic updates for the app (default: `false`). Only supported for iOS and iPadOS App Store (VPP) apps.
 - `auto_update_window_start` is the start of the daily maintenance window during which Fleet will apply automatic updates, formatted as `HH:MM` in the host's local time (e.g. `"00:00"`). Required when `auto_update_enabled` is `true`. Must be wrapped in quotes so it is processed as a string.
 - `auto_update_window_end` is the end of the daily maintenance window, formatted as `HH:MM` in the host's local time (e.g. `"04:00"`). Required when `auto_update_enabled` is `true`. If the end time is earlier than the start time, the window wraps to the next day (e.g. `"22:00"` to `"02:00"`). Must be wrapped in quotes so it is processed as a string.
+- `organization_unit` is the name of the organization unit in Apple Business for the VPP token that the Apple App Store app is added from (optional). Only needed if the fleet has more than one VPP token and you want to add the app from a VPP token other than the fleet's first-added VPP token. The VPP token must be assigned to the fleet in [`volume_purchasing_program`](#volume-purchasing-program). Not supported for Android apps.
 
 To add the same App Store app for multiple platforms, specify the `app_store_id` multiple times, along with the `platform` you want. If you don't specify a platform, one app for each available platform will be added (macOS, iOS, and iPadOS).
+
+#### Multiple VPP tokens
+
+If a fleet has more than one VPP token, Fleet uses the first-added VPP token for Apple App Store apps without a `organization_unit`. The first-added VPP token is the one that was uploaded to Fleet first, out of the VPP tokens assigned to the fleet (including a VPP token assigned to "All fleets"). If the app isn't available in that VPP token, GitOps fails. Specify `organization_unit` to add it from a different VPP token.
+
+Each Apple App Store app can be added to a fleet from only one VPP token per platform. Fleet uses that VPP token to assign licenses.
+
+If an app is already added to the fleet and `organization_unit` isn't specified, Fleet keeps the app's current VPP token. This way, adding a new VPP token to a fleet, or removing one, doesn't change the VPP token of apps that are already added. If you specify a `organization_unit` that's different from the app's current VPP token, GitOps fails. To move an app to a different VPP token, remove the app from your YAML, run GitOps, and then add the app back with the new `location`.
+
+To keep the first-added VPP token, renew it instead of deleting it and uploading a new one. A VPP token that's deleted and uploaded again counts as the most recently added VPP token.
+
+```yaml
+software:
+  app_store_apps:
+    - app_store_id: "546505307" # Added from the fleet's first-added VPP token
+      platform: ios
+    - app_store_id: "1091189122" # Added from the second VPP token
+      platform: ios
+      organization_unit: Acme Japan
+```
 
 When you update an Android app's configuration via GitOps, the app's settings are applied without reinstalling the app. The install status will show as "Pending" until the configuration is applied.
 
@@ -1591,8 +1610,12 @@ org_settings:
 #### volume_purchasing_program
 
 After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the fleets in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
-- `location` is the name of the organization unit in the Apple Business account. Apple previously called this "location." Fleet will rename it to "organization unit" in the next major version.
-- `fleets` is a list of fleet names. If you choose specific fleets, App Store apps in this VPP account will only be available to install on hosts in these fleets. If not specified, App Store apps will not be available to install on any fleet. To apply it to all fleets, use `- All fleets`. 
+- `organization_unit` is the name of the organization unit in the Apple Business account. Apple previously called this "location."
+- `fleets` is a list of fleet names. If you choose specific fleets, App Store apps in this VPP account will only be available to install on hosts in these fleets. If not specified, App Store apps will not be available to install on any fleet. To apply it to all fleets, use `- All fleets`. A VPP token can't be assigned to `All fleets` and specific fleets at the same time.
+
+A fleet can have more than one VPP token. A VPP token assigned to `All fleets` is available in every fleet, including fleets created later, in addition to any other VPP tokens assigned to those fleets. Learn how Fleet chooses the VPP token for each app in [multiple VPP tokens](#multiple-vpp-tokens).
+
+When you remove a VPP token from a fleet, App Store apps that were added to that fleet from that VPP token are deleted from the fleet.
 
 Can only be configured for "All fleets" (`org_settings`).
 
@@ -1602,7 +1625,7 @@ Can only be configured for "All fleets" (`org_settings`).
 org_settings:
   mdm:
     volume_purchasing_program: # Available in Fleet Premium
-    - location: Fleet Device Management Inc.
+    - organization_unit: Fleet Device Management Inc.
       fleets:
       - 💻 Workstations
       - 💻🐣 Workstations (canary)
