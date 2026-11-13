@@ -111,9 +111,6 @@ const EditSoftwareModal = ({
     [`${baseClass}__package-form--disabled`]: isGitOpsCompatible,
   });
 
-  const [editSoftwareModalClasses, setEditSoftwareModalClasses] = useState(
-    baseClass
-  );
   const [isUpdatingSoftware, setIsUpdatingSoftware] = useState(false);
   const [
     showConfirmSaveChangesModal,
@@ -160,23 +157,18 @@ const EditSoftwareModal = ({
     }
   );
 
-  // Work around to not lose Edit Software modal data when Save changes modal opens
-  // by using CSS to hide Edit Software modal when Save changes modal is open
-  useEffect(() => {
-    setEditSoftwareModalClasses(
-      classnames(baseClass, {
-        [`${baseClass}--hidden`]:
-          showConfirmSaveChangesModal ||
-          showPreviewEndUserExperienceModal ||
-          (!!pendingPackageUpdates.software && isUpdatingSoftware),
-      })
-    );
-  }, [
-    showConfirmSaveChangesModal,
-    showPreviewEndUserExperienceModal,
-    pendingPackageUpdates.software,
-    isUpdatingSoftware,
-  ]);
+  // Keep this modal mounted (so unsaved form data survives) but hide it while
+  // Save changes / Preview / File progress is on top. The --hidden CSS class
+  // (display: none) drives the instant snap behavior; the isHidden prop lets
+  // Modal's initial-focus effect re-fire on the hidden→visible transition so
+  // focus comes back into this dialog when the stacked one closes.
+  const isHidden =
+    showConfirmSaveChangesModal ||
+    showPreviewEndUserExperienceModal ||
+    (!!pendingPackageUpdates.software && isUpdatingSoftware);
+  const editSoftwareModalClasses = classnames(baseClass, {
+    [`${baseClass}--hidden`]: isHidden,
+  });
 
   // Block tab close / hard navigation while the PATCH is in flight.
   useBlockNavigation(isUpdatingSoftware);
@@ -414,6 +406,7 @@ const EditSoftwareModal = ({
         title={canActivateMultiplePackages ? "Edit version" : "Edit software"}
         onExit={onExit}
         width="large"
+        isHidden={isHidden}
       >
         {renderForm()}
       </Modal>
