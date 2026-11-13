@@ -285,9 +285,9 @@ Only free apps are supported. Paid apps fail to install with a licensing error.
 
 #### Let end users install only the apps you allow
 
-To stop end users from installing apps from the Microsoft Store themselves, turn off the Microsoft Store app with the configuration profile below. Then add the apps you allow to self-service, so end users install them from **Fleet Desktop > My device**. Fleet can still install Microsoft Store apps when the Microsoft Store app is turned off.
+To prevent end users from installing apps themselves, you can block access to the Microsoft Store. [Deploy a Windows configuration profile](https://fleetdm.com/guides/custom-os-settings) below to block it. Then add the apps you allow to self service, so end users install them from **Fleet Desktop > My device**.
 
-This profile is only supported on Windows Enterprise and Education.
+> This profile is only supported on Windows Enterprise and Education.
 
 ```xml
 <Replace>
