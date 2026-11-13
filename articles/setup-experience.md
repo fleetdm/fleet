@@ -287,6 +287,8 @@ Add setup experience software:
 
 To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM)
 
+On company-owned Android hosts, add Chrome and other built-in Google apps to update them during setup. Learn how in the [app store apps guide](https://fleetdm.com/guides/install-app-store-apps#configure-automatic-updates-for-an-app).
+
 ### Retries
 
 For macOS, Windows, and Linux hosts, custom packages and Fleet-maintained app installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet retries, IT admins can see error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
