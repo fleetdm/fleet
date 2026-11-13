@@ -37,7 +37,7 @@ With custom disk encryption profiles turned on, you can upload a `.mobileconfig`
 
 1. In the Fleet UI, head to **Controls > OS settings > Configuration profiles**.
 2. Select the fleet you want to add the profile to.
-3. Select **Add profile** and choose your `.mobileconfig` file.
+3. Select **Add profile**, select **Create manually**, and choose your `.mobileconfig` file.
 
 For the full upload workflow, including the API and GitOps, see [Configuration profiles](https://fleetdm.com/guides/custom-os-settings).
 
@@ -47,7 +47,7 @@ With custom disk encryption profiles turned on, you can upload a Windows configu
 
 1. In the Fleet UI, head to **Controls > OS settings > Configuration profiles**.
 2. Select the fleet you want to add the profile to.
-3. Select **Add profile** and choose your Windows configuration profile XML file.
+3. Select **Add profile**, select **Create manually**, and choose your Windows configuration profile XML file.
 
 For the full upload workflow, including the API and GitOps, see [Configuration profiles](https://fleetdm.com/guides/custom-os-settings).
 
