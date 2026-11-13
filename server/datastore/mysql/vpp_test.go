@@ -79,6 +79,7 @@ func TestVPP(t *testing.T) {
 		{"VPPTokenChoice", testVPPTokenChoice},
 		{"TwoAppStoreAppInstancesInOneFleet", testTwoAppStoreAppInstancesInOneFleet},
 		{"AppStoreAppVersionsStatusCountsOneVersionPerStatus", testAppStoreAppVersionsStatusCountsOneVersionPerStatus},
+		{"AppStoreAppVersionsStatusCountsAfterVersionDelete", testAppStoreAppVersionsStatusCountsAfterVersionDelete},
 		{"AppStoreAppVersionsEditAndDelete", testAppStoreAppVersionsEditAndDelete},
 		{"SetTeamVPPAppVersions", testSetTeamVPPAppVersions},
 		{"ListHostSoftwareAppStoreAppHostVersion", testListHostSoftwareAppStoreAppHostVersion},
@@ -5479,6 +5480,75 @@ func testAppStoreAppVersionsStatusCountsOneVersionPerStatus(t *testing.T, ds *Da
 		var badRequestErr *fleet.BadRequestError
 		require.ErrorAs(t, err, &badRequestErr)
 	}
+}
+
+func testAppStoreAppVersionsStatusCountsAfterVersionDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "versions-delete-status-team"})
+	require.NoError(t, err)
+
+	const adamID = "77775555"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+
+	// add versions A and B to the fleet
+	newVersion := func(name string) *fleet.VPPApp {
+		version, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			Name:             "VersionsDeleteApp",
+			BundleIdentifier: "com.example." + adamID,
+			AdamID:           adamID,
+			Platform:         fleet.IOSPlatform,
+			VersionName:      name,
+		}, &team.ID, nil)
+		require.NoError(t, err)
+		return version
+	}
+	versionA := newVersion("A")
+	versionB := newVersion("B")
+
+	newHost := func(name string) *fleet.Host {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       name,
+			UUID:           name,
+			Platform:       string(fleet.IOSPlatform),
+			HardwareSerial: name,
+			TeamID:         &team.ID,
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+		return host
+	}
+
+	// install B and then A on one host, fail B and then install A on another, and install A and then B on a third
+	hostInstalledBThenA := newHost("delete-installed-b-then-a")
+	insertVPPAppInstallWithResult(t, ds, hostInstalledBThenA, versionB, "verified")
+	insertVPPAppInstallWithResult(t, ds, hostInstalledBThenA, versionA, "verified")
+	hostFailedBThenInstalledA := newHost("delete-failed-b-then-installed-a")
+	insertVPPAppInstallWithResult(t, ds, hostFailedBThenInstalledA, versionB, "mdm_error")
+	insertVPPAppInstallWithResult(t, ds, hostFailedBThenInstalledA, versionA, "verified")
+	hostInstalledAThenB := newHost("delete-installed-a-then-b")
+	insertVPPAppInstallWithResult(t, ds, hostInstalledAThenB, versionA, "verified")
+	insertVPPAppInstallWithResult(t, ds, hostInstalledAThenB, versionB, "verified")
+
+	summaries, err := ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: versionA.AppTeamID}, {VPPAppsTeamsID: versionB.AppTeamID}})
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Installed: 2}, summaries[versionA.AppTeamID])
+	require.Equal(t, &fleet.VPPAppStatusSummary{Installed: 1}, summaries[versionB.AppTeamID])
+
+	// delete A, the hosts whose latest install was A should not count under B
+	err = ds.DeleteVPPAppFromTeam(ctx, &team.ID, versionA.VPPAppID, &versionA.AppTeamID)
+	require.NoError(t, err)
+	summaries, err = ds.GetSummaryHostVPPAppInstalls(ctx, []*fleet.VPPAppStoreApp{{VPPAppsTeamsID: versionB.AppTeamID}})
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Installed: 1}, summaries[versionB.AppTeamID])
+
+	hostFilter := fleet.TeamFilter{User: test.UserAdmin}
+	installed := fleet.SoftwareInstalled
+	failed := fleet.SoftwareFailed
+	hosts := listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &team.ID, SoftwareTitleIDFilter: &versionB.TitleID, AppStoreAppVersionIDFilter: &versionB.AppTeamID, SoftwareStatusFilter: &installed}, 1)
+	require.Equal(t, hostInstalledAThenB.ID, hosts[0].ID)
+	listHostsCheckCount(t, ds, hostFilter, fleet.HostListOptions{TeamFilter: &team.ID, SoftwareTitleIDFilter: &versionB.TitleID, AppStoreAppVersionIDFilter: &versionB.AppTeamID, SoftwareStatusFilter: &failed}, 0)
 }
 
 func testAppStoreAppVersionsEditAndDelete(t *testing.T, ds *Datastore) {

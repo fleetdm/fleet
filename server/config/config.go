@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -290,19 +289,9 @@ type OsqueryConfig struct {
 	// TODO(lucas): We should at least add a warning if this field is populated.
 	ResultLogFile string `yaml:"result_log_file"`
 
-	EnableLogRotation                bool          `yaml:"enable_log_rotation"`
-	MaxJitterPercent                 int           `yaml:"max_jitter_percent"`
-	EnableAsyncHostProcessing        string        `yaml:"enable_async_host_processing"` // true/false or per-task
-	AsyncHostCollectInterval         string        `yaml:"async_host_collect_interval"`  // duration or per-task
-	AsyncHostCollectMaxJitterPercent int           `yaml:"async_host_collect_max_jitter_percent"`
-	AsyncHostCollectLockTimeout      string        `yaml:"async_host_collect_lock_timeout"` // duration or per-task
-	AsyncHostCollectLogStatsInterval time.Duration `yaml:"async_host_collect_log_stats_interval"`
-	AsyncHostInsertBatch             int           `yaml:"async_host_insert_batch"`
-	AsyncHostDeleteBatch             int           `yaml:"async_host_delete_batch"`
-	AsyncHostUpdateBatch             int           `yaml:"async_host_update_batch"`
-	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
-	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
-	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
+	EnableLogRotation           bool          `yaml:"enable_log_rotation"`
+	MaxJitterPercent            int           `yaml:"max_jitter_percent"`
+	MinSoftwareLastOpenedAtDiff time.Duration `yaml:"min_software_last_opened_at_diff"`
 
 	// MaxLogWriteBodySize overrides the default request body size limit
 	// for the /api/osquery/log endpoint. A value of 0 means use the
@@ -397,57 +386,6 @@ func (o OsqueryConfig) Validate(initFatal func(err error, msg string)) {
 	}
 }
 
-// AsyncTaskName is the type of names that identify tasks supporting
-// asynchronous execution.
-type AsyncTaskName string
-
-// List of names for supported async tasks.
-const (
-	AsyncTaskLabelMembership     AsyncTaskName = "label_membership"
-	AsyncTaskPolicyMembership    AsyncTaskName = "policy_membership"
-	AsyncTaskHostLastSeen        AsyncTaskName = "host_last_seen"
-	AsyncTaskScheduledQueryStats AsyncTaskName = "scheduled_query_stats"
-)
-
-var knownAsyncTasks = map[AsyncTaskName]struct{}{
-	AsyncTaskLabelMembership:     {},
-	AsyncTaskPolicyMembership:    {},
-	AsyncTaskHostLastSeen:        {},
-	AsyncTaskScheduledQueryStats: {},
-}
-
-// AsyncConfigForTask returns the applicable configuration for the specified
-// async task.
-func (o OsqueryConfig) AsyncConfigForTask(name AsyncTaskName) AsyncProcessingConfig {
-	strName := string(name)
-	return AsyncProcessingConfig{
-		Enabled:                 configForKeyOrBool("osquery.enable_async_host_processing", strName, o.EnableAsyncHostProcessing, false),
-		CollectInterval:         configForKeyOrDuration("osquery.async_host_collect_interval", strName, o.AsyncHostCollectInterval, 30*time.Second),
-		CollectMaxJitterPercent: o.AsyncHostCollectMaxJitterPercent,
-		CollectLockTimeout:      configForKeyOrDuration("osquery.async_host_collect_lock_timeout", strName, o.AsyncHostCollectLockTimeout, 1*time.Minute),
-		CollectLogStatsInterval: o.AsyncHostCollectLogStatsInterval,
-		InsertBatch:             o.AsyncHostInsertBatch,
-		DeleteBatch:             o.AsyncHostDeleteBatch,
-		UpdateBatch:             o.AsyncHostUpdateBatch,
-		RedisPopCount:           o.AsyncHostRedisPopCount,
-		RedisScanKeysCount:      o.AsyncHostRedisScanKeysCount,
-	}
-}
-
-// AsyncProcessingConfig is the configuration for a specific async task.
-type AsyncProcessingConfig struct {
-	Enabled                 bool
-	CollectInterval         time.Duration
-	CollectMaxJitterPercent int
-	CollectLockTimeout      time.Duration
-	CollectLogStatsInterval time.Duration
-	InsertBatch             int
-	DeleteBatch             int
-	UpdateBatch             int
-	RedisPopCount           int
-	RedisScanKeysCount      int
-}
-
 // LoggingConfig defines configs related to logging
 type LoggingConfig struct {
 	Debug                bool
@@ -455,8 +393,8 @@ type LoggingConfig struct {
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
 	TracingEnabled       bool          `yaml:"tracing_enabled"`
-	// TracingType can be set to TracingTypeElasticAPM to send traces to Elastic APM.
-	// By default (empty or any other value), traces are sent to OpenTelemetry (OTEL).
+	// TracingType selects the tracing backend. OpenTelemetry (OTEL) is the only one supported. The removed "elasticapm" value
+	// disables tracing at startup.
 	TracingType string `yaml:"tracing_type"`
 	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
 	// When enabled, logs are sent to both stderr and the OTLP endpoint.
@@ -1084,7 +1022,7 @@ type FleetConfig struct {
 }
 
 func (f FleetConfig) OTELEnabled() bool {
-	return f.Logging.TracingEnabled && f.Logging.TracingType != "elasticapm"
+	return f.Logging.TracingEnabled
 }
 
 type PartnershipsConfig struct {
@@ -1989,26 +1927,6 @@ func (man Manager) addConfigs() {
 		"(DEPRECATED: Use filesystem.enable_log_rotation) Enable automatic rotation for osquery log files")
 	man.addConfigInt("osquery.max_jitter_percent", 10,
 		"Maximum percentage of the interval to add as jitter")
-	man.addConfigString("osquery.enable_async_host_processing", "false",
-		"Enable asynchronous processing of host-reported query results (either 'true'/'false' or set per task, e.g., 'label_membership=true&policy_membership=true')")
-	man.addConfigString("osquery.async_host_collect_interval", (30 * time.Second).String(),
-		"Interval to collect asynchronous host-reported query results (e.g. '30s' or set per task 'label_membership=10s&policy_membership=1m')")
-	man.addConfigInt("osquery.async_host_collect_max_jitter_percent", 10,
-		"Maximum percentage of the interval to collect asynchronous host results")
-	man.addConfigString("osquery.async_host_collect_lock_timeout", (1 * time.Minute).String(),
-		"Timeout of the exclusive lock held during async host collection (e.g., '30s' or set per task 'label_membership=10s&policy_membership=1m'")
-	man.addConfigDuration("osquery.async_host_collect_log_stats_interval", 1*time.Minute,
-		"Interval at which async host collection statistics are logged (0 disables logging of stats)")
-	man.addConfigInt("osquery.async_host_insert_batch", 2000,
-		"Batch size for async collection inserts in mysql")
-	man.addConfigInt("osquery.async_host_delete_batch", 2000,
-		"Batch size for async collection deletes in mysql")
-	man.addConfigInt("osquery.async_host_update_batch", 1000,
-		"Batch size for async collection updates in mysql")
-	man.addConfigInt("osquery.async_host_redis_pop_count", 1000,
-		"Batch size to pop items from redis in async collection")
-	man.addConfigInt("osquery.async_host_redis_scan_keys_count", 1000,
-		"Batch size to scan redis keys in async collection")
 	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
@@ -2020,7 +1938,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("osquery.redis_config_etags", false,
 		"Answer osquery config requests whose etag matches with the minimal 'unchanged' body straight from a Redis-backed ETag store, skipping the config build (and its database reads) entirely. Off by default; requires Redis (no effect without it) and requires osquery.config_etags to be enabled as well. While off, every config request takes the always-full-build path.")
 	man.addConfigBool("osquery.config_in_memory_cache", false,
-		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for hosts with 2017 packs and for fleets with label-scoped reports, whose config differs per host.")
+		"Cache the scheduled-report section of the osquery config (the response's 'packs' key) in memory, keyed by fleet (team) and the query_reports_disabled setting, instead of rebuilding it from the database on every config check-in. Off by default; while off, every check-in builds from the database. The rest of the response is never cached, and the cache is bypassed entirely for fleets with label-scoped reports, whose config differs per host.")
 	man.addConfigInt("osquery.max_concurrent_query_report_reads", 40,
 		"Maximum number of osquery log requests per Fleet server that read a host's stored report results from the database at once, to skip writing results that haven't changed. Requests over the limit skip storing report results (log destinations are unaffected). 0 disables the limit.")
 	man.addConfigInt("osquery.max_concurrent_query_report_writes", 20,
@@ -2048,7 +1966,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("logging.tracing_enabled", false,
 		"Enable Tracing, further configured via standard env variables")
 	man.addConfigString("logging.tracing_type", "",
-		"Select the kind of tracing, defaults to OpenTelemetry, can also be elasticapm")
+		"Select the kind of tracing, only OpenTelemetry is supported")
 	man.addConfigBool("logging.otel_logs_enabled", false,
 		"Enable exporting logs to an OpenTelemetry collector (requires tracing_enabled)")
 	man.addConfigString("logging.enable_topics", "",
@@ -2584,31 +2502,21 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 			// StatusLogFile is deprecated. FilesystemConfig.StatusLogFile is used instead.
 			StatusLogFile: man.getConfigString("osquery.status_log_file"),
 			// ResultLogFile is deprecated. FilesystemConfig.ResultLogFile is used instead.
-			ResultLogFile:                    man.getConfigString("osquery.result_log_file"),
-			LabelUpdateInterval:              man.getConfigDuration("osquery.label_update_interval"),
-			PolicyUpdateInterval:             man.getConfigDuration("osquery.policy_update_interval"),
-			DetailUpdateInterval:             man.getConfigDuration("osquery.detail_update_interval"),
-			EnableLogRotation:                man.getConfigBool("osquery.enable_log_rotation"),
-			MaxJitterPercent:                 man.getConfigInt("osquery.max_jitter_percent"),
-			EnableAsyncHostProcessing:        man.getConfigString("osquery.enable_async_host_processing"),
-			AsyncHostCollectInterval:         man.getConfigString("osquery.async_host_collect_interval"),
-			AsyncHostCollectMaxJitterPercent: man.getConfigInt("osquery.async_host_collect_max_jitter_percent"),
-			AsyncHostCollectLockTimeout:      man.getConfigString("osquery.async_host_collect_lock_timeout"),
-			AsyncHostCollectLogStatsInterval: man.getConfigDuration("osquery.async_host_collect_log_stats_interval"),
-			AsyncHostInsertBatch:             man.getConfigInt("osquery.async_host_insert_batch"),
-			AsyncHostDeleteBatch:             man.getConfigInt("osquery.async_host_delete_batch"),
-			AsyncHostUpdateBatch:             man.getConfigInt("osquery.async_host_update_batch"),
-			AsyncHostRedisPopCount:           man.getConfigInt("osquery.async_host_redis_pop_count"),
-			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
-			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
-			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
-			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
-			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
-			ConfigETags:                      man.getConfigBool("osquery.config_etags"),
-			RedisConfigETags:                 man.getConfigBool("osquery.redis_config_etags"),
-			ConfigInMemoryCache:              man.getConfigBool("osquery.config_in_memory_cache"),
-			MaxConcurrentQueryReportReads:    man.getConfigInt("osquery.max_concurrent_query_report_reads"),
-			MaxConcurrentQueryReportWrites:   man.getConfigInt("osquery.max_concurrent_query_report_writes"),
+			ResultLogFile:                  man.getConfigString("osquery.result_log_file"),
+			LabelUpdateInterval:            man.getConfigDuration("osquery.label_update_interval"),
+			PolicyUpdateInterval:           man.getConfigDuration("osquery.policy_update_interval"),
+			DetailUpdateInterval:           man.getConfigDuration("osquery.detail_update_interval"),
+			EnableLogRotation:              man.getConfigBool("osquery.enable_log_rotation"),
+			MaxJitterPercent:               man.getConfigInt("osquery.max_jitter_percent"),
+			MinSoftwareLastOpenedAtDiff:    man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
+			MaxLogWriteBodySize:            man.getConfigByteSize("osquery.max_log_write_body_size"),
+			MaxDistributedWriteBodySize:    man.getConfigByteSize("osquery.max_distributed_write_body_size"),
+			AllowBodyAuthFallback:          man.getConfigBool("osquery.allow_body_auth_fallback"),
+			ConfigETags:                    man.getConfigBool("osquery.config_etags"),
+			RedisConfigETags:               man.getConfigBool("osquery.redis_config_etags"),
+			ConfigInMemoryCache:            man.getConfigBool("osquery.config_in_memory_cache"),
+			MaxConcurrentQueryReportReads:  man.getConfigInt("osquery.max_concurrent_query_report_reads"),
+			MaxConcurrentQueryReportWrites: man.getConfigInt("osquery.max_concurrent_query_report_writes"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog:                 man.getConfigBool("activity.enable_audit_log"),
@@ -2850,11 +2758,6 @@ func (man Manager) LoadConfig() (FleetConfig, error) {
 			OsqueryConfigEnabled:      man.getConfigBool("websocket.osquery_config_enabled"),
 			OsqueryConfigPollInterval: man.getConfigDuration("websocket.osquery_config_poll_interval"),
 		},
-	}
-
-	// ensure immediately that the async config is valid for all known tasks
-	for task := range knownAsyncTasks {
-		cfg.Osquery.AsyncConfigForTask(task)
 	}
 
 	return cfg, nil
@@ -3169,74 +3072,6 @@ func (man Manager) getConfigEndpointRequestSizeOverrides() EndpointRequestSizeOv
 	}
 
 	return cfgOverrides
-}
-
-// panics if the config is invalid, this is handled by Viper (this is how all
-// getConfigT helpers indicate errors). The default value is only applied if
-// there is no task-specific config (i.e., no "task=true" config format for that
-// task). If the configuration key was not set at all, it automatically
-// inherited the general default configured for that key (via
-// man.addConfigBool).
-func configForKeyOrBool(key, task, val string, def bool) bool {
-	parseVal := func(v string) bool {
-		if v == "" {
-			return false
-		}
-
-		b, err := strconv.ParseBool(v)
-		if err != nil {
-			panic("Unable to cast to bool for key " + key + ": " + err.Error())
-		}
-		return b
-	}
-
-	if !strings.Contains(val, "=") {
-		// simple case, val is a bool
-		return parseVal(val)
-	}
-
-	q, err := url.ParseQuery(val)
-	if err != nil {
-		panic("Invalid query format for key " + key + ": " + err.Error())
-	}
-	if v := q.Get(task); v != "" {
-		return parseVal(v)
-	}
-	return def
-}
-
-// panics if the config is invalid, this is handled by Viper (this is how all
-// getConfigT helpers indicate errors). The default value is only applied if
-// there is no task-specific config (i.e. no "task=10s" config format for that
-// task). If the configuration key was not set at all, it automatically
-// inherited the general default configured for that key (via
-// man.addConfigDuration).
-func configForKeyOrDuration(key, task, val string, def time.Duration) time.Duration {
-	parseVal := func(v string) time.Duration {
-		if v == "" {
-			return 0
-		}
-
-		d, err := time.ParseDuration(v)
-		if err != nil {
-			panic("Unable to cast to time.Duration for key " + key + ": " + err.Error())
-		}
-		return d
-	}
-
-	if !strings.Contains(val, "=") {
-		// simple case, val is a duration
-		return parseVal(val)
-	}
-
-	q, err := url.ParseQuery(val)
-	if err != nil {
-		panic("Invalid query format for key " + key + ": " + err.Error())
-	}
-	if v := q.Get(task); v != "" {
-		return parseVal(v)
-	}
-	return def
 }
 
 // loadConfigFile handles the loading of the config file.

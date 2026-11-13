@@ -112,6 +112,9 @@ func (ds *Datastore) UpdateQueryAggregatedStats(ctx context.Context) error {
 // deleteQueryStatsBatchSize is a var so tests can exercise multiple batches.
 var deleteQueryStatsBatchSize = 5000
 
+// Test hook run after each stats delete batch. It gets the datastore because MySQL tests run in parallel.
+var deleteQueryStatsAfterBatchHook func(*Datastore)
+
 // DeleteOrphanedQueryStats deletes stats left behind when deleteQueryStats fails, e.g. on a lock
 // wait timeout during a bulk report delete.
 func (ds *Datastore) DeleteOrphanedQueryStats(ctx context.Context) error {
@@ -121,15 +124,8 @@ func (ds *Datastore) DeleteOrphanedQueryStats(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "selecting stats of deleted queries")
 	}
 	for _, queryID := range queryIDs {
-		for {
-			res, err := ds.writer(ctx).ExecContext(ctx,
-				`DELETE FROM scheduled_query_stats WHERE scheduled_query_id = ? LIMIT ?`, queryID, deleteQueryStatsBatchSize)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "deleting stats of deleted query %d", queryID)
-			}
-			if n, _ := res.RowsAffected(); n < int64(deleteQueryStatsBatchSize) {
-				break
-			}
+		if err := ds.deleteQueryStatsInBatches(ctx, queryID); err != nil {
+			return err
 		}
 	}
 	if _, err := ds.writer(ctx).ExecContext(ctx,
@@ -138,6 +134,23 @@ func (ds *Datastore) DeleteOrphanedQueryStats(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "deleting aggregated stats of deleted queries")
 	}
 	return nil
+}
+
+// deleteQueryStatsInBatches deletes the stats of a query in batches, so large deletes don't hit lock wait timeouts.
+func (ds *Datastore) deleteQueryStatsInBatches(ctx context.Context, queryID uint) error {
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`DELETE FROM scheduled_query_stats WHERE scheduled_query_id = ? LIMIT ?`, queryID, deleteQueryStatsBatchSize)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting stats of query %d", queryID)
+		}
+		if deleteQueryStatsAfterBatchHook != nil {
+			deleteQueryStatsAfterBatchHook(ds)
+		}
+		if n, _ := res.RowsAffected(); n < int64(deleteQueryStatsBatchSize) {
+			return nil
+		}
+	}
 }
 
 // CalculateAggregatedPerfStatsPercentiles calculates the aggregated user/system time performance statistics for the given query.

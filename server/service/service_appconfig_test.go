@@ -47,8 +47,8 @@ func TestCreateAppConfig(t *testing.T) {
 		{
 			configPayload: fleet.AppConfig{
 				OrgInfo: fleet.OrgInfo{
-					OrgLogoURL: "acme.co/images/logo.png",
-					OrgName:    "Acme",
+					OrgLogoURLDarkMode: "acme.co/images/logo.png",
+					OrgName:            "Acme",
 				},
 				ServerSettings: fleet.ServerSettings{
 					ServerURL:         "https://acme.co:8080/",
@@ -75,8 +75,9 @@ func TestCreateAppConfig(t *testing.T) {
 		_, err := svc.NewAppConfig(ctx, tt.configPayload)
 		require.Nil(t, err)
 
+		require.NotNil(t, result)
 		payload := tt.configPayload
-		assert.Equal(t, payload.OrgInfo.OrgLogoURL, result.OrgInfo.OrgLogoURL)
+		assert.Equal(t, payload.OrgInfo.OrgLogoURLDarkMode, result.OrgInfo.OrgLogoURLDarkMode)
 		assert.Equal(t, payload.OrgInfo.OrgName, result.OrgInfo.OrgName)
 		assert.Equal(t, "https://acme.co:8080/", result.ServerSettings.ServerURL)
 		assert.Equal(t, payload.ServerSettings.LiveQueryDisabled, result.ServerSettings.LiveQueryDisabled)
@@ -364,7 +365,7 @@ func TestModifyAppConfigPatches(t *testing.T) {
 		return []*fleet.ABMToken{}, nil
 	}
 
-	configJSON := []byte(`{"org_info": { "org_name": "Acme", "org_logo_url": "somelogo.jpg" }}`)
+	configJSON := []byte(`{"org_info": { "org_name": "Acme", "org_logo_url_dark_mode": "somelogo.jpg" }}`)
 
 	ctx = test.UserContext(ctx, test.UserAdmin)
 	_, err := svc.ModifyAppConfig(ctx, configJSON, fleet.ApplySpecOptions{})

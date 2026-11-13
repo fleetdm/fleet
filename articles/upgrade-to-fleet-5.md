@@ -11,7 +11,8 @@ Fleet will support Fleet 4.96 with security fixes through June 30, 2027.
 1. [Upgrade](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet) to the **latest Fleet 4 release**.
 2. Work through the list of [breaking changes](#breaking-changes).
 3. Back up your Fleet database. If you need to go back to Fleet 4 after upgrading, restore this backup. Fleet 4 can't read the settings Fleet 5 renames, so it would turn off features like Windows MDM.
-5. Upgrade to the **latest Fleet 5 release**. Why? If you upgrade to an earlier version of Fleet 5, you'll miss database migrations included in later Fleet 4 releases (e.g. 4.96.0 or 4.96.1).
+4. Upgrade to the **latest Fleet 5 release**. Why? If you upgrade to an earlier version of Fleet 5, you'll miss database migrations included in later Fleet 4 releases (e.g. 4.96.0 or 4.96.1).
+5. If you use the [fleetctl CLI](https://fleetdm.com/guides/fleetctl) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files) (fleetctl runs in CI/CD), upgrade fleetctl to 5 everywhere you run it. fleetctl 4 isn't supported with Fleet 5 and can fail in [GitOps runs](#fleetctl-5-required-for-gitops).
 
 #### Why are we doing this?
 
@@ -246,6 +247,8 @@ GitHub issues: [#53080](https://github.com/fleetdm/fleet/issues/53080), [#58203]
 | `PATCH /abm_tokens/:id/renew` | `PATCH /ab_tokens/:id/renew` |
 | `GET /mdm/apple/abm_public_key` | `GET /mdm/apple/ab_public_key` |
 | `abm_token`, `abm_tokens`, and `host_dep_assignment.abm_token_id` in responses | `ab_token`, `ab_tokens`, and `ab_token_id` |
+| `macos_team`, `ios_team`, `ipados_team`, and `byod_team` in [List Apple Business (AB) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-apple-business-ab-tokens) and in `mdm.apple_business` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) | `macos_fleet`, `ios_fleet`, `ipados_fleet`, and `byod_fleet` |
+| `teams` for each token in the List VPP tokens response | `fleets` |
 | `mdm.apple_business_manager`, `mdm.apple_bm_enabled_and_configured`, and `mdm.apple_bm_terms_expired` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration) | `mdm.apple_business`, `mdm.apple_business_enabled_and_configured`, and `mdm.apple_business_terms_expired` |
 | `mdm.apple_bm_default_team` in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) | Removed |
 
@@ -361,7 +364,8 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 Fleet 4 doesn't return `os_name`, so you can't switch to it early. Instead:
 
 1. Before you upgrade, update code that splits the OS name out of `os_version`. When a host has `os_name`, read the name from `os_name` and the version from `os_version`. When it doesn't, keep splitting `os_version`. This works on both versions.
-2. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
+2. If you run the [vulnerability dashboard](https://github.com/fleetdm/fleet/tree/main/ee/vulnerability-dashboard), update it to the version in the Fleet 5 release before you upgrade Fleet. That version works with Fleet 4 too. An older version can't match hosts to their operating system in Fleet 5, so it removes them every time it syncs, and their vulnerability history starts over.
+3. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
 
 GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
 
@@ -546,7 +550,7 @@ GitHub issue: [#53145](https://github.com/fleetdm/fleet/issues/53145)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| GitOps users can get a host's `id` from `GET /hosts/identifier/:identifier` | GitOps users get a 403 from [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) when `:id` is an identifier, and can't look up hosts by identifier on any other endpoint |
+| GitOps users can get a host's `id` from `GET /hosts/identifier/:identifier` | GitOps users get a 403 from [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host), and can't look up hosts by identifier on any other endpoint |
 
 #### What to do
 
@@ -560,7 +564,7 @@ GitHub issue: [#57406](https://github.com/fleetdm/fleet/issues/57406)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| GitOps users can delete hosts | GitOps users get a 403 from [Delete host](https://fleetdm.com/docs/rest-api/rest-api#delete-host) and [Batch-delete hosts](https://fleetdm.com/docs/rest-api/rest-api#batch-delete-hosts) |
+| Users with only the GitOps role get a 403 from [Delete host](https://fleetdm.com/docs/rest-api/rest-api#delete-host) and [Batch-delete hosts](https://fleetdm.com/docs/rest-api/rest-api#batch-delete-hosts). A user with the GitOps role on one fleet and another role on a different fleet can delete hosts in their GitOps fleet. | GitOps users get a 403 from both endpoints for hosts in their GitOps fleets, even if they have another role on a different fleet |
 
 #### What to do
 
@@ -1142,7 +1146,7 @@ GitHub issue: [#53365](https://github.com/fleetdm/fleet/issues/53365)
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `fleetctl gitops` with fleetctl 4 | Fails when it deletes a label, or moves a label between `default.yml` and a fleet's YAML file |
+| `fleetctl gitops` with fleetctl 4 | Not supported. Runs can fail, for example when they delete a label or move one between `default.yml` and a fleet's YAML file, or set an organization logo URL. |
 
 #### What to do
 
@@ -1255,6 +1259,7 @@ GitHub issue: [#53925](https://github.com/fleetdm/fleet/issues/53925)
 | `created_team`, `deleted_team`, `applied_spec_team`, `changed_user_team_role`, and `deleted_user_team_role` | `created_fleet`, `deleted_fleet`, `applied_spec_fleet`, `changed_user_fleet_role`, and `deleted_user_fleet_role` |
 | `team_id`, `team_name`, and `teams` in an activity's `details` | `fleet_id`, `fleet_name`, and `fleets` |
 | `enabled_macos_disk_encryption` and `disabled_macos_disk_encryption` | `edited_disk_encryption_settings` |
+| `viewed_host_recovery_lock_password` | `read_host_recovery_lock_password` |
 | `created_pack`, `edited_pack`, `deleted_pack`, and `applied_spec_pack` | Removed. Fleet 5 keeps existing activities with these types but doesn't create new ones. |
 
 See the [activity types reference](https://fleetdm.com/docs/api/global-audit-logs) for the full list.
@@ -1263,7 +1268,7 @@ See the [activity types reference](https://fleetdm.com/docs/api/global-audit-log
 
 Update anything that filters or parses activities, like SIEM rules and log pipelines, to use the new types.
 
-GitHub issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481](https://github.com/fleetdm/fleet/issues/53481), [#53470](https://github.com/fleetdm/fleet/issues/53470)
+GitHub issues: [#52795](https://github.com/fleetdm/fleet/issues/52795), [#53481](https://github.com/fleetdm/fleet/issues/53481), [#57745](https://github.com/fleetdm/fleet/issues/57745), [#53470](https://github.com/fleetdm/fleet/issues/53470)
 
 
 ## fleetd

@@ -124,7 +124,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           url: "",
         },
         packages: null,
-        app_store_app: null,
+
         app_store_apps: null,
         source: "apps",
         hosts_count: 10,
@@ -179,7 +179,7 @@ describe("SoftwareTitleDetailsPage helpers", () => {
           url: "",
         },
         packages: null,
-        app_store_app: null,
+
         app_store_apps: null,
         source: "py_packages",
         hosts_count: 0,
@@ -198,32 +198,31 @@ describe("SoftwareTitleDetailsPage helpers", () => {
         versions: [{ id: 1, version: "1.0.0", vulnerabilities: [] }],
         software_package: null,
         packages: null,
-        app_store_app: {
-          app_store_id: "1",
-          name: "Test App",
-          display_name: "Test App",
-          created_at: "2020-01-01T00:00:00.000Z",
-          latest_version: "1.0.1",
-          platform: "darwin",
-          self_service: false,
-          status: {
-            installed: 10,
-            pending: 5,
-            failed: 3,
+        app_store_apps: [
+          {
+            id: 1,
+            name: "Production",
+            app_store_id: "1",
+            platform: "darwin",
+            version: "1.0.1",
+            self_service: false,
+            status: {
+              installed: 10,
+              pending: 5,
+              failed: 3,
+            },
+            labels_include_any: null,
+            labels_include_all: null,
+            labels_exclude_any: null,
+            created_at: "2020-01-01T00:00:00.000Z",
           },
-          icon_url: "https://example.com/icon.png",
-          labels_exclude_any: null,
-          labels_include_any: null,
-          labels_include_all: null,
-        },
-        app_store_apps: null,
+        ],
         source: "apps",
         hosts_count: 10,
       };
       const packageCardInfo = getInstallerCardInfo(softwareTitle);
-      expect(packageCardInfo).toEqual({
-        softwareInstaller: softwareTitle.app_store_app,
-        name: "Test Software", // apps should display the software title name (backend should ensure the app name and software title name match)
+      expect(packageCardInfo).toMatchObject({
+        name: "Test Software", // apps display the title name (backend keeps app name and title name aligned)
         softwareDisplayName: "Test App",
         displayName: "Test App",
         iconUrl: "https://example.com/icon.png",

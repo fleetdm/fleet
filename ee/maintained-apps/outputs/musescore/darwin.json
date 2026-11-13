@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.7.6",
+      "version": "4.7.7",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.musescore.MuseScore';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.musescore.MuseScore' AND version_compare(bundle_short_version, '4.7.6') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.musescore.MuseScore' AND version_compare(bundle_short_version, '4.7.7') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'org.musescore.MuseScore' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/musescore/MuseScore/releases/download/v4.7.6/MuseScore-Studio-4.7.6.261022093.dmg",
+      "installer_url": "https://github.com/musescore/MuseScore/releases/download/v4.7.7/MuseScore-Studio-4.7.7.261109195.dmg",
       "install_script_ref": "c421fc3d",
       "uninstall_script_ref": "e16f8e8f",
-      "sha256": "dd78357e652a4df6ec074b9bd63a79e09eedb7c1c9dd6262eb7d9304508dec9c",
+      "sha256": "16a6b33bb12f4a54cd97dfe8e7bc2f21477b9897e4c503e26fa3e332e4ddf8ad",
       "default_categories": [
         "Productivity"
       ]

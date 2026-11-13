@@ -1,0 +1,1 @@
+- **Breaking change:** Renamed the `viewed_host_recovery_lock_password` activity type to `read_host_recovery_lock_password` so it follows the same pattern as `read_host_disk_encryption_key`. This changes the `type` in the activities webhook, in audit logs, in `GET /api/v1/fleet/activities` and `GET /api/v1/fleet/hosts/:id/activities`, and the `activity_type` filter.

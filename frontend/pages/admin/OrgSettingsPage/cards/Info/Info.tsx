@@ -141,14 +141,8 @@ const Info = ({
   const { orgName, orgSupportURL } = formData;
   const [formErrors, setFormErrors] = useState<IOrgInfoFormErrors>({});
 
-  const lightOriginalUrl =
-    appConfig.org_info.org_logo_url_light_mode ||
-    appConfig.org_info.org_logo_url_light_background ||
-    "";
-  const darkOriginalUrl =
-    appConfig.org_info.org_logo_url_dark_mode ||
-    appConfig.org_info.org_logo_url ||
-    "";
+  const lightOriginalUrl = appConfig.org_info.org_logo_url_light_mode || "";
+  const darkOriginalUrl = appConfig.org_info.org_logo_url_dark_mode || "";
 
   const [lightLogo, setLightLogo] = useState<ILogoModeState>({
     pendingUpload: null,

@@ -194,14 +194,14 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	// get the title ID
 	listSWTitlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
-		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "team_id", "0")
+		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "fleet_id", "0")
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
 	require.Len(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApps, 1)
 	vppAppTitleID := listSWTitlesResp.SoftwareTitles[0].ID
 
 	// get the app
 	titleResponse := getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
 	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps, 1)
 	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps[0].Categories, 2)
 	require.Contains(t, titleResponse.SoftwareTitle.AppStoreApps[0].Categories, cat2.Name)
@@ -233,7 +233,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 	// the batch response returns the categories it uses and added
 	require.ElementsMatch(t, []string{"🧰 Developer tools", "👬 Communication"}, batchAssociateResponse.Categories)
 
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
 	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps, 1)
 	require.ElementsMatch(t, []string{"🧰 Developer tools", "👬 Communication"}, titleResponse.SoftwareTitle.AppStoreApps[0].Categories)
 
@@ -248,7 +248,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 		}, http.StatusOK, &batchAssociateResponse,
 	)
 
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
 	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps, 1)
 	require.ElementsMatch(t, []string{"🔐 Security", "🛠️ Utilities"}, titleResponse.SoftwareTitle.AppStoreApps[0].Categories)
 
@@ -263,7 +263,7 @@ func (s *integrationMDMTestSuite) TestSoftwareCategories() {
 		}, http.StatusOK, &batchAssociateResponse,
 	)
 
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
 	require.Len(t, titleResponse.SoftwareTitle.AppStoreApps, 1)
 	require.Empty(t, titleResponse.SoftwareTitle.AppStoreApps[0].Categories)
 }

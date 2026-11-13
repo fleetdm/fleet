@@ -59,14 +59,15 @@ interface IInstallSoftwareModal {
 }
 
 const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
-  const vppOption = title.source === "apps" && !!title.app_store_app;
+  const firstAppStoreApp = title.app_store_apps?.[0];
+  const vppOption = title.source === "apps" && !!firstAppStoreApp;
   let platformString = "";
   let versionString = "";
 
   if (vppOption) {
     platformString = "macOS (App Store)";
-    versionString = title.app_store_app?.version
-      ? ` • ${title.app_store_app?.version}`
+    versionString = firstAppStoreApp?.version
+      ? ` • ${firstAppStoreApp.version}`
       : "";
   } else {
     if (title.platform && title.extension) {

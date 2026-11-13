@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -462,8 +463,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		if payload.MDM.MacOSSetup != nil {
-			macOSEnableEndUserAuthUpdated = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != payload.MDM.MacOSSetup.EnableEndUserAuthentication
-			if macOSEnableEndUserAuthUpdated && payload.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
+			enableEUA := payload.MDM.MacOSSetup.EnableEndUserAuthentication
+			macOSEnableEndUserAuthUpdated = enableEUA.Set && team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != enableEUA.Value
+			if macOSEnableEndUserAuthUpdated && enableEUA.Value && appCfg.MDM.EndUserAuthentication.IsEmpty() {
 				// TODO: update this error message to include steps to resolve the issue once docs for IdP
 				// config are available
 				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication",
@@ -474,7 +476,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, err
 			}
 
-			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
+			if enableEUA.Set {
+				team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = enableEUA.Value
+			}
 			// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA (Apple-only).
 			// Also sync when EUA was just disabled so the Lock-requires-EUA invariant below stays satisfied.
 			if macOSEnableEndUserAuthUpdated && !payload.MDM.MacOSSetup.LockEndUserInfo.Valid &&
@@ -984,27 +988,22 @@ func (svc *Service) AddTeamUsers(ctx context.Context, teamID uint, users []fleet
 		}
 	}
 
-	team, err := svc.ds.TeamWithExtras(ctx, teamID)
+	team, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Replace existing
-	for i, existingUser := range team.Users {
-		if user, ok := idMap[existingUser.ID]; ok {
-			team.Users[i] = user
-			delete(idMap, user.ID)
+	previous, err := svc.ds.UpdateTeamUsers(ctx, teamID, slices.Collect(maps.Values(idMap)), nil)
+	if err != nil {
+		return nil, err
+	}
+	for id, user := range idMap {
+		if err := svc.logTeamRoleChange(ctx, team, previous[id], user.Role); err != nil {
+			return nil, err
 		}
 	}
 
-	// Add new (that have not already been replaced)
-	for _, user := range idMap {
-		team.Users = append(team.Users, user)
-	}
-
-	logging.WithExtras(ctx, "users", team.Users)
-
-	return svc.ds.SaveTeam(ctx, team)
+	return svc.teamAfterUsersChange(ctx, teamID)
 }
 
 func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fleet.TeamUser) (*fleet.Team, error) {
@@ -1017,24 +1016,52 @@ func (svc *Service) DeleteTeamUsers(ctx context.Context, teamID uint, users []fl
 		idMap[user.ID] = true
 	}
 
-	team, err := svc.ds.TeamWithExtras(ctx, teamID)
+	team, err := svc.ds.TeamLite(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
-	newUsers := []fleet.TeamUser{}
-	// Delete existing
-	for _, existingUser := range team.Users {
-		if _, ok := idMap[existingUser.ID]; !ok {
-			// Only add non-deleted users
-			newUsers = append(newUsers, existingUser)
+	previous, err := svc.ds.UpdateTeamUsers(ctx, teamID, nil, slices.Collect(maps.Keys(idMap)))
+	if err != nil {
+		return nil, err
+	}
+	for _, user := range previous {
+		if err := svc.logTeamRoleChange(ctx, team, user, ""); err != nil {
+			return nil, err
 		}
 	}
-	team.Users = newUsers
 
+	return svc.teamAfterUsersChange(ctx, teamID)
+}
+
+// logTeamRoleChange logs the activity for a change to previous's role in team. An empty newRole means no role in the team.
+func (svc *Service) logTeamRoleChange(ctx context.Context, team *fleet.TeamLite, previous fleet.User, newRole string) error {
+	var oldRoles []fleet.UserTeam
+	for _, userTeam := range previous.Teams {
+		if userTeam.ID == team.ID {
+			oldRoles = append(oldRoles, userTeam)
+		}
+	}
+	changed := previous
+	changed.Teams = nil
+	if newRole != "" {
+		changed.Teams = []fleet.UserTeam{{ID: team.ID, Name: team.Name, Role: newRole}}
+	}
+	if err := fleet.LogRoleChangeActivities(
+		ctx, svc, authz.UserFromContext(ctx), previous.GlobalRole, oldRoles, &changed, false,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "log activities for role change")
+	}
+	return nil
+}
+
+func (svc *Service) teamAfterUsersChange(ctx context.Context, teamID uint) (*fleet.Team, error) {
+	team, err := svc.ds.TeamWithExtras(ctxdb.RequirePrimary(ctx, true), teamID)
+	if err != nil {
+		return nil, err
+	}
 	logging.WithExtras(ctx, "users", team.Users)
-
-	return svc.ds.SaveTeam(ctx, team)
+	return team, nil
 }
 
 func (svc *Service) ListTeamUsers(ctx context.Context, teamID uint, opt fleet.ListOptions) ([]*fleet.User, error) {
