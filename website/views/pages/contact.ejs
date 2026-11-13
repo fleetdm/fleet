@@ -1,6 +1,6 @@
 <div id="contact" v-cloak>
   <div purpose="page-container" class="container-fluid">
-    <div class="d-flex flex-lg-row flex-column justify-content-center">
+    <div class="d-flex flex-lg-row flex-column flex-wrap justify-content-center">
     <div purpose="form-container" v-if="!cloudSuccess">
       <div v-if="!['apply', 'gitops-workshop-request'].includes(formToDisplay)">
         <h2>Get in touch</h2>
@@ -8,6 +8,15 @@
         <p v-else-if="psychologicalStage === '4 - Has use case'">Let us help you deploy and evaluate Fleet quickly for yourself. We’d love to save you some time.</p>
         <p v-else-if="psychologicalStage === '5 - Personally confident'">Schedule a personalized demo for your team and get support or training.</p>
         <p v-else>Schedule a personalized demo, or ask us anything. We’d love to chat.</p>
+        <div purpose="demo-checklist" v-if="formToDisplay === 'talk-to-us' && !userHasPremiumSubscription">
+          <p>On the call, you’ll see:</p>
+          <div purpose="checklist">
+            <p>How other teams are using Fleet</p>
+            <p>How Fleet works across PCs, Macs, and mobile</p>
+            <p>Where Fleet fits next to what you already run</p>
+            <p>Support and certifications for your team</p>
+          </div>
+        </div>
       </div>
       <div v-else-if="formToDisplay === 'apply'">
         <h2 purpose="application-form-heading" v-if="formToDisplay === 'apply'">Apply for an open position</h2>
@@ -111,7 +120,7 @@
           </div>
          <div class="form-group">
            <label for="number-of-hosts">How many employees are in your organization? *</label>
-           <input class="form-control" id="number-of-hosts" name="number-of-hosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" min="1" v-model.trim="formData.numberOfHosts">
+           <input class="form-control" id="number-of-hosts" name="number-of-hosts" type="text" inputmode="numeric" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="formData.numberOfHosts">
            <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of employees</div>
          </div>
          <cloud-error v-if="cloudError && cloudError === 'invalidEmailDomain'">
@@ -299,7 +308,7 @@
       <div purpose="quote">
         <div purpose="logo" class="mb-4"><img alt="NVIDIA logo" src="/images/logos/logo-nvidia-color-161x32@2x.png"></div>
         <p purpose="quote-text">
-          “We wanted an open-source MDM to easily use infrastructure-as-code, deliver the best possible experience for our employees, and make security happy.”
+          “We wanted an MDM to easily use infrastructure-as-code, deliver the best possible experience for our employees, and make security happy.”
         </p>
         <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
           <div purpose="profile-picture">
@@ -364,6 +373,9 @@
         </div>
         <p purpose="logos-caption">+ 5/8 of this year’s hottest IPOs</p>
       </div>
+    </div>
+    <div purpose="bottom-demo-button" v-if="!cloudSuccess">
+      <a purpose="cta-button" href="#" @click.prevent="clickGetADemoAtBottom()">Get a demo</a>
     </div>
   </div>
   </div>

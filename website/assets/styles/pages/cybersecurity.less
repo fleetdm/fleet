@@ -194,46 +194,6 @@
       color: #00997D;
     }
   }
-  [purpose='glasswing-card'] {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 20px;
-    aspect-ratio: 4 / 3;
-    padding: 40px;
-    border-radius: 16px;
-    background-color: #2E2E36;
-  }
-  [purpose='glasswing-dots'] {
-    display: grid;
-    grid-template-columns: repeat(3, 10px);
-    gap: 6px;
-    margin-bottom: auto;
-    span {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      &:nth-child(1) { background-color: #5BC25B; }
-      &:nth-child(2) { background-color: #5AA6E0; }
-      &:nth-child(3) { background-color: #D9737C; }
-      &:nth-child(4) { background-color: #B98AE6; }
-      &:nth-child(5) { background-color: #F2A65A; grid-column: 2; }
-      &:nth-child(6) { background-color: #3FD8B5; grid-column: 1; }
-    }
-  }
-  [purpose='glasswing-title'] {
-    font-size: 34px;
-    line-height: 115%;
-    font-weight: @bold;
-    color: @accent-white;
-  }
-  [purpose='glasswing-subtitle'] {
-    margin-bottom: auto;
-    font-size: 17px;
-    line-height: 145%;
-    color: rgba(255, 255, 255, 0.85);
-  }
-
   // Customer quotes
   [purpose='quote-section'] {
     display: flex;
@@ -308,7 +268,7 @@
   // The grid's background shows through the 1px gaps as divider lines between logos.
   [purpose='logo-grid'] {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: 1px;
     flex: 1 1 50%;
     background-color: @core-fleet-black-10;
@@ -448,9 +408,6 @@
         width: 100%;
       }
     }
-    [purpose='glasswing-title'] {
-      font-size: 28px;
-    }
   }
 
   @media (max-width: 767px) {
@@ -494,15 +451,6 @@
       pre {
         font-size: 11px;
       }
-    }
-    [purpose='glasswing-card'] {
-      padding: 32px;
-    }
-    [purpose='glasswing-title'] {
-      font-size: 24px;
-    }
-    [purpose='glasswing-subtitle'] {
-      font-size: 15px;
     }
   }
 

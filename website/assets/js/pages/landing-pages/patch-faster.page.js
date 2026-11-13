@@ -27,6 +27,15 @@ parasails.registerPage('patch-faster', {
     //…
   },
 
+  watch: {
+    // Plain text input (no spinner arrows), so drop anything that isn't a digit, like "1,000" or "500+", before it's used for demo routing.
+    'formData.numberOfHosts': function(value) {
+      if(_.isString(value) && /[^0-9]/.test(value)) {
+        this.$set(this.formData, 'numberOfHosts', value.replace(/[^0-9]/g, ''));
+      }
+    },
+  },
+
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝

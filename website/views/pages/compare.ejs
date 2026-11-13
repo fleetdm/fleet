@@ -1,0 +1,46 @@
+<div id="compare-page" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+      <div purpose="page-hero">
+        <h4>Compare</h4>
+        <h1>How Fleet compares</h1>
+        <p>Side-by-side comparisons with the tools IT teams run today. Each one covers where Fleet is ahead, and where the other tool is.</p>
+        <div purpose="button-row">
+          <a purpose="cta-button" class="btn btn-primary" href="/contact?talkToUs">Get a demo</a>
+          <animated-arrow-button href="/pricing">View pricing</animated-arrow-button>
+        </div>
+      </div>
+
+      <div purpose="comparison-section">
+        <h2>Head-to-head comparisons</h2>
+        <div purpose="comparison-grid">
+          <% for (let comparison of headToHeadComparisons) { %>
+          <a purpose="comparison-card" href="<%= comparison.url %>">
+            <h3><%= comparison.title %></h3>
+            <p><%= comparison.description %></p>
+            <span purpose="card-link">Read the comparison</span>
+          </a>
+          <% } %>
+        </div>
+      </div>
+
+      <% if (multiVendorComparisons.length > 0) { %>
+      <div purpose="comparison-section">
+        <h2>Comparing more than two tools</h2>
+        <div purpose="comparison-grid">
+          <% for (let comparison of multiVendorComparisons) { %>
+          <a purpose="comparison-card" href="<%= comparison.url %>">
+            <h3><%= comparison.title %></h3>
+            <p><%= comparison.description %></p>
+            <span purpose="card-link">Read the comparison</span>
+          </a>
+          <% } %>
+        </div>
+      </div>
+      <% } %>
+    </div>
+  </div>
+  <demo-request-form></demo-request-form>
+  <cloud-city></cloud-city>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

@@ -37,7 +37,7 @@
             </div>
             <div purpose="form-group">
               <label for="patch-num-employees">Number of employees <span purpose="required-star">*</span></label>
-              <input class="form-control" id="patch-num-employees" type="number" min="1" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="formData.numberOfHosts">
+              <input class="form-control" id="patch-num-employees" type="text" inputmode="numeric" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="formData.numberOfHosts">
               <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter the number of employees.</div>
             </div>
             <cloud-error v-if="cloudError && cloudError !== 'invalidEmailDomain'"></cloud-error>

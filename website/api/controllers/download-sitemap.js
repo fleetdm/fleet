@@ -49,6 +49,7 @@ module.exports = {
     let HAND_CODED_HTML_PAGES = [
       '/',//« home page
       '/pricing',
+      '/compare',
       '/contact',
       '/support',
       '/integrations',
@@ -106,6 +107,7 @@ module.exports = {
       // Landing pages:
       '/lp/patch-faster',
       '/lp/replace-jamf',
+      '/lp/replace-workspace-one',
       '/lp/autonomous-endpoint-management',
       '/lp/apple-mdm',
       '/lp/on-premise',
