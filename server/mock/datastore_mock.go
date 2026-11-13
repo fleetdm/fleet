@@ -2316,7 +2316,9 @@ type ListAndroidFleetDefaultPolicyProfilesFunc func(ctx context.Context, teamID 
 
 type GetAndroidFleetDefaultPolicyChecksumsFunc func(ctx context.Context) (map[uint][]byte, error)
 
-type SetAndroidFleetDefaultPolicyChecksumFunc func(ctx context.Context, teamID uint, checksum []byte) error
+type SetAndroidFleetDefaultPolicyChecksumFunc func(ctx context.Context, teamID uint, checksum []byte, previous []byte) error
+
+type MarkAndroidFleetDefaultPolicyUnverifiedFunc func(ctx context.Context, teamID uint) error
 
 type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
@@ -6043,6 +6045,9 @@ type DataStore struct {
 
 	SetAndroidFleetDefaultPolicyChecksumFunc        SetAndroidFleetDefaultPolicyChecksumFunc
 	SetAndroidFleetDefaultPolicyChecksumFuncInvoked bool
+
+	MarkAndroidFleetDefaultPolicyUnverifiedFunc        MarkAndroidFleetDefaultPolicyUnverifiedFunc
+	MarkAndroidFleetDefaultPolicyUnverifiedFuncInvoked bool
 
 	GetMDMAndroidProfilesContentsFunc        GetMDMAndroidProfilesContentsFunc
 	GetMDMAndroidProfilesContentsFuncInvoked bool
@@ -14495,11 +14500,18 @@ func (s *DataStore) GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (
 	return s.GetAndroidFleetDefaultPolicyChecksumsFunc(ctx)
 }
 
-func (s *DataStore) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum []byte) error {
+func (s *DataStore) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum []byte, previous []byte) error {
 	s.mu.Lock()
 	s.SetAndroidFleetDefaultPolicyChecksumFuncInvoked = true
 	s.mu.Unlock()
-	return s.SetAndroidFleetDefaultPolicyChecksumFunc(ctx, teamID, checksum)
+	return s.SetAndroidFleetDefaultPolicyChecksumFunc(ctx, teamID, checksum, previous)
+}
+
+func (s *DataStore) MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error {
+	s.mu.Lock()
+	s.MarkAndroidFleetDefaultPolicyUnverifiedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkAndroidFleetDefaultPolicyUnverifiedFunc(ctx, teamID)
 }
 
 func (s *DataStore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {

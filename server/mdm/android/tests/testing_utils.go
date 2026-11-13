@@ -122,8 +122,12 @@ func (ds *AndroidDSWithMock) GetAndroidFleetDefaultPolicyChecksums(ctx context.C
 	return ds.Datastore.GetAndroidFleetDefaultPolicyChecksums(ctx)
 }
 
-func (ds *AndroidDSWithMock) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum []byte) error {
-	return ds.Datastore.SetAndroidFleetDefaultPolicyChecksum(ctx, teamID, checksum)
+func (ds *AndroidDSWithMock) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum, previous []byte) error {
+	return ds.Datastore.SetAndroidFleetDefaultPolicyChecksum(ctx, teamID, checksum, previous)
+}
+
+func (ds *AndroidDSWithMock) MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error {
+	return ds.Datastore.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamID)
 }
 
 // noopNewActivity is a no-op activity creation function for tests that don't verify activity creation.

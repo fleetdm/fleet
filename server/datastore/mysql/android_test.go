@@ -5474,10 +5474,14 @@ func testAndroidFleetDefaultPolicies(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Empty(t, checksums)
 
-	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, 0, []byte("0123456789abcdef")))
-	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("aaaaaaaaaaaaaaaa")))
-	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamB.ID, []byte("bbbbbbbbbbbbbbbb")))
-	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("AAAAAAAAAAAAAAAA")))
+	// Without a previous checksum, only a missing row is inserted.
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, 0, []byte("0123456789abcdef"), nil))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("aaaaaaaaaaaaaaaa"), nil))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamB.ID, []byte("bbbbbbbbbbbbbbbb"), nil))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("xxxxxxxxxxxxxxxx"), nil))
+	// With one, only a row that still holds it is updated.
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamA.ID, []byte("AAAAAAAAAAAAAAAA"), []byte("aaaaaaaaaaaaaaaa")))
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamB.ID, []byte("yyyyyyyyyyyyyyyy"), []byte("stale-checksum-0")))
 
 	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
 	require.NoError(t, err)
@@ -5487,10 +5491,32 @@ func testAndroidFleetDefaultPolicies(t *testing.T, ds *Datastore) {
 		teamB.ID: []byte("bbbbbbbbbbbbbbbb"),
 	}, checksums)
 
-	// A deleted fleet's row is no longer reported.
-	require.NoError(t, ds.DeleteTeam(ctx, teamB.ID))
+	// Marking a policy unverified overwrites any checksum, and creates a row for a fleet without one.
+	unverified := make([]byte, 16)
+	require.NoError(t, ds.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamA.ID))
+	teamC, err := ds.NewTeam(ctx, &fleet.Team{Name: "default-policy-c"})
+	require.NoError(t, err)
+	require.NoError(t, ds.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamC.ID))
+	// The reconciler's insert of a fleet it read without a row loses to the mark.
+	require.NoError(t, ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamC.ID, []byte("cccccccccccccccc"), nil))
 	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
 	require.NoError(t, err)
-	assert.NotContains(t, checksums, teamB.ID)
-	assert.Len(t, checksums, 2)
+	assert.Equal(t, unverified, checksums[teamA.ID])
+	assert.Equal(t, unverified, checksums[teamC.ID])
+
+	// Deleting a fleet deletes its row.
+	require.NoError(t, ds.DeleteTeam(ctx, teamB.ID))
+	var teamBRows int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &teamBRows,
+		`SELECT COUNT(*) FROM android_fleet_default_policies WHERE team_id = ?`, teamB.ID))
+	assert.Zero(t, teamBRows)
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.Len(t, checksums, 3)
+
+	// The policies belong to the enterprise, so deleting it deletes every row.
+	require.NoError(t, ds.DeleteAllEnterprises(ctx))
+	checksums, err = ds.GetAndroidFleetDefaultPolicyChecksums(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, checksums)
 }

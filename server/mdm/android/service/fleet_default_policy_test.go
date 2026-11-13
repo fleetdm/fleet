@@ -159,9 +159,12 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 	var (
 		profiles  []*fleet.MDMAndroidConfigProfile
 		checksums map[uint][]byte
-		patched   map[string]*androidmanagement.Policy
-		saved     map[uint][]byte
-		patchErrs map[string]error
+		patched        map[string]*androidmanagement.Policy
+		patchCount     int
+		saved          map[uint][]byte
+		savedPrevious  map[uint][]byte
+		patchErrs      map[string]error
+		rejectPasscode bool
 	)
 	ds.ListAndroidFleetDefaultPolicyProfilesFunc = func(_ context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
 		require.Nil(t, teamID)
@@ -170,17 +173,22 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 	ds.GetAndroidFleetDefaultPolicyChecksumsFunc = func(_ context.Context) (map[uint][]byte, error) {
 		return checksums, nil
 	}
-	ds.SetAndroidFleetDefaultPolicyChecksumFunc = func(_ context.Context, teamID uint, checksum []byte) error {
+	ds.SetAndroidFleetDefaultPolicyChecksumFunc = func(_ context.Context, teamID uint, checksum, previous []byte) error {
 		saved[teamID] = checksum
+		savedPrevious[teamID] = previous
 		return nil
 	}
 	client.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
 		require.True(t, opts.ExcludeApps)
+		patchCount++
 		patched[policyName] = policy
+		if rejectPasscode && policy.PasswordPolicies != nil {
+			return nil, &googleapi.Error{Code: http.StatusBadRequest}
+		}
 		return policy, patchErrs[policyName]
 	}
 	run := func(t *testing.T) {
-		patched, saved = map[string]*androidmanagement.Policy{}, map[uint][]byte{}
+		patched, saved, savedPrevious, patchCount = map[string]*androidmanagement.Policy{}, map[uint][]byte{}, map[uint][]byte{}, 0
 		require.NoError(t, reconciler.reconcileFleetDefaultPolicies(t.Context()))
 	}
 	policyName := func(teamID uint) string { return enterpriseName + "/policies/" + android.FleetDefaultPolicyID(teamID) }
@@ -208,6 +216,16 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 		require.Len(t, patched, 1)
 		require.Equal(t, int64(8), patched[policyName(teamA)].PasswordPolicies[0].PasswordMinimumLength)
 		require.Equal(t, map[uint][]byte{teamA: checksumFor(pin(teamA, 8))}, saved)
+		require.Equal(t, checksumFor(pin(teamA, 6)), savedPrevious[teamA], "the checksum is only replaced if it's still the one read")
+	})
+
+	t.Run("a policy marked unverified is sent again", func(t *testing.T) {
+		checksums = map[uint][]byte{0: checksumFor(pin(0, 4)), teamA: make([]byte, 16)}
+		run(t)
+		require.Len(t, patched, 1)
+		require.Equal(t, int64(8), patched[policyName(teamA)].PasswordPolicies[0].PasswordMinimumLength)
+		require.Equal(t, map[uint][]byte{teamA: checksumFor(pin(teamA, 8))}, saved)
+		require.Equal(t, make([]byte, 16), savedPrevious[teamA])
 	})
 
 	t.Run("a fleet whose passcode profiles are gone goes back to the base settings", func(t *testing.T) {
@@ -241,5 +259,21 @@ func TestReconcileFleetDefaultPolicies(t *testing.T) {
 		patchErrs = map[string]error{policyName(teamGone): &googleapi.Error{Code: http.StatusNotModified}}
 		run(t)
 		require.Equal(t, map[uint][]byte{teamGone: checksumFor(pin(teamGone, 6))}, saved)
+		require.Nil(t, savedPrevious[teamGone], "a fleet without a row is only inserted if still absent")
+	})
+
+	t.Run("rejected passcode settings are replaced by the base settings and not retried", func(t *testing.T) {
+		profiles = []*fleet.MDMAndroidConfigProfile{pin(teamA, 6)}
+		checksums, patchErrs, rejectPasscode = nil, nil, true
+		t.Cleanup(func() { rejectPasscode = false })
+		run(t)
+		require.Equal(t, 2, patchCount)
+		require.Empty(t, patched[policyName(teamA)].PasswordPolicies, "the last patch is the base policy")
+		require.NotNil(t, patched[policyName(teamA)].StatusReportingSettings)
+		require.Equal(t, map[uint][]byte{teamA: checksumFor(pin(teamA, 6))}, saved)
+
+		checksums = saved
+		run(t)
+		require.Zero(t, patchCount, "nothing is sent again until the profiles change")
 	})
 }

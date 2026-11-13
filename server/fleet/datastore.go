@@ -4128,8 +4128,14 @@ type Datastore interface {
 	// default policy last sent to AMAPI for each fleet that still exists.
 	GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (map[uint][]byte, error)
 
-	// SetAndroidFleetDefaultPolicyChecksum records the checksum of the default policy last sent for a fleet.
-	SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum []byte) error
+	// SetAndroidFleetDefaultPolicyChecksum records the checksum of the default policy last sent for a fleet,
+	// only if the stored checksum is still previous (nil: only if there's none), so a concurrent writer's
+	// record isn't overwritten.
+	SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum, previous []byte) error
+
+	// MarkAndroidFleetDefaultPolicyUnverified records that a fleet's default policy exists without vouching
+	// for its content, so the next reconcile sends it again.
+	MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error
 
 	// GetMDMAndroidProfilesContents retrieves the contents of the Android
 	// profiles with the specified UUIDs.

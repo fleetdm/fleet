@@ -89,14 +89,12 @@ func fleetDefaultPolicyName(enterpriseName string, teamID uint) string {
 	return fmt.Sprintf("%s/policies/%s", enterpriseName, android.FleetDefaultPolicyID(teamID))
 }
 
-// syncFleetDefaultPolicy sends a fleet's default policy to AMAPI when it differs from storedChecksum (nil
-// when it was never sent), and records the new checksum.
-func syncFleetDefaultPolicy(ctx context.Context, ds fleet.Datastore, client androidmgmt.Client, logger *slog.Logger,
-	enterpriseName string, teamID uint, profiles []*fleet.MDMAndroidConfigProfile, storedChecksum []byte,
-) error {
+// prepareFleetDefaultPolicy builds a fleet's default policy and its checksum.
+func prepareFleetDefaultPolicy(ctx context.Context, logger *slog.Logger, teamID uint, profiles []*fleet.MDMAndroidConfigProfile,
+) (*androidmanagement.Policy, []byte, error) {
 	policy, skipped, err := buildFleetDefaultPolicy(profiles)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "build default policy for fleet %d", teamID)
+		return nil, nil, ctxerr.Wrapf(ctx, err, "build default policy for fleet %d", teamID)
 	}
 	if len(skipped) > 0 {
 		logger.WarnContext(ctx, "android passcode profiles with variables are left out of the fleet's default policy",
@@ -104,19 +102,38 @@ func syncFleetDefaultPolicy(ctx context.Context, ds fleet.Datastore, client andr
 	}
 	checksum, err := fleetDefaultPolicyChecksum(policy)
 	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "checksum default policy for fleet %d", teamID)
+		return nil, nil, ctxerr.Wrapf(ctx, err, "checksum default policy for fleet %d", teamID)
 	}
-	if bytes.Equal(checksum, storedChecksum) {
+	return policy, checksum, nil
+}
+
+// sendFleetDefaultPolicy patches a fleet's default policy in AMAPI. If AMAPI rejects the passcode settings,
+// it sends the base settings instead, so the policy that enrollment tokens point at always exists; the
+// passcode then arrives with the host's own policy, which reports the rejection on the profile.
+func sendFleetDefaultPolicy(ctx context.Context, client androidmgmt.Client, logger *slog.Logger,
+	enterpriseName string, teamID uint, policy *androidmanagement.Policy,
+) error {
+	policyName := fleetDefaultPolicyName(enterpriseName, teamID)
+	patch := func(p *androidmanagement.Policy) error {
+		_, err := client.EnterprisesPoliciesPatch(ctx, policyName, p, androidmgmt.PoliciesPatchOpts{ExcludeApps: true})
+		if err != nil && !androidmgmt.IsNotModifiedError(err) {
+			return err
+		}
 		return nil
 	}
-
-	policyName := fleetDefaultPolicyName(enterpriseName, teamID)
-	if _, err := client.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{ExcludeApps: true}); err != nil &&
-		!androidmgmt.IsNotModifiedError(err) {
+	err := patch(policy)
+	if err == nil {
+		return nil
+	}
+	if !androidmgmt.IsBadRequestError(err) {
 		return ctxerr.Wrapf(ctx, err, "patch default policy %s", policyName)
 	}
-	if err := ds.SetAndroidFleetDefaultPolicyChecksum(ctx, teamID, checksum); err != nil {
-		return ctxerr.Wrapf(ctx, err, "save default policy checksum for fleet %d", teamID)
+	logger.ErrorContext(ctx, "android rejected the passcode settings of the fleet's default policy, sending it without them",
+		"fleet_id", teamID, "err", err)
+	var base androidmanagement.Policy
+	applyFleetEnforcedSettings(&base)
+	if err := patch(&base); err != nil {
+		return ctxerr.Wrapf(ctx, err, "patch base default policy %s", policyName)
 	}
 	return nil
 }
@@ -152,10 +169,30 @@ func (r *profileReconciler) reconcileFleetDefaultPolicies(ctx context.Context) e
 
 	for teamID := range teamIDs {
 		// One fleet's failure (e.g. AMAPI quota) must not hold back the others; it's retried next run.
-		if err := syncFleetDefaultPolicy(ctx, r.DS, r.Client, r.Logger, r.Enterprise.Name(), teamID,
-			profilesByTeam[teamID], checksums[teamID]); err != nil {
+		if err := r.syncFleetDefaultPolicy(ctx, teamID, profilesByTeam[teamID], checksums[teamID]); err != nil {
 			r.Logger.ErrorContext(ctx, "failed to sync android fleet default policy", "fleet_id", teamID, "err", err)
 		}
+	}
+	return nil
+}
+
+func (r *profileReconciler) syncFleetDefaultPolicy(ctx context.Context, teamID uint, profiles []*fleet.MDMAndroidConfigProfile,
+	storedChecksum []byte,
+) error {
+	policy, checksum, err := prepareFleetDefaultPolicy(ctx, r.Logger, teamID, profiles)
+	if err != nil {
+		return err
+	}
+	if bytes.Equal(checksum, storedChecksum) {
+		return nil
+	}
+	if err := sendFleetDefaultPolicy(ctx, r.Client, r.Logger, r.Enterprise.Name(), teamID, policy); err != nil {
+		return err
+	}
+	// Only replaces what was read, so a policy that EnsureFleetDefaultPolicy marked unverified meanwhile
+	// is sent again next run instead of being recorded as up to date.
+	if err := r.DS.SetAndroidFleetDefaultPolicyChecksum(ctx, teamID, checksum, storedChecksum); err != nil {
+		return ctxerr.Wrapf(ctx, err, "save default policy checksum for fleet %d", teamID)
 	}
 	return nil
 }
@@ -172,6 +209,10 @@ func (svc *Service) EnsureFleetDefaultPolicy(ctx context.Context, enterpriseName
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "list android fleet default policy profiles")
 		}
+		policy, _, err := prepareFleetDefaultPolicy(ctx, svc.logger, teamID, profiles)
+		if err != nil {
+			return "", err
+		}
 		// The premium service calls this with its own client, so this one may not be authenticated yet.
 		secret, err := svc.getClientAuthenticationSecret(ctx)
 		if err != nil {
@@ -179,8 +220,13 @@ func (svc *Service) EnsureFleetDefaultPolicy(ctx context.Context, enterpriseName
 		}
 		_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
-		if err := syncFleetDefaultPolicy(ctx, svc.fleetDS, svc.androidAPIClient, svc.logger, enterpriseName, teamID, profiles, nil); err != nil {
+		if err := sendFleetDefaultPolicy(ctx, svc.androidAPIClient, svc.logger, enterpriseName, teamID, policy); err != nil {
 			return "", err
+		}
+		// The reconciler may be sending newer profiles at the same time, and either patch can land last, so
+		// this doesn't vouch for the content: the reconciler sends the policy again on its next run.
+		if err := svc.fleetDS.MarkAndroidFleetDefaultPolicyUnverified(ctx, teamID); err != nil {
+			return "", ctxerr.Wrapf(ctx, err, "save default policy of fleet %d", teamID)
 		}
 	}
 	return fleetDefaultPolicyName(enterpriseName, teamID), nil

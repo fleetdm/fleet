@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/http"
 	"os"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // An unauthenticated caller with an invalid enroll secret must get the same
@@ -65,6 +67,7 @@ func TestCreateEnrollmentTokenUsesFleetDefaultPolicy(t *testing.T) {
 		secretTeamID   *uint
 		checksums      map[uint][]byte
 		patchErr       error
+		rejectPasscode bool
 		wantPatched    []string
 		wantPolicyName string
 	}{
@@ -86,6 +89,13 @@ func TestCreateEnrollmentTokenUsesFleetDefaultPolicy(t *testing.T) {
 			wantPolicyName: enterpriseName + "/policies/fleet4",
 		},
 		{
+			name:           "rejected passcode settings fall back to the base settings in the fleet policy",
+			secretTeamID:   &teamID,
+			rejectPasscode: true,
+			wantPatched:    []string{enterpriseName + "/policies/fleet4", enterpriseName + "/policies/fleet4"},
+			wantPolicyName: enterpriseName + "/policies/fleet4",
+		},
+		{
 			name:           "falls back to the global policy when the patch fails",
 			secretTeamID:   &teamID,
 			patchErr:       errors.New("quota"),
@@ -102,6 +112,9 @@ func TestCreateEnrollmentTokenUsesFleetDefaultPolicy(t *testing.T) {
 				patched = append(patched, policyName)
 				require.True(t, opts.ExcludeApps)
 				require.NotNil(t, policy.StatusReportingSettings)
+				if c.rejectPasscode && policy.PasswordPolicies != nil {
+					return nil, &googleapi.Error{Code: http.StatusBadRequest}
+				}
 				return policy, c.patchErr
 			}
 			var tokenPolicyName string
@@ -136,7 +149,7 @@ func TestCreateEnrollmentTokenUsesFleetDefaultPolicy(t *testing.T) {
 				return []*fleet.MDMAndroidConfigProfile{{Name: "passcode", TeamID: gotTeamID, RawJSON: []byte(`{"passwordPolicies": [{"passwordMinimumLength": 6}]}`)}}, nil
 			}
 			var savedTeamIDs []uint
-			fleetDS.Store.SetAndroidFleetDefaultPolicyChecksumFunc = func(_ context.Context, gotTeamID uint, _ []byte) error {
+			fleetDS.Store.MarkAndroidFleetDefaultPolicyUnverifiedFunc = func(_ context.Context, gotTeamID uint) error {
 				savedTeamIDs = append(savedTeamIDs, gotTeamID)
 				return nil
 			}

@@ -1928,12 +1928,30 @@ func (ds *Datastore) GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) 
 	return checksums, nil
 }
 
-func (ds *Datastore) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum []byte) error {
+func (ds *Datastore) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum, previous []byte) error {
+	var err error
+	if previous == nil {
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT IGNORE INTO android_fleet_default_policies (team_id, checksum) VALUES (?, ?)`, teamID, checksum)
+	} else {
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE android_fleet_default_policies SET checksum = ? WHERE team_id = ? AND checksum = ?`, checksum, teamID, previous)
+	}
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "setting android fleet default policy checksum")
+	}
+	return nil
+}
+
+// unverifiedAndroidFleetDefaultPolicyChecksum never matches a real checksum, so the reconciler resends the policy.
+var unverifiedAndroidFleetDefaultPolicyChecksum = make([]byte, 16)
+
+func (ds *Datastore) MarkAndroidFleetDefaultPolicyUnverified(ctx context.Context, teamID uint) error {
 	const stmt = `
 		INSERT INTO android_fleet_default_policies (team_id, checksum) VALUES (?, ?)
 		ON DUPLICATE KEY UPDATE checksum = VALUES(checksum)`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, checksum); err != nil {
-		return ctxerr.Wrap(ctx, err, "setting android fleet default policy checksum")
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, unverifiedAndroidFleetDefaultPolicyChecksum); err != nil {
+		return ctxerr.Wrap(ctx, err, "marking android fleet default policy unverified")
 	}
 	return nil
 }
