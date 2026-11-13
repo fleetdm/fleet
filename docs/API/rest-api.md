@@ -11128,6 +11128,8 @@ None.
 
 ### Add Volume Purchasing Program (VPP) token
 
+((Global admin))
+
 _Available in Fleet Premium_
 
 `POST /api/v1/fleet/vpp_tokens`
@@ -11255,6 +11257,8 @@ None.
 `organization_unit` is the name of the organization unit in Apple Business that's associated with the VPP token. Apple previously called this "location."
 
 ### Update Volume Purchasing Program (VPP) token's fleets
+
+((Global admin))
 
 _Available in Fleet Premium_
 
