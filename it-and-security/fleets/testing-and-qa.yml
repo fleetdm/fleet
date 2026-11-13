@@ -73,21 +73,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
       # CIS Level 1 + Level 2 baseline for institution-owned iOS/iPadOS devices
       - path: ../lib/ios/configuration-profiles/lock-screen-message.mobileconfig
-        labels_include_any:
-          - "iOS"
-          - "iPadOS"
       - path: ../lib/ios/configuration-profiles/cis-ios-restrictions.mobileconfig
-        labels_include_any:
-          - "iOS"
-          - "iPadOS"
       - path: ../lib/ios/declaration-profiles/CIS passcode settings.json
-        labels_include_any:
-          - "iOS"
-          - "iPadOS"
       - path: ../lib/ios/declaration-profiles/Software Update settings.json
-        labels_include_any:
-          - "iOS"
-          - "iPadOS"
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
