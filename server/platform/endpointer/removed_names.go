@@ -213,12 +213,8 @@ func RejectRemovedQueryParams(query url.Values, t reflect.Type) error {
 	if !sortsByAnyColumn(t) {
 		for _, param := range []string{"order_key", "inherited_order_key"} {
 			for _, value := range query[param] {
-				// The datastore splits an order key on commas and trims each part, so check the parts.
-				for key := range strings.SplitSeq(value, ",") {
-					key = strings.TrimSpace(key)
-					if _, isRemoved := names.sortKeys[key]; isRemoved {
-						return &RemovedKeyError{Key: key, Param: param}
-					}
+				if _, isRemoved := names.sortKeys[value]; isRemoved {
+					return &RemovedKeyError{Key: value, Param: param}
 				}
 			}
 		}
