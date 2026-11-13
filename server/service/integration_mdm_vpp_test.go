@@ -1038,7 +1038,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 	// Add the team back using the PATCH /api/latest/fleet/config endpoint now (what GitOps uses).
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": [ "%s" ]} ] }
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "fleets": [ "%s" ]} ] }
   }`, location, team.Name)), http.StatusOK, &acResp)
 
 	// Check again that the VPP token is associated to the team.

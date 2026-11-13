@@ -243,10 +243,10 @@ type ABMToken struct {
 	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
-	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
-	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
-	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
-	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
+	MacOSTeam  ABMTokenTeam `json:"macos_fleet"`
+	IOSTeam    ABMTokenTeam `json:"ios_fleet"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_fleet"`
+	BYODTeam   ABMTokenTeam `json:"byod_fleet"`
 }
 
 func (a ABMToken) AuthzType() string {
@@ -255,7 +255,7 @@ func (a ABMToken) AuthzType() string {
 
 type ABMTokenTeam struct {
 	Name string `json:"name"`
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
+	ID   uint   `json:"fleet_id"`
 }
 
 // AppleCSR is the authorization subject of the Apple MDM setup endpoints.
@@ -1513,7 +1513,7 @@ type VPPTokenDB struct {
 	// uploaded; may be empty for tokens uploaded before this field was added,
 	// in which case it is lazily backfilled.
 	CountryCode string      `db:"country_code" json:"country_code"`
-	Teams       []TeamTuple `json:"teams" renameto:"fleets"`
+	Teams       []TeamTuple `json:"fleets"`
 	CreatedAt   *time.Time  `db:"created_at" json:"created_at"`
 }
 
@@ -1527,7 +1527,7 @@ func (t *VPPTokenDB) AvailableToTeam(teamID uint) bool {
 }
 
 type TeamTuple struct {
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
+	ID   uint   `json:"fleet_id"`
 	Name string `json:"name"`
 }
 

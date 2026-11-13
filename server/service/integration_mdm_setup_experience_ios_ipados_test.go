@@ -53,9 +53,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSAndIPadOS() {
 			"mdm": {
 			       "apple_business_manager": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }]
 			}
 		}`, abmOrgName, team.Name, team.Name, team.Name)), http.StatusOK, &acResp)
@@ -238,9 +238,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceIOSInHouseApp() {
 			"mdm": {
 			       "apple_business_manager": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }]
 			}
 		}`, abmOrgName, team.Name, team.Name, team.Name)), http.StatusOK, &acResp)

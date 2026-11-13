@@ -1474,7 +1474,7 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	// apply the app config with the token on fleet A, the automation on fleet A should be kept
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": [ "%s" ]} ] }
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "fleets": [ "%s" ]} ] }
 	}`, location, fleetA.Name)), http.StatusOK, &acResp)
 
 	var getPolicyResp fleet.GetPolicyByIDResponse
@@ -1494,7 +1494,7 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	// apply the app config with the token on fleets B and A, the automation on fleet A should be kept
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": [ "%s", "%s" ]} ] }
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "fleets": [ "%s", "%s" ]} ] }
 	}`, location, fleetB.Name, fleetA.Name)), http.StatusOK, &acResp)
 
 	getPolicyResp = fleet.GetPolicyByIDResponse{}
@@ -1517,7 +1517,7 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	// apply the app config with the token on All fleets, the app and the automation on fleet A should be kept
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": [ "%s" ]} ] }
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "fleets": [ "%s" ]} ] }
 	}`, location, fleet.DisplayNameAllTeams)), http.StatusOK, &acResp)
 
 	listSw = listSoftwareTitlesResponse{}
@@ -1531,7 +1531,7 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	// apply the app config with the token on fleet B, the automation on fleet A should be cleared
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": [ "%s" ]} ] }
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "fleets": [ "%s" ]} ] }
 	}`, location, fleetB.Name)), http.StatusOK, &acResp)
 
 	getPolicyResp = fleet.GetPolicyByIDResponse{}
@@ -1557,7 +1557,7 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	// apply the app config with the token on no fleets, the app and the automation on fleet B should be removed
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": []} ] }
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "fleets": []} ] }
 	}`, location)), http.StatusOK, &acResp)
 
 	listSw = listSoftwareTitlesResponse{}
@@ -1570,7 +1570,7 @@ func (s *integrationMDMTestSuite) TestVPPAutomationsOnAppConfigApply() {
 	// apply the app config with the token on All fleets, the token should be assigned to all fleets
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"mdm": { "volume_purchasing_program": [ {"location": "%s", "teams": [ "%s" ]} ] }
+		"mdm": { "volume_purchasing_program": [ {"location": "%s", "fleets": [ "%s" ]} ] }
 	}`, location, fleet.DisplayNameAllTeams)), http.StatusOK, &acResp)
 
 	tokensResp = getVPPTokensResponse{}
@@ -1608,8 +1608,8 @@ func (s *integrationMDMTestSuite) TestVPPTokenSwapOnAppConfigApply() {
 		t.Helper()
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 			"mdm": { "volume_purchasing_program": [
-				{"location": %q, "teams": [%q]},
-				{"location": %q, "teams": [%q]}
+				{"location": %q, "fleets": [%q]},
+				{"location": %q, "fleets": [%q]}
 			] }
 		}`, locA, teamsA, locB, teamsB)), http.StatusOK, &appConfigResponse{})
 
@@ -1640,7 +1640,7 @@ func (s *integrationMDMTestSuite) TestVPPTokenSwapOnAppConfigApply() {
 	}
 
 	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
-		"mdm": { "volume_purchasing_program": [{"location": %q, "teams": [%q, %q]}] }
+		"mdm": { "volume_purchasing_program": [{"location": %q, "fleets": [%q, %q]}] }
 	}`, locA, allFleets, fleetF1.Name)), http.StatusUnprocessableEntity)
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
