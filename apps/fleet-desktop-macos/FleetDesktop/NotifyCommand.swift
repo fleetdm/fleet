@@ -197,13 +197,16 @@ enum NotifyCommand {
     /// One toast per user at a time. flock rather than scanning running processes,
     /// which would let two children launched together each miss the other.
     ///
+    /// The lock is on the per-user temp directory itself, not a file inside it: a
+    /// lock file that gets deleted while a toast is up lets the next `notify` create
+    /// a fresh inode and take a second, independent lock. A directory can't be
+    /// removed out from under us that way.
+    ///
     /// Taken before the page loads, so a toast that is still loading counts as displayed.
     private static func acquireToastLock() -> ToastLockResult {
         // Per-user even under `sudo -u`, which drops TMPDIR: Foundation then falls
         // back to the user's confstr temp dir.
-        let path = (NSTemporaryDirectory() as NSString)
-            .appendingPathComponent("com.fleetdm.fleet-desktop.notify.lock")
-        let fd = open(path, O_RDWR | O_CREAT | O_CLOEXEC, 0o600)
+        let fd = open(NSTemporaryDirectory(), O_RDONLY | O_DIRECTORY | O_CLOEXEC)
         guard fd >= 0 else { return .failed(errno) }
 
         while flock(fd, LOCK_EX | LOCK_NB) != 0 {
