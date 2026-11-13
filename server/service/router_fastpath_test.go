@@ -165,20 +165,11 @@ func TestFastPathMatchesGorillaForEveryRoute(t *testing.T) {
 
 	type sample struct{ method, path, route string }
 	var samples []sample
-	require.NoError(t, router.Gorilla().Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		tpl, err := route.GetPathTemplate()
-		if err != nil {
-			return nil // a route with no path is not reachable
+	for _, rt := range router.Routes() {
+		for _, method := range rt.Methods {
+			samples = append(samples, sample{method: method, path: sampleRequestPath(rt.Template()), route: rt.Name})
 		}
-		methods, err := route.GetMethods()
-		if err != nil || len(methods) == 0 {
-			return nil
-		}
-		for _, method := range methods {
-			samples = append(samples, sample{method: method, path: sampleRequestPath(tpl), route: route.GetName()})
-		}
-		return nil
-	}))
+	}
 	require.Greater(t, len(samples), 400, "expected the full route table to be walked")
 
 	handler, err := newFastPathHandler(router, nil, config.TestConfig())
@@ -315,12 +306,11 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 // falling through to gorilla.
 func TestFastPathServesHotAgentRoutes(t *testing.T) {
 	_, router := newAPIHandler(t, config.TestConfig(), nil)
-	require.NoError(t, router.Gorilla().Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	router.WrapHandlers(func(endpointer.Route, http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("X-Served-By-Gorilla", strconv.FormatBool(mux.CurrentRoute(r) != nil))
 		})
-		return nil
-	}))
+	})
 	handler, err := newFastPathHandler(router, nil, config.TestConfig())
 	require.NoError(t, err)
 
@@ -484,10 +474,9 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 	ds := new(mock.Store)
 	svc, _ := newTestService(t, ds, nil, nil)
 	_, router := newAPIHandler(t, cfg, productionFeatureRoutes(t, svc))
-	require.NoError(t, router.Gorilla().Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		route.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-		return nil
-	}))
+	router.WrapHandlers(func(endpointer.Route, http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	})
 	handler, err := newFastPathHandler(router, nil, cfg)
 	require.NoError(t, err)
 
