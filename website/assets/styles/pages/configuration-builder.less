@@ -165,6 +165,11 @@
     border-radius: 12px;
     font-size: 14px;
     line-height: 150%;
+    // Same keyboard focus ring as primary buttons; Bootstrap's .btn:focus removes the outline.
+    &:focus-visible {
+      outline: 2px solid @core-fleet-black;
+      outline-offset: 2px;
+    }
     border: none;
     display: flex;
     cursor: pointer;

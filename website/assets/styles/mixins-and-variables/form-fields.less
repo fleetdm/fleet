@@ -14,6 +14,10 @@
   border-radius: 8px;
   font-size: 14px;
   line-height: 150%;
+  // Bootstrap's .custom-select draws its arrow in the right padding, so keep its 1.75rem there.
+  &.custom-select {
+    padding-right: 1.75rem;
+  }
 }
 
 .text-input-size-internal(large) {
@@ -22,6 +26,10 @@
   border-radius: 8px;
   font-size: 16px;
   line-height: 150%;
+  // Bootstrap's .custom-select draws its arrow in the right padding, so keep its 1.75rem there.
+  &.custom-select {
+    padding-right: 1.75rem;
+  }
 }
 
 // Same focus treatment as .form-control (see bootstrap-overrides.less), for inputs styled
