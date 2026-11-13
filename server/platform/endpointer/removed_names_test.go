@@ -2,6 +2,7 @@ package endpointer
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -162,4 +163,22 @@ func TestMakeDecoderRemovedNames(t *testing.T) {
 	require.Error(t, decode(1<<20, "/", `{"team_id": `))
 	_, ok := errors.AsType[platform_http.PayloadTooLargeError](decode(8, "/", `{"fleet_id": 1, "x": "0123456789"}`))
 	require.True(t, ok)
+
+	// A request type with its own DecodeRequest still gets its query string checked.
+	decodeSelf := func(target string) error {
+		_, err := MakeDecoder(selfDecodingRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, 1<<20)(t.Context(),
+			httptest.NewRequest(http.MethodPut, target, nil))
+		return err
+	}
+	require.NoError(t, decodeSelf("/?fleet_id=1"))
+	requireRejected(t, decodeSelf("/?fleet_id=1&team_id=1"), "team_id")
+	requireRejected(t, decodeSelf("/api/fleet/orbit/upload?team_id=1"), "")
+}
+
+type selfDecodingRequest struct {
+	FleetID *uint `query:"fleet_id,optional"`
+}
+
+func (selfDecodingRequest) DecodeRequest(context.Context, *http.Request) (any, error) {
+	return selfDecodingRequest{}, nil
 }

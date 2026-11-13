@@ -59,6 +59,7 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"POST", "/software/app_store_apps", `{"app_store_id": "a", "team_id": 1}`, "team_id"},
 		{"PATCH", "/software/titles/1/app_store_app", `{"team_id": 1}`, "team_id"},
 		{"PATCH", "/fleets/1/secrets", `{"secrets": [{"secret": "a", "team_id": 1}]}`, "team_id"},
+		{"POST", "/software/fleet_maintained_apps", `{"fleet_maintained_app_id": 1, "team_id": 1}`, "team_id"},
 	} {
 		reject(tc[0], tc[1], tc[2], tc[3])
 	}
@@ -73,7 +74,7 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"GET", "/hosts"}, {"GET", "/hosts/count"}, {"GET", "/hosts/report"}, {"GET", "/users"},
 		{"GET", "/vulnerabilities"}, {"GET", "/vulnerabilities/CVE-2021-1234"},
 		{"GET", "/software/fleet_maintained_apps"}, {"GET", "/software/fleet_maintained_apps/1"}, {"GET", "/software/app_store_apps"},
-		{"GET", "/software/titles/1/icon"}, {"DELETE", "/software/titles/1/icon"},
+		{"GET", "/software/titles/1/icon"}, {"PUT", "/software/titles/1/icon"}, {"DELETE", "/software/titles/1/icon"},
 	} {
 		reject(tc[0], tc[1], "", "team_id", "fleet_id", "0", "team_id", "1")
 	}
