@@ -3213,7 +3213,7 @@ host's fleet sub-key are `true`.
 
 Returns the valid global enroll secrets.
 
-`GET /api/v1/fleet/spec/enroll_secret`
+`GET /api/v1/fleet/gitops/enroll_secret`
 
 #### Parameters
 
@@ -3221,7 +3221,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/spec/enroll_secret`
+`GET /api/v1/fleet/gitops/enroll_secret`
 
 ##### Default response
 
@@ -3299,7 +3299,7 @@ Delete a custom logo added via [Update organization logo](#update-organization-l
 
 Replaces all existing global enroll secrets.
 
-`POST /api/v1/fleet/spec/enroll_secret`
+`POST /api/v1/fleet/gitops/enroll_secret`
 
 #### Parameters
 
@@ -3311,7 +3311,7 @@ Replaces all existing global enroll secrets.
 
 Replace all global enroll secrets with a new enroll secret.
 
-`POST /api/v1/fleet/spec/enroll_secret`
+`POST /api/v1/fleet/gitops/enroll_secret`
 
 ##### Request body
 
@@ -3339,7 +3339,7 @@ Replace all global enroll secrets with a new enroll secret.
 
 Delete all global enroll secrets.
 
-`POST /api/v1/fleet/spec/enroll_secret`
+`POST /api/v1/fleet/gitops/enroll_secret`
 
 ##### Request body
 
@@ -3489,6 +3489,615 @@ None.
   "build_user": "zwass"
 }
 ```
+
+---
+
+## GitOps
+
+- [Batch-apply fleets](#batch-apply-fleets)
+- [Batch-apply labels](#batch-apply-labels)
+- [List labels (GitOps)](#list-labels-gitops)
+- [Get label (GitOps)](#get-label-gitops)
+- [Batch-apply policies](#batch-apply-policies)
+- [Batch-apply reports](#batch-apply-reports)
+- [List reports (GitOps)](#list-reports-gitops)
+- [Get report (GitOps)](#get-report-gitops)
+- [Batch-apply certificate authorities (CAs)](#batch-apply-certificate-authorities-cas)
+- [List certificate authorities (GitOps)](#list-certificate-authorities-gitops)
+- [Batch-apply certificate templates](#batch-apply-certificate-templates)
+- [Batch-delete certificate templates](#batch-delete-certificate-templates)
+- [Batch-apply custom variables](#batch-apply-custom-variables)
+
+These endpoints apply or return many resources at once, in the same shape as [GitOps YAML files](https://fleetdm.com/docs/configuration/yaml-files). `fleetctl gitops` uses them, and you can use them to build your own GitOps tooling.
+
+Other endpoints under `/api/v1/fleet/gitops/` are documented with the resource they manage: [Get global enroll secrets](#get-global-enroll-secrets), [Update global enroll secrets](#update-global-enroll-secrets), and [Replace all custom host vitals](#replace-all-custom-host-vitals).
+
+> All `/api/v1/fleet/gitops/` endpoints were renamed from `/api/v1/fleet/spec/` in Fleet 5.2. The `/api/v1/fleet/spec/` endpoints are deprecated. They're maintained for backwards compatibility.
+
+### Batch-apply fleets
+
+((Admin)) ((GitOps))
+
+_Available in Fleet Premium_
+
+Creates or updates the fleets in the list. If a fleet with the specified `name` exists, its settings are replaced with the settings in the request. Otherwise, a new fleet is created. Creating a fleet requires the global admin or global GitOps role.
+
+> This endpoint accepts a maximum request body size of 5MiB.
+
+`POST /api/v1/fleet/gitops/fleets`
+
+#### Parameters
+
+| Name    | Type    | In    | Description |
+| ------- | ------- | ----- | ----------- |
+| specs   | array   | body  | **Required.** A list of fleets. See [specs](#specs). |
+| force   | boolean | query | If `true`, apply the fleets even if there are ignorable validation errors (unknown keys and agent options validation errors). Default is `false`. |
+| dry_run | boolean | query | If `true`, validate the request and return any validation errors, but don't apply the changes. Default is `false`. |
+
+##### specs
+
+Each fleet is an object with the keys below. Each key, other than `name`, uses the same format as the matching key in a [fleet YAML file](https://fleetdm.com/docs/configuration/yaml-files) and the [Update fleet](#update-fleet) endpoint.
+
+| Name                 | Type   | Description |
+| -------------------- | ------ | ----------- |
+| name                 | string | **Required.** The fleet's name. |
+| agent_options        | object | The fleet's agent options. These completely override the global agent options. |
+| features             | object | The fleet's features. These completely override the global features. |
+| host_expiry_settings | object | The fleet's host expiry settings. |
+| secrets              | array  | The fleet's enroll secrets. Existing secrets are replaced with this list, or left unchanged if the list is empty. Maximum of 50 secrets. |
+| mdm                  | object | The fleet's MDM settings (OS updates, disk encryption, setup experience, etc.). |
+| scripts              | array  | The fleet's scripts. |
+| webhook_settings     | object | The fleet's webhook settings. Only the webhooks provided are applied. Omitted webhooks are left unchanged. |
+| integrations         | object | The fleet's integrations. |
+| software             | object | The fleet's software. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/fleets`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "Workstations",
+      "features": {
+        "enable_host_users": false,
+        "enable_software_inventory": true
+      },
+      "agent_options": {
+        "config": {
+          "options": {
+            "distributed_interval": 10
+          }
+        }
+      },
+      "secrets": [
+        {
+          "secret": "fTp52/twaxBU6gIi0J6PHp8o5Sm1k1kn"
+        }
+      ],
+      "mdm": {
+        "macos_updates": {
+          "minimum_version": "15.6",
+          "deadline": "2026-12-01"
+        }
+      }
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "fleet_ids_by_name": {
+    "Workstations": 1
+  }
+}
+```
+
+### Batch-apply labels
+
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician))
+
+Creates or updates the labels in the list. If a label with the specified `name` exists, it's updated. Otherwise, a new label is created.
+
+If `label_membership_type` is `dynamic`, `query` is required. If `label_membership_type` is `manual`, `hosts` is required.
+
+`POST /api/v1/fleet/gitops/labels`
+
+#### Parameters
+
+| Name           | Type    | In    | Description |
+| -------------- | ------- | ----- | ----------- |
+| fleet_id       | integer | query | _Available in Fleet Premium_. The ID of the fleet to apply labels to. If omitted, global labels are applied. |
+| specs          | array   | body  | **Required.** A list of labels. Each label uses the same keys as the [Add label](#add-label) endpoint. |
+| labels_to_move | array   | body  | A list of labels that are in `specs` and already exist on another fleet (or globally). Each item is an object with `name` and, optionally, `from_fleet_id`. Omit `from_fleet_id` to move a global label to the fleet specified by `fleet_id`. If you have permission to modify the existing labels, Fleet renames them so the new labels can be created. If any label can't be moved, the request fails and no changes are made. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/labels`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "Ubuntu",
+      "description": "Filters Ubuntu hosts",
+      "query": "SELECT 1 FROM os_version WHERE platform = 'ubuntu';",
+      "label_membership_type": "dynamic"
+    },
+    {
+      "name": "local_machine",
+      "description": "Includes only my local machine",
+      "label_membership_type": "manual",
+      "hosts": ["snacbook-pro.local"]
+    }
+  ],
+  "labels_to_move": [
+    {
+      "name": "local_machine",
+      "from_fleet_id": 2
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### List labels (GitOps)
+
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
+Returns labels in the same format accepted by [Batch-apply labels](#batch-apply-labels).
+
+`GET /api/v1/fleet/gitops/labels`
+
+#### Parameters
+
+| Name     | Type    | In    | Description |
+| -------- | ------- | ----- | ----------- |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to return labels from. If omitted, all labels you have access to are returned. Use `0` to return only global labels. |
+
+#### Example
+
+`GET /api/v1/fleet/gitops/labels?fleet_id=1`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "specs": [
+    {
+      "id": 4663,
+      "name": "Workstations: g-software",
+      "description": "Workstations used by g-software",
+      "query": "",
+      "platform": "",
+      "label_type": "regular",
+      "label_membership_type": "manual",
+      "fleet_id": 1,
+      "fleet_name": "Workstations"
+    }
+  ]
+}
+```
+
+### Get label (GitOps)
+
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
+Returns the label with the specified name, in the same format accepted by [Batch-apply labels](#batch-apply-labels).
+
+`GET /api/v1/fleet/gitops/labels/:name`
+
+#### Parameters
+
+| Name | Type   | In   | Description |
+| ---- | ------ | ---- | ----------- |
+| name | string | path | **Required.** The label's name. |
+
+#### Example
+
+`GET /api/v1/fleet/gitops/labels/local_machine`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "specs": {
+    "id": 12,
+    "name": "local_machine",
+    "description": "Includes only my local machine",
+    "query": "",
+    "label_membership_type": "manual",
+    "fleet_id": null
+  }
+}
+```
+
+### Batch-apply policies
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+Creates or updates the policies in the list. If a policy with the specified `name` exists, it's updated. Otherwise, a new policy is created. When a policy is updated, `fleet` and `platform` are ignored.
+
+> This endpoint accepts a maximum request body size of 25MiB.
+
+`POST /api/v1/fleet/gitops/policies`
+
+#### Parameters
+
+| Name  | Type  | In   | Description |
+| ----- | ----- | ---- | ----------- |
+| specs | array | body | **Required.** A list of policies. Each policy uses the same keys as the [Create policy](#create-policy) endpoint, plus `fleet`, the name of the fleet the policy belongs to. Omit `fleet` for a global policy, or use `"Unassigned"` for a policy that applies to hosts that aren't assigned to a fleet. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/policies`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "Is FileVault enabled on macOS devices?",
+      "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
+      "fleet": "Workstations",
+      "description": "Checks to make sure that the FileVault feature is enabled on macOS devices.",
+      "resolution": "Choose Apple menu > System Settings, then click Privacy & Security. Scroll to FileVault and click Turn On.",
+      "platform": "darwin",
+      "critical": true,
+      "script_id": 123
+    },
+    {
+      "name": "Is Adobe Acrobat installed and up to date?",
+      "query": "SELECT 1 FROM apps WHERE name = 'Adobe Acrobat Reader.app' AND version_compare(bundle_short_version, '23.001.20687') >= 0;",
+      "fleet": "Workstations",
+      "description": "Checks to make sure that Adobe Acrobat is installed and up to date.",
+      "platform": "darwin",
+      "software_title_id": 12
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Batch-apply reports
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+Creates or updates the reports in the list. If a report with the specified `name` exists, it's updated. Otherwise, a new report is created. If a key is omitted, its default value is used (for example, `interval` defaults to `0` and `discard_data` defaults to `false`).
+
+> This endpoint accepts a maximum request body size of 25MiB.
+
+`POST /api/v1/fleet/gitops/reports`
+
+#### Parameters
+
+| Name  | Type  | In   | Description |
+| ----- | ----- | ---- | ----------- |
+| specs | array | body | **Required.** A list of reports. Each report uses the same keys as the [Create report](#create-report) endpoint, plus `fleet`, the name of the fleet the report belongs to. Omit `fleet` for a global report. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/reports`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "osquery_info",
+      "description": "Returns osquery version and process info.",
+      "query": "SELECT * FROM osquery_info",
+      "interval": 3600
+    },
+    {
+      "name": "osquery_schedule",
+      "description": "Report performance stats for each report in the schedule.",
+      "query": "SELECT name, interval, executions, output_size, wall_time FROM osquery_schedule;",
+      "fleet": "Workstations"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### List reports (GitOps)
+
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
+Returns reports in the same format accepted by [Batch-apply reports](#batch-apply-reports).
+
+`GET /api/v1/fleet/gitops/reports`
+
+#### Parameters
+
+| Name     | Type    | In    | Description |
+| -------- | ------- | ----- | ----------- |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet to return reports from. If omitted, global reports are returned. |
+
+#### Example
+
+`GET /api/v1/fleet/gitops/reports`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "specs": [
+    {
+      "name": "osquery_info",
+      "description": "Returns osquery version and process info.",
+      "query": "SELECT * FROM osquery_info"
+    },
+    {
+      "name": "osquery_schedule",
+      "description": "Report performance stats for each report in the schedule.",
+      "query": "SELECT name, interval, executions, output_size, wall_time FROM osquery_schedule;"
+    }
+  ]
+}
+```
+
+### Get report (GitOps)
+
+((Admin)) ((Maintainer)) ((GitOps)) ((Technician)) ((Observer+)) ((Observer))
+
+Returns the report with the specified name, in the same format accepted by [Batch-apply reports](#batch-apply-reports).
+
+`GET /api/v1/fleet/gitops/reports/:name`
+
+#### Parameters
+
+| Name     | Type    | In    | Description |
+| -------- | ------- | ----- | ----------- |
+| name     | string  | path  | **Required.** The report's name. |
+| fleet_id | integer | query | _Available in Fleet Premium_. The ID of the fleet the report belongs to. If omitted, a global report is returned. |
+
+#### Example
+
+`GET /api/v1/fleet/gitops/reports/osquery_info`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "specs": {
+    "name": "osquery_info",
+    "description": "Returns osquery version and process info.",
+    "query": "SELECT * FROM osquery_info"
+  }
+}
+```
+
+### Batch-apply certificate authorities (CAs)
+
+((Global admin)) ((Global GitOps))
+
+_Available in Fleet Premium_
+
+Replaces all certificate authorities (CAs) with the CAs in the request. Existing CAs that aren't in the request are deleted, unless `skip_deletes` is `true`.
+
+`POST /api/v1/fleet/gitops/certificate_authorities`
+
+#### Parameters
+
+| Name                    | Type    | In   | Description |
+| ----------------------- | ------- | ---- | ----------- |
+| certificate_authorities | object  | body | **Required.** The CAs, grouped by type. Uses the same format as `certificate_authorities` in the [GitOps YAML file](https://fleetdm.com/docs/configuration/yaml-files#certificate-authorities). Supported keys: `custom_est_proxy`, `hydrant`, `digicert`, `ndes_scep_proxy`, `custom_scep_proxy`, `smallstep`, `ejbca`, and `google_cas`. |
+| dry_run                 | boolean | body | If `true`, validate the request and return any validation errors, but don't apply the changes. Default is `false`. |
+| skip_deletes            | boolean | body | If `true`, CAs that aren't in the request are left unchanged. Default is `false`. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/certificate_authorities`
+
+##### Request body
+
+```json
+{
+  "certificate_authorities": {
+    "custom_scep_proxy": [
+      {
+        "name": "SCEP_WIFI",
+        "url": "https://scep.example.com/scep",
+        "challenge": "********"
+      }
+    ]
+  }
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### List certificate authorities (GitOps)
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+_Available in Fleet Premium_
+
+Returns all certificate authorities (CAs), grouped by type, in the same format accepted by [Batch-apply certificate authorities (CAs)](#batch-apply-certificate-authorities-cas).
+
+`GET /api/v1/fleet/gitops/certificate_authorities`
+
+#### Parameters
+
+| Name            | Type    | In    | Description |
+| --------------- | ------- | ----- | ----------- |
+| include_secrets | boolean | query | If `true`, secrets (for example, challenges, passwords, and API tokens) are returned in plain text. Only available to the global admin and global GitOps roles. Default is `false`. |
+
+#### Example
+
+`GET /api/v1/fleet/gitops/certificate_authorities`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate_authorities": {
+    "custom_est_proxy": [],
+    "hydrant": [],
+    "digicert": [],
+    "ndes_scep_proxy": null,
+    "custom_scep_proxy": [
+      {
+        "name": "SCEP_WIFI",
+        "url": "https://scep.example.com/scep",
+        "challenge": "********"
+      }
+    ],
+    "smallstep": [],
+    "ejbca": [],
+    "google_cas": []
+  }
+}
+```
+
+### Batch-apply certificate templates
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+_Available in Fleet Premium_
+
+Creates or updates the certificate templates in the list. Existing templates with the same name are updated. Existing templates that aren't in the list are deleted. An empty list deletes all certificate templates.
+
+`POST /api/v1/fleet/gitops/certificates`
+
+#### Parameters
+
+| Name  | Type  | In   | Description |
+| ----- | ----- | ---- | ----------- |
+| specs | array | body | **Required.** A list of certificate templates. Each template is an object with `name`, `fleet` (the fleet's name), `certificate_authority_id`, `subject_name`, and, optionally, `subject_alternative_name`. |
+
+#### Example
+
+`POST /api/v1/fleet/gitops/certificates`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "WIFI_CERTIFICATE",
+      "fleet": "Workstations",
+      "certificate_authority_id": 1,
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    },
+    {
+      "name": "WIFI_CERTIFICATE_TEST",
+      "fleet": "Workstations (canary)",
+      "certificate_authority_id": 1,
+      "subject_name": "/CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Batch-delete certificate templates
+
+((Admin)) ((Maintainer)) ((GitOps))
+
+_Available in Fleet Premium_
+
+Deletes the specified certificate templates. All templates must belong to the specified fleet.
+
+`DELETE /api/v1/fleet/gitops/certificates`
+
+#### Parameters
+
+| Name     | Type    | In   | Description |
+| -------- | ------- | ---- | ----------- |
+| ids      | array   | body | **Required.** The IDs of the certificate templates to delete. |
+| fleet_id | integer | body | The ID of the fleet the certificate templates belong to. If omitted, defaults to `0` ("Unassigned"). |
+
+#### Example
+
+`DELETE /api/v1/fleet/gitops/certificates`
+
+##### Request body
+
+```json
+{
+  "ids": [1, 2, 3, 4],
+  "fleet_id": 1
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Batch-apply custom variables
+
+((Global admin)) ((Global maintainer)) ((Global GitOps))
+
+Creates or updates the [custom variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) in the list. Existing variables with the same name are updated.
+
+`PUT /api/v1/fleet/gitops/secret_variables`
+
+#### Parameters
+
+| Name    | Type    | In   | Description |
+| ------- | ------- | ---- | ----------- |
+| secrets | array   | body | **Required.** A list of custom variables. Each variable is an object with `name` (prefixed with `FLEET_SECRET_`) and `value`. |
+| dry_run | boolean | body | If `true`, validate the request and return any validation errors, but don't apply the changes. Default is `false`. |
+
+#### Example
+
+`PUT /api/v1/fleet/gitops/secret_variables`
+
+##### Request body
+
+```json
+{
+  "secrets": [
+    {
+      "name": "FLEET_SECRET_SOME_API_TOKEN",
+      "value": "971ef02b93c74ca9b22b694a9251f1d6"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ---
 
@@ -20038,7 +20647,7 @@ Sets a host's value for a custom host vital.
 
 Replaces all existing custom host vital definitions with the provided list. Existing vitals not included in the list are deleted, which fails if one of them is still referenced by a script, configuration profile, or Host vitals label.
 
-`PUT /api/v1/fleet/spec/custom_host_vitals`
+`PUT /api/v1/fleet/gitops/custom_host_vitals`
 
 #### Parameters
 
@@ -20051,7 +20660,7 @@ Replaces all existing custom host vital definitions with the provided list. Exis
 
 #### Example
 
-`PUT /api/v1/fleet/spec/custom_host_vitals`
+`PUT /api/v1/fleet/gitops/custom_host_vitals`
 
 ##### Request body
 
