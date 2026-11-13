@@ -967,6 +967,31 @@ A `path:`/`paths:` file can define more than one app, so related apps can be gro
 
 Currently, managing users and ticket destinations (Jira and Zendesk) are only supported using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api).
 
+### vulnerability_dismissals
+
+_Available in Fleet Premium._
+
+Lists globally dismissed CVEs. Dismissed CVEs are excluded from active results and vulnerability counts; underlying detections remain. Can only be configured in `default.yml` under `org_settings`.
+
+- `cve` specifies a unique CVE identifier (required).
+- `dismissal_note` is optional (maximum 200 characters).
+
+If `vulnerability_dismissals` is omitted, existing dismissals are preserved. An empty list ([]) restores all dismissed CVEs. Otherwise, the supplied list becomes authoritative, restoring any CVEs not included. Removing a CVE from the managed list restores it and deletes its dismissal note.
+
+When GitOps mode is enabled, vulnerability dismissals and restorations are managed through GitOps. The corresponding Fleet UI controls are read-only.
+
+#### Example
+
+`default.yml`
+
+```yaml
+org_settings:
+  vulnerability_dismissals: # Available in Fleet Premium
+    - cve: CVE-2024-4494
+      dismissal_note: Risk accepted pending remediation.
+    - cve: CVE-2024-8364
+```
+
 ### features
 
 The `features` section of the configuration YAML lets you turn on/off Fleet features.
@@ -981,7 +1006,7 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
   - `cvss_min` / `cvss_max` filters vulnerabilities by severity (CVSS version 3.x base score, range 0 to 10). Omitting a bound leaves that side unfiltered, which isn't the same as setting it to `0` or `10`: vulnerabilities that Fleet has no CVSS score for are shown only when neither bound is set.
   - `epss_min` / `epss_max` filters vulnerabilities by probability of exploit ([EPSS](https://www.first.org/epss/)) score (range 0 to 100).
   - `has_known_exploit`, when `true`, only includes software that has vulnerabilities which have been actively exploited in the wild ([CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)) (default: `false`).
-  - `exclude_vulnerabilities` is a list of specific CVEs to exclude.
+  - `exclude_vulnerabilities` lists CVEs excluded from the Vulnerability exposure chart only. For global dismissals, use `vulnerability_dismissals`.
  
 A dataset is collected for a given host only when the sub-key is `true` at both the global level (`org_settings.features.historical_data`) and the host's fleet level (`settings.features.historical_data`). Setting a sub-key to `false` at either level disables collection for the affected hosts. Flipping the global sub-key off disables it for every fleet, regardless of per-fleet settings.
 

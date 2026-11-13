@@ -14900,6 +14900,8 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Download software](#download-package)
 - [Delete software](#delete-software)
 
+Where software and operating system responses include vulnerabilities, dismissed CVEs are excluded from their lists and counts by default. Underlying detections are retained.
+
 ### List software
 
 Get a list of all software.
@@ -14916,7 +14918,7 @@ Get a list of all software.
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                                        |
 | fleet_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified fleet. Use `0` to filter by "Unassigned" hosts.                            |
-| vulnerable              | boolean | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
+| vulnerable              | boolean | query | If true or 1, only includes software with active vulnerabilities. Default is false.                                                                                    |
 | available_for_install   | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
 | self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
 | packages_only           | boolean | query | _Available in Fleet Premium_. If `true` or `1`, only lists packages available for install (without app store apps).  |
@@ -15080,7 +15082,7 @@ Get a list of all software versions.
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`.                                              |
 | query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                             |
 | fleet_id                 | integer | query | _Available in Fleet Premium_. Filters the software to only include the software installed on the hosts that are assigned to the specified fleet. Use `0` to filter by "Unassigned" hosts.                             |
-| vulnerable              | boolean    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
+| vulnerable              | boolean    | query | If true or 1, only includes software with active vulnerabilities. Default is false.                                                                                    |
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
@@ -15484,6 +15486,8 @@ For Apple App Store and Google Play apps, the `software_package` field is `null`
 }
 ```
 
+Vulnerabilities in versions exclude dismissed CVEs. Vulnerability counts reflect unique active CVEs across software versions.
+
 ### Get software version
 
 Returns information about the specified software version.
@@ -15545,7 +15549,6 @@ Returns information about the specified software version.
 `browser` and `extension_for` fields are included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor. `browser` is deprecated, and only shows this information for browser plugins.
 
 `release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
-
 
 ### Get operating system version
 
@@ -15656,7 +15659,6 @@ Linux vulnerabilities are based on kernel vulnerabilities for hosts running the 
 ```
 
 Operating systems other than Windows, macOS, and Linux do not report vulnerabilities.
-
 
 ### Create staged upload
 
@@ -16722,12 +16724,17 @@ Deletes the specified self-service category. Software assigned to the deleted ca
 
 ## Vulnerabilities
 
+Use these endpoints to list CVEs, inspect affected software and OS versions, and manage dismissals. Dismissals apply globally. By default, dismissed CVEs are excluded from vulnerability lists and counts, but underlying detections are retained. Global admins and maintainers can dismiss CVEs in Fleet Free and Fleet Premium.
+
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
+- [Create vulnerability selection](#create-vulnerability-selection)
+- [Dismiss vulnerabilities](#dismiss-vulnerabilities)
+- [Restore vulnerability](#restore-vulnerability)
 
 ### List vulnerabilities
 
-Retrieves a list of all CVEs affecting software and/or OS versions.
+Lists CVEs affecting software and/or OS versions. Returns active CVEs by default; use `dismissal_status` to include dismissed CVEs. `count` and pagination reflect the filtered results.
 
 `GET /api/v1/fleet/vulnerabilities`
 
@@ -16743,7 +16750,25 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 | query | string | query | Search query keywords. Searchable fields include `cve`. |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
 | after | string | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+| dismissal_status | string | query | `active` (default), `dismissed`, or `all`. |
+| severity | string | query | _Available in Fleet Premium_. Comma-separated severity levels: `critical` (9–10), `high` (7–8.9), `medium` (4–6.9), `low` (0.1–3.9), `none` (0), or `unknown` (no CVSS score). |
+| known_exploit_status | string | query | _Available in Fleet Premium_. `known`, `not_known`, or `all` (default); mutually exclusive with `exploit`. |
+| epss_min | number | query | _Available in Fleet Premium_. Minimum EPSS (0–1). |
+| epss_max | number | query | _Available in Fleet Premium_. Maximum EPSS (0–1). |
+| hosts_count_min | integer | query | Minimum affected hosts. |
+| hosts_count_max | integer | query | Maximum affected hosts. |
+| detected_from | string | query | Detected on/after `YYYY-MM-DD`. |
+| detected_to | string | query | Detected on/before `YYYY-MM-DD`. |
+| published_from | string | query | _Available in Fleet Premium_. Published on/after `YYYY-MM-DD`. |
+| published_to | string | query | _Available in Fleet Premium_. Published on/before `YYYY-MM-DD`. |
+| affected_os | string | query | Comma-separated affected operating systems, e.g. `macos,windows`; not host platforms. |
+| software_title_ids | string | query | Comma-separated affected software title IDs. |
 
+Multiple values within a filter use OR; different filters use AND. For example, `affected_os=macos&software_title_ids=123` returns CVEs affecting both macOS and software title 123. Missing CVSS or EPSS values don't match numeric filters. Minimum bounds can't exceed maximum bounds. EPSS uses a 0–1 scale.
+
+#### Example
+
+`GET /api/v1/fleet/vulnerabilities?dismissal_status=active`
 
 ##### Default response
 
@@ -16758,6 +16783,8 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "hosts_count": 1234,
       "hosts_count_updated_at": "2023-12-20T15:23:57Z",
       "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+      "dismissed": false,
+      "dismissal_note": null,
       "cvss_score": 7.8,// Available in Fleet Premium
       "epss_probability": 0.9729,// Available in Fleet Premium
       "cisa_known_exploit": false,// Available in Fleet Premium
@@ -16765,7 +16792,7 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability." // Available in Fleet Premium
     }
   ],
-  "count": 123,
+  "count": 1,
   "counts_updated_at": "2024-02-02T16:40:37Z",
   "meta": {
     "has_next_results": false,
@@ -16806,6 +16833,8 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
     "hosts_count": 1234,
     "hosts_count_updated_at": "2023-12-20T15:23:57Z",
     "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+    "dismissed": true,
+    "dismissal_note": "Risk accepted.",
     "cvss_score": 7.8,// Available in Fleet Premium
     "epss_probability": 0.9729,// Available in Fleet Premium
     "cisa_known_exploit": false,// Available in Fleet Premium
@@ -16835,7 +16864,7 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
       "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
       "hosts_count": 50,
       "resolved_in_version": "5.0.0"
-    },
+    }
   ]
 }
 ```
@@ -16843,6 +16872,135 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 The `extension_for` field is included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
 
 Each entry in `software` includes `release` when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD. For Go standard library vulnerabilities, `resolved_in_version` is empty because the fix is a rebuild with a newer Go toolchain.
+
+### Create vulnerability selection
+
+Creates a fixed selection of CVEs matching the supplied filters across all pages. Available to global admins and maintainers.
+
+`POST /api/v1/fleet/vulnerabilities/selections`
+
+#### Parameters
+
+Name | Type | In | Description
+--- | --- | --- | ---
+filters | object | body | Vulnerability filters from List vulnerabilities, excluding pagination and sorting. Defaults to active CVEs.
+
+#### Example
+
+`POST /api/v1/fleet/vulnerabilities/selections`
+
+##### Request body
+
+```json
+{
+  "filters": {
+    "dismissal_status": "active",
+    "severity": "high,critical"
+  }
+}
+```
+
+##### Default response
+
+`Status: 201`
+
+```json
+{
+  "selection_id": "f9a4b1e6-1b67-4b73-93c6-5f43c764fb68",
+  "count": 20,
+  "expires_at": "2026-11-10T21:15:00Z"
+}
+```
+
+Selections contain the unique CVEs matching the filters at creation time, regardless of pagination. Subsequent changes to matching results don't change the selection. Selections are user-bound and expire at `expires_at`.
+
+### Dismiss vulnerabilities
+
+Dismisses CVEs globally. Available to global admins and maintainers.
+
+`POST /api/v1/fleet/vulnerabilities/dismissals`
+
+#### Parameters
+
+Name | Type | In | Description
+--- | --- | --- | ---
+cves | array of strings | body | CVEs to dismiss; required unless `selection_id` is provided.
+selection_id | string | body | Selection from [Create vulnerability selection](#create-vulnerability-selection); required unless `cves` is provided.
+dismissal_note | string | body | Optional, maximum 200 characters; applies to each CVE. Empty notes are stored as `null`.
+
+Specify either `cves` or `selection_id`, not both. Requests are atomic: invalid CVEs or selections cause the entire request to fail without changes.
+
+#### Example
+
+`POST /api/v1/fleet/vulnerabilities/dismissals`
+
+##### Request body
+
+```json
+{
+  "cves": ["CVE-2024-4494", "CVE-2024-8364"],
+  "dismissal_note": "Risk accepted."
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "dismissed_count": 2,
+  "cves": ["CVE-2024-4494", "CVE-2024-8364"]
+}
+```
+
+##### Request body (saved selection)
+
+```json
+{
+  "selection_id": "f9a4b1e6-1b67-4b73-93c6-5f43c764fb68",
+  "dismissal_note": "Risk accepted."
+}
+```
+
+The response includes the CVEs captured in the selection. Subsequent changes to matching results don't affect the selection. `dismissed_count` is the number of newly dismissed CVEs. Duplicate CVEs and those already dismissed aren't counted.
+
+Use `selection_id` to dismiss only the CVEs captured by a Select all matching results action.
+
+#### Errors
+
+| Status | Description |
+| --- | --- |
+| 403 | User isn't authorized to dismiss vulnerabilities. |
+| 410 | The selection has expired. |
+| 422 | Invalid CVE, note, or request body. |
+
+### Restore vulnerability
+
+Restores a CVE and deletes its dismissal record and note. Available to global admins and maintainers.
+
+`DELETE /api/v1/fleet/vulnerabilities/dismissals/:cve`
+
+#### Parameters
+
+Name | Type | In | Description
+--- | --- | --- | ---
+cve | string | path | CVE identifier.
+
+#### Example
+
+`DELETE /api/v1/fleet/vulnerabilities/dismissals/CVE-2024-4494`
+
+##### Default response
+
+`Status: 204`
+
+#### Errors
+
+| Status | Description |
+| --- | --- |
+| 403 | User isn't authorized to restore vulnerabilities. |
+| 422 | Invalid CVE identifier. |
 
 ---
 
