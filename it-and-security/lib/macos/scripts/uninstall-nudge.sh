@@ -16,7 +16,7 @@ for pkg in com.github.macadmins.Nudge com.fleetdm.Nudge.assets Nudgeassets; do
     /usr/sbin/pkgutil --pkg-info "$pkg" >/dev/null 2>&1 && /usr/sbin/pkgutil --forget "$pkg" >/dev/null
 done
 
-if [[ -e /Applications/Utilities/Nudge.app || -e "/Library/LaunchAgents/$LABEL.plist" ]]; then
+if [[ -e /Applications/Utilities/Nudge.app || -e "/Library/LaunchAgents/$LABEL.plist" || -e /private/var/fleet/nudge-assets ]]; then
     echo "Nudge is still present."
     exit 1
 fi
