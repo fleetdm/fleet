@@ -109,6 +109,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"BatchSetSoftwareInstallersRemoveFMAClearsQueueAfterCommit", testBatchSetSoftwareInstallersRemoveFMAClearsQueueAfterCommit},
 		{"InsertSoftwareInstallRequestRejectsRemovedInstaller", testInsertSoftwareInstallRequestRejectsRemovedInstaller},
 		{"InsertSoftwareUninstallRequestRejectsRemovedInstaller", testInsertSoftwareUninstallRequestRejectsRemovedInstaller},
+		{"BatchSetSoftwareInstallersConflictingFMA", testBatchSetSoftwareInstallersConflictingFMA},
 	}
 
 	for _, c := range cases {
@@ -9927,4 +9928,62 @@ func TestUnchangedInstallerIDCoversPayload(t *testing.T) {
 	for _, f := range reflect.VisibleFields(reflect.TypeFor[fleet.UploadSoftwareInstallerPayload]()) {
 		assert.Contains(t, handled, f.Name, "add %s to unchangedInstallerID's comparison if BatchSetSoftwareInstallers writes it, then list it here", f.Name)
 	}
+}
+
+func testBatchSetSoftwareInstallersConflictingFMA(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// Firefox and Firefox ESR are distinct FMAs sharing bundle id org.mozilla.firefox, so one title.
+	firefox, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox", Slug: "firefox/darwin", Platform: "darwin", UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+	firefoxESR, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "Mozilla Firefox ESR", Slug: "firefox@esr/darwin", Platform: "darwin", UniqueIdentifier: "org.mozilla.firefox",
+	})
+	require.NoError(t, err)
+
+	mkFMA := func(teamID *uint, app *fleet.MaintainedApp, storage string, version string) *fleet.UploadSoftwareInstallerPayload {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(storage), t.TempDir)
+		require.NoError(t, err)
+		return &fleet.UploadSoftwareInstallerPayload{
+			InstallerFile:        tfr,
+			StorageID:            storage,
+			Title:                "Firefox",
+			Version:              version,
+			Source:               "apps",
+			Platform:             "darwin",
+			BundleIdentifier:     "org.mozilla.firefox",
+			FleetMaintainedAppID: new(app.ID),
+			FMAName:              app.Name,
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               teamID,
+		}
+	}
+
+	// Add Firefox 154.0 to the fleet.
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{mkFMA(&team.ID, firefox, "ff-154", "154.0")})
+	require.NoError(t, err)
+
+	// Swap to Firefox ESR with the same version and bytes as Firefox, it should be rejected and no ESR installer written.
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{mkFMA(&team.ID, firefoxESR, "ff-154", "154.0")})
+	require.ErrorContains(t, err, "Only one of Mozilla Firefox or Mozilla Firefox ESR can be added to the same fleet")
+	var esrInstallerCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &esrInstallerCount,
+			`SELECT COUNT(*) FROM software_installers WHERE fleet_maintained_app_id = ?`, firefoxESR.ID)
+	})
+	require.Zero(t, esrInstallerCount)
+
+	// Add a new Firefox version to the same fleet, it should be allowed.
+	_, err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{mkFMA(&team.ID, firefox, "ff-155", "155.0")})
+	require.NoError(t, err)
+
+	// Add Firefox ESR to Unassigned, which has no Firefox, it should be allowed.
+	_, err = ds.BatchSetSoftwareInstallers(ctx, nil, []*fleet.UploadSoftwareInstallerPayload{mkFMA(nil, firefoxESR, "ff-154", "154.0")})
+	require.NoError(t, err)
 }
