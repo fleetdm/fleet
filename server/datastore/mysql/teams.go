@@ -555,7 +555,8 @@ WHERE
 // ListTeams lists all teams with limit, sort and offset passed in with
 // fleet.ListOptions
 func (ds *Datastore) ListTeams(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
-	query := fmt.Sprintf(`
+	query := fmt.Sprintf(
+		`
 			SELECT `+teamColumns+`,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
 				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
@@ -610,7 +611,8 @@ func (ds *Datastore) TeamExists(ctx context.Context, teamID uint) (bool, error) 
 }
 
 func (ds *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
-	sql := fmt.Sprintf(`
+	sql := fmt.Sprintf(
+		`
 			SELECT %s,
 				(SELECT count(*) FROM user_teams WHERE team_id = t.id) AS user_count,
 				(SELECT count(*) FROM hosts WHERE team_id = t.id) AS host_count
@@ -764,7 +766,7 @@ func (ds *Datastore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) (
 			teams
 		WHERE
 			config IS NOT NULL AND
-			config->'$.mdm.macos_setup.enable_end_user_authentication' = TRUE
+			config->'$.mdm.setup_experience.enable_end_user_authentication' = TRUE
 
 		UNION
 
@@ -773,7 +775,7 @@ func (ds *Datastore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) (
 		FROM
 			app_config_json
 		WHERE
-			json_value->'$.mdm.macos_setup.enable_end_user_authentication' = TRUE
+			json_value->'$.mdm.setup_experience.enable_end_user_authentication' = TRUE
 `
 	var teamIDs []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIDs, stmt); err != nil {
@@ -816,7 +818,8 @@ func (ds *Datastore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.Te
 		return ctxerr.Wrap(ctx, err, "marshaling config")
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx,
+	_, err = ds.writer(ctx).ExecContext(
+		ctx,
 		`INSERT INTO default_team_config_json(id, json_value) VALUES(1, ?)
 		 ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 		configBytes,

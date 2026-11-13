@@ -6874,7 +6874,7 @@ settings:
 }
 
 // TestDryRunMacOSSetupScriptWithManualAgentInstallConflict tests that both
-// dry-run and real gitops runs fail when manual_agent_install is true and a
+// dry-run and real gitops runs fail when macos_manual_agent_install is true and a
 // macos_script is configured. Regression test for
 // https://github.com/fleetdm/fleet/issues/34464
 func (s *enterpriseIntegrationGitopsTestSuite) TestDryRunMacOSSetupScriptWithManualAgentInstallConflict() {
@@ -6942,7 +6942,7 @@ settings:
 		err = teamFile.Close()
 		require.NoError(t, err)
 
-		// Dry-run should fail with the manual_agent_install conflict
+		// Dry-run should fail with the macos_manual_agent_install conflict
 		fleetctltest.RunAppCheckErr(t, []string{
 			"gitops", "--config", fleetctlConfig.Name(),
 			"-f", globalFile.Name(), "-f", teamFile.Name(),
@@ -6982,7 +6982,7 @@ software:
 		err = os.Rename(noTeamFile.Name(), noTeamFilePath)
 		require.NoError(t, err)
 
-		// Dry-run should fail with the manual_agent_install conflict
+		// Dry-run should fail with the macos_manual_agent_install conflict
 		fleetctltest.RunAppCheckErr(t, []string{
 			"gitops", "--config", fleetctlConfig.Name(),
 			"-f", globalFile.Name(), "-f", noTeamFilePath,

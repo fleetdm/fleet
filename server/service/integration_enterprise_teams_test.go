@@ -208,7 +208,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamNameDecomposed,
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"lock_end_user_info": true,
 					},
 				},
@@ -476,8 +476,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
-						"enable_release_device_manually": false,
+					"setup_experience": map[string]any{
+						"apple_enable_release_device_manually": false,
 					},
 				},
 			},
@@ -493,8 +493,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
-						"enable_release_device_manually": true,
+					"setup_experience": map[string]any{
+						"apple_enable_release_device_manually": true,
 					},
 				},
 			},
@@ -510,7 +510,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			map[string]any{
 				"name": teamName,
 				"mdm": map[string]any{
-					"macos_setup": map[string]any{
+					"setup_experience": map[string]any{
 						"macos_require_all_software": true,
 					},
 				},
