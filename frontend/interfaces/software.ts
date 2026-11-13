@@ -129,7 +129,7 @@ export interface ISoftwarePackage {
    * title that may have several. */
   installer_id: number;
   name: string;
-  /** Not included in SoftwareTitle software.software_package response, hoisted up one level
+  /** Not included in SoftwareTitle software.packages response, hoisted up one level
    * Custom name set per team by admin
    */
   display_name?: string;
@@ -237,7 +237,7 @@ export interface IAppStoreAppVersion {
 }
 
 /**
- * package: includes FMA, custom packages, and are defined under software_package
+ * package: includes FMA, custom packages, and are defined under packages
  * app-store: includes VPP, Google Play Store apps and are defined under app_store_app
  */
 export type InstallerType = "package" | "app-store";
@@ -260,10 +260,8 @@ export interface ISoftwareTitle {
   extension_for?: SoftwareExtensionFor;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
-  /** First-added; mirrors packages[0]. Retained for back-compat. */
-  software_package: ISoftwarePackage | null;
-  /** All custom packages on this title (trimmed shape on list responses).
-   * `null` when the title has no custom packages. */
+  /** All custom packages on this title, including in-house apps (trimmed
+   * shape on list responses). `null` when the title has no custom packages. */
   packages: ISoftwarePackage[] | null;
   /** All App Store app versions on this title, in `created_at` order.
    * `null` when the title has no App Store app. See
@@ -283,12 +281,9 @@ export interface ISoftwareTitleDetails {
   /** Custom name set per team by admin */
   display_name?: string;
   icon_url: string | null;
-  /** First-added; mirrors packages[0]. Retained for back-compat. */
-  software_package: ISoftwarePackage | null;
-  /** All custom packages on this title, in first-added order (smallest
-   * `installer_id` first). `null` when the title has no custom packages.
-   * When present, treat as the source of truth; `software_package` is a
-   * convenience alias to `packages[0]`. */
+  /** All custom packages on this title, including in-house apps, in
+   * first-added order (smallest `installer_id` first). `null` when the title
+   * has no custom packages. */
   packages: ISoftwarePackage[] | null;
   /** All App Store app versions on this title, in `created_at` order
    * (first-added precedence). `null` when the title has no App Store app.
@@ -1201,7 +1196,7 @@ export interface IHostSoftware {
   /** Custom name set per team by admin */
   display_name?: string; // e.g. "Mock Software"
   icon_url: string | null;
-  software_package: IHostSoftwarePackage | null;
+  package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
@@ -1469,9 +1464,9 @@ type IHostSoftwarePackageWithLastInstall = IHostSoftwarePackage & {
 export const hasHostSoftwarePackageLastInstall = (
   software: IHostSoftware
 ): software is IHostSoftware & {
-  software_package: IHostSoftwarePackageWithLastInstall;
+  package: IHostSoftwarePackageWithLastInstall;
 } => {
-  return !!software.software_package?.last_install;
+  return !!software.package?.last_install;
 };
 
 type IHostAppWithLastInstall = IHostAppStoreApp & {

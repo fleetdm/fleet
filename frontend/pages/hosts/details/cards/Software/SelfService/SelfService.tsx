@@ -525,9 +525,9 @@ const SoftwareSelfService = ({
         softwareId: hostSW.id,
         softwareName: hostSW.name,
         softwareInstallerType: getExtensionFromFileName(
-          hostSW.software_package?.name || ""
+          hostSW.package?.name || ""
         ),
-        version: hostSW.software_package?.version || "",
+        version: hostSW.package?.version || "",
       };
       setShowUninstallSoftwareModal(true);
     },
@@ -800,8 +800,7 @@ const SoftwareSelfService = ({
           details={{
             host_display_name: hostDisplayName,
             install_uuid:
-              selectedHostSWInstallDetails.software_package?.last_install
-                ?.install_uuid,
+              selectedHostSWInstallDetails.package?.last_install?.install_uuid,
           }}
           onRetry={onClickInstallAction}
           onCancel={() => setSelectedHostSWInstallDetails(undefined)}
@@ -820,7 +819,7 @@ const SoftwareSelfService = ({
               selectedHostSWIpaInstallDetails.display_name
             ),
             commandUuid:
-              selectedHostSWIpaInstallDetails.software_package?.last_install
+              selectedHostSWIpaInstallDetails.package?.last_install
                 ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
           }}
           onRetry={onClickInstallAction}
@@ -834,8 +833,7 @@ const SoftwareSelfService = ({
           details={{
             host_display_name: hostDisplayName,
             install_uuid:
-              selectedHostSWScriptDetails.software_package?.last_install
-                ?.install_uuid,
+              selectedHostSWScriptDetails.package?.last_install?.install_uuid,
           }}
           onRerun={onClickInstallAction}
           onCancel={() => setSelectedHostSWScriptDetails(undefined)}

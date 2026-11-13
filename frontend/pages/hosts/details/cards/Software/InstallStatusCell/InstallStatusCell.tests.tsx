@@ -26,7 +26,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "installed",
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
           }),
           ui_status: "installed",
         }}
@@ -63,7 +63,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "installed",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               last_install: null,
             }),
           }),
@@ -96,7 +96,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "pending_install",
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
           }),
           ui_status: "installing",
         }}
@@ -132,7 +132,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "installed",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               name: "mock software.sh",
             }),
             source: "sh_packages",
@@ -166,7 +166,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "pending_install",
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
           }),
           ui_status: "pending_install",
         }}
@@ -198,7 +198,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "pending_install",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               last_uninstall: {
                 script_execution_id: "123-abc",
                 uninstalled_at: "2022-01-01T12:00:00Z",
@@ -240,7 +240,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "pending_install",
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
             source: "sh_packages",
           }),
           ui_status: "pending_script",
@@ -273,7 +273,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "pending_uninstall",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               last_uninstall: {
                 script_execution_id: "123-abc",
                 uninstalled_at: "2022-01-01T12:00:00Z",
@@ -314,7 +314,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "pending_uninstall",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               last_uninstall: {
                 script_execution_id: "123-abc",
                 uninstalled_at: "2022-01-01T12:00:00Z",
@@ -351,7 +351,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "failed_install",
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
           }),
           ui_status: "failed_install",
         }}
@@ -383,7 +383,7 @@ describe("InstallStatusCell - component", () => {
           ...createMockHostSoftware({
             status: "failed_install",
             skipped_install: true,
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
           }),
           ui_status: "skipped_install",
         }}
@@ -415,7 +415,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "failed_install",
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
             source: "sh_packages",
           }),
           ui_status: "failed_script",
@@ -444,7 +444,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "failed_uninstall",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               last_uninstall: {
                 script_execution_id: "123-abc",
                 uninstalled_at: "2022-01-01T12:00:00Z",
@@ -481,7 +481,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "failed_install",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               last_install: {
                 installed_at: "2022-01-01T12:00:00Z",
               } as any,
@@ -518,7 +518,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "failed_uninstall",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               last_uninstall: {
                 script_execution_id: "123-abc",
                 uninstalled_at: "2022-01-01T12:00:00Z",
@@ -559,7 +559,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "failed_install",
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
           }),
           ui_status: "failed_install_update_available",
         }}
@@ -590,7 +590,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "failed_uninstall",
-            software_package: createMockHostSoftwarePackage({
+            package: createMockHostSoftwarePackage({
               last_uninstall: {
                 script_execution_id: "123-abc",
                 uninstalled_at: "2022-01-01T12:00:00Z",
@@ -624,7 +624,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: null,
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
           }),
           ui_status: "update_available",
         }}
@@ -655,7 +655,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "pending_install",
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
           }),
           ui_status: "updating",
         }}
@@ -688,7 +688,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: "pending_install",
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
           }),
           ui_status: "pending_update",
         }}
@@ -720,7 +720,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: null,
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
           }),
           ui_status: "uninstalled",
         }}
@@ -751,7 +751,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: null,
-            software_package: { ...testSoftwarePackage, self_service: false },
+            package: { ...testSoftwarePackage, self_service: false },
           }),
           ui_status: "uninstalled",
         }}
@@ -782,7 +782,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: null,
-            software_package: testSoftwarePackage,
+            package: testSoftwarePackage,
             source: "sh_packages",
           }),
           ui_status: "never_ran_script",
@@ -813,7 +813,7 @@ describe("InstallStatusCell - component", () => {
         software={{
           ...createMockHostSoftware({
             status: null,
-            software_package: {
+            package: {
               ...testSoftwarePackage,
               name: "SelfService Software",
               self_service: true,
@@ -880,7 +880,7 @@ describe("InstallStatusCell - component", () => {
           ...createMockHostSoftware({
             status: null,
             app_store_app: null,
-            software_package: null,
+            package: null,
           }),
           ui_status: "uninstalled",
         }}

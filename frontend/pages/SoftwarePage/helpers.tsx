@@ -289,9 +289,14 @@ export const getAutoUpdatesTooltip = (startTime: string, endTime: string) => {
 export const getAutomaticInstallPoliciesCount = (
   softwareTitle: ISoftwareTitle | IHostSoftware
 ): number => {
-  if (softwareTitle.software_package) {
-    return (
-      softwareTitle.software_package.automatic_install_policies?.length || 0
+  const packages =
+    "packages" in softwareTitle
+      ? softwareTitle.packages
+      : [softwareTitle.package];
+  if (packages?.[0]) {
+    return packages.reduce(
+      (count, pkg) => count + (pkg?.automatic_install_policies?.length || 0),
+      0
     );
   }
   if (
@@ -382,7 +387,7 @@ export const getSoftwareListName = (title: ISoftwareTitle): string => {
     title.bundle_identifier
   );
   const filename = SCRIPT_PACKAGE_SOURCES.includes(title.source)
-    ? title.software_package?.name
+    ? title.packages?.[0]?.name
     : null;
   return filename && filename !== name ? `${name} (${filename})` : name;
 };
