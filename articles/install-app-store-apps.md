@@ -303,7 +303,6 @@ To prevent end users from installing apps themselves, you can block access to th
 </Replace>
 ```
 
-> Microsoft's [documentation](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-admx-windowsstore#removewindowsstore_2) says access to the Microsoft Store is required to install app updates. With this profile, apps might not update automatically. To update an app, select **Reinstall** in Fleet.
 
 ## API and GitOps
 
