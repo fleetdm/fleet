@@ -1,0 +1,1 @@
+- `fleetctl gitops` now fails, including with `--dry-run`, when a `paths:` glob points into a directory that doesn't exist, instead of treating it as an empty list and deleting every existing report, policy, script, label, configuration profile, or app that was defined through it. A glob that matches no files in an existing directory still only logs a warning.
