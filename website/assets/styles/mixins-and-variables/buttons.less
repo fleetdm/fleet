@@ -100,6 +100,11 @@
     transform: scale(0.98);
     transition-duration: 0.1s;
   }
+  // Keyboard focus only (not mouse clicks). Bootstrap's .btn:focus removes the outline, so set it here.
+  &:focus-visible {
+    outline: 2px solid @core-fleet-black;
+    outline-offset: 2px;
+  }
   &:disabled, &.disabled {
     cursor: default;
     transform: none;
