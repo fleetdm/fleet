@@ -368,14 +368,6 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	ggsr := getGlobalScheduleResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &ggsr)
 	require.NoError(t, ggsr.Err)
-	cpar := createPackResponse{}
-	var userPackID uint
-	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		Name:     new("Foobar"),
-		Disabled: new(false),
-	}, http.StatusOK, &cpar)
-	userPackID = cpar.Pack.Pack.ID
-	require.NotZero(t, userPackID)
 	cur := createUserResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
 		Email:      new("foo42@example.com"),
@@ -736,33 +728,8 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	s.DoJSON("POST", "/api/latest/fleet/queries/delete", fleet.DeleteQueriesRequest{IDs: []uint{q1.ID}}, http.StatusForbidden, &fleet.DeleteQueriesResponse{})
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/reports/%d", q1.ID), fleet.DeleteQueryByIDRequest{}, http.StatusForbidden, &fleet.DeleteQueryByIDResponse{})
 
-	// Attempt to add a query to a user pack, should fail.
-	sqr := fleet.ScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", fleet.ScheduleQueryRequest{
-		PackID:   userPackID,
-		QueryID:  q1.ID,
-		Interval: 60,
-	}, http.StatusForbidden, &sqr)
-
 	// Attempt to read the global schedule, should allow.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
-
-	// Attempt to create a pack, should fail.
-	cpr := createPackResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs", createPackRequest{
-		Name: new("foo8"),
-	}, http.StatusForbidden, &cpr)
-
-	// Attempt to edit a pack, should fail.
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", cpr.Pack.ID), modifyPackRequest{
-		Name: new("foo9"),
-	}, http.StatusForbidden, &modifyPackResponse{})
-
-	// Attempt to read a pack, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/packs/%d", userPackID), nil, http.StatusForbidden, &getPackResponse{})
-
-	// Attempt to delete a pack, should fail.
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/id/%d", userPackID), deletePackRequest{}, http.StatusForbidden, &deletePackResponse{})
 
 	// Attempt to create a global policy, should fail.
 	gplr := fleet.GlobalPolicyResponse{}
@@ -1113,14 +1080,6 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to read other team's schedule, should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
-
-	// Attempt to add a query to a user pack, should fail.
-	tsqr := fleet.ScheduleQueryResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", fleet.ScheduleQueryRequest{
-		PackID:   userPackID,
-		QueryID:  q1.ID,
-		Interval: 60,
-	}, http.StatusForbidden, &tsqr)
 
 	// Attempt to add a query to the team's schedule, should fail.
 	cqrt1 := fleet.CreateQueryResponse{}

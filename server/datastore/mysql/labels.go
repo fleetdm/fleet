@@ -831,14 +831,6 @@ func deleteLabelsInTx(ctx context.Context, tx sqlx.ExtContext, labelIDs []uint) 
 		return ctxerr.Wrap(ctx, err, "delete label_membership")
 	}
 
-	query, args, err = sqlx.In(`DELETE FROM pack_targets WHERE type = ? AND target_id IN (?)`, fleet.TargetLabel, labelIDs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "build sqlx.In statement for pack_targets")
-	}
-	if _, err = tx.ExecContext(ctx, query, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting pack_targets")
-	}
-
 	return nil
 }
 

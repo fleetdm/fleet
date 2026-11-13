@@ -756,17 +756,6 @@ allow {
 }
 
 ##
-# 2017 Packs (deprecated)
-##
-
-# Global admins, maintainers and gitops can read/write 2017 packs.
-allow {
-  object.type == "pack"
-  subject.global_role == [admin, maintainer, gitops][_]
-  action == [read, write][_]
-}
-
-##
 # File Carves
 ##
 

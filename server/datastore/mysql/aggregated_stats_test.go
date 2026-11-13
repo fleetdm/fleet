@@ -52,17 +52,12 @@ func TestAggregatedStats(t *testing.T) {
 	var args []interface{}
 
 	batchSize := 4000
-	hostCount := 10           // 2000
-	scheduledQueryCount := 20 // 400
-	queryCount := 30          // 1000
+	hostCount := 10  // 2000
+	queryCount := 30 // 1000
 
 	start := time.Now()
 	for i := 0; i < queryCount; i++ {
 		_, err := ds.writer(context.Background()).Exec(`INSERT INTO queries(name, query, description) VALUES (?,?,?)`, fmt.Sprint(i), fmt.Sprint(i), fmt.Sprint(i))
-		require.NoError(t, err)
-	}
-	for i := 0; i < scheduledQueryCount; i++ {
-		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id, name, query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 	insertScheduledQuerySQL := `INSERT IGNORE INTO scheduled_query_stats(host_id, scheduled_query_id, system_time, user_time, executions, query_type) VALUES %s`
@@ -90,13 +85,9 @@ func TestAggregatedStats(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// Make sure we have some queries and scheduled queries that don't have stats
+	// Make sure we have some queries that don't have stats
 	for i := queryCount; i < queryCount+4; i++ {
 		_, err := ds.writer(context.Background()).Exec(`INSERT INTO queries(name, query, description) VALUES (?,?,?)`, fmt.Sprint(i), fmt.Sprint(i), fmt.Sprint(i))
-		require.NoError(t, err)
-	}
-	for i := scheduledQueryCount; i < scheduledQueryCount+4; i++ {
-		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id, name, query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 

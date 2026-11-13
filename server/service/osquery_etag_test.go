@@ -34,11 +34,9 @@ type stubConfigETagStore struct {
 	hostSetErr error
 
 	// gate state
-	legacyPresent bool
-	legacyErr     error
-	scopes        fleet.ConfigETagLabelScopes
-	scopesErr     error
-	callLoaders   bool // when true, gate methods defer to the load callbacks
+	scopes      fleet.ConfigETagLabelScopes
+	scopesErr   error
+	callLoaders bool // when true, LabelScopes defers to the load callback
 
 	// recorded interactions
 	getCalls        int
@@ -98,18 +96,6 @@ func (s *stubConfigETagStore) InvalidateHost(ctx context.Context, hostID uint) e
 	return nil
 }
 
-func (s *stubConfigETagStore) LegacyPacksPresent(ctx context.Context, load func(ctx context.Context) (bool, error)) (bool, error) {
-	if s.legacyErr != nil {
-		return true, s.legacyErr
-	}
-	if s.callLoaders {
-		return load(ctx)
-	}
-	return s.legacyPresent, nil
-}
-
-func (s *stubConfigETagStore) ResetLegacyPacksFlag(ctx context.Context) error { return nil }
-
 func (s *stubConfigETagStore) LabelScopes(ctx context.Context, load func(ctx context.Context) (fleet.ConfigETagLabelScopes, error)) (fleet.ConfigETagLabelScopes, error) {
 	if s.scopesErr != nil {
 		return fleet.ConfigETagLabelScopes{}, s.scopesErr
@@ -123,23 +109,17 @@ func (s *stubConfigETagStore) LabelScopes(ctx context.Context, load func(ctx con
 func (s *stubConfigETagStore) ResetLabelScopes(ctx context.Context) error { return nil }
 
 // newETagTestDS returns a mock datastore sufficient for a minimal full
-// config build (no agent options, no packs, no schedules) plus the gate
-// loaders.
+// config build (no agent options, no schedules) plus the label-scope gate
+// loader.
 func newETagTestDS() *mock.Store {
 	ds := new(mock.Store)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
 	ds.ListScheduledQueriesForAgentsFunc = func(ctx context.Context, teamID *uint, hostID *uint, queryReportsDisabled bool) ([]*fleet.Query, error) {
 		return nil, nil
 	}
 	ds.TeamAgentOptionsFunc = func(ctx context.Context, teamID uint) (*json.RawMessage, error) {
-		return nil, nil
-	}
-	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
 	ds.LabelScopedScheduledQueryScopesFunc = func(ctx context.Context) (fleet.ConfigETagLabelScopes, error) {
@@ -172,7 +152,6 @@ func TestConfigETagSharedShortCircuitHit(t *testing.T) {
 
 	// The whole point: nothing was read from the database.
 	assert.False(t, ds.AppConfigFuncInvoked, "short circuit must not read app config")
-	assert.False(t, ds.ListPacksForHostFuncInvoked, "short circuit must not list packs")
 	assert.False(t, ds.ListScheduledQueriesForAgentsFuncInvoked, "short circuit must not list schedules")
 }
 
@@ -204,13 +183,12 @@ func TestConfigETagPerHostShortCircuitHit(t *testing.T) {
 	assert.Equal(t, 0, store.hostSetCalls)
 
 	assert.False(t, ds.AppConfigFuncInvoked, "short circuit must not read app config")
-	assert.False(t, ds.ListPacksForHostFuncInvoked, "short circuit must not list packs")
 	assert.False(t, ds.ListScheduledQueriesForAgentsFuncInvoked, "short circuit must not list schedules")
 }
 
 // TestConfigETagModeSelection: the label-scope state drives shared vs
-// per-host mode per the host's effective scope (global ∪ team); legacy packs
-// force bypass; gate errors force bypass.
+// per-host mode per the host's effective scope (global ∪ team); gate errors
+// force bypass.
 func TestConfigETagModeSelection(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
@@ -255,18 +233,6 @@ func TestConfigETagModeSelection(t *testing.T) {
 			"shared",
 		},
 		{
-			"legacy packs -> bypass",
-			&fleet.Host{ID: 6, Platform: "darwin"},
-			&stubConfigETagStore{legacyPresent: true, scopes: fleet.ConfigETagLabelScopes{Global: true}},
-			"bypass",
-		},
-		{
-			"legacy gate error -> bypass",
-			&fleet.Host{ID: 7, Platform: "darwin"},
-			&stubConfigETagStore{legacyErr: assert.AnError},
-			"bypass",
-		},
-		{
 			"label scope state error -> bypass (never guess shared)",
 			&fleet.Host{ID: 8, Platform: "darwin"},
 			&stubConfigETagStore{scopesErr: assert.AnError},
@@ -288,7 +254,7 @@ func TestConfigETagModeSelection(t *testing.T) {
 				assert.Equal(t, 0, tc.store.hostGetCalls, "bypass must not read Redis records")
 				assert.Equal(t, 0, tc.store.setCalls, "bypass must not write Redis records")
 				assert.Equal(t, 0, tc.store.hostSetCalls, "bypass must not write Redis records")
-				assert.True(t, ds.ListPacksForHostFuncInvoked, "bypass must fall back to a full build")
+				assert.True(t, ds.ListScheduledQueriesForAgentsFuncInvoked, "bypass must fall back to a full build")
 			}
 		})
 	}
@@ -335,7 +301,7 @@ func TestConfigETagMissBuildsAndPersists(t *testing.T) {
 				// The agent opted in, so Body carries the validator; the
 				// validator itself covers the canonical (etag-less) body.
 				assertBodyCarriesETag(t, result)
-				assert.True(t, ds.ListPacksForHostFuncInvoked, "miss must do a full build")
+				assert.True(t, ds.ListScheduledQueriesForAgentsFuncInvoked, "miss must do a full build")
 
 				require.Equal(t, 1, store.setCalls)
 				assert.Equal(t, 0, store.hostSetCalls)
@@ -364,7 +330,7 @@ func TestConfigETagMissBuildsAndPersists(t *testing.T) {
 		assert.NotEmpty(t, result.Body)
 		assertBodyCarriesETag(t, result)
 		assert.Equal(t, fleet.ConfigETagModeHost, result.Mode)
-		assert.True(t, ds.ListPacksForHostFuncInvoked, "miss must do a full build")
+		assert.True(t, ds.ListScheduledQueriesForAgentsFuncInvoked, "miss must do a full build")
 
 		require.Equal(t, 1, store.hostSetCalls)
 		assert.Equal(t, 0, store.setCalls, "per-host mode must never publish the shared record")
@@ -434,20 +400,23 @@ func TestConfigETagPerHostBypassesTeamPackCache(t *testing.T) {
 		"shared mode keeps using the team pack cache")
 }
 
-// TestConfigETagScopesUnknownBypassesTeamPackCache: when the deployment has
-// no legacy packs but the label-scope state cannot be read (Redis error) or
-// is being loaded by another request (leader-election contention), the
-// request stays in bypass mode — no Redis record I/O — but its full build
-// must still bypass the team-keyed pack cache: the deployment MAY have
-// label-scoped reports, in which case the cached render can be another
-// host's label-filtered config.
-func TestConfigETagScopesUnknownBypassesTeamPackCache(t *testing.T) {
+// TestConfigETagScopeStateFallback: when the label-scope state can't be
+// read, the request stays in bypass mode (no Redis record I/O). What the full
+// build does with the team-keyed pack cache depends on why:
+//   - leader-election contention: the deployment MAY have label-scoped
+//     reports, so the cached render could be another host's label-filtered
+//     config; the build bypasses the cache.
+//   - a hard Redis error (e.g. an outage): the build keeps using the cache,
+//     which runs its own label-scoped check, so an outage doesn't push every
+//     config request to the database.
+func TestConfigETagScopeStateFallback(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		scopesErr error
+		wantCache bool
 	}{
-		{"scope state error", assert.AnError},
-		{"leader-election contention", fleet.ErrConfigETagGateLoading},
+		{"scope state error uses team cache", assert.AnError, true},
+		{"leader-election contention bypasses team cache", fleet.ErrConfigETagGateLoading, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := newETagTestDS()
@@ -470,8 +439,8 @@ func TestConfigETagScopesUnknownBypassesTeamPackCache(t *testing.T) {
 			// 1. Shared-mode request warms the team pack cache with v1.
 			first, err := svc.GetClientConfigWithETag(ctx, new(""))
 			require.NoError(t, err)
-			assert.Equal(t, fleet.ConfigETagModeShared, first.Mode)
-			assert.Contains(t, string(first.Body), "report-v1")
+			require.Equal(t, fleet.ConfigETagModeShared, first.Mode)
+			require.Contains(t, string(first.Body), "report-v1")
 
 			// 2. Schedules change while scope state becomes unavailable.
 			schedules = []*fleet.Query{{
@@ -482,27 +451,29 @@ func TestConfigETagScopesUnknownBypassesTeamPackCache(t *testing.T) {
 			}}
 			store.scopesErr = tc.scopesErr
 
-			// 3. Bypass mode with unknown scopes must NOT serve the cached
-			// v1 render — and must not touch Redis records (delta-checked:
-			// step 1's shared-mode publish legitimately counted one set).
+			// 3. Bypass mode never touches Redis records (delta-checked: step
+			// 1's shared-mode publish legitimately counted one set).
 			getBefore, setBefore, hostSetBefore := store.getCalls, store.setCalls, store.hostSetCalls
 			second, err := svc.GetClientConfigWithETag(ctx, new(""))
 			require.NoError(t, err)
-			assert.Equal(t, fleet.ConfigETagModeBypass, second.Mode)
-			assert.Contains(t, string(second.Body), "report-v2",
-				"unknown label-scope state must bypass the team pack cache")
-			assert.NotContains(t, string(second.Body), "report-v1")
-			assert.Equal(t, getBefore, store.getCalls, "bypass must not read Redis records")
-			assert.Equal(t, setBefore, store.setCalls, "bypass must not write Redis records")
-			assert.Equal(t, hostSetBefore, store.hostSetCalls, "bypass must not write Redis records")
+			require.Equal(t, fleet.ConfigETagModeBypass, second.Mode)
+			require.Equal(t, getBefore, store.getCalls, "bypass must not read Redis records")
+			require.Equal(t, setBefore, store.setCalls, "bypass must not write Redis records")
+			require.Equal(t, hostSetBefore, store.hostSetCalls, "bypass must not write Redis records")
+
+			if tc.wantCache {
+				require.Contains(t, string(second.Body), "report-v1", "a Redis error must keep using the team pack cache")
+				return
+			}
+			require.Contains(t, string(second.Body), "report-v2", "contention must bypass the team pack cache")
 
 			// 4. Control: scope state recovers → shared mode serves the
 			// still-warm cached v1 render, proving step 3 truly bypassed.
 			store.scopesErr = nil
 			third, err := svc.GetClientConfigWithETag(ctx, new(""))
 			require.NoError(t, err)
-			assert.Equal(t, fleet.ConfigETagModeShared, third.Mode)
-			assert.Contains(t, string(third.Body), "report-v1")
+			require.Equal(t, fleet.ConfigETagModeShared, third.Mode)
+			require.Contains(t, string(third.Body), "report-v1")
 		})
 	}
 }
@@ -629,28 +600,23 @@ func TestConfigETagFeatureDisabled(t *testing.T) {
 	assert.Equal(t, 0, store.hostSetCalls)
 }
 
-// TestConfigETagGateLoaders exercises the real loaders (userPacksExist,
-// labelScopedReportScopes) through a store stub that defers to the load
-// callbacks — proving 2017 packs force bypass and label-scope answers drive
-// the mode, end to end through the datastore.
+// TestConfigETagGateLoaders exercises the real label-scope loader
+// (labelScopedReportScopes) through a store stub that defers to the load
+// callback — proving label-scope answers drive the mode end to end through
+// the datastore.
 func TestConfigETagGateLoaders(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
-		packs       []*fleet.Pack
 		scopes      fleet.ConfigETagLabelScopes
 		wantMode    fleet.ConfigETagMode
 		wantHostGet int
 		wantGet     int
 	}{
-		{"no blockers -> shared", nil, fleet.ConfigETagLabelScopes{}, fleet.ConfigETagModeShared, 0, 1},
-		{"2017 packs -> bypass", []*fleet.Pack{{ID: 1, Name: "p"}}, fleet.ConfigETagLabelScopes{}, fleet.ConfigETagModeBypass, 0, 0},
-		{"global label scope -> host", nil, fleet.ConfigETagLabelScopes{Global: true}, fleet.ConfigETagModeHost, 1, 0},
+		{"no label scopes -> shared", fleet.ConfigETagLabelScopes{}, fleet.ConfigETagModeShared, 0, 1},
+		{"global label scope -> host", fleet.ConfigETagLabelScopes{Global: true}, fleet.ConfigETagModeHost, 1, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := newETagTestDS()
-			ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
-				return tc.packs, nil
-			}
 			ds.LabelScopedScheduledQueryScopesFunc = func(ctx context.Context) (fleet.ConfigETagLabelScopes, error) {
 				return tc.scopes, nil
 			}
@@ -666,44 +632,6 @@ func TestConfigETagGateLoaders(t *testing.T) {
 			assert.Equal(t, tc.wantMode, result.Mode)
 			assert.Equal(t, tc.wantGet, store.getCalls)
 			assert.Equal(t, tc.wantHostGet, store.hostGetCalls)
-		})
-	}
-}
-
-// TestConfigETagLegacyPackHostNeverPersists: a host that has 2017 packs has
-// a HOST-SPECIFIC config beyond what per-host records model (and would
-// poison teammates under a shared key). Even if the cached deployment gate
-// is momentarily stale (says "no legacy packs"), a build that saw legacy
-// packs must never publish.
-func TestConfigETagLegacyPackHostNeverPersists(t *testing.T) {
-	for _, tc := range []struct {
-		name   string
-		scopes fleet.ConfigETagLabelScopes
-	}{
-		{"shared mode", fleet.ConfigETagLabelScopes{}},
-		{"per-host mode", fleet.ConfigETagLabelScopes{Global: true}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			ds := newETagTestDS()
-			ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-				return []*fleet.Pack{{ID: 1, Name: "legacy"}}, nil
-			}
-			ds.ListScheduledQueriesInPackFunc = func(ctx context.Context, pid uint) (fleet.ScheduledQueryList, error) {
-				return fleet.ScheduledQueryList{}, nil
-			}
-
-			svc, ctx := newTestService(t, ds, nil, nil)
-			store := &stubConfigETagStore{scopes: tc.scopes} // stale gate: legacyPresent=false
-			svc.SetConfigETagStore(store)
-
-			ctx = hostctx.NewContext(ctx, &fleet.Host{ID: 1, Platform: "darwin"})
-			result, err := svc.GetClientConfigWithETag(ctx, new(`"anything"`))
-			require.NoError(t, err)
-
-			assert.False(t, result.NotModified)
-			assert.NotEmpty(t, result.Body)
-			assert.Equal(t, 0, store.setCalls, "legacy-pack host ETag must never be persisted")
-			assert.Equal(t, 0, store.hostSetCalls, "legacy-pack host ETag must never be persisted")
 		})
 	}
 }
@@ -730,7 +658,7 @@ func TestConfigETagFailsOpen(t *testing.T) {
 			require.NoError(t, err, "redis failures must not fail config delivery")
 			assert.False(t, result.NotModified)
 			assert.NotEmpty(t, result.Body)
-			assert.True(t, ds.ListPacksForHostFuncInvoked, "must fall back to a full build")
+			assert.True(t, ds.ListScheduledQueriesForAgentsFuncInvoked, "must fall back to a full build")
 		})
 	}
 }

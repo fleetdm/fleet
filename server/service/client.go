@@ -617,7 +617,6 @@ func (c *Client) ApplyGroup(
 		}
 	}
 
-	// specs.Queries must be applied before specs.Packs because packs reference queries.
 	if len(specs.Queries) > 0 {
 		if opts.DryRun {
 			logfn("[!] ignoring reports, dry run mode only supported for 'config' and 'fleet' specs\n")
@@ -642,17 +641,6 @@ func (c *Client) ApplyGroup(
 				return nil, nil, nil, nil, fmt.Errorf("applying labels: %w", err)
 			}
 			logfn(appliedFormat, numberWithPluralization(len(specs.Labels), "label", "labels"))
-		}
-	}
-
-	if len(specs.Packs) > 0 {
-		if opts.DryRun {
-			logfn("[!] ignoring packs, dry run mode only supported for 'config' and 'fleet' specs\n")
-		} else {
-			if err := c.ApplyPacks(specs.Packs); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("applying packs: %w", err)
-			}
-			logfn(appliedFormat, numberWithPluralization(len(specs.Packs), "pack", "packs"))
 		}
 	}
 
