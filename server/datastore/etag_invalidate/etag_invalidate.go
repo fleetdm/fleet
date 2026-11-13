@@ -114,14 +114,6 @@ func (d *Datastore) invalidateHost(ctx context.Context, hostID uint, reason stri
 	}
 }
 
-// invalidateHosts fans a per-host invalidation across the distinct hosts of
-// a committed batch.
-func (d *Datastore) invalidateHosts(ctx context.Context, hostIDs map[uint]struct{}, reason string) {
-	for hostID := range hostIDs {
-		d.invalidateHost(ctx, hostID, reason)
-	}
-}
-
 // ///////////////////////////////////////////////////////////////////////////
 // App config: global agent options, features, server settings
 // (queryReportsDisabled, which changes report eligibility), all of which
