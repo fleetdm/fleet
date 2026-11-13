@@ -12,6 +12,7 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"1password/windows":                {OnePasswordVersionShortener},
 	"anyburn/windows":                  {AnyBurnVersionShortener},
 	"aomei-backupper-standard/windows": {AOMEIBackupperVersionShortener},
+	"datadog-agent/windows":            {DatadogAgentVersionNormalizer},
 	"firefox@esr/windows":              {FirefoxESRVersionShortener},
 	"geany/windows":                    {GeanyVersionShortener},
 	"megasync/windows":                 {MEGAsyncVersionShortener},
