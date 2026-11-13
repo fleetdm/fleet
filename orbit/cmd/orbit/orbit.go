@@ -588,6 +588,11 @@ func orbitAction(c *cli.Context) error {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	}
 
+	if runtime.GOOS == "darwin" {
+		// Before anything starts: it replaces this process when it applies.
+		update.ReexecAsFleet(c.String("root-dir"))
+	}
+
 	// Override flags with values retrieved from Fleet.
 	fallbackServerOverridesCfg := setServerOverrides(c)
 	if !fallbackServerOverridesCfg.empty() {
@@ -797,6 +802,9 @@ func orbitAction(c *cli.Context) error {
 	opt.Targets.SetTargetChannel(constant.OsqueryTUFTargetName, c.String("osqueryd-channel"))
 
 	opt.RootDirectory = c.String("root-dir")
+	if runtime.GOOS == "darwin" && update.UsesFleetPath(opt.RootDirectory) {
+		opt.Targets.UseFleetExecName()
+	}
 	opt.ServerURL = c.String("update-url")
 	if opt.ServerURL == update.OldFleetTUFURL {
 		//
@@ -1550,6 +1558,14 @@ func orbitAction(c *cli.Context) error {
 	// Floor for server-driven debug toggling: --debug at startup pins debug on.
 	startedInDebug := c.Bool("debug")
 	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
+
+	orbitClient.RegisterConfigReceiver(update.NewAgentNamesReceiver(orbitClient.GetServerCapabilities))
+	// The update runner finishes a move by relinking bin/orbit/orbit, and it manages orbit only in this case.
+	if runtime.GOOS == "darwin" && !c.Bool("disable-updates") && !c.Bool("dev-mode") {
+		orbitClient.RegisterConfigReceiver(update.NewAgentPathReceiver(
+			c.String("root-dir"), orbitClient.GetServerCapabilities, orbitClient.TriggerOrbitRestart,
+		))
+	}
 
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(

@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -332,11 +331,10 @@ func (r *Runner) orbitSymlinkStatus() (orbitSymlinkState, error) {
 	if err != nil {
 		return orbitSymlinkOK, fmt.Errorf("get %s binary: %w", constant.OrbitTUFTargetName, err)
 	}
-	path := localTarget.ExecPath
-
-	// Symlink Orbit binary
-	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
-	return compareOrbitSymlink(linkPath, path)
+	if localTarget == nil {
+		return orbitSymlinkOK, fmt.Errorf("get %s binary: no local target", constant.OrbitTUFTargetName)
+	}
+	return compareOrbitSymlink(OrbitLinkPath(r.updater.opt.RootDirectory, runtime.GOOS), localTarget.ExecPath)
 }
 
 // compareOrbitSymlink compares the symlink at linkPath against the expected target path.
@@ -388,7 +386,7 @@ func (r *Runner) updateTarget(target string) error {
 	oVC := compareVersion(newVersion, build.Version, "fleetd")
 
 	// Symlink Orbit binary
-	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
+	linkPath := OrbitLinkPath(r.updater.opt.RootDirectory, runtime.GOOS)
 	// Rename the old file otherwise overwrite fails
 	if err := os.Rename(linkPath, linkPath+".old"); err != nil {
 		return fmt.Errorf("move old symlink current: %w", err)
@@ -397,10 +395,13 @@ func (r *Runner) updateTarget(target string) error {
 		return fmt.Errorf("symlink current: %w", err)
 	}
 
-	// oVC == 1 if upgrading or -1 if downgrading, 0 if the same version
+	// oVC == 1 if downgrading or -1 if upgrading, 0 if the same version
 	if oVC != nil && *oVC != 0 && runtime.GOOS == "windows" {
 		if err := updateUninstallFleetdRegistryVersion(newVersion); err != nil {
 			return fmt.Errorf("update orbit version in Windows registry: %w", err)
+		}
+		if *oVC == 1 {
+			undoAgentNames(restoreUninstallFleetdRegistryName)
 		}
 	}
 

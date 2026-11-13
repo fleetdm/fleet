@@ -17,6 +17,7 @@ import (
 	"unicode"
 
 	"github.com/doug-martin/goqu/v9"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/download"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -635,6 +636,13 @@ func CPEFromSoftware(ctx context.Context, logger *slog.Logger, db *sqlx.DB, soft
 	// OSV artifacts by security patch level; with target_sw=android it would match every unversioned
 	// Android OS CVE in NVD.
 	if software.Source == "android_apps" && software.ApplicationID != nil && *software.ApplicationID == "android" {
+		return "", nil
+	}
+
+	// fleetd's Windows Installed apps entry, once fleetd renames it (fleet.CapabilityFleetAgentNames).
+	// The name alone matches the Fleet server's CPE, and other apps are also called "Fleet", so the
+	// publisher decides.
+	if software.Source == "programs" && software.Name == constant.AgentDisplayName && software.Vendor == constant.AgentPublisher {
 		return "", nil
 	}
 

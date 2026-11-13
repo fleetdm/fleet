@@ -119,6 +119,17 @@ func (ts Targets) SetTargetChannel(target, channel string) {
 	ts[target] = t
 }
 
+// UseFleetExecName stores the orbit executable as Fleet on disk, so that Activity Monitor and top show that name. The
+// repository file stays orbit, so older orbits keep finding their updates.
+func (ts Targets) UseFleetExecName() {
+	t, ok := ts[constant.OrbitTUFTargetName]
+	if !ok {
+		return
+	}
+	t.LocalFile = constant.AgentDisplayName
+	ts[constant.OrbitTUFTargetName] = t
+}
+
 // SetTargetInfo sets/updates the TargetInfo for the given target.
 func (u *Updater) SetTargetInfo(name string, info TargetInfo) {
 	u.targetsMu.Lock()
@@ -141,6 +152,9 @@ type TargetInfo struct {
 	Channel string
 	// TargetFile is the name of the target file in the repository.
 	TargetFile string
+	// LocalFile, when set, is the name of the downloaded file on disk instead of TargetFile. Not supported for .tar.gz
+	// targets.
+	LocalFile string
 	// ExtractedExecSubPath is the path to the executable in case the
 	// target is a compressed file.
 	ExtractedExecSubPath []string
@@ -313,8 +327,12 @@ func (u *Updater) DirLocalPath(target string) (string, error) {
 // LocalTargetPaths returns (path, execPath, dirPath) to be used by this
 // package for a given TargetInfo target.
 func LocalTargetPaths(rootDir string, targetName string, t TargetInfo) (path, execPath, dirPath string) {
+	fileName := t.TargetFile
+	if t.LocalFile != "" {
+		fileName = t.LocalFile
+	}
 	path = filepath.Join(
-		rootDir, binDir, targetName, t.Platform, t.Channel, t.TargetFile,
+		rootDir, binDir, targetName, t.Platform, t.Channel, fileName,
 	)
 
 	execPath = path

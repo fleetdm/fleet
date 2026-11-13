@@ -96,6 +96,12 @@ func TestLocalTargetPaths(t *testing.T) {
 			"root/bin/target/macos/stable/Dialog.app/Contents/MacOS/Dialog",
 			"root/bin/target/macos/stable/Dialog.app",
 		},
+		{
+			fleetExecNameTarget(),
+			"root/bin/target/macos/stable/Fleet",
+			"root/bin/target/macos/stable/Fleet",
+			"",
+		},
 	}
 
 	for _, tt := range testCases {
@@ -104,4 +110,17 @@ func TestLocalTargetPaths(t *testing.T) {
 		require.Equal(t, tt.wantExecPath, execPath)
 		require.Equal(t, tt.wantDirPath, dirPath)
 	}
+
+	// The repository file stays orbit, so a host that moved to the Fleet name gets the same updates as other hosts.
+	u := Updater{opt: Options{Targets: Targets{constant.OrbitTUFTargetName: fleetExecNameTarget()}}}
+	repoPath, err := u.repoPath(constant.OrbitTUFTargetName)
+	require.NoError(t, err)
+	require.Equal(t, "orbit/macos/stable/orbit", repoPath)
+}
+
+// fleetExecNameTarget is the macOS orbit target of a host that moved to the Fleet name: the repository file stays orbit.
+func fleetExecNameTarget() TargetInfo {
+	targets := Targets{constant.OrbitTUFTargetName: DarwinTargets[constant.OrbitTUFTargetName]}
+	targets.UseFleetExecName()
+	return targets[constant.OrbitTUFTargetName]
 }
