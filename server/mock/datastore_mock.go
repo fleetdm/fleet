@@ -490,6 +490,8 @@ type NewTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error
 
 type SaveTeamFunc func(ctx context.Context, team *fleet.Team) (*fleet.Team, error)
 
+type UpdateTeamUsersFunc func(ctx context.Context, teamID uint, set []fleet.TeamUser, removeIDs []uint) (map[uint]fleet.User, error)
+
 type TeamWithExtrasFunc func(ctx context.Context, tid uint) (*fleet.Team, error)
 
 type TeamLiteFunc func(ctx context.Context, tid uint) (*fleet.TeamLite, error)
@@ -3303,6 +3305,9 @@ type DataStore struct {
 
 	SaveTeamFunc        SaveTeamFunc
 	SaveTeamFuncInvoked bool
+
+	UpdateTeamUsersFunc        UpdateTeamUsersFunc
+	UpdateTeamUsersFuncInvoked bool
 
 	TeamWithExtrasFunc        TeamWithExtrasFunc
 	TeamWithExtrasFuncInvoked bool
@@ -8107,6 +8112,13 @@ func (s *DataStore) SaveTeam(ctx context.Context, team *fleet.Team) (*fleet.Team
 	s.SaveTeamFuncInvoked = true
 	s.mu.Unlock()
 	return s.SaveTeamFunc(ctx, team)
+}
+
+func (s *DataStore) UpdateTeamUsers(ctx context.Context, teamID uint, set []fleet.TeamUser, removeIDs []uint) (map[uint]fleet.User, error) {
+	s.mu.Lock()
+	s.UpdateTeamUsersFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateTeamUsersFunc(ctx, teamID, set, removeIDs)
 }
 
 func (s *DataStore) TeamWithExtras(ctx context.Context, tid uint) (*fleet.Team, error) {
