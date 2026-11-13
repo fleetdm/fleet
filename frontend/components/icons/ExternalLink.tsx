@@ -14,6 +14,29 @@ const ExternalLink = ({
   color = "ui-fleet-black-75",
   size = "medium",
 }: IExternalLinkProps) => {
+  // Small is separately drawn at 12px with a 1px stroke to match 12px text;
+  // scaling the 16px artwork down would make it too heavy.
+  if (size === "small") {
+    return (
+      <svg
+        className={`${baseClass} ${baseClass}--small`}
+        width="12"
+        height="12"
+        viewBox="0 0 12 12"
+        fill="none"
+        stroke={COLORS[color]}
+        strokeWidth="1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <rect x="1.5" y="1.5" width="9" height="9" rx="1.5" />
+        {/* Inline fill beats the shared `.external-link-icon path` hover fill. */}
+        <path d="M4.5 7.5L7.5 4.5M5.5 4.5H7.5V6.5" style={{ fill: "none" }} />
+      </svg>
+    );
+  }
+
   return (
     <svg
       className={baseClass}

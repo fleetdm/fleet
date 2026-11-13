@@ -17,9 +17,10 @@
     curl, git, python3, perl, ruby, and openssl use /etc/ssl/cert.pem instead and don't check revocation, so they
     still trust certificates issued by the compromised intermediates.
   resolution: >-
-    Fleet runs a script that removes the affected roots from /etc/ssl/cert.pem when this policy fails. A macOS update
-    can restore the file, and Fleet runs the script again when it does. If it still fails after a refetch, drop a note
-    in #help-it.
+    No action needed from you. Fleet runs a script that removes the affected roots from /etc/ssl/cert.pem when this
+    policy fails. A macOS update can restore the file, and Fleet runs the script again when it does. If it keeps
+    failing, IT reviews the script output in the host's activity.
+  hidden: true
   platform: darwin
   calendar_events_enabled: false
   run_script:

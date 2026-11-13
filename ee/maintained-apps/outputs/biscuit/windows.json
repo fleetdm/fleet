@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.2.10",
+      "version": "2.2.11",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Biscuit %' AND publisher = 'Biscuit Project';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Biscuit %' AND publisher = 'Biscuit Project' AND version_compare(version, '2.2.10') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Biscuit %' AND publisher = 'Biscuit Project' AND version_compare(version, '2.2.11') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'biscuit.exe');"
       },
-      "installer_url": "https://github.com/agata/dl.biscuit/releases/download/2.2.10/Biscuit-2.2.10-setup.exe",
+      "installer_url": "https://github.com/agata/dl.biscuit/releases/download/2.2.11/Biscuit-2.2.11-setup.exe",
       "install_script_ref": "5376c4e0",
       "uninstall_script_ref": "0538ecc4",
-      "sha256": "3d1adcd47d9ab07db412cf1e7ec58f1a3d4ccb1be1f8d1cc7610ca6e41f06853",
+      "sha256": "3df0567735f02635f3aca559185c14d4b26df6b3227f50dcf4f73410808fe5d0",
       "default_categories": [
         "Productivity"
       ]

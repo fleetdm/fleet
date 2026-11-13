@@ -8,9 +8,10 @@
   critical: false
   description: |-
     Verifies the screen lock inactivity timeout is set to 15 minutes or less.
-  resolution: |-
-    Screen lock timeout should be automatically enforced by MDM. If this fails, restart your device and refetch in Fleet Desktop.
-    If it still fails, drop a note in #help-it.
+  resolution: >-
+    No action needed from you. Fleet sets the screen lock timeout with a configuration profile.
+    If it keeps failing, IT checks the host's OS settings in Fleet.
+  hidden: true
   platform: windows
   labels_exclude_any:
     - Windows screen lock exclusions

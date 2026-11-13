@@ -12,7 +12,6 @@ import (
 	"maps"
 	"os"
 	"regexp"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -62,7 +61,6 @@ func lookupEnv(key string) (string, bool) {
 type Group struct {
 	Queries  []*fleet.QuerySpec
 	Teams    []json.RawMessage
-	Packs    []*fleet.PackSpec
 	Labels   []*fleet.LabelSpec
 	Policies []*fleet.PolicySpec
 	Software []*fleet.SoftwarePackageSpec
@@ -70,7 +68,6 @@ type Group struct {
 	// server like the user explicitly set the zero values.
 	AppConfig              interface{}
 	EnrollSecret           *fleet.EnrollSecretSpec
-	UsersRoles             *fleet.UsersRoleSpec
 	TeamsDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
 	CertificateAuthorities *fleet.GroupedCertificateAuthorities
 	// MicrosoftGraphCredentials is applied through its own endpoint rather than the app config.
@@ -144,17 +141,9 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			}
 			specs.Queries = append(specs.Queries, querySpec)
 
-		case fleet.PackKind:
-			var err error
-			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.PackSpec{})
-			if err != nil {
-				return nil, fmt.Errorf("in %s spec: %w", kind, err)
-			}
-			var packSpec *fleet.PackSpec
-			if err := yaml.Unmarshal(s.Spec, &packSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
-			}
-			specs.Packs = append(specs.Packs, packSpec)
+		case "pack":
+			// Reject the whole file so a pack is never silently dropped from an apply.
+			return nil, removedNameError(removednames.KindSpecKind, "pack")
 
 		case fleet.LabelKind:
 			var err error
@@ -216,19 +205,7 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
-			if err := rejectRemovedUserRoleKeys(s.Spec); err != nil {
-				return nil, err
-			}
-			var err error
-			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
-			if err != nil {
-				return nil, fmt.Errorf("in %s spec: %w", kind, err)
-			}
-			var userRoleSpec *fleet.UsersRoleSpec
-			if err := yaml.Unmarshal(s.Spec, &userRoleSpec); err != nil {
-				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
-			}
-			specs.UsersRoles = userRoleSpec
+			return nil, removedNameError(removednames.KindSpecKind, fleet.UserRolesKind)
 
 		case fleet.TeamKind:
 			return nil, removedNameError(removednames.KindSpecKind, "team")
@@ -271,33 +248,6 @@ func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
 		}
 	}
 	return specs, nil
-}
-
-// rejectRemovedUserRoleKeys fails a user_roles spec that uses the removed teams or team keys. Decoding ignores them, which leaves the user
-// with no fleet roles and a misleading error from the server.
-func rejectRemovedUserRoleKeys(raw json.RawMessage) error {
-	var spec struct {
-		Roles map[string]map[string]json.RawMessage `json:"roles"`
-	}
-	if err := yaml.Unmarshal(raw, &spec); err != nil {
-		return nil // the decoding that follows reports a malformed spec
-	}
-	for _, email := range slices.Sorted(maps.Keys(spec.Roles)) {
-		role := spec.Roles[email]
-		if _, ok := role["teams"]; ok {
-			return removedNameError(removednames.KindYAMLKey, "spec.roles.<email>.teams")
-		}
-		var fleets []map[string]json.RawMessage
-		if json.Unmarshal(role["fleets"], &fleets) != nil {
-			continue
-		}
-		for _, userFleet := range fleets {
-			if _, ok := userFleet["team"]; ok {
-				return removedNameError(removednames.KindYAMLKey, "spec.roles.<email>.fleets[].team")
-			}
-		}
-	}
-	return nil
 }
 
 // removedNameError is the error for a removed name found in a spec file, with its Fleet 5 message.

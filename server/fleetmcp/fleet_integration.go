@@ -301,8 +301,8 @@ type Endpoint struct {
 	Version        string      `json:"osquery_version"`
 	HardwareSerial string      `json:"hardware_serial"`
 	PrimaryIP      string      `json:"primary_ip"`
-	TeamID         *uint       `json:"team_id"`
-	TeamName       string      `json:"team_name"`
+	TeamID         *uint       `json:"fleet_id"`
+	TeamName       string      `json:"fleet_name"`
 	Labels         []HostLabel `json:"labels"`
 }
 
@@ -400,7 +400,7 @@ type CreateQueryRequest struct {
 	Description string `json:"description,omitempty"`
 	Query       string `json:"query"`
 	Platform    string `json:"platform,omitempty"`
-	TeamID      *uint  `json:"team_id,omitempty"`
+	TeamID      *uint  `json:"fleet_id,omitempty"`
 }
 
 // linuxPlatforms mirrors fleet.HostLinuxOSs in server/fleet/hosts.go (plus
@@ -663,7 +663,6 @@ type SoftwareTitle struct {
 	VersionsCount int               `json:"versions_count"`
 	HostsCount    int               `json:"hosts_count"`
 	Versions      []SoftwareVersion `json:"versions,omitempty"`
-	Browser       string            `json:"browser,omitempty"`
 	ExtensionFor  string            `json:"extension_for,omitempty"`
 	// AITool is omitted by Fleet Free, and stays omitted here rather than reading as false.
 	AITool *bool `json:"ai_tool,omitempty"`
@@ -816,7 +815,7 @@ func (fc *FleetClient) ListSoftwareTitles(ctx context.Context, teamName, platfor
 		params.Set("per_page", strconv.Itoa(apiPerPage))
 		params.Set("page", strconv.Itoa(page))
 		if teamIDStr != "" {
-			params.Set("team_id", teamIDStr)
+			params.Set("fleet_id", teamIDStr)
 		}
 		if p := strings.TrimSpace(platform); p != "" {
 			params.Set("platform", p)
@@ -920,7 +919,7 @@ func (fc *FleetClient) GetQueries(ctx context.Context) ([]Query, error) {
 		go func(idx int, team Team) {
 			defer wg.Done()
 			defer func() { <-sem }()
-			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/reports?team_id=%d", team.ID), nil)
+			teamResp, err := fc.makeFleetRequest(ctx, "GET", fmt.Sprintf("/api/v1/fleet/reports?fleet_id=%d", team.ID), nil)
 			if err != nil {
 				fc.logger.WarnContext(ctx, "team queries error", "team_id", team.ID, "err", err)
 				return
@@ -1197,7 +1196,7 @@ func (fc *FleetClient) GetHostCountWithFilters(ctx context.Context, teamName, pl
 	// team_id, status, query, and policy_id when no label is set).
 	params := url.Values{}
 	if teamIDStr != "" {
-		params.Set("team_id", teamIDStr)
+		params.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		params.Set("status", status)
@@ -1462,7 +1461,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 			params.Set("per_page", fmt.Sprintf("%d", perPage))
 		}
 		if teamIDStr != "" {
-			params.Set("team_id", teamIDStr)
+			params.Set("fleet_id", teamIDStr)
 		}
 		if status != "" {
 			params.Set("status", status)
@@ -1492,7 +1491,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 	labelParams := url.Values{}
 	labelParams.Set("populate_labels", "true")
 	if teamIDStr != "" {
-		labelParams.Set("team_id", teamIDStr)
+		labelParams.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		labelParams.Set("status", status)
@@ -1535,7 +1534,7 @@ func (fc *FleetClient) GetEndpointsWithFilters(ctx context.Context, teamName, pl
 		policyParams.Set("policy_response", policyResponse)
 	}
 	if teamIDStr != "" {
-		policyParams.Set("team_id", teamIDStr)
+		policyParams.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		policyParams.Set("status", status)
@@ -1777,7 +1776,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	titleParams.Set("query", strings.TrimSpace(cveID))
 	titleParams.Set("per_page", strconv.Itoa(titlesPerPage))
 	if teamIDStr != "" {
-		titleParams.Set("team_id", teamIDStr)
+		titleParams.Set("fleet_id", teamIDStr)
 	}
 	titleIDs := make([]uint, 0)
 	for page := 0; ; page++ {
@@ -1825,7 +1824,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	for _, tID := range titleIDs {
 		detailURL := fmt.Sprintf("/api/v1/fleet/software/titles/%d", tID)
 		if teamIDStr != "" {
-			detailURL += "?team_id=" + teamIDStr
+			detailURL += "?fleet_id=" + teamIDStr
 		}
 		// Honor caller cancellation between fan-out iterations: a slow CVE with
 		// many vulnerable titles can issue dozens of HTTP calls, so checking
@@ -1868,7 +1867,7 @@ func (fc *FleetClient) GetHostsForCVE(ctx context.Context, cveID, teamName, plat
 	baseParams := url.Values{}
 	baseParams.Set("populate_labels", "true")
 	if teamIDStr != "" {
-		baseParams.Set("team_id", teamIDStr)
+		baseParams.Set("fleet_id", teamIDStr)
 	}
 	if status != "" {
 		baseParams.Set("status", status)

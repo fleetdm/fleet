@@ -353,7 +353,7 @@ func (s *integrationEnterpriseTestSuite) TestEmbeddedMCP() {
 		var resp listActivitiesResponse
 		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp, "order_key", "id", "order_direction", "desc", "per_page", "20")
 		for _, a := range resp.Activities {
-			assert.NotEqual(t, fleet.ActivityTypeViewedHostRecoveryLockPassword{}.ActivityName(), a.Type)
+			assert.NotEqual(t, fleet.ActivityTypeReadHostRecoveryLockPassword{}.ActivityName(), a.Type)
 		}
 	})
 

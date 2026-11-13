@@ -121,7 +121,11 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 import { timeAgo } from "utilities/date_format";
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import {
+  getHostOSDisplayName,
+  normalizeEmptyValues,
+  wrapFleetHelper,
+} from "utilities/helpers";
 import local from "utilities/local";
 import permissions from "utilities/permissions";
 import { getPathWithQueryParams } from "utilities/url";
@@ -291,7 +295,7 @@ const HostDetailsPage = ({
   location,
   params: { host_id },
 }: IHostDetailsProps): JSX.Element => {
-  const hostIdFromURL = parseInt(host_id, 10);
+  const hostIdFromURL = /^\d+$/.test(host_id) ? Number(host_id) : NaN;
 
   const {
     config,
@@ -308,6 +312,10 @@ const HostDetailsPage = ({
   } = useContext(AppContext);
 
   const handlePageError = useErrorHandler();
+
+  if (!hostIdFromURL) {
+    handlePageError({ status: 404 });
+  }
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
@@ -1393,7 +1401,8 @@ const HostDetailsPage = ({
         isManagedLocalAccountEnabled={
           host.platform === "windows"
             ? mdmConfig?.windows_settings?.enable_managed_local_account ?? false
-            : mdmConfig?.macos_setup?.enable_managed_local_account ?? false
+            : mdmConfig?.setup_experience?.enable_create_local_admin_account ??
+              false
         }
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
@@ -1538,7 +1547,7 @@ const HostDetailsPage = ({
 
   const showControlsTab = shouldShowControlsTab({
     platform: host.platform,
-    osVersion: host.os_version,
+    osVersion: getHostOSDisplayName(host.os_name, host.os_version),
     enrollmentStatus: host.mdm?.enrollment_status ?? null,
     hasControls: controls.length > 0,
     isPlatformMdmEnabled:

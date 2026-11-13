@@ -108,8 +108,8 @@ type TeamPayloadMDM struct {
 	// WindowsUpdates defines the OS update settings for Windows devices.
 	WindowsUpdates *WindowsUpdates `json:"windows_updates"`
 
-	MacOSSetup       *MacOSSetup    `json:"macos_setup"`
-	HostNameTemplate optjson.String `json:"name_template"`
+	MacOSSetup       *TeamPayloadMacOSSetup `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
+	HostNameTemplate optjson.String         `json:"name_template"`
 
 	// MacOSSettings exposes only the disk encryption surface on the team PATCH endpoint;
 	// configuration profiles are managed through their own endpoints.
@@ -118,6 +118,13 @@ type TeamPayloadMDM struct {
 	// on the team PATCH endpoint; configuration profiles are managed through their own endpoints.
 	WindowsSettings *TeamPayloadWindowsSettings `json:"windows_settings"`
 	LinuxSettings   *TeamPayloadLinuxSettings   `json:"linux_settings"`
+}
+
+// TeamPayloadMacOSSetup is setup_experience on the team PATCH endpoint. EnableEndUserAuthentication shadows the plain
+// bool of MacOSSetup, so a PATCH that leaves it out keeps the stored value.
+type TeamPayloadMacOSSetup struct {
+	MacOSSetup
+	EnableEndUserAuthentication optjson.Bool `json:"enable_end_user_authentication"`
 }
 
 // TeamPayloadMacOSSettings is the subset of macos_settings (apple_settings) fields
@@ -510,7 +517,7 @@ type TeamMDM struct {
 	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
 	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
 	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup                 MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSetup                 MacOSSetup            `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -676,7 +683,7 @@ type TeamSpecMDM struct {
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
 	MacOSSettings map[string]any `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup    MacOSSetup     `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSetup    MacOSSetup     `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -820,7 +827,6 @@ var globalRoles = map[string]struct{}{
 var premiumGlobalRoles = map[string]struct{}{
 	RoleTechnician:   {},
 	RoleObserverPlus: {},
-	RoleGitOps:       {},
 }
 
 // ValidGlobalRole returns whether the role provided is valid for a global user.

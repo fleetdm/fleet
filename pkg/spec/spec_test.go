@@ -10,8 +10,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/pkg/testutils"
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -431,40 +429,6 @@ func TestGetExclusionZones(t *testing.T) {
 	})
 }
 
-func TestRewriteNewToOldKeys(t *testing.T) {
-	t.Run("accepts old keys", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","team":"myteam"}`)
-		result, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
-		require.NoError(t, err)
-
-		var qs fleet.QuerySpec
-		require.NoError(t, json.Unmarshal(result, &qs))
-		assert.Equal(t, "test", qs.Name)
-		assert.Equal(t, "myteam", qs.TeamName)
-	})
-
-	t.Run("accepts new keys", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","fleet":"myteam"}`)
-		result, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
-		require.NoError(t, err)
-
-		var qs fleet.QuerySpec
-		require.NoError(t, json.Unmarshal(result, &qs))
-		assert.Equal(t, "test", qs.Name)
-		assert.Equal(t, "myteam", qs.TeamName)
-	})
-
-	t.Run("errors if both old and new keys provided", func(t *testing.T) {
-		raw := json.RawMessage(`{"name":"test","team":"old","fleet":"new"}`)
-		_, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
-		require.Error(t, err)
-		var conflictErr *endpointer.AliasConflictError
-		require.ErrorAs(t, err, &conflictErr)
-		assert.Equal(t, "team", conflictErr.Old)
-		assert.Equal(t, "fleet", conflictErr.New)
-	})
-}
-
 func TestGroupFromBytesTeamKinds(t *testing.T) {
 	removedMessage := func(kind removednames.Kind, name string) string {
 		entry, ok := removednames.Find(kind, name, "")
@@ -535,34 +499,26 @@ spec:
 			removedMessage(removednames.KindSpecKind, "team"),
 		},
 		{
-			"kind: user_roles with teams: key",
+			"kind: user_roles",
 			[]byte(`
 apiVersion: v1
 kind: user_roles
 spec:
   roles:
-    user@example.com:
-      global_role: null
-      teams:
-      - role: maintainer
-        team: macOS
+    admin@example.com:
+      global_role: admin
 `),
-			removedMessage(removednames.KindYAMLKey, "spec.roles.<email>.teams"),
+			removedMessage(removednames.KindSpecKind, "user_roles"),
 		},
 		{
-			"kind: user_roles with team: key in a fleets entry",
+			"kind: pack",
 			[]byte(`
 apiVersion: v1
-kind: user_roles
+kind: pack
 spec:
-  roles:
-    user@example.com:
-      global_role: null
-      fleets:
-      - role: maintainer
-        team: macOS
+  name: pack1
 `),
-			removedMessage(removednames.KindYAMLKey, "spec.roles.<email>.fleets[].team"),
+			removedMessage(removednames.KindSpecKind, "pack"),
 		},
 	}
 

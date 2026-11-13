@@ -222,11 +222,14 @@ const ScriptBatchDetailsPage = ({
   };
 
   const renderContent = () => {
-    if (isLoading || !batchDetails) {
-      return <Spinner />;
-    }
+    // Check the error first: a failed request (e.g. 404 for a batch that no
+    // longer exists) leaves batchDetails undefined, which would otherwise keep
+    // the spinner up forever.
     if (isError) {
       return <DataError description="Could not load script batch details." />;
+    }
+    if (isLoading || !batchDetails) {
+      return <Spinner />;
     }
     const {
       script_name,

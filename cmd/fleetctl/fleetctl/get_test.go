@@ -559,9 +559,6 @@ func TestGetHosts(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		return make([]*fleet.Pack, 0), nil
-	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
 		return nil, nil
 	}
@@ -787,9 +784,6 @@ func TestGetHostsMDM(t *testing.T) {
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		return make([]*fleet.Pack, 0), nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
 		return nil, nil
@@ -1070,7 +1064,6 @@ spec:
   source: chrome_extensions
   extension_for: chrome
   display_name: ""
-  browser: chrome
   versions:
   - id: 0
     version: 0.0.1
@@ -1097,7 +1090,6 @@ spec:
   source: deb_packages
   extension_for: ""
   display_name: ""
-  browser: ""
   versions:
   - id: 0
     version: 0.0.3
@@ -1116,7 +1108,6 @@ spec:
       "source": "chrome_extensions",
       "extension_for": "chrome",
       "display_name": "",
-      "browser": "chrome",
       "hosts_count": 2,
       "icon_url": null,
       "versions_count": 3,
@@ -1155,7 +1146,6 @@ spec:
       "source": "deb_packages",
       "display_name": "",
       "extension_for": "",
-      "browser": "",
       "hosts_count": 0,
       "icon_url": null,
       "versions_count": 1,
@@ -1234,7 +1224,6 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
-  browser: chrome
   extension_for: chrome
   display_name: ""
   version: 0.0.1
@@ -1251,7 +1240,6 @@ spec:
   source: chrome_extensions
   version: 0.0.2
   extension_id: xyz
-  browser: edge
   extension_for: edge
   display_name: ""
   vulnerabilities: null
@@ -1259,7 +1247,6 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
-  browser: chrome
   extension_for: chrome
   display_name: ""
   version: 0.0.3
@@ -1270,7 +1257,6 @@ spec:
   last_opened_at: "2022-01-01T00:00:00Z"
   name: bar
   source: deb_packages
-  browser: ""
   extension_for: ""
   display_name: ""
   version: 0.0.3
@@ -1287,7 +1273,6 @@ spec:
       "name": "foo",
       "version": "0.0.1",
       "source": "chrome_extensions",
-	  "browser": "chrome",
 	  "extension_for": "chrome",
 	  "display_name": "",
       "generated_cpe": "somecpe",
@@ -1310,7 +1295,6 @@ spec:
       "version": "0.0.2",
       "source": "chrome_extensions",
       "extension_id": "xyz",
-      "browser": "edge",
 	  "extension_for": "edge",
 	  "display_name": "",
       "generated_cpe": "",
@@ -1321,7 +1305,6 @@ spec:
       "name": "foo",
       "version": "0.0.3",
       "source": "chrome_extensions",
-	  "browser": "chrome",
 	  "extension_for": "chrome",
 	  "display_name": "",
       "generated_cpe": "someothercpewithoutvulns",
@@ -1334,7 +1317,6 @@ spec:
       "bundle_identifier": "bundle",
       "source": "deb_packages",
       "display_name": "",
-      "browser": "",
 	  "extension_for": "",
       "generated_cpe": "",
       "vulnerabilities": null,
@@ -1395,7 +1377,6 @@ spec:
   name: label1
   platform: windows
   query: select 1;
-  team_id: null
 ---
 apiVersion: v1
 kind: label
@@ -1408,10 +1389,9 @@ spec:
   name: label2
   platform: linux
   query: select 42;
-  team_id: null
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"description":"some description","fleet_id":null,"hosts":null,"id":32,"label_membership_type":"dynamic","name":"label1","platform":"windows","query":"select 1;","team_id":null}}
-{"kind":"label","apiVersion":"v1","spec":{"description":"some other description","fleet_id":null,"hosts":null,"id":33,"label_membership_type":"dynamic","name":"label2","platform":"linux","query":"select 42;","team_id":null}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"description":"some description","fleet_id":null,"hosts":null,"id":32,"label_membership_type":"dynamic","name":"label1","platform":"windows","query":"select 1;"}}
+{"kind":"label","apiVersion":"v1","spec":{"description":"some other description","fleet_id":null,"hosts":null,"id":33,"label_membership_type":"dynamic","name":"label2","platform":"linux","query":"select 42;"}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "labels"}))
@@ -1447,9 +1427,8 @@ spec:
   name: label1
   platform: windows
   query: select 1;
-  team_id: null
 `
-	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"description":"some description","fleet_id":null,"hosts":null,"id":32,"label_membership_type":"dynamic","name":"label1","platform":"windows","query":"select 1;","team_id":null}}
+	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"description":"some description","fleet_id":null,"hosts":null,"id":32,"label_membership_type":"dynamic","name":"label1","platform":"windows","query":"select 1;"}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "label1"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
@@ -1489,165 +1468,6 @@ spec:
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets", "--yaml"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "enroll_secrets", "--json"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
-}
-
-func TestGetPacks(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-
-	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
-		return []*fleet.PackSpec{
-			{
-				ID:          7,
-				Name:        "pack1",
-				Description: "some desc",
-				Platform:    "darwin",
-				Disabled:    false,
-			},
-		}, nil
-	}
-
-	expected := `+-------+----------+-------------+----------+
-| NAME  | PLATFORM | DESCRIPTION | DISABLED |
-+-------+----------+-------------+----------+
-| pack1 | darwin   | some desc   | false    |
-+-------+----------+-------------+----------+
-Found 1 2017 "Packs".
-
-Querying in Fleet is becoming more powerful. To learn more, visit:
-https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs
-
-To retrieve "Pack" data in a portable format for upgrading, run ` + "`fleetctl upgrade-packs`" + `.
-`
-	expectedYaml := `---
-apiVersion: v1
-kind: pack
-spec:
-  description: some desc
-  disabled: false
-  id: 7
-  name: pack1
-  platform: darwin
-  targets:
-    fleets: null
-    labels: null
-    teams: null
-`
-	expectedJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": {
-    "id": 7,
-    "name": "pack1",
-    "description": "some desc",
-    "platform": "darwin",
-    "disabled": false,
-    "targets": {
-      "labels": null,
-      "fleets": null,
-      "teams": null
-    }
-  }
-}
-`
-
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
-
-	// test output when there are no packs
-	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
-		return nil, nil
-	}
-
-	expected = `No 2017 "Packs" found.
-`
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--json"}))
-}
-
-func TestGetPack(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-
-	ds.PackByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
-		if name != "pack1" {
-			return nil, false, nil
-		}
-		return &fleet.Pack{
-			ID:          7,
-			Name:        "pack1",
-			Description: "some desc",
-			Platform:    "darwin",
-			Disabled:    false,
-		}, true, nil
-	}
-	ds.GetPackSpecFunc = func(ctx context.Context, name string) (*fleet.PackSpec, error) {
-		if name != "pack1" {
-			return nil, nil
-		}
-		return &fleet.PackSpec{
-			ID:          7,
-			Name:        "pack1",
-			Description: "some desc",
-			Platform:    "darwin",
-			Disabled:    false,
-		}, nil
-	}
-
-	expectedYaml := `---
-apiVersion: v1
-kind: pack
-spec:
-  description: some desc
-  disabled: false
-  id: 7
-  name: pack1
-  platform: darwin
-  targets:
-    fleets: null
-    labels: null
-    teams: null
-`
-	expectedJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": {
-    "id": 7,
-    "name": "pack1",
-    "description": "some desc",
-    "platform": "darwin",
-    "disabled": false,
-    "targets": {
-      "labels": null,
-      "fleets": null,
-      "teams": null
-    }
-  }
-}
-`
-
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
-
-	expectedEmptyYaml := `---
-apiVersion: v1
-kind: pack
-spec: null
-`
-
-	expectedEmptyJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": null
-}`
-
-	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "no-such-pack"}))
-	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "no-such-pack"}))
-	assert.JSONEq(t, expectedEmptyJson, runAppForTest(t, []string{"get", "packs", "--json", "no-such-pack"}))
 }
 
 func TestGetQueries(t *testing.T) {
@@ -1799,7 +1619,6 @@ spec:
   observer_can_run: false
   platform: ""
   query: select 1;
-  team: ""
 ---
 apiVersion: v1
 kind: report
@@ -1818,7 +1637,6 @@ spec:
   observer_can_run: false
   platform: ""
   query: select 2;
-  team: ""
 ---
 apiVersion: v1
 kind: report
@@ -1834,11 +1652,10 @@ spec:
   observer_can_run: true
   platform: darwin,windows
   query: select 4;
-  team: ""
 `
-	expectedJSONGlobal := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
-{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":true,"fleet":"","interval":0,"labels_include_any":["label1","label2"],"logging":"","min_osquery_version":"","name":"query2","observer_can_run":false,"platform":"","query":"select 2;","team":""}}
-{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some desc 4","discard_data":false,"fleet":"","interval":60,"logging":"differential_ignore_removals","min_osquery_version":"5.3.0","name":"query4","observer_can_run":true,"platform":"darwin,windows","query":"select 4;","team":""}}
+	expectedJSONGlobal := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;"}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":true,"fleet":"","interval":0,"labels_include_any":["label1","label2"],"logging":"","min_osquery_version":"","name":"query2","observer_can_run":false,"platform":"","query":"select 2;"}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some desc 4","discard_data":false,"fleet":"","interval":60,"logging":"differential_ignore_removals","min_osquery_version":"5.3.0","name":"query4","observer_can_run":true,"platform":"darwin,windows","query":"select 4;"}}
 `
 
 	expectedTeam := `+--------+-------------+-----------+--------+----------------------------+
@@ -1873,9 +1690,8 @@ spec:
   observer_can_run: true
   platform: darwin
   query: select 3;
-  team: Foobar
 `
-	expectedJSONTeam := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"snapshot","min_osquery_version":"5.4.0","name":"query3","observer_can_run":true,"platform":"darwin","query":"select 3;","team":"Foobar"}}
+	expectedJSONTeam := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"snapshot","min_osquery_version":"5.4.0","name":"query3","observer_can_run":true,"platform":"darwin","query":"select 3;"}}
 `
 
 	assert.Equal(t, expectedGlobal, runAppForTest(t, []string{"get", "reports"}))
@@ -1969,9 +1785,8 @@ spec:
   observer_can_run: false
   platform: ""
   query: select 1;
-  team: ""
 `
-	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"globalQuery1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"globalQuery1","observer_can_run":false,"platform":"","query":"select 1;"}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "globalQuery1"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
@@ -1993,9 +1808,8 @@ spec:
   observer_can_run: true
   platform: linux
   query: select 2;
-  team: Foobar
 `
-	expectedJson = `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some team desc","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"differential","min_osquery_version":"5.2.0","name":"teamQuery1","observer_can_run":true,"platform":"linux","query":"select 2;","team":"Foobar"}}
+	expectedJson = `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some team desc","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"differential","min_osquery_version":"5.2.0","name":"teamQuery1","observer_can_run":true,"platform":"linux","query":"select 2;"}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "report", "--fleet", "1", "teamQuery1"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
@@ -2047,9 +1861,8 @@ spec:
   observer_can_run: false
   platform: ""
   query: select 1;
-  team: ""
 `
-	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"include_all roundtrip","discard_data":false,"fleet":"","interval":0,"labels_include_all":["labelA","labelB"],"logging":"","min_osquery_version":"","name":"qall","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"include_all roundtrip","discard_data":false,"fleet":"","interval":0,"labels_include_all":["labelA","labelB"],"logging":"","min_osquery_version":"","name":"qall","observer_can_run":false,"platform":"","query":"select 1;"}}
 `
 
 	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "query", "qall"}))
@@ -2104,9 +1917,8 @@ spec:
   observer_can_run: false
   platform: ""
   query: select 1;
-  team: ""
 `
-	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"","discard_data":false,"fleet":"","interval":0,"labels_include_all":["labelA","labelB"],"logging":"","min_osquery_version":"","name":"qall-bulk","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"","discard_data":false,"fleet":"","interval":0,"labels_include_all":["labelA","labelB"],"logging":"","min_osquery_version":"","name":"qall-bulk","observer_can_run":false,"platform":"","query":"select 1;"}}
 `
 
 	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "reports", "--yaml"}))
@@ -2224,9 +2036,8 @@ spec:
   observer_can_run: true
   platform: ""
   query: select 2;
-  team: ""
 `
-			expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;","team":""}}
+			expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;"}}
 `
 
 			assert.Equal(t, expected, runAppForTest(t, []string{"get", "reports"}))
@@ -2309,7 +2120,6 @@ spec:
   observer_can_run: false
   platform: ""
   query: select 1;
-  team: ""
 ---
 apiVersion: v1
 kind: report
@@ -2325,7 +2135,6 @@ spec:
   observer_can_run: true
   platform: ""
   query: select 2;
-  team: ""
 ---
 apiVersion: v1
 kind: report
@@ -2341,11 +2150,10 @@ spec:
   observer_can_run: false
   platform: ""
   query: select 3;
-  team: ""
 `
-	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
-{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;","team":""}}
-{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query3","observer_can_run":false,"platform":"","query":"select 3;","team":""}}
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;"}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;"}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query3","observer_can_run":false,"platform":"","query":"select 3;"}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "reports"}))

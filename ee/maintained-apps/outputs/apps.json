@@ -1171,6 +1171,13 @@
       "description": "BleachBit is a free utility for cleaning disk space and protecting privacy."
     },
     {
+      "name": "Blender (ARM64)",
+      "slug": "blender-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Blender",
+      "description": "Blender (ARM64) is the native ARM64 build of Blender, a 3D creation suite."
+    },
+    {
       "name": "Blender",
       "slug": "blender/darwin",
       "platform": "darwin",
@@ -1563,6 +1570,13 @@
       "description": "ChatGPT Desktop is OpenAI's official ChatGPT desktop app for macOS, providing seamless access to AI-powered conversations and assistance."
     },
     {
+      "name": "ChatGPT Desktop",
+      "slug": "chatgpt/windows",
+      "platform": "windows",
+      "unique_identifier": "ChatGPT",
+      "description": "ChatGPT Desktop is OpenAI's official desktop app for ChatGPT and Codex on Windows, providing AI-powered conversations, coding help, and assistance."
+    },
+    {
       "name": "ChatWise",
       "slug": "chatwise/darwin",
       "platform": "darwin",
@@ -1659,6 +1673,13 @@
       "platform": "darwin",
       "unique_identifier": "com.citrix.receiver.nomas",
       "description": "Citrix Workspace is a managed desktop virtualization solution that delivers secure access to information, apps, and content."
+    },
+    {
+      "name": "Claude (ARM64)",
+      "slug": "claude-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Claude",
+      "description": "Claude (ARM64) is the native ARM64 build of Anthropic's official Claude AI desktop app."
     },
     {
       "name": "Claude DevTools",
@@ -2093,6 +2114,13 @@
       "platform": "windows",
       "unique_identifier": "Cube Browser (64 bit)",
       "description": "Cube Browser is Rystad Energy’s client for querying and analyzing its energy data cubes."
+    },
+    {
+      "name": "Cursor (ARM64)",
+      "slug": "cursor-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Cursor",
+      "description": "Cursor (ARM64) is the native ARM64 build of Cursor, an AI code editor with context-aware code suggestions, explanations, and refactors."
     },
     {
       "name": "Cursor",
@@ -2613,6 +2641,13 @@
       "description": "DockDoor is a window peeking utility app."
     },
     {
+      "name": "Docker Desktop (ARM64)",
+      "slug": "docker-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Docker Desktop",
+      "description": "Docker Desktop (ARM64) is the native ARM64 build of Docker Desktop, an environment for building, sharing, and running containerized applications and microservices."
+    },
+    {
       "name": "Docker Desktop",
       "slug": "docker-desktop/darwin",
       "platform": "darwin",
@@ -2644,7 +2679,7 @@
       "name": "DockView",
       "slug": "dockview/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.sergey-gerasimenko.DockView",
+      "unique_identifier": "com.macplus-software.com.DockView-2",
       "description": "DockView is a utility to preview application windows in the dock."
     },
     {
@@ -3292,6 +3327,13 @@
       "description": "Firefly Shimmer is an official wallet for IOTA."
     },
     {
+      "name": "Mozilla Firefox (ARM64)",
+      "slug": "firefox-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox (AArch64 en-US)",
+      "description": "Mozilla Firefox (ARM64) is the native ARM64 build of Firefox, a powerful, open-source web browser built for speed, privacy, and customization."
+    },
+    {
       "name": "Mozilla Firefox",
       "slug": "firefox/darwin",
       "platform": "darwin",
@@ -3325,6 +3367,13 @@
       "platform": "windows",
       "unique_identifier": "Firefox Developer Edition (x64 en-US)",
       "description": "Mozilla Firefox Developer Edition is the version of the Firefox web browser made for web developers, with cutting-edge features and built-in developer tools."
+    },
+    {
+      "name": "Mozilla Firefox ESR (ARM64)",
+      "slug": "firefox@esr-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox ESR (AArch64 en-US)",
+      "description": "Mozilla Firefox ESR (ARM64) is the native ARM64 build of Firefox ESR, the Extended Support Release of the Firefox web browser."
     },
     {
       "name": "Mozilla Firefox ESR",
@@ -3395,6 +3444,13 @@
       "platform": "darwin",
       "unique_identifier": "com.fluidapp.Fluid2",
       "description": "Fluid is a tool to turn a website into a desktop app."
+    },
+    {
+      "name": "FluidVoice",
+      "slug": "fluidvoice/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.FluidApp.app",
+      "description": "FluidVoice is an offline voice-to-text dictation app with AI enhancement."
     },
     {
       "name": "f.lux",
@@ -3677,6 +3733,13 @@
       "description": "GIMP is a free and open-source image editor."
     },
     {
+      "name": "Git (ARM64)",
+      "slug": "git-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Git",
+      "description": "Git (ARM64) is the native ARM64 build of Git, a free and open source distributed version control system."
+    },
+    {
       "name": "Git Extensions",
       "slug": "git-extensions/windows",
       "platform": "windows",
@@ -3710,6 +3773,13 @@
       "platform": "darwin",
       "unique_identifier": "com.github.CopilotForXcode",
       "description": "GitHub Copilot for Xcode is a xcode extension for GitHub Copilot."
+    },
+    {
+      "name": "GitHub Desktop (ARM64)",
+      "slug": "github-desktop-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "GitHub Desktop",
+      "description": "GitHub Desktop (ARM64) is the native ARM64 build of GitHub Desktop, a desktop client for GitHub repositories."
     },
     {
       "name": "GitHub Desktop",
@@ -3850,6 +3920,13 @@
       "platform": "windows",
       "unique_identifier": "Google Ads Editor",
       "description": "Google Ads Editor is a free application for managing Google Ads campaigns."
+    },
+    {
+      "name": "Google Chrome (ARM64)",
+      "slug": "google-chrome-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Chrome",
+      "description": "Google Chrome (ARM64) is the native ARM64 build of Google Chrome, a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
       "name": "Google Chrome",
@@ -4440,6 +4517,13 @@
       "description": "IntelliDock is a hides the Dock when it is overlapped by a window."
     },
     {
+      "name": "IntelliJ IDEA (ARM64)",
+      "slug": "intellij-idea-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "IntelliJ IDEA",
+      "description": "IntelliJ IDEA (ARM64) is the native ARM64 build of IntelliJ IDEA, a Java IDE by JetBrains."
+    },
+    {
       "name": "IntelliJ IDEA",
       "slug": "intellij-idea/darwin",
       "platform": "darwin",
@@ -4786,7 +4870,7 @@
       "name": "Klokki",
       "slug": "klokki/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.klokki-launcher",
+      "unique_identifier": "com.klokki.macos",
       "description": "Klokki is an automatic time-tracking solution."
     },
     {
@@ -5553,6 +5637,13 @@
       "description": "Microsoft Remote Help is an application that works with Microsoft Intune to provide secure, assisted remote connections between helpdesk staff and users."
     },
     {
+      "name": "Microsoft Teams (ARM64)",
+      "slug": "microsoft-teams-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Teams",
+      "description": "Microsoft Teams (ARM64) is the native ARM64 build of Microsoft Teams, an all-in-one collaboration platform for meetings, chats, calls, and document sharing."
+    },
+    {
       "name": "Microsoft Teams",
       "slug": "microsoft-teams/darwin",
       "platform": "darwin",
@@ -6041,6 +6132,13 @@
       "platform": "windows",
       "unique_identifier": "NoSQL Workbench",
       "description": "NoSQL Workbench is a client-side GUI application for modern database development and operations."
+    },
+    {
+      "name": "Notepad++ (ARM64)",
+      "slug": "notepad++-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Notepad++ (ARM 64-bit)",
+      "description": "Notepad++ (ARM64) is the native ARM64 build of Notepad++, a text editor for Windows."
     },
     {
       "name": "Notepad++",
@@ -6624,6 +6722,13 @@
       "description": "PhotoStickies is a tool to show photos or camera feeds on the desktop."
     },
     {
+      "name": "PhpStorm (ARM64)",
+      "slug": "phpstorm-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PhpStorm",
+      "description": "PhpStorm (ARM64) is the native ARM64 build of PhpStorm, a PHP IDE by JetBrains."
+    },
+    {
       "name": "PhpStorm",
       "slug": "phpstorm/darwin",
       "platform": "darwin",
@@ -6862,11 +6967,25 @@
       "description": "PowerPhotos is a tool to organise photo libraries."
     },
     {
+      "name": "PowerShell (ARM64)",
+      "slug": "powershell-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PowerShell 7-arm64",
+      "description": "PowerShell (ARM64) is the native ARM64 build of PowerShell, a cross-platform task automation solution made up of a command-line shell, a scripting language, and a configuration management framework."
+    },
+    {
       "name": "PowerShell",
       "slug": "powershell/windows",
       "platform": "windows",
       "unique_identifier": "PowerShell 7-x64",
       "description": "PowerShell is a cross-platform task automation solution made up of a command-line shell, a scripting language, and a configuration management framework."
+    },
+    {
+      "name": "PowerToys (ARM64)",
+      "slug": "powertoys-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PowerToys (Preview) ARM64",
+      "description": "PowerToys (ARM64) is the native ARM64 build of PowerToys, a set of utilities from Microsoft for power users to tune and streamline their Windows experience."
     },
     {
       "name": "PowerToys",
@@ -7086,6 +7205,13 @@
       "description": "PureVPN is a VPN client."
     },
     {
+      "name": "PuTTY (ARM64)",
+      "slug": "putty-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "PuTTY release",
+      "description": "PuTTY (ARM64) is the native ARM64 build of PuTTY, a free, open-source SSH and Telnet client for Windows."
+    },
+    {
       "name": "PuTTY",
       "slug": "putty/windows",
       "platform": "windows",
@@ -7119,6 +7245,13 @@
       "platform": "windows",
       "unique_identifier": "PyCharm",
       "description": "PyCharm Professional is a Jetbrains IDE for professional Python development. This version includes advanced features and requires a valid license."
+    },
+    {
+      "name": "Python 3.13 (ARM64)",
+      "slug": "python-3.13-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Python 3.13.15 (ARM64)",
+      "description": "Python 3.13 (ARM64) is the native ARM64 build of Python 3.13, a high-level, general-purpose programming language."
     },
     {
       "name": "Python 3.13",
@@ -7348,7 +7481,7 @@
       "name": "REDCINE-X PRO",
       "slug": "redcine-x-pro/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.red.RED-Tether",
+      "unique_identifier": "com.red.RedCineX",
       "description": "REDCINE-X PRO is an app to transcode and manipulate REDCODE RAW footage."
     },
     {
@@ -7803,7 +7936,7 @@
       "name": "ShareFile",
       "slug": "sharefile/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.citrixfiles.ens.service",
+      "unique_identifier": "com.sharefile.desktop.widget",
       "description": "ShareFile is a client for the Progress ShareFile storage service."
     },
     {
@@ -7898,13 +8031,6 @@
       "description": "Simple Comic is a comic viewer/reader."
     },
     {
-      "name": "SiriMote",
-      "slug": "sirimote/darwin",
-      "platform": "darwin",
-      "unique_identifier": "at.EternalStorms.SiriMote-nonappstore",
-      "description": "SiriMote is a tool to control your computer with your Apple TV Siri Remote."
-    },
-    {
       "name": "Sketch",
       "slug": "sketch/darwin",
       "platform": "darwin",
@@ -7917,6 +8043,13 @@
       "platform": "darwin",
       "unique_identifier": "com.slab.slab",
       "description": "Slab is a knowledge management for organisations."
+    },
+    {
+      "name": "Slack (ARM64)",
+      "slug": "slack-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Slack",
+      "description": "Slack (ARM64) is the native ARM64 build of Slack, team communication and collaboration software for modern workplaces."
     },
     {
       "name": "Slack",
@@ -8864,6 +8997,13 @@
       "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
     },
     {
+      "name": "TortoiseGit (ARM64)",
+      "slug": "tortoisegit-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "TortoiseGit",
+      "description": "TortoiseGit (ARM64) is the native ARM64 build of TortoiseGit, a Windows shell interface to Git. Requires Git for Windows to be installed."
+    },
+    {
       "name": "TortoiseGit",
       "slug": "tortoisegit/windows",
       "platform": "windows",
@@ -9242,6 +9382,13 @@
       "description": "Visual Studio Professional 2022 is Microsoft's IDE for professional developers working across desktop, web, mobile, and cloud."
     },
     {
+      "name": "Microsoft Visual Studio Code (ARM64)",
+      "slug": "visual-studio-code-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Microsoft Visual Studio Code",
+      "description": "Microsoft Visual Studio Code (ARM64) is the native ARM64 build of Visual Studio Code, an open-source, lightweight, and powerful code editor."
+    },
+    {
       "name": "Microsoft Visual Studio Code",
       "slug": "visual-studio-code/darwin",
       "platform": "darwin",
@@ -9282,6 +9429,13 @@
       "platform": "darwin",
       "unique_identifier": "com.alienator88.Viz",
       "description": "Viz is a utility for extracting text from images, videos, QR codes and barcodes."
+    },
+    {
+      "name": "VLC media player (ARM64)",
+      "slug": "vlc-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "VLC media player",
+      "description": "VLC media player (ARM64) is the native ARM64 build of VLC media player, a free and open-source media player."
     },
     {
       "name": "VLC media player",
@@ -9763,7 +9917,7 @@
       "name": "XnViewMP",
       "slug": "xnviewmp/windows",
       "platform": "windows",
-      "unique_identifier": "XnView MP",
+      "unique_identifier": "XnView MP (x64)",
       "description": "XnViewMP is a photo viewer, image manager, image resiser and more."
     },
     {
@@ -9905,6 +10059,13 @@
       "platform": "darwin",
       "unique_identifier": "com.linebreak.CloudAppMacOSX",
       "description": "Zight is a visual communication platform."
+    },
+    {
+      "name": "Zoom (ARM64)",
+      "slug": "zoom-arm64/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom Workplace (ARM64)",
+      "description": "Zoom (ARM64) is the native ARM64 build of Zoom, a video communication platform for meetings, webinars, and collaboration."
     },
     {
       "name": "Zoom Outlook Plugin",

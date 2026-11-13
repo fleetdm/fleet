@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.4.121",
+      "version": "1.4.178",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.desktop' AND version_compare(bundle_short_version, '1.4.121') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.kiro.desktop' AND version_compare(bundle_short_version, '1.4.178') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'dev.kiro.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://prod.download.desktop.kiro.dev/releases/stable/darwin-arm64/signed/1.4.121/kiro-ide-1.4.121-stable-darwin-arm64.dmg",
+      "installer_url": "https://prod.download.desktop.kiro.dev/releases/stable/darwin-arm64/signed/1.4.178/kiro-ide-1.4.178-stable-darwin-arm64.dmg",
       "install_script_ref": "8b473135",
       "uninstall_script_ref": "73593b98",
-      "sha256": "746ad2b4efd1cc0b7849053643e8d8113e9be263ad8949f4fa257b798451f23a",
+      "sha256": "df8ac32eac1e7fb2b47d63ac53a5ce0c91cf69ed667f3d25f751876a6922a840",
       "default_categories": [
         "Developer tools"
       ]

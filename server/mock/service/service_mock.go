@@ -145,27 +145,7 @@ type GetSessionByKeyFunc func(ctx context.Context, key string) (session *fleet.S
 
 type DeleteSessionFunc func(ctx context.Context, id uint) (err error)
 
-type ApplyPackSpecsFunc func(ctx context.Context, specs []*fleet.PackSpec) ([]*fleet.PackSpec, error)
-
-type GetPackSpecsFunc func(ctx context.Context) ([]*fleet.PackSpec, error)
-
-type GetPackSpecFunc func(ctx context.Context, name string) (*fleet.PackSpec, error)
-
-type NewPackFunc func(ctx context.Context, p fleet.PackPayload) (pack *fleet.Pack, err error)
-
-type ModifyPackFunc func(ctx context.Context, id uint, p fleet.PackPayload) (pack *fleet.Pack, err error)
-
-type ListPacksFunc func(ctx context.Context, opt fleet.PackListOptions) (packs []*fleet.Pack, err error)
-
-type GetPackFunc func(ctx context.Context, id uint) (pack *fleet.Pack, err error)
-
-type DeletePackFunc func(ctx context.Context, name string) (err error)
-
-type DeletePackByIDFunc func(ctx context.Context, id uint) (err error)
-
-type ListPacksForHostFunc func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error)
-
-type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, namesToMove []string) error
+type ApplyLabelSpecsFunc func(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, labelsToMove []fleet.LabelToMove) error
 
 type GetLabelSpecsFunc func(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error)
 
@@ -180,8 +160,6 @@ type ListLabelsFunc func(ctx context.Context, opt fleet.ListOptions, teamID *uin
 type LabelsSummaryFunc func(ctx context.Context, teamID *uint) (labels []*fleet.LabelSummary, err error)
 
 type GetLabelFunc func(ctx context.Context, id uint) (label *fleet.LabelWithTeamName, hostIDs []uint, err error)
-
-type DeleteLabelFunc func(ctx context.Context, name string) (err error)
 
 type DeleteLabelByIDFunc func(ctx context.Context, id uint) (err error)
 
@@ -373,16 +351,6 @@ type SearchTargetsFunc func(ctx context.Context, searchQuery string, queryID *ui
 
 type CountHostsInTargetsFunc func(ctx context.Context, queryID *uint, targets fleet.HostTargets) (*fleet.TargetMetrics, error)
 
-type GetScheduledQueriesInPackFunc func(ctx context.Context, id uint, opts fleet.ListOptions) (queries []*fleet.ScheduledQuery, err error)
-
-type GetScheduledQueryFunc func(ctx context.Context, id uint) (query *fleet.ScheduledQuery, err error)
-
-type ScheduleQueryFunc func(ctx context.Context, sq *fleet.ScheduledQuery) (query *fleet.ScheduledQuery, err error)
-
-type DeleteScheduledQueryFunc func(ctx context.Context, id uint) (err error)
-
-type ModifyScheduledQueryFunc func(ctx context.Context, id uint, p fleet.ScheduledQueryPayload) (query *fleet.ScheduledQuery, err error)
-
 type StatusResultStoreFunc func(ctx context.Context) error
 
 type StatusLiveQueryFunc func(ctx context.Context) error
@@ -440,8 +408,6 @@ type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
 type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) error
-
-type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec) error
 
 type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error)
 
@@ -1218,36 +1184,6 @@ type Service struct {
 	DeleteSessionFunc        DeleteSessionFunc
 	DeleteSessionFuncInvoked bool
 
-	ApplyPackSpecsFunc        ApplyPackSpecsFunc
-	ApplyPackSpecsFuncInvoked bool
-
-	GetPackSpecsFunc        GetPackSpecsFunc
-	GetPackSpecsFuncInvoked bool
-
-	GetPackSpecFunc        GetPackSpecFunc
-	GetPackSpecFuncInvoked bool
-
-	NewPackFunc        NewPackFunc
-	NewPackFuncInvoked bool
-
-	ModifyPackFunc        ModifyPackFunc
-	ModifyPackFuncInvoked bool
-
-	ListPacksFunc        ListPacksFunc
-	ListPacksFuncInvoked bool
-
-	GetPackFunc        GetPackFunc
-	GetPackFuncInvoked bool
-
-	DeletePackFunc        DeletePackFunc
-	DeletePackFuncInvoked bool
-
-	DeletePackByIDFunc        DeletePackByIDFunc
-	DeletePackByIDFuncInvoked bool
-
-	ListPacksForHostFunc        ListPacksForHostFunc
-	ListPacksForHostFuncInvoked bool
-
 	ApplyLabelSpecsFunc        ApplyLabelSpecsFunc
 	ApplyLabelSpecsFuncInvoked bool
 
@@ -1271,9 +1207,6 @@ type Service struct {
 
 	GetLabelFunc        GetLabelFunc
 	GetLabelFuncInvoked bool
-
-	DeleteLabelFunc        DeleteLabelFunc
-	DeleteLabelFuncInvoked bool
 
 	DeleteLabelByIDFunc        DeleteLabelByIDFunc
 	DeleteLabelByIDFuncInvoked bool
@@ -1560,21 +1493,6 @@ type Service struct {
 	CountHostsInTargetsFunc        CountHostsInTargetsFunc
 	CountHostsInTargetsFuncInvoked bool
 
-	GetScheduledQueriesInPackFunc        GetScheduledQueriesInPackFunc
-	GetScheduledQueriesInPackFuncInvoked bool
-
-	GetScheduledQueryFunc        GetScheduledQueryFunc
-	GetScheduledQueryFuncInvoked bool
-
-	ScheduleQueryFunc        ScheduleQueryFunc
-	ScheduleQueryFuncInvoked bool
-
-	DeleteScheduledQueryFunc        DeleteScheduledQueryFunc
-	DeleteScheduledQueryFuncInvoked bool
-
-	ModifyScheduledQueryFunc        ModifyScheduledQueryFunc
-	ModifyScheduledQueryFuncInvoked bool
-
 	StatusResultStoreFunc        StatusResultStoreFunc
 	StatusResultStoreFuncInvoked bool
 
@@ -1661,9 +1579,6 @@ type Service struct {
 
 	CancelHostUpcomingActivityFunc        CancelHostUpcomingActivityFunc
 	CancelHostUpcomingActivityFuncInvoked bool
-
-	ApplyUserRolesSpecsFunc        ApplyUserRolesSpecsFunc
-	ApplyUserRolesSpecsFuncInvoked bool
 
 	CreateCertificateTemplateFunc        CreateCertificateTemplateFunc
 	CreateCertificateTemplateFuncInvoked bool
@@ -2984,81 +2899,11 @@ func (s *Service) DeleteSession(ctx context.Context, id uint) (err error) {
 	return s.DeleteSessionFunc(ctx, id)
 }
 
-func (s *Service) ApplyPackSpecs(ctx context.Context, specs []*fleet.PackSpec) ([]*fleet.PackSpec, error) {
-	s.mu.Lock()
-	s.ApplyPackSpecsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ApplyPackSpecsFunc(ctx, specs)
-}
-
-func (s *Service) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error) {
-	s.mu.Lock()
-	s.GetPackSpecsFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetPackSpecsFunc(ctx)
-}
-
-func (s *Service) GetPackSpec(ctx context.Context, name string) (*fleet.PackSpec, error) {
-	s.mu.Lock()
-	s.GetPackSpecFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetPackSpecFunc(ctx, name)
-}
-
-func (s *Service) NewPack(ctx context.Context, p fleet.PackPayload) (pack *fleet.Pack, err error) {
-	s.mu.Lock()
-	s.NewPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewPackFunc(ctx, p)
-}
-
-func (s *Service) ModifyPack(ctx context.Context, id uint, p fleet.PackPayload) (pack *fleet.Pack, err error) {
-	s.mu.Lock()
-	s.ModifyPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.ModifyPackFunc(ctx, id, p)
-}
-
-func (s *Service) ListPacks(ctx context.Context, opt fleet.PackListOptions) (packs []*fleet.Pack, err error) {
-	s.mu.Lock()
-	s.ListPacksFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListPacksFunc(ctx, opt)
-}
-
-func (s *Service) GetPack(ctx context.Context, id uint) (pack *fleet.Pack, err error) {
-	s.mu.Lock()
-	s.GetPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetPackFunc(ctx, id)
-}
-
-func (s *Service) DeletePack(ctx context.Context, name string) (err error) {
-	s.mu.Lock()
-	s.DeletePackFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeletePackFunc(ctx, name)
-}
-
-func (s *Service) DeletePackByID(ctx context.Context, id uint) (err error) {
-	s.mu.Lock()
-	s.DeletePackByIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeletePackByIDFunc(ctx, id)
-}
-
-func (s *Service) ListPacksForHost(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-	s.mu.Lock()
-	s.ListPacksForHostFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListPacksForHostFunc(ctx, hid)
-}
-
-func (s *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, namesToMove []string) error {
+func (s *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec, teamID *uint, labelsToMove []fleet.LabelToMove) error {
 	s.mu.Lock()
 	s.ApplyLabelSpecsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ApplyLabelSpecsFunc(ctx, specs, teamID, namesToMove)
+	return s.ApplyLabelSpecsFunc(ctx, specs, teamID, labelsToMove)
 }
 
 func (s *Service) GetLabelSpecs(ctx context.Context, teamID *uint) ([]*fleet.LabelSpec, error) {
@@ -3108,13 +2953,6 @@ func (s *Service) GetLabel(ctx context.Context, id uint) (label *fleet.LabelWith
 	s.GetLabelFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetLabelFunc(ctx, id)
-}
-
-func (s *Service) DeleteLabel(ctx context.Context, name string) (err error) {
-	s.mu.Lock()
-	s.DeleteLabelFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteLabelFunc(ctx, name)
 }
 
 func (s *Service) DeleteLabelByID(ctx context.Context, id uint) (err error) {
@@ -3782,41 +3620,6 @@ func (s *Service) CountHostsInTargets(ctx context.Context, queryID *uint, target
 	return s.CountHostsInTargetsFunc(ctx, queryID, targets)
 }
 
-func (s *Service) GetScheduledQueriesInPack(ctx context.Context, id uint, opts fleet.ListOptions) (queries []*fleet.ScheduledQuery, err error) {
-	s.mu.Lock()
-	s.GetScheduledQueriesInPackFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetScheduledQueriesInPackFunc(ctx, id, opts)
-}
-
-func (s *Service) GetScheduledQuery(ctx context.Context, id uint) (query *fleet.ScheduledQuery, err error) {
-	s.mu.Lock()
-	s.GetScheduledQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetScheduledQueryFunc(ctx, id)
-}
-
-func (s *Service) ScheduleQuery(ctx context.Context, sq *fleet.ScheduledQuery) (query *fleet.ScheduledQuery, err error) {
-	s.mu.Lock()
-	s.ScheduleQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.ScheduleQueryFunc(ctx, sq)
-}
-
-func (s *Service) DeleteScheduledQuery(ctx context.Context, id uint) (err error) {
-	s.mu.Lock()
-	s.DeleteScheduledQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteScheduledQueryFunc(ctx, id)
-}
-
-func (s *Service) ModifyScheduledQuery(ctx context.Context, id uint, p fleet.ScheduledQueryPayload) (query *fleet.ScheduledQuery, err error) {
-	s.mu.Lock()
-	s.ModifyScheduledQueryFuncInvoked = true
-	s.mu.Unlock()
-	return s.ModifyScheduledQueryFunc(ctx, id, p)
-}
-
 func (s *Service) StatusResultStore(ctx context.Context) error {
 	s.mu.Lock()
 	s.StatusResultStoreFuncInvoked = true
@@ -4018,13 +3821,6 @@ func (s *Service) CancelHostUpcomingActivity(ctx context.Context, hostID uint, e
 	s.CancelHostUpcomingActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.CancelHostUpcomingActivityFunc(ctx, hostID, executionID)
-}
-
-func (s *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRoleSpec) error {
-	s.mu.Lock()
-	s.ApplyUserRolesSpecsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ApplyUserRolesSpecsFunc(ctx, specs)
 }
 
 func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error) {

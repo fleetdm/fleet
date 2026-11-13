@@ -169,10 +169,10 @@ type VulnerabilitySettings struct {
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
 	Default          bool   `json:"default,omitempty"`
-	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
-	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
-	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
-	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
+	MacOSTeam        string `json:"macos_fleet"`
+	IOSTeam          string `json:"ios_fleet"`
+	IpadOSTeam       string `json:"ipados_fleet"`
+	BYODTeam         string `json:"byod_fleet"`
 }
 
 // CleanRemovedTeam unassigns removedTeamName, which for ABM is spelled as a
@@ -200,7 +200,7 @@ func (m *MDMAppleABMAssignmentInfo) RenameTeam(oldName, newName string) bool {
 // between a VPP token (via organization unit, formerly "location") and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
-	Teams    []string `json:"teams" renameto:"fleets"`
+	Teams    []string `json:"fleets"`
 }
 
 func (m *MDMAppleVolumePurchasingProgramInfo) RenameTeam(oldName, newName string) bool {
@@ -279,7 +279,7 @@ type MDM struct {
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
 	MacOSSettings                  MacOSSettings            `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup                     MacOSSetup               `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSetup                     MacOSSetup               `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
 	WindowsMigrationEnabled        bool                     `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled" renamescope:"mdm"`
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
@@ -1027,19 +1027,19 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage                                  optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
+	BootstrapPackage                                  optjson.String                     `json:"macos_bootstrap_package" removedkey:"bootstrap_package" renamescope:"setup_experience"`
 	EnableEndUserAuthentication                       bool                               `json:"enable_end_user_authentication"`
 	LockEndUserInfo                                   optjson.Bool                       `json:"lock_end_user_info"`
-	MacOSSetupAssistant                               optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
-	EnableReleaseDeviceManually                       optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	Script                                            optjson.String                     `json:"script" renameto:"macos_script"`
+	MacOSSetupAssistant                               optjson.String                     `json:"apple_setup_assistant" removedkey:"macos_setup_assistant" renamescope:"setup_experience"`
+	EnableReleaseDeviceManually                       optjson.Bool                       `json:"apple_enable_release_device_manually" removedkey:"enable_release_device_manually" renamescope:"setup_experience"`
+	Script                                            optjson.String                     `json:"macos_script" removedkey:"script" renamescope:"setup_experience"`
 	Software                                          optjson.Slice[*MacOSSetupSoftware] `json:"software"`
-	ManualAgentInstall                                optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware                                bool                               `json:"macos_require_all_software" removedkey:"require_all_software_macos" renamescope:"macos_setup,setup_experience"`
-	RequireAllSoftwareWindows                         bool                               `json:"windows_require_all_software" removedkey:"require_all_software_windows" renamescope:"macos_setup,setup_experience"`
+	ManualAgentInstall                                optjson.Bool                       `json:"macos_manual_agent_install" removedkey:"manual_agent_install" renamescope:"setup_experience"`
+	RequireAllSoftware                                bool                               `json:"macos_require_all_software" removedkey:"require_all_software_macos" renamescope:"setup_experience"`
+	RequireAllSoftwareWindows                         bool                               `json:"windows_require_all_software" removedkey:"require_all_software_windows" renamescope:"setup_experience"`
 	MacOSEnableBootstrapPackageDuringManualEnrollment bool                               `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
 	MacOSEnableBootstrapPackageDuringMigration        bool                               `json:"macos_enable_bootstrap_package_during_migration"`
-	EnableManagedLocalAccount                         optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
+	EnableManagedLocalAccount                         optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"setup_experience"`
 	EndUserLocalAccountType                           optjson.String                     `json:"end_user_local_account_type"`
 }
 
@@ -1890,7 +1890,6 @@ type ServerSettings struct {
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
 	QueryReportsDisabled bool   `json:"query_reports_disabled" renameto:"discard_reports_data"`
-	ScriptsDisabled      bool   `json:"scripts_disabled"`
 	AIFeaturesDisabled   bool   `json:"ai_features_disabled"`
 	MCPDisabled          bool   `json:"mcp_disabled"`
 	QueryReportCap       int    `json:"query_report_cap" renameto:"report_cap"`
@@ -2203,7 +2202,7 @@ type ListOptions struct {
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`
 	// Used to request the pagination metadata in the response.
-	IncludeMetadata bool
+	IncludeMetadata bool `json:"-"`
 
 	// The following fields are for tests, to ensure a deterministic sort order
 	// when the single-column order key is not unique.

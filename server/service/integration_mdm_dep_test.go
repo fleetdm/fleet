@@ -80,7 +80,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	signedPkg := b
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "", false)
 
-	// add a custom setup assistant and ensure enable_release_device_manually is
+	// add a custom setup assistant and ensure apple_enable_release_device_manually is
 	// false (the default)
 	noTeamProf := `{"x": 1}`
 	s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
@@ -89,7 +89,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 		EnrollmentProfile: json.RawMessage(noTeamProf),
 	}, http.StatusOK)
 	payload := map[string]any{
-		"enable_release_device_manually": false,
+		"apple_enable_release_device_manually": false,
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 
@@ -224,7 +224,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	signedPkg := b
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: tm.ID}, http.StatusOK, "", false)
 
-	// add a custom setup assistant and ensure enable_release_device_manually is
+	// add a custom setup assistant and ensure apple_enable_release_device_manually is
 	// false (the default)
 	teamProf := `{"y": 2}`
 	s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
@@ -233,7 +233,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 		EnrollmentProfile: json.RawMessage(teamProf),
 	}, http.StatusOK)
 	payload := map[string]any{
-		"enable_release_device_manually": false,
+		"apple_enable_release_device_manually": false,
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 
@@ -244,16 +244,16 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 			"mdm": {
 			       "apple_business_manager": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }],
 				"end_user_authentication": {
 					"entity_id": "https://localhost:8080",
 					"idp_name": "SimpleSAML",
 					"metadata_url": "%s"
 				},
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true
 				}
 			}
@@ -262,7 +262,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	t.Cleanup(func() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": false
 				}
 			}
@@ -274,7 +274,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 
 	// add a team profile
 	teamProfile := mobileconfigForTest("N2", "I2")
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 	// enable FileVault
 	s.Do("POST", "/api/latest/fleet/disk_encryption", updateDiskEncryptionRequest{TeamID: &tm.ID, EnableDiskEncryption: new(true)}, http.StatusNoContent)
@@ -366,7 +366,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
 	err = s.ds.ApplyEnrollSecrets(ctx, &tm.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}})
 	require.NoError(t, err)
 
-	// add a custom setup assistant and ensure enable_release_device_manually is
+	// add a custom setup assistant and ensure apple_enable_release_device_manually is
 	// false (the default)
 	teamProf := `{"y": 2}`
 	s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
@@ -375,7 +375,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
 		EnrollmentProfile: json.RawMessage(teamProf),
 	}, http.StatusOK)
 	payload := map[string]any{
-		"enable_release_device_manually": false,
+		"apple_enable_release_device_manually": false,
 	}
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 
@@ -385,16 +385,16 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
 			"mdm": {
 			       "apple_business_manager": [{
 			         "organization_name": %q,
-			         "macos_team": %q,
-			         "ios_team": %q,
-			         "ipados_team": %q
+			         "macos_fleet": %q,
+			         "ios_fleet": %q,
+			         "ipados_fleet": %q
 			       }]
 			}
 		}`, "fleet_ade_test", tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
 
 	// add a team profile
 	teamProfile := mobileconfigForTest("N2", "I2")
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", appleProfilesBatchRequest([][]byte{teamProfile}), http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
@@ -432,11 +432,11 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 
 	// set the enable release device manually option
 	payload := map[string]any{
-		"enable_release_device_manually": opts.EnableReleaseManually,
-		"manual_agent_install":           opts.ManualAgentInstall,
+		"apple_enable_release_device_manually": opts.EnableReleaseManually,
+		"macos_manual_agent_install":           opts.ManualAgentInstall,
 	}
 	if opts.TeamID != nil {
-		payload["team_id"] = *opts.TeamID
+		payload["fleet_id"] = *opts.TeamID
 		if opts.BootstrapPackage {
 			team, err := s.ds.TeamWithExtras(ctx, *opts.TeamID) // TODO see if we can convert to TeamLite (will require a new save DS method)
 			require.NoError(t, err)
@@ -475,8 +475,8 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			}
 		}
 
-		payload["enable_release_device_manually"] = false
-		payload["manual_agent_install"] = false
+		payload["apple_enable_release_device_manually"] = false
+		payload["macos_manual_agent_install"] = false
 		s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 	})
 
@@ -873,7 +873,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// set release device manually to true so there is no job enqueued at a later
 	// time to release the device (this is not what this test is about)
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, map[string]any{
-		"enable_release_device_manually": true,
+		"apple_enable_release_device_manually": true,
 	})), http.StatusNoContent)
 
 	profileAssignmentReqs := []profileAssignmentReq{}
@@ -1821,7 +1821,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 	// set release device manually to true so there is no job enqueued at a later
 	// time to release the device (this is not what this test is about)
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, map[string]any{
-		"enable_release_device_manually": true,
+		"apple_enable_release_device_manually": true,
 	})), http.StatusNoContent)
 
 	// set up multiple ABM tokens with different org names
@@ -1842,10 +1842,10 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignmentWithMultipleABMs() {
 		"mdm": {
 			"apple_business_manager": [{
 			  "organization_name": %q,
-			  "macos_team": %q,
-			  "ios_team": %q,
-			  "ipados_team": %q,
-			  "byod_team": %q
+			  "macos_fleet": %q,
+			  "ios_fleet": %q,
+			  "ipados_fleet": %q,
+			  "byod_fleet": %q
 			}]
 		}
 	}`, tmOrgName, tm.Name, tm.Name, tm.Name, tm.Name)), http.StatusOK, &acResp)
@@ -2602,7 +2602,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 
 	// this helper function sets the enable end user authentication for the team or no team
 	setEnableEndUserAuth := func(enable bool, teamID *uint) {
-		raw := json.RawMessage(fmt.Sprintf(`{ "mdm": { "macos_setup": { "enable_end_user_authentication": %v } } }`, enable))
+		raw := json.RawMessage(fmt.Sprintf(`{ "mdm": { "setup_experience": { "enable_end_user_authentication": %v } } }`, enable))
 		if teamID == nil {
 			acResp := appConfigResponse{}
 			s.DoJSON("PATCH", "/api/latest/fleet/config", raw, http.StatusOK, &acResp)
@@ -2625,7 +2625,7 @@ func (s *integrationMDMTestSuite) TestEnforceMiniumOSVersion() {
 		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 			"mdm": {
 				"macos_updates": { "minimum_version": null, "deadline": null },
-				"macos_setup": { "enable_end_user_authentication": false },
+				"setup_experience": { "enable_end_user_authentication": false },
 				"end_user_authentication": { "entity_id": "", "idp_name": "", "metadata_url": "", "metadata": "" }
 			}
 		}`), http.StatusOK, &acResp)
