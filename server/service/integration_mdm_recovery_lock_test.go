@@ -531,7 +531,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.NotZero(t, getPasswordResp.RecoveryLockPassword.UpdatedAt)
 
 		// Verify activity was created for viewing password
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeViewedHostRecoveryLockPassword{}.ActivityName(),
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeReadHostRecoveryLockPassword{}.ActivityName(),
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
 
 		// Disable recovery lock password

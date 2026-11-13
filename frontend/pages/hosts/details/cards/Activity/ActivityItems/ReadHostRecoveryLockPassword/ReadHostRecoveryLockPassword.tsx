@@ -4,7 +4,7 @@ import ActivityItem from "components/ActivityItem";
 
 import { IHostActivityItemComponentProps } from "../../ActivityConfig";
 
-const ViewedHostRecoveryLockPasswordActivityItem = ({
+const ReadHostRecoveryLockPasswordActivityItem = ({
   activity,
 }: IHostActivityItemComponentProps) => {
   return (
@@ -15,4 +15,4 @@ const ViewedHostRecoveryLockPasswordActivityItem = ({
   );
 };
 
-export default ViewedHostRecoveryLockPasswordActivityItem;
+export default ReadHostRecoveryLockPasswordActivityItem;
