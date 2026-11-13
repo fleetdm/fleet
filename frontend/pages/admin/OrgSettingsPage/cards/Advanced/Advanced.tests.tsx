@@ -13,6 +13,7 @@ const renderAdvanced = (
     gitOpsModeEnabled?: boolean;
     tier?: string;
     mcpDisabled?: boolean;
+    aiSessionsDisabled?: boolean;
   } = {}
 ) => {
   const baseConfig = createMockConfig();
@@ -22,6 +23,7 @@ const renderAdvanced = (
     server_settings: {
       ...baseConfig.server_settings,
       mcp_disabled: overrides.mcpDisabled ?? false,
+      ai_sessions_disabled: overrides.aiSessionsDisabled ?? false,
     },
     features: {
       ...baseConfig.features,
@@ -34,7 +36,7 @@ const renderAdvanced = (
   const render = createCustomRenderer({
     context: {
       app: {
-        isPremiumTier: true,
+        isPremiumTier: (overrides.tier ?? "premium") === "premium",
         config: {
           ...config,
           gitops: {
@@ -202,5 +204,35 @@ describe("Advanced settings — MCP server", () => {
   it("hides the MCP server checkbox on Fleet Free", () => {
     renderAdvanced({ tier: "free" });
     expect(screen.queryByLabelText(/MCP server/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Advanced settings — AI sessions", () => {
+  it("shows the Store host AI sessions checkbox checked by default on Premium", () => {
+    renderAdvanced();
+    expect(screen.getByLabelText(/Store host AI sessions/)).toBeChecked();
+  });
+
+  it("sends ai_sessions_disabled true after unchecking it", async () => {
+    const { user, handleSubmit } = renderAdvanced();
+    await user.click(
+      screen.getByRole("checkbox", { name: "disableAISessions" })
+    );
+    await user.click(screen.getByRole("button", { name: /^save$/i }));
+    expect(
+      handleSubmit.mock.calls[0][0].server_settings.ai_sessions_disabled
+    ).toBe(true);
+  });
+
+  it("starts unchecked when AI sessions are disabled in config", () => {
+    renderAdvanced({ aiSessionsDisabled: true });
+    expect(screen.getByLabelText(/Store host AI sessions/)).not.toBeChecked();
+  });
+
+  it("hides the Store host AI sessions checkbox on Fleet Free", () => {
+    renderAdvanced({ tier: "free" });
+    expect(
+      screen.queryByLabelText(/Store host AI sessions/)
+    ).not.toBeInTheDocument();
   });
 });
