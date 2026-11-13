@@ -3750,7 +3750,9 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
         "total_issues_count": 3
       },
       "geolocation": {
+        "source": "public_ip",
         "country_iso": "US",
+        "region_iso": "NY",
         "city_name": "New York",
         "geometry": {
           "type": "point",
@@ -3879,7 +3881,7 @@ To filter Windows hosts using `os_name` and `os_version`, set `os_name` to the f
 }
 ```
 
-> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
+> Note: `geolocation` with `"source": "public_ip"` requires a [GeoIP database](https://fleetdm.com/docs/deploying/configuration#geoip). If none is configured, `geolocation` is only included for hosts that report their exact location (`"source": "device"`). `region_iso` is the host's state or region (ISO 3166-2 code), when available.
 
 > Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
 
@@ -4217,7 +4219,9 @@ Returns the information of the specified host.
       }
     ],
     "geolocation": {
+      "source": "public_ip",
       "country_iso": "US",
+      "region_iso": "NY",
       "city_name": "New York",
       "geometry": {
         "type": "point",
@@ -4606,7 +4610,9 @@ A profile with `"status": null` is a self-service profile the host can install b
       }
     ],
     "geolocation": {
+      "source": "public_ip",
       "country_iso": "US",
+      "region_iso": "NY",
       "city_name": "New York",
       "geometry": {
         "type": "point",
@@ -5004,7 +5010,7 @@ Entries in `mdm.profiles` that represent an Android certificate carry a `certifi
 
 `release` is included when set. For `rpm_packages`, it's the package release (for example, `1.212.el6`). For `go_binaries`, it's the version of the Go toolchain the binary was built with (for example, `go1.26.1`). Fleet uses it to detect Go standard library vulnerabilities, so the same binary version built with two toolchains is listed as two versions. `generated_cpe` is empty for Go binaries. Their vulnerabilities come from the [Go vulnerability database](https://vuln.go.dev) instead of NVD.
 
-> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
+> Note: `geolocation` with `"source": "public_ip"` requires a [GeoIP database](https://fleetdm.com/docs/deploying/configuration#geoip). If none is configured, `geolocation` is only included for hosts that report their exact location (`"source": "device"`). `region_iso` is the host's state or region (ISO 3166-2 code), when available.
 
 > Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
 
@@ -5013,6 +5019,7 @@ Entries in `mdm.profiles` that represent an Android certificate carry a `certifi
 > Note: 
 > - `signature_information` is set for macOS apps (`source: apps`) and Homebrew formulae (`source: homebrew_packages`). Apps get one entry per bundle. Homebrew formulae get one entry per Mach-O executable in the formula's `bin` and `sbin` directories, with `executable_path` and `executable_sha256`. For those entries, `team_identifier` is empty and `hash_sha256` is `null`. Homebrew hashes require fleetd 1.63.0.
 > - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> - For iOS and iPadOS hosts, `public_ip` is the IP address the host last used to check in to Fleet. `geolocation.source` is `"public_ip"` when location is based on the host's public IP, and `"device"` when it's the host's exact location (automatically enrolled iOS/iPadOS hosts in Lost Mode). The exact location takes precedence while the host is locked.
 > - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
 > - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
@@ -5143,7 +5150,9 @@ If `hostname` is specified when there is more than one host with the same hostna
       }
     ],
     "geolocation": {
+      "source": "public_ip",
       "country_iso": "US",
+      "region_iso": "NY",
       "city_name": "New York",
       "geometry": {
         "type": "point",
@@ -5333,7 +5342,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "hardware_serial": "F2LXX1XXXXXX",
     "computer_name": "John's iPhone",
     "timezone": null,
-    "public_ip": "",
+    "public_ip": "123.45.678.910",
     "primary_ip": "192.168.1.42",
     "primary_mac": "a4:83:e7:12:34:56",
     "distributed_interval": 10,
@@ -5430,7 +5439,9 @@ If `hostname` is specified when there is more than one host with the same hostna
       }
     ],
     "geolocation": {
+      "source": "public_ip",
       "country_iso": "US",
+      "region_iso": "NY",
       "city_name": "New York",
       "geometry": {
         "type": "point",
@@ -5771,7 +5782,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 }
 ```
 
-> Note: the response above assumes a [GeoIP database is configured](https://fleetdm.com/docs/deploying/configuration#geoip), otherwise the `geolocation` object won't be included.
+> Note: `geolocation` with `"source": "public_ip"` requires a [GeoIP database](https://fleetdm.com/docs/deploying/configuration#geoip). If none is configured, `geolocation` is only included for hosts that report their exact location (`"source": "device"`). `region_iso` is the host's state or region (ISO 3166-2 code), when available.
 
 > Note: `disk_encryption_enabled` is omitted when Fleet doesn't know the host's disk encryption status, such as when the host hasn't reported it yet. It's also omitted for Linux hosts that report their root volume as unencrypted, because Fleet can't confirm that a Linux host's disk is unencrypted.
 
@@ -5785,6 +5796,7 @@ If `hostname` is specified when there is more than one host with the same hostna
 
 > Note:
 > - Currently, the following are supported only for iOS/iPadOS: `accessibility_settings`, `app_analytics_enabled`, `awaiting_configuration`, `battery_level`, `bluetooth_mac`, `cellular_technology`, `data_roaming_enabled`, `device_properties_attestation`, `diagnostic_submission_enabled`, `eas_device_identifier`, `is_cloud_backup_enabled`, `is_device_locator_service_enabled`, `is_do_not_disturb_in_effect`, `is_mdm_lost_mode_enabled`, `is_network_tethered`, `itunes_store_account_hash`, `itunes_store_account_is_active`, `last_cloud_backup_date`, `mdm_options`, `model_number`, `modem_firmware_version`, `organization_info`, `personal_hotspot_enabled`, `push_token`, `service_subscriptions`, `supplemental_build_version`, `supplemental_os_version_extra`, `udid`, and `wifi_mac`.
+> - For iOS and iPadOS hosts, `public_ip` is the IP address the host last used to check in to Fleet. `geolocation.source` is `"public_ip"` when location is based on the host's public IP, and `"device"` when it's the host's exact location (automatically enrolled iOS/iPadOS hosts in Lost Mode). The exact location takes precedence while the host is locked.
 > - These iOS/iPadOS vitals are collected via Apple's [`DeviceInformation`](https://developer.apple.com/documentation/devicemanagement/deviceinformationcommand/command-data.dictionary/queries-data.dictionary) MDM command. A property the device doesn't report is omitted from the response rather than returned as `null`. The exception is `mdm_options`, which is returned as an empty object when the device reports it with nothing set.
 > - `cellular_technology` is one of `None`, `GSM`, `CDMA`, or `GSM and CDMA`. This will be `unknown` if Apple adds a value in the future that Fleet doesn't recognize.
 > - `device_properties_attestation` is an array of base64-encoded DER certificates forming a chain, leaf first. The chain is anchored to Apple's Enterprise Attestation Root CA, which is not itself included in the array.
@@ -7417,7 +7429,7 @@ Sends a command to lock the specified macOS, iOS, iPadOS, Linux, Windows, or And
 
 To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
-For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documentation/devicemanagement/enable-lost-mode-command) and sends a [Device Location](https://developer.apple.com/documentation/devicemanagement/device-location-command) MDM command. To see location, use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint.
+For iOS and iPadOS, this enables [Lost Mode](https://developer.apple.com/documentation/devicemanagement/enable-lost-mode-command) and sends a [Device Location](https://developer.apple.com/documentation/devicemanagement/device-location-command) MDM command. To see the host's exact location, use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint. While the host is locked, `geolocation.source` is `"device"`.
 
 `POST /api/v1/fleet/hosts/:id/lock`
 
