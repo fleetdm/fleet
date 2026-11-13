@@ -33,116 +33,170 @@
   }
 }
 
-.btn-animated-arrow-red() {
-  padding-right: 40px;
-  cursor: pointer;
-  position: relative;
-  width: auto;
-  font-weight: bold;
-  user-select: none;
-  transition: 0.2s ease-in-out;
-  -o-transition: 0.2s ease-in-out;
-  -ms-transition: 0.2s ease-in-out;
-  -moz-transition: 0.2s ease-in-out;
-  -webkit-transition: 0.2s ease-in-out;
-  &:before {
-  content: url('/images/arrow-right-red-16x16@2x.png');
-  transform: scale(0.5);
-  position: absolute;
-  top: 12px;
-  left: 80%; // <--- here
-  transition: 0.2s ease-in-out;
-  -o-transition: 0.2s ease-in-out;
-  -ms-transition: 0.2s ease-in-out;
-  -moz-transition: 0.2s ease-in-out;
-  -webkit-transition: 0.2s ease-in-out;
-  /*   opacity: 0; */
-  }
-  &:hover:before {
-  left: 82%; // <--- here
-  transition: 0.2s ease-in-out;
-  -o-transition: 0.2s ease-in-out;
-  -ms-transition: 0.2s ease-in-out;
-  -moz-transition: 0.2s ease-in-out;
-  -webkit-transition: 0.2s ease-in-out;
-  /*   opacity:1; */
-  }
-}
+// Primary buttons come in two sizes: normal (36px) and large (48px). The look is shared.
+// The hover spotlight follows the cursor via --spotlight-x/--spotlight-y, which
+// assets/js/utilities/primary-button-spotlight.js sets on any element with --primary-button.
+@primary-button-ring: #008A70;
+@primary-button-spotlight: #85FFC6;
+@primary-button-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+@primary-button-shadow: 0px 0px 0px 1px @primary-button-ring, 0px 2px 6px -1px rgba(0, 154, 125, 0.225);
 
-.btn-animated-arrow-white() {
-  padding-right: 40px;
-  cursor: pointer;
+.primary-button() {
+  --primary-button: 1;
+  --spotlight-x: 35%;
+  --spotlight-y: 30%;
   position: relative;
-  width: auto;
-  color: #FFF;
-  font-weight: bold;
-  user-select: none;
-  transition: 0.2s ease-in-out;
-  -o-transition: 0.2s ease-in-out;
-  -ms-transition: 0.2s ease-in-out;
-  -moz-transition: 0.2s ease-in-out;
-  -webkit-transition: 0.2s ease-in-out;
-  &:before {
-  content: url('/images/arrow-right-white-16x16@2x.png');
-  transform: scale(0.5);
-  position: absolute;
-  top: 10px;
-  left: 80%; // <--- here
-  transition: 0.2s ease-in-out;
-  -o-transition: 0.2s ease-in-out;
-  -ms-transition: 0.2s ease-in-out;
-  -moz-transition: 0.2s ease-in-out;
-  -webkit-transition: 0.2s ease-in-out;
-  /*   opacity: 0; */
-  }
-  &:hover:before {
-  left: 82%; // <--- here
-  transition: 0.2s ease-in-out;
-  -o-transition: 0.2s ease-in-out;
-  -ms-transition: 0.2s ease-in-out;
-  -moz-transition: 0.2s ease-in-out;
-  -webkit-transition: 0.2s ease-in-out;
-  /*   opacity:1; */
-  }
-}
-
-.cta-button() {
-  background-color: @core-vibrant-green;
+  isolation: isolate;
+  overflow: hidden;
+  justify-content: center;
+  align-items: center;
   border: none;
   cursor: pointer;
   color: #FFF;
-  overflow: hidden;
-  text-decoration: none;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   font-weight: 700;
-  border-radius: 8px;
-  &:hover {
+  text-decoration: none;
+  background-color: @core-vibrant-green;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 60%);
+  box-shadow: @primary-button-shadow;
+  transition: transform 0.35s @primary-button-ease, box-shadow 0.35s @primary-button-ease;
+  // Glow and rim light, painted under the label (z-index -1 inside the isolated stacking context).
+  &::before, &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  &::after {
+    background: radial-gradient(120px circle at var(--spotlight-x) var(--spotlight-y), fade(@primary-button-spotlight, 25%), fade(@primary-button-spotlight, 0%) 70%);
+  }
+  &::before {
+    padding: 1px;
+    background: radial-gradient(80px circle at var(--spotlight-x) var(--spotlight-y), fade(@primary-button-spotlight, 80%), fade(@primary-button-spotlight, 0%) 70%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  }
+  &:hover, &:focus {
     color: #FFF;
     text-decoration: none;
   }
-  &:before {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 100%);
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: inset 0px 1px 0px rgba(255, 255, 255, 0.45), 0px 0px 0px 1px @primary-button-ring, 0px 4px 9px -2px rgba(0, 154, 125, 0.275);
+    &::before, &::after {
+      opacity: 1;
+    }
+  }
+  &:active {
+    transform: scale(0.98);
+    transition-duration: 0.1s;
+  }
+  &:disabled, &.disabled {
+    cursor: default;
+    transform: none;
+    opacity: 0.7;
+    &::before, &::after {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+    &:hover, &:active {
+      transform: none;
+    }
+    &::before, &::after {
+      transition: none;
+    }
+  }
+}
+
+// Vertical padding + line-height add up to the height (7.5 + 21 + 7.5 = 36, 12 + 24 + 12 = 48),
+// so labels stay centered even where a page sets display: block on the button. min-height lets a
+// label that has to wrap (zoomed text, long translations) grow the button instead of being clipped.
+.primary-button-normal() {
+  min-height: 36px;
+  padding: 7.5px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 150%;
+}
+
+.primary-button-large() {
+  min-height: 48px;
+  padding: 12px 24px;
+  border-radius: 16px;
+  font-size: 16px;
+  line-height: 150%;
+}
+
+.cta-button() {
+  .primary-button();
+  .primary-button-normal();
+  display: flex;
+}
+
+.cta-button-large() {
+  .primary-button();
+  .primary-button-large();
+  display: flex;
+}
+
+// Secondary buttons: a bold text link with a green chevron that grows an arrow on hover.
+// Expects a [purpose='button-text'] label and an svg[purpose='animated-arrow'] containing
+// [purpose='arrow-line'] and [purpose='chevron'] paths, like <animated-arrow-button>.
+.secondary-button() {
+  width: fit-content;
+  display: flex;
+  align-items: center;
+  padding: 6px 0px;
+  font-family: @main-font;
+  font-size: 14px;
+  line-height: 150%;
+  font-weight: 700;
+  color: @core-fleet-black;
+  text-decoration: none;
+  cursor: pointer;
+  [purpose='button-text'] {
+    color: @core-fleet-black;
+  }
+  [purpose='animated-arrow'] {
+    margin-left: 8px;
+    height: 12px;
+    width: 12px;
+    min-height: 12px;
+    min-width: 12px;
+    fill: none;
+    stroke: @core-vibrant-green;
+    stroke-width: 2px;
+  }
+  [purpose='arrow-line'] {
+    opacity: 0;
+    transition: opacity 10ms ease-out;
+  }
+  [purpose='chevron'] {
+    transition: transform 200ms ease-out;
+  }
+  &:hover {
+    color: @core-fleet-black;
+    text-decoration: none;
+    .secondary-button-hover();
+  }
+}
+
+// The hover state on its own, for when a larger area (like a card) should trigger it.
+.secondary-button-hover() {
+  [purpose='arrow-line'] {
     opacity: 1;
-    content: ' ';
-    position: absolute;
-    top: 0;
-    left: -5px;
-    width: 50%;
-    height: 100%;
-    transform: skew(-10deg);
-    transition: left 0.5s ease-in, opacity 0.50s ease-in, width 0.5s ease-in;
+    transition: opacity 300ms ease-out;
   }
-  &:hover:before {
-    opacity: 0;
-    left: 160px;
-    width: 110%;
-  }
-  &:focus:before {
-    opacity: 0;
-    left: 160px;
-    width: 110%;
+  [purpose='chevron'] {
+    transform: translateX(5px);
   }
 }

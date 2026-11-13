@@ -80,17 +80,15 @@
   [purpose='submit-button'] {
     max-width: 141px;
     min-width: 141px;
-    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
   }
   [purpose='mobile-generate-button'], [purpose='submit-button'] {
+    .primary-button-large();
     border: none;
     display: flex;
     cursor: pointer;
-    height: 48px;
-    padding: 16px 32px;
     justify-content: center;
     align-items: center;
     gap: 4px;
@@ -98,12 +96,9 @@
     color: #FFF;
     text-align: center;
     font-family: Inter;
-    font-size: 14px;
     font-style: normal;
     font-weight: 700;
-    line-height: 21px;
     margin-bottom: 16px;
-    border-radius: 8px;
     background: #192147;
     position: relative;
     img {

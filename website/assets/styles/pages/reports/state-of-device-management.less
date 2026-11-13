@@ -27,10 +27,18 @@
   }
   [purpose='hero-buttons'] {
     max-width: 566px;
+    // Side by side, keep the primary button at its own height instead of stretching to match the taller link.
+    @media (min-width: 576px) {
+      align-items: center;
+    }
     a {
       padding: 16px 60px;
       font-size: 16px;
       font-weight: 400;
+      &.btn-primary {
+        .primary-button-large();
+        font-weight: 700;
+      }
       img {
         height: 16px;
         width: 16px;
@@ -179,11 +187,7 @@
     }
     [purpose='cta-btns'] {
       [purpose='get-started-btn'] {
-        padding: 16px 63px;
-      }
-      [purpose='animated-arrow-btn-red'] {
-        color: #FFF;
-        .btn-animated-arrow-red();
+        .primary-button-large();
       }
     }
 
