@@ -936,7 +936,7 @@ This activity contains the following fields:
 
 ### installed_software
 
-Generated when a Fleet-maintained app, custom package, or Microsoft Store app is installed on a host.
+Generated when a Fleet-maintained app or custom package is installed on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1010,7 +1010,7 @@ This activity contains the following fields:
 
 ### uninstalled_software
 
-Generated when a Fleet-maintained app, custom package, or Microsoft Store app is uninstalled on a host.
+Generated when a Fleet-maintained app or custom package is uninstalled on a host.
 
 This activity contains the following fields:
 - "host_id": ID of the host.
@@ -1069,12 +1069,13 @@ This activity contains the following fields:
 - "host_display_name": Display name of the host.
 - "software_title": Name of the App Store app.
 - "software_display_name": Custom display name of the app, if one is set. Omitted otherwise.
-- "app_store_id": ID of the app on the Apple App Store or Google Play.
+- "app_store_id": ID of the app on the Apple App Store, Google Play, or Microsoft Store.
 - "status": Status of the App Store app installation.
-- "command_uuid": UUID of the MDM command used to install the app.
+- "command_uuid": UUID of the MDM command used to install the app. Empty for Microsoft Store apps, which Fleet installs with a script.
+- "install_uuid": ID of the Microsoft Store app installation. Only present for Microsoft Store apps.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
-- "host_platform": Platform of the host (e.g., "darwin", "ios", "ipados", "android").
+- "host_platform": Platform of the host (e.g., "darwin", "ios", "ipados", "android", "windows").
 - "from_setup_experience": Whether the app was installed as part of the setup experience.
 - "from_auto_update": Whether the app was installed by an automatic update.
 - "failure_reason": Reason the installation failed before reaching the device (e.g. an unresolvable Fleet variable in the managed app configuration). Only present when "status" is "failed_install" and Fleet failed the install pre-flight; omitted otherwise.
@@ -1095,6 +1096,36 @@ This activity contains the following fields:
   "host_platform": "darwin",
   "from_setup_experience": false,
   "from_auto_update": false
+}
+```
+
+### uninstalled_app_store_app
+
+Generated when a Microsoft Store app is uninstalled on a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the App Store app.
+- "software_display_name": Custom display name of the app, if one is set. Omitted otherwise.
+- "app_store_id": ID of the app on the Microsoft Store.
+- "script_execution_id": ID of the uninstall script run.
+- "self_service": Whether the uninstall was initiated by the end user from the My device UI.
+- "status": Status of the uninstall.
+- "host_platform": Platform of the host ("windows").
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's Surface Laptop",
+  "software_title": "ChatGPT",
+  "app_store_id": "9PLM9XGG6VKS",
+  "script_execution_id": "ece8d99d-4313-446a-9af2-e152cd1bad1e",
+  "self_service": false,
+  "status": "uninstalled",
+  "host_platform": "windows"
 }
 ```
 
