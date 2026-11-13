@@ -264,7 +264,7 @@
         {
             "secret": "some-team-secret",
             "created_at": "2025-02-05T23:33:40Z",
-            "team_id": 270
+            "fleet_id": 270
         }
     ]
 }

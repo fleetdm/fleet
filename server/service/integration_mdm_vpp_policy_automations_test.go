@@ -105,7 +105,7 @@ func (s *integrationMDMTestSuite) TestVPPAppPolicyAutomation() {
 	// We're passing team 1 here, but we haven't added any app store apps to that team, so we get
 	// back all available apps in our VPP location.
 	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "fleet_id",
 		fmt.Sprint(team.ID))
 	require.NoError(t, appResp.Err)
 
@@ -815,7 +815,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 
 	// add VPP app. Add label1 and label3 as "exclude any" labels.
 	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id",
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "fleet_id",
 		fmt.Sprint(team.ID))
 	require.NoError(t, appResp.Err)
 	addedApp := appResp.AppStoreApps[0]
@@ -916,7 +916,7 @@ func (s *integrationMDMTestSuite) TestVPPPolicyAutomationLabelScopingRetrigger()
 	var batchAssociateResponse batchAssociateAppStoreAppsResponse
 	s.DoJSON("POST", batchURL, batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
 		{AppStoreID: addedApp.AdamID, LabelsExcludeAny: []string{label3.Name}},
-	}}, http.StatusOK, &batchAssociateResponse, "team_name", team.Name)
+	}}, http.StatusOK, &batchAssociateResponse, "fleet_name", team.Name)
 	require.Len(t, batchAssociateResponse.Apps, 1)
 
 	err = s.ds.UpdateHostPolicyCounts(ctx)
@@ -1028,7 +1028,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPApp() {
 	// adam_id (MapAdamIDsPendingInstall gate), so sharing one app between the
 	// two policies would hide the behavior being tested.
 	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "fleet_id", fmt.Sprint(team.ID))
 	require.NoError(t, appResp.Err)
 	var macOSApps []*fleet.VPPApp
 	for _, app := range appResp.AppStoreApps {
@@ -1264,7 +1264,7 @@ func (s *integrationMDMTestSuite) TestPolicyAutomationsContinuousVPPAppRetryRese
 
 	// Pick a macOS VPP app and add it to the team.
 	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", &getAppStoreAppsRequest{}, http.StatusOK, &appResp, "fleet_id", fmt.Sprint(team.ID))
 	require.NoError(t, appResp.Err)
 	var addedApp *fleet.VPPApp
 	for _, app := range appResp.AppStoreApps {
