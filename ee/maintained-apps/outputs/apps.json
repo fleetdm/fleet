@@ -2235,6 +2235,13 @@
       "description": "Dash is an API documentation browser and code snippet manager."
     },
     {
+      "name": "Datadog Agent",
+      "slug": "datadog-agent/windows",
+      "platform": "windows",
+      "unique_identifier": "Datadog Agent",
+      "description": "Datadog Agent collects metrics, logs, and traces from hosts and sends them to Datadog for monitoring."
+    },
+    {
       "name": "Dataflare",
       "slug": "dataflare/darwin",
       "platform": "darwin",
