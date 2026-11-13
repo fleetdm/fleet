@@ -76,6 +76,8 @@ type ZeroTouchToken struct {
 	ExpiresAt  time.Time `db:"expires_at" json:"expires_at"`
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt  time.Time `db:"updated_at" json:"updated_at"`
+	// UsesFleetPolicy is false for tokens created against the global DefaultAndroidPolicyID.
+	UsesFleetPolicy bool `db:"uses_fleet_policy" json:"-"`
 }
 
 type Device struct {

@@ -21,7 +21,7 @@ func globalOrTeamID(teamID *uint) uint {
 }
 
 func (ds *AndroidDatastore) GetZeroTouchEnrollmentToken(ctx context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
-	stmt := `SELECT id, team_id, token_name, token_value, expires_at, created_at, updated_at
+	stmt := `SELECT id, team_id, token_name, token_value, expires_at, created_at, updated_at, uses_fleet_policy
 		FROM android_zero_touch_tokens WHERE global_or_team_id = ?`
 	var token android.ZeroTouchToken
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &token, stmt, globalOrTeamID(teamID))
@@ -35,9 +35,10 @@ func (ds *AndroidDatastore) GetZeroTouchEnrollmentToken(ctx context.Context, tea
 }
 
 func (ds *AndroidDatastore) CreateZeroTouchEnrollmentToken(ctx context.Context, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
-	stmt := `INSERT INTO android_zero_touch_tokens (team_id, global_or_team_id, token_name, token_value, expires_at)
-		VALUES (?, ?, ?, ?, ?)`
-	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, token.TeamID, globalOrTeamID(token.TeamID), token.TokenName, token.TokenValue, token.ExpiresAt)
+	stmt := `INSERT INTO android_zero_touch_tokens (team_id, global_or_team_id, token_name, token_value, expires_at, uses_fleet_policy)
+		VALUES (?, ?, ?, ?, ?, ?)`
+	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, token.TeamID, globalOrTeamID(token.TeamID), token.TokenName, token.TokenValue, token.ExpiresAt,
+		token.UsesFleetPolicy)
 	if IsDuplicate(err) {
 		return ds.GetZeroTouchEnrollmentToken(ctxdb.RequirePrimary(ctx, true), token.TeamID)
 	}
@@ -47,6 +48,20 @@ func (ds *AndroidDatastore) CreateZeroTouchEnrollmentToken(ctx context.Context, 
 	id, _ := res.LastInsertId()
 	token.ID = uint(id) // nolint:gosec // dismiss G115
 	return token, nil
+}
+
+func (ds *AndroidDatastore) ReplaceZeroTouchEnrollmentToken(ctx context.Context, oldTokenName string, token *android.ZeroTouchToken) (*android.ZeroTouchToken, error) {
+	// Matching on the old name makes concurrent replacements safe: only the first one updates the row,
+	// and every caller returns what's stored.
+	stmt := `UPDATE android_zero_touch_tokens
+		SET token_name = ?, token_value = ?, expires_at = ?, uses_fleet_policy = ?
+		WHERE global_or_team_id = ? AND token_name = ?`
+	_, err := ds.Writer(ctx).ExecContext(ctx, stmt, token.TokenName, token.TokenValue, token.ExpiresAt, token.UsesFleetPolicy,
+		globalOrTeamID(token.TeamID), oldTokenName)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "replacing zero-touch enrollment token")
+	}
+	return ds.GetZeroTouchEnrollmentToken(ctxdb.RequirePrimary(ctx, true), token.TeamID)
 }
 
 func (ds *AndroidDatastore) DeleteZeroTouchEnrollmentTokens(ctx context.Context) error {

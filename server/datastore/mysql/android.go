@@ -1891,6 +1891,53 @@ func (ds *Datastore) SetMDMAndroidReconcileCursor(_ context.Context, _ string) e
 	return nil
 }
 
+func (ds *Datastore) ListAndroidFleetDefaultPolicyProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAndroidConfigProfile, error) {
+	stmt := `
+		SELECT p.profile_uuid, p.team_id, p.name, p.raw_json
+		FROM mdm_android_configuration_profiles p
+		WHERE JSON_CONTAINS_PATH(p.raw_json, 'one', '$.passwordPolicies', '$.passwordRequirements', '$.policyEnforcementRules')
+			AND NOT EXISTS (SELECT 1 FROM mdm_configuration_profile_labels l WHERE l.android_profile_uuid = p.profile_uuid)`
+	var args []any
+	if teamID != nil {
+		stmt += ` AND p.team_id = ?`
+		args = append(args, *teamID)
+	}
+	var profiles []*fleet.MDMAndroidConfigProfile
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing android fleet default policy profiles")
+	}
+	return profiles, nil
+}
+
+func (ds *Datastore) GetAndroidFleetDefaultPolicyChecksums(ctx context.Context) (map[uint][]byte, error) {
+	var rows []struct {
+		TeamID   uint   `db:"team_id"`
+		Checksum []byte `db:"checksum"`
+	}
+	const stmt = `
+		SELECT dp.team_id, dp.checksum
+		FROM android_fleet_default_policies dp
+		WHERE dp.team_id = 0 OR EXISTS (SELECT 1 FROM teams t WHERE t.id = dp.team_id)`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting android fleet default policy checksums")
+	}
+	checksums := make(map[uint][]byte, len(rows))
+	for _, r := range rows {
+		checksums[r.TeamID] = r.Checksum
+	}
+	return checksums, nil
+}
+
+func (ds *Datastore) SetAndroidFleetDefaultPolicyChecksum(ctx context.Context, teamID uint, checksum []byte) error {
+	const stmt = `
+		INSERT INTO android_fleet_default_policies (team_id, checksum) VALUES (?, ?)
+		ON DUPLICATE KEY UPDATE checksum = VALUES(checksum)`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, teamID, checksum); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting android fleet default policy checksum")
+	}
+	return nil
+}
+
 // ListMDMAndroidProfilesToSend is the android platform equivalent to
 // ListMDMAppleProfilesToInstall/Remove and
 // ListMDMWindowsProfilesToInstall/Remove. It plays a similar role but is quite
