@@ -506,6 +506,16 @@ module.exports.routes = {
     }
   },
 
+  'GET /software-inventory': {
+    skipAssets: false,
+    action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+      markdownPageUrl: '/guides/software-inventory-reference',
+      docsNavSection: 'software-inventory',
+    }
+  },
+
   'GET /software-catalog/:appIdentifier': {
     action: 'docs/view-app-details',// Meta title and description set in view action
   },
@@ -607,7 +617,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /linux-management': {
+  'GET /linux': {
     action: 'view-linux-management',
     locals: {
       pageTitleForMeta: 'Linux device management',
@@ -719,6 +729,22 @@ module.exports.routes = {
     }
   },
 
+  'GET /aviation': {
+    action: 'view-aviation',
+    locals: {
+      pageTitleForMeta: 'Device management for aviation',
+      pageDescriptionForMeta: 'More efficient, lower cost, and more secure. Fleet is AI-native device management for all your endpoints.',
+    }
+  },
+
+  'GET /cybersecurity': {
+    action: 'view-cybersecurity',
+    locals: {
+      pageTitleForMeta: 'Device management for cybersecurity',
+      pageDescriptionForMeta: 'See which AI agents and apps are running on every Mac, PC, and Linux machine, and check that your security controls are working. Device management built for security teams.',
+    }
+  },
+
   'GET /pharma': {
     action: 'view-pharma',
     locals: {
@@ -754,8 +780,8 @@ module.exports.routes = {
     action: 'landing-pages/view-patch-faster',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Stop waiting on your MDM catalog. Fleet automated patch management.',
-      pageDescriptionForMeta: 'Fleet\'s maintained app catalog and automated patch policies push updates to every device on a regular, predictable cadence — no manual repackaging, no osquery queries to write.'
+      pageTitleForMeta: 'Stop waiting on your MDM catalog. Automated patch management with Fleet',
+      pageDescriptionForMeta: 'Fleet\'s maintained app catalog and automated patch policies update every device on a regular, predictable cadence, with no manual repackaging. Ask what\'s patched and get an answer in seconds.'
     }
   },
 
@@ -763,8 +789,8 @@ module.exports.routes = {
     action: 'landing-pages/view-replace-jamf',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Replace Jamf with confidence',
-      pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
+      pageTitleForMeta: 'Replace Jamf with AI-native device management',
+      pageDescriptionForMeta: 'Replace Jamf with Fleet, AI-native device management for Apple, Windows, and Linux. Make changes in plain language, review every change, and move Macs without a wipe.'
     }
   },
 
@@ -773,7 +799,7 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       pageTitleForMeta: 'Autonomous endpoint management',
-      pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
+      pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet updates devices automatically across every major OS, and a person approves every change.',
     }
   },
 
@@ -781,8 +807,8 @@ module.exports.routes = {
     action: 'landing-pages/view-apple-mdm',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Apple MDM: open source Mac device management at enterprise scale',
-      pageDescriptionForMeta: 'Fleet is open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. Self-hosted or Fleet-hosted.',
+      pageTitleForMeta: 'Apple MDM: AI-native, open source Mac device management',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, and DDM. Self-hosted or Fleet-hosted.',
     }
   },
 
@@ -790,8 +816,8 @@ module.exports.routes = {
     action: 'landing-pages/view-android-mdm',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Android MDM: open source Android device management at enterprise scale',
-      pageDescriptionForMeta: 'Fleet is open source Android MDM for modern IT and security teams. Enroll, configure, and secure Android phones and tablets with Android Enterprise, Work Profile, managed Google Play, and GitOps. Self-hosted or Fleet-hosted.',
+      pageTitleForMeta: 'Android MDM: AI-native, open source Android device management',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source Android MDM for modern IT and security teams. Enroll, configure, and secure Android phones and tablets with Android Enterprise, Work Profile, and managed Google Play. Self-hosted or Fleet-hosted.',
     }
   },
 
@@ -799,8 +825,8 @@ module.exports.routes = {
     action: 'landing-pages/view-windows-mdm',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'Windows MDM: open source Windows device management at enterprise scale',
-      pageDescriptionForMeta: 'Fleet is open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with Microsoft Entra ID, Windows Autopilot, BitLocker, and GitOps. Self-hosted or Fleet-hosted.',
+      pageTitleForMeta: 'Windows MDM: AI-native, open source Windows device management',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source Windows MDM for modern IT teams. Enroll, configure, and secure Windows 10 and 11 with zero touch and no Microsoft license required. Self-hosted or Fleet-hosted.',
     }
   },
 
@@ -808,8 +834,8 @@ module.exports.routes = {
     action: 'landing-pages/view-on-premise',
     locals: {
       hideHeaderLinks: true,
-      pageTitleForMeta: 'On-premise device management',
-      pageDescriptionForMeta: 'Fleet is the only enterprise MDM that runs entirely on your infrastructure — full feature parity, air-gap ready, MIT licensed. Your data never leaves your network.',
+      pageTitleForMeta: 'On-premise device management: AI-native and self-hosted',
+      pageDescriptionForMeta: 'Fleet is AI-native, open source device management that runs entirely on your infrastructure, including air-gapped networks. Every feature ships to self-hosted on the same day as Fleet Cloud, and your data never leaves your network.',
     }
   },
 
@@ -818,7 +844,16 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       pageTitleForMeta: 'Open source MDM | Self-hosted device management',
-      pageDescriptionForMeta: 'Fleet is open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted endpoint management with every line of code public on GitHub.',
+      pageDescriptionForMeta: 'Fleet is AI-native, open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted device management with every line of code public on GitHub.',
+    }
+  },
+
+  'GET /lp/open-by-design': {
+    action: 'landing-pages/view-open-by-design',
+    locals: {
+      hideHeaderLinks: true,
+      pageTitleForMeta: 'Open MDM, patching, and vulnerability management for every OS',
+      pageDescriptionForMeta: 'Manage, update, and secure all your devices like it\'s the 2020s.',
     }
   },
 
@@ -842,7 +877,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /jamf-alternative': '/replace-jamf',
-  'GET /linux': '/linux-management',
+  'GET /linux-management': (req, res) => { return res.redirect(301, '/linux' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '')); },
   'GET /customer-stories': '/customers',
   'GET /testimonials': '/customers',
   // 'GET /try': '/get-started',
@@ -860,6 +895,7 @@ module.exports.routes = {
   'GET /use-cases/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-and-packs-in-fleet',
   'GET /guides/import-and-export-queries-and-packs-in-fleet': '/guides/import-and-export-queries-in-fleet',
   'GET /guides/deploy-security-agents': '/guides/deploy-software-packages',
+  'GET /guides/software-inventory-reference': '/software-inventory',
   'GET /guides/manage-boostrap-package-with-gitops': '/guides/manage-bootstrap-package-with-gitops',
   'GET /use-cases/locate-assets-with-osquery': '/guides/locate-assets-with-osquery',
   'GET /use-cases/osquery-a-tool-to-easily-ask-questions-about-operating-systems': '/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems',
@@ -1010,7 +1046,6 @@ module.exports.routes = {
   'GET /docs/using-fleet/mdm-macos-setup-experience': (req, res) => { return res.redirect(301, '/guides/macos-setup-experience'); },
   'GET /docs/using-fleet/scripts': (req, res) => { return res.redirect(301, '/guides/scripts'); },
   'GET /docs/using-fleet/automations': (req, res) => { return res.redirect(301, '/guides/automations'); },
-  'GET /docs/using-fleet/puppet-module': (req, res) => { return res.redirect(301, '/guides/puppet-module'); },
   'GET /docs/using-fleet/vulnerability-processing': (req, res) => { return res.redirect(301, '/guides/vulnerability-processing'); },
   'GET /docs/using-fleet/cis-benchmarks': (req, res) => { return res.redirect(301, '/guides/cis-benchmarks'); },
   'GET /docs/using-fleet/osquery-process': (req, res) => { return res.redirect(301, '/guides/osquery-watchdog'); },
@@ -1455,6 +1490,8 @@ module.exports.routes = {
   'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/setup-experience',
   'GET /learn-more-about/built-in-variables': '/guides/fleet-variables',
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
+  'GET /learn-more-about/troubleshoot-entra-conditional-access': '/guides/entra-conditional-access-integration#troubleshooting',
+  'GET /learn-more-about/create-entra-conditional-access-group': '/guides/entra-conditional-access-integration#step-1-create-a-fleet-conditional-access-group-in-entra',
   'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
   'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id',
   'GET /learn-more-about/connect-microsoft-graph': '/guides/windows-mdm-setup#connect-fleet-to-microsoft-graph',
@@ -1509,6 +1546,8 @@ module.exports.routes = {
   'GET /learn-more-about/vpp-tokens-best-practice': '/guides/apple-mdm-setup#best-practice',
   'GET /learn-more-about/mdm-migration': '/guides/mdm-migration#migrate-hosts',
   'GET /learn-more-about/android-zero-touch': '/guides/android-zero-touch-enrollment',
+  'GET /learn-more-about/fleet-5-upgrade': '/guides/upgrade-to-fleet-5',
+  'GET /learn-more-about/fleet-5-migration': '/guides/upgrade-to-fleet-5',
 
 
   // Sitemap
@@ -1606,8 +1645,10 @@ module.exports.routes = {
   '/api/v1/unsubscribe-from-marketing-emails': { action: 'unsubscribe-from-marketing-emails' },
   'POST /api/v1/customers/get-stripe-checkout-session-url': { action: 'customers/get-stripe-checkout-session-url' },
   '/api/v1/query-generator/get-llm-generated-sql': { action: 'query-generator/get-llm-generated-sql' },
-  'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true, csrf: false },
-  'POST /api/v1/get-llm-generated-configuration-profile-name-and-description': { action: 'get-llm-generated-configuration-profile-name-and-description', csrf: false },
+  'POST /api/v1/get-llm-generated-configuration-profile': { action: 'get-llm-generated-configuration-profile', hasSocketFeatures: true },
+  'POST /api/profile-generator/v1/register': { action: 'profile-generator/register-one-fleet-instance', csrf: false },
+  'POST /api/profile-generator/v1/name-and-description': { action: 'profile-generator/generate-one-name-and-description', csrf: false },
+  'POST /api/profile-generator/v1/profile': { action: 'profile-generator/generate-one-profile', csrf: false },
   'POST /api/v1/deliver-application-submission': { action: 'deliver-application-submission' },
   'POST /api/v1/deliver-gitops-request': { action: 'deliver-gitops-workshop-request' },
   'POST /api/v1/admin/reset-one-fleet-premium-local-trial': { action: 'admin/reset-one-fleet-premium-local-trial' },

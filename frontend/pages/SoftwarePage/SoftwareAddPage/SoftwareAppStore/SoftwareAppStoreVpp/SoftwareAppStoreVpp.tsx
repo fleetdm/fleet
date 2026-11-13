@@ -166,6 +166,7 @@ const SoftwareAppStoreVpp = ({
   const {
     isPremiumTier,
     isGlobalAdmin,
+    isOnGlobalTeam,
     isMacMdmEnabledAndConfigured,
   } = useContext(AppContext);
   const queryClient = useQueryClient();
@@ -318,7 +319,11 @@ const SoftwareAppStoreVpp = ({
       return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
-    if (noVppTokenUploaded) {
+    // GET /vpp_tokens filters to tokens whose fleets a team-scoped user can
+    // read, so their empty list can also mean "VPP is enabled but my fleet
+    // isn't on any token." Only treat empty as "not enabled" for users who
+    // can see every token.
+    if (noVppTokenUploaded && isOnGlobalTeam) {
       return (
         <EnableVppMessage
           onEnableVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}

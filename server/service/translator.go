@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
@@ -40,11 +41,22 @@ func translateEmailToUserID(ctx context.Context, ds fleet.Datastore, identifier 
 }
 
 func translateLabelToID(ctx context.Context, ds fleet.Datastore, identifier string) (uint, error) {
-	labelIDs, err := ds.LabelIDsByName(ctx, []string{identifier}, fleet.TeamFilter{User: authz.UserFromContext(ctx)})
+	labelIDsByName, err := ds.AllLabelIDsByName(ctx, []string{identifier}, fleet.TeamFilter{User: authz.UserFromContext(ctx)})
 	if err != nil {
 		return 0, err
 	}
-	return labelIDs[identifier], nil
+	// Every row matched the one requested name, possibly as case variants stored on different fleets.
+	var matches []uint
+	for _, ids := range labelIDsByName {
+		matches = append(matches, ids...)
+	}
+	if len(matches) > 1 {
+		return 0, ctxerr.Wrap(ctx, fleet.NewAmbiguousLabelNameError(identifier))
+	}
+	if len(matches) == 1 {
+		return matches[0], nil
+	}
+	return 0, nil
 }
 
 func translateTeamToID(ctx context.Context, ds fleet.Datastore, identifier string) (uint, error) {
@@ -86,7 +98,7 @@ func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePay
 				return nil, err
 			}
 			translateFunc = translateLabelToID
-		case fleet.TranslatorTypeTeam:
+		case fleet.TranslatorTypeTeam, fleet.TranslatorTypeFleet:
 			if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionRead); err != nil {
 				return nil, err
 			}

@@ -395,7 +395,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			return err
 		}
 
-		// only hosts whose IdP email actually moved need the email profiles resent
+		// only hosts whose IdP email actually moved need their IdP username profiles resent
 		var idpEmailChangedHostIDs []uint
 		if renamedBetweenEmails {
 			idpEmailChangedHostIDs, err = reconcileHostIdPMappingsForIdPEmailChange(ctx, tx, ds.logger, user.ID, hostIDs, old.UserName, user.UserName)
@@ -559,7 +559,7 @@ func renameMDMIdPAccount(
 }
 
 // renameHostIdPEmails rewrites both mapping sources and returns the hosts whose
-// authenticated row moved, the only source the IdP email variable resolves from.
+// authenticated row moved, which a host without a SCIM user takes its IdP username from.
 //
 // Authenticated rows are matched on the address rather than on scimHostIDs: the
 // account email is unique, so a row holding it belongs to that account whether or
@@ -1723,8 +1723,9 @@ func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimU
 }
 
 // triggerResendProfilesForIDPUserChange resends profiles using changedVars on
-// scimHostIDs and IdP email profiles on idpEmailChangedHostIDs; a host can be in
-// either set without being in the other.
+// scimHostIDs, and IdP username profiles on the hosts of idpEmailChangedHostIDs
+// that no SCIM user is linked to, since those take their IdP username from the
+// IdP email that moved; a host can be in either set without being in the other.
 func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, scimHostIDs []uint, changedVars []fleet.FleetVarName, idpEmailChangedHostIDs []uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	resentCerts, err := selectCertTemplatesToResend(ctx, tx, scimHostIDs, fleetVarNamesToDBVars(changedVars))
 	if err != nil {
@@ -1734,28 +1735,55 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 		return nil, err
 	}
 
-	if len(idpEmailChangedHostIDs) == 0 {
-		return resentCerts, nil
-	}
-	emailVars := []fleet.FleetVarName{fleet.FleetVarHostEndUserEmailIDP}
-	emailCerts, err := selectCertTemplatesToResend(ctx, tx, idpEmailChangedHostIDs, fleetVarNamesToDBVars(emailVars))
+	unlinkedHostIDs, err := hostIDsWithoutScimUser(ctx, tx, idpEmailChangedHostIDs)
 	if err != nil {
 		return nil, err
 	}
-	if err := triggerResendProfilesUsingVariables(ctx, tx, idpEmailChangedHostIDs, emailVars); err != nil {
+	if len(unlinkedHostIDs) == 0 {
+		return resentCerts, nil
+	}
+	usernameVars := []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart}
+	usernameCerts, err := selectCertTemplatesToResend(ctx, tx, unlinkedHostIDs, fleetVarNamesToDBVars(usernameVars))
+	if err != nil {
 		return nil, err
 	}
-	// a template using both kinds of variable is selected twice
+	if err := triggerResendProfilesUsingVariables(ctx, tx, unlinkedHostIDs, usernameVars); err != nil {
+		return nil, err
+	}
+	// a host in both sets has its templates selected twice
 	seen := make(map[[2]uint]struct{}, len(resentCerts))
 	for _, c := range resentCerts {
 		seen[[2]uint{c.HostID, c.CertificateTemplateID}] = struct{}{}
 	}
-	for _, c := range emailCerts {
+	for _, c := range usernameCerts {
 		if _, dup := seen[[2]uint{c.HostID, c.CertificateTemplateID}]; !dup {
 			resentCerts = append(resentCerts, c)
 		}
 	}
 	return resentCerts, nil
+}
+
+// hostIDsWithoutScimUser returns the hosts of hostIDs that no SCIM user is linked to.
+func hostIDsWithoutScimUser(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) ([]uint, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+	stmt, args, err := sqlx.In(`SELECT DISTINCT host_id FROM host_scim_user WHERE host_id IN (?)`, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare select hosts with a scim user")
+	}
+	var linked []uint
+	if err := sqlx.SelectContext(ctx, tx, &linked, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select hosts with a scim user")
+	}
+	linkedSet := make(map[uint]struct{}, len(linked))
+	for _, id := range linked {
+		linkedSet[id] = struct{}{}
+	}
+	return slices.DeleteFunc(slices.Clone(hostIDs), func(id uint) bool {
+		_, ok := linkedSet[id]
+		return ok
+	}), nil
 }
 
 func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtContext, deletedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {

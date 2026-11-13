@@ -36,7 +36,6 @@ interface IMutuallyExclusiveHostParams {
   mdmEnrollmentStatus?: string;
   munkiIssueId?: number;
   lowDiskSpaceHosts?: number;
-  softwareId?: number;
   softwareVersionId?: number;
   softwareTitleId?: number;
   softwareStatus?: string;
@@ -134,9 +133,8 @@ export const getPathWithQueryParams = <T>(
   return queryString ? `${endpoint}?${queryString}` : endpoint;
 };
 
-export const reconcileSoftwareParams = ({
+export const getSoftwareFilterParams = ({
   teamId,
-  softwareId,
   softwareVersionId,
   softwareTitleId,
   softwareStatus,
@@ -144,7 +142,6 @@ export const reconcileSoftwareParams = ({
 }: Pick<
   IMutuallyExclusiveHostParams,
   | "teamId"
-  | "softwareId"
   | "softwareVersionId"
   | "softwareTitleId"
   | "softwareStatus"
@@ -169,10 +166,6 @@ export const reconcileSoftwareParams = ({
 
   if (softwareVersionId) {
     return { software_version_id: softwareVersionId };
-  }
-
-  if (softwareId) {
-    return { software_id: softwareId };
   }
 
   return {};
@@ -216,7 +209,6 @@ export const reconcileMutuallyExclusiveHostParams = ({
   mdmEnrollmentStatus,
   munkiIssueId,
   lowDiskSpaceHosts,
-  softwareId,
   softwareVersionId,
   softwareTitleId,
   softwareStatus,
@@ -273,13 +265,9 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { mdm_enrollment_status: mdmEnrollmentStatus };
     case !!munkiIssueId:
       return { munki_issue_id: munkiIssueId };
-    case !!softwareStatus ||
-      !!softwareTitleId ||
-      !!softwareVersionId ||
-      !!softwareId: {
-      const params: Record<string, unknown> = reconcileSoftwareParams({
+    case !!softwareStatus || !!softwareTitleId || !!softwareVersionId: {
+      const params: Record<string, unknown> = getSoftwareFilterParams({
         teamId,
-        softwareId,
         softwareVersionId,
         softwareTitleId,
         softwareStatus,

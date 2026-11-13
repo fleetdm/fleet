@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/rs/zerolog"
@@ -66,6 +67,8 @@ var (
 	ConfigProfileLabelScopingPremiumCauseMsg     = "Scoping configuration profiles with labels"
 	DDMCustomActivationPremiumCauseMsg           = "Custom activations for declaration (DDM) profiles"
 )
+
+const Fleet5MigrationGuide = "https://fleetdm.com/learn-more-about/fleet-5-migration"
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
 // status code.
@@ -195,11 +198,42 @@ func (e *ParamRequiredDeprecationError) Error() string {
 	return fmt.Sprintf(`The %q parameter is now required. Learn more: https://fleetdm.com/learn-more-about/fleet-5-migration`, e.Param)
 }
 
+// GitOpsMDMCommandErrorMessage is returned to GitOps users, who can't run MDM commands since Fleet 5.
+const GitOpsMDMCommandErrorMessage = "Users with the GitOps role can no longer run MDM commands. What to use instead: " +
+	Fleet5MigrationGuide
+
 // BadRequestError makes the error encoder return a 400.
 func (e *ParamRequiredDeprecationError) BadRequestError() []map[string]string { return nil }
 
 // IsClientError implements ErrWithIsClientError.
 func (e *ParamRequiredDeprecationError) IsClientError() bool { return true }
+
+// RemovedFleetVariableError is a Fleet variable that Fleet 5 removed. It renders as a 422 with the variable's removal message, which is
+// also the failure detail when a profile, app configuration, or certificate authority saved before the upgrade still uses it.
+type RemovedFleetVariableError struct {
+	message string
+}
+
+// FindRemovedFleetVariable returns a *RemovedFleetVariableError for the first of names that Fleet 5 removed, and nil if there is none.
+// Names are without the FLEET_VAR_ prefix, as variables.Find returns them.
+func FindRemovedFleetVariable(names ...string) error {
+	for _, name := range names {
+		if entry, ok := removednames.Find(removednames.KindFleetVariable, FleetVarName(name).WithPrefix(), ""); ok {
+			return &RemovedFleetVariableError{message: entry.Message()}
+		}
+	}
+	return nil
+}
+
+func (e *RemovedFleetVariableError) Error() string { return e.message }
+
+// Invalid makes the error encoder return a 422.
+func (e *RemovedFleetVariableError) Invalid() []map[string]string {
+	return []map[string]string{{"name": "base", "reason": e.message}}
+}
+
+// IsClientError implements ErrWithIsClientError.
+func (e *RemovedFleetVariableError) IsClientError() bool { return true }
 
 // AuthFailedError is an alias for platform_http.AuthFailedError.
 type AuthFailedError = platform_http.AuthFailedError
@@ -578,19 +612,18 @@ const (
 	TargetedHostsDontExistErrMsg = "One or more targeted hosts don't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 
 	// Scripts
-	RunScriptInvalidTypeErrMsg             = "File type not supported. Only .sh (Shell), .py (Python), and .ps1 (PowerShell) file types are allowed."
-	RunScriptHostOfflineErrMsg             = "Script can't run on offline host."
-	RunScriptForbiddenErrMsg               = "You don't have the right permissions in Fleet to run the script."
-	RunScriptAlreadyRunningErrMsg          = "A script is already running on this host. Please wait about 5 minutes to let it finish."
-	RunScriptHostTimeoutErrMsg             = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Go to Fleet and check Host details > Activities to see script results."
-	RunScriptScriptsDisabledGloballyErrMsg = "Running scripts is disabled in organization settings."
-	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
-	RunScriptsOrbitDisabledErrMsg          = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
-	RunScriptAsyncScriptEnqueuedMsg        = "Script is running or will run when the host comes online."
-	RunScriptSavedMaxLenErrMsg             = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
-	RunScripUnsavedMaxLenErrMsg            = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
-	RunScriptGatewayTimeoutErrMsg          = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
-	RunScriptFleetVarsFailedErrMsg         = "Fleet couldn't resolve variables in this script. See the script output for details."
+	RunScriptInvalidTypeErrMsg      = "File type not supported. Only .sh (Shell), .py (Python), and .ps1 (PowerShell) file types are allowed."
+	RunScriptHostOfflineErrMsg      = "Script can't run on offline host."
+	RunScriptForbiddenErrMsg        = "You don't have the right permissions in Fleet to run the script."
+	RunScriptAlreadyRunningErrMsg   = "A script is already running on this host. Please wait about 5 minutes to let it finish."
+	RunScriptHostTimeoutErrMsg      = "Fleet didn't hear back from the host in under 5 minutes (timeout for live scripts). Fleet doesn't know if the script ran because it didn't receive the result. Go to Fleet and check Host details > Activities to see script results."
+	RunScriptDisabledErrMsg         = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
+	RunScriptsOrbitDisabledErrMsg   = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
+	RunScriptAsyncScriptEnqueuedMsg = "Script is running or will run when the host comes online."
+	RunScriptSavedMaxLenErrMsg      = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
+	RunScripUnsavedMaxLenErrMsg     = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
+	RunScriptGatewayTimeoutErrMsg   = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
+	RunScriptFleetVarsFailedErrMsg  = "Fleet couldn't resolve variables in this script. See the script output for details."
 
 	// Software
 	InstallSoftwarePersonalAppleDeviceErrMsg = "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts."
@@ -771,4 +804,16 @@ func (e *AutomaticEnrollmentRefusedError) IsClientError() bool { return true }
 
 const AdminOnlyEnrollmentForbiddenErrMsg = "Manual enrollment is not available because only Apple Business enrollment is allowed for this organization."
 
-const ManualEnrollmentStaticChallengeDisabledErrMsg = "Manual enrollment profile is not available because the static SCEP challenge is disabled for this Fleet server."
+// This is a unique deprecation notice only used very few places, where a default was changed and thereby blocked, therefore not part of the pkg/removednames
+type NotAllowedByDefaultDeprecationError struct {
+	Method   string
+	Endpoint string
+}
+
+func (e *NotAllowedByDefaultDeprecationError) Error() string {
+	return fmt.Sprintf(`The "%s %s" endpoint is not available anymore by default. What to use instead: %s`, e.Method, e.Endpoint, Fleet5MigrationGuide)
+}
+
+func (e *NotAllowedByDefaultDeprecationError) StatusCode() int { return http.StatusGone }
+
+func (e *NotAllowedByDefaultDeprecationError) IsClientError() bool { return true }

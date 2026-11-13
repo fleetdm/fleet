@@ -318,6 +318,29 @@ describe("LibraryItemAccordion", () => {
       expect(onAutoInstallClick).toHaveBeenCalledTimes(1);
     });
 
+    it("labels the pencil and trash to match the Edit version / Delete version modals", async () => {
+      const { user } = renderAccordion({
+        ...customRowProps,
+        onEditClick: jest.fn(),
+        onTrashClick: jest.fn(),
+      });
+
+      await user.click(screen.getByRole("button", { expanded: false }));
+
+      expect(
+        screen.getByRole("button", { name: "Edit version" })
+      ).toBeVisible();
+      expect(
+        screen.getByRole("button", { name: "Delete version" })
+      ).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Edit software" })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Delete software" })
+      ).not.toBeInTheDocument();
+    });
+
     it("does not render the Latest badge for a non-FMA row even when badgeState is 'latest'", () => {
       // The Latest badge is gated on `isFma`; custom rows never surface it
       // regardless of `canActivateMultiplePackages` / badgeState.
@@ -502,7 +525,7 @@ describe("LibraryItemAccordion", () => {
       await user.click(screen.getByRole("button", { expanded: false }));
 
       expect(
-        screen.queryByRole("button", { name: "Delete this version" })
+        screen.queryByRole("button", { name: "Delete software" })
       ).not.toBeInTheDocument();
       // Download stays — gated only by `canDownload`, not edit permission.
       expect(
@@ -515,9 +538,7 @@ describe("LibraryItemAccordion", () => {
       const { user } = renderAccordion({ onTrashClick });
 
       await user.click(screen.getByRole("button", { expanded: false }));
-      await user.click(
-        screen.getByRole("button", { name: "Delete this version" })
-      );
+      await user.click(screen.getByRole("button", { name: "Delete software" }));
 
       expect(onTrashClick).toHaveBeenCalledTimes(1);
     });
@@ -541,9 +562,7 @@ describe("LibraryItemAccordion", () => {
       await user.click(
         screen.getByRole("button", { name: "Download installer" })
       );
-      await user.click(
-        screen.getByRole("button", { name: "Delete this version" })
-      );
+      await user.click(screen.getByRole("button", { name: "Delete software" }));
       // The test passes if none of the above throw.
     });
   });
@@ -590,7 +609,7 @@ describe("LibraryItemAccordion", () => {
       expect(await screen.findByText(expected)).toBeInTheDocument();
     };
 
-    // The info-outline icon trailing the "installed" count carries its own
+    // The info icon trailing the "installed" count carries its own
     // tooltip whose copy varies by installer source (package / tarball /
     // Android). Hover it and assert the wording.
     const expectInfoTooltip = async (
@@ -602,7 +621,7 @@ describe("LibraryItemAccordion", () => {
         ".library-item-accordion__status-counts-info .component__tooltip-wrapper__element"
       );
       if (!wrapper) {
-        throw new Error("info-outline tooltip wrapper not found");
+        throw new Error("info tooltip wrapper not found");
       }
       await user.hover(wrapper);
       expect(await screen.findByText(expected)).toBeInTheDocument();
@@ -650,7 +669,7 @@ describe("LibraryItemAccordion", () => {
       await user.click(screen.getByRole("button", { expanded: false }));
 
       // Tarballs don't swap labels or per-status icon tooltips — only the
-      // info-outline tooltip changes (no setup-experience leg).
+      // info tooltip changes (no setup-experience leg).
       expect(screen.getByText("32 installed")).toBeVisible();
       expect(screen.getByText("5 pending")).toBeVisible();
       expect(screen.getByText("3 failed")).toBeVisible();
@@ -822,6 +841,25 @@ describe("LibraryItemAccordion", () => {
       expect(
         screen.getAllByRole("button", { name: /Edit version/i })
       ).toHaveLength(1);
+    });
+
+    it("labels the expanded trash button 'Delete version' to match the modal", async () => {
+      const render = createCustomRenderer({ withBackendMock: true });
+      const { user } = render(
+        <LibraryItemAccordion
+          {...baseProps}
+          {...versionRowProps}
+          onTrashClick={jest.fn()}
+        />
+      );
+
+      await user.click(screen.getByRole("button", { expanded: false }));
+      expect(
+        screen.getByRole("button", { name: "Delete version" })
+      ).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Delete software" })
+      ).not.toBeInTheDocument();
     });
   });
 });

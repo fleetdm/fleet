@@ -819,7 +819,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, vpp1_2, pendingActs[3].UUID)
 
 	// listing scripts ready to execute returns script1_1
-	pendingScripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, h1.ID, false)
+	pendingScripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, h1.ID)
 	require.NoError(t, err)
 	require.Len(t, pendingScripts, 1)
 	require.Equal(t, script1_1, pendingScripts[0].ExecutionID)
@@ -919,7 +919,7 @@ func testActivateNextActivity(t *testing.T, ds *Datastore) {
 	require.Len(t, pendingSw, 0)
 
 	// without only active, returns it
-	pendingSw, err = ds.ListPendingSoftwareInstalls(ctx, h1.ID)
+	pendingSw, err = ds.listUpcomingSoftwareInstalls(ctx, h1.ID, false)
 	require.NoError(t, err)
 	require.Len(t, pendingSw, 1)
 	require.Equal(t, sw1_1, pendingSw[0])
@@ -1648,7 +1648,7 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 			// the next upcoming activity (and only this one) should show up in those
 			// lists of ready-to-process activities.
 			var gotExecIDs []string
-			scripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, c.host.ID, false)
+			scripts, err := ds.ListReadyToExecuteScriptsForHost(ctx, c.host.ID)
 			require.NoError(t, err)
 			require.True(t, len(scripts) <= 1)
 			if len(scripts) == 1 {
@@ -2126,7 +2126,7 @@ func testReleaseFleetInitiatedUpcomingActivities(t *testing.T, ds *Datastore) {
 	}
 
 	readyExecIDs := func(hostID uint) []string {
-		ready, err := ds.ListReadyToExecuteScriptsForHost(ctx, hostID, false)
+		ready, err := ds.ListReadyToExecuteScriptsForHost(ctx, hostID)
 		require.NoError(t, err)
 		ids := make([]string, 0, len(ready))
 		for _, r := range ready {

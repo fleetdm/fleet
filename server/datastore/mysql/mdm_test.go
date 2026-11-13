@@ -46,7 +46,6 @@ func TestMDMShared(t *testing.T) {
 		{"TestMDMCommands", testMDMCommands},
 		{"TestListMDMCommandsWithTeamFilter", testListMDMCommandsWithTeamFilter},
 		{"TestListMDMCommandsOrderKeys", testListMDMCommandsOrderKeys},
-		{"TestListMDMAppleCommandsOrderKeys", testListMDMAppleCommandsOrderKeys},
 		{"TestListMDMCommandsRequiresPerPage", testListMDMCommandsRequiresPerPage},
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
 		{"TestGetMDMProfileChecksums", testGetMDMProfileChecksums},
@@ -92,13 +91,13 @@ func TestMDMShared(t *testing.T) {
 func testMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// no commands or devices enrolled => no results
-	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{}, &fleet.MDMCommandListOptions{
+	// no devices enrolled => the host is not found
+	_, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{}, &fleet.MDMCommandListOptions{
 		PerPage: 100,
 		Filters: fleet.MDMCommandFilters{HostIdentifier: "test-host"},
 	})
-	require.NoError(t, err)
-	require.Empty(t, cmds)
+	require.True(t, fleet.IsNotFound(err), err)
+	var cmds []*fleet.MDMCommand
 
 	// enroll a windows device
 	windowsH, err := ds.NewHost(ctx, &fleet.Host{
@@ -281,7 +280,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// non-existent host identifier
-	cmds, _, _, err = ds.ListMDMCommands(
+	_, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
@@ -291,8 +290,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 			},
 		},
 	)
-	require.NoError(t, err)
-	require.Len(t, cmds, 0)
+	require.True(t, fleet.IsNotFound(err), err)
 
 	// non-existent request type
 	cmds, _, _, err = ds.ListMDMCommands(
@@ -807,7 +805,12 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	cmds = listForHost(fleet.TeamFilter{User: teamUser}, teamHost)
 	require.Len(t, cmds, 1)
 	require.Equal(t, teamCmdUUID, cmds[0].CommandUUID)
-	require.Empty(t, listForHost(fleet.TeamFilter{User: teamUser}, globalHost))
+	// a host in another team is not found, like one that doesn't exist
+	_, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: teamUser}, &fleet.MDMCommandListOptions{
+		PerPage: 100,
+		Filters: fleet.MDMCommandFilters{HostIdentifier: globalHost.UUID},
+	})
+	require.True(t, fleet.IsNotFound(err), err)
 
 	// Test with admin user (should see all commands)
 	adminUser := test.UserAdmin
@@ -914,75 +917,6 @@ func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
 			&fleet.MDMCommandListOptions{
 				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1, After: afterCursor},
 				Filters:     fleet.MDMCommandFilters{HostIdentifier: macH.UUID},
-			},
-		)
-		require.NoError(t, err)
-		require.Len(t, next, 1)
-		require.NotEqual(t, afterCursor, next[0].CommandUUID)
-	})
-}
-
-func testListMDMAppleCommandsOrderKeys(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	macH, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "ord-apple-host",
-		OsqueryHostID:  ptr.String("ord-apple-osq"),
-		NodeKey:        ptr.String("ord-apple-nk"),
-		UUID:           uuid.NewString(),
-		Platform:       "darwin",
-		HardwareSerial: "ORDA1",
-	})
-	require.NoError(t, err)
-	nanoEnroll(t, ds, macH, false)
-
-	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
-	for range 2 {
-		err = commander.EnqueueCommand(ctx, []string{macH.UUID}, createRawAppleCmd("ProfileList", uuid.NewString()))
-		require.NoError(t, err)
-	}
-
-	for _, key := range []string{"command_uuid", "request_type", "status", "updated_at", "hostname", "device_id"} {
-		t.Run("order_"+key, func(t *testing.T) {
-			cmds, err := ds.ListMDMAppleCommands(
-				ctx,
-				fleet.TeamFilter{User: test.UserAdmin},
-				&fleet.MDMCommandListOptions{
-					ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 5},
-				},
-			)
-			require.NoError(t, err)
-			require.Len(t, cmds, 2)
-		})
-	}
-
-	t.Run("rejects_unknown_key", func(t *testing.T) {
-		_, err := ds.ListMDMAppleCommands(
-			ctx,
-			fleet.TeamFilter{User: test.UserAdmin},
-			&fleet.MDMCommandListOptions{
-				ListOptions: fleet.ListOptions{OrderKey: "not_a_real_column"},
-			},
-		)
-		require.Error(t, err)
-	})
-
-	t.Run("after_pagination_with_allowed_key", func(t *testing.T) {
-		cmds, err := ds.ListMDMAppleCommands(
-			ctx,
-			fleet.TeamFilter{User: test.UserAdmin},
-			&fleet.MDMCommandListOptions{
-				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1},
-			},
-		)
-		require.NoError(t, err)
-		require.Len(t, cmds, 1)
-		afterCursor := cmds[0].CommandUUID
-		next, err := ds.ListMDMAppleCommands(
-			ctx,
-			fleet.TeamFilter{User: test.UserAdmin},
-			&fleet.MDMCommandListOptions{
-				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1, After: afterCursor},
 			},
 		)
 		require.NoError(t, err)
@@ -4736,12 +4670,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	// make all hosts members of labels[1], [2], [3], [6] so that all profiles are
 	// excluded
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
-		{labels[1].ID, androidHost.ID},
-		{labels[2].ID, androidHost.ID},
-		{labels[3].ID, androidHost.ID},
-		{labels[6].ID, androidHost.ID},
-	})
+	err = ds.AddLabelsToHost(ctx, androidHost.ID, []uint{labels[1].ID, labels[2].ID, labels[3].ID, labels[6].ID})
 	require.NoError(t, err)
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{androidHost.ID}, nil, nil, nil)
@@ -4761,11 +4690,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	// make apple host member of labels[2], and windows and android host member of [3], which are irrelevant
 	// for their platforms' profiles, so they get all profiles
-	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
-		{labels[1].ID, androidHost.ID},
-		{labels[2].ID, androidHost.ID},
-		{labels[6].ID, androidHost.ID},
-	})
+	err = ds.RemoveLabelsFromHost(ctx, androidHost.ID, []uint{labels[1].ID, labels[2].ID, labels[6].ID})
 	require.NoError(t, err)
 
 	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{androidHost.ID}, nil, nil, nil)

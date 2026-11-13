@@ -1,0 +1,1 @@
+- Fixed `PATCH /api/v1/fleet/global/policies/:id` with `script_id` and `POST /api/v1/fleet/spec/policies` with `software_title_id` on an "All fleets" policy returning a 500 error. Fleet now returns a 400 error with a clear message.

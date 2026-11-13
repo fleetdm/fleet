@@ -32,10 +32,6 @@ variable "fleet_backend_mem" {
   type    = number
 }
 
-variable "async_host_processing" {
-  default = "false"
-}
-
 variable "logging_debug" {
   default = "false"
 }
@@ -56,7 +52,7 @@ variable "database_name" {
 
 variable "fleet_image" {
   description = "the name of the container image to run"
-  default     = "fleetdm/fleet:v4.94.0"
+  default     = "fleetdm/fleet:v4.94.1"
 }
 
 variable "software_inventory" {

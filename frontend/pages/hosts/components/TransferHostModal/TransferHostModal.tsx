@@ -7,6 +7,7 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import Modal from "components/Modal";
 import { ITeam } from "interfaces/team";
 import PATHS from "router/paths";
+import sortUtils from "utilities/sort";
 
 interface ITransferHostModal {
   isGlobalAdmin: boolean;
@@ -79,6 +80,7 @@ const TransferHostModal = ({
   const createTeamDropdownOptions = (): CustomOptionType[] => {
     const teamOptions: CustomOptionType[] = teams
       .filter((team) => team.id !== hostsTeamId)
+      .sort((a, b) => sortUtils.caseInsensitiveAsc(a.name, b.name))
       .map((team) => ({
         value: String(team.id),
         label: team.name,
@@ -88,7 +90,7 @@ const TransferHostModal = ({
     const canTransferToNoTeam = hostsTeamId !== 0 && hostsTeamId !== null;
 
     return canTransferToNoTeam
-      ? [NO_TEAM_OPTION as CustomOptionType, ...teamOptions]
+      ? [...teamOptions, NO_TEAM_OPTION as CustomOptionType]
       : teamOptions;
   };
 

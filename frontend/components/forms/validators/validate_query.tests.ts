@@ -67,7 +67,7 @@ describe("validateQuery", () => {
   // the message must not claim it only supports SELECT.
   it("words the non-SELECT error without claiming osquery only runs SELECT", () => {
     expect(validateQuery("PRAGMA table_info(users)").error).toEqual(
-      "Expected a SELECT statement on line 1."
+      "Expected a SELECT statement on line 1. Please review before saving."
     );
   });
 

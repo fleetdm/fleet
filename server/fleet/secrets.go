@@ -34,7 +34,7 @@ const (
 	// HostSecretPSSODeviceRegistrationToken is the host secret type for the Apple
 	// Platform SSO device registration token. The token is not stored: it is a
 	// Fleet-signed JWT minted on the fly for the requesting host at command
-	// delivery time, so it never appears in the database or on /mdm/commands.
+	// delivery time, so it never appears in the database or on /commands.
 	HostSecretPSSODeviceRegistrationToken = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: this is a constant identifier, not a credential
 
 	// HostSecretEnrollSecret is the host secret type for the per-device,

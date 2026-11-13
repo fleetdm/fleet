@@ -1,5 +1,4 @@
 import { IFormField } from "./form_field";
-import { IPack } from "./pack";
 import { ISchedulableQuery, ISchedulableQueryStats } from "./schedulable_query";
 
 export interface IStoredQueryResponse {
@@ -18,7 +17,6 @@ export interface IQuery {
   author_name: string;
   author_email: string;
   observer_can_run: boolean;
-  packs: IPack[];
   stats?: ISchedulableQueryStats;
 }
 

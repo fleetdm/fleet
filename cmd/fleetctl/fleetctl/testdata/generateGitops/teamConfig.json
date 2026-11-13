@@ -139,12 +139,12 @@
         "linux_settings": {
             "enable_escrow_disk_encryption_key": true
         },
-        "macos_setup": {
-            "bootstrap_package": "",
+        "setup_experience": {
+            "macos_bootstrap_package": "",
             "enable_end_user_authentication": false,
-            "macos_setup_assistant": "",
-            "enable_release_device_manually": false,
-            "script": "",
+            "apple_setup_assistant": "",
+            "apple_enable_release_device_manually": false,
+            "macos_script": "",
             "software": []
         },
         "windows_settings": {
@@ -264,7 +264,7 @@
         {
             "secret": "some-team-secret",
             "created_at": "2025-02-05T23:33:40Z",
-            "team_id": 270
+            "fleet_id": 270
         }
     ]
 }

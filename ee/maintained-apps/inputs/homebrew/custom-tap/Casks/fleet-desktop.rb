@@ -1,6 +1,6 @@
 cask "fleet-desktop" do
-  version "1.5.1"
-  sha256 "666fdf85b9389e256b40ebb15f428fb04f27aebe0e5d833e5d5e1df8a92b721b"
+  version "1.6.0"
+  sha256 "739b67d0fb8ad8d1373d50df4680deceb53054d954761eccdfa54402621d9eca"
 
   url "https://download.fleetdm.com/fleet-desktop-macos/v#{version}/fleet_desktop-v#{version}.pkg"
   name "Fleet Desktop"
@@ -26,10 +26,4 @@ cask "fleet-desktop" do
     "~/Library/Saved Application State/com.fleetdm.fleet-desktop.savedState",
     "~/Library/WebKit/com.fleetdm.fleet-desktop",
   ]
-
-  caveats <<~EOS
-    Fleet Desktop requires the Mac to be enrolled in MDM with the
-    com.fleetdm.fleetd.config managed preferences profile. The installer
-    will fail with "Installation Failed" otherwise.
-  EOS
 end

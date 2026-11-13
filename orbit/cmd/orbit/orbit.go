@@ -40,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/cabundle"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/entratoken"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/execuser"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/insecure"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/installer"
@@ -93,6 +94,7 @@ func main() {
 	app.Commands = []*cli.Command{
 		versionCommand,
 		shellCommand,
+		entraDeviceTokenCommand,
 	}
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
@@ -1515,6 +1517,7 @@ func orbitAction(c *cli.Context) error {
 		setupExperiencer.UseLegacyUI = !orbitClient.GetServerCapabilities().Has(fleet.CapabilityMacOSWebSetupExperience)
 		orbitClient.RegisterConfigReceiver(setupExperiencer)
 		orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
+		orbitClient.RegisterConfigReceiver(entratoken.NewRunner(orbitClient, orbitHostInfo.HardwareUUID))
 
 	case "windows":
 		orbitClient.RegisterConfigReceiver(update.ApplyWindowsMDMEnrollmentFetcherMiddleware(windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient))
@@ -1966,7 +1969,14 @@ func orbitAction(c *cli.Context) error {
 	return nil
 }
 
-func processSetupExperience(orbitClient *fleetclient.OrbitClient, rootDir string, openMyDevicePage func() error) error {
+type setupExperienceClient interface {
+	setupexperience.OrbitClient
+	GetServerCapabilities() fleet.CapabilityMap
+	InitiateSetupExperience() (fleet.SetupExperienceInitResult, error)
+	RegisterConfigReceiver(cr fleet.OrbitConfigReceiver)
+}
+
+func processSetupExperience(orbitClient setupExperienceClient, rootDir string, openMyDevicePage func() error) error {
 	log.Debug().Msg("checking setup experience file")
 	exp, err := setupexperience.ReadSetupExperienceStatusFile(rootDir)
 	if err != nil {
@@ -2022,8 +2032,10 @@ func processSetupExperience(orbitClient *fleetclient.OrbitClient, rootDir string
 			return fmt.Errorf("writing setup experience file: %w", err)
 		}
 
-		setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
-		orbitClient.RegisterConfigReceiver(setupExperiencer)
+		if initSetupExperienceResponse.Enabled {
+			setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
+			orbitClient.RegisterConfigReceiver(setupExperiencer)
+		}
 	case !exp.Enabled:
 		// Setup experience was checked, but was disabled at the time, nothing else to do.
 		log.Debug().Msg("setup experience already checked and disabled at the time")
