@@ -111,7 +111,7 @@ Source: [retry_client.go#L15-L24](https://github.com/fleetdm/fleet/blob/59e246b4
 
 > **Note:** This section describes planned work, not a released feature. The design may change before it ships.
 
-Fleet will soon mark company-owned iPhones, iPads, and Android hosts as managed in Google ([#56195](https://github.com/fleetdm/fleet/issues/56195)). Android hosts need no end user sign-in and nothing goes through fleetdm.com. Fleet stores each Android host's Android Management API device ID, which is also its device ID in Google. For iPhones and iPads, like Android MDM, part of it will go through fleetdm.com ([#56354](https://github.com/fleetdm/fleet/issues/56354)): the end user's Google sign-in, which needs Fleet's Google OAuth client. That client is shared by every Fleet server, so its secret stays on fleetdm.com.
+Fleet will soon mark company-owned iPhones, iPads, and Android hosts as managed in Google ([#56195](https://github.com/fleetdm/fleet/issues/56195)). Android hosts need no end user sign-in. Setting up the integration still goes through fleetdm.com, but marking Android hosts doesn't. Fleet stores each Android host's Android Management API device ID, which is also its device ID in Google. For iPhones and iPads, like Android MDM, part of it will go through fleetdm.com ([#56354](https://github.com/fleetdm/fleet/issues/56354)): the end user's Google sign-in, which needs Fleet's Google OAuth client. That client is shared by every Fleet server, so its secret stays on fleetdm.com.
 
 fleetdm.com will:
 
