@@ -71,6 +71,9 @@ controls:
     configuration_profiles:
       # Required for osqueryd to inherit Full Disk Access (EndpointSecurity tables)
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
+      # CIS Level 2 password and firewall controls
+      - path: ../lib/macos/declaration-profiles/CIS passcode settings.json
+      - path: ../lib/macos/configuration-profiles/cis-firewall.mobileconfig
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
@@ -98,6 +101,9 @@ controls:
 policies:
   # macOS policies
   - path: ../lib/macos/policies/cli-trust-store-excludes-emudhra-roots.yml
+  - path: ../lib/macos/policies/firewall-enabled.yml
+  - path: ../lib/macos/policies/cis-firewall.yml
+  - path: ../lib/macos/policies/cis-password-policy.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
