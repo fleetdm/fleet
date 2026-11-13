@@ -3414,10 +3414,12 @@ This activity contains the following fields:
 - [added_app_store_app](#added-app-store-app)
 - [deleted_app_store_app](#deleted-app-store-app)
 - [installed_app_store_app](#installed-app-store-app)
+- [uninstalled_app_store_app](#uninstalled-app-store-app)
 - [edited_app_store_app](#edited-app-store-app)
 - [canceled_install_software](#canceled-install-software)
 - [canceled_uninstall_software](#canceled-uninstall-software)
 - [canceled_install_app_store_app](#canceled-install-app-store-app)
+- [canceled_uninstall_app_store_app](#canceled-uninstall-app-store-app)
 
 ### installed_software
 
@@ -3950,6 +3952,28 @@ This activity contains the following fields:
   "host_display_name": "Anna's MacBook Pro",
   "software_title": "Adobe Acrobat.app",
   "software_display_name": "Adobe Acrobat.app",
+  "software_title_id": 12334
+}
+```
+
+### canceled_uninstall_app_store_app
+
+Generated when upcoming activity `uninstalled_app_store_app` is canceled.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_display_name": Custom name that's displayed in the UI. Empty ("") when not set.
+- "software_title_id": ID of the software title.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "Anna's Surface Laptop",
+  "software_title": "ChatGPT",
   "software_title_id": 12334
 }
 ```
