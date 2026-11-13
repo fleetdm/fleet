@@ -51,6 +51,7 @@ Each successful request creates a new session with its own token. The `token_exp
 | -------- | ------ | ---- | --------------------------------------------- |
 | email    | string | body | **Required**. The user's email.               |
 | password | string | body | **Required**. The user's plain text password. |
+| supports_email_verification | boolean | body | Whether the client can complete MFA by email. If `true` and the user has MFA enabled, Fleet emails the user a magic link and responds with `202`. The login finishes in the browser that opens the link. If `false` or omitted, login fails with `401` for users with MFA enabled. (Default: `false`) |
 
 #### Example
 
@@ -346,6 +347,12 @@ Retrieves the user data for the authenticated user.
 Resets the password of the authenticated user. Requires that `force_password_reset` is set to `true` prior to the request.
 
 `POST /api/v1/fleet/perform_required_password_reset`
+
+#### Parameters
+
+| Name         | Type   | In   | Description |
+| ------------ | ------ | ---- | ----------- |
+| new_password | string | body | **Required**. The user's new password. It must be different from the current password and include at least 12 characters, 1 number (e.g. 0 - 9), and 1 symbol (e.g. &*#). |
 
 #### Example
 
@@ -2117,6 +2124,7 @@ Modifies the Fleet's configuration with the supplied information.
 | yara_rules               | array   | body  | A list of YARA rule files to add.                                                                                                    |
 | force                    | boolean | query | Whether to force-apply the agent options even if there are validation errors.                                                        |
 | dry_run                  | boolean | query | Whether to validate the configuration and return any validation errors **without** applying changes.                                 |
+| overwrite                | boolean | query | Whether to replace, instead of merge, `host_data_collection`, `historical_data`, `sso_settings`, `mdm.end_user_authentication`, `mdm.apple_account_provisioning`, and `fleet_desktop.sso_enabled`. If `true`, settings in these objects that are missing from the request are reset to their defaults. If SSO is enabled, `sso_settings` must also include `entity_id`, `idp_name`, and `metadata` or `metadata_url`, even if they're already saved. `fleetctl gitops` sets this to `true`. (Default: `false`) |
 
 
 #### Example
@@ -13630,7 +13638,7 @@ Deletes the reports specified by ID. Returns the count of reports successfully d
 
 ### Run live report
 
-> This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.43.0, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.42.0/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility.
+> This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.43.0, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.42.0/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility, at both `GET /api/v1/fleet/queries/run` and `GET /api/v1/fleet/reports/run`.
 
 Runs a live report against the specified hosts and responds with the results.
 
@@ -13706,7 +13714,9 @@ After you initiate the report, [get results via WebSocket](#retrieve-live-report
 >
 > **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
 
-`POST /api/v1/fleet/queries/run`
+> `POST /api/v1/fleet/queries/run` is deprecated as of Fleet 5.0. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+
+`POST /api/v1/fleet/reports/run`
 
 #### Parameters
 
@@ -13720,7 +13730,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted by ID
 
-`POST /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/reports/run`
 
 ##### Request body
 
@@ -13759,7 +13769,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with multiple hosts targeted by label ID
 
-`POST /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/reports/run`
 
 ##### Request body
 
@@ -13806,7 +13816,9 @@ After the report has been initiated, [get results via WebSocket](#retrieve-live-
 >
 > **To close the connection:** once you're [retrieving results over the WebSocket connection](#retrieve-live-report-results-standard-websocket-api), call `socket.close()` as soon as you receive a message with `"status": "finished"`, as shown in the example script in that section.
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+> `POST /api/v1/fleet/queries/run_by_identifiers` is deprecated as of Fleet 5.0. `POST /api/v1/fleet/reports/run_by_names` and `POST /api/v1/fleet/queries/run_by_names` are also deprecated. They work the same way and are maintained for backwards compatibility. Please use the below API endpoint instead.
+
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 #### Parameters
 
@@ -13820,7 +13832,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with one host targeted by hostname
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 ##### Request body
 
@@ -13859,7 +13871,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with multiple hosts targeted by label name
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 ##### Request body
 
@@ -13898,7 +13910,7 @@ One of `query` and `query_id` must be specified.
 
 #### Example with invalid label
 
-`POST /api/v1/fleet/queries/run_by_identifiers`
+`POST /api/v1/fleet/reports/run_by_identifiers`
 
 ##### Request body
 
@@ -17017,6 +17029,8 @@ The returned lists are filtered based on the hosts the requesting user has acces
 - [Create fleet](#create-fleet)
 - [Update fleet](#update-fleet)
 - [Add users to fleet](#add-users-to-fleet)
+- [List fleet users](#list-fleet-users)
+- [Remove users from fleet](#remove-users-from-fleet)
 - [Update fleet-level agent options](#update-fleets-agent-options)
 - [Delete fleet](#delete-fleet)
 
@@ -17296,6 +17310,8 @@ _Available in Fleet Premium_
 | Name | Type   | In   | Description                    |
 | ---- | ------ | ---- | ------------------------------ |
 | name | string | body | **Required.** The fleet's name. Fleet names must differ by more than letter case. |
+| description | string | body | The fleet's description. |
+| secrets | array | body | A list of enroll secrets for the fleet. Each item is an object with a non-empty `secret` string. Up to 50 secrets. If omitted, Fleet generates one enroll secret for the fleet. |
 
 #### Example
 
@@ -17385,6 +17401,7 @@ _Available in Fleet Premium_
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | id                                                      | integer | path | **Required.** The desired fleet's ID. Use `0` for "Unassigned" hosts. **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `webhook_settings.host_activities_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
 | name                                                    | string  | body | The fleet's name. Fleet names must differ by more than letter case. Renaming a fleet into another fleet's name returns a 409 Conflict error.                                                                                                                                                                                          |
+| description                                             | string  | body | The fleet's description. |
 | host_ids                                                | array    | body | A list of hosts that belong to the fleet.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the fleet.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings for the fleet. See [webhook_settings](#webhook-settings2).                                                                                                                                                          |
@@ -17886,7 +17903,7 @@ _Available in Fleet Premium_
 
 `PATCH /api/v1/fleet/fleets/:id/users`
 
-This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from fleet), which returns the same fleet object shape.
+To remove users from a fleet, use [Remove users from fleet](#remove-users-from-fleet).
 
 `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `scripts`, and `mdm.setup_experience` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
@@ -18069,6 +18086,129 @@ This also applies to `DELETE /api/v1/fleet/fleets/:id/users` (remove users from 
 }
 ```
 
+### List fleet users
+
+_Available in Fleet Premium_
+
+Returns the users that have a role on the specified fleet.
+
+`GET /api/v1/fleet/fleets/:id/users`
+
+#### Parameters
+
+| Name            | Type    | In    | Description |
+| --------------- | ------- | ----- | ----------- |
+| id              | integer | path  | **Required.** The fleet's ID. |
+| query           | string  | query | Search query keywords. Searchable fields include `name` and `email`. |
+| order_key       | string  | query | What to order results by. Options include `"name"`, `"email"`, `"id"`, `"created_at"`, and `"updated_at"`. |
+| order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| page            | integer | query | Page number of the results to fetch. |
+| per_page        | integer | query | Results per page. |
+| after           | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
+
+#### Example
+
+`GET /api/v1/fleet/fleets/1/users`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "users": [
+    {
+      "created_at": "2020-12-10T03:52:53Z",
+      "updated_at": "2020-12-10T03:52:53Z",
+      "id": 17,
+      "name": "Jane Doe",
+      "email": "janedoe@example.com",
+      "force_password_reset": false,
+      "gravatar_url": "",
+      "sso_enabled": false,
+      "mfa_enabled": false,
+      "global_role": null,
+      "api_only": false,
+      "last_login_at": "2020-12-10T04:15:20Z",
+      "last_activity_at": "2020-12-10T04:32:41Z",
+      "fleets": [
+        {
+          "id": 1,
+          "created_at": "0001-01-01T00:00:00Z",
+          "name": "Workstations",
+          "description": "",
+          "role": "observer"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Remove users from fleet
+
+_Available in Fleet Premium_
+
+Removes the specified users' roles on the fleet. Users that aren't on the fleet are ignored.
+
+`DELETE /api/v1/fleet/fleets/:id/users`
+
+#### Parameters
+
+| Name             | Type    | In   | Description                                  |
+|------------------|---------|------|----------------------------------------------|
+| id               | integer | path | **Required.** The fleet's ID.                 |
+| users            | array   | body | Array of users to remove. Each item is an object with the user's `id`.  |
+
+#### Example
+
+`DELETE /api/v1/fleet/fleets/1/users`
+
+##### Request body
+
+```json
+{
+  "users": [
+    {
+      "id": 17
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+The response includes the updated fleet object, in the same format as [Add users to fleet](#add-users-to-fleet).
+
+```json
+{
+  "fleet": {
+    "name": "Workstations",
+    "id": 1,
+    "user_count": 1,
+    "host_count": 0,
+    "users": [
+      {
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "id": 1,
+        "name": "Example User1",
+        "email": "user1@example.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "global_role": null,
+        "api_only": false,
+        "fleets": null,
+        "role": "admin"
+      }
+    ]
+  }
+}
+```
+
 ### Update fleet-level agent options
 
 _Available in Fleet Premium_
@@ -18196,7 +18336,7 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
 
 | Name  | Type  | In   | Description                              |
 | ----- | ----- | ---- | ---------------------------------------- |
-| array | array | body | **Required** list of items to translate. |
+| list  | array | body | **Required.** The items to translate. Each item is an object with a `type` and a `payload.identifier`. `type` is one of `user`, `label`, `fleet`, or `host`. `payload.identifier` is the user's email, the label or fleet name, or a host identifier, such as hostname, UUID, or serial number. |
 
 #### Example
 
@@ -18292,6 +18432,7 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
 - [Verify invite](#verify-invite)
 - [Update invite](#update-invite)
 - [Create API-only user](#create-api-only-user)
+- [Update API-only user](#update-api-only-user)
 - [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions)
 
 The Fleet server exposes API endpoints that handles common user management operations, including managing emailed invites to new users. All of these endpoints require prior authentication, so you'll need to log in before calling any of the endpoints documented below.
@@ -18396,6 +18537,9 @@ By default, the user will be forced to reset its password upon first login.
 | global_role | string | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access).                                                                                                                                                                        |
 | admin_forced_password_reset    | boolean | body | Sets whether the user will be forced to reset its password upon first login (default=true) |
 | fleets                          | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. If `fleets` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| position    | string  | body | The user's position.                                                                                                                                                                                                                                                                                                                                     |
+| gravatar_url | string | body | The URL of the user's avatar image. |
+| api_endpoints | array | body | _Available in Fleet Premium_. The API endpoints the user can access. Each item is an object with the endpoint's `method` and `path`, as returned by [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions). Only allowed if `api_only` is `true`. If omitted, the user can access all endpoints their role allows. |
 
 #### Example
 
@@ -18489,6 +18633,9 @@ Creates a user account after an invited user provides registration information a
 | name                  | string | body | **Required**. The name of the user.                                                                                                                                                                                                                                                                                                                      |
 | password              | string | body | The password chosen by the user (if not SSO user).                                                                                                                                                                                                                                                                                                       |
 | password_confirmation | string | body | Confirmation of the password chosen by the user.                                                                                                                                                                                                                                                                                                         |
+| position              | string | body | The user's position. |
+| gravatar_url          | string | body | The URL of the user's avatar image. |
+| admin_forced_password_reset | boolean | body | Whether the user must reset their password after logging in. (Default: `false`) |
 
 #### Example
 
@@ -18655,6 +18802,7 @@ Returns all information about a specific user.
 | api_only    | boolean | body | User is an "API-only" user (cannot use web UI) if true.                                                                                                                                                                                                                                                                                                  |
 | password    | string  | body | The user's current password, required to change the user's own email or password (not required for an admin to modify another user).                                                                                                                                                                                                                     |
 | new_password| string  | body | The user's new password. |
+| gravatar_url | string | body | The URL of the user's avatar image. |
 | global_role | string  | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified.                                                                                                                                                                         |
 | fleets       | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). If `fleets` is specified, `global_role` cannot be specified. |
 
@@ -18886,6 +19034,7 @@ Deletes the selected user's sessions in Fleet. Also deletes the user's API token
 | global_role | string  | body | Role the user will be granted. Either a global role is needed, or a fleet role.                                                                        |
 | email       | string  | body | **Required.** The email of the invited user. This email will receive the invitation link.                                                             |
 | name        | string  | body | **Required.** The name of the invited user.                                                                                                           |
+| position    | string  | body | The invited user's position. Fleet stores it with the invite. It isn't copied to the user created when the invite is accepted. |
 | sso_enabled | boolean | body | **Required.** Whether or not SSO will be enabled for the invited user.                                                                                |
 | mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the invited user must click a magic link emailed to them to log in, after they successfully enter their username and password. Users can have SSO or MFA enabled, but not both. |
 | fleets       | array   | body | _Available in Fleet Premium_. A list of the fleets the user is a member of. Each item includes the fleet's ID and the user's role in the specified fleet. |
@@ -19095,6 +19244,7 @@ Verify the specified invite.
 | global_role | string  | body | Role the user will be granted. Either a global role is needed, or a fleet role.                                                                        |
 | email       | string  | body | The email of the invited user. Updates on the email won't resend the invitation.                                                             |
 | name        | string  | body | The name of the invited user.                                                                                                           |
+| position    | string  | body | The invited user's position. Fleet stores it with the invite. It isn't copied to the user created when the invite is accepted. |
 | sso_enabled | boolean | body | Whether or not SSO will be enabled for the invited user.                                                                                |
 | mfa_enabled | boolean | body | _Available in Fleet Premium._ Whether or not the invited user must click a magic link emailed to them to log in, after they successfully enter their username and password. Users can have SSO or MFA enabled, but not both. |
 | fleets       | array   | body | _Available in Fleet Premium_. A list of the fleets the user is a member of. Each item includes the fleet's ID and the user's role in the specified fleet. |
@@ -19240,6 +19390,73 @@ If `api_endpoints` is specified, these do not grant additional permissions other
 }
 ```
 
+
+### Update API-only user
+
+Updates an API-only user's name, role, or API endpoint access. You can't use this endpoint to update your own user.
+
+`PATCH /api/v1/fleet/users/api_only/:id`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description |
+| :---------------------- | :------ | :---- | :---------- |
+| id            | integer | path | **Required.** The API-only user's ID. |
+| name          | string  | body | The display name for the API-only user. |
+| global_role   | string  | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| fleets        | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. If `fleets` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| api_endpoints | array   | body | _Available in Fleet Premium_. The API endpoints the user can access. Each item is an object with the endpoint's `method` and `path`, as returned by [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions). Replaces the user's current list. Set to `null` to give the user access to all endpoints their role allows. An empty array isn't allowed. If omitted, the user's current list doesn't change. |
+
+If `api_endpoints` is specified, these do not grant additional permissions otherwise forbidden by the user's `role`.
+
+#### Example
+
+`PATCH /api/v1/fleet/users/api_only/5`
+
+##### Request body
+
+```json
+{
+  "name": "Jane Doe",
+  "api_endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/v1/fleet/hosts/identifier/:identifier"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "2025-01-08T01:04:23Z",
+    "updated_at": "2025-01-09T00:08:19Z",
+    "id": 5,
+    "name": "Jane Doe",
+    "email": "janedoe+randomlygeneratedstring@example.com",
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "mfa_enabled": false,
+    "global_role": "observer",
+    "api_only": true,
+    "last_login_at": "2025-01-08T01:04:23Z",
+    "last_activity_at": "2025-01-09T00:05:12Z",
+    "fleets": [],
+    "api_endpoints": [
+      {
+        "method": "GET",
+        "path": "/api/v1/fleet/hosts/identifier/:identifier"
+      }
+    ]
+  }
+}
+```
 
 ### List API endpoints for API-only user permissions
 
