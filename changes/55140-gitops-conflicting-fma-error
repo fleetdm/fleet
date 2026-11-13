@@ -1,0 +1,1 @@
+- Fixed a bug where a Fleet-maintained app could be swapped in GitOps when it shares a software title with an already added app, which sometimes outputted an unclear error message.
