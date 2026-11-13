@@ -387,7 +387,11 @@ const SoftwareTitleDetailsPage = ({
       const isIosOrIpadosApp = isIpadOrIphoneSoftwareSource(title.source);
       return (
         <LibraryItemAccordion
-          filename={title.name}
+          filename={getDisplayedSoftwareName(
+            title.name,
+            title.display_name,
+            title.bundle_identifier
+          )}
           version={appStore.version}
           // Apple App Store apps' version updates automatically, so the time the
           // app was added to Fleet reads as the time this version was added.
@@ -480,7 +484,11 @@ const SoftwareTitleDetailsPage = ({
           </div>
           <div className={`${baseClass}__app-versions-header-text`}>
             <span className={`${baseClass}__app-versions-header-name`}>
-              {title.name}
+              {getDisplayedSoftwareName(
+                title.name,
+                title.display_name,
+                title.bundle_identifier
+              )}
             </span>
             <span className={`${baseClass}__app-versions-header-version`}>
               {isAndroidPlayStoreApp ? (
