@@ -179,6 +179,7 @@ export interface IConfigServerSettings {
   query_reports_disabled: boolean;
   ai_features_disabled: boolean;
   mcp_disabled: boolean;
+  ai_sessions_disabled?: boolean;
 }
 
 export interface IConfig {
