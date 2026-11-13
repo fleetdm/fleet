@@ -79,8 +79,6 @@ software:
 
 **The install fails with "The Microsoft Store couldn't license this app."** The app is paid. Only free apps are supported.
 
-**The install fails with "The app is open and couldn't be closed."** Ask the user to close the app, then select **Reinstall**.
-
 **The install fails with "Timed out waiting for the Microsoft Store."** The Microsoft Store didn't finish within 30 minutes. Check the host's network connection, then try again.
 
 **The install fails with "The app isn't installed for all users even though the install reported success."** Check that `$packageFamilyName` in the install script matches the package family name from Step 1.
@@ -88,7 +86,6 @@ software:
 ## Further reading
 
 - [Deploy software packages](https://fleetdm.com/guides/deploy-software-packages)
-- [Scripts](https://fleetdm.com/guides/scripts)
 
 <meta name="articleTitle" value="Add Microsoft Store apps to Windows with script-only packages">
 <meta name="authorFullName" value="Allen Houchins">
