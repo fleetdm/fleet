@@ -7,7 +7,7 @@
 $storeId           = '9WZDNCRFJ3PZ'
 $packageFamilyName = 'Microsoft.CompanyPortal_8wekyb3d8bbwe'
 $packageName       = $packageFamilyName.Split('_')[0]
-$timeoutMinutes    = 4   # Fleet stops scripts after 5 minutes by default
+$timeoutMinutes    = 30  # Fleet lets software installs run for up to 1 hour
 
 # Store errors this script explains:
 $STORE_LICENSE_FAILED = -2143322111   # The Microsoft Store couldn't license the app (0x803F8001)

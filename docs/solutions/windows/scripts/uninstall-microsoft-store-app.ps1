@@ -5,8 +5,34 @@
 $packageFamilyName = 'Microsoft.CompanyPortal_8wekyb3d8bbwe'
 $packageName = $packageFamilyName.Split('_')[0]
 
-$provisioned = @(Get-AppxProvisionedPackage -Online | Where-Object DisplayName -eq $packageName)
-$installed = @(Get-AppxPackage -AllUsers -Name $packageName)
+# True if the app is still set up for new users or still registered for a user.
+# A Staged entry isn't registered for anyone, and a "pending removal" entry for a signed-out
+# user is removed at their next sign-in, so neither counts. The queries stop on errors, so a
+# failed query isn't read as "not installed".
+function Test-AppRemains {
+    if (@(Get-AppxProvisionedPackage -Online -ErrorAction Stop | Where-Object DisplayName -eq $packageName).Count -gt 0) {
+        return $true
+    }
+    foreach ($package in @(Get-AppxPackage -AllUsers -Name $packageName -ErrorAction Stop)) {
+        foreach ($user in @($package.PackageUserInformation)) {
+            $state = [string]$user.InstallState
+            if ($state -like 'Staged*') { continue }
+            if ($state -notlike '*(pending removal)' -or
+                (Test-Path "Registry::HKEY_USERS\$($user.UserSecurityId.Sid)")) {
+                return $true
+            }
+        }
+    }
+    return $false
+}
+
+try {
+    $provisioned = @(Get-AppxProvisionedPackage -Online -ErrorAction Stop | Where-Object DisplayName -eq $packageName)
+    $installed = @(Get-AppxPackage -AllUsers -Name $packageName -ErrorAction Stop)
+} catch {
+    Write-Output "Couldn't check whether the app is installed: $($_.Exception.Message)"
+    exit 1
+}
 if (-not $provisioned -and -not $installed) {
     Write-Output "App is not installed."
     exit 0
@@ -21,7 +47,13 @@ foreach ($p in $installed) {
     Remove-AppxPackage -Package $p.PackageFullName -AllUsers
 }
 
-if (Get-AppxPackage -AllUsers -Name $packageName) {
+try {
+    $remains = Test-AppRemains
+} catch {
+    Write-Output "Couldn't verify the uninstall: $($_.Exception.Message)"
+    exit 1
+}
+if ($remains) {
     Write-Output "The app is still installed for some users."
     exit 1
 }

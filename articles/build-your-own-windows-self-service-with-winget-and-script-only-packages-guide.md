@@ -81,7 +81,7 @@ software:
 
 **The install fails with "The app is open and couldn't be closed."** Ask the user to close the app, then select **Reinstall**.
 
-**The install fails with "Timed out waiting for the Microsoft Store."** The host couldn't finish the download within 4 minutes. Check the host's network connection, then try again.
+**The install fails with "Timed out waiting for the Microsoft Store."** The Microsoft Store didn't finish within 30 minutes. Check the host's network connection, then try again.
 
 **The install fails with "The app isn't installed for all users even though the install reported success."** Check that `$packageFamilyName` in the install script matches the package family name from Step 1.
 
