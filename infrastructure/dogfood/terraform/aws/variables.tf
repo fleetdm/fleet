@@ -32,10 +32,6 @@ variable "fleet_backend_mem" {
   type    = number
 }
 
-variable "async_host_processing" {
-  default = "false"
-}
-
 variable "logging_debug" {
   default = "false"
 }

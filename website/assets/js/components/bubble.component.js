@@ -22,27 +22,27 @@ parasails.registerComponent('bubble', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function (){
     let rawType = this.type ? this.type.toLowerCase() : '';
+    if (rawType.includes('token') || rawType.includes('public')) {
+      rawType = 'public';
+    }
+    // "Global <role>" bubbles mark endpoints that fleet-level users with that role can't use.
+    if (rawType.startsWith('global ')) {
+      rawType = rawType.replace('global ', '');
+    }
+    // "+" isn't valid in a CSS class name.
+    if (rawType === 'observer+') {
+      rawType = 'observer-plus';
+    }
     let roleLink = '';
 
     switch (rawType) {
       case 'admin':
-        roleLink = '/guides/role-based-access#admin';
-        break;
       case 'maintainer':
-        roleLink = '/guides/role-based-access#maintainer';
-        break;
       case 'observer':
-        roleLink = '/guides/role-based-access#observer';
-        break;
-      case 'observer+':
-        roleLink = '/guides/role-based-access#observer2';
-        rawType = 'observer-plus';
-        break;
+      case 'observer-plus':
       case 'technician':
-        roleLink = '/guides/role-based-access#technician';
-        break;
       case 'gitops':
-        roleLink = '/guides/role-based-access#gitops';
+        roleLink = '/guides/role-based-access#roles';
         break;
     }
 

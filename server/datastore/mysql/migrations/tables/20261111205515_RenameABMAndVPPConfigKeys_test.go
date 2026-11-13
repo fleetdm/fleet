@@ -27,7 +27,7 @@ func TestUp_20261111205515(t *testing.T) {
 					{"location": "Loc A", "fleets": ["Workstations", "BYOD"]}, {"location": "Loc B", "fleets": []}]}`,
 		},
 		{
-			name: "old key wins over new",
+			name: "new key wins over old",
 			old: `{"apple_business_manager": [{"organization_name": "Org A", "macos_team": "Old", "macos_fleet": "New"}],
 				"volume_purchasing_program": [{"location": "Loc A", "teams": ["Old"], "fleets": ["New"]}]}`,
 			want: `{"apple_business_manager": [{"organization_name": "Org A", "macos_fleet": "New"}],

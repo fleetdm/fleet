@@ -35,7 +35,8 @@ type SoftwareScope = "inventory" | "library";
 // getSoftwareNameCellData in SoftwareLibraryTableConfig. Returns null when
 // the title has no installer attached (not in any library).
 const getInstallerProps = (title: ISoftwareTitle) => {
-  const installer = title.software_package || title.app_store_app;
+  const firstAppStoreApp = title.app_store_apps?.[0];
+  const installer = title.software_package || firstAppStoreApp;
   if (!installer) {
     return null;
   }
@@ -44,8 +45,8 @@ const getInstallerProps = (title: ISoftwareTitle) => {
     automaticInstallPoliciesCount: getAutomaticInstallPoliciesCount(title),
     isIosOrIpadosApp: isIpadOrIphoneSoftwareSource(title.source),
     isAndroidPlayStoreApp:
-      !!title.app_store_app && title.source === "android_apps",
-    isAppStoreApp: !!title.app_store_app,
+      !!firstAppStoreApp && title.source === "android_apps",
+    isAppStoreApp: !!firstAppStoreApp,
     autoUpdateEnabled: title.auto_update_enabled,
     autoUpdateWindowStart: title.auto_update_window_start,
     autoUpdateWindowEnd: title.auto_update_window_end,

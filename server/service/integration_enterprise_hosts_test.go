@@ -667,7 +667,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Equal(t, "CVE-2021-1234", resp.Vulnerabilities[0].CVE.CVE)
 
 	// Test Team Filter
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "fleet_id", "1")
 	s.Require().Empty(resp.Vulnerabilities)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
@@ -678,7 +678,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	err = s.ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", fmt.Sprintf("%d", team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprintf("%d", team.ID))
 	require.Len(t, resp.Vulnerabilities, 2)
 	require.Equal(t, uint(2), resp.Count)
 	require.False(t, resp.Meta.HasPreviousResults)
@@ -733,7 +733,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
 
 	// Known to Fleet via its match, but no hosts in "No team".
-	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusNoContent, "team_id", "0")
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusNoContent, "fleet_id", "0")
 }
 
 func (s *integrationEnterpriseTestSuite) TestOSVersions() {

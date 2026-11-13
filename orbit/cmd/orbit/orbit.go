@@ -1969,7 +1969,14 @@ func orbitAction(c *cli.Context) error {
 	return nil
 }
 
-func processSetupExperience(orbitClient *fleetclient.OrbitClient, rootDir string, openMyDevicePage func() error) error {
+type setupExperienceClient interface {
+	setupexperience.OrbitClient
+	GetServerCapabilities() fleet.CapabilityMap
+	InitiateSetupExperience() (fleet.SetupExperienceInitResult, error)
+	RegisterConfigReceiver(cr fleet.OrbitConfigReceiver)
+}
+
+func processSetupExperience(orbitClient setupExperienceClient, rootDir string, openMyDevicePage func() error) error {
 	log.Debug().Msg("checking setup experience file")
 	exp, err := setupexperience.ReadSetupExperienceStatusFile(rootDir)
 	if err != nil {
@@ -2025,8 +2032,10 @@ func processSetupExperience(orbitClient *fleetclient.OrbitClient, rootDir string
 			return fmt.Errorf("writing setup experience file: %w", err)
 		}
 
-		setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
-		orbitClient.RegisterConfigReceiver(setupExperiencer)
+		if initSetupExperienceResponse.Enabled {
+			setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
+			orbitClient.RegisterConfigReceiver(setupExperiencer)
+		}
 	case !exp.Enabled:
 		// Setup experience was checked, but was disabled at the time, nothing else to do.
 		log.Debug().Msg("setup experience already checked and disabled at the time")

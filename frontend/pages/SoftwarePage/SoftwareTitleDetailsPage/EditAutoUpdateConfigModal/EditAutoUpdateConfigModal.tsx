@@ -13,7 +13,7 @@ import { DropdownTargetLabelSelector } from "components/TargetLabelSelector";
 import { notify } from "components/ToastNotification";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
-import { ISoftwareTitleDetails, IAppStoreApp } from "interfaces/software";
+import { ISoftwareTitleDetails } from "interfaces/software";
 import {
   CUSTOM_TARGET_OPTIONS,
   generateSelectedLabels,
@@ -66,15 +66,14 @@ const EditAutoUpdateConfigModal = ({
   });
 
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
+  const firstAppStoreApp = softwareTitle.app_store_apps?.[0];
   const [formData, setFormData] = useState<ISoftwareAutoUpdateConfigFormData>({
     autoUpdateEnabled: softwareTitle.auto_update_enabled || false,
     autoUpdateStartTime: softwareTitle.auto_update_window_start || "",
     autoUpdateEndTime: softwareTitle.auto_update_window_end || "",
-    targetType: getTargetType(softwareTitle.app_store_app as IAppStoreApp),
-    customTarget: getCustomTarget(softwareTitle.app_store_app as IAppStoreApp),
-    labelTargets: generateSelectedLabels(
-      softwareTitle.app_store_app as IAppStoreApp
-    ),
+    targetType: getTargetType(firstAppStoreApp),
+    customTarget: getCustomTarget(firstAppStoreApp),
+    labelTargets: generateSelectedLabels(firstAppStoreApp),
   });
 
   // Fetch labels for DropdownTargetLabelSelector

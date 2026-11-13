@@ -8,9 +8,8 @@
 // building the config. Its correctness therefore depends ENTIRELY on this
 // decorator seeing every write that can change the rendered osquery config.
 // Hooking here — rather than in service methods — means core service,
-// ee/server/service, GitOps batch endpoints, and the async host-processing
-// collector are all covered by construction, because they all funnel through
-// the fleet.Datastore interface.
+// ee/server/service, and GitOps batch endpoints are all covered by
+// construction, because they all funnel through the fleet.Datastore interface.
 //
 // Two invalidation kinds exist, with very different blast radii:
 //
@@ -22,12 +21,11 @@
 //     These are CONTINUOUS at fleet scale.
 //
 // HARD RULE The deployment-wide invalidation must be UNREACHABLE from
-// the routine label evaluation paths (RecordLabelQueryExecutions and the
-// async collector batches). Those run continuously across the fleet; routing
-// them through the deployment generation would re-arm the write fence
-// forever — the optimization would never warm while still paying Redis
-// overhead on every request. Both routine paths know their host IDs, so they
-// never need the fallback. Each deployment-wide arming logs its source
+// the routine label evaluation path (RecordLabelQueryExecutions). It runs
+// continuously across the fleet; routing it through the deployment generation
+// would re-arm the write fence forever — the optimization would never warm
+// while still paying Redis overhead on every request. It knows its host ID, so
+// it never needs the fallback. Each deployment-wide arming logs its source
 // (bounded, since arming is infrequent by design) so a violation is visible
 // in production logs.
 //
@@ -47,7 +45,7 @@
 //     delete membership; manual-label specs replace it), and manual
 //     membership edits,
 //   - host label membership persistence (per-host invalidation): the
-//     synchronous path, the async collector path, AND the host-vitals label
+//     check-in path AND the host-vitals label
 //     cron (UpdateLabelMembershipByHostCriteria, which returns the changed
 //     host IDs for exactly this purpose).
 //

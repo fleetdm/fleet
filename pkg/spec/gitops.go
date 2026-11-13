@@ -929,8 +929,7 @@ func reanchorOrgSettingsPaths(orgSettings map[string]any, orgSettingsDir string)
 }
 
 // validateOrgInfoLogo rejects org_info configurations that specify both a path
-// and a URL for the same mode. Deprecated URL keys are already migrated to the
-// new mode-aware names by ApplyDeprecatedKeyMappings before this runs.
+// and a URL for the same mode.
 func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
 	orgInfo, _ := orgSettings["org_info"].(map[string]any)
 	if orgInfo == nil {

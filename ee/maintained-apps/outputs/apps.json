@@ -2235,6 +2235,13 @@
       "description": "Dash is an API documentation browser and code snippet manager."
     },
     {
+      "name": "Datadog Agent",
+      "slug": "datadog-agent/windows",
+      "platform": "windows",
+      "unique_identifier": "Datadog Agent",
+      "description": "Datadog Agent collects metrics, logs, and traces from hosts and sends them to Datadog for monitoring."
+    },
+    {
       "name": "Dataflare",
       "slug": "dataflare/darwin",
       "platform": "darwin",
@@ -9793,6 +9800,13 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.wispr-flow",
       "description": "Wispr Flow is a voice-to-text dictation with AI-powered auto-editing."
+    },
+    {
+      "name": "Wispr Flow",
+      "slug": "wispr-flow/windows",
+      "platform": "windows",
+      "unique_identifier": "Wispr Flow",
+      "description": "Wispr Flow is a voice-to-text dictation app with AI-powered auto-editing."
     },
     {
       "name": "EdrawMax",

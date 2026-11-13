@@ -55,6 +55,7 @@
     display: flex;
     align-items: center;
     flex-shrink: 0;
+    margin-left: auto;
   }
 
   &__badges {
@@ -190,13 +191,13 @@
     flex-shrink: 0;
   }
 
-  // The inactive-row tooltip wraps the full-width header; override the
-  // default inline-flex so the header keeps its row layout.
+  // The inactive-row tooltip anchors to the installer details only (not the
+  // full row) so the tip sits right next to the name, not at the row's edge.
   &__inactive-tooltip {
     display: flex;
+    min-width: 0;
 
     .component__tooltip-wrapper__element {
-      flex: 1 1 auto;
       min-width: 0;
       white-space: normal;
     }
