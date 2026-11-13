@@ -844,7 +844,7 @@ cloud providers that have limitations on their API gateways, such as GCP Cloud R
 
 ### server_private_key
 
-This key is required for enabling Apple, Windows, and Android MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
+This key is required for enabling Apple, Windows, and Android MDM features and features that require third-party secrets, passwords, or API keys (ex. [maintenance windows](https://fleetdm.com/guides/using-maintenance-windows)). If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
 
 Fleet also encrypts the disk encryption keys it escrows from Windows and Linux hosts with this key, so escrowing them requires it.
 

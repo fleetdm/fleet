@@ -135,6 +135,12 @@ type Datastore interface {
 	// since both appear in a team host's pack config.
 	// If teamID is nil, checks only global queries.
 	HasLabelScopedScheduledQueries(ctx context.Context, teamID *uint, queryReportsDisabled bool) (bool, error)
+	// ScheduledQueriesDigest returns a digest of the scheduled queries
+	// (reports) of the given team (the global ones if teamID is nil): every
+	// field that can reach an agent's osquery config, label scoping included.
+	// It changes when such a field changes, letting callers tell whether a
+	// write changed the reports agents run.
+	ScheduledQueriesDigest(ctx context.Context, teamID *uint) (string, error)
 	// LabelScopedScheduledQueryScopes returns the report scopes that contain
 	// saved, scheduled queries (reports) scoped to labels (query_labels
 	// rows): whether the GLOBAL scope has any, and the team IDs whose scope
@@ -373,6 +379,9 @@ type Datastore interface {
 	// HostIDsByIdentifier retrieves the IDs associated with the given hostnames, UUIDs, hardware serials, node keys or osquery host IDs.
 	// Empty and whitespace-only identifiers are ignored.
 	HostIDsByIdentifier(ctx context.Context, filter TeamFilter, hostnames []string) ([]uint, error)
+	// HostIDsByLabelIdentifier retrieves the IDs of hosts matching a manual label's host identifiers: UUIDs or hardware serials.
+	// Empty and whitespace-only identifiers are ignored.
+	HostIDsByLabelIdentifier(ctx context.Context, filter TeamFilter, hostIdentifiers []string) ([]uint, error)
 
 	// HostIDsByOSID retrieves the IDs of all host for the given OS ID
 	HostIDsByOSID(ctx context.Context, osID uint, offset int, limit int) ([]uint, error)
@@ -385,8 +394,8 @@ type Datastore interface {
 	// TODO JUAN: Refactor this to use the Operating System type instead.
 	// HostIDsByOSVersion retrieves the IDs of all host matching osVersion
 	HostIDsByOSVersion(ctx context.Context, osVersion OSVersion, offset int, limit int) ([]uint, error)
-	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
-	// osquery_host_id, node_key, UUID, hardware_serial or hostname.
+	// HostByIdentifier returns one host matching the provided identifier. Possible matches are, in priority order,
+	// hardware_serial, UUID, hostname, osquery_host_id and node_key. The lowest host ID wins among hosts matching on the same column.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
 	// HostByUUID returns one host whose uuid column matches exactly. Unlike
 	// HostByIdentifier, it does not fall back to other identifier columns.
@@ -495,9 +504,9 @@ type Datastore interface {
 	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.
 	GetHostMDMIdentifiers(ctx context.Context, identifer string, teamFilter TeamFilter) ([]*HostMDMIdentifiers, error)
 
-	// ListIOSAndIPadOSToRefetch returns the UUIDs of iPhones/iPads that should be refetched (their details haven't been
-	// updated in the given `interval`).
-	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration) (devices []AppleDevicesToRefetch, err error)
+	// ListIOSAndIPadOSToRefetch returns up to limit iPhones/iPads that should be refetched (their details haven't been
+	// updated in the given `interval`), longest-waiting first.
+	ListIOSAndIPadOSToRefetch(ctx context.Context, refetchInterval time.Duration, limit int) (devices []AppleDevicesToRefetch, err error)
 	// AddHostMDMCommands adds the provided MDM commands to the host to track which commands have been sent.
 	AddHostMDMCommands(ctx context.Context, commands []HostMDMCommand) error
 	// GetHostMDMCommands returns the MDM commands that have been sent to the host.
@@ -830,7 +839,6 @@ type Datastore interface {
 	// don't retroactively change past activities.
 	GetSoftwareTitleDisplayName(ctx context.Context, teamID *uint, titleID uint) (*string, error)
 	UpdateSoftwareTitleName(ctx context.Context, id uint, name string) error
-	UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config SoftwareAutoUpdateConfig) error
 	ListSoftwareAutoUpdateSchedules(ctx context.Context, teamID uint, source string, optionalFilter ...SoftwareAutoUpdateScheduleFilter) ([]SoftwareAutoUpdateSchedule, error)
 
 	// InsertSoftwareInstallRequest tracks a new request to install the provided
@@ -850,6 +858,9 @@ type Datastore interface {
 	// PatchNotificationExistsForApp reports whether a patch notification on this
 	// host still has this app to install.
 	PatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
+	// GetHostPatchDeadlineAt returns when the host's earliest open patch deadline notification
+	// forces its install, or nil if the host has none.
+	GetHostPatchDeadlineAt(ctx context.Context, hostID uint) (*time.Time, error)
 	// DisplayedPatchNotificationExistsForApp reports whether this app is on a patch
 	// notification the end user has seen that has not queued its install yet.
 	DisplayedPatchNotificationExistsForApp(ctx context.Context, hostID uint, softwareTitleID uint) (bool, error)
@@ -965,9 +976,6 @@ type Datastore interface {
 	// given host ID by labels.
 	IsSoftwareInstallerLabelScoped(ctx context.Context, installerID, hostID uint) (bool, error)
 
-	// IsVPPAppLabelScoped returns whether or not the given vppAppTeamID is scoped to the given hostID by labels.
-	IsVPPAppLabelScoped(ctx context.Context, vppAppTeamID, hostID uint) (bool, error)
-
 	// IsInHouseAppLabelScoped returns whether or not the given inHouseAppID is scoped to the given hostID by labels.
 	IsInHouseAppLabelScoped(ctx context.Context, inHouseAppID, hostID uint) (bool, error)
 
@@ -1001,8 +1009,6 @@ type Datastore interface {
 	BatchNewSoftwareCategories(ctx context.Context, teamID uint, names []string) error
 	UpdateSoftwareCategory(ctx context.Context, id uint, name string) (*SoftwareCategory, error)
 	DeleteSoftwareCategory(ctx context.Context, id uint) error
-	// GetSoftwareCategoryIDs the list of IDs that correspond to the given list of software category names on a team.
-	GetSoftwareCategoryIDs(ctx context.Context, teamID uint, names []string) ([]uint, error)
 	// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names on a team.
 	// Only categories that exist in the database are included in the map.
 	GetSoftwareCategoryNameToIDMap(ctx context.Context, teamID uint, names []string) (map[string]uint, error)
@@ -1013,6 +1019,11 @@ type Datastore interface {
 	// GetCategoriesForSoftwareInstallers returns categories keyed by installer ID,
 	// unmerged (unlike GetCategoriesForSoftwareTitles) so packages keep their own.
 	GetCategoriesForSoftwareInstallers(ctx context.Context, installerIDs []uint) (map[uint][]string, error)
+
+	// GetPatchDeadlineSettings returns the fleet's settings, or the default when none are stored.
+	GetPatchDeadlineSettings(ctx context.Context, teamID uint) (*PatchDeadlineSettings, error)
+	// SetPatchDeadlineSettings inserts or replaces the fleet's settings.
+	SetPatchDeadlineSettings(ctx context.Context, settings PatchDeadlineSettings) error
 
 	// GetSoftwareTitlesForInstallAll returns the self-service software titles available
 	// to queue for the host's "install all" action, in alphabetical order, optionally
@@ -1198,6 +1209,10 @@ type Datastore interface {
 	GetPoliciesForConditionalAccess(ctx context.Context, teamID uint, platform string) ([]uint, error)
 	// GetPatchPolicy returns the patch policy associated with the title id
 	GetPatchPolicy(ctx context.Context, teamID *uint, titleID uint) (*PatchPolicyData, error)
+	// SyncPatchPolicyQueries regenerates each patch policy's query from its title's
+	// active Fleet-maintained app installer, clearing the results of any policy whose
+	// query changed. A failure on one policy doesn't stop the others.
+	SyncPatchPolicyQueries(ctx context.Context) error
 
 	// ConditionalAccessBypassDevice lets the host skip the conditional access check next time it fails
 	ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error
@@ -1226,8 +1241,6 @@ type Datastore interface {
 
 	// MigrateTables creates and migrates the table schemas
 	MigrateTables(ctx context.Context) error
-	// MigrateData populates built-in data
-	MigrateData(ctx context.Context) error
 	// MigrationStatus returns nil if migrations are complete, and an error if migrations need to be run.
 	MigrationStatus(ctx context.Context) (*MigrationStatus, error)
 
@@ -1335,6 +1348,9 @@ type Datastore interface {
 
 	UpdateQueryAggregatedStats(ctx context.Context) error
 
+	// DeleteOrphanedQueryStats deletes the stats of reports that no longer exist.
+	DeleteOrphanedQueryStats(ctx context.Context) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Following are the set of APIs used by osquery hosts:
 	// TODO(lucas): Move them to a separate datastore or abstraction, to avoid
@@ -1383,7 +1399,7 @@ type Datastore interface {
 	// slice, updating existing entries and inserting new entries.
 	// Returns a struct with the current installed software on the host (pre-mutations) plus all
 	// mutations performed: what was inserted and what was removed.
-	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software, opts ...UpdateHostSoftwareOption) (*UpdateHostSoftwareDBResult, error)
 
 	// MarkSoftwareAsAITool flags the stored software rows matching the given software (by
 	// checksum) as AI tools. It never clears the flag.
@@ -1775,10 +1791,6 @@ type Datastore interface {
 	// this is mainly aimed to internal usage within the Fleet server.
 	BulkUpsertMDMAppleConfigProfiles(ctx context.Context, payload []*MDMAppleConfigProfile) error
 
-	// GetMDMAppleConfigProfileByDeprecatedID returns the mdm config profile
-	// corresponding to the specified numeric profile id. This is deprecated and
-	// should not be used for new endpoints.
-	GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfile returns the mdm config profile corresponding to the specified
 	// profile uuid.
 	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
@@ -1794,10 +1806,6 @@ type Datastore interface {
 	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
 
-	// DeleteMDMAppleConfigProfileByDeprecatedID deletes the mdm config profile
-	// corresponding to the specified numeric profile id. This is deprecated and
-	// should not be used for new endpoints.
-	DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error
 	// DeleteMDMAppleConfigProfile deletes the mdm config profile corresponding
 	// to the specified profile uuid.
 	DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error
@@ -1861,10 +1869,6 @@ type Datastore interface {
 	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
 	GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
-	// ListMDMAppleCommands returns a list of MDM Apple commands that have been
-	// executed, based on the provided options.
-	ListMDMAppleCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMAppleCommand, error)
-
 	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
 	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
 
@@ -1885,10 +1889,6 @@ type Datastore interface {
 	// ListMDMAppleInstallers list all the uploaded installers.
 	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
 
-	// BatchSetMDMAppleProfiles sets the MDM Apple profiles for the given team or
-	// no team.
-	BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*MDMAppleConfigProfile) error
-
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 
@@ -1902,14 +1902,14 @@ type Datastore interface {
 	IngestMDMAppleDevicesFromDEPSync(ctx context.Context, devices []godep.Device, abmTokenID uint, macOSTeam, iosTeam, ipadTeam *Team) (int64, error)
 
 	// SetHostMDMMigrationCompleted sets a host's DEP record's migration as having completed by setting the
-	// completed migration timestamp equal to the migration deadline timestamp. This is so that if we sync
-	// the device from ABM again we know not to skip the migration.
+	// completed migration timestamp equal to the migration deadline timestamp. Once set, the host is no
+	// longer considered to be migrating, even if ABM later reports a different deadline.
 	SetHostMDMMigrationCompleted(ctx context.Context, hostID uint) error
 
 	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for
 	// MDM-enrolled devices via OTA that are not already enrolled in Fleet. It
 	// returns the IdP account the host was linked to before, empty if none.
-	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo) (previousAcctUUID string, err error)
+	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo, personalType PersonalEnrollmentType) (previousAcctUUID string, err error)
 
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
@@ -2072,7 +2072,7 @@ type Datastore interface {
 	GetHostRecoveryLockPasswordStatus(ctx context.Context, hostUUID string) (*HostMDMRecoveryLockPassword, error)
 
 	// GetHostsForRecoveryLockAction returns host UUIDs that need recovery lock password action mapped to a bool if a password is already saved:
-	// - Teams with enable_recovery_lock_password = true
+	// - Teams with macos_recovery_lock_password_enabled = true
 	// - macOS Apple Silicon hosts that are MDM enrolled
 	// - No password saved or status is NULL (ready for command)
 	GetHostsForRecoveryLockAction(ctx context.Context) (map[string]bool, error)
@@ -2116,7 +2116,7 @@ type Datastore interface {
 
 	// ClaimHostsForRecoveryLockClear returns host UUIDs that need their recovery lock
 	// cleared and marks them as pending. Returns hosts where the team/appconfig has
-	// enable_recovery_lock_password=false and either:
+	// macos_recovery_lock_password_enabled=false and either:
 	// - operation_type='install' and status='verified' (new clears), or
 	// - operation_type='remove' and status=NULL (retries after failed enqueue)
 	ClaimHostsForRecoveryLockClear(ctx context.Context, clearCommandUUID string) ([]string, error)
@@ -2368,9 +2368,6 @@ type Datastore interface {
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error
-	// CopyMDMAppleBootstrapPackage copies the bootstrap package specified in the app config (if any)
-	// specified team (and a new token is assigned). It also updates the team config with the default bootstrap package URL.
-	CopyDefaultMDMAppleBootstrapPackage(ctx context.Context, ac *AppConfig, toTeamID uint) error
 	// DeleteMDMAppleBootstrapPackage deletes the bootstrap package for the given team id.
 	DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID uint) error
 	// GetMDMAppleBootstrapPackageMeta returns metadata about the bootstrap
@@ -2604,9 +2601,6 @@ type Datastore interface {
 	// can re-call after a partial-failure response from Apple without having
 	// to read first.
 	InsertVPPClientUser(ctx context.Context, row *VPPClientUser) error
-	// ListVPPClientUsersForToken returns all rows for the given vpp_token_id,
-	// ordered by id. Useful for diagnostics.
-	ListVPPClientUsersForToken(ctx context.Context, tokenID uint) ([]*VPPClientUser, error)
 
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
 	// terms_expired flag of the ABM token identified by the organization name.
@@ -2847,6 +2841,11 @@ type Datastore interface {
 	// MDMWindowsSaveResponse saves a full response for the given enrollment.
 	MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *MDMWindowsEnrolledDevice, enrichedSyncML EnrichedSyncML, commandIDsBeingResent []string) (*MDMWindowsSaveResponseResult, error)
 
+	// MDMWindowsFailUndeliverableCommand records a failed result, with reason as its response, for a pending command Fleet can't
+	// deliver to the enrollment, so it leaves the queue. A profile behind the command is failed or retried as if the device had
+	// rejected it.
+	MDMWindowsFailUndeliverableCommand(ctx context.Context, enrolledDevice *MDMWindowsEnrolledDevice, commandUUID, reason string) error
+
 	// GetMDMWindowsCommands returns the results of command
 	GetMDMWindowsCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
@@ -2904,8 +2903,9 @@ type Datastore interface {
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error
 
 	// SetMDMWindowsHostProfileFailedOrRetry records a Fleet-observed failure for the install row of the given (hostUUID,
-	// profileUUID) Windows profile. While the profile has retries left it goes back to "pending."
-	SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string) (retried bool, err error)
+	// profileUUID) Windows profile. While the profile has retries left it goes back to "pending." With onlyIfVerifying,
+	// only a delivery the host acknowledged and is still verifying is charged. changed reports whether the row was updated.
+	SetMDMWindowsHostProfileFailedOrRetry(ctx context.Context, hostUUID string, profileUUID string, detail string, onlyIfVerifying bool) (changed bool, retried bool, err error)
 
 	// BatchResendMDMProfileToHosts updates the profile status to NULL for the
 	// matching hosts that satisfy the filter, thereby triggering the profile to
@@ -2986,6 +2986,7 @@ type Datastore interface {
 	// ListMDMCommands returns a list of MDM Apple commands that have been
 	// executed, based on the provided options.
 	// returns a non-nil count if filtering by command_status = pending
+	// It returns a NotFoundError when filtering by a host identifier that matches no host visible to tmFilter.
 	ListMDMCommands(ctx context.Context, tmFilter TeamFilter, listOpts *MDMCommandListOptions) ([]*MDMCommand, *int64, *PaginationMetadata, error)
 
 	// GetMDMWindowsBitLockerSummary summarizes the current state of Windows disk encryption on
@@ -2995,7 +2996,8 @@ type Datastore interface {
 	// GetMDMWindowsBitLockerStatus returns the disk encryption status for a given host
 	//
 	// Note that the returned status will be nil if the host is reported to be a Windows
-	// server or if disk encryption is disabled for the host's team (or no team, as applicable).
+	// server, if disk encryption is disabled for the host's team (or no team, as applicable), or if
+	// the host has no Fleet MDM enrollment.
 	GetMDMWindowsBitLockerStatus(ctx context.Context, host *Host) (*HostMDMDiskEncryption, error)
 
 	// GetMDMWindowsProfilesSummary summarizes the current state of Windows profiles on
@@ -3231,10 +3233,9 @@ type Datastore interface {
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// NewInternalHostScriptExecutionRequest is like NewHostScriptExecutionRequest
-	// but marks the request as internal (fleet-initiated), so it runs even when
-	// scripts are globally disabled and does not appear in the user-facing host
-	// activity feed. Use for server-driven follow-up actions (e.g. cleanup
-	// scripts after MDM events).
+	// but marks the request as internal (fleet-initiated), so it does not appear
+	// in the user-facing host activity feed. Use for server-driven follow-up
+	// actions (e.g. cleanup scripts after MDM events).
 	NewInternalHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
 	// BatchNewInternalHostScriptExecutionRequests queues the same script as an
 	// internal run on each of the given hosts, and returns the execution ID it
@@ -3256,13 +3257,12 @@ type Datastore interface {
 	// upcoming_activities). It is the caller's responsibility to check if ExitCode is null.
 	GetSelfServiceUninstallScriptExecutionResult(ctx context.Context, execID string, hostID uint) (*HostScriptResult, error)
 	// ListPendingHostScriptExecutions returns all the pending host script executions, which are those that have yet
-	// to record a result. Pass onlyShowInternal as true to return only scripts that execute when script execution is
-	// globally disabled (uninstall/lock/unlock/wipe).
-	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
+	// to record a result.
+	ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*HostScriptResult, error)
 	// ListReadyToExecuteScriptsForHost is like ListPendingHostScriptExecutions
 	// except that it only returns those that are ready to execute ("activated" in
 	// the upcoming activities queue, available for orbit to process).
-	ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*HostScriptResult, error)
+	ListReadyToExecuteScriptsForHost(ctx context.Context, hostID uint) ([]*HostScriptResult, error)
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
@@ -3298,13 +3298,13 @@ type Datastore interface {
 	// BatchSetScripts sets the scripts for the given team or no team.
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) ([]ScriptResponse, error)
 
-	// BatchExecuteScript queues a script to run on a set of hosts and returns the batch script
-	// execution ID.
-	BatchExecuteScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
-
 	// BatchExecuteScript queued a script to run on a set of hosts after notBefore and returns the
 	// batch execution ID.
 	BatchScheduleScript(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint, notBefore time.Time) (string, error)
+
+	// NewBatchScriptExecution creates a batch script execution for a set of hosts without running
+	// it and returns the batch execution ID. Run it with RunScheduledBatchActivity.
+	NewBatchScriptExecution(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error)
 
 	// GetBatchActivity returns a batch activity with executionID
 	GetBatchActivity(ctx context.Context, executionID string) (*BatchActivity, error)
@@ -3316,9 +3316,6 @@ type Datastore interface {
 	// the script on the hosts. Note that it does not know about the `not_before` column on the jobs
 	// table and assumes it is being executed at the right time.
 	RunScheduledBatchActivity(ctx context.Context, executionID string) error
-
-	// BatchExecuteSummary returns the summary of a batch script execution
-	BatchExecuteSummary(ctx context.Context, executionID string) (*BatchActivity, error)
 
 	// CancelBatchScript cancels the execution of a batch script execution
 	CancelBatchScript(ctx context.Context, executionID string) error
@@ -3417,13 +3414,9 @@ type Datastore interface {
 	// GetSoftwareInstallDetails returns details required to fetch and
 	// run software installers
 	GetSoftwareInstallDetails(ctx context.Context, executionId string) (*SoftwareInstallDetails, error)
-	// ListPendingSoftwareInstalls returns a list of software
-	// installer execution IDs that have not yet been run for a given host
-	ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
-	// ListReadyToExecuteSoftwareInstalls is like ListPendingSoftwareInstalls
-	// except that it only returns software installs that are ready to execute
-	// ("activated" in the upcoming activities queue, available for orbit to
-	// process).
+	// ListReadyToExecuteSoftwareInstalls returns the execution IDs of the host's software installs
+	// that are ready to execute ("activated" in the upcoming activities queue, available for orbit
+	// to process).
 	ListReadyToExecuteSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error)
 
 	// GetHostLastInstallData returns the data for the last installation of a package on a host.
@@ -3513,9 +3506,6 @@ type Datastore interface {
 	// GetPinnedVersion returns the pinned version for a team and software title.
 	GetPinnedVersion(ctx context.Context, teamID *uint, titleID uint) (*string, error)
 
-	// SetPinnedVersion upserts the pinned version for the team and title.
-	SetPinnedVersion(ctx context.Context, teamID *uint, titleID uint, version string) error
-
 	// DeletePinnedVersion removes the pin for the given team and title.
 	DeletePinnedVersion(ctx context.Context, teamID *uint, titleID uint) error
 
@@ -3526,6 +3516,8 @@ type Datastore interface {
 	// UpdateInstallerScriptsAndQueries writes the scripts and queries onto an
 	// installer still on the given version, cancelling pending installs as an edit
 	// does. The version can't be cached as a second row, being the dedup token.
+	// The title's patch policy query is then regenerated, as SyncPatchPolicyQueries
+	// does.
 	UpdateInstallerScriptsAndQueries(ctx context.Context, installerID uint, version string, installScript string, uninstallScript string, patchQuery string, appOpenQuery string) error
 
 	// GetCachedFMAInstallerMetadata returns the cached metadata for a specific
@@ -3660,6 +3652,41 @@ type Datastore interface {
 	// checked. 0 starts the next run from the first host.
 	SetAppStoreAppConfigurationReconcileCursor(ctx context.Context, cursor uint) error
 
+	// ListAndroidHostsOnHostPolicy returns the enrolled Android hosts whose device is on its host policy,
+	// ordered by id, with only their id, uuid, serial number and platform.
+	ListAndroidHostsOnHostPolicy(ctx context.Context) ([]*Host, error)
+
+	// ListAndroidAppsInScopeForHosts returns each host's Android apps by host id, with the first-added
+	// version of each app in the host's fleet that the host is in label scope for.
+	ListAndroidAppsInScopeForHosts(ctx context.Context, hostIDs []uint) (map[uint][]VPPAppTeam, error)
+
+	// ListHostMDMAndroidVPPAppsFromSetupExperience returns each host's pending and verified setup experience
+	// installs since its last enrollment by host id, only of app versions in the host's current fleet.
+	ListHostMDMAndroidVPPAppsFromSetupExperience(ctx context.Context, hostIDs []uint) (map[uint][]*HostAndroidVPPSoftwareInstall, error)
+
+	// ListHostAndroidSoftwareInstalls returns the hosts' host_android_software_installs rows by host and app id.
+	ListHostAndroidSoftwareInstalls(ctx context.Context, hostIDs []uint) (map[uint]map[string]*HostAndroidSoftwareInstall, error)
+
+	// GetAndroidAppStoreAppVersionsByID returns every Android App Store app version by its id, with only its
+	// id, configuration and configuration change time.
+	GetAndroidAppStoreAppVersionsByID(ctx context.Context) (map[uint]*VPPAppStoreApp, error)
+
+	// BulkUpsertHostAndroidSoftwareInstalls deletes removedInstalls and upserts installs by host and app. An
+	// upsert keeps a resend flag that was set after the install's policy was built.
+	BulkUpsertHostAndroidSoftwareInstalls(ctx context.Context, installs []HostAndroidSoftwareInstall, removedInstalls []HostAndroidSoftwareInstall) error
+
+	// ReplaceHostAndroidSoftwareInstalls deletes the host's host_android_software_installs rows of apps that
+	// aren't in installs, and upserts installs.
+	ReplaceHostAndroidSoftwareInstalls(ctx context.Context, hostID uint, installs []HostAndroidSoftwareInstall) error
+
+	// SetHostAndroidSoftwareInstallsNeedsResend flags the hosts' host_android_software_installs rows for resend.
+	// Set builtAfter to flag only rows whose policy was built after it, and adamID to flag only that app's rows.
+	SetHostAndroidSoftwareInstallsNeedsResend(ctx context.Context, hostIDs []uint, builtAfter *time.Time, adamID *string) error
+
+	// SetHostAndroidSoftwareInstallsVerified sets the host's pending host_android_software_installs rows to
+	// verified when they were sent in appliedPolicyVersion or an earlier version.
+	SetHostAndroidSoftwareInstallsVerified(ctx context.Context, hostID uint, appliedPolicyVersion int64) error
+
 	// GetHostIDsWithRecentFailedVPPAppInstall returns the hosts among hostIDs that have a failed install of the App Store
 	// app version created at or after since.
 	GetHostIDsWithRecentFailedVPPAppInstall(ctx context.Context, vppAppTeamID uint, since time.Time, hostIDs []uint) (map[uint]struct{}, error)
@@ -3787,8 +3814,6 @@ type Datastore interface {
 	// GetIncludedHostIDMapForVPPAppHosts returns the hosts among hostIDs that are in scope for the given VPP app, based
 	// on label membership.
 	GetIncludedHostIDMapForVPPAppHosts(ctx context.Context, vppAppTeamID uint, hostIDs []uint) (map[uint]struct{}, error)
-
-	GetIncludedHostUUIDMapForAppStoreApp(ctx context.Context, vppAppTeamID uint) (map[string]string, error)
 
 	// GetExcludedHostIDMapForVPPApp gets the set of hosts that are NOT targeted/in scope for the
 	// given VPP app, based on label membership.
@@ -4159,9 +4184,6 @@ type Datastore interface {
 	// VPP app install record for the setup experience flow.
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
-	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
-	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error)
-	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error)
 	// HasAndroidAppConfigurationChanged compares newConfig with the configuration of the version with vppAppTeamID, or of the first-added version when vppAppTeamID is nil.
 	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error)
 
@@ -4171,9 +4193,6 @@ type Datastore interface {
 	// versions with the given ids and returns them indexed by the app id.
 	BulkGetAndroidAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[string][]byte, error)
 
-	// DeleteAndroidAppConfiguration removes an Android app configuration.
-	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error
-
 	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
 
 	// VPP App Configuration (iOS/iPadOS)
@@ -4182,13 +4201,9 @@ type Datastore interface {
 	HasVPPAppConfigurationChanged(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint, vppAppTeamID *uint, newConfig []byte) (bool, error)
 	// BulkGetVPPAppConfigurations returns the configurations of the versions with the given ids, indexed by version id.
 	BulkGetVPPAppConfigurations(ctx context.Context, vppAppTeamIDs []uint) (map[uint][]byte, error)
-	DeleteVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) error
 
 	// In-House App Configuration (iOS/iPadOS).
 	GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error)
-	HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error)
-	BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error)
-	DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -4279,7 +4294,9 @@ type Datastore interface {
 	// CreateHostConditionalAccessStatus creates the entry for the host on the datastore.
 	// This does not set the "managed" or "compliant" status yet, this just creates the entry needed with Entra information.
 	// If the host already has a different deviceID/userPrincipalName it will override them.
-	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error
+	// It returns whether the entry was created or changed, and a ConflictError if another host has deviceID.
+	// A verified deviceID (from an Entra-signed token) replaces unverified claims from other hosts.
+	CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string, verified bool) (bool, error)
 	// SetHostConditionalAccessStatus sets the "managed" and "compliant" statuses last set on Entra.
 	// It does nothing if the host doesn't have a status entry created with CreateHostConditionalAccessStatus yet.
 	SetHostConditionalAccessStatus(ctx context.Context, hostID uint, managed, compliant bool) error
@@ -4734,7 +4751,7 @@ type AndroidDatastore interface {
 	// slice, updating existing entries and inserting new entries.
 	// Returns a struct with the current installed software on the host (pre-mutations) plus all
 	// mutations performed: what was inserted and what was removed.
-	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software) (*UpdateHostSoftwareDBResult, error)
+	UpdateHostSoftware(ctx context.Context, hostID uint, software []Software, opts ...UpdateHostSoftwareOption) (*UpdateHostSoftwareDBResult, error)
 
 	// GetLatestAppleMDMCommandOfType retrieves the latest command of the given type for the host with the given UUID.
 	// If no such command exists, not found error is returned
@@ -4868,19 +4885,15 @@ type MigrationStatus struct {
 	// then all other fields are empty.
 	//
 	// If StatusCode is SomeMigrationsCompleted, then missing migrations
-	// are available in MissingTable and MissingData.
+	// are available in MissingTable.
 	//
 	// If StatusCode is UnknownMigrations, then unknown migrations
-	// are available in UnknownTable and UnknownData.
+	// are available in UnknownTable.
 	StatusCode MigrationStatusCode `json:"status_code"`
 	// MissingTable holds the missing table migrations.
 	MissingTable []int64 `json:"missing_table"`
-	// MissingTable holds the missing data migrations.
-	MissingData []int64 `json:"missing_data"`
 	// UnknownTable holds unknown applied table migrations.
 	UnknownTable []int64 `json:"unknown_table"`
-	// UnknownTable holds unknown applied data migrations.
-	UnknownData []int64 `json:"unknown_data"`
 }
 
 type MigrationStatusCode int
@@ -4894,11 +4907,6 @@ const (
 	AllMigrationsCompleted
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
-	// NeedsFleetv4732Fix means the database needs the special fix migration for fleet v4.73.2
-	NeedsFleetv4732Fix
-	// UnknownFleetv4732State means the database has the broken migrations from fleet v4.73.2 however
-	// it is not in the expected state and needs manual intervention.
-	UnknownFleetv4732State
 )
 
 // TODO: we have a similar but different interface in the service package,

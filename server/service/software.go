@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -23,40 +25,6 @@ type listSoftwareRequest struct {
 	fleet.SoftwareListOptions
 }
 
-// Deprecated: listSoftwareResponse is the response struct for the deprecated
-// listSoftwareEndpoint. It differs from listSoftwareVersionsResponse in that
-// the latter includes a count of the total number of software items.
-type listSoftwareResponse struct {
-	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
-	Software        []fleet.Software `json:"software,omitempty"`
-	Err             error            `json:"error,omitempty"`
-}
-
-func (r listSoftwareResponse) Error() error { return r.Err }
-
-// Deprecated: use listSoftwareVersionsEndpoint instead
-func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listSoftwareRequest)
-	resp, _, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
-	if err != nil {
-		return listSoftwareResponse{Err: err}, nil
-	}
-
-	// calculate the latest counts_updated_at
-	var latest time.Time
-	for _, sw := range resp {
-		if !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
-			latest = sw.CountsUpdatedAt
-		}
-	}
-	listResp := listSoftwareResponse{Software: resp}
-	if !latest.IsZero() {
-		listResp.CountsUpdatedAt = &latest
-	}
-
-	return listResp, nil
-}
-
 type listSoftwareVersionsResponse struct {
 	Count           int                       `json:"count"`
 	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
@@ -67,11 +35,78 @@ type listSoftwareVersionsResponse struct {
 
 func (r listSoftwareVersionsResponse) Error() error { return r.Err }
 
+// streamSoftwareVersionsResponse writes the software one version at a time. Encoding the whole
+// response at once holds several copies of it in memory, which runs to gigabytes for pages of
+// versions with thousands of CVEs each.
+//
+// Rendering here bypasses EncodeCommonResponse, so renameto key aliasing does not apply: a
+// renameto tag added to the types in this response must be handled here.
+type streamSoftwareVersionsResponse struct {
+	listSoftwareVersionsResponse
+}
+
+func (r streamSoftwareVersionsResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	// From here on the response is a 200, so errors are reported in the body's "error" key.
+	w.WriteHeader(http.StatusOK)
+
+	// No flushing per version: the writer sends its buffer as it fills, and with gzip_responses
+	// every flush ends a deflate block, which made pages of small versions 50% larger.
+	writeError := func(msg string) {
+		data, err := json.Marshal(msg)
+		if err != nil {
+			data = []byte(`"unknown error"`)
+		}
+		fmt.Fprintf(w, `"error":%s}`, data)
+	}
+
+	// The other fields, from the response struct itself so they keep its tags.
+	head := r.listSoftwareVersionsResponse
+	head.Software = nil
+	data, err := json.Marshal(head)
+	if err != nil {
+		_, _ = io.WriteString(w, `{`)
+		writeError(fmt.Sprintf("marshaling software versions response: %s", err))
+		return
+	}
+	if len(r.Software) == 0 {
+		_, _ = w.Write(data)
+		return
+	}
+
+	// A failed write means the client is gone, so stop rather than encode the rest for nobody.
+	var writeErr error
+	write := func(b []byte) {
+		if writeErr == nil {
+			_, writeErr = w.Write(b)
+		}
+	}
+
+	write(data[:len(data)-1]) // without the closing brace
+	write([]byte(`,"software":[`))
+	for i := range r.Software {
+		if writeErr != nil {
+			return
+		}
+		// By pointer, so that fleet.Software's MarshalJSON is used.
+		sw, err := json.Marshal(&r.Software[i])
+		if err != nil {
+			write([]byte(`],`))
+			writeError(fmt.Sprintf("marshaling software %d: %s", r.Software[i].ID, err))
+			return
+		}
+		if i > 0 {
+			write([]byte(`,`))
+		}
+		write(sw)
+	}
+	write([]byte(`]}`))
+}
+
 func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 
-	// always include pagination for new software versions endpoint (not included by default in
-	// legacy endpoint for backwards compatibility)
+	// always include pagination for the software versions endpoint
 	req.SoftwareListOptions.ListOptions.IncludeMetadata = true
 
 	// fleet.DefaultPerPage is effectively unbounded, and returning a whole large
@@ -104,7 +139,7 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 	}
 	listResp.Count = c
 
-	return listResp, nil
+	return streamSoftwareVersionsResponse{listSoftwareVersionsResponse: listResp}, nil
 }
 
 func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
@@ -254,28 +289,6 @@ func (svc *Service) SoftwareLiteByID(
 /////////////////////////////////////////////////////////////////////////////////
 // Count
 /////////////////////////////////////////////////////////////////////////////////
-
-type countSoftwareRequest struct {
-	fleet.SoftwareListOptions
-}
-
-type countSoftwareResponse struct {
-	Count int   `json:"count"`
-	Err   error `json:"error,omitempty"`
-}
-
-func (r countSoftwareResponse) Error() error { return r.Err }
-
-// Deprecated: counts are now included directly in the listSoftwareVersionsResponse. This
-// endpoint is retained for backwards compatibility.
-func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*countSoftwareRequest)
-	count, err := svc.CountSoftware(ctx, req.SoftwareListOptions)
-	if err != nil {
-		return countSoftwareResponse{Err: err}, nil
-	}
-	return countSoftwareResponse{Count: count}, nil
-}
 
 func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{

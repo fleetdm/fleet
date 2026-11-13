@@ -23,6 +23,7 @@ To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleet
 3. Copy the command to generate fleetd and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 
 4. Install fleetd on your host(s) to enroll it to Fleet.
+   > On macOS, if a host is enrolled through ADE, or manually enrolled by installing an MDM enrollment profile, the fleetd agent is automatically deployed via an MDM command.
 
 If you're trying to enroll a NixOS Linux host, follow [these instructions](#enroll-nixos-hosts) instead. 
 
@@ -223,6 +224,7 @@ If a host fails to enroll or re-enroll, check its activities for `host_enrollmen
 - `one_time_secret_spent`: the secret was already used. Resend the "Fleetd configuration" profile from the host's **Controls** tab to issue a new one, then restart fleetd.
 - `one_time_secret_identifier_mismatch`: the secret was presented by different hardware than it was issued for.
 - `shared_secret_for_mdm_managed_host`: a global or fleet-level enroll secret was used for a host that has MDM turned on or is assigned to Fleet in AB.
+- `uuid_of_another_mdm_host`: a host tried to enroll with the hardware UUID of a host that has MDM turned on. This happens when the same device enrolls again with a different osquery identifier, for example with `--host-identifier=instance`. Delete the existing host and the device re-enrolls.
 
 For a DEP host with a spent secret, wipe the host and re-run the DEP install.
 

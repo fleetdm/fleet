@@ -7,7 +7,6 @@ import {
   QueryClientProvider,
   QueryClientProviderProps,
 } from "react-query";
-import { InjectedRouter } from "react-router";
 
 import createMockConfig from "__mocks__/configMock";
 import { AppContext } from "context/app";
@@ -30,9 +29,6 @@ const CustomQueryClientProvider: React.FC<CustomQueryClientProviderProps> = Quer
 const meta: Meta<typeof ConditionalAccess> = {
   title: "Components/ConditionalAccess",
   component: ConditionalAccess,
-  args: {
-    router: ({ push: () => undefined } as unknown) as InjectedRouter,
-  },
 };
 
 export default meta;

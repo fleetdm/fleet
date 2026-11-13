@@ -14,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -40,7 +41,6 @@ import (
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/variables"
-	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 )
@@ -438,8 +438,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		return nil, err
 	}
 
-	// get software by ID, fail if it does not exist or does not have an existing installer
-	software, err := svc.ds.SoftwareTitleByID(ctx, payload.TitleID, payload.TeamID, fleet.TeamFilter{
+	// get software by ID, fail if it does not exist or does not have an existing installer.
+	// Force the primary DB so the display name reflects any override set by a prior
+	// edit in the same session (replica lag would otherwise emit a stale value in the activity).
+	software, err := svc.ds.SoftwareTitleByID(ctxdb.RequirePrimary(ctx, true), payload.TitleID, payload.TeamID, fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
 	})
@@ -516,8 +518,8 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	payload.InstallerID = existingInstaller.InstallerID
 
 	// The patch controls only apply to Fleet-maintained apps.
-	if (payload.Patch != nil || payload.PatchWhenClosed != nil || payload.NotifyBeforePatching != nil) && existingInstaller.FleetMaintainedAppID == nil {
-		return nil, &fleet.BadRequestError{Message: `"patch", "patch_when_closed" and "notify_before_patching" are only available for Fleet-maintained apps.`}
+	if (payload.Patch != nil || payload.PatchWhenClosed != nil || payload.NotifyBeforePatching != nil || payload.PatchDeadline != nil) && existingInstaller.FleetMaintainedAppID == nil {
+		return nil, &fleet.BadRequestError{Message: `"patch", "patch_when_closed", "notify_before_patching", and "patch_deadline" are only available for Fleet-maintained apps.`}
 	}
 
 	if payload.DisplayName != nil && *payload.DisplayName != software.DisplayName {
@@ -845,14 +847,14 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	var shouldDoSideEffects bool
 
 	var existingPolicy *fleet.PatchPolicyData
-	var patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag bool
+	var patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag, patchDeadlineFlag bool
 
 	if existingInstaller.FleetMaintainedAppID != nil {
 		existingPolicy, err = svc.ds.GetPatchPolicy(ctx, payload.TeamID, payload.TitleID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "getting patch policy")
 		}
-		patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag, err = planPatchPolicy(payload, existingInstaller, existingPolicy)
+		patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag, patchDeadlineFlag, err = planPatchPolicy(payload, existingInstaller, existingPolicy)
 		if err != nil {
 			return nil, err
 		}
@@ -969,6 +971,10 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		if payload.SelfService != nil {
 			activity.SelfService = *payload.SelfService
 		}
+		// Carry the stored display name on every edit so edits that don't touch
+		// it still record the current override, instead of emitting an empty
+		// string (which reads as "cleared" to downstream consumers).
+		activity.SoftwareDisplayName = software.DisplayName
 		if payload.DisplayName != nil {
 			activity.SoftwareDisplayName = *payload.DisplayName
 		}
@@ -994,16 +1000,19 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 			PatchSoftwareTitleID: &payload.TitleID,
 			PatchWhenClosed:      patchWhenClosedFlag,
 			NotifyBeforePatching: notifyBeforePatchingFlag,
-			// both patch options require continuous automations on.
-			ContinuousAutomationsEnabled: patchWhenClosedFlag || notifyBeforePatchingFlag,
+			PatchDeadline:        patchDeadlineFlag,
+			// every patch option requires continuous automations on.
+			ContinuousAutomationsEnabled: patchWhenClosedFlag || notifyBeforePatchingFlag || patchDeadlineFlag,
 		}); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
 		}
 	case patchFlag && existingPolicy != nil &&
-		(patchWhenClosedFlag != existingPolicy.PatchWhenClosed || notifyBeforePatchingFlag != existingPolicy.NotifyBeforePatching):
+		(patchWhenClosedFlag != existingPolicy.PatchWhenClosed || notifyBeforePatchingFlag != existingPolicy.NotifyBeforePatching ||
+			patchDeadlineFlag != existingPolicy.PatchDeadline):
 		if _, err := svc.ModifyTeamPolicy(ctx, patchTeamID, existingPolicy.ID, fleet.ModifyPolicyPayload{
 			PatchWhenClosed:      &patchWhenClosedFlag,
 			NotifyBeforePatching: &notifyBeforePatchingFlag,
+			PatchDeadline:        &patchDeadlineFlag,
 		}); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "modifying patch policy")
 		}
@@ -1025,11 +1034,11 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 	return updatedInstaller, nil
 }
 
-func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *fleet.SoftwareInstaller, existingPolicy *fleet.PatchPolicyData) (patchFlag bool, patchWhenClosedFlag bool, notifyBeforePatchingFlag bool, err error) {
+func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *fleet.SoftwareInstaller, existingPolicy *fleet.PatchPolicyData) (patchFlag bool, patchWhenClosedFlag bool, notifyBeforePatchingFlag bool, patchDeadlineFlag bool, err error) {
 	// Only the Fleet-maintained package has a managed pre-install query; patch controls on any other
 	// package are rejected by the caller.
 	if installer.FleetMaintainedAppID == nil {
-		return false, false, false, nil
+		return false, false, false, false, nil
 	}
 
 	// Resolve the optional flags into plain bools so the logic below never touches the pointers.
@@ -1041,18 +1050,28 @@ func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *f
 	} else {
 		patchFlag = *payload.Patch
 	}
+	// An omitted option keeps its current value unless the request turns on another one, since the
+	// options are mutually exclusive.
 	if payload.NotifyBeforePatching == nil {
-		if existingPolicy != nil {
+		if existingPolicy != nil && !ptr.ValOrZero(payload.PatchDeadline) && !ptr.ValOrZero(payload.PatchWhenClosed) {
 			notifyBeforePatchingFlag = existingPolicy.NotifyBeforePatching
 		}
 	} else {
 		notifyBeforePatchingFlag = *payload.NotifyBeforePatching
 	}
+	if payload.PatchDeadline == nil {
+		if existingPolicy != nil && !ptr.ValOrZero(payload.NotifyBeforePatching) && !ptr.ValOrZero(payload.PatchWhenClosed) {
+			patchDeadlineFlag = existingPolicy.PatchDeadline
+		}
+	} else {
+		patchDeadlineFlag = *payload.PatchDeadline
+	}
 	// An omitted patch_when_closed keeps the current value, or defaults on for a new policy. The
-	// default yields to an explicit notify_before_patching, since the two are mutually exclusive.
+	// default yields to an explicit notify_before_patching or patch_deadline, since the options are
+	// mutually exclusive.
 	if payload.PatchWhenClosed == nil {
 		switch {
-		case notifyBeforePatchingFlag:
+		case notifyBeforePatchingFlag || patchDeadlineFlag:
 			patchWhenClosedFlag = false
 		case existingPolicy != nil:
 			patchWhenClosedFlag = existingPolicy.PatchWhenClosed
@@ -1063,30 +1082,39 @@ func planPatchPolicy(payload *fleet.UpdateSoftwareInstallerPayload, installer *f
 		patchWhenClosedFlag = *payload.PatchWhenClosed
 	}
 
-	if patchWhenClosedFlag && notifyBeforePatchingFlag {
-		return false, false, false, &fleet.BadRequestError{Message: fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error()}
+	if fleet.PatchOptionsConflict(patchWhenClosedFlag, notifyBeforePatchingFlag, patchDeadlineFlag) {
+		return false, false, false, false, &fleet.BadRequestError{Message: fleet.ErrPolicyPatchOptionsMutuallyExclusive.Error()}
 	}
 
 	// The patch options are only meaningful with patch enabled (in this request or already on the title).
 	if payload.PatchWhenClosed != nil && !patchFlag {
-		return false, false, false, &fleet.BadRequestError{Message: `If "patch_when_closed" is set, "patch" must be true.`}
+		return false, false, false, false, &fleet.BadRequestError{Message: `If "patch_when_closed" is set, "patch" must be true.`}
 	}
 	if payload.NotifyBeforePatching != nil && !patchFlag {
-		return false, false, false, &fleet.BadRequestError{Message: `If "notify_before_patching" is set, "patch" must be true.`}
+		return false, false, false, false, &fleet.BadRequestError{Message: `If "notify_before_patching" is set, "patch" must be true.`}
+	}
+	if payload.PatchDeadline != nil && !patchFlag {
+		return false, false, false, false, &fleet.BadRequestError{Message: `If "patch_deadline" is set, "patch" must be true.`}
 	}
 
 	if notifyBeforePatchingFlag && installer.Platform != "darwin" {
-		return false, false, false, &fleet.BadRequestError{Message: fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error()}
+		return false, false, false, false, &fleet.BadRequestError{Message: fleet.ErrPolicyNotifyBeforePatchingRequiresMacOS.Error()}
+	}
+	if patchDeadlineFlag && installer.Platform != "darwin" {
+		return false, false, false, false, &fleet.BadRequestError{Message: fleet.ErrPolicyPatchDeadlineRequiresMacOS.Error()}
 	}
 
 	// The pre-install query is read-only only while a patch option will actually be in effect.
 	if patchFlag && patchWhenClosedFlag && payload.PreInstallQuery != nil {
-		return false, false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "patch_when_closed" is enabled.`}
+		return false, false, false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "patch_when_closed" is enabled.`}
 	}
 	if patchFlag && notifyBeforePatchingFlag && payload.PreInstallQuery != nil {
-		return false, false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "notify_before_patching" is enabled.`}
+		return false, false, false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "notify_before_patching" is enabled.`}
 	}
-	return patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag, nil
+	if patchFlag && patchDeadlineFlag && payload.PreInstallQuery != nil {
+		return false, false, false, false, &fleet.BadRequestError{Message: `Couldn't edit. "pre_install_query" is managed by Fleet and can't be set directly while "patch_deadline" is enabled.`}
+	}
+	return patchFlag, patchWhenClosedFlag, notifyBeforePatchingFlag, patchDeadlineFlag, nil
 }
 
 func (svc *Service) validateEmbeddedSecretsOnScript(ctx context.Context, scriptName string, script *string,
@@ -1268,7 +1296,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 	if appStoreAppVersionID != nil {
 		for _, version := range versionsVPP {
 			if version.VPPAppsTeamsID == *appStoreAppVersionID {
-				return svc.deleteAppStoreAppVersions(ctx, teamID, versionsVPP, []*fleet.VPPAppStoreApp{version})
+				return svc.deleteAppStoreAppVersions(ctx, teamID, []*fleet.VPPAppStoreApp{version})
 			}
 		}
 		return ctxerr.Wrapf(ctx, &notFoundError{}, "app store app version %d does not belong to this title and team", *appStoreAppVersionID)
@@ -1291,7 +1319,7 @@ func (svc *Service) DeleteSoftwareInstaller(ctx context.Context, titleID uint, t
 		}
 		return nil
 	case len(versionsVPP) > 0:
-		return svc.deleteAppStoreAppVersions(ctx, teamID, versionsVPP, versionsVPP)
+		return svc.deleteAppStoreAppVersions(ctx, teamID, versionsVPP)
 	case metaInHouse != nil:
 		return svc.deleteSoftwareInstaller(ctx, metaInHouse)
 	}
@@ -2705,6 +2733,12 @@ func (svc *Service) addMetadataToSoftwarePayload(ctx context.Context, payload *f
 				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
 			}
 		}
+		if errors.Is(err, file.ErrInvalidInstaller) {
+			return "", &fleet.BadRequestError{
+				Message:     "Uploaded file is not a valid installer package.",
+				InternalErr: ctxerr.Wrap(ctx, err, "extracting metadata from installer"),
+			}
+		}
 		return "", ctxerr.Wrap(ctx, err, "extracting metadata from installer")
 	}
 
@@ -2970,28 +3004,30 @@ func (svc *Service) BatchSetSoftwareInstallers(
 	}
 
 	var teamID *uint
+	var newFleet bool
 	if tmName != "" {
 		tm, err := svc.ds.TeamByName(ctx, tmName)
 		if err != nil {
-			// If this is a dry run, the team may not have been created yet
-			if dryRun && fleet.IsNotFound(err) {
-				return "", nil
+			// On a dry run the fleet may not have been created yet. teamID then
+			// stays nil, which means Unassigned, so only the payload checks run.
+			if !dryRun || !fleet.IsNotFound(err) {
+				return "", err
 			}
-			return "", err
+			newFleet = true
+		} else {
+			teamID = &tm.ID
 		}
-		teamID = &tm.ID
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: teamID}, fleet.ActionWrite); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "validating authorization")
 	}
 
-	// Same pattern as the dry-run + team-not-found short-circuit above. Empty payload
-	// + dry-run has nothing to validate or stage, so skip the async round-trip — but
-	// only when the team also has no installers: an empty payload deletes every
-	// existing package, and the dry run must report each one. The client handles an
-	// empty UUID response gracefully.
-	if dryRun && len(payloads) == 0 {
+	// Empty payload + dry-run has nothing to validate or stage, so skip the async
+	// round-trip — but only when the team also has no installers: an empty payload
+	// deletes every existing package, and the dry run must report each one. The
+	// client handles an empty UUID response gracefully.
+	if dryRun && len(payloads) == 0 && !newFleet {
 		pendingDeletion, err := svc.ds.GetSoftwareInstallersPendingDeletion(ctx, teamID, nil)
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "checking for software installers pending deletion")
@@ -3063,6 +3099,10 @@ func (svc *Service) BatchSetSoftwareInstallers(
 		if err := trimAndValidateCategories(ctx, payload.Categories.Value); err != nil {
 			return "", ctxerr.Wrap(ctx, err, "validating software categories")
 		}
+	}
+
+	if newFleet {
+		return "", nil
 	}
 
 	if !dryRun {
@@ -3232,6 +3272,28 @@ const (
 	batchSetFailedPrefix = "failed:"
 )
 
+// installerDownloadStallTimeout fails a download that receives no bytes for this long, counted from the request
+// start or the last byte read. Any byte resets it, so slow downloads still finish. Matches the agent's
+// downloadStallTimeout in client/orbit_client.go.
+var installerDownloadStallTimeout = 60 * time.Second
+
+var errInstallerDownloadStalled = errors.New("installer download stalled")
+
+// stallResetReader pushes the download stall timer back on every read that returns bytes.
+type stallResetReader struct {
+	r       io.Reader
+	timer   *time.Timer
+	timeout time.Duration
+}
+
+func (s stallResetReader) Read(p []byte) (int, error) {
+	n, err := s.r.Read(p)
+	if n > 0 {
+		s.timer.Reset(s.timeout)
+	}
+	return n, err
+}
+
 // downloadInstallerURL downloads an installer from a URL. If ifNoneMatch is
 // non-empty, the request includes an If-None-Match header for conditional GET.
 //
@@ -3239,6 +3301,20 @@ const (
 // closed body, tfr is nil. Callers MUST check resp.StatusCode before using tfr.
 func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch string, maxInstallerSize int64) (*http.Response, *fleet.TempFileReader, error) {
 	client := fleethttp.NewClient(fleethttp.WithNoTimeout(), fleethttp.WithMaxResponseSize(maxInstallerSize))
+
+	// The client has no timeout so large installers can finish, which leaves a server that stops sending free to
+	// hang the batch. The stall timer cancels the request instead, before or after the headers arrive.
+	timeout := installerDownloadStallTimeout
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	stall := time.AfterFunc(timeout, func() { cancel(errInstallerDownloadStalled) })
+	defer stall.Stop()
+	stalledErr := func() error {
+		if !errors.Is(context.Cause(ctx), errInstallerDownloadStalled) {
+			return nil
+		}
+		return fmt.Errorf("downloading %q: no data received for %s: %w", downloadURL, timeout, errInstallerDownloadStalled)
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
 	if err != nil {
@@ -3250,6 +3326,9 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 
 	resp, err := client.Do(req)
 	if err != nil {
+		if stallErr := stalledErr(); stallErr != nil {
+			return nil, nil, stallErr
+		}
 		var maxBytesErr *http.MaxBytesError
 		if errors.Is(err, fleethttp.ErrMaxSizeExceeded) || errors.As(err, &maxBytesErr) {
 			return nil, nil, fleet.NewInvalidArgumentError(
@@ -3286,8 +3365,11 @@ func downloadInstallerURL(ctx context.Context, downloadURL string, ifNoneMatch s
 		)
 	}
 
-	tfr, err := fleet.NewTempFileReader(resp.Body, nil)
+	tfr, err := fleet.NewTempFileReader(stallResetReader{r: resp.Body, timer: stall, timeout: timeout}, nil)
 	if err != nil {
+		if stallErr := stalledErr(); stallErr != nil {
+			return nil, nil, stallErr
+		}
 		// the max size error can be received either at client.Do or here when
 		// reading the body if it's caught via a limited body reader.
 		var maxBytesErr *http.MaxBytesError
@@ -3528,7 +3610,17 @@ func (svc *Service) softwareBatchUpload(
 	for i, p := range payloads {
 		i, p := i, p
 
-		g.Go(func() error {
+		g.Go(func() (retErr error) {
+			// errgroup doesn't recover, and installer parsers can panic on crafted
+			// input, which would end the process from this goroutine.
+			defer func() {
+				if r := recover(); r != nil {
+					svc.logger.ErrorContext(ctx, "panic processing software package",
+						"request_uuid", requestUUID, "url", p.URL, "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+					retErr = fmt.Errorf("Couldn't process software package %s: unexpected error.", p.URL)
+				}
+			}()
+
 			// A single failure fails the whole batch, so don't process (and download)
 			// the remaining payloads. With the limit of 1 above, gctx is always
 			// cancelled before the next goroutine starts; in-flight work isn't
@@ -3561,7 +3653,6 @@ func (svc *Service) softwareBatchUpload(
 				Categories:               p.Categories.Value,
 				DisplayName:              p.DisplayName,
 				RollbackVersion:          p.RollbackVersion,
-				AlwaysDownload:           p.AlwaysDownload,
 				Configuration:            p.Configuration,
 			}
 
@@ -3901,6 +3992,12 @@ func (svc *Service) softwareBatchUpload(
 				if !fmaVersionCached && installer.Version == "latest" && installer.InstallerFile != nil {
 					meta, err := file.ExtractInstallerMetadata(installer.InstallerFile)
 					if err != nil {
+						if errors.Is(err, file.ErrInvalidInstaller) {
+							return &fleet.BadRequestError{
+								Message:     "Uploaded file is not a valid installer package.",
+								InternalErr: ctxerr.Wrap(ctx, err, "extracting installer metadata"),
+							}
+						}
 						return ctxerr.Wrap(ctx, err, "extracting installer metadata")
 					}
 
@@ -3929,14 +4026,21 @@ func (svc *Service) softwareBatchUpload(
 
 			var ext string
 			if installer.FleetMaintainedAppID == nil && installer.InstallerFile != nil {
+				// Check the pin before parsing, so bytes that aren't the pinned
+				// installer never reach the parsers.
+				if p.SHA256 != "" {
+					gotHash, err := file.SHA256FromTempFileReader(installer.InstallerFile)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "hashing downloaded installer")
+					}
+					if gotHash != p.SHA256 {
+						return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
+					}
+				}
+
 				ext, err = svc.addMetadataToSoftwarePayload(ctx, installer, true)
 				if err != nil {
 					return err
-				}
-
-				if p.SHA256 != "" && p.SHA256 != installer.StorageID {
-					// this isn't the specified installer, so return an error
-					return fmt.Errorf("downloaded installer hash does not match provided hash for installer with url %s", p.URL)
 				}
 			}
 
@@ -5043,74 +5147,11 @@ func (svc *Service) resolveFirstAddedInScopeAppStoreApp(ctx context.Context, hos
 	return vppApp, true, nil
 }
 
-func (svc *Service) deleteAppStoreAppVersions(ctx context.Context, teamID *uint, versions []*fleet.VPPAppStoreApp, versionsToDelete []*fleet.VPPAppStoreApp) error {
-	versionIDsToDelete := make(map[uint]struct{}, len(versionsToDelete))
-	for _, version := range versionsToDelete {
-		versionIDsToDelete[version.VPPAppsTeamsID] = struct{}{}
-	}
-
-	// Collect the Android hosts before the delete, the worker can't read the scope of a deleted version
-	androidHostsToUninstall := make(map[string]string)
-	androidHostsByNextVersionID := make(map[uint]map[string]string)
-	if versions[0].Platform == fleet.AndroidPlatform {
-		// Walk the versions in id order, the first version that includes a host is its version
-		seenHosts := make(map[string]struct{})
-		for _, version := range versions {
-			hosts, err := svc.ds.GetIncludedHostUUIDMapForAppStoreApp(ctx, version.VPPAppsTeamsID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "delete app store app: getting android hosts in scope")
-			}
-			_, deletingVersion := versionIDsToDelete[version.VPPAppsTeamsID]
-			for hostUUID, policyID := range hosts {
-				_, seen := seenHosts[hostUUID]
-				if !seen {
-					seenHosts[hostUUID] = struct{}{}
-					// Uninstall the app from a host whose version is deleted, unless a later version that isn't deleted includes it
-					if deletingVersion {
-						androidHostsToUninstall[hostUUID] = policyID
-					}
-					continue
-				}
-
-				// Send the configuration of the first remaining version that includes a host whose version is deleted
-				_, waitingForNextVersion := androidHostsToUninstall[hostUUID]
-				if !waitingForNextVersion || deletingVersion {
-					continue
-				}
-				delete(androidHostsToUninstall, hostUUID)
-				if androidHostsByNextVersionID[version.VPPAppsTeamsID] == nil {
-					androidHostsByNextVersionID[version.VPPAppsTeamsID] = make(map[string]string)
-				}
-				androidHostsByNextVersionID[version.VPPAppsTeamsID][hostUUID] = policyID
-			}
-		}
-	}
-
+func (svc *Service) deleteAppStoreAppVersions(ctx context.Context, teamID *uint, versionsToDelete []*fleet.VPPAppStoreApp) error {
 	for _, version := range versionsToDelete {
 		err := svc.deleteVPPApp(ctx, teamID, version)
 		if err != nil {
 			return err
-		}
-	}
-
-	if len(androidHostsToUninstall) == 0 && len(androidHostsByNextVersionID) == 0 {
-		return nil
-	}
-
-	enterprise, err := svc.ds.GetEnterprise(ctx)
-	if err != nil {
-		return &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
-	}
-	if len(androidHostsToUninstall) > 0 {
-		err = worker.QueueMakeAndroidAppUnavailableJob(ctx, svc.ds, svc.logger, versions[0].AdamID, androidHostsToUninstall, enterprise.Name(), svc.config.MDM.AndroidBatchSize)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "enqueuing job to make android app unavailable")
-		}
-	}
-	for nextVersionID, movedHosts := range androidHostsByNextVersionID {
-		err = worker.QueueMakeAndroidAppAvailableForHostsJob(ctx, svc.ds, versions[0].AdamID, nextVersionID, movedHosts, enterprise.Name(), svc.config.MDM.AndroidBatchSize)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "enqueuing job to send the next version's configuration")
 		}
 	}
 	return nil

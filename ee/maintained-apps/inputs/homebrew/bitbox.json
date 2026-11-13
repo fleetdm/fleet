@@ -1,6 +1,6 @@
 {
   "name": "BitBox",
-  "unique_identifier": "ch.shiftcrypto.BitBoxApp",
+  "unique_identifier": "ch.shiftcrypto.wallet",
   "token": "bitbox",
   "installer_format": "dmg",
   "slug": "bitbox/darwin",

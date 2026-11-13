@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -145,11 +146,37 @@ func handleDevicesGet(store *deviceStore) http.HandlerFunc {
 			"name":                 name,
 			"appliedPolicyVersion": fmt.Sprintf("%d", d.PolicyVersion),
 			"appliedPolicyName":    d.PolicyName,
+			// Fleet checks a re-enrollment's hardware identity against this before resetting the host.
+			"hardwareInfo": map[string]any{"enterpriseSpecificId": d.EnterpriseSpecificID},
 		}
 		d.mu.Unlock()
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
+	}
+}
+
+// handleOperationsGet reports every operation on a fake device as done, since simulated
+// devices ack commands as soon as they see them. Fleet looks the operation up when it
+// handles a COMMAND notification.
+// Operations on devices the mock doesn't know are forwarded to Google when it is configured.
+func handleOperationsGet(store *deviceStore, google *googleForwarder) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name := deviceName(r)
+		if store.getByName(name) == nil && google != nil {
+			google.ForwardOperationsGet(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if store.getByName(name) == nil {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, `{"error":{"code":404,"message":"Operation not found","status":"NOT_FOUND"}}`)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"name": name + "/operations/" + r.PathValue("oid"),
+			"done": true,
+		})
 	}
 }
 
@@ -296,6 +323,51 @@ func handleDevicesList(store *deviceStore, google *googleForwarder) http.Handler
 }
 
 // ---- Policy handlers ----
+
+// policyOptions turns on checks for policy requests that real AMAPI accepts but that show a bug
+// in Fleet, or that AMAPI rejects but the mock accepts by default.
+type policyOptions struct {
+	rejectDefaultPolicyApps bool
+}
+
+// guardPolicyRequest rejects policy requests before they reach the handler. An empty policy ID
+// is always rejected, as AMAPI does for an invalid policy name.
+func guardPolicyRequest(opts policyOptions, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id := policyID(r)
+		if id == "" {
+			writeAMAPIError(w, http.StatusBadRequest, "INVALID_ARGUMENT", "Invalid policy name: "+policyName(r))
+			return
+		}
+
+		// Every POST on a policy is an app action. A PATCH changes the apps unless its update
+		// mask leaves them out.
+		changesApps := r.Method == http.MethodPost
+		if r.Method == http.MethodPatch {
+			mask := r.URL.Query().Get("updateMask")
+			changesApps = mask == "" || slices.Contains(strings.Split(mask, ","), "applications")
+		}
+		if opts.rejectDefaultPolicyApps && changesApps && id == strconv.Itoa(android.DefaultAndroidPolicyID) {
+			writeAMAPIError(w, http.StatusBadRequest, "FAILED_PRECONDITION",
+				"mock: Fleet must not change the apps of the default policy "+policyName(r))
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func writeAMAPIError(w http.ResponseWriter, code int, status, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"error": map[string]any{
+			"code":    code,
+			"message": message,
+			"status":  status,
+		},
+	})
+}
 
 func handlePoliciesPatch(store *deviceStore, google *googleForwarder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

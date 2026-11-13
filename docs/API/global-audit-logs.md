@@ -940,8 +940,9 @@ This activity contains the following fields:
 
 ### host_enrollment_rejected
 
-Generated when Fleet refuses an enrollment in either of these cases:
+Generated when Fleet refuses an enrollment in any of these cases:
 - An Orbit or osquery enrollment is refused under the one-time enroll secret rules. See the [`mdm.apple_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets) server configuration for macOS, and [`auth_mdm_windows_one_time_enroll_secrets`](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-mdm-windows-one-time-enroll-secrets) for Windows.
+- An Orbit or osquery enrollment is refused because it presented the hardware UUID of another host that has MDM turned on.
 - An automatic enrollment (ADE) is refused because the host is in a fleet that requires end user authentication and the device didn't complete it.
 
 Fleet records at most one of these per host and reason per 12 hours, so a host that keeps retrying doesn't flood the activity feed.
@@ -959,6 +960,7 @@ This activity contains the following fields:
   - "one_time_secret_spent": the host's one-time enroll secret was already used. Resend the "Fleetd configuration" profile (macOS) or the "Fleetd enroll secret" profile (Windows) to issue a new one.
   - "one_time_secret_identifier_mismatch": a one-time enroll secret was presented with a different serial number or hardware UUID than it was issued for.
   - "shared_secret_for_mdm_managed_host": a global or fleet-level enroll secret was used for a host that is enrolled in Fleet MDM, assigned to Fleet in Apple Business, or registered in Windows Autopilot. On Windows, this also covers a deleted host whose device checked in with Fleet MDM after it was deleted.
+  - "uuid_of_another_mdm_host": an enrollment tried to add a host with the hardware UUID of another host that is enrolled in Fleet MDM. "host_id" is that other host.
   - "end_user_authentication_required": the host is in a fleet that requires end user authentication, but the device tried to enroll without completing it. This happens when the device got its automatic enrollment configuration before its fleet required end user authentication, or before it moved to that fleet. Erase and reactivate the device so it goes through end user authentication. Fleet only records this reason when every other enrollment check passed.
 
 #### Example

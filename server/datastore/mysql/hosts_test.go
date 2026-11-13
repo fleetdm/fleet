@@ -118,6 +118,7 @@ func TestHosts(t *testing.T) {
 		{"MarkSeenMany", testHostsMarkSeenMany},
 		{"CleanupIncoming", testHostsCleanupIncoming},
 		{"IDsByIdentifier", testHostIDsByIdentifier},
+		{"IDsByLabelIdentifier", testHostIDsByLabelIdentifier},
 		{"Additional", testHostsAdditional},
 		{"ByIdentifier", testHostsByIdentifier},
 		{"ByUUID", testHostsByUUID},
@@ -137,6 +138,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListBySoftwareChangedAt", testHostsListBySoftwareChangedAt},
 		{"HostsListByOperatingSystemID", testHostsListByOperatingSystemID},
 		{"HostsListByOSNameAndVersion", testHostsListByOSNameAndVersion},
+		{"HostsOSNameAndVersionLoaders", testHostsOSNameAndVersionLoaders},
 		{"HostsListByVulnerability", testHostsListByVulnerability},
 		{"HostsListByDiskEncryptionStatus", testHostsListMacOSSettingsDiskEncryptionStatus},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
@@ -4522,6 +4524,37 @@ func testHostIDsByIdentifier(t *testing.T, ds *Datastore) {
 	assert.Equal(t, hostsByIdentifier[0], hosts[0].ID)
 }
 
+func testHostIDsByLabelIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	hosts := make([]*fleet.Host, 3)
+	for i := range hosts {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			OsqueryHostID:  new(fmt.Sprintf("osq.host%d", i)),
+			NodeKey:        new(fmt.Sprintf("nk.%d", i)),
+			UUID:           fmt.Sprintf("uuid.%d", i),
+			HardwareSerial: fmt.Sprintf("hws.%d", i),
+			Hostname:       fmt.Sprintf("foo.%d.local", i),
+		})
+		require.NoError(t, err)
+		hosts[i] = h
+	}
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	ids, err := ds.HostIDsByLabelIdentifier(ctx, filter, []string{"foo.0.local", "nk.1", "osq.host2"})
+	require.NoError(t, err)
+	assert.NotNil(t, ids)
+	assert.Empty(t, ids)
+
+	ids, err = ds.HostIDsByLabelIdentifier(ctx, filter, []string{"foo.0.local", "uuid.1", "hws.2"})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uint{hosts[1].ID, hosts[2].ID}, ids)
+
+	// HostIDsByIdentifier still matches them, for live queries and profile variables.
+	ids, err = ds.HostIDsByIdentifier(ctx, filter, []string{"foo.0.local", "nk.1", "osq.host2"})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID}, ids)
+}
+
 func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -4712,6 +4745,75 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, uint(9), h.ID)
 	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	t.Run("priority across and within columns", func(t *testing.T) {
+		setSerial := func(h *fleet.Host, value string) { h.HardwareSerial = value }
+		setUUID := func(h *fleet.Host, value string) { h.UUID = value }
+		setHostname := func(h *fleet.Host, value string) { h.Hostname = value }
+		setOsqueryHostID := func(h *fleet.Host, value string) { h.OsqueryHostID = &value }
+		setNodeKey := func(h *fleet.Host, value string) { h.NodeKey = &value }
+
+		// The expected loser is created first, so the winner never has the lower ID unless the case is about the tie-break.
+		testCases := []struct {
+			name         string
+			setLoser     func(*fleet.Host, string)
+			setWinner    func(*fleet.Host, string)
+			winnerIsLast bool
+		}{
+			{name: "serial beats UUID", setLoser: setUUID, setWinner: setSerial, winnerIsLast: true},
+			{name: "UUID beats hostname", setLoser: setHostname, setWinner: setUUID, winnerIsLast: true},
+			{name: "hostname beats osquery host ID", setLoser: setOsqueryHostID, setWinner: setHostname, winnerIsLast: true},
+			{name: "osquery host ID beats node key", setLoser: setNodeKey, setWinner: setOsqueryHostID, winnerIsLast: true},
+			{name: "lowest ID wins on a shared hostname", setLoser: setHostname, setWinner: setHostname},
+			{name: "lowest ID wins on a shared serial", setLoser: setSerial, setWinner: setSerial},
+			{name: "lowest ID wins on a shared UUID", setLoser: setUUID, setWinner: setUUID},
+		}
+		for i, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				contested := fmt.Sprintf("contested_%d", i)
+				newContender := func(suffix string, set func(*fleet.Host, string)) uint {
+					contender := &fleet.Host{
+						DetailUpdatedAt: now, LabelUpdatedAt: now, PolicyUpdatedAt: now, SeenTime: now,
+						OsqueryHostID: new(contested + "_osquery_" + suffix), NodeKey: new(contested + "_node_key_" + suffix),
+						UUID: contested + "_uuid_" + suffix, Hostname: contested + "_hostname_" + suffix, HardwareSerial: contested + "_serial_" + suffix,
+					}
+					set(contender, contested)
+					created, err := ds.NewHost(t.Context(), contender)
+					require.NoError(t, err)
+					return created.ID
+				}
+				firstID := newContender("first", tc.setLoser)
+				lastID := newContender("last", tc.setWinner)
+				wantID := firstID
+				if tc.winnerIsLast {
+					wantID = lastID
+				}
+
+				host, err := ds.HostByIdentifier(t.Context(), contested)
+				require.NoError(t, err)
+				require.Equal(t, wantID, host.ID)
+
+				hostLite, err := ds.HostLiteByIdentifier(t.Context(), contested)
+				require.NoError(t, err)
+				require.Equal(t, wantID, hostLite.ID)
+			})
+		}
+	})
+
+	t.Run("blank identifiers match nothing", func(t *testing.T) {
+		_, err := ds.NewHost(t.Context(), &fleet.Host{
+			DetailUpdatedAt: now, LabelUpdatedAt: now, PolicyUpdatedAt: now, SeenTime: now,
+			OsqueryHostID: new(""), NodeKey: new(""),
+		})
+		require.NoError(t, err)
+
+		for _, blank := range []string{"", " ", "   ", "\u200b", "\ufeff", "\x00", "\u200b "} {
+			_, err := ds.HostByIdentifier(t.Context(), blank)
+			require.True(t, fleet.IsNotFound(err), "HostByIdentifier(%q): %v", blank, err)
+			_, err = ds.HostLiteByIdentifier(t.Context(), blank)
+			require.True(t, fleet.IsNotFound(err), "HostLiteByIdentifier(%q): %v", blank, err)
+		}
+	})
 
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
 	assert.ErrorIs(t, err, sql.ErrNoRows)
@@ -5729,6 +5831,126 @@ func testHostsListByOSNameAndVersion(t *testing.T, ds *Datastore) {
 	}
 }
 
+func testHostsOSNameAndVersionLoaders(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(name, platform, osVersion string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   new(name),
+			NodeKey:         new(name),
+			UUID:            name,
+			Hostname:        name + ".local",
+			Platform:        platform,
+			OSVersion:       osVersion,
+		})
+		require.NoError(t, err)
+		return h
+	}
+	// The OS row keeps "Microsoft" in Windows names (vulnerability matching uses it); the API drops it.
+	win := newHost("win", "windows", "Windows 11 Pro 24H2 10.0.26100.1742")
+	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, win.ID, fleet.OperatingSystem{
+		Name: "Microsoft Windows 11 Pro 24H2", Version: "10.0.26100.1742", Arch: "64-bit", KernelVersion: "10.0.26100.1742",
+		Platform: "windows", DisplayVersion: "24H2",
+	}))
+	// The OS inventory records Omarchy as "Arch Linux" "rolling"; the API returns the host's own name and version.
+	arch := newHost("arch", "arch", "Arch Linux rolling")
+	omarchy := newHost("omarchy", "omarchy", "Omarchy 4.0.0")
+	for _, h := range []*fleet.Host{arch, omarchy} {
+		require.NoError(t, ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{
+			Name: "Arch Linux", Version: "rolling", Arch: "x86_64", KernelVersion: "6.12.1-arch1-1", Platform: h.Platform,
+		}))
+	}
+	// Hosts without an OS row yet: an Android device that reports no version, and an Omarchy host before its inventory
+	// comes in, which the Omarchy filter must not match.
+	android := newHost("android", "android", "Android")
+	omarchyNoOS := newHost("omarchy-no-os", "omarchy", "Omarchy 4.0.0")
+	all := []*fleet.Host{win, arch, omarchy, android, omarchyNoOS}
+
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "os name and version", Query: "select 1"})
+	require.NoError(t, err)
+	for _, h := range all {
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, h, map[uint]*bool{label.ID: new(true)}, time.Now(), false))
+	}
+
+	type osFields struct{ combined, name, version string }
+	want := map[uint]osFields{
+		win.ID:         {"Windows 11 Pro 24H2 10.0.26100.1742", "Windows 11 Pro 24H2", "10.0.26100.1742"},
+		arch.ID:        {"Arch Linux rolling", "Arch Linux", "rolling"},
+		omarchy.ID:     {"Omarchy 4.0.0", "Omarchy", "4.0.0"},
+		android.ID:     {"Android", "", ""},
+		omarchyNoOS.ID: {"Omarchy 4.0.0", "", ""},
+	}
+	checkHosts := func(t *testing.T, hosts ...*fleet.Host) {
+		t.Helper()
+		require.Len(t, hosts, len(want))
+		for _, h := range hosts {
+			w, ok := want[h.ID]
+			require.True(t, ok, "unexpected host %d", h.ID)
+			assert.Equal(t, w.combined, h.OSVersion)
+			assert.Equal(t, w.name, h.OSName)
+			assert.Equal(t, w.version, h.OSVersionOnly)
+		}
+	}
+
+	adminFilter := fleet.TeamFilter{User: test.UserAdmin}
+
+	hosts, err := ds.ListHosts(ctx, adminFilter, fleet.HostListOptions{})
+	require.NoError(t, err)
+	checkHosts(t, hosts...)
+
+	hosts, err = ds.ListHostsInLabel(ctx, adminFilter, label.ID, fleet.HostListOptions{})
+	require.NoError(t, err)
+	checkHosts(t, hosts...)
+
+	hosts, err = ds.SearchHosts(ctx, adminFilter, "", false)
+	require.NoError(t, err)
+	checkHosts(t, hosts...)
+
+	var byID, byIdentifier []*fleet.Host
+	for _, h := range all {
+		got, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		byID = append(byID, got)
+		got, err = ds.HostByIdentifier(ctx, h.UUID)
+		require.NoError(t, err)
+		byIdentifier = append(byIdentifier, got)
+	}
+	checkHosts(t, byID...)
+	checkHosts(t, byIdentifier...)
+
+	for _, h := range all {
+		health, err := ds.GetHostHealth(ctx, h.ID)
+		require.NoError(t, err)
+		assert.Equal(t, want[h.ID].name, health.OSName)
+		assert.Equal(t, want[h.ID].version, health.OsVersion)
+	}
+
+	// The returned values round-trip into the os_name and os_version filters. Windows names also match with
+	// "Microsoft", and the inventory's "Arch Linux" "rolling" still matches every host it groups.
+	for _, tc := range []struct {
+		name, version string
+		wantIDs       []uint
+	}{
+		{"Windows 11 Pro 24H2", "10.0.26100.1742", []uint{win.ID}},
+		{"Microsoft Windows 11 Pro 24H2", "10.0.26100.1742", []uint{win.ID}},
+		{"Omarchy", "4.0.0", []uint{omarchy.ID}},
+		{"Arch Linux", "rolling", []uint{arch.ID, omarchy.ID}},
+	} {
+		hosts = listHostsCheckCount(t, ds, adminFilter, fleet.HostListOptions{
+			OSNameFilter: new(tc.name), OSVersionFilter: new(tc.version),
+		}, len(tc.wantIDs))
+		var gotIDs []uint
+		for _, h := range hosts {
+			gotIDs = append(gotIDs, h.ID)
+		}
+		assert.ElementsMatch(t, tc.wantIDs, gotIDs, tc.name)
+	}
+}
+
 func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
 	// seed hosts
 	var hosts []*fleet.Host
@@ -5843,7 +6065,9 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Execute the batch script on all hosts.
-	execID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	execID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	err = ds.RunScheduledBatchActivity(ctx, execID)
 	require.NoError(t, err)
 
 	// Filter by batch script execution ID, without status, should return all hosts
@@ -5909,7 +6133,9 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	// The SQL for retrieving "pending" hosts has to check both the host_script_results table (for hosts
 	// that have "activated" the script activity) and the upcoming_activities table (for hosts that
 	// have not yet activated the script activity).
-	secondExecID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	secondExecID, err := ds.NewBatchScriptExecution(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	err = ds.RunScheduledBatchActivity(ctx, secondExecID)
 	require.NoError(t, err)
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &secondExecID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionPending}, 3)
@@ -5926,7 +6152,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Contains(t, expectedHostIds, hosts[1].ID)
 
 	// Simulate that host1 ran the script successfully
-	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false, false)
+	host1Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host1.ID, false)
 	require.NoError(t, err)
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      host1.ID,
@@ -5937,7 +6163,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Simulate that host2 errored out
-	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false, false)
+	host2Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host2.ID, false)
 	require.NoError(t, err)
 	_, _, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
 		HostID:      host2.ID,
@@ -5948,7 +6174,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Simulate that host3 cancelled the script execution
-	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false, false)
+	host3Upcoming, err := ds.listUpcomingHostScriptExecutions(ctx, host3.ID, false)
 	require.NoError(t, err)
 
 	// Cancel the execution
@@ -10959,10 +11185,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	_, err = ds.BatchExecuteScript(ctx, nil, script.ID, []uint{host.ID})
+	batchExecID, err := ds.NewBatchScriptExecution(ctx, nil, script.ID, []uint{host.ID})
+	require.NoError(t, err)
+	err = ds.RunScheduledBatchActivity(ctx, batchExecID)
 	require.NoError(t, err)
 
-	err = ds.CreateHostConditionalAccessStatus(ctx, host.ID, "entraDeviceID", "userPrincipalName")
+	_, err = ds.CreateHostConditionalAccessStatus(ctx, host.ID, "entraDeviceID", "userPrincipalName", false)
 	require.NoError(t, err)
 
 	// Insert into host_identity_scep_certificates table
@@ -10981,7 +11209,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, _, err = ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
 		Filename:        "test.ipa",
 		StorageID:       uuid.NewString(),
-		Platform:        string(fleet.MacOSPlatform),
 		ValidatedLabels: &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
@@ -11106,6 +11333,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 		INSERT INTO notifications_end_user (uuid, host_id, status, kind, payload, expires_at)
 		VALUES (?, ?, 'pending', 'patch', '{}', NOW(6) + INTERVAL 1 HOUR)`,
 		uuid.NewString(), host.ID)
+	require.NoError(t, err)
+
+	// Insert into host_android_software_installs table (no host FK, cleaned up via hostRefs).
+	err = ds.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{{
+		HostID: host.ID, AdamID: "com.example.delete", InstallType: android.AppStatusAvailable,
+		Status: fleet.AndroidSoftwareInstallStatusPending, PolicyBuiltAt: time.Now(),
+	}}, nil)
 	require.NoError(t, err)
 
 	// Insert into host_policy_automation_run_counts table (no host FK, cleaned up via hostRefs).
@@ -12218,6 +12452,26 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
 	require.False(t, info.OsqueryEnrolled)
+
+	// company-owned only while enrolled in Fleet and not personal
+	require.True(t, info.FleetEnrolledCorporate)
+	for _, tc := range []struct {
+		enrolled     bool
+		mdmName      string
+		personalType fleet.PersonalEnrollmentType
+		want         bool
+	}{
+		{true, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeManualProfile, false},
+		{false, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeNone, false},
+		{true, "Other MDM", fleet.PersonalEnrollmentTypeNone, false},
+		{true, fleet.WellKnownMDMFleet, fleet.PersonalEnrollmentTypeNone, true},
+	} {
+		err = ds.SetOrUpdateMDMData(ctx, host.ID, false, tc.enrolled, "https://"+strings.ReplaceAll(tc.mdmName, " ", "")+".example.com", false, tc.mdmName, "", tc.personalType)
+		require.NoError(t, err)
+		info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
+		require.NoError(t, err)
+		require.Equal(t, tc.want, info.FleetEnrolledCorporate, "%+v", tc)
+	}
 }
 
 func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
@@ -12304,6 +12558,44 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 		require.True(t, *returned.DiskEncryptionEnabled)
 		require.NotNil(t, returned.BitLockerProtectionStatus)
 		require.Equal(t, fleet.BitLockerProtectionStatusOff, *returned.BitLockerProtectionStatus)
+	})
+
+	// UpdateHost writes timezone unconditionally, so a host loaded without it would wipe the stored value on save.
+	t.Run("preserves timezone across a save", func(t *testing.T) {
+		h, err := ds.EnrollOsquery(
+			ctx,
+			fleet.WithEnrollOsqueryHostID("timezone-uuid"),
+			fleet.WithEnrollOsqueryHardwareUUID("timezone-uuid"),
+			fleet.WithEnrollOsqueryNodeKey("timezone-node-key"),
+		)
+		require.NoError(t, err)
+
+		orbitKey := uuid.New().String()
+		_, err = ds.EnrollOrbit(
+			ctx,
+			fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+				HardwareUUID:   *h.OsqueryHostID,
+				HardwareSerial: h.HardwareSerial,
+			}),
+			fleet.WithEnrollOrbitNodeKey(orbitKey),
+		)
+		require.NoError(t, err)
+
+		h.OrbitNodeKey = &orbitKey
+		h.TimeZone = new("America/New_York")
+		require.NoError(t, ds.UpdateHost(ctx, h))
+
+		loaded, err := ds.LoadHostByOrbitNodeKey(ctx, orbitKey)
+		require.NoError(t, err)
+		require.NotNil(t, loaded.TimeZone)
+		require.Equal(t, "America/New_York", *loaded.TimeZone)
+
+		require.NoError(t, ds.UpdateHost(ctx, loaded))
+
+		reloaded, err := ds.Host(ctx, h.ID)
+		require.NoError(t, err)
+		require.NotNil(t, reloaded.TimeZone)
+		require.Equal(t, "America/New_York", *reloaded.TimeZone)
 	})
 
 	createOrbitHost := func(tag string) *fleet.Host {
@@ -14160,6 +14452,9 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 		CPUType: "cpuType",
 	})
 	require.NoError(t, err)
+	require.NoError(t, ds.UpdateHostOperatingSystem(t.Context(), 1, fleet.OperatingSystem{
+		Name: "macOS", Version: "15.2", Arch: "arm64", KernelVersion: "24.2.0", Platform: "darwin",
+	}))
 	h, err := ds.Host(context.Background(), 1)
 	require.NoError(t, err)
 
@@ -14245,7 +14540,8 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, h.Platform, hh.Platform)
 	require.Equal(t, h.DiskEncryptionEnabled, hh.DiskEncryptionEnabled)
-	require.Equal(t, h.OSVersion, hh.OsVersion)
+	require.Equal(t, "macOS", hh.OSName)
+	require.Equal(t, "15.2", hh.OsVersion)
 	require.Equal(t, ptr.Uint(team.ID), hh.TeamID)
 	require.Equal(t, h.UpdatedAt, hh.UpdatedAt)
 	require.Len(t, hh.FailingPolicies, 1)
@@ -14284,7 +14580,8 @@ func testHostHealth(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, h.Platform, hh.Platform)
 	require.Equal(t, h.DiskEncryptionEnabled, hh.DiskEncryptionEnabled)
-	require.Equal(t, h.OSVersion, hh.OsVersion)
+	require.Empty(t, hh.OSName)
+	require.Empty(t, hh.OsVersion)
 	require.Empty(t, hh.FailingPolicies)
 	require.Empty(t, hh.VulnerableSoftware)
 	require.Equal(t, h.TeamID, hh.TeamID)
@@ -15976,7 +16273,7 @@ func testHostTimeZone(t *testing.T, ds *Datastore) {
 		Name:                "foobar",
 		LabelType:           fleet.LabelTypeRegular,
 		LabelMembershipType: fleet.LabelMembershipTypeManual,
-		Hosts:               []string{host.Hostname},
+		Hosts:               []string{host.UUID},
 	}
 	err = ds.ApplyLabelSpecs(t.Context(), []*fleet.LabelSpec{l1s})
 	require.NoError(t, err)

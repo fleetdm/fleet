@@ -192,9 +192,9 @@ const SoftwareLibraryTable = ({
     );
   };
 
-  const onClickCategories = () => {
+  const onClickSettings = () => {
     router.push(
-      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY_CATEGORIES, {
+      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY_SETTINGS, {
         fleet_id: teamId,
       })
     );
@@ -203,8 +203,8 @@ const SoftwareLibraryTable = ({
   const renderCustomControls = () => {
     return (
       <div className={`${baseClass}__controls`}>
-        <Button variant="secondary" onClick={onClickCategories} icon="settings">
-          Categories
+        <Button variant="subdued" onClick={onClickSettings} icon="settings">
+          Settings
         </Button>
         <Slider
           value={selfServiceOnly}

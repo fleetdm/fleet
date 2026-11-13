@@ -79,7 +79,7 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 
 #### Under the Web Clip tab
 
-- **Label:** Type "Self-service". This name will display as the app name on the home screen.
+- **Label:** Type "Self service". This name will display as the app name on the home screen.
 - **URL:** `<your_server_url>/device/$FLEET_VAR_HOST_UUID/self-service`
 - **Removable:** Uncheck it.
 - **Icon:** Upload a square icon that will be displayed as the app icon on the home screen.
@@ -125,7 +125,7 @@ Find the Fleet icon in your menu bar (macOS) or system tray (Windows) and select
 
 **iOS and iPadOS:**
 
-Tap the **Self-service** icon on your home screen. This opens the self-service software catalog where you can install apps.
+Tap the **Self service** icon on your home screen. This opens the self-service software catalog where you can install apps.
 
 If updates are available, end users can update one or all available self-service software. They can also view update progress and error details directly.
 

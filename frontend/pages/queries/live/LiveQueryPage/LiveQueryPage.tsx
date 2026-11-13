@@ -76,7 +76,7 @@ const RunQueryPage = ({
     selectedQueryTargetsByType.labels
   );
   const [targetedTeams, setTargetedTeams] = useState<ITeam[]>(
-    selectedQueryTargetsByType.teams
+    selectedQueryTargetsByType.fleets
   );
   const [targetsTotalCount, setTargetsTotalCount] = useState(0);
 
@@ -149,7 +149,7 @@ const RunQueryPage = ({
     setSelectedQueryTargetsByType({
       hosts: targetedHosts,
       labels: targetedLabels,
-      teams: targetedTeams,
+      fleets: targetedTeams,
     });
   }, [targetedLabels, targetedHosts, targetedTeams]);
 
@@ -192,7 +192,7 @@ const RunQueryPage = ({
       setTargetedTeams,
       setTargetsTotalCount,
       isObserverCanRunQuery: storedQuery?.observer_can_run,
-      queryTeamId: storedQuery?.team_id ?? null,
+      queryTeamId: storedQuery?.fleet_id ?? null,
     };
 
     const step2Props = {

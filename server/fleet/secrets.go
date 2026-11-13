@@ -34,7 +34,7 @@ const (
 	// HostSecretPSSODeviceRegistrationToken is the host secret type for the Apple
 	// Platform SSO device registration token. The token is not stored: it is a
 	// Fleet-signed JWT minted on the fly for the requesting host at command
-	// delivery time, so it never appears in the database or on /mdm/commands.
+	// delivery time, so it never appears in the database or on /commands.
 	HostSecretPSSODeviceRegistrationToken = "PSSO_DEVICE_REGISTRATION_TOKEN" // nolint:gosec // G101: this is a constant identifier, not a credential
 
 	// HostSecretEnrollSecret is the host secret type for the per-device,
@@ -108,7 +108,17 @@ func (e MissingSecretsError) Error() string {
 // IsMissingSecretsError reports whether err is (or wraps) a MissingSecretsError,
 // i.e. a reference to a secret variable that doesn't exist.
 func IsMissingSecretsError(err error) bool {
-	var valErr MissingSecretsError
-	var ptrErr *MissingSecretsError
-	return errors.As(err, &valErr) || errors.As(err, &ptrErr)
+	_, ok := MissingSecretNames(err)
+	return ok
+}
+
+// MissingSecretNames returns the names a MissingSecretsError in err reports, as a value or a pointer.
+func MissingSecretNames(err error) ([]string, bool) {
+	if valErr, ok := errors.AsType[MissingSecretsError](err); ok {
+		return valErr.MissingSecrets, true
+	}
+	if ptrErr, ok := errors.AsType[*MissingSecretsError](err); ok {
+		return ptrErr.MissingSecrets, true
+	}
+	return nil, false
 }

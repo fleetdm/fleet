@@ -53,7 +53,7 @@ func TestHostRunScript(t *testing.T) {
 	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 		return &fleet.HostScriptResult{HostID: request.HostID, ScriptContents: request.ScriptContents, ExecutionID: "abc"}, nil
 	}
-	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 		return nil, nil
 	}
 	ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
@@ -968,7 +968,7 @@ func TestBatchScriptExecute(t *testing.T) {
 
 	t.Run("happy path", func(t *testing.T) {
 		var requestedHostIds []uint
-		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+		ds.NewBatchScriptExecutionFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
 			requestedHostIds = hostIDs
 			return "", errors.New("ok")
 		}
@@ -1026,7 +1026,7 @@ func TestBatchScriptExecute(t *testing.T) {
 		}
 		// Return a non-authorization error so an authorized caller gets past the
 		// authz checks; checkAuthErr only cares whether the error is Forbidden.
-		ds.BatchExecuteScriptFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
+		ds.NewBatchScriptExecutionFunc = func(ctx context.Context, userID *uint, scriptID uint, hostIDs []uint) (string, error) {
 			return "", errors.New("ok")
 		}
 
@@ -1193,45 +1193,6 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 	}
 }
 
-func TestBatchScriptExecutionSummary(t *testing.T) {
-	ds := new(mock.Store)
-	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
-
-	t.Run("not found", func(t *testing.T) {
-		// While these not found tests seem useless, it's mainly to check that we do an authz check so we don't return 500s but the actual not found.
-		ds.BatchExecuteSummaryFunc = func(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
-			return nil, platform_mysql.NotFound("batch execution").WithName(executionID)
-		}
-		t.Run("global admin → not-found", func(t *testing.T) {
-			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-			_, err := svc.BatchScriptExecutionSummary(ctx, "unknown-id")
-			require.Error(t, err)
-			require.True(t, fleet.IsNotFound(err))
-		})
-
-		t.Run("team admin → forbidden, no leak", func(t *testing.T) {
-			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
-				Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}},
-			}})
-			_, err := svc.BatchScriptExecutionSummary(ctx, "unknown-id")
-			require.Error(t, err)
-			require.Equal(t, (&authz.Forbidden{}).Error(), err.Error())
-			require.False(t, fleet.IsNotFound(err))
-		})
-
-		t.Run("real DB error → wrapped, not IsNotFound", func(t *testing.T) {
-			ds.BatchExecuteSummaryFunc = func(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
-				return nil, errors.New("connection refused")
-			}
-			ctx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-			_, err := svc.BatchScriptExecutionSummary(ctx, "any-id")
-			require.Error(t, err)
-			require.False(t, fleet.IsNotFound(err))
-		})
-	})
-}
-
 func TestBatchScriptCancel(t *testing.T) {
 	ds := new(mock.Store)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -1321,7 +1282,7 @@ func TestScriptFleetVariablesValidation(t *testing.T) {
 		ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 			return &fleet.Host{ID: hostID, SeenTime: time.Now(), OrbitNodeKey: new("abc")}, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 			return nil, nil
 		}
 		ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
@@ -1436,4 +1397,58 @@ func TestScriptFleetVariablesValidation(t *testing.T) {
 			require.NoError(t, err)
 		})
 	})
+}
+
+func TestUpdateScriptValidatesFileType(t *testing.T) {
+	ds := new(mock.Store)
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: lic, SkipCreateTestUsers: true})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+		return &fleet.Script{ID: id, Name: map[uint]string{1: "fix.py", 2: "fix.ps1", 3: "fix.sh"}[id]}, nil
+	}
+	ds.UpdateScriptContentsFunc = func(ctx context.Context, scriptID uint, contents string) (*fleet.Script, error) {
+		return &fleet.Script{ID: scriptID, ScriptContents: contents}, nil
+	}
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+
+	const (
+		pyErr  = `Python scripts must start with a python shebang (for example, "#!/usr/bin/env python3").`
+		ps1Err = `PowerShell scripts must not start with a shebang ("#!").`
+		shErr  = `Shell scripts must use a shell shebang (for example, "#!/bin/sh") or no shebang. For Python, use a ".py" script.`
+	)
+	for _, tc := range []struct {
+		name     string
+		id       uint
+		contents string
+		wantErr  string // empty means the contents are saved
+	}{
+		{"py without shebang", 1, `print("no shebang")`, pyErr},
+		{"ps1 with shell shebang", 2, "#!/bin/bash\necho hi", ps1Err},
+		{"ps1 with pwsh shebang", 2, "#!/usr/bin/pwsh\nWrite-Host hi", ps1Err},
+		{"sh with python shebang", 3, "#!/usr/bin/env python3\nprint(1)", shErr},
+		{"py with python shebang", 1, "#!/usr/bin/env python3\nprint(\"ok\")", ""},
+		{"ps1 without shebang", 2, "Write-Host hi", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ds.UpdateScriptContentsFuncInvoked = false
+			saved, err := svc.UpdateScript(ctx, tc.id, strings.NewReader(tc.contents))
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+				require.True(t, ds.UpdateScriptContentsFuncInvoked)
+				require.Equal(t, tc.contents, saved.ScriptContents)
+				return
+			}
+			require.ErrorContains(t, err, tc.wantErr)
+			var invalidArgErr *fleet.InvalidArgumentError
+			require.ErrorAs(t, err, &invalidArgErr)
+			require.False(t, ds.UpdateScriptContentsFuncInvoked)
+		})
+	}
 }

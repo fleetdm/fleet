@@ -15,7 +15,15 @@ jest.mock("..", () => ({
 }));
 
 // Create a simple mock SVG component for matched icons
-const MockSvgIcon = ({ width, height, className }: any) => (
+const MockSvgIcon = ({
+  width,
+  height,
+  className,
+}: {
+  width?: number;
+  height?: number;
+  className?: string;
+}) => (
   <svg
     data-testid="mock-svg"
     width={width}

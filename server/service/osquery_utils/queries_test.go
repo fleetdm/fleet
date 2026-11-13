@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"slices"
 	"sort"
 	"strconv"
@@ -20,6 +21,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	_ "github.com/mattn/go-sqlite3"
@@ -695,6 +698,8 @@ func TestGetDetailQueries(t *testing.T) {
 		"network_interface_unix",
 		"network_interface_windows",
 		"network_interface_chrome",
+		"timezone_unix",
+		"timezone_windows",
 		"os_version",
 		"os_version_windows",
 		"osquery_flags",
@@ -1441,11 +1446,13 @@ func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
 	for _, tc := range []struct {
 		name         string
 		mdmData      []map[string]string
+		stored       *fleet.PersonalEnrollmentType // nil: no host_mdm row yet
 		wantPersonal fleet.PersonalEnrollmentType
 	}{
 		{
 			name:         "Fleet byod=1",
 			mdmData:      generateRows("https://test.example.com?byod=1", apple_mdm.FleetPayloadIdentifier),
+			stored:       new(fleet.PersonalEnrollmentTypeManualProfile),
 			wantPersonal: fleet.PersonalEnrollmentTypeManualProfile,
 		},
 		{
@@ -1456,7 +1463,19 @@ func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
 		{
 			name:         "Fleet byod=1 alongside other params",
 			mdmData:      generateRows("https://test.example.com?enroll_reference=ref&byod=1", apple_mdm.FleetPayloadIdentifier),
+			stored:       new(fleet.PersonalEnrollmentTypeManualProfile),
 			wantPersonal: fleet.PersonalEnrollmentTypeManualProfile,
+		},
+		{
+			name:         "Fleet byod=1 on a company-owned host is ignored",
+			mdmData:      generateRows("https://test.example.com?byod=1", apple_mdm.FleetPayloadIdentifier),
+			stored:       new(fleet.PersonalEnrollmentTypeNone),
+			wantPersonal: fleet.PersonalEnrollmentTypeNone,
+		},
+		{
+			name:         "Fleet byod=1 without an enrollment record is ignored",
+			mdmData:      generateRows("https://test.example.com?byod=1", apple_mdm.FleetPayloadIdentifier),
+			wantPersonal: fleet.PersonalEnrollmentTypeNone,
 		},
 		{
 			name:         "Fleet byod=0",
@@ -1470,6 +1489,12 @@ func TestDirectIngestMDMMacPersonalEnrollment(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+				if tc.stored == nil {
+					return nil, &notFoundErrorForTest{}
+				}
+				return &fleet.HostMDM{IsPersonalEnrollment: tc.stored.IsPersonal(), PersonalEnrollmentType: *tc.stored}, nil
+			}
 			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, personalType fleet.PersonalEnrollmentType) error {
 				require.Equal(t, tc.wantPersonal, personalType)
 				require.Equal(t, "https://test.example.com", serverURL) // query string is stripped
@@ -2161,34 +2186,6 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 	}
 }
 
-func TestAppConfigReplaceQuery(t *testing.T) {
-	queries := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
-	originalQuery := queries["users"].Query
-
-	replacementMap := make(map[string]*string)
-	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	assert.NotEqual(t, originalQuery, queries["users"].Query)
-	assert.Equal(t, "select 1 from blah", queries["users"].Query)
-
-	replacementMap["users"] = nil
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	_, exists := queries["users"]
-	assert.False(t, exists)
-
-	// put the query back again
-	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	assert.NotEqual(t, originalQuery, queries["users"].Query)
-	assert.Equal(t, "select 1 from blah", queries["users"].Query)
-
-	// empty strings are also ignored
-	replacementMap["users"] = ptr.String("")
-	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
-	_, exists = queries["users"]
-	assert.False(t, exists)
-}
-
 func TestDirectIngestSoftware(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := t.Context()
@@ -2215,7 +2212,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			},
 		}
 
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return nil, nil
 		}
 
@@ -2251,7 +2248,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			{"name": "github", "version": "", "source": "mcp_servers", "ai_tool": "1"},
 		}
 		var ingested []fleet.Software
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			ingested = software
 			return nil, nil
 		}
@@ -2281,7 +2278,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		// Software the host already reports flagged needs no lookup.
 		flaggedClaude, unflaggedGithub := first[0], first[2]
 		unflaggedGithub.AITool = nil
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return &fleet.UpdateHostSoftwareDBResult{WasCurrInstalled: []fleet.Software{flaggedClaude, first[1], unflaggedGithub}}, nil
 		}
 		ds.MarkSoftwareAsAIToolFuncInvoked = false
@@ -2289,14 +2286,14 @@ func TestDirectIngestSoftware(t *testing.T) {
 		require.True(t, ds.MarkSoftwareAsAIToolFuncInvoked)
 		require.Equal(t, []fleet.Software{first[2]}, marked)
 
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return &fleet.UpdateHostSoftwareDBResult{WasCurrInstalled: []fleet.Software{flaggedClaude, first[1], first[2]}}, nil
 		}
 		ds.MarkSoftwareAsAIToolFuncInvoked = false
 		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
 		require.False(t, ds.MarkSoftwareAsAIToolFuncInvoked)
 
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return nil, nil
 		}
 		ds.MarkSoftwareAsAIToolFuncInvoked = false
@@ -2340,7 +2337,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 				expected: `oFZTwTV5WxJt02EVHEBcnhLzuJ8wnxKwfbabPWy7yTSiQbabEcAGDVmoXKZEZJLWObGD0cVfYptInHYgKjtDeDsBh2a8669EnyAqyBECXbFjSh1...`,
 			},
 		} {
-			ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 				require.Len(t, software, 1)
 				require.Equal(t, tc.expected, software[0].Vendor)
 				return nil, nil
@@ -2395,7 +2392,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			dataAsSoftware = append(dataAsSoftware, software)
 		}
 
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			return nil, nil
 		}
 		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]fleet.ExecutableHashes, result *fleet.UpdateHostSoftwareDBResult) error {
@@ -2457,7 +2454,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		}
 		keg := fleet.Software{Name: "git", Version: "2.46.0", Source: "homebrew_packages"}
 
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			// The fanned out rows all describe the same software.
 			require.Len(t, software, len(binaries))
 			for _, s := range software {
@@ -2504,7 +2501,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		}
 
 		var capturedSoftware []fleet.Software
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			capturedSoftware = make([]fleet.Software, len(software))
 			copy(capturedSoftware, software)
 			return nil, nil
@@ -2546,7 +2543,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 		}
 
 		var got []fleet.Software
-		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 			got = software
 			return nil, nil
 		}
@@ -3249,6 +3246,28 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	// expect error: unrecognized install date format
 	rows[0]["install_date"] = time.Now().Format(time.UnixDate)
 	require.ErrorContains(t, directIngestMacOSProfiles(ctx, logger, h, ds, rows), "unsupported install_date format")
+}
+
+func TestBuildConfigProfilesMacOSQueryQuotesUsername(t *testing.T) {
+	cases := []struct {
+		username string
+		want     string
+	}{
+		{"alice", `username = 'alice' AND`},
+		{"o'brien", `username = 'o''brien' AND`},
+		{`alice" OR 1=1 OR --`, `username = 'alice" OR 1=1 OR --' AND`},
+		{`a\" OR 1=1 --`, `username = 'a\" OR 1=1 --' AND`},
+		{"alice' OR 1=1 OR '", `username = 'alice'' OR 1=1 OR ''' AND`},
+	}
+	for _, c := range cases {
+		ds := new(mock.Store)
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return c.username, "user-uuid", nil
+		}
+		query, ok := buildConfigProfilesMacOSQuery(t.Context(), slog.New(slog.DiscardHandler), &fleet.Host{UUID: "host-uuid"}, ds)
+		require.True(t, ok)
+		require.Contains(t, query, c.want, c.username)
+	}
 }
 
 func TestParseMacOSProfileInstallDate(t *testing.T) {
@@ -4672,7 +4691,7 @@ func TestDirectIngestSoftwareAdobePlugins(t *testing.T) {
 	}
 
 	var gotSoftware []fleet.Software
-	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+	ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software, _ ...fleet.UpdateHostSoftwareOption) (*fleet.UpdateHostSoftwareDBResult, error) {
 		gotSoftware = software
 		return nil, nil
 	}
@@ -6216,6 +6235,89 @@ func TestMacOSHomebrewExecutableSHA256Query(t *testing.T) {
 	}, got)
 }
 
+func TestTimezoneQueryPlatforms(t *testing.T) {
+	unix := hostDetailQueries["timezone_unix"]
+	win := hostDetailQueries["timezone_windows"]
+	for _, p := range []string{"darwin", "ubuntu", "rhel", "linux"} {
+		assert.True(t, unix.RunsForPlatform(p), p)
+		assert.False(t, win.RunsForPlatform(p), p)
+	}
+	for _, p := range []string{"ios", "ipados", "chrome", "android"} {
+		assert.False(t, unix.RunsForPlatform(p), p)
+		assert.False(t, win.RunsForPlatform(p), p)
+	}
+	assert.False(t, unix.RunsForPlatform("windows"))
+	assert.True(t, win.RunsForPlatform("windows"))
+}
+
+func TestIngestTimezone(t *testing.T) {
+	row := func(k, v string) []map[string]string { return []map[string]string{{k: v}} }
+	const key, wkey = "symlink_target_path", "data"
+
+	cases := []struct {
+		name   string
+		ingest func(context.Context, *slog.Logger, *fleet.Host, []map[string]string) error
+		rows   []map[string]string
+		want   string // "" means unchanged
+	}{
+		{"unix macOS", ingestTimezoneUnix, row(key, "/var/db/timezone/zoneinfo/America/New_York"), "America/New_York"},
+		{"unix linux", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Europe/Sarajevo"), "Europe/Sarajevo"},
+		{"unix relative", ingestTimezoneUnix, row(key, "../usr/share/zoneinfo/Asia/Tokyo"), "Asia/Tokyo"},
+		{"unix posix", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/posix/America/Chicago"), "America/Chicago"},
+		{"unix right", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/right/UTC"), "UTC"},
+		{"unix invalid name", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Not/AZone"), ""},
+		{"unix Local", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Local"), ""},
+		{"unix Factory", ingestTimezoneUnix, row(key, "/usr/share/zoneinfo/Factory"), ""},
+		{"unix garbage", ingestTimezoneUnix, row(key, "garbage"), ""},
+		{"unix empty", ingestTimezoneUnix, row(key, ""), ""},
+		{"unix missing key", ingestTimezoneUnix, row("other", "/usr/share/zoneinfo/Asia/Tokyo"), ""},
+		{"unix zero rows", ingestTimezoneUnix, nil, ""},
+		{"unix two rows", ingestTimezoneUnix, []map[string]string{{key: "/usr/share/zoneinfo/Asia/Tokyo"}, {key: "/usr/share/zoneinfo/Asia/Tokyo"}}, ""},
+		{"windows known", ingestTimezoneWindows, row(wkey, "Eastern Standard Time"), "America/New_York"},
+		{"windows padded", ingestTimezoneWindows, row(wkey, " Pacific Standard Time\n"), "America/Los_Angeles"},
+		{"windows unknown", ingestTimezoneWindows, row(wkey, "Mars Standard Time"), ""},
+		{"windows empty", ingestTimezoneWindows, row(wkey, ""), ""},
+		{"windows missing key", ingestTimezoneWindows, row("other", "Eastern Standard Time"), ""},
+		{"windows zero rows", ingestTimezoneWindows, nil, ""},
+		{"windows two rows", ingestTimezoneWindows, []map[string]string{{wkey: "Eastern Standard Time"}, {wkey: "Eastern Standard Time"}}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			host := &fleet.Host{TimeZone: new("Europe/Berlin")}
+			require.NoError(t, c.ingest(t.Context(), slog.New(slog.DiscardHandler), host, c.rows))
+			want := c.want
+			if want == "" {
+				want = "Europe/Berlin"
+			}
+			require.NotNil(t, host.TimeZone)
+			assert.Equal(t, want, *host.TimeZone)
+
+			// An unknown stored value stays unknown on invalid input and is set on valid input.
+			for _, initial := range []*string{nil, new("")} {
+				host := &fleet.Host{TimeZone: initial}
+				require.NoError(t, c.ingest(t.Context(), slog.New(slog.DiscardHandler), host, c.rows))
+				if c.want == "" {
+					assert.Equal(t, initial, host.TimeZone)
+				} else {
+					require.NotNil(t, host.TimeZone)
+					assert.Equal(t, c.want, *host.TimeZone)
+				}
+			}
+		})
+	}
+}
+
+func TestWindowsTimezonesMap(t *testing.T) {
+	require.Len(t, windowsTimezones, 142)
+	for k, v := range windowsTimezones {
+		_, err := time.LoadLocation(v)
+		require.NoError(t, err, k)
+		assert.NotEmpty(t, v, k)
+		assert.NotEqual(t, "Local", v, k)
+		assert.NotEqual(t, "Factory", v, k)
+	}
+}
+
 // TestSoftwareAIToolsQuery runs the software_ai_tools query against sqlite, which osquery embeds,
 // to check which ai_tools rows it keeps and how it maps them onto software sources.
 func TestSoftwareAIToolsQuery(t *testing.T) {
@@ -6477,6 +6579,117 @@ func TestAIToolsProcessResults(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := AIToolsProcessResults(tc.platform, tc.main, tc.ai)
 			require.Equal(t, tc.want, summarize(got))
+		})
+	}
+}
+
+// TestLuksVerifyQuerySelectsRootLUKSDevice runs the LUKS verification SQL against sqlite,
+// which osquery embeds, over lsblk output flattened the way orbit's lsblk table does it.
+func TestLuksVerifyQuerySelectsRootLUKSDevice(t *testing.T) {
+	// Captured from an Omarchy 4 VM (util-linux 2.42): the btrfs root device lists
+	// "/home" as its mountpoint and "/" only under "mountpoints".
+	omarchy, err := os.ReadFile("testdata/lsblk-omarchy.json")
+	require.NoError(t, err)
+
+	// "/" is the regular mountpoint, two hops below the LUKS container.
+	lvmOnLUKS := `{"blockdevices": [
+		{"path": "/dev/nvme0n1", "kname": "nvme0n1", "pkname": null, "fstype": null, "mountpoint": null, "mountpoints": [null],
+		 "children": [
+			{"path": "/dev/nvme0n1p1", "kname": "nvme0n1p1", "pkname": "nvme0n1", "fstype": "vfat", "mountpoint": "/boot", "mountpoints": ["/boot"]},
+			{"path": "/dev/nvme0n1p2", "kname": "nvme0n1p2", "pkname": "nvme0n1", "fstype": "crypto_LUKS", "mountpoint": null, "mountpoints": [null],
+			 "children": [
+				{"path": "/dev/mapper/cryptlvm", "kname": "dm-0", "pkname": "nvme0n1p2", "fstype": "LVM2_member", "mountpoint": null, "mountpoints": [null],
+				 "children": [
+					{"path": "/dev/mapper/vg-swap", "kname": "dm-1", "pkname": "dm-0", "fstype": "swap", "mountpoint": "[SWAP]", "mountpoints": ["[SWAP]"]},
+					{"path": "/dev/mapper/vg-root", "kname": "dm-2", "pkname": "dm-0", "fstype": "ext4", "mountpoint": "/", "mountpoints": ["/"]}
+				 ]}
+			 ]}
+		 ]}
+	]}`
+
+	// util-linux before 2.37 has no "mountpoints" column.
+	legacy := `{"blockdevices": [
+		{"path": "/dev/sda", "kname": "sda", "pkname": null, "fstype": null, "mountpoint": null,
+		 "children": [
+			{"path": "/dev/sda1", "kname": "sda1", "pkname": "sda", "fstype": "vfat", "mountpoint": "/boot/efi"},
+			{"path": "/dev/sda2", "kname": "sda2", "pkname": "sda", "fstype": "crypto_LUKS", "mountpoint": null,
+			 "children": [
+				{"path": "/dev/mapper/root", "kname": "dm-0", "pkname": "sda2", "fstype": "ext4", "mountpoint": "/"}
+			 ]}
+		 ]}
+	]}`
+
+	// LUKS exists but holds /home, not the root filesystem.
+	unencryptedRoot := `{"blockdevices": [
+		{"path": "/dev/sda", "kname": "sda", "pkname": null, "fstype": null, "mountpoint": null, "mountpoints": [null],
+		 "children": [
+			{"path": "/dev/sda1", "kname": "sda1", "pkname": "sda", "fstype": "ext4", "mountpoint": "/", "mountpoints": ["/"]},
+			{"path": "/dev/sda2", "kname": "sda2", "pkname": "sda", "fstype": "crypto_LUKS", "mountpoint": null, "mountpoints": [null],
+			 "children": [
+				{"path": "/dev/mapper/home", "kname": "dm-0", "pkname": "sda2", "fstype": "ext4", "mountpoint": "/home", "mountpoints": ["/home"]}
+			 ]}
+		 ]}
+	]}`
+
+	ds := new(mock.Store)
+	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+		return &fleet.HostDiskEncryptionKey{HostID: hostID}, nil
+	}
+	host := &fleet.Host{ID: 1, Platform: "omarchy", OrbitNodeKey: new("node-key")}
+	query, ok := luksVerifyQuery.QueryFunc(t.Context(), slog.New(slog.DiscardHandler), host, ds)
+	require.True(t, ok)
+
+	for _, tc := range []struct {
+		name  string
+		lsblk []byte
+		want  string // LUKS device whose salt the query must return, empty for no rows
+	}{
+		{"btrfs root with subvolumes (Omarchy)", omarchy, "/dev/vda2"},
+		{"LVM on LUKS", []byte(lvmOnLUKS), "/dev/nvme0n1p2"},
+		{"legacy lsblk without mountpoints", []byte(legacy), "/dev/sda2"},
+		{"unencrypted root", []byte(unencryptedRoot), ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db, err := sql.Open("sqlite3", ":memory:")
+			require.NoError(t, err)
+			defer db.Close()
+
+			_, err = db.Exec(`CREATE TABLE lsblk (fullkey TEXT, parent TEXT, key TEXT, value TEXT, query TEXT)`)
+			require.NoError(t, err)
+			_, err = db.Exec(`CREATE TABLE cryptsetup_luks_salt (device TEXT, key_slot TEXT, salt TEXT)`)
+			require.NoError(t, err)
+
+			flattened, err := dataflatten.Json(tc.lsblk, dataflatten.WithQuery([]string{"*"}))
+			require.NoError(t, err)
+			for _, row := range dataflattentable.ToMap(flattened, "*", nil) {
+				_, err = db.Exec(`INSERT INTO lsblk VALUES (?, ?, ?, ?, ?)`,
+					row["fullkey"], row["parent"], row["key"], row["value"], row["query"])
+				require.NoError(t, err)
+			}
+
+			// A salt for every LUKS container so the test fails if the wrong one is picked.
+			_, err = db.Exec(`INSERT INTO cryptsetup_luks_salt
+				SELECT p.value, '1', 'salt-for-' || p.value
+				FROM lsblk f JOIN lsblk p ON p.parent = f.parent AND p.key = 'path'
+				WHERE f.key = 'fstype' AND f.value = 'crypto_LUKS'`)
+			require.NoError(t, err)
+
+			rows, err := db.Query(query)
+			require.NoError(t, err)
+			defer rows.Close()
+			var got []string
+			for rows.Next() {
+				var salt, keySlot string
+				require.NoError(t, rows.Scan(&salt, &keySlot))
+				got = append(got, salt)
+			}
+			require.NoError(t, rows.Err())
+
+			if tc.want == "" {
+				require.Empty(t, got)
+				return
+			}
+			require.Equal(t, []string{"salt-for-" + tc.want}, got)
 		})
 	}
 }
