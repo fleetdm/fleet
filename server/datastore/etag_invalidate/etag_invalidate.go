@@ -350,35 +350,3 @@ func (d *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet.
 	d.invalidateHost(ctx, host.ID, "RecordLabelQueryExecutions")
 	return nil
 }
-
-// AsyncBatchInsertLabelMembership / AsyncBatchDeleteLabelMembership are the
-// async collector persistence path: invalidate every distinct host in the
-// committed batch (batch tuples are [labelID, hostID]). Invalidating when
-// the agent first stages results in Redis would be insufficient — the
-// collector may not have committed yet. AsyncBatchUpdateLabelTimestamp is
-// deliberately NOT hooked: it touches timestamps only, never membership.
-func (d *Datastore) AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error {
-	if err := d.Datastore.AsyncBatchInsertLabelMembership(ctx, batch); err != nil {
-		return err
-	}
-	d.invalidateHosts(ctx, distinctBatchHosts(batch), "AsyncBatchInsertLabelMembership")
-	return nil
-}
-
-func (d *Datastore) AsyncBatchDeleteLabelMembership(ctx context.Context, batch [][2]uint) error {
-	if err := d.Datastore.AsyncBatchDeleteLabelMembership(ctx, batch); err != nil {
-		return err
-	}
-	d.invalidateHosts(ctx, distinctBatchHosts(batch), "AsyncBatchDeleteLabelMembership")
-	return nil
-}
-
-// distinctBatchHosts extracts the distinct host IDs from async label
-// membership batch tuples ([labelID, hostID]).
-func distinctBatchHosts(batch [][2]uint) map[uint]struct{} {
-	hosts := make(map[uint]struct{}, len(batch))
-	for _, tup := range batch {
-		hosts[tup[1]] = struct{}{}
-	}
-	return hosts
-}

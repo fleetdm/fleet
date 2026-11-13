@@ -733,7 +733,7 @@ func TestEnrollOsqueryDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	var gotKey string
@@ -794,7 +794,7 @@ func TestAuthenticateHostFailure(t *testing.T) {
 
 func TestAuthenticateHostOrbitNodeKeyFallback(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	cfg := config.TestConfig()
 	cfg.WebSocket.TransportEnabled = true
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{Task: task})
@@ -981,7 +981,7 @@ func TestAuthenticateHostContextCanceled(t *testing.T) {
 
 func TestAuthenticateHostRejectsNonOsqueryPlatforms(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, nil)
+	task := async.NewTask(ds, false)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	ds.MarkHostsSeenFunc = func(ctx context.Context, hostIDs []uint, t time.Time) error {

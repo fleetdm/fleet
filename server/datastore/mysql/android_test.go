@@ -2667,7 +2667,7 @@ func testListMDMAndroidProfilesToSendCombinedUnknownLabelPreservation(t *testing
 
 	// hostWithout reports label results: member of the include label, not of the exclude
 	// label. Both combined profiles become applicable to it.
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{lblIncDyn.ID, hostWithout.ID}})
+	err = ds.AddLabelsToHost(ctx, hostWithout.ID, []uint{lblIncDyn.ID})
 	require.NoError(t, err)
 	hostWithout.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
 	hostWithout.PolicyUpdatedAt = time.Now().UTC()
@@ -2684,7 +2684,7 @@ func testListMDMAndroidProfilesToSendCombinedUnknownLabelPreservation(t *testing
 
 	// hostWith reports label results: member of both dynamic labels. The exclude label is now
 	// authoritative, so both preserved profiles are removed.
-	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{{lblIncDyn.ID, hostWith.ID}, {lblExclDyn.ID, hostWith.ID}})
+	err = ds.AddLabelsToHost(ctx, hostWith.ID, []uint{lblIncDyn.ID, lblExclDyn.ID})
 	require.NoError(t, err)
 	hostWith.LabelUpdatedAt = time.Now().UTC().Add(time.Second)
 	hostWith.PolicyUpdatedAt = time.Now().UTC()

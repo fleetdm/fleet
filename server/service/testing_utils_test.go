@@ -193,7 +193,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	// pool when one is provided (integration tests), nil otherwise.
 	var pssoNonceStore fleet.PSSONonceStore
 
-	task := async.NewTask(ds, nil, c, nil)
+	task := async.NewTask(ds, false)
 	if len(opts) > 0 {
 		if opts[0].Task != nil {
 			task = opts[0].Task
