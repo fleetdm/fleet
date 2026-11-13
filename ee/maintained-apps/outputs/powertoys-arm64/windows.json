@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "0.101.2362.0",
+      "version": "0.102.3101",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PowerToys%ARM64' AND publisher = 'Microsoft Corporation') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PowerToys%ARM64' AND publisher = 'Microsoft Corporation' AND version_compare(version, '0.101.2362.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'PowerToys%ARM64' AND publisher = 'Microsoft Corporation' AND version_compare(version, '0.102.3101') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'powertoys.exe');"
       },
-      "installer_url": "https://github.com/microsoft/PowerToys/releases/download/v0.101.2362.0/PowerToysSetup-0.101.2362.0-arm64.exe",
+      "installer_url": "https://github.com/microsoft/PowerToys/releases/download/v0.102.3101/PowerToysSetup-0.102.3101.0-arm64.exe",
       "install_script_ref": "1a5ce2ca",
       "uninstall_script_ref": "a1374646",
-      "sha256": "bee299302c0cd59e282bdc92cc8aaf737713eabcca77bb8bf09f43745d43cd93",
+      "sha256": "65663afb8fa77b4db257bc9494f66ac91a2b063ae0bfe2cd85e9de958c92ee8b",
       "default_categories": [
         "Productivity"
       ]

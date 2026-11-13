@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "7.2.48556",
+      "version": "7.2.51704",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (ARM64)' AND publisher = 'Zoom') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (ARM64)' AND publisher = 'Zoom' AND version_compare(version, '7.2.48556') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Zoom Workplace (ARM64)' AND publisher = 'Zoom' AND version_compare(version, '7.2.51704') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'zoom.exe');"
       },
-      "installer_url": "https://zoom.us/client/7.2.1.48556/ZoomInstallerFull.msi?archType=winarm64",
+      "installer_url": "https://zoom.us/client/7.2.5.51704/ZoomInstallerFull.msi?archType=winarm64",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "2e978ed3",
-      "sha256": "df451142eea229b371c732a354a16c578744a48b4b69d2e2e0c4529ef590bee5",
+      "sha256": "7b35359606578d50f2a71e6b061bd1202dd481d2b6d0380be9ad72dcb32329c0",
       "default_categories": [
         "Communication"
       ],
