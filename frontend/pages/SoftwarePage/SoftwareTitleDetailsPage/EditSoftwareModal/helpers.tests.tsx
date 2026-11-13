@@ -3,7 +3,7 @@ import React from "react";
 
 import { ISoftwarePackage } from "interfaces/software";
 
-import { getErrorMessage } from "./helpers";
+import { getErrorMessage, hasChangeSideEffects } from "./helpers";
 
 jest.mock("axios", () => {
   const actual = jest.requireActual("axios");
@@ -114,6 +114,48 @@ describe("getErrorMessage", () => {
     const { container } = render(<>{getErrorMessage(err, software)}</>);
     expect(container.textContent).toBe(
       "Couldn't edit Zoom. The selected package is for a different file type."
+    );
+  });
+});
+
+describe("hasChangeSideEffects", () => {
+  it("is false for an empty diff", () => {
+    expect(hasChangeSideEffects({})).toBe(false);
+  });
+
+  it("is false when only self-service changed", () => {
+    expect(hasChangeSideEffects({ selfService: true })).toBe(false);
+  });
+
+  it("is false when only categories changed", () => {
+    expect(hasChangeSideEffects({ categories: ["Productivity"] })).toBe(false);
+  });
+
+  it("is false when both self-service and categories changed and nothing else", () => {
+    expect(
+      hasChangeSideEffects({
+        selfService: true,
+        categories: ["Productivity"],
+      })
+    ).toBe(false);
+  });
+
+  it("is true when a side-effect field like install script is also in the diff", () => {
+    expect(
+      hasChangeSideEffects({
+        selfService: true,
+        installScript: "echo hi",
+      })
+    ).toBe(true);
+  });
+
+  it("is true when the installer file is in the diff", () => {
+    expect(hasChangeSideEffects({ software: {} })).toBe(true);
+  });
+
+  it("is true when label targeting is in the diff", () => {
+    expect(hasChangeSideEffects({ labelTargets: { "label-1": true } })).toBe(
+      true
     );
   });
 });
