@@ -982,15 +982,11 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		deviceAuthenticated bool
 		premiumOnly         bool
 	}{
-		{"GET", "/api/latest/fleet/mdm/apple/installers/1", false, false},
-		{"DELETE", "/api/latest/fleet/mdm/apple/installers/1", false, false},
-		{"GET", "/api/latest/fleet/mdm/apple/installers", false, false},
 		{"GET", "/api/latest/fleet/mdm/apple/devices", false, false},
 		{"DELETE", "/api/latest/fleet/hosts/1/mdm", false, false},
 		{"GET", "/api/latest/fleet/hosts/1/configuration_profiles", false, true},
 		{"GET", "/api/latest/fleet/apns", false, false},
 		{"GET", apple_mdm.EnrollPath + "?token=test", false, false},
-		{"GET", apple_mdm.InstallerPath + "?token=test", false, false},
 		{"GET", "/api/latest/fleet/setup_experience/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, true},
 		{"DELETE", "/api/latest/fleet/setup_experience/eula/token", false, true},
 		{"GET", "/api/latest/fleet/setup_experience/eula/metadata", false, true},

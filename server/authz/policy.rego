@@ -1133,13 +1133,6 @@ allow {
   action == read
 }
 
-# Global admins can read and write Apple MDM installers.
-allow {
-  object.type == "mdm_apple_installer"
-  subject.global_role == admin
-  action == [read, write][_]
-}
-
 # Global admins can read and write Apple devices.
 allow {
   object.type == "mdm_apple_device"
