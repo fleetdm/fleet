@@ -4425,6 +4425,11 @@ software:
 				"  org_info:\n    org_name: Test Org\n  secrets:\n  mdm:\n" + mdm +
 				"controls:\nagent_options:\nreports:\npolicies:\n"
 		}
+		scriptsDisabledFile := func(serverSettings string) string {
+			return "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n" + serverSettings +
+				"  org_info:\n    org_name: Test Org\n  secrets:\n" +
+				"controls:\nagent_options:\nreports:\npolicies:\n"
+		}
 		for _, tc := range []struct {
 			name, file, config string
 			// other files next to it, by name
@@ -4498,34 +4503,21 @@ software:
 				},
 			},
 			{
-				name: "fleet controls managed local account", file: "workstations.yml",
-				config: fleetFile("  setup_experience:\n    enable_managed_local_account: true\n    Enable_Create_Local_Admin_Account: true\n"+
-					"    end_user_local_account_type: standard\n  windows_settings:\n    enable_managed_local_account: true\n", ""),
-				want: []string{
-					`The "controls.setup_experience.enable_managed_local_account" key is not available anymore.`,
-					`The "controls.setup_experience.enable_create_local_admin_account" key is not available anymore.`,
-					`The "controls.setup_experience.end_user_local_account_type" key is not available anymore.`,
-					`The "controls.windows_settings.enable_managed_local_account" key is not available anymore.`,
-				},
+				name: "org_settings scripts_disabled set to true", file: "default.yml",
+				config: scriptsDisabledFile("    scripts_disabled: true\n"),
+				want:   []string{`The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
 			},
 			{
-				name: "controls file windows managed local account", file: "workstations.yml",
-				config: fleetFile("  path: ./controls.yml\n", ""),
-				extra:  map[string]string{"controls.yml": "windows_settings:\n  ENABLE_MANAGED_LOCAL_ACCOUNT: true\n"},
-				want:   []string{`The "controls.windows_settings.enable_managed_local_account" key is not available anymore.`},
+				name: "org_settings scripts_disabled in another letter case", file: "default.yml",
+				config: scriptsDisabledFile("    Scripts_Disabled: true\n"),
+				want:   []string{`The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
 			},
 			{
-				name: "fleet settings windows managed local account", file: "workstations.yml",
-				config: fleetFile("", "  mdm:\n    windows_settings:\n      enable_managed_local_account: true\n"),
-				want:   []string{`The "settings.mdm.windows_settings.enable_managed_local_account" key is not available anymore.`},
-			},
-			{
-				name: "org_settings managed local account", file: "default.yml",
-				config: globalFile("    setup_experience:\n      end_user_local_account_type: admin\n    windows_settings:\n      enable_managed_local_account: false\n"),
-				want: []string{
-					`The "org_settings.mdm.setup_experience.end_user_local_account_type" key is not available anymore.`,
-					`The "org_settings.mdm.windows_settings.enable_managed_local_account" key is not available anymore.`,
-				},
+				name: "org_settings file with scripts_disabled set to true", file: "default.yml",
+				config: "org_settings:\n  path: ./org-settings.yml\ncontrols:\nagent_options:\nreports:\npolicies:\n",
+				extra: map[string]string{"org-settings.yml": "server_settings:\n  server_url: https://fleet.example.com\n  scripts_disabled: true\n" +
+					"org_info:\n  org_name: Test Org\nsecrets:\n"},
+				want: []string{`in "./org-settings.yml": The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
 			},
 			{
 				name: "org_settings in another letter case", file: "default.yml",
@@ -4556,6 +4548,49 @@ software:
 					}
 				})
 			}
+		}
+	})
+
+	t.Run("removed scripts_disabled set to false logs a warning", func(t *testing.T) {
+		t.Parallel()
+		orgSettings := "server_settings:\n  server_url: https://fleet.example.com\n  scripts_disabled: false\norg_info:\n  org_name: Test Org\nsecrets:\n"
+		for _, tc := range []struct {
+			name, config, orgSettingsFile string
+		}{
+			{
+				name: "inline",
+				config: "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n    scripts_disabled: false\n" +
+					"  org_info:\n    org_name: Test Org\n  secrets:\ncontrols:\nagent_options:\nreports:\npolicies:\n",
+			},
+			{
+				name:            "org_settings file",
+				config:          "org_settings:\n  path: ./org-settings.yml\ncontrols:\nagent_options:\nreports:\npolicies:\n",
+				orgSettingsFile: orgSettings,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				path, basePath := createNamedFileOnTempDir(t, "default.yml", tc.config)
+				warningFile := path
+				if tc.orgSettingsFile != "" {
+					require.NoError(t, os.WriteFile(filepath.Join(basePath, "org-settings.yml"), []byte(tc.orgSettingsFile), 0o644))
+					warningFile = "./org-settings.yml"
+				}
+				var logMessages []string
+				logFn := func(format string, a ...any) { logMessages = append(logMessages, fmt.Sprintf(format, a...)) }
+
+				// parse the file, it should succeed and log the removal message as a warning
+				result, err := GitOpsFromFile(path, basePath, premiumAppConfig(), logFn)
+				require.NoError(t, err)
+				require.Contains(t, logMessages, `[!] in "`+warningFile+`": The "org_settings.server_settings.scripts_disabled" key is not available anymore. `+
+					"What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration\n")
+
+				// read the parsed org settings, the removed key should be dropped and the rest kept
+				serverSettings, ok := result.OrgSettings["server_settings"].(map[string]any)
+				require.True(t, ok)
+				require.NotContains(t, serverSettings, "scripts_disabled")
+				require.Equal(t, "https://fleet.example.com", serverSettings["server_url"])
+			})
 		}
 	})
 

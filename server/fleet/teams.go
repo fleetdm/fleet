@@ -834,7 +834,6 @@ var globalRoles = map[string]struct{}{
 var premiumGlobalRoles = map[string]struct{}{
 	RoleTechnician:   {},
 	RoleObserverPlus: {},
-	RoleGitOps:       {},
 }
 
 // ValidGlobalRole returns whether the role provided is valid for a global user.

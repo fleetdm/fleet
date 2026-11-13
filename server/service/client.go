@@ -621,7 +621,6 @@ func (c *Client) ApplyGroup(
 		return nil, nil, nil, nil, err
 	}
 
-	// specs.Queries must be applied before specs.Packs because packs reference queries.
 	if len(specs.Queries) > 0 {
 		if opts.DryRun {
 			logfn("[!] ignoring reports, dry run mode only supported for 'config' and 'fleet' specs\n")
@@ -646,17 +645,6 @@ func (c *Client) ApplyGroup(
 				return nil, nil, nil, nil, fmt.Errorf("applying labels: %w", err)
 			}
 			logfn(appliedFormat, numberWithPluralization(len(specs.Labels), "label", "labels"))
-		}
-	}
-
-	if len(specs.Packs) > 0 {
-		if opts.DryRun {
-			logfn("[!] ignoring packs, dry run mode only supported for 'config' and 'fleet' specs\n")
-		} else {
-			if err := c.ApplyPacks(specs.Packs); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("applying packs: %w", err)
-			}
-			logfn(appliedFormat, numberWithPluralization(len(specs.Packs), "pack", "packs"))
 		}
 	}
 
@@ -1330,17 +1318,6 @@ func (c *Client) ApplyGroup(
 			}
 
 			logfn(appliedFormat, numberWithPluralization(len(specs.Policies), "policy", "policies"))
-		}
-	}
-
-	if specs.UsersRoles != nil {
-		if opts.DryRun {
-			logfn("[!] ignoring user roles, dry run mode only supported for 'config' and 'fleet' specs\n")
-		} else {
-			if err := c.ApplyUsersRoleSecretSpec(specs.UsersRoles); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("applying user roles: %w", err)
-			}
-			logfn("[+] applied user roles\n")
 		}
 	}
 
@@ -3577,7 +3554,7 @@ func (c *Client) doGitOpsLabels(
 			logFn("[-] would've deleted %s (This includes renames, since labels are identified by name in YAML.)\n", numberWithPluralization(len(toDelete), "label", "labels"))
 		}
 		for _, labelToDelete := range toDelete {
-			logFn("[-] would've deleted label '%s'\n", labelToDelete)
+			logFn("[-] would've deleted label '%s'\n", labelToDelete.Name)
 		}
 		if nToAdd > 0 {
 			logFn("[+] would've created %s\n", numberWithPluralization(nToAdd, "label", "labels"))
@@ -3595,15 +3572,19 @@ func (c *Client) doGitOpsLabels(
 		logFn("[-] deleting %s (This includes renames, since labels are identified by name in YAML.)\n", numberWithPluralization(len(toDelete), "label", "labels"))
 	}
 	for _, l := range toDelete {
-		logFn("[-] deleting label '%s'\n", l)
+		logFn("[-] deleting label '%s'\n", l.Name)
 	}
-	namesToMove := make([]string, 0, len(toMove))
+	labelsToMove := make([]fleet.LabelToMove, 0, len(toMove))
 	for _, l := range toMove {
-		namesToMove = append(namesToMove, l.Name)
+		move := fleet.LabelToMove{Name: l.Name}
+		if l.FromTeamID != nil && *l.FromTeamID > 0 {
+			move.FromFleetID = l.FromTeamID
+		}
+		labelsToMove = append(labelsToMove, move)
 		logFn("[-] moving label %q from fleet %q to fleet %q\n", l.Name, l.FromTeamName, l.ToTeamName)
 	}
 	logFn("[+] applying %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), nToAdd, nToUpdate)
-	return c.ApplyLabels(config.Labels, config.TeamID, namesToMove)
+	return c.ApplyLabels(config.Labels, config.TeamID, labelsToMove)
 }
 
 // doGitOpsCustomHostVitals reconciles custom host vital definitions against

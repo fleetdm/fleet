@@ -326,7 +326,10 @@ func run(ctx context.Context, configManager configpkg.Manager, opts options) err
 	var tableRows, dataRows []tableRow
 	var db *sqlx.DB
 	if opts.dryRun || opts.apply {
-		fleetConfig := configManager.LoadConfig()
+		fleetConfig, err := configManager.LoadConfig()
+		if err != nil {
+			return exitError{code: exitGeneral, message: "ERROR: " + err.Error()}
+		}
 		mysqlConfig, err := writerConfig(fleetConfig.Mysql, opts)
 		if err != nil {
 			return exitError{code: exitGeneral, message: "ERROR: " + err.Error()}

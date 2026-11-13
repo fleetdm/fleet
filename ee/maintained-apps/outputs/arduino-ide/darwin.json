@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.3.10",
+      "version": "2.3.11",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'cc.arduino.IDE2';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cc.arduino.IDE2' AND version_compare(bundle_short_version, '2.3.10') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'cc.arduino.IDE2' AND version_compare(bundle_short_version, '2.3.11') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'cc.arduino.IDE2' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/arduino/arduino-ide/releases/download/2.3.10/arduino-ide_2.3.10_macOS_ARM64.dmg",
+      "installer_url": "https://github.com/arduino/arduino-ide/releases/download/2.3.11/arduino-ide_2.3.11_macOS_ARM64.dmg",
       "install_script_ref": "b278fe66",
       "uninstall_script_ref": "36a634e0",
-      "sha256": "8811860dc8782b6cd6bb0076e9215255849f404b1b9e6f38069fdc4f5c43648e",
+      "sha256": "bd70d36e125943855c27308c97702d69a7017041741a6f123734300424390bf7",
       "default_categories": [
         "Developer tools"
       ]

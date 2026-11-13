@@ -78,7 +78,6 @@
     ],
     "deferred_save_host": false,
     "query_reports_disabled": false,
-    "scripts_disabled": false,
     "ai_features_disabled": false,
     "mcp_disabled": false,
     "query_report_cap": 1
@@ -224,14 +223,14 @@
       {
         "organization_name": "Fleet Device Management Inc.",
         "default": true,
-        "macos_team": "💻 Workstations",
-        "ios_team": "📱🏢 Company-owned mobile devices",
-        "ipados_team": "📱🏢 Company-owned mobile devices",
-        "byod_team": "📱🔐 Personal mobile devices"
+        "macos_fleet": "💻 Workstations",
+        "ios_fleet": "📱🏢 Company-owned mobile devices",
+        "ipados_fleet": "📱🏢 Company-owned mobile devices",
+        "byod_fleet": "📱🔐 Personal mobile devices"
       },
       {
         "organization_name": "Second Org LLC",
-        "macos_team": "💻 Workstations"
+        "macos_fleet": "💻 Workstations"
       }
     ],
     "apple_bm_enabled_and_configured": true,

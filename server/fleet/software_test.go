@@ -337,7 +337,6 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 			BundleIdentifier: "com.test.software",
 			ExtensionID:      "test-extension-id",
 			ExtensionFor:     "chrome",
-			Browser:          "",
 			Release:          "1",
 			Vendor:           "Test Vendor",
 			Arch:             "x86_64",
@@ -362,7 +361,7 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 	data, err := entry.MarshalJSON()
 	require.NoError(t, err)
 
-	// Expected JSON with all fields including browser and extension_for
+	// Expected JSON with all fields
 	expectedJSON := `{
 		"id": 1,
 		"name": "Test Software",
@@ -372,7 +371,6 @@ func TestHostSoftwareEntryMarshalJSON(t *testing.T) {
 		"extension_id": "test-extension-id",
 		"extension_for": "chrome",
 		"display_name": "",
-		"browser": "chrome",
 		"release": "1",
 		"vendor": "Test Vendor",
 		"arch": "x86_64",

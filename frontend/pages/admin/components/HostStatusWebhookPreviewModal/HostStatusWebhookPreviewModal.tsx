@@ -11,11 +11,11 @@ const getHostStatusPreview = (teamScope?: boolean) => {
     unseen_hosts: 1,
     total_hosts: 2,
     days_unseen: 3,
-    team_id: 123,
+    fleet_id: 123,
   } as Record<string, number>;
 
   if (!teamScope) {
-    delete data.team_id;
+    delete data.fleet_id;
   }
 
   return {
