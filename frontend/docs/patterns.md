@@ -286,30 +286,32 @@ sandbox expiry message with more to come).
 
 ```typescript
 /** An example of a top level page utilising MainConent and SidePanel content */
-const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
+const AccountPage = ({ router }: IAccountPageProps): JSX.Element => {
   // ...
 
   return (
     <SidePanelPage>
       <>
         <MainContent className={baseClass}>
-          <PackForm
-            className={`${baseClass}__pack-form`}
+          <UserSettingsForm
+            formData={currentUser}
             handleSubmit={handleSubmit}
-            onFetchTargets={onFetchTargets}
-            selectedTargetsCount={selectedTargetsCount}
-            isPremiumTier={isPremiumTier}
+            onCancel={onCancel}
           />
         </MainContent>
         <SidePanelContent>
-          <PackInfoSidePanel />
-      </SidePanelContent>
-    </>
-  </SidePanelPage>
+          <AccountSidePanel
+            currentUser={currentUser}
+            onChangePassword={onShowPasswordModal}
+            onGetApiToken={onShowApiTokenModal}
+          />
+        </SidePanelContent>
+      </>
+    </SidePanelPage>
   );
 };
 
-export default PackComposerPage;
+export default AccountPage;
 ```
 
 ## Forms
@@ -947,18 +949,6 @@ The three chip helpers:
 - `defaultDestination` — destination always lands on the default (e.g., "All fleets")
 
 Each returns `undefined` when no switch will actually happen, so you can pass it straight to `teamName` without guarding.
-
-### Search-only items
-
-Some entries are gated on the search string itself (e.g., the "Packs" page only appears when searching for `packs`). Use the `search` field from `ICommandPaletteContext` and a regex test:
-
-```ts
-.../packs|create new pack/.test(search.toLowerCase())
-  ? [/* the item */]
-  : []
-```
-
-Use this pattern sparingly — it bypasses the normal Best match ranking and should be reserved for legacy / deprecated features users only reach by name.
 
 ### Tests
 

@@ -147,7 +147,7 @@ func (s *integrationMDMTestSuite) TestWindowsUserScopedProfileHold() {
 		{Name: "device-scoped", Contents: syncml.ForTestWithData([]syncml.TestCommand{
 			{Verb: fleet.CmdReplace, LocURI: userScopeTestDeviceLocURI, Data: "0"},
 		})},
-	}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+	}}, http.StatusNoContent, "fleet_id", fmt.Sprint(tm.ID))
 
 	awaiting := func(t *testing.T, d *mdmtest.TestWindowsMDMClient) fleet.WindowsMDMAwaitingConfiguration {
 		enrolledDevice, err := s.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, d.DeviceID)
@@ -268,7 +268,7 @@ func (s *integrationMDMTestSuite) TestWindowsUserScopedProfileRemovalAndScope() 
 	})
 	setTeamProfiles := func(teamID uint, profiles []fleet.MDMProfileBatchPayload) {
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles},
-			http.StatusNoContent, "team_id", fmt.Sprint(teamID))
+			http.StatusNoContent, "fleet_id", fmt.Sprint(teamID))
 	}
 	// enrollEntraHost enrolls a UPN-bound (Entra) device outside OOBE, reporting the given login status, and links it
 	// to a fresh host on the given team.

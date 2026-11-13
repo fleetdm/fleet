@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "6.8.0",
+      "version": "6.8.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.redlex.mellel.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.redlex.mellel.mac' AND version_compare(bundle_short_version, '6.8.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.redlex.mellel.mac' AND version_compare(bundle_short_version, '6.8.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.redlex.mellel.mac' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://d1riogbqt3a9uw.cloudfront.net/mellel_68037.dmg",
+      "installer_url": "https://d1riogbqt3a9uw.cloudfront.net/mellel_68101.dmg",
       "install_script_ref": "74248e2e",
       "uninstall_script_ref": "9dded360",
-      "sha256": "89c201f4d9c6f918772840b98081fcacd6a95e00575a02ecf6c9cd70c0e9788a",
+      "sha256": "a5e09f2f8ec2157a721584f59bbd74a388181d20070f6d1d8cd0963ca21a53da",
       "default_categories": [
         "Productivity"
       ]

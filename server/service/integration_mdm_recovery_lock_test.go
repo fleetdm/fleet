@@ -106,7 +106,7 @@ func (s *integrationMDMTestSuite) TestRemovedMDMConfigKeys() {
 	}{
 		{"config recovery lock", "PATCH", "/api/latest/fleet/config", `{"mdm": {"enable_recovery_lock_password": true}}`, recoveryLockMsg},
 		{"config setup_experience", "PATCH", "/api/latest/fleet/config", `{"mdm": {"setup_experience": {"require_all_software_macos": true}}}`, macOSMsg},
-		{"config macos_setup", "PATCH", "/api/latest/fleet/config", `{"mdm": {"macos_setup": {"require_all_software_windows": true}}}`, windowsMsg},
+		{"config setup_experience", "PATCH", "/api/latest/fleet/config", `{"mdm": {"setup_experience": {"require_all_software_windows": true}}}`, windowsMsg},
 		{"config dry run", "PATCH", "/api/latest/fleet/config?dry_run=true", `{"mdm": {"enable_recovery_lock_password": true}}`, recoveryLockMsg},
 		{"config force", "PATCH", "/api/latest/fleet/config?force=true", `{"mdm": {"enable_recovery_lock_password": true}}`, recoveryLockMsg},
 		{
@@ -120,7 +120,7 @@ func (s *integrationMDMTestSuite) TestRemovedMDMConfigKeys() {
 			`{"org_info": {"org_name": "set by a rejected request"}, "mdm": {"windows_migration_enabled": true}}`, windowsMigrationMsg,
 		},
 		{"fleet recovery lock", "PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), `{"mdm": {"enable_recovery_lock_password": "yes"}}`, recoveryLockMsg},
-		{"fleet macos_setup", "PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), `{"mdm": {"macos_setup": {"require_all_software_macos": true}}}`, macOSMsg},
+		{"fleet setup_experience", "PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), `{"mdm": {"setup_experience": {"require_all_software_macos": true}}}`, macOSMsg},
 		{
 			"fleet differently cased", "PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID),
 			`{"MDM": {"Enable_Recovery_Lock_Password": true}}`, removedMsg("Enable_Recovery_Lock_Password"),
@@ -531,7 +531,7 @@ func (s *integrationMDMTestSuite) TestRecoveryLockPasswordIntegration() {
 		assert.NotZero(t, getPasswordResp.RecoveryLockPassword.UpdatedAt)
 
 		// Verify activity was created for viewing password
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeViewedHostRecoveryLockPassword{}.ActivityName(),
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeReadHostRecoveryLockPassword{}.ActivityName(),
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
 
 		// Disable recovery lock password

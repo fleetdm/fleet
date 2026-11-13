@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.0.20",
+      "version": "1.0.22",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhuman.CodaApp.Desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhuman.CodaApp.Desktop' AND version_compare(bundle_short_version, '1.0.20') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.superhuman.CodaApp.Desktop' AND version_compare(bundle_short_version, '1.0.22') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.superhuman.CodaApp.Desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://docs-desktop.superhuman.com/releases/Superhuman-Docs-1.0.20-universal.dmg",
+      "installer_url": "https://docs-desktop.superhuman.com/releases/Superhuman-Docs-1.0.22-universal.dmg",
       "install_script_ref": "bed7a9cf",
       "uninstall_script_ref": "958f6e94",
-      "sha256": "0ea5d67d0b8120b801e4df34a33ef64195a6f4d29d95d6087a2eef15b1adeee0",
+      "sha256": "c7c44dcb7e216de0f6c6225045d3d5991fc574d5444f6a63a7e2a09f8cbd596f",
       "default_categories": [
         "Productivity"
       ]

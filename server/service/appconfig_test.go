@@ -1789,7 +1789,7 @@ func TestMDMConfig(t *testing.T) {
 			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
 		},
 		{
-			name:        "manual_agent_install enabled without bootstrap package",
+			name:        "macos_manual_agent_install enabled without bootstrap package",
 			licenseTier: "premium",
 			oldMDM: fleet.MDM{
 				MacOSSetup: fleet.MacOSSetup{
@@ -3777,7 +3777,7 @@ func TestModifyAppConfigClearBootstrapPackageAlreadyDeleted(t *testing.T) {
 		return nil, newNotFoundError()
 	}
 
-	raw := []byte(`{"mdm":{"macos_setup":{"bootstrap_package":""}}}`)
+	raw := []byte(`{"mdm":{"setup_experience":{"macos_bootstrap_package":""}}}`)
 	_, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 }
@@ -3802,23 +3802,23 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 		{
 			name:        "macOS: enabling managed local account requires Apple MDM",
 			appleMDMOff: true,
-			patch:       `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			patch:       `{"mdm": {"setup_experience": {"enable_managed_local_account": true}}}`,
 			wantErr:     "setup_experience.enable_managed_local_account",
 		},
 		{
 			name:           "macOS: enabling managed local account emits the enabled activity",
-			patch:          `{"mdm": {"macos_setup": {"enable_managed_local_account": true}}}`,
+			patch:          `{"mdm": {"setup_experience": {"enable_managed_local_account": true}}}`,
 			wantActivities: []string{"enabled_managed_local_account:darwin"},
 		},
 		{
 			name:           "macOS: disabling managed local account emits the disabled activity",
 			startMacOS:     true,
-			patch:          `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+			patch:          `{"mdm": {"setup_experience": {"enable_managed_local_account": false}}}`,
 			wantActivities: []string{"disabled_managed_local_account:darwin"},
 		},
 		{
 			name:  "macOS: managed local account no-op change emits no activity",
-			patch: `{"mdm": {"macos_setup": {"enable_managed_local_account": false}}}`,
+			patch: `{"mdm": {"setup_experience": {"enable_managed_local_account": false}}}`,
 		},
 		{
 			name:               "windows: enabling managed local account persists and fires activity",
@@ -3844,7 +3844,7 @@ func TestModifyAppConfigManagedLocalAccount(t *testing.T) {
 		},
 		{
 			name:               "enabling managed local account on both platforms in one payload fires one activity per platform",
-			patch:              `{"mdm": {"macos_setup": {"enable_managed_local_account": true}, "windows_settings": {"enable_managed_local_account": true}}}`,
+			patch:              `{"mdm": {"setup_experience": {"enable_managed_local_account": true}, "windows_settings": {"enable_managed_local_account": true}}}`,
 			wantActivities:     []string{"enabled_managed_local_account:darwin", "enabled_managed_local_account:windows"},
 			wantWindowsEnabled: true,
 		},

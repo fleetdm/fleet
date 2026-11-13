@@ -64,7 +64,7 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 
 	// add VPP app
 	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "fleet_id", "0")
 	require.NoError(t, appResp.Err)
 	require.NotEmpty(t, appResp.AppStoreApps)
 	addedApp := appResp.AppStoreApps[0]
@@ -79,7 +79,7 @@ func (s *integrationMDMTestSuite) TestUpcomingActivitiesTurnMDMOff() {
 	// Get software title ID of the added VPP app
 	listSWTitlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
-		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "team_id", "0")
+		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "fleet_id", "0")
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
 	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
 	vppAppTitleID := listSWTitlesResp.SoftwareTitles[0].ID
@@ -187,7 +187,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 
 	// add VPP app
 	var appResp getAppStoreAppsResponse
-	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/software/app_store_apps", nil, http.StatusOK, &appResp, "fleet_id", "0")
 	require.NoError(t, appResp.Err)
 	require.NotEmpty(t, appResp.AppStoreApps)
 	addedApp := appResp.AppStoreApps[0]
@@ -202,7 +202,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 	// Get software title ID of the added VPP app
 	listSWTitlesResp := listSoftwareTitlesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{},
-		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "team_id", "0")
+		http.StatusOK, &listSWTitlesResp, "query", addedApp.Name, "fleet_id", "0")
 	require.Len(t, listSWTitlesResp.SoftwareTitles, 1)
 	require.NotNil(t, listSWTitlesResp.SoftwareTitles[0].AppStoreApp)
 	vppAppTitleID := listSWTitlesResp.SoftwareTitles[0].ID
@@ -384,7 +384,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 
 	// the VPP install count only sees the successful VPP app install
 	titleResponse := getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", vppAppTitleID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.AppStoreApp)
 	require.Equal(t, uint(1), titleResponse.SoftwareTitle.AppStoreApp.Status.Installed)
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.AppStoreApp.Status.Failed)
@@ -392,7 +392,7 @@ func (s *integrationMDMTestSuite) TestCancelUpcomingActivity() {
 
 	// the SW install count only sees the failed install
 	titleResponse = getSoftwareTitleResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", swTitleID), nil, http.StatusOK, &titleResponse, "team_id", "0")
+	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/software/titles/%d", swTitleID), nil, http.StatusOK, &titleResponse, "fleet_id", "0")
 	require.NotNil(t, titleResponse.SoftwareTitle.SoftwarePackage)
 	require.Equal(t, uint(0), titleResponse.SoftwareTitle.SoftwarePackage.Status.Installed)
 	require.Equal(t, uint(1), titleResponse.SoftwareTitle.SoftwarePackage.Status.FailedInstall)

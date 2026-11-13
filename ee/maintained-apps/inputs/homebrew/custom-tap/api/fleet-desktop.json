@@ -6,9 +6,9 @@
   ],
   "desc": "End-user client for Fleet device management",
   "homepage": "https://github.com/fleetdm/fleet/tree/main/apps/fleet-desktop-macos",
-  "url": "https://download.fleetdm.com/fleet-desktop-macos/v1.5.1/fleet_desktop-v1.5.1.pkg",
+  "url": "https://download.fleetdm.com/fleet-desktop-macos/v1.6.0/fleet_desktop-v1.6.0.pkg",
   "url_specs": {},
-  "version": "1.5.1",
+  "version": "1.6.0",
   "autobump": true,
   "no_autobump_message": null,
   "skip_livecheck": true,
@@ -16,7 +16,7 @@
   "bundle_short_version": null,
   "pinned": false,
   "pinned_version": null,
-  "sha256": "666fdf85b9389e256b40ebb15f428fb04f27aebe0e5d833e5d5e1df8a92b721b",
+  "sha256": "739b67d0fb8ad8d1373d50df4680deceb53054d954761eccdfa54402621d9eca",
   "artifacts": [
     {
       "uninstall": [
@@ -28,7 +28,7 @@
     },
     {
       "pkg": [
-        "fleet_desktop-v1.5.1.pkg"
+        "fleet_desktop-v1.6.0.pkg"
       ]
     },
     {
@@ -46,7 +46,7 @@
       ]
     }
   ],
-  "caveats": "Fleet Desktop requires the Mac to be enrolled in MDM with the\ncom.fleetdm.fleetd.config managed preferences profile. The installer\nwill fail with \"Installation Failed\" otherwise.\n",
+  "caveats": null,
   "caveats_rosetta": null,
   "depends_on": {
     "macos": {
@@ -74,6 +74,6 @@
   "languages": [],
   "ruby_source_path": "Casks/fleet-desktop.rb",
   "ruby_source_checksum": {
-    "sha256": "fbe0cfe2a5333c58271ef87553de1998c4f8f7c6c5d51149db15af6114abb981"
+    "sha256": "f0272d1e7fef50f33332e6d169333f97a7dfbabbd13faa0bacc588e4210a90cb"
   }
 }
