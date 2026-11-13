@@ -3511,7 +3511,6 @@ None.
 - [Add labels to host](#add-labels-to-host)
 - [Remove labels from host](#remove-labels-from-host)
 - [Run live report on host (ad hoc)](#run-live-report-on-host-ad-hoc)
-- [Run live report on host by identifier (ad hoc)](#run-live-report-on-host-by-identifier-ad-hoc)
 - [Bypass host's conditional access](#bypass-hosts-conditional-access)
 - [Get host's managed account password](#get-hosts-managed-account-password)
 - [Release host from Apple Business](#release-host-from-apple-business)
@@ -6442,7 +6441,7 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
 
 | Name       | Type              | In   | Description                                                                   |
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| id         | integer           | path | **Required**. The host's `id`.                                                |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 
 #### Example
 
@@ -6526,7 +6525,7 @@ If the host exists but is not enrolled to an MDM server, then this API returns `
 
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | -------------------------------------------------------------------------------- |
-| id      | integer | path | **Required** The id of the host to get the details for                           |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 
 #### Example
 
@@ -6612,7 +6611,7 @@ Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | -------------------------------------------------------------------------------- |
-| id      | integer | path | **Required** The id of the host to get the details for                           |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 
 #### Example
 
@@ -6751,7 +6750,7 @@ A `fleet_id` of `0` returns the statistics for hosts that are "Unassigned". A `n
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's ID. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | query   | string | query | Search query keywords. Searchable fields include `name`. |
 | available_for_install | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`. |
 | self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`. |
@@ -7148,7 +7147,7 @@ The host will only return a key if its disk encryption status is "Verified." Get
 
 | Name | Type    | In   | Description                                                        |
 | ---- | ------- | ---- | ------------------------------------------------------------------ |
-| id   | integer | path | **Required** The id of the host to get the disk encryption key for. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | allow_serial_lookup | boolean | query | Tells Fleet whether or not to fallback to serial lookup for archived encryption keys. Requires global user permission to use.
 
 
@@ -7222,7 +7221,7 @@ The host will only return a password if its Recovery Lock password status is "Ve
 
 | Name | Type    | In   | Description                                                            |
 | ---- | ------- | ---- | ---------------------------------------------------------------------- |
-| id   | integer | path | **Required** The id of the host to get the Recovery Lock password for. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 
 
 #### Example
@@ -7279,7 +7278,7 @@ For macOS hosts, certificates from MDM-delivered profiles containing an ACME pay
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 | order_key | string | query | What to order results by. Options include `common_name` and `not_valid_after`. Default is `common_name` |
@@ -7343,7 +7342,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 | Name | Type    | In   | Description                      |
 | ---- | ------- | ---- | -------------------------------- |
-| id   | integer | path | **Required**. The ID of the host  |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 
 
 #### Example
@@ -7551,7 +7550,7 @@ The host must have MDM turned on and be enrolled via Apple MDM. If the host is o
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's ID. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page. Maximum is 10,000 records. If no pagination parameters are specified, defaults to 10,000.|
 | order_key | string | query | What to order results by. Allowed fields are `id`, `created_at`, `user_id`, `activity_type`, `user_name`, `user_email`, and `fleet_initiated`. |
@@ -7623,7 +7622,7 @@ The host must have MDM turned on and be enrolled via Apple MDM. If the host is o
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
@@ -7797,7 +7796,7 @@ The live report will stop if the targeted host is offline, or if the query times
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id        | integer  | path | **Required**. The target host ID. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | query     | string   | body | **Required**. The query SQL. |
 
 
@@ -7833,57 +7832,6 @@ The live report will stop if the targeted host is offline, or if the query times
 ```
 
 Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be`null`.
-
-### Run live report on host by identifier (ad hoc)
-
-Runs an ad hoc live report against a host, specified using the `hostname`, `uuid`, or `hardware_serial` as an identifier, and responds with the results.
-
-The live report will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
-
-
-`POST /api/v1/fleet/hosts/identifier/:identifier/query`
-
-#### Parameters
-
-| Name      | Type  | In   | Description                                                                                                                                                        |
-|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| identifier       | integer or string   | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key`. |
-| query            | string   | body | **Required**. The query SQL. |
-
-
-#### Example
-
-`POST /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65/query`
-
-##### Request body
-
-```json
-{
-  "query": "SELECT model, vendor FROM usb_devices;"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "host_id": 123,
-  "query": "SELECT model, vendor FROM usb_devices;",
-  "status": "online", // "online" or "offline"
-  "error": null,
-  "rows": [
-    {
-      "model": "USB2.0 Hub",
-      "vendor": "VIA Labs, Inc."
-    }
-  ]
-}
-```
-
-Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
-
 
 ### Bypass host's conditional access
 
@@ -7973,7 +7921,7 @@ On macOS, a password is returned only while its managed account password status 
 
 | Name | Type    | In   | Description                                                              |
 | ---- | ------- | ---- | ------------------------------------------------------------------------ |
-| id   | integer | path | **Required** The ID of the host to get the managed account password for. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 
 
 #### Example
@@ -12749,7 +12697,7 @@ Lists the saved reports that run on a host, along with the first result for each
 
 | Name               | Type    | In    | Description                                                                                                   |
 | ------------------ | ------- | ----- | ------------------------------------------------------------------------------------------------------------- |
-| id                 | integer | path  | **Required**. The host's ID.                                                                                  |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | query              | string  | query | Search query keywords. Searchable fields include `name`.                                                      |
 | exclude_no_results | boolean | query | If `true`, exclude reports that don't save results. Default is `false`.                                       |
 | page               | integer | query | Page number of the results to fetch.                                                                          |
@@ -13000,7 +12948,7 @@ Returns a specific report's data for a single host.
 
 | Name      | Type    | In    | Description                                |
 | --------- | ------- | ----- | ------------------------------------------ |
-| id        | integer | path  | **Required**. The ID of the desired host.          |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | report_id  | integer | path  | **Required**. The ID of the desired report.         |
 
 #### Example
@@ -14420,7 +14368,7 @@ Deletes an existing script.
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
+| id | integer or string | path | **Required**. The host's `id`, `hardware_serial`, `uuid`, or `hostname`. See [Get host](#get-host) for how Fleet matches the value. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 | order_key | string | query | What to order results by. Can be ordered by `name` or `executed_at`. |
@@ -17968,7 +17916,9 @@ _Available in Fleet Premium_
 
 ### Translate IDs
 
-Transforms a host name into a host id. For example, the Fleet UI uses this endpoint when sending live reports to a set of hosts.
+Transforms the name or identifier of a user, label, fleet, or host into its ID. For example, the Fleet UI uses this endpoint when sending live reports to a set of hosts.
+
+For a `host`, Fleet matches `hardware_serial`, then `uuid`, then `hostname`, then `osquery_host_id`, then `node_key`. If more than one host matches the same field, Fleet returns the newest host.
 
 `POST /api/v1/fleet/translate`
 
