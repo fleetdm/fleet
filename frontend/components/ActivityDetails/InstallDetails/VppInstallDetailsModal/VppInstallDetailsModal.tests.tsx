@@ -131,7 +131,7 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Anna's iPad",
         commandUpdatedAt: "2026-05-27T22:49:52Z",
         platform: "ipados",
-        failureReason: "There is no IdP email for this host. …",
+        failureReason: "There is no IdP username for this host. …",
         selfService: true,
         actorFullName: "Anna",
       })

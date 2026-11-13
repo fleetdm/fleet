@@ -17,4 +17,12 @@ var abmEntries = []Entry{
 	{Kind: KindCommand, Scope: ScopeRequest, Old: "fleetctl get mdm_apple_bm"},
 	{Kind: KindCommand, Scope: ScopeRequest, Old: "fleetctl generate mdm-apple-bm"},
 	{Kind: KindCommand, Scope: ScopeRequest, Old: "fleetctl generate mdm_apple_bm"},
+
+	// server config
+	serverConfigEntry("mdm.apple_bm_server_token", "mdm.apple_business_server_token"),
+	serverConfigEntry("mdm.apple_bm_server_token_bytes", "mdm.apple_business_server_token_bytes"),
+	serverConfigEntry("mdm.apple_bm_cert", "mdm.apple_business_cert"),
+	serverConfigEntry("mdm.apple_bm_cert_bytes", "mdm.apple_business_cert_bytes"),
+	serverConfigEntry("mdm.apple_bm_key", "mdm.apple_business_key"),
+	serverConfigEntry("mdm.apple_bm_key_bytes", "mdm.apple_business_key_bytes"),
 }

@@ -47,6 +47,65 @@
     max-width: 1200px;
     padding: 64px;
   }
+  // Articles served as a docs nav tab (e.g. /software-inventory) match the layout of other docs tabs like /vitals.
+  [purpose='page-container'].docs-tab {
+    max-width: none;
+    padding: @page-padding-sm;
+    [purpose='docs-tab-content'] {
+      .page-content-docs();
+    }
+    [purpose='docs-tab-headline'] {
+      max-width: 662px;
+      margin-bottom: 48px;
+      h2 {
+        margin-bottom: 24px;
+        color: @core-fleet-black;
+        font-size: 32px;
+        font-weight: 800;
+        line-height: 120%;
+      }
+      p {
+        margin-bottom: 0;
+        color: @core-fleet-black-75;
+        font-size: 16px;
+        line-height: 150%;
+      }
+    }
+    [purpose='docs-tab-article-and-sidebar'] {
+      display: flex;
+      flex-direction: row;
+      gap: 48px;
+    }
+    [purpose='left-sidebar'] {
+      position: sticky;
+      top: 144px;
+      align-self: flex-start;
+      flex-shrink: 0;
+      width: 240px;
+      font-size: 14px;
+      transition-property: transform;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 500ms;
+      display: flex;
+      flex-direction: column;
+    }
+    [purpose='article-container'] {
+      padding-right: 0;
+    }
+    [purpose='article-content'] {
+      padding-top: 0;
+      // Docs tabs have no subtitle, so an h2 right after the title is a real section heading.
+      h1:first-of-type + h2:first-of-type {
+        display: block;
+      }
+    }
+    @media (max-width: 991px) {
+      padding: 32px;
+      [purpose='left-sidebar'] {
+        display: none;
+      }
+    }
+  }
   [purpose='breadcrumbs-and-search'] {
     // padding-top: 64px;
     max-width: 1072px;
@@ -551,6 +610,10 @@
         margin-bottom: 16px;
         code:not(.nohighlight):not(.mermaid) {
           display: inline;
+        }
+        > pre {
+          margin-top: 16px;
+          text-indent: 0px;
         }
         p {
           display: inline;

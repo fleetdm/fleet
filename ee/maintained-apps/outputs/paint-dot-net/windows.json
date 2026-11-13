@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.1.12",
+      "version": "5.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Paint.NET' AND publisher = 'dotPDN LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Paint.NET' AND publisher = 'dotPDN LLC' AND version_compare(version, '5.1.12') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Paint.NET' AND publisher = 'dotPDN LLC' AND version_compare(version, '5.2') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'paintdotnet.exe');"
       },
-      "installer_url": "https://github.com/paintdotnet/release/releases/download/v5.1.12/paint.net.5.1.12.winmsi.x64.zip",
+      "installer_url": "https://github.com/paintdotnet/release/releases/download/v5.2/paint.net.5.2.winmsi.x64.zip",
       "install_script_ref": "b5fec5b9",
       "uninstall_script_ref": "a23d064d",
-      "sha256": "06b19498e02ad5bf24ef1aa19f9d9021c92fe7abeec04e18aef4140eddb366e3",
+      "sha256": "0dfb8e8085406db2a397384ece7454c9d0acb034b0f82567759f2a3409f4927e",
       "default_categories": [
         "Productivity"
       ]

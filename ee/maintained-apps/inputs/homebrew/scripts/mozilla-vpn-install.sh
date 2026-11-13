@@ -35,6 +35,34 @@ quit_mozilla_vpn() {
   echo "Mozilla VPN quit."
 }
 
+installer_running() {
+  kill -0 "$installer_pid" 2>/dev/null
+}
+
+wait_for_installer() {
+  local seconds="$1" i
+  for ((i = 0; i < seconds; i++)); do
+    installer_running || return 0
+    sleep 1
+  done
+  ! installer_running
+}
+
 # The pkg's postinstall opens the app again.
 quit_mozilla_vpn || exit 1
-installer -pkg "$INSTALLER_PATH" -target / || exit $?
+
+# On some Macs the installer never returns, which would block the host's other
+# installs until Fleet kills this script an hour later. The postinstall's last
+# step opens the app, so quitting it is tried before giving up.
+installer -pkg "$INSTALLER_PATH" -target / &
+installer_pid=$!
+if ! wait_for_installer 300; then
+  echo "The installer hasn't finished after 5 minutes. Quitting the Mozilla VPN app the installer opened..."
+  quit_mozilla_vpn
+  if ! wait_for_installer 60; then
+    echo "The installer is still running. Stopping it."
+    kill -TERM "$installer_pid" 2>/dev/null
+    exit 1
+  fi
+fi
+wait "$installer_pid"

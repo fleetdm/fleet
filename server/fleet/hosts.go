@@ -220,10 +220,6 @@ type HostListOptions struct {
 	PolicyIDFilter       *uint
 	PolicyResponseFilter *bool
 
-	// Deprecated: SoftwareIDFilter is deprecated as of Fleet 4.42. It is
-	// maintained for backwards compatibility. Use SoftwareVersionIDFilter
-	// instead.
-	SoftwareIDFilter *uint
 	// SoftwareVersionIDFilter filters the hosts by the software version ID that
 	// they use. This identifies a specific version of a "software title".
 	SoftwareVersionIDFilter *uint
@@ -340,7 +336,6 @@ func (h HostListOptions) Empty() bool {
 		h.TeamFilter == nil &&
 		h.PolicyIDFilter == nil &&
 		h.PolicyResponseFilter == nil &&
-		h.SoftwareIDFilter == nil &&
 		h.SoftwareVersionIDFilter == nil &&
 		h.SoftwareTitleIDFilter == nil &&
 		h.SoftwareStatusFilter == nil &&
@@ -402,7 +397,9 @@ type Host struct {
 	OrbitVersion   *string       `json:"orbit_version" db:"orbit_version" csv:"orbit_version"`
 	DesktopVersion *string       `json:"fleet_desktop_version" db:"fleet_desktop_version" csv:"fleet_desktop_version"`
 	ScriptsEnabled *bool         `json:"scripts_enabled" db:"scripts_enabled" csv:"scripts_enabled"`
-	OSVersion      string        `json:"os_version" db:"os_version" csv:"os_version"`
+	OSVersion      string        `json:"-" db:"os_version" csv:"-"`                        // display string, e.g. "macOS 15.2"; not in the API
+	OSName         string        `json:"os_name" db:"os_name" csv:"os_name"`               // operating_systems.name, what the os_name filter matches
+	OSVersionOnly  string        `json:"os_version" db:"os_version_only" csv:"os_version"` // operating_systems.version, what os_version matches
 	Build          string        `json:"build" csv:"build"`
 	PlatformLike   string        `json:"platform_like" db:"platform_like" csv:"platform_like"`
 	CodeName       string        `json:"code_name" db:"code_name" csv:"code_name"`
@@ -433,12 +430,12 @@ type Host struct {
 	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval" csv:"distributed_interval"`
 	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh" csv:"config_tls_refresh"`
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period" csv:"logger_tls_period"`
-	TeamID                    *uint               `json:"team_id" renameto:"fleet_id" db:"team_id" csv:"team_id"`
+	TeamID                    *uint               `json:"fleet_id" db:"team_id" csv:"fleet_id"`
 
 	// Loaded via JOIN in DB
 	PackStats []PackStats `json:"pack_stats" csv:"-"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
-	TeamName *string `json:"team_name" renameto:"fleet_name" db:"team_name" csv:"team_name"`
+	TeamName *string `json:"fleet_name" db:"team_name" csv:"fleet_name"`
 	// Additional is the additional information from the host
 	// additional_queries. This should be stored in a separate DB table.
 	Additional *json.RawMessage `json:"additional,omitempty" db:"additional" csv:"-"`
@@ -682,14 +679,15 @@ type HostOrbitInfo struct {
 // the same name, see the comments/docs for the Host field above.
 type HostHealth struct {
 	UpdatedAt                    time.Time                      `json:"updated_at,omitempty" db:"updated_at"`
+	OSName                       string                         `json:"os_name,omitempty" db:"os_name"`
 	OsVersion                    string                         `json:"os_version,omitempty" db:"os_version"`
 	DiskEncryptionEnabled        *bool                          `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
 	FailingPoliciesCount         int                            `json:"failing_policies_count"`
 	FailingCriticalPoliciesCount *int                           `json:"failing_critical_policies_count,omitempty"` // Fleet Premium Only
 	VulnerableSoftware           []HostHealthVulnerableSoftware `json:"vulnerable_software,omitempty"`
 	FailingPolicies              []*HostHealthFailingPolicy     `json:"failing_policies,omitempty"`
-	Platform                     string                         `json:"-" db:"platform"`                                    // Needed to fetch failing policies. Not returned in HTTP responses.
-	TeamID                       *uint                          `json:"team_id,omitempty" renameto:"fleet_id" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+	Platform                     string                         `json:"-" db:"platform"`                 // Needed to fetch failing policies. Not returned in HTTP responses.
+	TeamID                       *uint                          `json:"fleet_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
 }
 
 type HostHealthVulnerableSoftware struct {
@@ -1336,14 +1334,12 @@ func (h Host) AuthzType() string {
 	return "host"
 }
 
-// HostDetail provides the full host metadata along with associated labels and
-// packs. It also includes policies, batteries, maintenance window, and MDM profiles, as applicable.
+// HostDetail provides the full host metadata along with associated labels.
+// It also includes policies, batteries, maintenance window, and MDM profiles, as applicable.
 type HostDetail struct {
 	Host
 	// Labels is the list of labels the host is a member of.
 	Labels []*Label `json:"labels"`
-	// Packs is the list of packs the host is a member of.
-	Packs []*Pack `json:"packs"`
 	// Batteries is the list of batteries for the host. It is a pointer to a
 	// slice so that when set, it gets marhsaled even if the slice is empty,
 	// but when unset, it doesn't get marshaled (e.g. we don't return that
@@ -1405,7 +1401,7 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID              *uint                  `json:"team_id,omitempty" renameto:"fleet_id" db:"-"`
+	TeamID              *uint                  `json:"fleet_id,omitempty" db:"-"`
 	TotalsHostsCount    uint                   `json:"totals_hosts_count" db:"total"`
 	OnlineCount         uint                   `json:"online_count" db:"online"`
 	OfflineCount        uint                   `json:"offline_count" db:"offline"`
@@ -2087,6 +2083,13 @@ type OSVersion struct {
 	Kernels *[]*Kernel `json:"kernels,omitempty"`
 }
 
+// UseAPINames switches Name and NameOnly to the form API responses show (see APIOSName). Only call it on a value that is
+// about to be written to a response: the stored names are the keys for OS vulnerability lookups.
+func (o *OSVersion) UseAPINames() {
+	o.Name = APIOSName(o.Name)
+	o.NameOnly = APIOSName(o.NameOnly)
+}
+
 type HostDetailOptions struct {
 	IncludeCVEScores                    bool
 	IncludeCriticalVulnerabilitiesCount bool
@@ -2107,7 +2110,7 @@ type HostMDMCheckinInfo struct {
 	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName        string `json:"display_name" db:"display_name"`
-	TeamID             uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID             uint   `json:"fleet_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 	// FleetEnrolledCorporate is true while the host is enrolled in Fleet's MDM as a non-personal host.

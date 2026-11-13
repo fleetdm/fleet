@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "2.5.5",
+      "version": "2.6.0",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Antigravity IDE %' AND publisher = 'Google';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Antigravity IDE %' AND publisher = 'Google' AND version_compare(version, '2.5.5') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Antigravity IDE %' AND publisher = 'Google' AND version_compare(version, '2.6.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'antigravity ide.exe');"
       },
-      "installer_url": "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.5.5-4923483625488384/windows-x64/Antigravity%20IDE.exe",
+      "installer_url": "https://edgedl.me.gvt1.com/edgedl/release2/j0qc3/antigravity/stable/2.6.0-5526304964083712/windows-x64/Antigravity%20IDE.exe",
       "install_script_ref": "d0bef527",
       "uninstall_script_ref": "2188eb3e",
-      "sha256": "a8c25631fd5e43bf217a6cf510ca796441817f4ad9c50b1d892282c7366edc4a",
+      "sha256": "116bee6f9a5cddf5aa17b4450728ae3375a7f0bf2d4965d16d9fa2a63b3bebbc",
       "default_categories": [
         "Developer tools"
       ]

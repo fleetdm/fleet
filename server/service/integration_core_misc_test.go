@@ -310,7 +310,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/titles",
 		listSoftwareTitlesRequest{}, http.StatusPaymentRequired, &resp,
-		"team_id", "1",
+		"fleet_id", "1",
 	)
 
 	// a request with a premium vulnerability filter returns a license error
@@ -324,11 +324,6 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"GET", "/api/latest/fleet/software/versions",
 		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MinimumCVSS: 7.5}}, http.StatusPaymentRequired, &verResp,
 	)
-	countResp := countSoftwareResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/count",
-		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MinimumCVSS: 7.5}}, http.StatusPaymentRequired, &countResp,
-	)
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -340,11 +335,6 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"GET", "/api/latest/fleet/software/versions",
 		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MaximumCVSS: 7.5}}, http.StatusPaymentRequired, &verResp,
 	)
-	countResp = countSoftwareResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/count",
-		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, MaximumCVSS: 7.5}}, http.StatusPaymentRequired, &countResp,
-	)
 
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -355,11 +345,6 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON(
 		"GET", "/api/latest/fleet/software/versions",
 		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, KnownExploit: true}}, http.StatusPaymentRequired, &verResp,
-	)
-	countResp = countSoftwareResponse{}
-	s.DoJSON(
-		"GET", "/api/latest/fleet/software/count",
-		listSoftwareRequest{fleet.SoftwareListOptions{VulnerableOnly: true, KnownExploit: true}}, http.StatusPaymentRequired, &countResp,
 	)
 
 	// lock/unlock/wipe a host. Wipe is Premium-only only for non-Android platforms (Android COBO wipe is available on Fleet Free).
@@ -632,13 +617,20 @@ func (s *integrationTestSuite) TestAPIVersion_v1_2022_04() {
 	require.NotZero(t, createResp.Scheduled.ID)
 
 	// list the scheduled queries with the new endpoint, but the old version
-	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusMethodNotAllowed)
+	res = s.DoRaw("GET", "/api/v1/fleet/schedule", nil, http.StatusNotFound)
 	res.Body.Close()
 
 	// list again, this time with the correct version
 	gs := fleet.GlobalSchedulePayload{}
 	s.DoJSON("GET", "/api/2022-04/fleet/schedule", nil, http.StatusOK, &gs)
 	require.Len(t, gs.GlobalSchedule, 1)
+
+	// the removed pack GET /schedule/{id} shares its path with the report-backed
+	// PATCH and DELETE on 2022-04+, so it is 405 there and 404 on v1
+	res = s.DoRaw("GET", fmt.Sprintf("/api/2022-04/fleet/schedule/%d", createResp.Scheduled.ID), nil, http.StatusMethodNotAllowed)
+	res.Body.Close()
+	res = s.DoRaw("GET", fmt.Sprintf("/api/v1/fleet/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)
+	res.Body.Close()
 
 	// delete using the old endpoint but on the wrong new version
 	res = s.DoRaw("DELETE", fmt.Sprintf("/api/2022-04/fleet/global/schedule/%d", createResp.Scheduled.ID), nil, http.StatusNotFound)

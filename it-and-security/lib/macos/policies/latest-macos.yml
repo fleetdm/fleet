@@ -1,5 +1,5 @@
 - name: Operating system up to date
-  query: SELECT 1 FROM os_version WHERE version >= '26.4.1' OR version >= '15.7.5';
+  query: SELECT 1 FROM os_version WHERE major > 27 OR (major = 27 AND version_compare(version, '27.2.1') >= 0) OR (major = 26 AND version_compare(version, '26.7.3') >= 0) OR (major = 15 AND version_compare(version, '15.8.3') >= 0);
   critical: true
   description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
   resolution: Please find time to run Software Update.  > System Settings > Software Update

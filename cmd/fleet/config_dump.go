@@ -26,7 +26,11 @@ The following precedence is used when reading configs:
 4. Default Values
 `,
 		Run: func(cmd *cobra.Command, args []string) {
-			buf, err := yaml.Marshal(configManager.LoadConfig())
+			cfg, err := configManager.LoadConfig()
+			if err != nil {
+				initFatal(err, "loading config")
+			}
+			buf, err := yaml.Marshal(cfg)
 			if err != nil {
 				initFatal(err, "marshalling config to yaml")
 			}

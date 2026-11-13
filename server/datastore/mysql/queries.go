@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -234,10 +234,6 @@ func (ds *Datastore) QueryByName(
 		return nil, ctxerr.Wrap(ctx, err, "selecting query by name")
 	}
 
-	if err := ds.loadPacksForQueries(ctx, []*fleet.Query{&query}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading packs for query")
-	}
-
 	return &query, nil
 }
 
@@ -269,10 +265,7 @@ var queriesByNameBatchSize = 1000
 
 // QueriesByName resolves multiple (team, name) pairs in one or more batched
 // lookups. The returned map is keyed by TeamScopedQueryName.Key() and contains
-// only the pairs that exist. It does NOT populate Query.Packs (callers needing
-// packs must load them separately); the result path that uses this only reads
-// query id/logging fields, and skipping the pack join keeps the lookup a single
-// indexed read per batch.
+// only the pairs that exist.
 func (ds *Datastore) QueriesByName(
 	ctx context.Context,
 	names []fleet.TeamScopedQueryName,
@@ -468,8 +461,6 @@ func (ds *Datastore) NewQuery(
 	if err != nil {
 		return nil, err
 	}
-	query.Packs = []fleet.Pack{}
-
 	return query, nil
 }
 
@@ -502,80 +493,67 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 		return ctxerr.Wrap(ctx, err, "deleting old query labels")
 	}
 
-	lblNamesMap := make(map[string]struct{})
+	// Names are resolved once per fleet, since a fleet's report sees global labels plus its own fleet's, and a global
+	// report sees all labels.
+	type labelScope struct {
+		fleetID uint
+		global  bool
+	}
+	scopeOf := func(q *fleet.Query) labelScope {
+		return labelScope{fleetID: ptr.ValOrZero(q.TeamID), global: q.TeamID == nil}
+	}
+	namesByScope := make(map[labelScope][]string)
+	numLabels := 0
 	for _, q := range queries {
-		for _, lbl := range q.LabelsIncludeAny {
-			lblNamesMap[lbl.LabelName] = struct{}{}
-		}
-		for _, lbl := range q.LabelsIncludeAll {
-			lblNamesMap[lbl.LabelName] = struct{}{}
+		for _, lbl := range slices.Concat(q.LabelsIncludeAny, q.LabelsIncludeAll) {
+			namesByScope[scopeOf(q)] = append(namesByScope[scopeOf(q)], lbl.LabelName)
+			numLabels++
 		}
 	}
-	numLabelNames := len(lblNamesMap)
-	if numLabelNames == 0 {
+	if numLabels == 0 {
 		return nil
 	}
-
-	// We need to figure out the label IDs for the labels we're going to add.
-	stm, args, err := sqlx.In(`SELECT id, name FROM labels WHERE name IN (?)`, slices.Collect(maps.Keys(lblNamesMap)))
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching label IDs")
-	}
-
-	rows, err := tx.QueryxContext(ctx, stm, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching label IDs")
-	}
-	defer rows.Close()
-
-	lblNameToID := make(map[string]uint)
-	for rows.Next() {
-		var id uint
-		var name string
-		if err := rows.Scan(&id, &name); err != nil {
-			return ctxerr.Wrap(ctx, err, "scan existing query")
+	idsByScope := make(map[labelScope]map[string]uint, len(namesByScope))
+	for scope, names := range namesByScope {
+		var fleetID *uint
+		if !scope.global {
+			fleetID = &scope.fleetID
 		}
-		lblNameToID[name] = id
-	}
-	if err := rows.Err(); err != nil {
-		return ctxerr.Wrap(ctx, err, "fetching query IDs")
-	}
-	if err := rows.Close(); err != nil { //nolint:sqlclosecheck
-		return ctxerr.Wrap(ctx, err, "closing query IDs")
-	}
-
-	if len(lblNameToID) < numLabelNames {
-		return ctxerr.New(ctx, "not all labels found for query")
+		ids, err := resolveLabelNamesTx(ctx, tx, names, fleetID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "resolving report labels")
+		}
+		idsByScope[scope] = ids
 	}
 
 	// Each query has at most one non-empty scope (mutex enforced above).
 	// Populate IDs back onto the query struct for each bucket.
-	params := make([]string, 0, numLabelNames)
-	insertArgs := make([]any, 0, numLabelNames*3)
+	params := make([]string, 0, numLabels)
+	insertArgs := make([]any, 0, numLabels*3)
 
-	resolve := func(qID uint, src []fleet.LabelIdent, requireAll bool) []fleet.LabelIdent {
+	resolve := func(q *fleet.Query, src []fleet.LabelIdent, requireAll bool) []fleet.LabelIdent {
 		if len(src) == 0 {
 			return src
 		}
+		ids := idsByScope[scopeOf(q)]
+		inserted := make(map[uint]struct{}, len(src))
 		out := make([]fleet.LabelIdent, 0, len(src))
 		for _, lbl := range src {
-			lblID, ok := lblNameToID[lbl.LabelName]
-			if !ok {
+			lblID := ids[lbl.LabelName]
+			if _, ok := inserted[lblID]; ok {
 				continue
 			}
+			inserted[lblID] = struct{}{}
 			params = append(params, "(?, ?, ?)")
-			insertArgs = append(insertArgs, qID, lblID, requireAll)
+			insertArgs = append(insertArgs, q.ID, lblID, requireAll)
 			out = append(out, fleet.LabelIdent{LabelID: lblID, LabelName: lbl.LabelName})
-		}
-		if len(out) == 0 {
-			return src
 		}
 		return out
 	}
 
 	for _, q := range queries {
-		q.LabelsIncludeAny = resolve(q.ID, q.LabelsIncludeAny, false)
-		q.LabelsIncludeAll = resolve(q.ID, q.LabelsIncludeAll, true)
+		q.LabelsIncludeAny = resolve(q, q.LabelsIncludeAny, false)
+		q.LabelsIncludeAll = resolve(q, q.LabelsIncludeAll, true)
 	}
 
 	if len(params) == 0 {
@@ -792,10 +770,6 @@ func query(ctx context.Context, db sqlx.QueryerContext, id uint) (*fleet.Query, 
 		return nil, ctxerr.Wrap(ctx, err, "selecting query")
 	}
 
-	if err := loadPacksForQueries(ctx, db, []*fleet.Query{query}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
-	}
-
 	if err := loadLabelsForQueries(ctx, db, []*fleet.Query{query}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "loading labels for query")
 	}
@@ -902,10 +876,6 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "get queries count")
 	}
 
-	if err = ds.loadPacksForQueries(ctx, queries); err != nil {
-		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading packs for queries")
-	}
-
 	if err = ds.loadLabelsForQueries(ctx, queries); err != nil {
 		return nil, 0, 0, nil, ctxerr.Wrap(ctx, err, "loading labels for queries")
 	}
@@ -921,58 +891,6 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 	}
 
 	return queries, counts.Total, counts.Inherited, metadata, nil
-}
-
-// loadPacksForQueries loads the user packs (aka 2017 packs) associated with the provided queries.
-func (ds *Datastore) loadPacksForQueries(ctx context.Context, queries []*fleet.Query) error {
-	return loadPacksForQueries(ctx, ds.reader(ctx), queries)
-}
-
-func loadPacksForQueries(ctx context.Context, db sqlx.QueryerContext, queries []*fleet.Query) error {
-	if len(queries) == 0 {
-		return nil
-	}
-
-	// packs.pack_type is NULL for user created packs (aka 2017 packs).
-	sql := `
-		SELECT p.*, sq.query_name AS query_name
-		FROM packs p
-		JOIN scheduled_queries sq
-			ON p.id = sq.pack_id
-		WHERE query_name IN (?) AND p.pack_type IS NULL
-	`
-
-	// Used to map the results
-	name_queries := map[string]*fleet.Query{}
-	// Used for the IN clause
-	names := []string{}
-	for _, q := range queries {
-		q.Packs = make([]fleet.Pack, 0)
-		names = append(names, q.Name)
-		name_queries[q.Name] = q
-	}
-
-	query, args, err := sqlx.In(sql, names)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "building query in load packs for queries")
-	}
-
-	rows := []struct {
-		QueryName string `db:"query_name"`
-		fleet.Pack
-	}{}
-
-	err = sqlx.SelectContext(ctx, db, &rows, query, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "selecting load packs for queries")
-	}
-
-	for _, row := range rows {
-		q := name_queries[row.QueryName]
-		q.Packs = append(q.Packs, row.Pack)
-	}
-
-	return nil
 }
 
 func (ds *Datastore) loadLabelsForQueries(ctx context.Context, queries []*fleet.Query) error {
