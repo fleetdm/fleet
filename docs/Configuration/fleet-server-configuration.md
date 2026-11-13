@@ -1424,7 +1424,13 @@ The minimum time difference between the software's "last opened at" timestamp re
 
 ### osquery_ai_session_max_tool_calls
 
-Applies only to Fleet Premium. The maximum number of tool calls Fleet stores for each AI coding agent session. Fleet stores a session's first tool calls, so for a longer session the newest ones aren't collected. To stop collecting AI sessions, use [`server_settings.ai_sessions_disabled`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) instead.
+Applies only to Fleet Premium. The maximum number of tool calls Fleet stores for each AI coding agent session.
+
+Fleet stores each tool call with its arguments, which take around 1 KB in the database on average, so a single long session can add up. Once a session reaches the limit, Fleet stops collecting its tool calls. Fleet keeps a session's first tool calls rather than its latest, so for a session longer than the limit, the newest tool calls are the ones missing. The session's tool call count still shows how many it made in total.
+
+Raising the limit lets Fleet collect the rest of the tool calls of sessions that hit it, as long as they haven't expired and their transcripts are still on the host. Lowering it doesn't delete tool calls Fleet already stored; they're removed when the session expires, 30 days after it was last active.
+
+To stop collecting AI sessions altogether, use [`server_settings.ai_sessions_disabled`](https://fleetdm.com/docs/configuration/yaml-files#server-settings) instead.
 
 - Default value: 10000
 - Environment variable: `FLEET_OSQUERY_AI_SESSION_MAX_TOOL_CALLS`
@@ -1436,7 +1442,11 @@ Applies only to Fleet Premium. The maximum number of tool calls Fleet stores for
 
 ### osquery_ai_session_max_tool_calls_per_refresh
 
-Applies only to Fleet Premium. The maximum number of new tool calls Fleet asks a host for, per AI coding agent session, at each refresh. Lowering it spreads the collection of long sessions, such as when hosts first report their sessions, over more refreshes. Set it to 0 to ask for as many as fit in the host's result.
+Applies only to Fleet Premium. The maximum number of new tool calls Fleet asks a host for, per AI coding agent session, each time it refreshes the host's vitals (every [`osquery_detail_update_interval`](#osquery-detail-update-interval), one hour by default).
+
+At each refresh, Fleet asks a host for the tool calls it hasn't collected yet from up to 5 of its sessions. With the default of 0, the host sends as many as fit in one result, about 1 MB. When many hosts report their sessions for the first time, such as right after you upgrade Fleet or turn on AI sessions, every host sends that much at each refresh until it has caught up, which can put a heavy write load on the database.
+
+Setting a limit spreads that work over more refreshes, at the cost of collecting long sessions more slowly. For example, with a limit of 500, a session with 10,000 tool calls is fully collected after 20 refreshes, about 20 hours at the default refresh interval. Once a host has caught up, it rarely reaches the limit, since each refresh only asks for the tool calls made since the last one.
 
 - Default value: 0
 - Environment variable: `FLEET_OSQUERY_AI_SESSION_MAX_TOOL_CALLS_PER_REFRESH`
