@@ -86,6 +86,7 @@ To check an app before you add it, look at the ID at the end of its Microsoft St
 - IDs that start with `9` (e.g. `9PLM9XGG6VKS`) are usually MSIX apps.
 - IDs that start with `XP` (e.g. `XP99J3KP4XZ4VV`) are usually apps with their own installer.
 
+> Some Microsoft Store listings can't be installed by Fleet because Microsoft doesn't provide a package for them. This is common for games and for apps that are no longer available in the Microsoft Store.
 ## Edit or delete the app
 
 1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
