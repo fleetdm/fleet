@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"sync"
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/ee/server/service/certissue"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
@@ -131,8 +131,7 @@ func wrapEnrollmentError(err error) error {
 	}
 	transient := !errors.Is(err, context.Canceled)
 	if statusErr, ok := errors.AsType[scepserver.ResponseStatusError](err); ok {
-		transient = statusErr.Code >= http.StatusInternalServerError ||
-			statusErr.Code == http.StatusRequestTimeout || statusErr.Code == http.StatusTooManyRequests
+		transient = certissue.IsTransientStatus(statusErr.Code)
 	}
 	if !transient {
 		return err

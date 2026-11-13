@@ -51,6 +51,9 @@ type DBConnections struct {
 	Primary *sqlx.DB
 	Replica *sqlx.DB
 	Options *DBOptions
+	// HealthPrimary and HealthReplica are small pools reserved for health checks.
+	HealthPrimary *sqlx.DB
+	HealthReplica *sqlx.DB
 }
 
 // DBReadTx provides a minimal interface for read-only transactions that exposes

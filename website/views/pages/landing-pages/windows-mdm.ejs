@@ -13,7 +13,6 @@
             </div>
             <div purpose="button-row">
               <a purpose="cta-button" class="btn btn-primary" href="/contact?talkToUs">Get a demo</a>
-              <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
             </div>
           </div>
           <a purpose="hero-quote" href="https://www.reddit.com/r/Intune/comments/1jkzxyl/comment/mk02c2k/" target="_blank" no-icon>
@@ -73,7 +72,7 @@
             <h3>Manage Windows with the visibility and control modern IT teams need</h3>
             <p>Fleet is <a href="/lp/open-source">open source</a> Windows device management built on the <a href="/guides/windows-mdm-setup">Windows MDM protocol</a> and osquery. Enroll, configure, encrypt, and patch every Windows endpoint in your fleet without giving up transparency or cross-platform support.</p>
             <div purpose="checklist">
-              <p>Zero-touch enrollment with <a href="/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id">Microsoft Entra ID</a> and Windows Autopilot.</p>
+              <p>Zero-touch enrollment through an <a href="/guides/windows-mdm-setup#zero-touch-enrollment-with-an-oem-service">OEM service that installs Fleet's agent</a>. No Autopilot, Entra ID P1, or Intune required.</p>
               <p>Enforce BitLocker, configuration profiles, and OS settings from version-controlled YAML.</p>
               <p>Patch Windows, install Fleet-maintained apps, and run remediation scripts on demand.</p>
               <p>Continuously evaluate CIS Benchmarks for Windows and surface vulnerabilities in real time.</p>
@@ -108,12 +107,12 @@
         </div>
         <div purpose="feature-row">
           <div purpose="feature-item">
-            <h5>Microsoft Entra ID integration</h5>
-            <p>Connect Fleet to <a href="/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id">Entra ID</a> so end users self-enroll the first time they sign in. IdP identities map to hosts automatically.</p>
+            <h5>OEM-backed zero-touch enrollment</h5>
+            <p>Your hardware provider installs Fleet's agent before each PC ships, so devices arrive ready and enroll the first time they're online. No Autopilot, Entra ID P1, or Intune required.</p>
           </div>
           <div purpose="feature-item">
-            <h5>Windows Autopilot support</h5>
-            <p>Layer Fleet onto Autopilot for zero-touch provisioning. Devices arrive ready, with profiles and apps applied during setup.</p>
+            <h5>Microsoft Entra ID and Autopilot support</h5>
+            <p>Prefer Entra ID? Connect Fleet to <a href="/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id">Entra ID</a> so end users self-enroll the first time they sign in, or layer Fleet onto Autopilot. Both need a per-user Entra ID P1 license. IdP identities map to hosts automatically.</p>
           </div>
           <div purpose="feature-item">
             <h5>BitLocker disk encryption</h5>
@@ -246,7 +245,7 @@
                   <span class="fa fa-angle-down"></span>
                 </p>
                 <p purpose="faq-answer" id="win-faq__body5" class="collapse" aria-labelledby="win-faq__header5">
-                  Fleet supports both manual enrollment and automatic (zero-touch) enrollment for Windows. For zero-touch, connect Fleet to Microsoft Entra ID so new devices self-enroll the first time the end user signs in. Fleet also layers cleanly onto Windows Autopilot. The full setup process is documented in the <a href="/guides/windows-mdm-setup">Windows MDM setup guide</a>.
+                  Fleet supports both manual enrollment and automatic (zero-touch) enrollment for Windows. For zero-touch, use an OEM service such as Dell ReadyImage, Lenovo RTP, or your hardware provider's equivalent to install Fleet's agent before the PC ships. No Autopilot, Entra ID P1, or Intune is required for that path. Alternatively, connect Fleet to Microsoft Entra ID so new devices self-enroll the first time the end user signs in, or use Windows Autopilot. Both of those alternatives require a per-user Entra ID P1 license. The full setup process is documented in the <a href="/guides/windows-mdm-setup">Windows MDM setup guide</a>.
                 </p>
               </div>
               <div purpose="accordion-item">
@@ -324,7 +323,7 @@
               "name": "How does Fleet enroll Windows devices?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Fleet supports both manual enrollment and automatic (zero-touch) enrollment for Windows. For zero-touch, connect Fleet to Microsoft Entra ID so new devices self-enroll the first time the end user signs in. Fleet also layers cleanly onto Windows Autopilot."
+                "text": "Fleet supports both manual enrollment and automatic (zero-touch) enrollment for Windows. For zero-touch, use an OEM service such as Dell ReadyImage, Lenovo RTP, or your hardware provider's equivalent to install Fleet's agent before the PC ships. No Autopilot, Entra ID P1, or Intune is required for that path. Alternatively, connect Fleet to Microsoft Entra ID so new devices self-enroll the first time the end user signs in, or use Windows Autopilot. Both of those alternatives require a per-user Entra ID P1 license."
               }
             },
             {
@@ -403,14 +402,11 @@
       <div purpose="bottom-cta" class="text-center">
         <h4>Windows Device Management</h4>
         <h2>Modern, open source MDM for every Windows device</h2>
-        <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" class="btn btn-primary" href="/contact?talkToUs">Get a demo</a>
-          <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
-        </div>
       </div>
     </div>
   </div>
   <%/* Cloud city banner */%>
+  <demo-request-form></demo-request-form>
   <cloud-city></cloud-city>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

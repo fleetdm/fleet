@@ -77,9 +77,9 @@ func GenerateRandomURLSafeText(keySize int) (string, error) {
 // Deprecated: Use github.com/fleetdm/fleet/v4/server/platform/http.PostJSONWithTimeout instead.
 var PostJSONWithTimeout = platformhttp.PostJSONWithTimeout
 
-// MaskSecretURLParams masks URL query values if the query param name includes "secret", "token",
-// "key", "password". It accepts a raw string and returns a redacted string if the raw string is
-// URL-parseable. If it is not URL-parseable, the raw string is returned unchanged.
+// MaskSecretURLParams masks URL query values whose param name contains one of the
+// secret-ish keywords. It accepts a raw string and returns a redacted string if the raw
+// string is URL-parseable. If it is not URL-parseable, the raw string is returned unchanged.
 //
 // Deprecated: Use github.com/fleetdm/fleet/v4/server/platform/http.MaskSecretURLParams instead.
 var MaskSecretURLParams = platformhttp.MaskSecretURLParams

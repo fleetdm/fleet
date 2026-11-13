@@ -4,7 +4,7 @@ import { userTeamStub } from "test/stubs";
 
 import { IUserFormData, NewUserType } from "../components/UserForm/UserForm";
 
-import userManagementHelpers from "./userManagementHelpers";
+import userManagementHelpers, { roleOptions } from "./userManagementHelpers";
 
 describe("userManagementHelpers module", () => {
   describe("generateUpdatedData function", () => {
@@ -25,7 +25,7 @@ describe("userManagementHelpers module", () => {
         name: "Test User",
         newUserType: NewUserType.AdminCreated, // TODO revisit test
         global_role: "admin",
-        teams: [updatedTeam, newTeam],
+        fleets: [updatedTeam, newTeam],
       };
       const updatedData = userManagementHelpers.generateUpdateData(
         createMockUser({ role: "Observer", global_role: null }),
@@ -35,8 +35,48 @@ describe("userManagementHelpers module", () => {
       expect(updatedData).toEqual({
         email: "newemail@test.com",
         global_role: "admin",
-        teams: [updatedTeam, newTeam],
+        fleets: [updatedTeam, newTeam],
       });
+    });
+  });
+
+  describe("roleOptions function", () => {
+    const values = (params: Parameters<typeof roleOptions>[0]) =>
+      roleOptions(params).map((o) => o.value);
+
+    it("includes GitOps for API-only users on free tier", () => {
+      expect(values({ isPremiumTier: false, isApiOnly: true })).toEqual([
+        "observer",
+        "gitops",
+        "maintainer",
+        "admin",
+      ]);
+    });
+
+    it("includes GitOps for API-only users on premium tier", () => {
+      expect(values({ isPremiumTier: true, isApiOnly: true })).toEqual([
+        "observer",
+        "observer_plus",
+        "technician",
+        "gitops",
+        "maintainer",
+        "admin",
+      ]);
+    });
+
+    it("excludes GitOps for non-API-only users", () => {
+      expect(values({ isPremiumTier: false })).toEqual([
+        "observer",
+        "maintainer",
+        "admin",
+      ]);
+      expect(values({ isPremiumTier: true })).toEqual([
+        "observer",
+        "observer_plus",
+        "technician",
+        "maintainer",
+        "admin",
+      ]);
     });
   });
 });

@@ -309,7 +309,7 @@ func (s *integrationMDMTestSuite) TestWindowsUserScopedProfileRemovalAndScope() 
 
 		// The user signs out, then the profile is unassigned.
 		reportLoginStatus(t, d, fleet.WindowsMDMLoginStatusNone)
-		setTeamProfiles(tm.ID, nil)
+		setTeamProfiles(tm.ID, []fleet.MDMProfileBatchPayload{})
 
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err = d.StartManagementSession()
@@ -351,7 +351,7 @@ func (s *integrationMDMTestSuite) TestWindowsUserScopedProfileRemovalAndScope() 
 		require.Contains(t, windowsHostProfilesByName(t, s.ds, host.UUID), "user-scoped")
 
 		// Unassigning a held profile resolves without contacting the device: nothing was ever written.
-		setTeamProfiles(tm.ID, nil)
+		setTeamProfiles(tm.ID, []fleet.MDMProfileBatchPayload{})
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err = d.StartManagementSession()
 		require.NoError(t, err)

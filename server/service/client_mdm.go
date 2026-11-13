@@ -21,24 +21,17 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/google/uuid"
 	"howett.net/plist"
 )
 
 // GetAppleMDM retrieves the Apple MDM APNs information.
 func (c *Client) GetAppleMDM() (*fleet.AppleMDM, error) {
-	verb, path := "GET", "/api/latest/fleet/mdm/apple"
+	verb, path := "GET", "/api/latest/fleet/apns"
 	var responseBody getAppleMDMResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
 	return responseBody.AppleMDM, err
-}
-
-// GetAppleBM retrieves the Apple Business information.
-func (c *Client) GetAppleBM() (*fleet.AppleBM, error) {
-	verb, path := "GET", "/api/latest/fleet/mdm/apple_bm"
-	var responseBody getAppleBMResponse
-	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
-	return responseBody.AppleBM, err
 }
 
 // GetVPPTokens retrieves the List Volume Purchasing Program (VPP) tokens
@@ -57,7 +50,7 @@ func (c *Client) CountABMTokens() (int, error) {
 }
 
 // ListABMTokens retrieves the ABM tokens with their default fleet assignments.
-func (c *Client) ListABMTokens() ([]*fleet.ABMToken, error) {
+func (c *Client) ListABTokens() ([]*fleet.ABMToken, error) {
 	verb, path := "GET", "/api/latest/fleet/ab_tokens"
 	var responseBody listABMTokensResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "")
@@ -82,9 +75,9 @@ func (c *Client) RequestAppleCSR() ([]byte, error) {
 	return resp.CSR, err
 }
 
-// RequestAppleABM requests a signed CSR from the Fleet server and returns the
+// RequestAppleAB requests a signed CSR from the Fleet server and returns the
 // public key bytes
-func (c *Client) RequestAppleABM() ([]byte, error) {
+func (c *Client) RequestAppleAB() ([]byte, error) {
 	verb, path := "GET", "/api/latest/fleet/mdm/apple/ab_public_key"
 	var resp generateABMKeyPairResponse
 	err := c.authenticatedRequest(nil, verb, path, &resp)
@@ -92,7 +85,7 @@ func (c *Client) RequestAppleABM() ([]byte, error) {
 }
 
 func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
-	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d/metadata", teamID)
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/bootstrap/%d/metadata", teamID)
 	var responseBody bootstrapPackageMetadataResponse
 	var err error
 	if forUpdate {
@@ -121,7 +114,7 @@ func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint, dryRun bool) error 
 }
 
 func (c *Client) DeleteBootstrapPackage(teamID uint, dryRun bool) error {
-	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d", teamID)
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/bootstrap/%d", teamID)
 	var responseBody deleteBootstrapPackageResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
 	return err
@@ -181,7 +174,8 @@ func (c *Client) registerBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, u
 
 	w.Close()
 
-	response, err := c.doContextWithBodyAndHeaders(context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
+	response, err := c.doContextWithBodyAndHeaders(
+		context.Background(), verb, path, fmt.Sprintf("dry_run=%t", dryRun),
 		b.Bytes(),
 		map[string]string{
 			"Content-Type":  w.FormDataContentType(),
@@ -218,7 +212,7 @@ func (c *Client) stagedUpload(target fleet.StagedUploadTarget, teamID uint, cont
 	// No Fleet Authorization header: the URL is presigned for the object store.
 	resp, err := fleethttp.NewClient(fleethttp.WithTimeout(fleet.StagedUploadURLExpiry)).Do(req)
 	if err != nil {
-		return "", fmt.Errorf("uploading to staged upload URL: %w", err)
+		return "", fmt.Errorf("uploading to staged upload URL: %w", platform_http.MaskURLError(err))
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -246,21 +240,13 @@ func (c *Client) UploadBootstrapPackageIfNeeded(bp *fleet.MDMAppleBootstrapPacka
 		}
 	}
 
-	// Stage before deleting, so a failed upload leaves the old package in place.
+	// The server replaces an existing package only once the new one is saved, so a failed upload
+	// leaves the old one in place.
 	bp.TeamID = teamID
 	uploadID, err := c.stageBootstrapPackage(bp)
 	if err != nil {
 		return err
 	}
-
-	if !isFirstTime {
-		// similar to the expected UI experience, delete the bootstrap package first
-		err = c.DeleteBootstrapPackage(teamID, dryRun)
-		if err != nil {
-			return fmt.Errorf("deleting old bootstrap package: %w", err)
-		}
-	}
-
 	return c.registerBootstrapPackage(bp, uploadID, dryRun)
 }
 
@@ -438,7 +424,7 @@ func (c *Client) RunMDMCommand(hostUUIDs []string, rawCmd []byte, forPlatform st
 		HostUUIDs: hostUUIDs,
 	}
 	var response runMDMCommandResponse
-	if err := c.authenticatedRequest(request, "POST", "/api/latest/fleet/mdm/commands/run", &response); err != nil {
+	if err := c.authenticatedRequest(request, "POST", "/api/latest/fleet/commands/run", &response); err != nil {
 		return nil, fmt.Errorf("run command request: %w", err)
 	}
 	return response.CommandEnqueueResult, nil

@@ -1,6 +1,7 @@
 package hostidentity
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -11,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"log/slog"
 	"math/big"
 	"testing"
@@ -19,9 +21,11 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/smallstep/scep"
 	"github.com/stretchr/testify/assert"
@@ -171,4 +175,78 @@ func TestPKIOperationUndecryptableEnvelope(t *testing.T) {
 	assert.Equal(t, scep.BadRequest, certRep.FailInfo)
 	assert.Equal(t, req.TransactionID, certRep.TransactionID)
 	assert.False(t, signerCalled, "signer must not run when the envelope cannot be decrypted")
+}
+
+func TestPKIOperationRejectsDeeplyNestedBER(t *testing.T) {
+	svc := NewSCEPService(nil, nil, slog.New(slog.DiscardHandler))
+
+	deep := bytes.Repeat([]byte{0x30, 0x80}, cryptoutil.MaxBERDepth+1)
+	_, err := svc.PKIOperation(t.Context(), deep)
+
+	var badReq *fleet.BadRequestError
+	require.ErrorAs(t, err, &badReq)
+	require.ErrorIs(t, err, cryptoutil.ErrBERTooDeep)
+}
+
+func TestChallengeMiddlewareExistingCert(t *testing.T) {
+	newKey := func() *ecdsa.PrivateKey {
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		require.NoError(t, err)
+		return key
+	}
+	existingKey := newKey()
+	existingKeyRaw, err := types.CreateECDSAPublicKeyRaw(&existingKey.PublicKey)
+	require.NoError(t, err)
+	unenrolledCert := &types.HostIdentityCertificate{SerialNumber: 1, PublicKeyRaw: existingKeyRaw}
+	enrolledCert := &types.HostIdentityCertificate{SerialNumber: 1, HostID: new(uint(7)), PublicKeyRaw: existingKeyRaw}
+
+	testCases := []struct {
+		name         string
+		cert         *types.HostIdentityCertificate
+		lookupErr    error
+		csrKey       *ecdsa.PrivateKey
+		badSignature bool
+		wantErr      string
+	}{
+		{name: "no existing cert", lookupErr: common_mysql.NotFound("host identity certificate"), csrKey: newKey()},
+		{name: "existing cert, different key", cert: unenrolledCert, csrKey: newKey(), wantErr: "already exists"},
+		{name: "existing cert, same key", cert: unenrolledCert, csrKey: existingKey},
+		{name: "existing cert, same key but invalid signature", cert: unenrolledCert, csrKey: existingKey, badSignature: true, wantErr: "already exists"},
+		{name: "enrolled cert, same key", cert: enrolledCert, csrKey: existingKey, wantErr: "already exists"},
+		{name: "lookup failure fails closed", lookupErr: errors.New("db down"), csrKey: newKey(), wantErr: "checking existing host identity"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.VerifyEnrollSecretFunc = func(_ context.Context, secret string) (*fleet.EnrollSecret, error) {
+				return &fleet.EnrollSecret{Secret: secret}, nil
+			}
+			ds.GetHostIdentityCertByNameFunc = func(_ context.Context, _ string) (*types.HostIdentityCertificate, error) {
+				return tc.cert, tc.lookupErr
+			}
+			signed := false
+			next := scepserver.CSRSignerContextFunc(func(_ context.Context, _ *scep.CSRReqMessage) (*x509.Certificate, error) {
+				signed = true
+				return &x509.Certificate{SerialNumber: big.NewInt(2)}, nil
+			})
+
+			csrDER, err := x509.CreateCertificateRequest(rand.Reader, &x509.CertificateRequest{
+				Subject: pkix.Name{CommonName: "host-identity-name"}, SignatureAlgorithm: x509.ECDSAWithSHA256,
+			}, tc.csrKey)
+			require.NoError(t, err)
+			if tc.badSignature {
+				csrDER[len(csrDER)-1] ^= 0xff // the signature is the last field of the CSR
+			}
+			csr, err := x509.ParseCertificateRequest(csrDER)
+			require.NoError(t, err)
+
+			_, err = challengeMiddleware(ds, next).SignCSRContext(t.Context(), &scep.CSRReqMessage{CSR: csr, ChallengePassword: "secret"})
+			if tc.wantErr != "" {
+				require.ErrorContains(t, err, tc.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.wantErr == "", signed)
+		})
+	}
 }

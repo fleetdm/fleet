@@ -1,24 +1,24 @@
 import React from "react";
 
-import CustomLink from "components/CustomLink";
-import EmptyState from "components/EmptyState";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
-
 // eslint-disable-next-line import/prefer-default-export
-export const renderAppleManualEnrollmentDisabled = (type: string) => {
+export const renderAppleManualEnrollmentDisabled = (
+  type: string,
+  isGlobalAdmin?: boolean
+) => {
   return (
-    <EmptyState
-      header="Manual enrollment is disabled"
-      width="small"
-      info={`${type} enrollment is only available through Apple Business (ADE).`}
-      primaryButton={
-        <CustomLink
-          text="Learn more"
-          newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/setup-abm`}
-          variant="button"
-        />
-      }
-    />
+    <div className="platform-wrapper__apple-manual-enrollment-disabled">
+      <p>Only {type} hosts in Apple Business can enroll.</p>
+      <p>
+        {isGlobalAdmin ? (
+          <>
+            To allow manual enrollment, turn off the &ldquo;Only allow Apple
+            Business enrollment&rdquo; setting in{" "}
+            <b>Organization settings &gt; Advanced options</b>.
+          </>
+        ) : (
+          "Contact your administrator to allow manual enrollment."
+        )}
+      </p>
+    </div>
   );
 };

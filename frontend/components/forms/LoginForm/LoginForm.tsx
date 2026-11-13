@@ -3,9 +3,9 @@ import React, { useEffect, useState } from "react";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import InputField from "components/forms/fields/InputField";
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
-import validateEmail from "components/forms/validators/valid_email";
-import validatePresence from "components/forms/validators/validate_presence";
+import { isValidEmail, isPresent } from "components/forms/validators";
 import TooltipWrapper from "components/TooltipWrapper";
 import useFormValidation, { IFormErrors } from "hooks/useFormValidation";
 import { ISSOSettings } from "interfaces/ssoSettings";
@@ -25,13 +25,13 @@ interface ILoginFormProps {
 const validate = ({ email, password }: ILoginUserData): IFormErrors => {
   const errors: IFormErrors = {};
 
-  if (!validatePresence(email)) {
+  if (!isPresent(email)) {
     errors.email = "Enter your email";
-  } else if (!validateEmail(email)) {
+  } else if (!isValidEmail(email)) {
     errors.email = "Enter a valid email";
   }
 
-  if (!validatePresence(password)) {
+  if (!isPresent(password)) {
     errors.password = "Enter your password";
   }
 
@@ -55,10 +55,7 @@ const LoginForm = ({
 
   const {
     formData,
-    setField,
-    getError,
-    clearFieldError,
-    validateField,
+    getTextFieldProps,
     handleSubmit: onSubmit,
     isSubmitting,
   } = useFormValidation<ILoginUserData>({
@@ -139,30 +136,21 @@ const LoginForm = ({
     >
       <div className={`${baseClass}__form`}>
         <InputFieldWithIcon
-          error={getError("email")}
+          {...getTextFieldProps("email")}
           autofocus
-          name="email"
           type="email"
           label="Email"
           placeholder="Email"
-          value={formData.email}
-          onChange={(value) => setField("email", value)}
-          onFocus={() => clearFieldError("email")}
-          onBlur={() => validateField("email")}
           ignore1Password={false}
           disabled={isSubmitting}
         />
-        <InputFieldWithIcon
-          error={getError("password")}
-          name="password"
+        <InputField
+          {...getTextFieldProps("password")}
           label="Password"
           placeholder="Password"
           type="password"
-          value={formData.password}
-          onChange={(value) => setField("password", value)}
-          onFocus={() => clearFieldError("password")}
-          onBlur={() => validateField("password")}
-          ignore1Password={false}
+          enableShowSecret
+          ignore1password={false}
           disabled={isSubmitting}
         />
       </div>

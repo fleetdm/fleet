@@ -76,6 +76,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -98,6 +99,7 @@ type redisLiveQuery struct {
 	cache memCache
 	// in memory cache expiration
 	cacheExpiration time.Duration
+	cacheLoads      singleflight.Group
 
 	// smallTargetThreshold is the maximum number of targeted hosts for a query to
 	// use the per-host reverse index instead of the bitfield. A value of 0
@@ -638,44 +640,50 @@ func (r *redisLiveQuery) LoadActiveQueryNames() ([]string, error) {
 }
 
 func (r *redisLiveQuery) loadCache() error {
+	// Every checkin that finds the cache expired lands here; without this they
+	// each reload it. singleflight only merges overlapping calls, so recheck
+	// expiry for callers arriving just after a reload finished.
+	_, err, _ := r.cacheLoads.Do("", func() (any, error) {
+		if !r.cacheIsExpired() {
+			return nil, nil
+		}
+		return nil, r.reloadCache()
+	})
+	return err
+}
+
+func (r *redisLiveQuery) reloadCache() error {
 	expiredQueries := make(map[string]struct{})
 	sqlCache := make(map[string]string)
-	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
-	defer conn.Close()
 
-	activeIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
-	if err != nil && err != redigo.ErrNil {
-		return fmt.Errorf("get active queries: %w", err)
+	activeIDs, reverseActive, err := r.loadActiveSets()
+	if err != nil {
+		return err
 	}
 
-	// Load which active campaigns use the reverse per-host index, so the read
-	// path can exclude them from the per-host bitfield (GETBIT) probes.
-	reverseIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeReverseQueriesKey))
-	if err != nil && err != redigo.ErrNil {
-		return fmt.Errorf("get reverse active queries: %w", err)
-	}
-	reverseActive := make(map[string]struct{}, len(reverseIDs))
-	for _, id := range reverseIDs {
-		reverseActive[id] = struct{}{}
-	}
-
+	sqlKeys := make([]string, 0, len(activeIDs))
 	for _, id := range activeIDs {
 		_, sqlKey := generateKeys(id)
-
-		sql, err := redigo.String(conn.Do("GET", sqlKey))
-		if err != nil {
-			if err != redigo.ErrNil {
-				return fmt.Errorf("get query sql: %w", err)
-			}
-
-			// It is possible the livequery key has expired but was still in the set
-			// - handle this gracefully by collecting the keys to remove them from
-			// the set and keep going.
-			expiredQueries[id] = struct{}{}
-			continue
+		sqlKeys = append(sqlKeys, sqlKey)
+	}
+	for _, keys := range redis.SplitKeysBySlot(r.pool, sqlKeys...) {
+		err := r.collectBatchSQL(keys, sqlCache)
+		if redis.IsRedirect(err) {
+			// The pipeline can't follow a slot that moved (failover, resharding).
+			err = r.collectSQLFollowingRedirects(keys, sqlCache)
 		}
+		if err != nil {
+			return err
+		}
+	}
 
-		sqlCache[id] = sql
+	// It is possible the livequery key has expired but was still in the set
+	// - handle this gracefully by collecting the keys to remove them from
+	// the set and keep going.
+	for _, id := range activeIDs {
+		if _, found := sqlCache[id]; !found {
+			expiredQueries[id] = struct{}{}
+		}
 	}
 
 	// remove expired queries from the names list
@@ -716,6 +724,80 @@ func (r *redisLiveQuery) loadCache() error {
 	}
 
 	return nil
+}
+
+func (r *redisLiveQuery) loadActiveSets() (activeIDs []string, reverseActive map[string]struct{}, err error) {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	activeIDs, err = redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+	if err != nil && err != redigo.ErrNil {
+		return nil, nil, fmt.Errorf("get active queries: %w", err)
+	}
+
+	// Load which active campaigns use the reverse per-host index, so the read
+	// path can exclude them from the per-host bitfield (GETBIT) probes.
+	reverseIDs, err := redigo.Strings(conn.Do("SMEMBERS", activeReverseQueriesKey))
+	if err != nil && err != redigo.ErrNil {
+		return nil, nil, fmt.Errorf("get reverse active queries: %w", err)
+	}
+	reverseActive = make(map[string]struct{}, len(reverseIDs))
+	for _, id := range reverseIDs {
+		reverseActive[id] = struct{}{}
+	}
+	return activeIDs, reverseActive, nil
+}
+
+func (r *redisLiveQuery) collectBatchSQL(sqlKeys []string, sqlByName map[string]string) error {
+	if len(sqlKeys) == 0 {
+		return nil
+	}
+
+	// Not ReadOnlyConn: a lagging replica's missing key would drop the query from the active set.
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	for _, key := range sqlKeys {
+		if err := conn.Send("GET", key); err != nil {
+			return fmt.Errorf("send get query sql: %w", err)
+		}
+	}
+	if err := conn.Flush(); err != nil {
+		return fmt.Errorf("flush pipeline: %w", err)
+	}
+
+	for _, key := range sqlKeys {
+		sql, err := redigo.String(conn.Receive())
+		if err != nil {
+			if errors.Is(err, redigo.ErrNil) {
+				continue
+			}
+			return fmt.Errorf("receive query sql: %w", err)
+		}
+		sqlByName[sqlKeyName(key)] = sql
+	}
+	return nil
+}
+
+func (r *redisLiveQuery) collectSQLFollowingRedirects(sqlKeys []string, sqlByName map[string]string) error {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	for _, key := range sqlKeys {
+		sql, err := redigo.String(conn.Do("GET", key))
+		if err != nil {
+			if errors.Is(err, redigo.ErrNil) {
+				continue
+			}
+			return fmt.Errorf("get query sql: %w", err)
+		}
+		sqlByName[sqlKeyName(key)] = sql
+	}
+	return nil
+}
+
+func sqlKeyName(sqlKey string) string {
+	return extractTargetKeyName(strings.TrimPrefix(sqlKey, sqlKeyPrefix))
 }
 
 func (r *redisLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {

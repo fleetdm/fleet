@@ -46,18 +46,21 @@ interface ICategoriesSelector {
   /** Override the preview button copy. Defaults to "Preview end user
    * experience". */
   previewButtonLabel?: string;
+  /** When true, each category checkbox is disabled and removed from the
+   * tab order. */
+  disabled?: boolean;
 }
 
 export const AndroidOptionsDescription = () => (
   <p>
-    Currently, Android apps can only be added as self-service and the end user
-    can install them from the <strong>Play Store</strong> in their work profile.
-    Additionally, you can install it when hosts enroll on the{" "}
+    Currently, Android apps are always available in self-service (Google Play
+    Store) in their work profile. You can automatically install it when hosts
+    enroll via{" "}
     <CustomLink
       url={paths.CONTROLS_INSTALL_SOFTWARE("android")}
-      text="Setup experience"
-    />{" "}
-    page.
+      text="setup experience"
+    />
+    .
   </p>
 );
 
@@ -68,6 +71,7 @@ export const CategoriesSelector = ({
   teamId,
   label = "Categories",
   previewButtonLabel = "Preview end user experience",
+  disabled = false,
 }: ICategoriesSelector) => {
   const isDynamic = teamId !== undefined;
 
@@ -125,9 +129,10 @@ export const CategoriesSelector = ({
       return (
         <div className={`${baseClass}__categories-empty`}>
           <CustomLink
-            url={getPathWithQueryParams(paths.SOFTWARE_LIBRARY_CATEGORIES, {
-              fleet_id: teamId,
-            })}
+            url={getPathWithQueryParams(
+              paths.SOFTWARE_LIBRARY_SETTINGS_CATEGORIES,
+              { fleet_id: teamId }
+            )}
             text="Add category"
           />
           <span>to assign software to it.</span>
@@ -145,6 +150,7 @@ export const CategoriesSelector = ({
               value={selectedCategories.includes(cat.value)}
               onChange={onSelectCategory}
               parseTarget
+              disabled={disabled}
             >
               <div className={`${baseClass}__label-name`}>{cat.label}</div>
             </Checkbox>
@@ -226,7 +232,11 @@ const SoftwareOptionsSelector = ({
     : undefined;
 
   return (
-    <div className={`form-field ${classNames}`}>
+    <div
+      className={classnames(`form-field ${classNames}`, {
+        [`${baseClass}--disabled`]: disableOptions,
+      })}
+    >
       <div className="form-field__label">Options</div>
       {renderOptionsDescription()}
       <div className={`${baseClass}__self-service`}>
@@ -246,6 +256,7 @@ const SoftwareOptionsSelector = ({
             selectedCategories={formData.categories}
             onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
             teamId={teamId}
+            disabled={disableOptions}
           />
         )}
       </div>

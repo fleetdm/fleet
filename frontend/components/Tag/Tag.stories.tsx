@@ -57,7 +57,7 @@ export const WithIconAndText: Story = {
   args: {
     children: (
       <>
-        <Icon size="small" name="warning" color="ui-fleet-black-75" />
+        <Icon name="warning" color="ui-fleet-black-75" />
         Report clipped
       </>
     ),

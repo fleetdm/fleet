@@ -125,7 +125,6 @@ func TestOvalPlatform(t *testing.T) {
 		}{
 			{"Amazon Linux 1.0.0", "amzn_01.sqlite3"},
 			{"Amazon Linux 2.0.0", "amzn_02.sqlite3"},
-			{"Amazon Linux 2022.0.0", "amzn_2022.sqlite3"},
 			{"Amazon Linux 2023.0.0", "amzn_2023.sqlite3"},
 		}
 		for _, c := range cases {
@@ -159,6 +158,7 @@ func TestOvalPlatform(t *testing.T) {
 
 	t.Run("supported platforms match exactly", func(t *testing.T) {
 		require.True(t, NewPlatform("amzn", "Amazon Linux 2023.5.20240624").IsGovalDictionarySupported())
+		require.False(t, NewPlatform("amzn", "Amazon Linux 2022.0.20221207").IsGovalDictionarySupported())
 		require.True(t, NewPlatform("rhel", "Red Hat Enterprise Linux 9.4.0").IsGovalDictionaryKernelOnly())
 		require.True(t, NewPlatform("ubuntu", "Ubuntu 22.04.3 LTS").IsSupported())
 

@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -29,6 +30,8 @@ func TestRunScriptCommand(t *testing.T) {
 			HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // nolint:gosec
 		},
 	)
+	adminUserByID := ds.UserByIDFunc
+	technician := &fleet.User{GlobalRole: new(fleet.RoleTechnician)}
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
@@ -55,7 +58,7 @@ func TestRunScriptCommand(t *testing.T) {
 		return nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
+		return &fleet.AppConfig{}, nil
 	}
 	ds.GetScriptIDByNameFunc = func(ctx context.Context, name string, teamID *uint) (uint, error) {
 		return 1, nil
@@ -87,6 +90,7 @@ hello world
 
 	type testCase struct {
 		name                string
+		user                *fleet.User
 		scriptPath          func() string
 		scriptName          string
 		teamID              *uint
@@ -322,15 +326,46 @@ Fleet records the last 10,000 characters to prevent downtime.
 		//	scriptPath:   generateValidPath,
 		//	expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
 		// },
-		{name: "disabled scripts globally", scriptPath: generateValidPath, expectErrMsg: fleet.RunScriptScriptsDisabledGloballyErrMsg},
+		{
+			name:         "technician cannot run script from path",
+			user:         technician,
+			scriptPath:   generateValidPath,
+			expectErrMsg: fleet.RunScriptForbiddenErrMsg,
+		},
+		{
+			name:         "technician cannot run script from path async",
+			user:         technician,
+			scriptPath:   generateValidPath,
+			async:        true,
+			expectErrMsg: fleet.RunScriptForbiddenErrMsg,
+		},
+		{
+			name:       "technician can run saved script",
+			user:       technician,
+			scriptName: "foo",
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: new(int64(0)),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
 	}
 
 	setupDS := func(t *testing.T, c testCase) {
-		ds.HostByIdentifierFunc = func(ctx context.Context, ident string) (*fleet.Host, error) {
+		ds.UserByIDFunc = adminUserByID
+		if c.user != nil {
+			ds.UserByIDFunc = func(ctx context.Context, id uint) (*fleet.User, error) {
+				return c.user, nil
+			}
+		}
+		ds.HostLiteByIdentifierFunc = func(ctx context.Context, ident string) (*fleet.HostLite, error) {
 			if ident != "host1" || c.expectNotFound {
 				return nil, &notFoundError{}
 			}
-			return &fleet.Host{ID: 42, SeenTime: time.Now(), OrbitNodeKey: ptr.String("abc")}, nil
+			return &fleet.HostLite{ID: 42}, nil
+		}
+		ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostID uint) (time.Time, error) {
+			return time.Now(), nil
 		}
 		ds.HostFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
 			if hid != 42 || c.expectNotFound {
@@ -342,7 +377,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 			return &h, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), hid)
 			if c.expectPending {
 				return []*fleet.HostScriptResult{{HostID: uint(42)}}, nil
@@ -360,6 +395,10 @@ Fleet records the last 10,000 characters to prevent downtime.
 		}
 		ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, req *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), req.HostID)
+			// Otherwise a wrongly queued script makes fleetctl poll forever for a result.
+			if c.expectErrMsg != "" {
+				return nil, errors.New("unexpected script execution request")
+			}
 			return &fleet.HostScriptResult{
 				Hostname:       "host1",
 				HostID:         req.HostID,
@@ -373,14 +412,8 @@ Fleet records the last 10,000 characters to prevent downtime.
 		ds.ConditionalAccessBypassedAtFunc = func(ctx context.Context, hostID uint) (*time.Time, error) {
 			return nil, nil
 		}
-		if c.name == "disabled scripts globally" {
-			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}, nil
-			}
-		} else {
-			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
-			}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
 		}
 		if c.savedScriptContents != nil {
 			ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {

@@ -119,3 +119,45 @@ func TestLiveQueryWithContext(t *testing.T) {
 	<-ctx.Done()
 	assert.True(t, gotResults)
 }
+
+func TestLiveQueryErrorFrame(t *testing.T) {
+	upgrader := websocket.Upgrader{}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/latest/fleet/reports/run_by_identifiers":
+			err := json.NewEncoder(w).Encode(createDistributedQueryCampaignResponse{Campaign: &fleet.DistributedQueryCampaign{ID: 99}})
+			assert.NoError(t, err)
+		case "/api/latest/fleet/results/websocket":
+			ws, err := upgrader.Upgrade(w, r, nil)
+			if !assert.NoError(t, err) {
+				return
+			}
+			defer ws.Close()
+			assert.NoError(t, ws.WriteMessage(websocket.TextMessage, []byte(`{"type":"error","data":"pubsub error: boom"}`)))
+			for {
+				if _, _, err := ws.ReadMessage(); err != nil {
+					return
+				}
+			}
+		}
+	}))
+	defer ts.Close()
+
+	baseURL, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+	client := &Client{
+		baseClient: &baseClient{BaseURL: baseURL, HTTP: fleethttp.NewClient()},
+		token:      "1234",
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	res, err := client.LiveQueryWithContext(ctx, "select 1;", nil, nil, []string{"host1"})
+	require.NoError(t, err)
+	select {
+	case err := <-res.Errors():
+		require.ErrorContains(t, err, "pubsub error: boom")
+	case <-time.After(10 * time.Second):
+		t.Fatal("no error from the live query")
+	}
+}

@@ -1,4 +1,5 @@
 .policy-automations-fields {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: $pad-medium;
@@ -89,7 +90,17 @@
   }
 
   &__row-disabled-hint {
+    display: flex;
+    justify-content: flex-end;
+    gap: $pad-xsmall;
     color: $ui-fleet-black-50;
+
+    // The trailing cell is nowrap, so an uncapped fleet name would set the
+    // table's min width.
+    .tooltip-truncated-text {
+      min-width: 0;
+      max-width: 200px;
+    }
   }
 
   &__row-picker {
@@ -104,6 +115,9 @@
   &__software-pickers {
     display: flex;
     flex-direction: row;
+    // Otherwise the pair is the table's widest content and it overflows
+    // just above the stacking breakpoint.
+    flex-wrap: wrap;
     gap: $pad-small;
     align-items: flex-end;
     // The flex container fills the td (block-level), so `margin-left: auto`
@@ -126,5 +140,47 @@
   &__learn-more {
     font-size: $x-small;
     color: $ui-fleet-black-75;
+  }
+
+  // The table can't shrink below ~630px (longest label plus a capped fleet
+  // name), so below that move each row's trailing content under its label.
+  @container (width < 640px) {
+    &__table,
+    &__table tbody,
+    &__row {
+      display: block;
+    }
+
+    &__row-label {
+      display: flex;
+      align-items: center;
+    }
+
+    &__row &__row-trailing,
+    #install-software-row-label + &__row-trailing {
+      display: block;
+      height: auto;
+      // Aligns with the label text, past the checkbox, like checkbox help text.
+      padding: 0 $pad-large $pad-small calc(#{$pad-large} * 2);
+      border-top: none;
+      max-width: none;
+
+      &:empty {
+        display: none;
+      }
+    }
+
+    &__row-disabled-hint {
+      justify-content: flex-start;
+    }
+
+    &__row-picker {
+      margin-left: 0;
+    }
+
+    &__software-pickers {
+      justify-content: flex-start;
+      align-items: flex-start;
+    }
   }
 }

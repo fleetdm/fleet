@@ -1307,6 +1307,17 @@ func TestParseSoftwareTypeFilter(t *testing.T) {
 			},
 		},
 		{
+			name:   "AI tool sources",
+			source: "ai_clis,mcp_servers,ai_skills",
+			want:   SoftwareTypeFilter{"ai_clis": nil, "mcp_servers": nil, "ai_skills": nil},
+		},
+		{
+			name:       "the ai_tools pseudo-source is never stored",
+			source:     "ai_tools",
+			wantArg:    "source",
+			wantReason: `Invalid source: "ai_tools" isn't a valid source. See the options: https://fleetdm.com/docs/rest-api/rest-api#list-software`,
+		},
+		{
 			name:       "unknown source",
 			source:     "apps,app",
 			wantArg:    "source",
@@ -1387,4 +1398,57 @@ func TestParseSoftwareTypeFilter(t *testing.T) {
 			require.Equal(t, []map[string]string{{"name": tc.wantArg, "reason": tc.wantReason}}, argErr.Invalid())
 		})
 	}
+}
+
+func TestSoftwareFromOsqueryRowEpoch(t *testing.T) {
+	cases := []struct {
+		name   string
+		source string
+		epoch  string
+		want   *uint32
+	}{
+		{"rpm with epoch", "rpm_packages", "1", new(uint32(1))},
+		{"rpm with large epoch", "rpm_packages", "32", new(uint32(32))},
+		{"rpm without epoch", "rpm_packages", "", nil},
+		{"rpm with zero epoch", "rpm_packages", "0", nil},
+		{"rpm with invalid epoch", "rpm_packages", "abc", nil},
+		{"rpm with negative epoch", "rpm_packages", "-1", nil},
+		{"non-rpm source ignores epoch", "deb_packages", "1", nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sw, err := SoftwareFromOsqueryRow("tomcat", "9.0.117", tc.source, "", "", "2.el9_8", "noarch", "", "", "", "", "", tc.epoch)
+			require.NoError(t, err)
+			require.Equal(t, tc.want, sw.Epoch)
+		})
+	}
+}
+
+func TestSoftwareEpochNotPartOfIdentity(t *testing.T) {
+	withoutEpoch := Software{Name: "tomcat", Version: "9.0.117", Release: "2.el9_8", Arch: "noarch", Vendor: "Rocky Enterprise Software Foundation", Source: "rpm_packages"}
+	withEpoch := withoutEpoch
+	withEpoch.Epoch = new(uint32(1))
+
+	require.Equal(t, withoutEpoch.ToUniqueStr(), withEpoch.ToUniqueStr())
+
+	sumWithout, err := withoutEpoch.ComputeRawChecksum()
+	require.NoError(t, err)
+	sumWith, err := withEpoch.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, sumWithout, sumWith)
+}
+
+// TestSoftwareAIToolNotPartOfIdentity pins the flag outside the software identity, so an
+// existing row can be flagged in place instead of becoming a second row.
+func TestSoftwareAIToolNotPartOfIdentity(t *testing.T) {
+	sw := Software{Name: "Claude", Version: "1.2.4", Source: "apps", BundleIdentifier: "com.anthropic.claudefordesktop"}
+	flagged := sw
+	flagged.AITool = new(true)
+
+	require.Equal(t, sw.ToUniqueStr(), flagged.ToUniqueStr())
+	want, err := sw.ComputeRawChecksum()
+	require.NoError(t, err)
+	got, err := flagged.ComputeRawChecksum()
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }

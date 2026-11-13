@@ -48,7 +48,7 @@ import {
   HOST_VITALS_DATA,
   HOST_SUMMARY_DATA,
 } from "utilities/constants";
-import { normalizeEmptyValues } from "utilities/helpers";
+import { getHostOSDisplayName, normalizeEmptyValues } from "utilities/helpers";
 import { isDarkMode } from "utilities/theme";
 import { getPathWithQueryParams } from "utilities/url";
 
@@ -149,6 +149,7 @@ interface IDeviceUserPageProps {
       setup_only?: string;
       sso_error?: string;
       create_pin?: string;
+      mobile?: string;
     };
     search?: string;
   };
@@ -164,6 +165,10 @@ const DeviceUserPage = ({
   const deviceAuthToken = device_auth_token;
   const isMobileView = useIsMobileWidth();
   const isMobileDevice = isIPhone(navigator) || isIPad(navigator);
+  // ?mobile=1 dev override: latch at mount so SelfService navigations
+  // (which drop the param from the URL) don't flip us back to desktop.
+  const [mobileOverride] = useState(() => location.query.mobile === "1");
+  const isMobile = isMobileDevice || mobileOverride;
 
   const [showBypassModal, setShowBypassModal] = useState(false);
   const [showBitLockerPINModal, setShowBitLockerPINModal] = useState(false);
@@ -731,7 +736,7 @@ const DeviceUserPage = ({
       !!host &&
       shouldShowControlsTab({
         platform: host.platform,
-        osVersion: host.os_version,
+        osVersion: getHostOSDisplayName(host.os_name, host.os_version),
         enrollmentStatus: host.mdm?.enrollment_status ?? null,
         hasControls: controls.length > 0,
       });
@@ -808,7 +813,7 @@ const DeviceUserPage = ({
         <SettingUpYourDevice
           setupSteps={setupStepStatuses || []}
           requireAllSoftware={
-            (isAppleHost && globalConfig?.mdm?.require_all_software_macos) ??
+            (isAppleHost && globalConfig?.mdm?.macos_require_all_software) ??
             false
           }
           toggleInfoModal={toggleInfoModal}
@@ -817,8 +822,8 @@ const DeviceUserPage = ({
       );
     }
 
-    // iOS/iPadOS devices or narrow screens should show mobile UI
-    const shouldShowMobileUI = isIOSIPadOS || isMobileView;
+    // isIOSIPadOS: Fleet platform. isMobile: user agent or ?mobile=1.
+    const shouldShowMobileUI = isIOSIPadOS || isMobile;
 
     if (shouldShowMobileUI) {
       // Force redirect to self-service route for iOS/iPadOS devices
@@ -864,7 +869,7 @@ const DeviceUserPage = ({
         <div className={`${baseClass} main-content`}>
           <DeviceUserBanners
             hostPlatform={host.platform}
-            hostOsVersion={host.os_version}
+            hostOsVersion={getHostOSDisplayName(host.os_name, host.os_version)}
             mdmEnrollmentStatus={host.mdm.enrollment_status}
             mdmEnabledAndConfigured={!!globalConfig?.mdm.enabled_and_configured}
             connectedToFleetMdm={!!host.mdm.connected_to_fleet}
@@ -1017,7 +1022,7 @@ const DeviceUserPage = ({
                     isMyDevicePage
                     isPremiumTier={isPremiumTier}
                     platform={host.platform}
-                    hostTeamId={host.team_id || 0}
+                    hostTeamId={host.fleet_id || 0}
                     isSoftwareEnabled={isSoftwareEnabled}
                     onShowInventoryVersions={setHostSWForInventoryVersions}
                   />
@@ -1148,12 +1153,24 @@ const DeviceUserPage = ({
     );
   };
 
+  // Auth errors (expired token, SSO required, bad enroll URL) are actionable;
+  // the "enlarge your browser" overlay is not. Let the error page win.
+  const hasDeviceUserError =
+    isSSORequired ||
+    (dupDetailsError && !dupDetails) ||
+    isAuthenticationError ||
+    !!enrollUrlError;
+
+  const showUnsupportedScreen =
+    !hasDeviceUserError &&
+    shouldShowUnsupportedScreen(location.pathname, isMobile);
+
   const coreWrapperClassnames = classNames("core-wrapper", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+    "low-width-supported": !showUnsupportedScreen,
   });
 
   const siteNavContainerClassnames = classNames("site-nav-container", {
-    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+    "low-width-supported": !showUnsupportedScreen,
   });
 
   // The SSO branch has to come first: a refused device call is an error to
@@ -1189,9 +1206,7 @@ const DeviceUserPage = ({
 
   return (
     <div className="app-wrap">
-      {shouldShowUnsupportedScreen(location.pathname) && (
-        <UnsupportedScreenSize />
-      )}
+      {showUnsupportedScreen && <UnsupportedScreenSize />}
       <nav className={siteNavContainerClassnames}>
         <div className="site-nav-content">
           <ul className="site-nav-left">

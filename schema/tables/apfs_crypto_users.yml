@@ -3,10 +3,16 @@ platforms:
   - darwin
 description: |-
   APFS cryptographic users for each APFS container, from the `diskutil apfs listCryptoUsers -plist <device>` command.
-  Cryptographic users include local user accounts that hold a Secure Token, the personal recovery key, and the MDM bootstrap token.
-  The `volume_owner` column reports whether each cryptographic user is an APFS volume owner. A host where no `LocalOpenDirectory` user is a volume owner has a user who cannot authorize macOS updates.
+  Cryptographic users include local user accounts that hold a Secure Token, the personal recovery key, and the MDM bootstrap token. Local user accounts without a Secure Token don't appear in this table.
+  The `volume_owner` column reports whether each cryptographic user is an APFS volume owner. A local user who isn't a volume owner can't authorize macOS updates.
 examples: |-
-  Find hosts where no local user account owns the APFS volume (e.g. a delayed first-login flow left the user without a Secure Token). Scope this as a policy to macOS hosts; hosts that return no rows fail the policy.
+  Check whether a specific local user owns the APFS volume (e.g. to find hosts where a delayed first-login flow left the user without a Secure Token). Replace `<username>` with the account to check, and scope this as a policy to macOS hosts. Hosts that return no rows fail the policy.
+
+  ```
+  SELECT 1 FROM apfs_crypto_users c JOIN users u ON u.uuid = c.crypto_user_uuid WHERE u.username = '<username>' AND c.volume_owner = 1;
+  ```
+
+  Check whether any local user account owns the APFS volume. This passes when one account (e.g. an admin) owns the volume, even if another local user doesn't. To check a specific user, use the example above.
 
   ```
   SELECT 1 FROM apfs_crypto_users WHERE type = 'LocalOpenDirectory' AND volume_owner = 1;
@@ -23,7 +29,7 @@ columns:
   - name: crypto_user_uuid
     type: text
     required: false
-    description: The UUID of the cryptographic user.
+    description: The UUID of the cryptographic user. For `LocalOpenDirectory` rows, this is the user account's GeneratedUID, which can be joined to [users.uuid](https://fleetdm.com/tables/users) to get the username.
   - name: type
     type: text
     required: false

@@ -51,6 +51,15 @@ func TestGenerateQueryForManifest(t *testing.T) {
 			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla' AND version_compare(version, '139.0.0') < 0);",
 		},
 		{
+			name: "windows from exists query keyed on MSI product code",
+			p: patch_policy.PolicyData{
+				Platform:    "windows",
+				Version:     "26.002.21931",
+				ExistsQuery: "SELECT 1 FROM programs WHERE identifying_number = '{AC76BA86-1033-FFFF-7760-BC15014EA700}' AND publisher = 'Adobe';",
+			},
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE identifying_number = '{AC76BA86-1033-FFFF-7760-BC15014EA700}' AND publisher = 'Adobe' AND version_compare(version, '26.002.21931') < 0);",
+		},
+		{
 			name: "codex-cli portable install OR precedence and file_version",
 			p: patch_policy.PolicyData{
 				Platform: "windows",
@@ -122,30 +131,7 @@ func TestGenerateOpenQuery(t *testing.T) {
 	got = patch_policy.GenerateOpenQuery("windows", "", "O'Reilly")
 	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'o''reilly.exe');", got)
 
-	// A per-app override (keyed by software title) supplies the process-name predicate, in any of
-	// its forms: LIKE, exact, or IN.
-	got = patch_policy.GenerateOpenQuery("windows", "", "OneDrive")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) LIKE 'onedrive%');", got)
-
-	got = patch_policy.GenerateOpenQuery("windows", "", "Google Chrome")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'chrome.exe');", got)
-
-	got = patch_policy.GenerateOpenQuery("windows", "", "Microsoft Teams")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('teams.exe','ms-teams.exe'));", got)
-
-	got = patch_policy.GenerateOpenQuery("windows", "", "Raspberry Pi Imager")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'rpi-imager.exe');", got)
-
-	got = patch_policy.GenerateOpenQuery("windows", "", "Clockify Desktop")
-	require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'clockifywindows.exe');", got)
-
 	// Unknown platform yields no query.
-	// every Firefox channel and architecture ships firefox.exe
-	for _, title := range []string{"Mozilla Firefox", "Mozilla Firefox ESR", "Mozilla Firefox Developer Edition (ARM64)", "Mozilla Firefox Nightly (ARM64)"} {
-		got = patch_policy.GenerateOpenQuery("windows", "", title)
-		require.Equal(t, "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');", got, title)
-	}
-
 	require.Empty(t, patch_policy.GenerateOpenQuery("linux", "com.example.foo", ""))
 }
 

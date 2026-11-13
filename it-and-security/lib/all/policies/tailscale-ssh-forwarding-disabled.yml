@@ -1,0 +1,143 @@
+# Tailscale SSH forwarding ("Tailworm"), reported 2026-10-25 by Cyberdione Labs against
+# Tailscale 1.104.2 and headscale 0.29.5. With Tailscale SSH on, tailscaled performs SSH Unix
+# socket forwarding (added in 1.98.0) as root, so any device an SSH rule admits can reach
+# root-only sockets on the target. No fixed release, bulletin, or CVE as of 2026-10-26.
+# Interim mitigation: TS_SSH_DISABLE_FORWARDING=1 in tailscaled's environment.
+# Queries are identical to docs/solutions/all/policies/tailscale-ssh-forwarding.policies.yml.
+# Report: https://tailworm.com/
+- name: Linux - Tailscale SSH forwarding disabled (Tailworm interim mitigation)
+  query: |
+    WITH td AS (
+      -- Pad and normalize flags so " -state=" also matches --state, "-state /path", and never --encrypt-state
+      SELECT pid, replace(replace(replace(' ' || cmdline || ' ', ' --', ' -'), ' -state ', ' -state='), ' -statedir ', ' -statedir=') AS args
+      FROM processes
+      WHERE name = 'tailscaled' AND cmdline NOT LIKE '% be-child %'
+    ),
+    state AS (
+      SELECT pid, CASE
+          WHEN instr(args, ' -state=') > 0 THEN
+            replace(substr(args, instr(args, ' -state=') + 8, instr(substr(args, instr(args, ' -state=') + 8), ' ') - 1), 'tpmseal:', '')
+          WHEN instr(args, ' -statedir=') > 0 THEN
+            substr(args, instr(args, ' -statedir=') + 11, instr(substr(args, instr(args, ' -statedir=') + 11), ' ') - 1) || '/tailscaled.state'
+          ELSE '/var/lib/tailscale/tailscaled.state'
+        END AS path
+      FROM td
+    ),
+    ssh AS (
+      -- file_lines aborts the query on a missing path, so every read sits behind a CASE that checks the file first.
+      -- Values are base64; prefs are JSON. Missing, TPM-sealed, or non-file state counts as on.
+      SELECT s.pid, CASE
+          WHEN NOT EXISTS (SELECT 1 FROM file f WHERE f.path = s.path) THEN 1
+          WHEN EXISTS (SELECT 1 FROM file_lines l WHERE l.path = s.path AND l.line LIKE '%"nonce":%') THEN 1
+          ELSE coalesce((
+            SELECT max(json_extract(from_base64(rtrim(substr(l.line, instr(l.line, '": "') + 4), '",')), '$.RunSSH'))
+            FROM file_lines l
+            WHERE l.path = s.path AND l.line LIKE '%"profile-%'
+              -- Only the current profile counts; without a current-profile key, any profile does
+              AND (NOT EXISTS (SELECT 1 FROM file_lines c WHERE c.path = s.path AND c.line LIKE '%"\_current-profile":%' ESCAPE '\')
+                   OR l.line LIKE '%"' || (SELECT from_base64(rtrim(substr(c.line, instr(c.line, '": "') + 4), '",'))
+                                           FROM file_lines c WHERE c.path = s.path AND c.line LIKE '%"\_current-profile":%' ESCAPE '\') || '":%')
+          ), 0)
+        END AS ssh_on
+      FROM state s
+    )
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM ssh
+      WHERE ssh_on = 1
+        AND NOT EXISTS (SELECT 1 FROM process_envs e
+                        WHERE e.pid = ssh.pid AND e.key = 'TS_SSH_DISABLE_FORWARDING'
+                          AND lower(e.value) IN ('1', 't', 'true'))
+    );
+  critical: false
+  description: |
+    Passes when tailscaled isn't running, when Tailscale SSH is off for the current profile
+    (including a tailscaled that never logged in), or when tailscaled runs with
+    TS_SSH_DISABLE_FORWARDING=1. Fails when Tailscale SSH is on and forwarding is allowed,
+    which lets any device an SSH rule admits use tailscaled's root privileges to reach Unix
+    sockets on this host. Also fails when the state can't be read (TPM-sealed, mem:, kube:,
+    or no file at the path), because Tailscale SSH can't be ruled out.
+  resolution: |
+    If you are failing this policy, drop a note in #help-it. Then, IT will run the disable-tailscale-ssh-forwarding-linux.sh
+    script (it-and-security/lib/linux/scripts/disable-tailscale-ssh-forwarding-linux.sh) on this host. It sets
+    TS_SSH_DISABLE_FORWARDING=1 for tailscaled with a systemd drop-in and restarts tailscaled, which drops Tailscale
+    connections on this host for a few seconds. Tailscale SSH sessions keep working; forwarding is refused. If nobody
+    needs Tailscale SSH on this host, IT can run `tailscale set --ssh=false` instead.
+  platform: linux
+  calendar_events_enabled: false
+
+- name: macOS - Tailscale SSH forwarding disabled (Tailworm interim mitigation)
+  query: |
+    WITH td AS (
+      -- Open-source tailscaled only: the Tailscale app (App Store or standalone) runs as a network
+      -- extension and doesn't run a Tailscale SSH server.
+      -- Pad and normalize flags so " -state=" also matches --state, "-state /path", and never --encrypt-state
+      SELECT pid, start_time, replace(replace(replace(' ' || cmdline || ' ', ' --', ' -'), ' -state ', ' -state='), ' -statedir ', ' -statedir=') AS args
+      FROM processes
+      WHERE name = 'tailscaled' AND cmdline NOT LIKE '% be-child %'
+    ),
+    state AS (
+      SELECT pid, CASE
+          WHEN instr(args, ' -state=') > 0 THEN
+            substr(args, instr(args, ' -state=') + 8, instr(substr(args, instr(args, ' -state=') + 8), ' ') - 1)
+          WHEN instr(args, ' -statedir=') > 0 THEN
+            substr(args, instr(args, ' -statedir=') + 11, instr(substr(args, instr(args, ' -statedir=') + 11), ' ') - 1) || '/tailscaled.state'
+          ELSE '/Library/Tailscale/tailscaled.state'
+        END AS path
+      FROM td
+    ),
+    ssh AS (
+      -- file_lines aborts the query on a missing path, so every read sits behind a CASE that checks the file first.
+      -- Values are base64; prefs are JSON. A missing state file counts as on.
+      SELECT s.pid, CASE
+          WHEN NOT EXISTS (SELECT 1 FROM file f WHERE f.path = s.path) THEN 1
+          ELSE coalesce((
+            SELECT max(json_extract(from_base64(rtrim(substr(l.line, instr(l.line, '": "') + 4), '",')), '$.RunSSH'))
+            FROM file_lines l
+            WHERE l.path = s.path AND l.line LIKE '%"profile-%'
+              -- Only the current profile counts; without a current-profile key, any profile does
+              AND (NOT EXISTS (SELECT 1 FROM file_lines c WHERE c.path = s.path AND c.line LIKE '%"\_current-profile":%' ESCAPE '\')
+                   OR l.line LIKE '%"' || (SELECT from_base64(rtrim(substr(c.line, instr(c.line, '": "') + 4), '",'))
+                                           FROM file_lines c WHERE c.path = s.path AND c.line LIKE '%"\_current-profile":%' ESCAPE '\') || '":%')
+          ), 0)
+        END AS ssh_on
+      FROM state s
+    ),
+    env_file AS (
+      -- tailscaled reads this file once at startup, so it only counts if tailscaled started after it changed
+      SELECT f.mtime,
+        CASE WHEN EXISTS (
+          SELECT 1 FROM file_lines l WHERE l.path = '/etc/tailscale/tailscaled-env.txt'
+            AND trim(substr(l.line, 1, instr(l.line, '=') - 1)) = 'TS_SSH_DISABLE_FORWARDING'
+            AND lower(trim(trim(substr(l.line, instr(l.line, '=') + 1)), '"')) IN ('1', 't', 'true'))
+          -- tailscaled applies the lines in order, so any other value for the key may win
+          AND NOT EXISTS (
+            SELECT 1 FROM file_lines l WHERE l.path = '/etc/tailscale/tailscaled-env.txt'
+              AND trim(substr(l.line, 1, instr(l.line, '=') - 1)) = 'TS_SSH_DISABLE_FORWARDING'
+              AND lower(trim(trim(substr(l.line, instr(l.line, '=') + 1)), '"')) NOT IN ('1', 't', 'true'))
+        THEN 1 ELSE 0 END AS knob
+      FROM file f WHERE f.path = '/etc/tailscale/tailscaled-env.txt'
+    )
+    SELECT 1 WHERE NOT EXISTS (
+      SELECT 1 FROM ssh JOIN td USING (pid)
+      WHERE ssh.ssh_on = 1
+        AND NOT EXISTS (SELECT 1 FROM env_file WHERE knob = 1 AND mtime <= td.start_time)
+        AND NOT EXISTS (SELECT 1 FROM process_envs e
+                        WHERE e.pid = td.pid AND e.key = 'TS_SSH_DISABLE_FORWARDING'
+                          AND lower(e.value) IN ('1', 't', 'true'))
+    );
+  critical: false
+  description: |
+    Passes when the open-source tailscaled isn't running (the Tailscale app from the App Store
+    or tailscale.com doesn't run a Tailscale SSH server), when Tailscale SSH is off for the
+    current profile, or when tailscaled started after /etc/tailscale/tailscaled-env.txt set
+    TS_SSH_DISABLE_FORWARDING=1 with no other line setting a different value (tailscaled
+    applies the lines in order), or when its launchd environment sets it. Fails when Tailscale
+    SSH is on and forwarding is allowed.
+  resolution: |
+    If you are failing this policy, drop a note in #help-it. Then, IT will run the disable-tailscale-ssh-forwarding-macos.sh
+    script (it-and-security/lib/macos/scripts/disable-tailscale-ssh-forwarding-macos.sh) on this Mac. It sets
+    TS_SSH_DISABLE_FORWARDING=1 in /etc/tailscale/tailscaled-env.txt and restarts the open-source tailscaled, which
+    drops Tailscale connections on this Mac for a few seconds. If nobody needs Tailscale SSH on this Mac, IT can run
+    `tailscale set --ssh=false` instead. The Tailscale app from the App Store or tailscale.com never fails this policy.
+  platform: darwin
+  calendar_events_enabled: false

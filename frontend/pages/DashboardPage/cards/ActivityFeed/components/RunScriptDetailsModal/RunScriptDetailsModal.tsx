@@ -29,7 +29,7 @@ const ScriptContent = ({ content }: IScriptContentProps) => {
 const StatusMessageRunning = () => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="pending-outline"
+    iconName="pending"
     message="Script is running or will run when the host comes online."
   />
 );
@@ -37,7 +37,7 @@ const StatusMessageRunning = () => (
 const StatusMessageSuccess = () => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="success-outline"
+    iconName="success"
     message="Exit code: 0 (Script ran successfully.)"
   />
 );
@@ -45,7 +45,7 @@ const StatusMessageSuccess = () => (
 const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="error-outline"
+    iconName="error"
     message={`Exit code: ${exitCode} (Script failed.)`}
   />
 );
@@ -53,7 +53,7 @@ const StatusMessageFailed = ({ exitCode }: { exitCode: number }) => (
 const StatusMessageError = ({ message }: { message: React.ReactNode }) => (
   <IconStatusMessage
     className={`${baseClass}__status-message`}
-    iconName="error-outline"
+    iconName="error"
     message={<>Error: {message}</>}
   />
 );
@@ -71,12 +71,24 @@ const StatusMessage = ({
 }: IStatusMessageProps) => {
   switch (exitCode) {
     case null:
-      return !hostTimeout ? (
+      if (!hostTimeout) {
         // Expected API message: "A script is already running on this host. Please wait about 1 minute to let it finish."
-        <StatusMessageRunning />
-      ) : (
-        // Expected API message: "Fleet hasn’t heard from the host in over 1 minute. Fleet doesn’t know if the script ran because the host went offline."
-        <StatusMessageError message={message} />
+        return <StatusMessageRunning />;
+      }
+      // The API message is fleetctl copy; strip the "Go to Fleet and check
+      // Host details > Activities to see script results." pointer — Fleet
+      // gave up at the server timeout, there are no results to go see, and
+      // if the host does report back late the result will appear on this
+      // same view.
+      return (
+        <StatusMessageError
+          message={message
+            .replace(
+              /\s*Go to Fleet and check Host details > Activities to see script results\.?/,
+              ""
+            )
+            .trim()}
+        />
       );
     case -2:
       // Expected API message: "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."

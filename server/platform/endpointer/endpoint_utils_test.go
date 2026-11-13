@@ -795,6 +795,8 @@ func TestRequestFieldName(t *testing.T) {
 		EmptyTag  string `json:""`
 		NoJSONTag string
 		OtherTags string `url:"other_tags"`
+		QueryTag  string `query:"param_tag,optional"`
+		DryRun    string `json:"-" query:"dry_run,optional"`
 	}
 
 	ty := reflect.TypeFor[tagged]()
@@ -805,6 +807,8 @@ func TestRequestFieldName(t *testing.T) {
 	}{
 		{field: "Plain", want: "plain"},
 		{field: "WithOpts", want: "with_opts"},
+		{field: "QueryTag", want: "param_tag"},
+		{field: "DryRun", want: "dry_run"},
 		// The rest have no name a client could have sent, so the Go field name
 		// is all that's left to report.
 		{field: "Skipped", want: "Skipped"},
@@ -866,6 +870,22 @@ func TestMakeDecoderPremiumErrorNamesTheJSONField(t *testing.T) {
 	})
 }
 
+type premiumGatedQueryRequest struct {
+	IncludeHidden bool `query:"include_hidden,optional" premium:"true"`
+}
+
+func TestMakeDecoderPremiumErrorNamesTheQueryParam(t *testing.T) {
+	decode := MakeDecoder(premiumGatedQueryRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	r := httptest.NewRequest("GET", "/?include_hidden=true", nil)
+	_, err := decode(t.Context(), r)
+	require.ErrorContains(t, err, "option include_hidden requires a premium license")
+
+	r = httptest.NewRequest("GET", "/?include_hidden=false", nil)
+	_, err = decode(t.Context(), r)
+	require.NoError(t, err)
+}
+
 type renamedPremiumRequest struct {
 	TeamIDs     []uint `json:"team_ids" premium:"true" renameto:"fleet_ids"`
 	InstallerID uint   `json:"software_installer_id" renameto:"software_package_id,inline" premium:"true"`
@@ -889,4 +909,48 @@ func TestMakeDecoderPremiumErrorNamesTheRenamedFieldAsSent(t *testing.T) {
 			require.ErrorContains(t, err, tc.want)
 		})
 	}
+}
+
+type internalFieldsRequest struct {
+	Page    uint     `query:"page,optional"`
+	IsEE    bool     `json:"-"`
+	Columns []string `json:"-"`
+}
+
+func TestMakeDecoderIgnoresServerInternalFields(t *testing.T) {
+	decode := MakeDecoder(internalFieldsRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	t.Run("no body is required", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/?page=2", nil)
+		r.Header.Set("Origin", "https://example.com")
+		req, err := decode(t.Context(), r)
+		require.NoError(t, err)
+		require.Equal(t, uint(2), req.(*internalFieldsRequest).Page)
+	})
+
+	t.Run("the body cannot set them", func(t *testing.T) {
+		r := httptest.NewRequest("GET", "/", strings.NewReader(`{"IsEE":true,"Columns":["x"]}`))
+		req, err := decode(t.Context(), r)
+		require.NoError(t, err)
+		require.False(t, req.(*internalFieldsRequest).IsEE)
+		require.Empty(t, req.(*internalFieldsRequest).Columns)
+	})
+}
+
+type queryOnlyRequest struct {
+	DryRun bool `json:"-" query:"dry_run,optional"`
+	json.RawMessage
+}
+
+func TestMakeDecoderKeepsBodyRequirementForTaggedSkippedFields(t *testing.T) {
+	decode := MakeDecoder(queryOnlyRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, -1)
+
+	r := httptest.NewRequest("PATCH", "/", nil)
+	_, err := decode(t.Context(), r)
+	require.ErrorContains(t, err, "Expected JSON Body")
+
+	r = httptest.NewRequest("PATCH", "/", strings.NewReader(`{}`))
+	r.Header.Set("Origin", "https://example.com")
+	_, err = decode(t.Context(), r)
+	require.ErrorContains(t, err, `Expected Content-Type "application/json"`)
 }

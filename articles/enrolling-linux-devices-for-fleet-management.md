@@ -79,7 +79,7 @@ To install the Fleet agent graphically, double-click on the installation package
 To install the Fleet agent from the command line, use `apt` and specify the path to the package file:
 
 ```bash
-sudo apt install -y ./fleet-osquery_1.53.1_amd64.deb
+sudo apt install -y ./fleet-linux-amd64.deb
 ```
 
 The Fleet Desktop icon will appear on the taskbar after installation completes. You can check on the status of the agent by clicking the taskbar icon and confirming that the device is green:
@@ -105,7 +105,7 @@ To install the Fleet agent graphically, double-click on the installation package
 To install the Fleet agent from the command line, use `dnf` and specify the path to the package file:
 
 ```bash
-sudo dnf install ./fleet-osquery-1.53.1.x86_64.rpm
+sudo dnf install ./fleet-linux-amd64.rpm
 ```
 
 The Fleet Desktop icon will appear in the taskbar after the installation has completed. You can check on the status of the agent by clicking the taskbar icon and confirming that the device is green:
@@ -133,7 +133,7 @@ To install the Fleet agent graphically, double-click on the installation package
 To install the Fleet agent from the command line, use `zypper` and specify the path to the package file:
 
 ```bash
-sudo zypper install --allow-unsigned-rpm ./fleet-osquery-1.53.1.x86_64.rpm
+sudo zypper install --allow-unsigned-rpm ./fleet-linux-amd64.rpm
 ```
 
 The Fleet Desktop icon will appear in the taskbar after the installation has completed. You can check on the status of the agent by clicking the taskbar icon and confirming that the device is green:
@@ -302,7 +302,7 @@ user --groups=wheel --name=myuser --password=<ENCRYPTED PASSWORD> --iscrypted --
 
 # Install Fleet by downloading the package from an HTTP server
 %post --log=/root/ks-post.log
-wget -O /root/fleet.rpm http://192.168.122.1:3003/fleet-osquery-1.54.0.x86_64.rpm
+wget -O /root/fleet.rpm http://192.168.122.1:3003/fleet-linux-amd64.rpm
 dnf install -y /root/fleet.rpm
 rm /root/fleet.rpm
 %end
