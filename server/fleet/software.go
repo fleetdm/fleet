@@ -506,10 +506,8 @@ type SoftwareTitle struct {
 	SoftwarePackage *SoftwareInstaller `json:"software_package" db:"-"`
 	// Packages holds every package, first-added first; nil (marshals to null) when none.
 	Packages []SoftwareInstaller `json:"packages" db:"-"`
-	// AppStoreApp holds the first-added App Store app version for backwards compatibility, nil when there is none.
-	AppStoreApp *VPPAppStoreApp `json:"app_store_app" db:"-"`
 	// AppStoreApps holds every App Store app version, first-added first, nil when there is none.
-	AppStoreApps []AppStoreAppVersion `json:"app_store_apps" db:"-"`
+	AppStoreApps []*VPPAppStoreApp `json:"app_store_apps" db:"-"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
@@ -558,9 +556,8 @@ type SoftwareTitleListResult struct {
 	// Packages holds the trimmed per-package info, first-added first; nil (marshals to null) when none.
 	Packages []SoftwarePackageListItem `json:"packages"`
 
-	// AppStoreApp provides VPP app information, it is only present if a VPP app
-	// is available for the software title.
-	AppStoreApp  *SoftwarePackageOrApp `json:"app_store_app"`
+	// AppStoreApp is only set when listing setup experience software, nil otherwise.
+	AppStoreApp  *SoftwarePackageOrApp `json:"app_store_app,omitempty"`
 	AppStoreApps []AppStoreAppListItem `json:"app_store_apps"`
 	// BundleIdentifier is used by Apple installers to uniquely identify
 	// the software installed. It's surfaced in software_titles to match

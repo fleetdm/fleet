@@ -432,9 +432,9 @@ func TestGetTeamsSoftwareFromSourceOfTruth(t *testing.T) {
 			return &fleet.SoftwareTitle{
 				ID:   10,
 				Name: "VPPApp",
-				AppStoreApps: []fleet.AppStoreAppVersion{{
-					Name:        fleet.DefaultAppStoreAppVersionName,
-					AppStoreID:  "123",
+				AppStoreApps: []*fleet.VPPAppStoreApp{{
+					VersionName: fleet.DefaultAppStoreAppVersionName,
+					AdamID:      "123",
 					Platform:    fleet.MacOSPlatform,
 					SelfService: true,
 				}},
@@ -1053,8 +1053,7 @@ func TestGetSoftwareTitles(t *testing.T) {
 apiVersion: "1"
 kind: software_title
 spec:
-- app_store_app: null
-  app_store_apps: null
+- app_store_apps: null
   hosts_count: 2
   icon_url: null
   id: 0
@@ -1079,8 +1078,7 @@ spec:
     vulnerabilities:
     - cve-123-456-003
   versions_count: 3
-- app_store_app: null
-  app_store_apps: null
+- app_store_apps: null
   hosts_count: 0
   icon_url: null
   id: 0
@@ -1137,7 +1135,6 @@ spec:
       ],
       "software_package": null,
       "packages": null,
-      "app_store_app": null,
       "app_store_apps": null
     },
     {
@@ -1158,7 +1155,6 @@ spec:
       ],
       "software_package": null,
       "packages": null,
-      "app_store_app": null,
       "app_store_apps": null
     }
   ]

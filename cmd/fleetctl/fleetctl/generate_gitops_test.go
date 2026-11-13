@@ -703,9 +703,9 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		}
 		return &fleet.SoftwareTitle{
 			ID: 2,
-			AppStoreApps: []fleet.AppStoreAppVersion{{
-				Name:     fleet.DefaultAppStoreAppVersionName,
-				Platform: fleet.MacOSPlatform,
+			AppStoreApps: []*fleet.VPPAppStoreApp{{
+				VersionName: fleet.DefaultAppStoreAppVersionName,
+				Platform:    fleet.MacOSPlatform,
 				LabelsExcludeAny: []fleet.SoftwareScopeLabel{{
 					LabelName: "Label C",
 				}, {
@@ -723,10 +723,10 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		}
 		return &fleet.SoftwareTitle{
 			ID: 6,
-			AppStoreApps: []fleet.AppStoreAppVersion{{
-				Name:       fleet.DefaultAppStoreAppVersionName,
-				AppStoreID: "55566677778",
-				Platform:   fleet.AndroidPlatform,
+			AppStoreApps: []*fleet.VPPAppStoreApp{{
+				VersionName: fleet.DefaultAppStoreAppVersionName,
+				AdamID:      "55566677778",
+				Platform:    fleet.AndroidPlatform,
 				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
 					{
 						LabelName: "Label C",
@@ -751,9 +751,9 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		}
 		return &fleet.SoftwareTitle{
 			ID: 7,
-			AppStoreApps: []fleet.AppStoreAppVersion{{
-				Name:        fleet.DefaultAppStoreAppVersionName,
-				AppStoreID:  "9999888877",
+			AppStoreApps: []*fleet.VPPAppStoreApp{{
+				VersionName: fleet.DefaultAppStoreAppVersionName,
+				AdamID:      "9999888877",
 				Platform:    fleet.IOSPlatform,
 				SelfService: false,
 				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
@@ -764,6 +764,10 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 					},
 				},
 				Configuration: iosConfig,
+
+				AutoUpdateEnabled:   new(true),
+				AutoUpdateStartTime: new("01:00"),
+				AutoUpdateEndTime:   new("03:00"),
 			}},
 			IconUrl: ptr.String("/api/icon4.png"),
 			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
@@ -807,7 +811,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		}
 		return &fleet.SoftwareTitle{
 			ID:                  12,
-			AppStoreApps:        []fleet.AppStoreAppVersion{production.AppStoreAppVersion(), test.AppStoreAppVersion()},
+			AppStoreApps:        []*fleet.VPPAppStoreApp{production, test},
 			AutoUpdateEnabled:   new(true),
 			AutoUpdateStartTime: new("01:00"),
 			AutoUpdateEndTime:   new("03:00"),
@@ -4035,15 +4039,15 @@ func (c *MockClientVPPLocation) GetSoftwareTitleByID(id uint, _ *uint) (*fleet.S
 	tok := &fleet.VPPTokenSummary{ID: 1, Location: "Acme US"}
 	switch id {
 	case 30:
-		return &fleet.SoftwareTitle{ID: id, AppStoreApps: []fleet.AppStoreAppVersion{{Name: fleet.DefaultAppStoreAppVersionName, AppStoreID: "30", Platform: fleet.IOSPlatform, VPPToken: tok}}}, nil
+		return &fleet.SoftwareTitle{ID: id, AppStoreApps: []*fleet.VPPAppStoreApp{{VersionName: fleet.DefaultAppStoreAppVersionName, AdamID: "30", Platform: fleet.IOSPlatform, VPPToken: tok}}}, nil
 	case 31:
 		tok = &fleet.VPPTokenSummary{ID: 2, Location: "Acme Japan"}
-		return &fleet.SoftwareTitle{ID: id, AppStoreApps: []fleet.AppStoreAppVersion{
-			{Name: "Production", AppStoreID: "31", Platform: fleet.IOSPlatform, VPPToken: tok},
-			{Name: "Test", AppStoreID: "31", Platform: fleet.IOSPlatform, VPPToken: tok},
+		return &fleet.SoftwareTitle{ID: id, AppStoreApps: []*fleet.VPPAppStoreApp{
+			{VersionName: "Production", AdamID: "31", Platform: fleet.IOSPlatform, VPPToken: tok},
+			{VersionName: "Test", AdamID: "31", Platform: fleet.IOSPlatform, VPPToken: tok},
 		}}, nil
 	case 32:
-		return &fleet.SoftwareTitle{ID: id, AppStoreApps: []fleet.AppStoreAppVersion{{Name: fleet.DefaultAppStoreAppVersionName, AppStoreID: "32", Platform: fleet.AndroidPlatform, VPPToken: tok}}}, nil
+		return &fleet.SoftwareTitle{ID: id, AppStoreApps: []*fleet.VPPAppStoreApp{{VersionName: fleet.DefaultAppStoreAppVersionName, AdamID: "32", Platform: fleet.AndroidPlatform, VPPToken: tok}}}, nil
 	}
 	return nil, errors.New("unknown title")
 }

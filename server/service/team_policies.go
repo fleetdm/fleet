@@ -1066,8 +1066,8 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 		}
 		return nil, nil, ctxerr.Wrap(ctx, err, "software title by id")
 	}
-	if softwareTitle.AppStoreApp != nil {
-		if softwareTitle.AppStoreApp.Platform != fleet.MacOSPlatform {
+	if len(softwareTitle.AppStoreApps) > 0 {
+		if softwareTitle.AppStoreApps[0].Platform != fleet.MacOSPlatform {
 			return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf(
 					"Software title with ID %d on team ID %d is associated to an iOS or iPadOS VPP app, only software installers or macOS VPP apps are supported",
@@ -1077,7 +1077,7 @@ func (svc *Service) getInstallerOrVPPAppForTitle(ctx context.Context, teamID *ui
 			})
 		}
 
-		return nil, &softwareTitle.AppStoreApp.VPPAppsTeamsID, nil
+		return nil, &softwareTitle.AppStoreApps[0].VPPAppsTeamsID, nil
 	}
 	if softwareTitle.SoftwarePackage == nil {
 		return nil, nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{

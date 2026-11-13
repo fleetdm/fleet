@@ -6202,7 +6202,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		softwareTitle.AppStoreApp = vppAppMetadata
+		softwareTitle.AppStoreApps = []*fleet.VPPAppStoreApp{vppAppMetadata}
 
 		// Incoming softwares have Name, BundleIdentifier, Source and Version.
 		var bundleIdentifier string
@@ -6247,7 +6247,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		latestVersion := toValidSemVer(softwareTitle.AppStoreApp.LatestVersion)
+		latestVersion := toValidSemVer(softwareTitle.AppStoreApps[0].LatestVersion)
 		if _, err := fleet.VersionToSemverVersion(latestVersion); err != nil {
 			logger.ErrorContext(
 				ctx, "invalid latest version",
@@ -6298,11 +6298,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		if _, ok := adamIDsRecentInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+		if _, ok := adamIDsRecentInstallForHost[softwareTitle.AppStoreApps[0].AdamID]; ok {
 			logger.DebugContext(
 				ctx, "skipping software, recent install for title",
 				"software_title_id", softwareTitle.ID,
-				"adam_id", softwareTitle.AppStoreApp.AdamID,
+				"adam_id", softwareTitle.AppStoreApps[0].AdamID,
 			)
 			continue
 		}
@@ -6342,19 +6342,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 			)
 			continue
 		}
-		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+		if _, ok := adamIDsPendingInstallForHost[softwareTitle.AppStoreApps[0].AdamID]; ok {
 			logger.DebugContext(
 				ctx, "skipping software, pending install for title",
 				"software_title_id", softwareTitle.ID,
-				"adam_id", softwareTitle.AppStoreApp.AdamID,
+				"adam_id", softwareTitle.AppStoreApps[0].AdamID,
 			)
 			continue
 		}
-		if _, ok := adamIDsQueuedInstallForHost[softwareTitle.AppStoreApp.AdamID]; ok {
+		if _, ok := adamIDsQueuedInstallForHost[softwareTitle.AppStoreApps[0].AdamID]; ok {
 			logger.DebugContext(
 				ctx, "skipping software, install already queued for title",
 				"software_title_id", softwareTitle.ID,
-				"adam_id", softwareTitle.AppStoreApp.AdamID,
+				"adam_id", softwareTitle.AppStoreApps[0].AdamID,
 			)
 			continue
 		}
@@ -6379,8 +6379,8 @@ func (svc *MDMAppleCheckinAndCommandService) handleScheduledUpdates(
 		logger := logger.With(
 			"software_title_id", softwareTitle.ID,
 			"team_id", host.TeamID,
-			"adam_id", softwareTitle.AppStoreApp.AdamID,
-			"latest_version", softwareTitle.AppStoreApp.LatestVersion,
+			"adam_id", softwareTitle.AppStoreApps[0].AdamID,
+			"latest_version", softwareTitle.AppStoreApps[0].LatestVersion,
 			"installed_version", installedVersionByBundleIdentifierAndSource[bundleIdentifier+softwareTitle.Source],
 		)
 

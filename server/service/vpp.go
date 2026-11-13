@@ -139,8 +139,8 @@ type updateAppStoreAppRequest struct {
 }
 
 type updateAppStoreAppResponse struct {
-	AppStoreApp *fleet.AppStoreAppVersion `json:"app_store_app,omitempty"`
-	Err         error                     `json:"error,omitempty"`
+	AppStoreApp *fleet.VPPAppStoreApp `json:"app_store_app,omitempty"`
+	Err         error                 `json:"error,omitempty"`
 }
 
 func (r updateAppStoreAppResponse) Error() error { return r.Err }
@@ -172,8 +172,7 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		return updateAppStoreAppResponse{Err: err}, nil
 	}
 
-	updatedVersion := updatedApp.AppStoreAppVersion()
-	return updateAppStoreAppResponse{AppStoreApp: &updatedVersion}, nil
+	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }
 
 func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error) {

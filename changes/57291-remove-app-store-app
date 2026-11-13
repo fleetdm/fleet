@@ -1,0 +1,2 @@
+- **Breaking change:** Added `app_store_apps` and removed `app_store_app` in `GET /api/v1/fleet/software/titles`. Removed `app_store_app` from `GET /api/v1/fleet/software/titles/:id` and `GET /api/v1/fleet/hosts?software_title_id=`.
+- Added `vpp_token` to `app_store_apps` in `GET /api/v1/fleet/software/titles/:id`.

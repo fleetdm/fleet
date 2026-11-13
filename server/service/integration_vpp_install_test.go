@@ -230,7 +230,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Len(t, listSw.SoftwareTitles, len(expectedApps))
 	var errTitleID, macOSTitleID uint
 	for _, sw := range listSw.SoftwareTitles {
-		require.NotNil(t, sw.AppStoreApp)
+		require.Len(t, sw.AppStoreApps, 1)
 		switch {
 		case sw.Name == addedApp.Name && sw.Source == "apps":
 			macOSTitleID = sw.ID
@@ -1253,7 +1253,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "fleet_id", fmt.Sprint(team.ID), "available_for_install", "true")
 	var app1TitleID, app2TitleID uint
 	for _, sw := range listSw.SoftwareTitles {
-		require.NotNil(t, sw.AppStoreApp)
+		require.Len(t, sw.AppStoreApps, 1)
 		switch sw.Name {
 		case app1.Name:
 			app1TitleID = sw.ID
@@ -1537,8 +1537,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "fleet_id", fmt.Sprint(team.ID), "available_for_install", "true")
 	require.Len(t, listSw.SoftwareTitles, 2)
 	require.Equal(t, "DummyApp", listSw.SoftwareTitles[0].Name)
-	require.NotNil(t, listSw.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "1", listSw.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	require.Len(t, listSw.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "1", listSw.SoftwareTitles[0].AppStoreApps[0].AppStoreID)
 	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
 	require.NotNil(t, listSw.SoftwareTitles[1].SoftwarePackage)
 	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].SoftwarePackage.Name)
@@ -1593,11 +1593,11 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.Len(t, listSw.SoftwareTitles, 2)
 	// both are VPP apps
 	require.Equal(t, "DummyApp", listSw.SoftwareTitles[0].Name)
-	require.NotNil(t, listSw.SoftwareTitles[0].AppStoreApp)
-	require.Equal(t, "1", listSw.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	require.Len(t, listSw.SoftwareTitles[0].AppStoreApps, 1)
+	require.Equal(t, "1", listSw.SoftwareTitles[0].AppStoreApps[0].AppStoreID)
 	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
-	require.NotNil(t, listSw.SoftwareTitles[1].AppStoreApp)
-	require.Equal(t, "2", listSw.SoftwareTitles[1].AppStoreApp.AppStoreID)
+	require.Len(t, listSw.SoftwareTitles[1].AppStoreApps, 1)
+	require.Equal(t, "2", listSw.SoftwareTitles[1].AppStoreApps[0].AppStoreID)
 }
 
 func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
@@ -2831,7 +2831,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "fleet_id", fmt.Sprint(team.ID), "available_for_install", "true")
 	var appXcodeTitleID, app2TitleID uint
 	for _, sw := range listSw.SoftwareTitles {
-		require.NotNil(t, sw.AppStoreApp)
+		require.Len(t, sw.AppStoreApps, 1)
 		switch sw.Name {
 		case appXcode.Name:
 			appXcodeTitleID = sw.ID
@@ -3265,8 +3265,8 @@ func (s *integrationMDMTestSuite) TestVPPInstallUsesAppToken() {
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "fleet_id", fmt.Sprint(team.ID), "available_for_install", "true")
 	titleIDByAdamID := make(map[string]uint)
 	for _, sw := range listSw.SoftwareTitles {
-		require.NotNil(t, sw.AppStoreApp)
-		titleIDByAdamID[sw.AppStoreApp.AppStoreID] = sw.ID
+		require.Len(t, sw.AppStoreApps, 1)
+		titleIDByAdamID[sw.AppStoreApps[0].AppStoreID] = sw.ID
 	}
 	require.Len(t, titleIDByAdamID, 2)
 
@@ -3490,12 +3490,12 @@ func (s *integrationMDMTestSuite) TestAppStoreAppsManyTokens() {
 	// The software title carries the token only when a fleet is given.
 	var titleResp getSoftwareTitleResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", canva.TitleID), nil, http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(team.ID))
-	require.NotNil(t, titleResp.SoftwareTitle.AppStoreApp)
+	require.Len(t, titleResp.SoftwareTitle.AppStoreApps, 2)
 	require.Equal(t, &fleet.VPPTokenSummary{ID: jpTok.ID, OrgName: "Alpha KK", Location: "Acme Japan", CountryCode: jpTok.CountryCode},
-		titleResp.SoftwareTitle.AppStoreApp.VPPToken)
+		titleResp.SoftwareTitle.AppStoreApps[0].VPPToken)
 	titleResp = getSoftwareTitleResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", canva.TitleID), nil, http.StatusOK, &titleResp)
-	require.Nil(t, titleResp.SoftwareTitle.AppStoreApp)
+	require.Nil(t, titleResp.SoftwareTitle.AppStoreApps)
 
 	// Installing the JP app associates the license with the JP token, and the activities carry it.
 	wantToken := &fleet.ActivityVPPToken{ID: jpTok.ID, Location: "Acme Japan", CountryCode: jpTok.CountryCode}

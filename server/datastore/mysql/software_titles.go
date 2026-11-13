@@ -233,12 +233,8 @@ type softwareTitleWithInstallerFields struct {
 	PackagePlatform              *string `db:"package_platform"`
 	PackageURL                   *string `db:"package_url"`
 	PackageInstallDuringSetup    *bool   `db:"package_install_during_setup"`
-	VPPAppSelfService            *bool   `db:"vpp_app_self_service"`
 	VPPAppAdamID                 *string `db:"vpp_app_adam_id"`
-	VPPAppVersion                *string `db:"vpp_app_version"`
-	VPPAppPlatform               *string `db:"vpp_app_platform"`
 	VPPAppIconURL                *string `db:"vpp_app_icon_url"`
-	VPPInstallDuringSetup        *bool   `db:"vpp_install_during_setup"`
 	FleetMaintainedAppID         *uint   `db:"fleet_maintained_app_id"`
 	InHouseAppName               *string `db:"in_house_app_name"`
 	InHouseAppVersion            *string `db:"in_house_app_version"`
@@ -459,21 +455,6 @@ func (ds *Datastore) processSoftwareTitleResults(
 
 		// Promote VPP app properties.
 		if title.VPPAppAdamID != nil {
-			var version string
-			if title.VPPAppVersion != nil {
-				version = *title.VPPAppVersion
-			}
-			var platform string
-			if title.VPPAppPlatform != nil {
-				platform = *title.VPPAppPlatform
-			}
-			title.AppStoreApp = &fleet.SoftwarePackageOrApp{
-				AppStoreID:         *title.VPPAppAdamID,
-				Version:            version,
-				Platform:           platform,
-				SelfService:        title.VPPAppSelfService,
-				InstallDuringSetup: title.VPPInstallDuringSetup,
-			}
 			title.IconUrl = title.VPPAppIconURL
 		}
 
@@ -505,17 +486,16 @@ func (ds *Datastore) processSoftwareTitleResults(
 		if err != nil {
 			return nil, 0, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
 		}
+		appStoreAppPoliciesByTitleID := make(map[uint][]fleet.AutomaticInstallPolicy)
 		for _, p := range policies {
 			if i, ok := titleIndex[p.TitleID]; ok {
 				switch {
-				case softwareList[i].AppStoreApp != nil:
-					softwareList[i].AppStoreApp.AutomaticInstallPolicies = append(
-						softwareList[i].AppStoreApp.AutomaticInstallPolicies, p,
-					)
 				case softwareList[i].SoftwarePackage != nil:
 					softwareList[i].SoftwarePackage.AutomaticInstallPolicies = append(
 						softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p,
 					)
+				case softwareList[i].VPPAppAdamID != nil:
+					appStoreAppPoliciesByTitleID[p.TitleID] = append(appStoreAppPoliciesByTitleID[p.TitleID], p)
 				default:
 					ds.logger.WarnContext(ctx, "policy should have an associated VPP application or software package",
 						"team_id", opt.TeamID,
@@ -555,8 +535,8 @@ func (ds *Datastore) processSoftwareTitleResults(
 		// Key policies by installer_id so each package on a multi-package
 		// title only shows the policies actually bound to it — not the
 		// aggregated title-level list. Custom-package-backed policies
-		// always carry a non-nil InstallerID; VPP-backed policies do not
-		// (they're already attached above via softwareList[i].AppStoreApp).
+		// always carry a non-nil InstallerID; VPP-backed policies carry a
+		// non-nil VPPAppsTeamsID.
 		policiesByInstaller := make(map[uint][]fleet.AutomaticInstallPolicy)
 		policiesByVersionID := make(map[uint][]fleet.AutomaticInstallPolicy)
 		for _, p := range policies {
@@ -580,7 +560,7 @@ func (ds *Datastore) processSoftwareTitleResults(
 
 		var appStoreAppTitleIDs []uint
 		for _, title := range softwareList {
-			if title.AppStoreApp != nil {
+			if title.VPPAppAdamID != nil {
 				appStoreAppTitleIDs = append(appStoreAppTitleIDs, title.ID)
 			}
 		}
@@ -603,6 +583,24 @@ func (ds *Datastore) processSoftwareTitleResults(
 				listItem.InstallDuringSetup = appStoreApp.InstallDuringSetup
 			}
 			title.AppStoreApps = append(title.AppStoreApps, listItem)
+		}
+
+		// Fill in the deprecated app_store_app for setup experience software only.
+		if opt.ForSetupExperience {
+			for _, title := range softwareList {
+				if len(title.AppStoreApps) > 0 {
+					// Set app_store_app to the first-added version, versions are sorted by id.
+					firstVersion := title.AppStoreApps[0]
+					title.AppStoreApp = &fleet.SoftwarePackageOrApp{
+						AppStoreID:               firstVersion.AppStoreID,
+						Version:                  firstVersion.Version,
+						Platform:                 string(firstVersion.Platform),
+						SelfService:              new(firstVersion.SelfService),
+						InstallDuringSetup:       firstVersion.InstallDuringSetup,
+						AutomaticInstallPolicies: appStoreAppPoliciesByTitleID[title.ID],
+					}
+				}
+			}
 		}
 	}
 
@@ -805,11 +803,7 @@ SELECT
 		END){{else}}si.install_during_setup{{end}} as package_install_during_setup
 		,si.storage_id as package_storage_id
 		,si.fleet_maintained_app_id
-		,vat.self_service as vpp_app_self_service
 		,vat.adam_id as vpp_app_adam_id
-		,vat.install_during_setup as vpp_install_during_setup
-		,vap.latest_version as vpp_app_version
-		,vap.platform as vpp_app_platform
 		,vap.icon_url as vpp_app_icon_url
 		,iha.filename as in_house_app_name
 		,iha.version as in_house_app_version
@@ -930,12 +924,8 @@ GROUP BY
 		,package_install_during_setup
 		,package_storage_id
 		,fleet_maintained_app_id
-		,vpp_app_self_service
 		,vpp_app_adam_id
-		,vpp_app_version
-		,vpp_app_platform
 		,vpp_app_icon_url
-		,vpp_install_during_setup
 		,in_house_app_name
 		,in_house_app_version
 		,in_house_app_platform
@@ -1149,11 +1139,7 @@ func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) (s
 			si.install_during_setup AS package_install_during_setup,
 			si.storage_id AS package_storage_id,
 			si.fleet_maintained_app_id,
-			vat.self_service AS vpp_app_self_service,
 			vat.adam_id AS vpp_app_adam_id,
-			vat.install_during_setup AS vpp_install_during_setup,
-			vap.latest_version AS vpp_app_version,
-			vap.platform AS vpp_app_platform,
 			vap.icon_url AS vpp_app_icon_url,
 			iha.filename AS in_house_app_name,
 			iha.version AS in_house_app_version,
