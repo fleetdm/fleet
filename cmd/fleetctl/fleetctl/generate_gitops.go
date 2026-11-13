@@ -1727,7 +1727,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			}
 			hasEnrollmentProfile := enrollmentProfile != nil
 
-			// If the team has any of these configured, we need to generate the macos_setup section.
+			// If the team has any of these configured, we need to generate the setup_experience section.
 			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile ||
 				(teamMdm != nil && (teamMdm.MacOSSetup.EnableEndUserAuthentication ||
 					teamMdm.MacOSSetup.EnableManagedLocalAccount.Value ||
