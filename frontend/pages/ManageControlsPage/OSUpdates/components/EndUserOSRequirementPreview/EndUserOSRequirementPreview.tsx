@@ -28,7 +28,7 @@ const OSRequirementDescription = ({
           </p>
           <CustomLink
             text="Learn more"
-            url="https://fleetdm.com/learn-more-about/os-updates"
+            url="https://fleetdm.com/learn-more-about/os-updates-apple"
             newTab
           />
         </>
@@ -44,8 +44,8 @@ const OSRequirementDescription = ({
             are forced regardless of active hours.
           </p>
           <CustomLink
-            text="Learn more about Windows updates in Fleet"
-            url="https://fleetdm.com/learn-more-about/os-updates"
+            text="Learn more"
+            url="https://fleetdm.com/learn-more-about/os-updates-windows"
             newTab
           />
         </>
