@@ -3937,9 +3937,12 @@ func testBatchScriptCancelWithLateResults(t *testing.T, ds *Datastore) {
 			// host2 and host3 should count as canceled
 			summary, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID})
 			require.NoError(t, err)
+			require.Equal(t, uint(3), *summary[0].NumTargeted)
+			require.Equal(t, uint(0), *summary[0].NumPending)
 			require.Equal(t, uint(1), *summary[0].NumRan)
 			require.Equal(t, uint(0), *summary[0].NumErrored)
 			require.Equal(t, uint(2), *summary[0].NumCanceled)
+			require.Equal(t, uint(0), *summary[0].NumIncompatible)
 
 			// run what the batch completion cron runs, the batch should be finished with the same saved counts
 			err = ds.MarkActivitiesAsCompleted(ctx)
@@ -3947,13 +3950,19 @@ func testBatchScriptCancelWithLateResults(t *testing.T, ds *Datastore) {
 			summary, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{ExecutionID: &execID})
 			require.NoError(t, err)
 			require.Equal(t, fleet.ScheduledBatchExecutionFinished, summary[0].Status)
+			require.Equal(t, uint(3), *summary[0].NumTargeted)
+			require.Equal(t, uint(0), *summary[0].NumPending)
 			require.Equal(t, uint(1), *summary[0].NumRan)
 			require.Equal(t, uint(0), *summary[0].NumErrored)
 			require.Equal(t, uint(2), *summary[0].NumCanceled)
+			require.Equal(t, uint(0), *summary[0].NumIncompatible)
 
 			canceledHosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCanceled}, 2)
 			canceledHostIDs := []uint{canceledHosts[0].ID, canceledHosts[1].ID}
 			require.ElementsMatch(t, []uint{host2.ID, host3.ID}, canceledHostIDs)
+			ranHosts := listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionRan}, 1)
+			require.Equal(t, host1.ID, ranHosts[0].ID)
+			listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionErrored}, 0)
 		})
 	}
 }
