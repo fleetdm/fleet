@@ -209,11 +209,13 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 
 3. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, select **Sign up now**.
 
-4. Select your organization's name in the top-right corner, then select **Settings > Organizational Units**. Select the organizational unit you want to use, and then select **Download** next to **Content Token**. Each token is based on an organizational unit in Apple Business.
+4. Head to **Settings > Organizational Units** and select the organizational unit you want to use. Each token is based on an organizational unit in Apple Business. Select **Download** next to **Content Token**. Each token is based on an organizational unit in Apple Business.
 
 5. Upload the content token (.vpptoken file) to Fleet.
 
-6. To assign the VPP token to a specific fleet, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit fleets**. Use the picker to select which fleet(s) this VPP token should be assigned to.
+6. Under **Fleets**, choose **All fleets**, or choose **Custom** and select which fleet(s) this VPP token should be assigned to.
+
+To edit the token's fleet assignments later, head back to **Settings > Integrations > MDM** and select **Edit** next to **Volume Purchasing Program (VPP)**. Select the token's **Actions** dropdown, and then select **Edit fleets**.
 
 ### Renew VPP:
 
@@ -223,11 +225,11 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 
 2. Under **Apple Business (AB)**, select **Edit** next to **Volume Purchasing Program (VPP)** and then find the token that you want to renew.
 
-3. Select the **Actions > Renew** for the token.
+3. Select **Actions > Renew** for the token.
 
 4. Sign in to [Apple Business](https://business.apple.com).
 
-5. Select your organization's name in the top-right corner, then select **Settings > Organizational Units**. Select the organizational unit for the token you're renewing, and then select **Download** next to **Content Token**.
+5. Head to **Settings > Organizational Units** and select the token's organizational unit for the token you're renewing, and then select **Download** next to **Content Token**.
 
 6. Upload the content token (.vpptoken file) to Fleet.
 
@@ -241,6 +243,8 @@ These organizations may need multiple AB and VPP tokens:
 - [Enterprises that acquire](#enterprises-that-acquire) new businesses and as a result inherit new hosts
 - [Umbrella organizations](#umbrella-organizations) that preside over entities with separated purchasing authority (i.e. a hospital or university)
 - [International organizations](#international-organizations) that manage hosts across multiple countries
+
+Multiple VPP tokens can be assigned to a single fleet. When adding an app to a fleet, select the VPP token it should be available from.
 
 ### MSPs
 
