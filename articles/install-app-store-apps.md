@@ -275,7 +275,7 @@ Android apps can be installed via self-service in the end user's managed Google 
 
 Apps can be installed and uninstalled manually on each host's **Host details** page, via self-service on the end user's **Fleet Desktop > My device** page, or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet). They can also be installed during [setup experience](https://fleetdm.com/guides/setup-experience).
 
-Fleet runs the install, post-install, and uninstall scripts as the system, like other software. Apps are installed for all users on the host, including users who sign in later. No user needs to be logged in. The first time a user signs in after an install, the app can take a few seconds to appear in their Start menu. Uninstalling an app removes it for all users.
+Fleet runs the install, post-install, and uninstall scripts as the system, like other software. Apps are installed for all users on the host, including users who sign in later. No user needs to be logged in. The first time a user signs in after an install, the app can take a few seconds to appear in their Start menu. Uninstalling an app removes it for all users. If the app is open, its window can stay open until the user closes it.
 
 If an end user already installed the app themselves, Fleet installs it for all users, so you don't need to uninstall it first. When you select **Reinstall**, Fleet installs the latest version from the Microsoft Store. App settings and data are kept.
 
