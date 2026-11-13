@@ -16,7 +16,6 @@ import (
 type stubStore struct {
 	fleet.ConfigETagStore
 	invalidateCalls       int
-	legacyResetCalls      int
 	labelScopesResetCalls int
 	hostInvalidations     []uint
 	invalidateErr         error
@@ -27,11 +26,6 @@ type stubStore struct {
 func (s *stubStore) Invalidate(ctx context.Context) error {
 	s.invalidateCalls++
 	return s.invalidateErr
-}
-
-func (s *stubStore) ResetLegacyPacksFlag(ctx context.Context) error {
-	s.legacyResetCalls++
-	return s.resetErr
 }
 
 func (s *stubStore) ResetLabelScopes(ctx context.Context) error {
@@ -54,8 +48,7 @@ func newTestDatastore() (*mock.Store, *stubStore, *Datastore) {
 // TestDeploymentHooksFireOnSuccess exercises every deployment-wide hook: the
 // write must delegate to the wrapped datastore and fire a deployment
 // invalidation on success. Query methods (and DeleteLabel) must additionally
-// reset the label-scope mode state; pack methods must reset the legacy-packs
-// gate flag.
+// reset the label-scope mode state.
 //
 // If you add a method to the etag_invalidate decorator, add a case here.
 
@@ -66,7 +59,6 @@ var hookTestCtx = context.Background()
 
 const (
 	resetsNothing = iota
-	resetsLegacyFlag
 	resetsLabelScopes
 )
 
@@ -142,59 +134,6 @@ var deploymentHookCases = []deploymentHookCase{
 		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
 			ds.DeleteQueriesFunc = func(ctx context.Context, ids []uint) (uint, error) { return 1, nil }
 			return &ds.DeleteQueriesFuncInvoked, func() error { _, err := d.DeleteQueries(hookTestCtx, []uint{1}); return err }
-		},
-	},
-	{
-		"ApplyPackSpecs", resetsLegacyFlag,
-		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.ApplyPackSpecsFunc = func(ctx context.Context, specs []*fleet.PackSpec) error { return nil }
-			return &ds.ApplyPackSpecsFuncInvoked, func() error { return d.ApplyPackSpecs(hookTestCtx, nil) }
-		},
-	},
-	{
-		"NewPack", resetsLegacyFlag,
-		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.NewPackFunc = func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
-				return pack, nil
-			}
-			return &ds.NewPackFuncInvoked, func() error { _, err := d.NewPack(hookTestCtx, &fleet.Pack{}); return err }
-		},
-	},
-	{
-		"SavePack", resetsLegacyFlag,
-		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.SavePackFunc = func(ctx context.Context, pack *fleet.Pack) error { return nil }
-			return &ds.SavePackFuncInvoked, func() error { return d.SavePack(hookTestCtx, &fleet.Pack{}) }
-		},
-	},
-	{
-		"DeletePack", resetsLegacyFlag,
-		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.DeletePackFunc = func(ctx context.Context, name string) error { return nil }
-			return &ds.DeletePackFuncInvoked, func() error { return d.DeletePack(hookTestCtx, "p") }
-		},
-	},
-	{
-		"NewScheduledQuery", resetsNothing,
-		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.NewScheduledQueryFunc = func(ctx context.Context, sq *fleet.ScheduledQuery, opts ...fleet.OptionalArg) (*fleet.ScheduledQuery, error) {
-				return sq, nil
-			}
-			return &ds.NewScheduledQueryFuncInvoked, func() error { _, err := d.NewScheduledQuery(hookTestCtx, &fleet.ScheduledQuery{}); return err }
-		},
-	},
-	{
-		"SaveScheduledQuery", resetsNothing,
-		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.SaveScheduledQueryFunc = func(ctx context.Context, sq *fleet.ScheduledQuery) (*fleet.ScheduledQuery, error) { return sq, nil }
-			return &ds.SaveScheduledQueryFuncInvoked, func() error { _, err := d.SaveScheduledQuery(hookTestCtx, &fleet.ScheduledQuery{}); return err }
-		},
-	},
-	{
-		"DeleteScheduledQuery", resetsNothing,
-		func(ds *mock.Store, d *Datastore) (*bool, func() error) {
-			ds.DeleteScheduledQueryFunc = func(ctx context.Context, id uint) error { return nil }
-			return &ds.DeleteScheduledQueryFuncInvoked, func() error { return d.DeleteScheduledQuery(hookTestCtx, 1) }
 		},
 	},
 	{
@@ -336,14 +275,10 @@ func TestDeploymentHooksFireOnSuccess(t *testing.T) {
 			require.True(t, *invoked, "must delegate to the wrapped datastore")
 			require.Equal(t, 1, store.invalidateCalls, "must invalidate on success")
 			require.Empty(t, store.hostInvalidations, "deployment hooks must not fire per-host invalidations")
-			wantLegacy, wantScopes := 0, 0
-			switch c.resets {
-			case resetsLegacyFlag:
-				wantLegacy = 1
-			case resetsLabelScopes:
+			wantScopes := 0
+			if c.resets == resetsLabelScopes {
 				wantScopes = 1
 			}
-			require.Equal(t, wantLegacy, store.legacyResetCalls)
 			require.Equal(t, wantScopes, store.labelScopesResetCalls)
 		})
 	}
@@ -367,7 +302,6 @@ func TestPerHostHooksFireOnSuccess(t *testing.T) {
 			// deployment write fence.
 			require.Equal(t, 0, store.invalidateCalls,
 				"per-host hooks must never fire a deployment-wide invalidation")
-			require.Equal(t, 0, store.legacyResetCalls)
 			require.Equal(t, 0, store.labelScopesResetCalls)
 		})
 	}
@@ -440,14 +374,16 @@ func TestInvalidationErrorsAreSwallowed(t *testing.T) {
 	store.resetErr = errors.New("redis down")
 	store.hostErr = errors.New("redis down")
 
-	ds.SavePackFunc = func(ctx context.Context, pack *fleet.Pack) error { return nil }
+	ds.SaveQueryFunc = func(ctx context.Context, q *fleet.Query, shouldDiscardResults bool, shouldDeleteStats bool) error {
+		return nil
+	}
 	ds.RecordLabelQueryExecutionsFunc = func(ctx context.Context, host *fleet.Host, results map[uint]*bool, t time.Time, deferred bool) error {
 		return nil
 	}
 
-	require.NoError(t, d.SavePack(ctx, &fleet.Pack{}))
+	require.NoError(t, d.SaveQuery(ctx, &fleet.Query{}, false, false))
 	require.Equal(t, 1, store.invalidateCalls)
-	require.Equal(t, 1, store.legacyResetCalls)
+	require.Equal(t, 1, store.labelScopesResetCalls)
 
 	require.NoError(t, d.RecordLabelQueryExecutions(ctx, &fleet.Host{ID: 9}, nil, time.Now(), false))
 	require.Equal(t, []uint{9}, store.hostInvalidations)

@@ -3696,7 +3696,7 @@ func (svc *Service) DeleteMDMAppleBootstrapPackage(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleBootstrapPackageSummaryRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getMDMAppleBootstrapPackageSummaryResponse struct {
@@ -3728,7 +3728,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 ////////////////////////////////////////////////////////////////////////////////
 
 type createMDMAppleSetupAssistantRequest struct {
-	TeamID            *uint           `json:"team_id" renameto:"fleet_id"`
+	TeamID            *uint           `json:"fleet_id"`
 	Name              string          `json:"name"`
 	EnrollmentProfile json.RawMessage `json:"enrollment_profile"`
 }
@@ -3766,7 +3766,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 ////////////////////////////////////////////////////////////////////////////////
 
 type getMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getMDMAppleSetupAssistantResponse struct {
@@ -3854,7 +3854,7 @@ func (svc *Service) RotateMDMAppleAutomaticEnrollmentToken(ctx context.Context, 
 ////////////////////////////////////////////////////////////////////////////////
 
 type deleteMDMAppleSetupAssistantRequest struct {
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type deleteMDMAppleSetupAssistantResponse struct {
@@ -4342,7 +4342,7 @@ func (svc *Service) DeleteAppleDDMAsset(ctx context.Context, assetUUID string) e
 
 type batchSetAppleDDMAssetsRequest struct {
 	TeamID   *uint                                `json:"-" query:"fleet_id,optional"`
-	TeamName string                               `json:"-" query:"team_name,optional" renameto:"fleet_name"`
+	TeamName string                               `json:"-" query:"fleet_name,optional"`
 	DryRun   bool                                 `json:"-" query:"dry_run,optional"`
 	Assets   []fleet.MDMAppleDDMAssetBatchPayload `json:"assets"`
 }
@@ -8597,10 +8597,10 @@ func (svc *Service) CountABMTokens(ctx context.Context) (int, error) {
 
 type updateABMTokenTeamsRequest struct {
 	TokenID      uint  `url:"id"`
-	MacOSTeamID  *uint `json:"macos_team_id" renameto:"macos_fleet_id"`
-	IOSTeamID    *uint `json:"ios_team_id" renameto:"ios_fleet_id"`
-	IPadOSTeamID *uint `json:"ipados_team_id" renameto:"ipados_fleet_id"`
-	BYODTeamID   *uint `json:"byod_team_id" renameto:"byod_fleet_id"`
+	MacOSTeamID  *uint `json:"macos_fleet_id"`
+	IOSTeamID    *uint `json:"ios_fleet_id"`
+	IPadOSTeamID *uint `json:"ipados_fleet_id"`
+	BYODTeamID   *uint `json:"byod_fleet_id"`
 }
 
 type updateABMTokenTeamsResponse struct {

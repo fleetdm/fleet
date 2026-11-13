@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "26225.1806.5074.1452",
+      "version": "26288.2004.5269.3420",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft' AND version_compare(version, '26225.1806.5074.1452') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Microsoft Teams' AND publisher = 'Microsoft' AND version_compare(version, '26288.2004.5269.3420') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) IN ('teams.exe','ms-teams.exe'));"
       },
-      "installer_url": "https://teamsinstaller.public.onecdn.static.microsoft/production-windows-arm64/26225.1806.5074.1452/MSTeams-arm64.msix",
+      "installer_url": "https://teamsinstaller.public.onecdn.static.microsoft/production-windows-arm64/26288.2004.5269.3420/MSTeams-arm64.msix",
       "install_script_ref": "fff26ab7",
       "uninstall_script_ref": "e1ed2bfb",
-      "sha256": "adb9b50ef9b395a8daf8e730d180871563c51aadbb0a57382b2c6a96a725998e",
+      "sha256": "8bfecf109525e65282c1a3880abaa306691ee214e24566e040a5b7d08bf45f17",
       "default_categories": [
         "Communication"
       ]

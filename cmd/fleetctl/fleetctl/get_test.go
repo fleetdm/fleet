@@ -559,9 +559,6 @@ func TestGetHosts(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		return make([]*fleet.Pack, 0), nil
-	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
 		return nil, nil
 	}
@@ -787,9 +784,6 @@ func TestGetHostsMDM(t *testing.T) {
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return make([]*fleet.Label, 0), nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		return make([]*fleet.Pack, 0), nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) (batteries []*fleet.HostBattery, err error) {
 		return nil, nil
@@ -1474,165 +1468,6 @@ spec:
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets", "--yaml"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "enroll_secrets", "--json"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
-}
-
-func TestGetPacks(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-
-	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
-		return []*fleet.PackSpec{
-			{
-				ID:          7,
-				Name:        "pack1",
-				Description: "some desc",
-				Platform:    "darwin",
-				Disabled:    false,
-			},
-		}, nil
-	}
-
-	expected := `+-------+----------+-------------+----------+
-| NAME  | PLATFORM | DESCRIPTION | DISABLED |
-+-------+----------+-------------+----------+
-| pack1 | darwin   | some desc   | false    |
-+-------+----------+-------------+----------+
-Found 1 2017 "Packs".
-
-Querying in Fleet is becoming more powerful. To learn more, visit:
-https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs
-
-To retrieve "Pack" data in a portable format for upgrading, run ` + "`fleetctl upgrade-packs`" + `.
-`
-	expectedYaml := `---
-apiVersion: v1
-kind: pack
-spec:
-  description: some desc
-  disabled: false
-  id: 7
-  name: pack1
-  platform: darwin
-  targets:
-    fleets: null
-    labels: null
-    teams: null
-`
-	expectedJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": {
-    "id": 7,
-    "name": "pack1",
-    "description": "some desc",
-    "platform": "darwin",
-    "disabled": false,
-    "targets": {
-      "labels": null,
-      "fleets": null,
-      "teams": null
-    }
-  }
-}
-`
-
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json"}))
-
-	// test output when there are no packs
-	ds.GetPackSpecsFunc = func(ctx context.Context) ([]*fleet.PackSpec, error) {
-		return nil, nil
-	}
-
-	expected = `No 2017 "Packs" found.
-`
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "packs"}))
-	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--yaml"}))
-	assert.Empty(t, runAppForTest(t, []string{"get", "packs", "--json"}))
-}
-
-func TestGetPack(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
-
-	ds.PackByNameFunc = func(ctx context.Context, name string, opts ...fleet.OptionalArg) (*fleet.Pack, bool, error) {
-		if name != "pack1" {
-			return nil, false, nil
-		}
-		return &fleet.Pack{
-			ID:          7,
-			Name:        "pack1",
-			Description: "some desc",
-			Platform:    "darwin",
-			Disabled:    false,
-		}, true, nil
-	}
-	ds.GetPackSpecFunc = func(ctx context.Context, name string) (*fleet.PackSpec, error) {
-		if name != "pack1" {
-			return nil, nil
-		}
-		return &fleet.PackSpec{
-			ID:          7,
-			Name:        "pack1",
-			Description: "some desc",
-			Platform:    "darwin",
-			Disabled:    false,
-		}, nil
-	}
-
-	expectedYaml := `---
-apiVersion: v1
-kind: pack
-spec:
-  description: some desc
-  disabled: false
-  id: 7
-  name: pack1
-  platform: darwin
-  targets:
-    fleets: null
-    labels: null
-    teams: null
-`
-	expectedJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": {
-    "id": 7,
-    "name": "pack1",
-    "description": "some desc",
-    "platform": "darwin",
-    "disabled": false,
-    "targets": {
-      "labels": null,
-      "fleets": null,
-      "teams": null
-    }
-  }
-}
-`
-
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "pack1"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "pack1"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "packs", "--json", "pack1"}))
-
-	expectedEmptyYaml := `---
-apiVersion: v1
-kind: pack
-spec: null
-`
-
-	expectedEmptyJson := `
-{
-  "kind": "pack",
-  "apiVersion": "v1",
-  "spec": null
-}`
-
-	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "no-such-pack"}))
-	assert.YAMLEq(t, expectedEmptyYaml, runAppForTest(t, []string{"get", "packs", "--yaml", "no-such-pack"}))
-	assert.JSONEq(t, expectedEmptyJson, runAppForTest(t, []string{"get", "packs", "--json", "no-such-pack"}))
 }
 
 func TestGetQueries(t *testing.T) {

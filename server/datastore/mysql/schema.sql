@@ -2983,33 +2983,6 @@ CREATE TABLE `osquery_options` (
 INSERT INTO `osquery_options` VALUES (1,0,'','{\"options\": {\"logger_plugin\": \"tls\", \"pack_delimiter\": \"/\", \"logger_tls_period\": 10, \"distributed_plugin\": \"tls\", \"disable_distributed\": false, \"logger_tls_endpoint\": \"/api/v1/osquery/log\", \"distributed_interval\": 10, \"distributed_tls_max_attempts\": 3}, \"decorators\": {\"load\": [\"SELECT uuid AS host_uuid FROM system_info;\", \"SELECT hostname AS hostname FROM system_info;\"]}}');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `pack_targets` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `pack_id` int unsigned DEFAULT NULL,
-  `type` int DEFAULT NULL,
-  `target_id` int unsigned NOT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `constraint_pack_target_unique` (`pack_id`,`target_id`,`type`),
-  CONSTRAINT `pack_targets_ibfk_1` FOREIGN KEY (`pack_id`) REFERENCES `packs` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `packs` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `disabled` tinyint(1) NOT NULL DEFAULT '0',
-  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `pack_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_pack_unique_name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `password_reset_requests` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `expires_at` timestamp NOT NULL,
@@ -3232,34 +3205,6 @@ CREATE TABLE `query_results` (
   PRIMARY KEY (`id`),
   KEY `idx_query_id_host_id_last_fetched` (`query_id`,`host_id`,`last_fetched`),
   KEY `idx_query_id_has_data_host_id_last_fetched` (`query_id`,`has_data`,`host_id`,`last_fetched`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `scheduled_queries` (
-  `id` int unsigned NOT NULL AUTO_INCREMENT,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `pack_id` int unsigned DEFAULT NULL,
-  `query_id` int unsigned DEFAULT NULL,
-  `interval` int unsigned DEFAULT NULL,
-  `snapshot` tinyint(1) DEFAULT NULL,
-  `removed` tinyint(1) DEFAULT NULL,
-  `platform` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '',
-  `version` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '',
-  `shard` int unsigned DEFAULT NULL,
-  `query_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` varchar(1023) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '',
-  `denylist` tinyint(1) DEFAULT NULL,
-  `team_id_char` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `unique_names_in_packs` (`name`,`pack_id`),
-  KEY `scheduled_queries_pack_id` (`pack_id`),
-  KEY `scheduled_queries_query_name` (`query_name`),
-  KEY `fk_scheduled_queries_queries` (`team_id_char`,`query_name`),
-  CONSTRAINT `scheduled_queries_ibfk_1` FOREIGN KEY (`team_id_char`, `query_name`) REFERENCES `queries` (`team_id_char`, `name`) ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT `scheduled_queries_pack_id` FOREIGN KEY (`pack_id`) REFERENCES `packs` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

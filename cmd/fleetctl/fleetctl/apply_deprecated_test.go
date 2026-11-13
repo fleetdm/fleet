@@ -574,22 +574,6 @@ spec:
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
 
-	// Apply packs.
-	var appliedPacks []*fleet.PackSpec
-	ds.ApplyPackSpecsFunc = func(ctx context.Context, specs []*fleet.PackSpec) error {
-		appliedPacks = specs
-		return nil
-	}
-	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
-	name = writeTmpYml(t, packsSpec)
-	assert.Equal(t, "[+] applied 1 pack\n", runAppForTestDeprecated(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
-	require.Len(t, appliedPacks, 1)
-	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
-	require.Len(t, appliedPacks[0].Queries, 2)
-
 	// Apply queries.
 	var appliedQueries []*fleet.Query
 	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {

@@ -53,7 +53,7 @@ const (
 // Reasons for an osquery/config notification, besides AgentWSReasonSettings
 // (agent options or features, or the host's fleet).
 const (
-	AgentWSReasonReports = "reports" // scheduled reports or 2017 packs
+	AgentWSReasonReports = "reports" // scheduled reports
 	AgentWSReasonLabels  = "labels"  // labels that reports may be scoped to
 )
 
