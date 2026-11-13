@@ -730,6 +730,87 @@ func TestValidateUserProvided_FleetVariables(t *testing.T) {
 	}
 }
 
+func TestValidateUserProvided_PasscodeProfileVariables(t *testing.T) {
+	const passcode = `"passwordPolicies": [{"passwordScope": "SCOPE_DEVICE", "passwordMinimumLength": 6}]`
+	tests := []struct {
+		name      string
+		rawJSON   string
+		errSubstr string
+	}{
+		{
+			name:    "passcode profile without variables",
+			rawJSON: `{` + passcode + `, "cameraDisabled": true}`,
+		},
+		{
+			name:    "non-passcode profile may use variables",
+			rawJSON: `{"name": "$FLEET_VAR_HOST_UUID"}`,
+		},
+		{
+			name:      "fleet variable in passwordPolicies profile",
+			rawJSON:   `{` + passcode + `, "name": "$FLEET_VAR_HOST_UUID"}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+		{
+			name:      "fleet variable with braces",
+			rawJSON:   `{` + passcode + `, "name": "${FLEET_VAR_HOST_HARDWARE_SERIAL}"}`,
+			errSubstr: "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+		},
+		{
+			name:      "secret in passwordPolicies profile",
+			rawJSON:   `{` + passcode + `, "name": "$FLEET_SECRET_NAME"}`,
+			errSubstr: "$FLEET_SECRET_NAME",
+		},
+		{
+			name:      "custom host vital in passwordPolicies profile",
+			rawJSON:   `{` + passcode + `, "name": "$FLEET_HOST_VITAL_7"}`,
+			errSubstr: "$FLEET_HOST_VITAL_7",
+		},
+		{
+			name:      "fleet variable in passwordRequirements profile",
+			rawJSON:   `{"passwordRequirements": {"passwordMinimumLength": 6}, "name": "$FLEET_VAR_HOST_UUID"}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+		{
+			name:      "empty passwordPolicies still counts as a passcode profile",
+			rawJSON:   `{"passwordPolicies": [], "name": "$FLEET_VAR_HOST_UUID"}`,
+			errSubstr: "$FLEET_VAR_HOST_UUID",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prof := &MDMAndroidConfigProfile{Name: "test-profile", RawJSON: []byte(tt.rawJSON)}
+			err := prof.ValidateUserProvided(true)
+			if tt.errSubstr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			require.Contains(t, err.Error(), tt.errSubstr)
+			require.Contains(t, err.Error(), `"passwordPolicies" or "passwordRequirements"`)
+		})
+	}
+}
+
+func TestIsAndroidPasscodeProfile(t *testing.T) {
+	tests := []struct {
+		name    string
+		rawJSON string
+		want    bool
+	}{
+		{name: "passwordPolicies", rawJSON: `{"passwordPolicies": []}`, want: true},
+		{name: "passwordRequirements", rawJSON: `{"passwordRequirements": {}}`, want: true},
+		{name: "nested key does not count", rawJSON: `{"policyEnforcementRules": [{"settingName": "passwordPolicies"}]}`, want: false},
+		{name: "other settings", rawJSON: `{"cameraDisabled": true}`, want: false},
+		{name: "invalid JSON", rawJSON: `{`, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, IsAndroidPasscodeProfile([]byte(tt.rawJSON)))
+		})
+	}
+}
+
 func TestValidateUserProvided_SoftwareKeys(t *testing.T) {
 	for key := range AndroidSoftwareJSONKeysFree {
 		require.Contains(t, AndroidForbiddenJSONKeys, key)

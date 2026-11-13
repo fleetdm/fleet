@@ -140,6 +140,47 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided(isPremium bool) error {
 		return err
 	}
 
+	if err := ValidateAndroidPasscodeProfileVariables(m.RawJSON); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// AndroidPasscodeKeys are the policy keys that make an Android profile a passcode profile. A label-less
+// passcode profile is copied into its fleet's default policy, which every host of the fleet enrolls with.
+var AndroidPasscodeKeys = []string{"passwordPolicies", "passwordRequirements"}
+
+// IsAndroidPasscodeProfile reports whether the profile JSON sets any of AndroidPasscodeKeys at its top
+// level. Invalid JSON isn't a passcode profile; ValidateUserProvided rejects it on its own.
+func IsAndroidPasscodeProfile(rawJSON []byte) bool {
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(rawJSON, &keys); err != nil {
+		return false
+	}
+	for _, k := range AndroidPasscodeKeys {
+		if _, ok := keys[k]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateAndroidPasscodeProfileVariables rejects passcode profiles that use Fleet variables, secrets, or
+// custom host vitals. Their settings go into the fleet's default policy, which is shared by every host
+// and applies during setup, before Fleet knows the host. Callers that expand secrets before validating
+// must pass the content as the user provided it.
+func ValidateAndroidPasscodeProfileVariables(rawJSON []byte) error {
+	if !IsAndroidPasscodeProfile(rawJSON) {
+		return nil
+	}
+	contents := string(rawJSON)
+	for _, prefix := range []string{ServerVarPrefix, ServerSecretPrefix, CustomHostVitalPrefix} {
+		if names := ContainsPrefixVars(contents, prefix); len(names) > 0 {
+			return fmt.Errorf(`Profiles with "passwordPolicies" or "passwordRequirements" can't include variables ($%s%s). `+
+				"The passcode is required during setup, before Fleet knows which host it is.", prefix, names[0])
+		}
+	}
 	return nil
 }
 

@@ -2892,6 +2892,12 @@ func (svc *Service) BatchSetMDMProfiles(
 			}
 			continue
 		}
+		if mdm.GetRawProfilePlatform(p.Contents) == "android" {
+			if err := fleet.ValidateAndroidPasscodeProfileVariables(p.Contents); err != nil {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(p.Name, err.Error()))
+			}
+			continue
+		}
 		if !isMobileconfigContents(p.Contents) {
 			continue
 		}
