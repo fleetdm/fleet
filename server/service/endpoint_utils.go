@@ -343,3 +343,8 @@ func writeCapabilitiesHeader(w http.ResponseWriter, capabilities fleet.Capabilit
 
 	w.Header().Set(fleet.CapabilitiesHeader, capabilities.String())
 }
+
+// parseMultipartForm parses an upload. MakeDecoder already caps the request body at the route's size limit.
+func parseMultipartForm(r *http.Request) error {
+	return r.ParseMultipartForm(platform_http.MaxMultipartFormSize) //nolint:gosec // G120: bounded by the route limit
+}

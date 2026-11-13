@@ -5870,7 +5870,7 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 	// label_id, team_id, status, query) are allowed for bulk operations.
 	tc := []struct {
 		name       string
-		filters    *map[string]interface{}
+		filters    *map[string]any
 		has400Err  bool
 		removedKey string
 	}{

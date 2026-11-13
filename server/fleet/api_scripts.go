@@ -105,7 +105,7 @@ type CreateScriptRequest struct {
 func (CreateScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	var decoded CreateScriptRequest
 
-	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize) //nolint:gosec // G120: bounded by the route limit
 	if err != nil {
 		return nil, &BadRequestError{
 			Message:     "failed to parse multipart form",
