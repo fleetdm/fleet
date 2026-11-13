@@ -30,6 +30,7 @@ In the next 3 months, Fleet will ship...
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
 - ⏰ Patch deadlines and end user prompts for Windows apps ([#48756](https://github.com/fleetdm/fleet/issues/48756))
+- 🪄 Zero-touch Windows enrollment without Autopilot ([#48931](https://github.com/fleetdm/fleet/issues/48931), [#58311](https://github.com/fleetdm/fleet/issues/58311))
 - 📦 Deploy large packages (30+ GB), like local LLMs ([#48900](https://github.com/fleetdm/fleet/issues/48900))
 - 🤖 Ask questions about your hosts in Slack and Microsoft Teams with Fleet's bot ([#50509](https://github.com/fleetdm/fleet/issues/50509))
 - 💬 Chat with Fleet right in the Fleet UI
