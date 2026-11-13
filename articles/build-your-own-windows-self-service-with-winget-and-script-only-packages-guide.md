@@ -1,14 +1,12 @@
 # Add Microsoft Store apps to Windows with script-only packages
 
-You can install Microsoft Store apps on Windows hosts, for all users, with a script-only package. The install script runs as SYSTEM and calls the Microsoft Store install service, the same one the `winget` CLI uses, so no user needs to be signed in. Built-in support for Microsoft Store apps is [coming soon](https://github.com/fleetdm/fleet/issues/43493).
+You can install Microsoft Store apps for all users on Windows hosts with a script-only package. No user needs to be signed in. Built-in support for Microsoft Store apps is [coming soon](https://github.com/fleetdm/fleet/issues/43493).
 
 ## Prerequisites
 
-- Fleet 4.89.0 or later. The uninstall script, pre-install query, and post-install script on script-only packages were added in this release.
+- Fleet 4.89.0 or later.
 - Windows hosts enrolled in Fleet with scripts enabled. See the [scripts guide](https://fleetdm.com/guides/scripts) if you deployed Fleet's agent without `--enable-scripts`.
 - A free Microsoft Store app. Paid apps fail to install with a licensing error.
-
-> **Note:** The Microsoft Store install service is documented for Microsoft's own apps, such as winget, and isn't officially supported for third parties. Microsoft could change it.
 
 ## Step 1: Find the Store ID and package family name
 
@@ -16,7 +14,7 @@ You need two identifiers.
 
 1. Find the app on the [Microsoft Store website](https://apps.microsoft.com). The **Store ID** is the last part of the URL. For Company Portal (`https://apps.microsoft.com/detail/9WZDNCRFJ3PZ`), it's `9WZDNCRFJ3PZ`.
 
-2. Get the **package family name** and confirm the app is supported. Run this on any computer, replacing the Store ID:
+2. Get the **package family name**. Run this on any computer, replacing the Store ID:
 
    ```powershell
    (Invoke-RestMethod "https://storeedgefd.dsx.mp.microsoft.com/v9.0/packageManifests/9WZDNCRFJ3PZ?Market=US").Data.Versions.Installers |
@@ -25,7 +23,7 @@ You need two identifiers.
 
    For Company Portal, `InstallerType` is `msstore` and `PackageFamilyName` is `Microsoft.CompanyPortal_8wekyb3d8bbwe`.
 
-> **Note:** The scripts in this guide are written for MSIX apps: `InstallerType` is `msstore`, and the Store ID starts with `9`. Apps that use their own installer (MSI or EXE) have Store IDs that start with `XP`. They have no package family name, and their installer decides whether to install for one user or all users, so the scripts' all-users check fails for them. You can adapt the scripts, or add these apps as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps) or [custom package](https://fleetdm.com/guides/deploy-software-packages).
+> **Note:** The scripts work for apps whose `InstallerType` is `msstore`. For other apps, use a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps) or [custom package](https://fleetdm.com/guides/deploy-software-packages).
 
 ## Step 2: Get the install script
 
@@ -33,15 +31,13 @@ You need two identifiers.
 2. Set `$storeId` and `$packageFamilyName` at the top of the script to the identifiers from Step 1.
 3. Save it with a name for the app, such as `install-company-portal.ps1`.
 
-The script installs the app for all users on the host, including users who sign in later. If the app is already installed, it installs the latest version, so selecting **Reinstall** in Fleet updates the app. If the app is open during an update, the Microsoft Store closes it, and it doesn't reopen on its own.
+To update the app later, select **Reinstall** in Fleet.
 
 ## Step 3: Get the uninstall script
 
 1. Download [`uninstall-microsoft-store-app.ps1`](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/uninstall-microsoft-store-app.ps1).
 2. Set `$packageFamilyName` at the top of the script to the package family name from Step 1.
 3. Save it with a name for the app, such as `uninstall-company-portal.ps1`.
-
-The script removes the app for all users. If the app is open, its window can stay open until the user closes it.
 
 ## Step 4: Add the package to Fleet
 
@@ -87,8 +83,6 @@ software:
 **The install fails with "Timed out waiting for the Microsoft Store."** The host couldn't finish the download within 4 minutes. Check the host's network connection, then try again.
 
 **The install fails with "The app isn't installed for all users even though the install reported success."** Check that `$packageFamilyName` in the install script matches the package family name from Step 1.
-
-**`InstallerType` in Step 1 isn't `msstore`.** The app uses its own installer, and the scripts' all-users check fails for it. Adapt the scripts, or add the app as a Fleet-maintained app or custom package.
 
 ## Further reading
 
