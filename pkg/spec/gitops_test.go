@@ -3111,7 +3111,9 @@ func TestExpandBaseItems(t *testing.T) {
 		requireErrorContains(t, errs, `no "path" or "paths" field`)
 	})
 
-	t.Run("no_matches_warning", func(t *testing.T) {
+	// An existing but empty directory is a valid starting point (e.g. the
+	// `fleetctl new` scaffold globs over .gitkeep-only folders), so it only warns.
+	t.Run("no_matches_existing_dir_warning", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 		var warnings []string
@@ -3124,6 +3126,72 @@ func TestExpandBaseItems(t *testing.T) {
 		assert.Empty(t, result)
 		require.Len(t, warnings, 1)
 		assert.Contains(t, warnings[0], "matched no test")
+	})
+
+	t.Run("no_matches_missing_dir_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		for _, pattern := range []string{
+			"wrong-dir/reports/*.yml",
+			"wrong-dir/**/*.yml",
+			"../" + filepath.Base(dir) + "-missing/*.yml",
+		} {
+			var warnings []string
+			logFn := func(format string, args ...any) {
+				warnings = append(warnings, fmt.Sprintf(format, args...))
+			}
+			items := []fleet.BaseItem{{Paths: new(pattern)}}
+			result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{LogFn: logFn})
+			require.Len(t, errs, 1, pattern)
+			assert.Contains(t, errs[0].Error(), fmt.Sprintf(`test "paths" %q matched no files`, pattern))
+			assert.Contains(t, errs[0].Error(), "does not exist")
+			assert.Empty(t, result, pattern)
+			assert.Empty(t, warnings, pattern)
+		}
+	})
+
+	t.Run("no_matches_base_is_file_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "reports"), []byte(""), 0o644))
+		items := []fleet.BaseItem{{Paths: new("reports/*.yml")}}
+		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), "is not a directory")
+	})
+
+	t.Run("all_matches_filtered_out_warning", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "notes.txt"), []byte(""), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, ".gitkeep"), []byte(""), 0o644))
+		var warnings []string
+		logFn := func(format string, args ...any) {
+			warnings = append(warnings, fmt.Sprintf(format, args...))
+		}
+		items := []fleet.BaseItem{{Paths: new("*")}}
+		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{LogFn: logFn})
+		require.Empty(t, errs)
+		assert.Empty(t, result)
+		require.Len(t, warnings, 3)
+		assert.Contains(t, warnings[2], "matched no test")
+	})
+
+	t.Run("mixed_path_and_missing_dir_paths_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "single.yml"), []byte(""), 0o644))
+		items := []fleet.BaseItem{
+			{Path: new("single.yml")},
+			{Paths: new("wrong-dir/*.yml")},
+			{Paths: new("also-missing/*.yml")},
+		}
+		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
+		require.Len(t, errs, 2)
+		assert.Contains(t, errs[0].Error(), `"wrong-dir/*.yml"`)
+		assert.Contains(t, errs[1].Error(), `"also-missing/*.yml"`)
+		require.Len(t, result, 1)
+		assert.Equal(t, filepath.Join(dir, "single.yml"), *result[0].Path)
 	})
 
 	t.Run("duplicate_basenames_error", func(t *testing.T) {
@@ -3255,6 +3323,14 @@ func TestResolveScriptPaths(t *testing.T) {
 			got = append(got, filepath.Base(*r.Path))
 		}
 		assert.Equal(t, []string{"a.sh", "b.ps1", "c.py"}, got)
+	})
+
+	t.Run("glob_missing_dir_errors", func(t *testing.T) {
+		t.Parallel()
+		items := []fleet.BaseItem{{Paths: new("wrong-dir/*.sh")}}
+		_, errs := resolveScriptPaths(items, t.TempDir(), nopLogf)
+		require.Len(t, errs, 1)
+		assert.Contains(t, errs[0].Error(), `script "paths" "wrong-dir/*.sh" matched no files`)
 	})
 
 	t.Run("inline_not_allowed", func(t *testing.T) {
@@ -3431,6 +3507,25 @@ reports:
 		require.Len(t, result.Queries, 2)
 		assert.Equal(t, "ReportA", result.Queries[0].Name)
 		assert.Equal(t, "ReportB", result.Queries[1].Name)
+	})
+
+	// A typo'd directory must fail instead of parsing to zero reports, which
+	// would make GitOps delete every existing report.
+	t.Run("glob_missing_dir_errors", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.MkdirAll(filepath.Join(dir, "reports"), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "reports", "a.yml"), []byte("- name: ReportA\n  query: SELECT 1;\n"), 0o644))
+
+		top := yamlToRawJSON(t, `
+reports:
+  - paths: "wrong-dir/reports/*.yml"
+`)
+		teamName := "TestTeam"
+		result := &GitOps{TeamName: &teamName}
+		multiErr := parseReports(top, result, dir, nopLogf, "test.yml", nil)
+		require.Error(t, multiErr.ErrorOrNil())
+		assert.ErrorContains(t, multiErr, `report "paths" "wrong-dir/reports/*.yml" matched no files`)
 	})
 }
 
