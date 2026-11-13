@@ -40,8 +40,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 `,
@@ -1477,51 +1477,6 @@ org_settings:
 			require.ErrorContains(t, err, "cannot specify both")
 			require.ErrorContains(t, err, mode)
 		}
-	})
-
-	// Deprecated org_logo_url and org_logo_url_light_background keys are migrated to the new mode-aware names.
-	t.Run("deprecated URL keys are renamed", func(t *testing.T) {
-		config := getGlobalConfig([]string{"org_settings"})
-		config += `
-org_settings:
-  server_settings:
-    server_url: https://fleet.example.com
-  org_info:
-    contact_url: https://example.com/contact
-    org_name: Test Org
-    org_logo_url: https://example.com/dark-logo.png
-    org_logo_url_light_background: https://example.com/light-logo.png
-  secrets:
-`
-		gitops, err := gitOpsFromString(t, config)
-		require.NoError(t, err)
-		orgInfo := gitops.OrgSettings["org_info"].(map[string]any)
-		assert.Equal(t, "https://example.com/dark-logo.png", orgInfo["org_logo_url_dark_mode"])
-		assert.Equal(t, "https://example.com/light-logo.png", orgInfo["org_logo_url_light_mode"])
-		_, hasOldDark := orgInfo["org_logo_url"]
-		_, hasOldLight := orgInfo["org_logo_url_light_background"]
-		assert.False(t, hasOldDark, "deprecated org_logo_url should be removed after migration")
-		assert.False(t, hasOldLight, "deprecated org_logo_url_light_background should be removed after migration")
-	})
-
-	// Setting both an old and new URL key for the same mode errors out
-	// (handled by the generic deprecated-key migrator).
-	t.Run("old + new URL keys conflict", func(t *testing.T) {
-		config := getGlobalConfig([]string{"org_settings"})
-		config += `
-org_settings:
-  server_settings:
-    server_url: https://fleet.example.com
-  org_info:
-    contact_url: https://example.com/contact
-    org_name: Test Org
-    org_logo_url: https://example.com/old.png
-    org_logo_url_dark_mode: https://example.com/new.png
-  secrets:
-`
-		_, err := gitOpsFromString(t, config)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "org_logo_url")
 	})
 }
 
@@ -4425,6 +4380,11 @@ software:
 				"  org_info:\n    org_name: Test Org\n  secrets:\n  mdm:\n" + mdm +
 				"controls:\nagent_options:\nreports:\npolicies:\n"
 		}
+		orgInfoFile := func(orgInfo string) string {
+			return "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n" +
+				"  org_info:\n    org_name: Test Org\n" + orgInfo + "  secrets:\n" +
+				"controls:\nagent_options:\nreports:\npolicies:\n"
+		}
 		scriptsDisabledFile := func(serverSettings string) string {
 			return "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n" + serverSettings +
 				"  org_info:\n    org_name: Test Org\n  secrets:\n" +
@@ -4518,6 +4478,30 @@ software:
 				extra: map[string]string{"org-settings.yml": "server_settings:\n  server_url: https://fleet.example.com\n  scripts_disabled: true\n" +
 					"org_info:\n  org_name: Test Org\nsecrets:\n"},
 				want: []string{`in "./org-settings.yml": The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
+			},
+			{
+				name: "org_settings org_info logo URLs", file: "default.yml",
+				config: orgInfoFile("    org_logo_url: https://example.com/dark.png\n    org_logo_url_light_background: https://example.com/light.png\n"),
+				want: []string{
+					`The "org_settings.org_info.org_logo_url" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "org_settings.org_info.org_logo_url_light_background" key is not available anymore.`,
+				},
+			},
+			{
+				name: "org_settings org_info logo URLs next to their replacements", file: "default.yml",
+				config: orgInfoFile("    org_logo_url: https://example.com/dark.png\n    org_logo_url_dark_mode: https://example.com/dark.png\n" +
+					"    Org_Logo_URL_Light_Background: \"\"\n    org_logo_url_light_mode: \"\"\n"),
+				want: []string{
+					`The "org_settings.org_info.org_logo_url" key is not available anymore.`,
+					`The "org_settings.org_info.org_logo_url_light_background" key is not available anymore.`,
+				},
+			},
+			{
+				name: "org_settings file with org_info logo URL", file: "default.yml",
+				config: "org_settings:\n  path: ./org-settings.yml\ncontrols:\nagent_options:\nreports:\npolicies:\n",
+				extra: map[string]string{"org-settings.yml": "server_settings:\n  server_url: https://fleet.example.com\n" +
+					"org_info:\n  org_name: Test Org\n  org_logo_url: https://example.com/dark.png\nsecrets:\n"},
+				want: []string{`in "./org-settings.yml": The "org_settings.org_info.org_logo_url" key is not available anymore.`},
 			},
 			{
 				name: "org_settings in another letter case", file: "default.yml",
@@ -4834,8 +4818,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 `
@@ -4899,8 +4883,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 `
@@ -4974,8 +4958,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 `
@@ -5348,8 +5332,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 controls:
@@ -5386,8 +5370,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 controls:
@@ -5421,8 +5405,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 controls:
