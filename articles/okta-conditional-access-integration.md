@@ -113,7 +113,7 @@ Deploying this profile will deploy a SCEP certificate to your hosts. These certi
 
 > **Upgrading from Fleet 4.85 or earlier?** Your existing Conditional Access deployment continues to work, but auto-renewal activates only on profiles redeployed in 4.86 or later. To opt in, re-download the User scope profile above and re-deploy via custom OS settings.
 
-> If using GitOps, use the challenge in a [secret variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles), instead of hardcoding into the profile.
+> **Upgrading from Fleet 4.95 or earlier?** Profiles you deployed earlier carry a global enroll secret and keep working. To switch to one-time challenges, re-download the User scope profile above and redeploy it. If you turn on `mdm.apple_one_time_enroll_secrets`, redeploy first: Fleet then refuses the global enroll secret for macOS hosts. [Learn more](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-one-time-enroll-secrets)
 
 ## Step 3: Create IdP in Okta
 

@@ -5225,7 +5225,7 @@ Returns a SAML response (HTML form auto-submit) or redirects to an error page if
 
 ### Okta conditional access SCEP enrollment
 
-**Note:** This endpoint implements the SCEP protocol for automatic certificate enrollment. SCEP certificate requests are authenticated using a challenge password, which is a global enroll secret.
+**Note:** This endpoint implements the SCEP protocol for automatic certificate enrollment. The challenge password is a one-time challenge that Fleet created for the host named in the CSR's device URI (`urn:device:apple:uuid:` or `urn:device:fleet:uuid:`). A global enroll secret is also accepted, for profiles written before one-time challenges, unless one-time enroll secrets are on for the host's platform. The certificate's only SAN is that device URI. The endpoint is also served at `/api/fleet/conditional_access/scep/pkiclient.exe`, which the Windows SCEP client uses.
 
 Handles Simple Certificate Enrollment Protocol (SCEP) requests for Okta conditional access. Devices use this endpoint to automatically enroll and obtain client certificates.
 

@@ -34,6 +34,8 @@ Built-in variables:
 | `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>` | None | macOS, iOS, iPadOS | None | Fleet-managed Smallstep SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_NDES_SCEP_CHALLENGE` | macOS, Windows, Linux | macOS, iOS, iPadOS, Windows | None | Fleet-managed one-time NDES challenge password used during SCEP certificate configuration profile deployment. |
 | `$FLEET_VAR_NDES_SCEP_PROXY_URL` | None | macOS, iOS, iPadOS, Windows | None | Fleet-managed NDES SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
+| `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL` | None | macOS, Windows | None | Fleet's conditional access SCEP endpoint URL, used in the certificate profile for [Okta conditional access](https://fleetdm.com/guides/okta-conditional-access-integration). It must be the whole value of the SCEP payload's `URL` field (macOS) or the `ServerURL` field (Windows). The profile must also include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`. |
+| `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE` | None | macOS, Windows | None | Fleet-managed one-time challenge for [Okta conditional access](https://fleetdm.com/guides/okta-conditional-access-integration). Fleet creates it for each host when it sends the profile, and it only works for that host. It must be the whole value of the SCEP payload's `Challenge` field (macOS) or the `Challenge` field (Windows). The profile must also include `$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL`. |
 
 
 
