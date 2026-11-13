@@ -1,153 +1,295 @@
 <div id="workshops" v-cloak>
-  <div purpose="landing-page-container">
-    <div purpose="landing-page-content">
-      <div purpose="landing-page-hero">
-        <div purpose="page-hero-content">
-          <div purpose="page-hero-headings">
-            <h4>In-person Workshops</h4>
-            <h1>Earn a Fleet level 1 certificate</h1>
+  <div purpose="page-container">
+    <div purpose="page-content">
+
+      <div purpose="hero">
+        <div purpose="hero-text">
+          <h4>Free, in-person workshops</h4>
+          <h1>Learn <span purpose="highlight">AI-native</span> device management</h1>
+          <p>Every setting in Fleet is a file, so AI can draft the change while you stay in charge. Spend an afternoon with a Fleet instructor and a small group of peers, then leave with a certification you can add to your LinkedIn profile.</p>
+          <div purpose="hero-buttons">
+            <a class="btn btn-primary" purpose="cta-button" href="#upcoming" @click.prevent="clickScrollTo('upcoming')">Find a workshop</a>
+            <animated-arrow-button href="#certification-path" @click.native.prevent="clickScrollTo('certification-path')">See the certification path</animated-arrow-button>
           </div>
-          <div purpose="page-hero-text">
-            <p>Device management is evolving. Learn how to use Fleet to manage devices at scale with the latest tools and techniques.</p>
+          <div purpose="hero-facts">
+            <div purpose="fact"><img alt="A stopwatch" src="/images/icon-timer-21x24@2x.png"><span>4 hours</span></div>
+            <div purpose="fact"><img alt="A person" src="/images/icon-person-19x24@2x.png"><span>Small groups</span></div>
+            <div purpose="fact"><img alt="A dollar sign" src="/images/icon-dollar-sign-19x32@2x.png"><span>Free</span></div>
           </div>
-          <div purpose="workshop-details">
-            <div purpose="details-box">
-              <img alt="A stopwatch" src="/images/icon-timer-21x24@2x.png">
-              <p>Session</p>
-              <h4>4hrs</h4>
+        </div>
+
+        <div purpose="hero-visual">
+          <div purpose="glow"></div>
+          <div purpose="workflow-window">
+            <div purpose="window-bar">
+              <span></span><span></span><span></span>
             </div>
-            <div purpose="details-box">
-              <img alt="An icon representing a person" src="/images/icon-person-19x24@2x.png">
-              <p>Persons</p>
-              <h4>~7</h4>
+            <div purpose="workflow-step" step="1">
+              <p purpose="step-label"><strong>01</strong> You ask</p>
+              <div purpose="prompt-bubble">
+                <p>{{heroExample.prompt}}<span purpose="caret"></span></p>
+              </div>
             </div>
-            <div purpose="details-box">
-              <img alt="$" src="/images/icon-dollar-sign-19x32@2x.png">
-              <p>Price</p>
-              <h4>Free</h4>
+            <div purpose="workflow-step" step="2">
+              <p purpose="step-label"><strong>02</strong> AI drafts, you review</p>
+              <div purpose="diff">
+                <p purpose="diff-file">fleets/workstations.yml</p>
+                <pre><code><span :purpose="line.added ? 'diff-added' : 'diff-context'" v-for="line in heroDiffLines" :key="line.text">{{line.text}}</span></code></pre>
+              </div>
+            </div>
+            <div purpose="workflow-step" step="3">
+              <p purpose="step-label"><strong>03</strong> GitOps ships it</p>
+              <div purpose="ship-status">
+                <p><img alt="" src="/images/icon-checkmark-green-16x16@2x.png">Approved in a pull request</p>
+                <p><img alt="" src="/images/icon-checkmark-green-16x16@2x.png">{{heroExample.appliedTo}}</p>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div purpose="photo-carousel">
-        <div purpose="carousel-viewport">
-          <div purpose="carousel-track" :class="[ !animate ? 'no-animate' : '' ]" :style="{ transform: 'translateX(calc((var(--slide-w) / 4 + var(--gap)) - ' + position + ' * (var(--slide-w) + var(--gap))))' }" @transitionend="handleTransitionEnd">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-1-840x560@2x.png">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-2-840x560@2x.png">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-3-840x560@2x.png">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-4-840x560@2x.png">
-            <img alt="Six attendees at JNUC gathered in a circle at night, touching fingertips over a case of drinks" src="/images/workshops-carousel-5-840x560@2x.png">
-            <img alt="Attendees at a Fleet workshop watching a presentation on what's new in GitOps" src="/images/workshops-carousel-6-840x560@2x.png">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-1-840x560@2x.png">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-2-840x560@2x.png">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-3-840x560@2x.png">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-4-840x560@2x.png">
-            <img alt="Six attendees at JNUC gathered in a circle at night, touching fingertips over a case of drinks" src="/images/workshops-carousel-5-840x560@2x.png">
-            <img alt="Attendees at a Fleet workshop watching a presentation on what's new in GitOps" src="/images/workshops-carousel-6-840x560@2x.png">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-1-840x560@2x.png">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-2-840x560@2x.png">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-3-840x560@2x.png">
-            <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-4-840x560@2x.png">
-            <img alt="Six attendees at JNUC gathered in a circle at night, touching fingertips over a case of drinks" src="/images/workshops-carousel-5-840x560@2x.png">
-            <img alt="Attendees at a Fleet workshop watching a presentation on what's new in GitOps" src="/images/workshops-carousel-6-840x560@2x.png">
-          </div>
-        </div>
-        <div purpose="controls-container">
-          <a purpose="carousel-prev" @click="clickCarouselIndicator('previous')">
-            <img alt="Previous" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
-          </a>
-          <ol purpose="carousel-indicators">
-            <li :class="{ active: activeDot === 0 }" @click="clickGoToSlide(0)"></li>
-            <li :class="{ active: activeDot === 1 }" @click="clickGoToSlide(1)"></li>
-            <li :class="{ active: activeDot === 2 }" @click="clickGoToSlide(2)"></li>
-            <li :class="{ active: activeDot === 3 }" @click="clickGoToSlide(3)"></li>
-            <li :class="{ active: activeDot === 4 }" @click="clickGoToSlide(4)"></li>
-            <li :class="{ active: activeDot === 5 }" @click="clickGoToSlide(5)"></li>
-          </ol>
-          <a purpose="carousel-next" @click="clickCarouselIndicator('next')">
-            <img alt="Next" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
-          </a>
-        </div>
-      </div>
 
-      <div purpose="landing-page-section">
-        <div purpose="three-column-list">
-          <div purpose="feature">
-
-
-
-
-            <p purpose="feature-headline">What to expect</p>
+      <div purpose="page-section">
+        <div purpose="details-cards">
+          <div purpose="details-card">
+            <h3>What to expect</h3>
             <ul>
-              <li>Fleet level 1 workshops are 4-hour sessions intended for client platform engineers and system administrators.</li>
+              <li>Workshops are 4-hour sessions for client platform engineers and system administrators.</li>
               <li>Sessions are small, with an experienced device management instructor.</li>
               <li>Afterwards, we head out for optional dinner with the group.</li>
             </ul>
           </div>
-          <div purpose="feature">
-            <p purpose="feature-headline">What you’ll gain</p>
+          <div purpose="details-card">
+            <h3>What you’ll gain</h3>
             <ul>
-              <li>Practice skills used by top IT teams at leading tech companies</li>
-              <li>Earn a certificate you can add to your LinkedIn profile</li>
-              <li>Master the latest device management techniques, including declarative device management, <a href="/infrastructure-as-code">configuration as code</a>, and AI tools like Claude</li>
+              <li>Practice skills used by top IT teams at leading tech companies.</li>
+              <li>Earn a certificate you can add to your LinkedIn profile.</li>
+              <li>Master the latest device management techniques, including declarative device management, <a href="/infrastructure-as-code">configuration as code</a>, and AI tools like Claude.</li>
             </ul>
           </div>
-          <div purpose="feature">
-            <p purpose="feature-headline">What you’ll need</p>
+          <div purpose="details-card">
+            <h3>What you’ll need</h3>
             <ul>
-              <li>A laptop and web browser</li>
-              <li>A free <a href="https://github.com" target="_blank" no-icon>GitHub</a> account</li>
-              <li>A free trial account with Claude or comparable AI tool (optional)</li>
+              <li>A laptop and web browser.</li>
+              <li>A free <a href="https://github.com" target="_blank" no-icon>GitHub</a> account.</li>
+              <li>A free trial account with Claude or a comparable AI tool.</li>
             </ul>
+          </div>
+        </div>
+        <div purpose="photo-carousel">
+          <div purpose="carousel-viewport">
+            <div purpose="carousel-track" :class="[ !animate ? 'no-animate' : '' ]" :style="{ transform: 'translateX(calc((var(--slide-w) / 4 + var(--gap)) - ' + position + ' * (var(--slide-w) + var(--gap))))' }" @transitionend="handleTransitionEnd">
+              <% for (let copy = 0; copy < 3; copy++) { %>
+              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-1-840x560@2x.png">
+              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-2-840x560@2x.png">
+              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-3-840x560@2x.png">
+              <img alt="A photo taken at a Fleet workshop" src="/images/workshops-carousel-4-840x560@2x.png">
+              <img alt="Six attendees at JNUC gathered in a circle at night, touching fingertips over a case of drinks" src="/images/workshops-carousel-5-840x560@2x.png">
+              <img alt="Attendees at a Fleet workshop watching a presentation on what's new in GitOps" src="/images/workshops-carousel-6-840x560@2x.png">
+              <% } %>
+            </div>
+          </div>
+          <div purpose="controls-container">
+            <a purpose="carousel-prev" @click="clickCarouselIndicator('previous')">
+              <img alt="Previous" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
+            </a>
+            <ol purpose="carousel-indicators">
+              <li :class="{ active: activeDot === dotIndex }" @click="clickGoToSlide(dotIndex)" v-for="dotIndex in [0, 1, 2, 3, 4, 5]" :key="dotIndex"></li>
+            </ol>
+            <a purpose="carousel-next" @click="clickCarouselIndicator('next')">
+              <img alt="Next" src="/images/icon-chevron-fleet-black-50-10x17@2x.png">
+            </a>
           </div>
         </div>
       </div>
 
-
-      <div purpose="landing-page-section">
-        <div purpose="section-heading">
-          <h2>Upcoming workshops</h2>
-          <p>Join our free, hands-on workshop and earn your Fleet Level 1 Certificate.</p>
+      <div purpose="page-section" id="certification-path">
+        <div purpose="section-heading" class="text-center">
+          <h4>Fleet certification</h4>
+          <h2>Your path to Fleet expert</h2>
+          <p>Earn three platform certifications and two GitOps levels in hands-on, instructor-led workshops. Hold all five, and you can take the Fleet expert exam.</p>
         </div>
-        <div purpose="event-cards">
-          <%if(futureWorkshops.length > 0){%>
-            <% for(let event of futureWorkshops) { %>
-              <div purpose="event-card">
-                  <p purpose="event-city">
-                    <%= event.type %>
-                  </p>
-                <div purpose="event-details">
-                  <div purpose="event-time">
-                  <img alt="Calendar icon" src="/images/icon-calendar-16x16@2x.png">
-                  <p>
-                    <%= event.eventTime %>
-                  </p>
-                  </div>
-                  <div purpose="event-location">
-                  <img alt="Location icon" src="/images/icon-location-16x16@2x.png">
-                  <p>
-                    <%= event.workshopCity %>
-                  </p>
-                  </div>
-                </div>
-                <div purpose="event-link">
-                  <a href="<%= event.eventbriteLink %>" target="_blank">
-                    Join workshop
-                  </a>
+
+        <div purpose="path-map">
+          <div purpose="path-tier">
+            <div purpose="tier-label">
+              <p purpose="tier-name">Platform admin</p>
+              <p>Enroll devices, enforce configuration and policies, deploy software, and answer questions with live queries.</p>
+            </div>
+            <div purpose="tier-cards" class="three-up">
+              <div purpose="track-card" track="apple">
+                <img alt="Apple logo" src="/images/logo-apple-circle-32x32.svg">
+                <h3>Fleet-certified <span purpose="track-name">Apple admin</span></h3>
+                <div purpose="track-meta">
+                  <span purpose="format-tag">In person</span>
+                  <a purpose="status-tag" class="scheduling" href="#upcoming" v-if="countByType['Apple administrator workshop']" @click.prevent="clickFilterAndScroll('Apple administrator workshop')">{{countByType['Apple administrator workshop']}} upcoming</a>
+                  <a purpose="status-tag" class="request" href="/contact#gitops" v-else>Request a date</a>
                 </div>
               </div>
-            <% } %>
-          <% } %>
-          <div purpose="event-cta">
-            <div>
-              <h3>Nothing nearby?</h3>
-              <p>Request a workshop in your area.</p>
+              <div purpose="track-card" track="windows">
+                <img alt="Windows logo" src="/images/logo-windows-circle-32x32.svg">
+                <h3>Fleet-certified <span purpose="track-name">Windows admin</span></h3>
+                <div purpose="track-meta">
+                  <span purpose="format-tag">In person</span>
+                  <a purpose="status-tag" class="scheduling" href="#upcoming" v-if="countByType['Windows administrator workshop']" @click.prevent="clickFilterAndScroll('Windows administrator workshop')">{{countByType['Windows administrator workshop']}} upcoming</a>
+                  <a purpose="status-tag" class="request" href="/contact#gitops" v-else>Request a date</a>
+                </div>
+              </div>
+              <div purpose="track-card" track="linux">
+                <img alt="Linux logo" src="/images/logo-linux-circle-32x32.svg">
+                <h3>Fleet-certified <span purpose="track-name">Linux admin</span></h3>
+                <div purpose="track-meta">
+                  <span purpose="format-tag">In person</span>
+                  <a purpose="status-tag" class="scheduling" href="#upcoming" v-if="countByType['Linux administrator workshop']" @click.prevent="clickFilterAndScroll('Linux administrator workshop')">{{countByType['Linux administrator workshop']}} upcoming</a>
+                  <span purpose="status-tag" v-else>Coming soon</span>
+                </div>
+              </div>
             </div>
-            <a class="btn btn-primary" href="/contact#gitops">Request a workshop</a>
+          </div>
+
+          <div purpose="path-connector"></div>
+
+          <div purpose="path-tier">
+            <div purpose="tier-label">
+              <p purpose="tier-name">GitOps</p>
+              <p>Define policies, configuration, and software in YAML, review them in a pull request, and deploy through CI.</p>
+            </div>
+            <div purpose="tier-cards" class="two-up">
+              <div purpose="track-card" track="ai">
+                <img alt="GitOps icon" src="/images/icon-gitops-green-32x32.svg">
+                <h3>Fleet GitOps level 1</h3>
+                <p>The fundamentals of AI-native device management.</p>
+                <div purpose="track-meta">
+                  <span purpose="format-tag">In person</span>
+                  <a purpose="status-tag" class="scheduling" href="#upcoming" v-if="countByType['GitOps workshop']" @click.prevent="clickFilterAndScroll('GitOps workshop')">{{countByType['GitOps workshop']}} upcoming</a>
+                  <a purpose="status-tag" class="request" href="/contact#gitops" v-else>Request a date</a>
+                </div>
+              </div>
+              <div purpose="track-card" track="gitops">
+                <img alt="GitOps icon" src="/images/icon-gitops-purple-32x32.svg">
+                <h3>Fleet GitOps level 2</h3>
+                <p>A deeper dive for the people who own the pipeline.</p>
+                <div purpose="track-meta">
+                  <span purpose="format-tag">In person</span>
+                  <span purpose="status-tag">Coming soon</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div purpose="path-connector"></div>
+
+          <div purpose="path-tier">
+            <div purpose="tier-label">
+              <p purpose="tier-name">Capstone</p>
+              <p>Unlocks once you hold all five core certifications.</p>
+            </div>
+            <div purpose="tier-cards" class="one-up">
+              <div purpose="capstone-card">
+                <div purpose="capstone-badge">
+                  <img alt="Certificate icon" src="/images/icon-certificate-36x36@2x.png">
+                </div>
+                <div purpose="capstone-text">
+                  <h3>Fleet expert</h3>
+                  <p>One exam that proves you can bring it all together and run an entire cross-platform fleet, from enrollment to GitOps pipeline.</p>
+                </div>
+                <div purpose="capstone-prereqs">
+                  <img purpose="platform-logo" alt="Apple logo" src="/images/logo-apple-circle-32x32.svg">
+                  <img purpose="platform-logo" alt="Windows logo" src="/images/logo-windows-circle-32x32.svg">
+                  <img purpose="platform-logo" alt="Linux logo" src="/images/logo-linux-circle-32x32.svg">
+                  <img alt="GitOps icon" src="/images/icon-gitops-green-32x32.svg">
+                  <img alt="GitOps icon" src="/images/icon-gitops-purple-32x32.svg">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div purpose="optional-divider"><span>Optional, not required for Fleet expert</span></div>
+
+          <div purpose="path-tier">
+            <div purpose="tier-label">
+              <p purpose="tier-name">Electives</p>
+              <p>Study on your own schedule, then book time to validate what you built. New electives arrive throughout the year.</p>
+            </div>
+            <div purpose="elective-cards">
+              <div purpose="elective-card">
+                <img alt="Self-hosted icon" src="/images/icon-self-hosted-20x20@2x.png">
+                <div>
+                  <h4>Fleet self-managed</h4>
+                  <p>For teams running Fleet in their own infrastructure.</p>
+                  <div purpose="track-meta">
+                    <span purpose="format-tag">Self-paced</span>
+                    <span purpose="status-tag">Coming soon</span>
+                  </div>
+                </div>
+              </div>
+              <div purpose="elective-card">
+                <img alt="API icon" src="/images/icon-rest-api-35x28@2x.png">
+                <div>
+                  <h4>Developing with the Fleet API</h4>
+                  <p>For people writing automation and integrations on top of Fleet.</p>
+                  <div purpose="track-meta">
+                    <span purpose="format-tag">Self-paced</span>
+                    <span purpose="status-tag">Coming soon</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-
       </div>
+
+      <div purpose="page-section" id="upcoming">
+        <div purpose="schedule-heading">
+          <div purpose="section-heading">
+            <h4>Upcoming workshops</h4>
+            <h2>Save your seat</h2>
+            <p>Every workshop is free and hands-on. Seats are limited, so register early.</p>
+          </div>
+          <div purpose="city-search" v-if="futureWorkshops.length > 0">
+            <img alt="" src="/images/icon-location-16x16@2x.png">
+            <input type="text" placeholder="Search by city" v-model="citySearch" @input="numberOfWorkshopsShown = workshopsPerPage" aria-label="Search workshops by city">
+          </div>
+        </div>
+        <div purpose="schedule-body" v-if="futureWorkshops.length > 0">
+          <div purpose="type-nav" role="group" aria-label="Filter by workshop">
+            <button type="button" purpose="type-filter" :class="{ selected: !selectedType }" :aria-pressed="!selectedType ? 'true' : 'false'" @click="clickSelectType('')">All <span>{{futureWorkshops.length}}</span></button>
+            <button type="button" purpose="type-filter" :class="{ selected: selectedType === type }" :aria-pressed="selectedType === type ? 'true' : 'false'" @click="clickSelectType(type)" v-for="type in workshopTypes" :key="type">{{type.replace(' workshop', '')}} <span>{{countByType[type]}}</span></button>
+          </div>
+          <div purpose="schedule-results">
+            <div purpose="schedule" v-if="filteredWorkshops.length > 0">
+              <div purpose="schedule-month" v-for="month in workshopsByMonth" :key="month.label">
+                <p purpose="month-label">{{month.label}} <span>{{month.totalCount}} {{month.totalCount === 1 ? 'workshop' : 'workshops'}}</span></p>
+                <a purpose="event-row" :href="event.eventbriteLink" target="_blank" no-icon v-for="event in month.workshops" :key="event.eventbriteLink">
+                  <div purpose="event-date">
+                    <span purpose="event-month">{{event.month}}</span>
+                    <span purpose="event-day">{{event.day}}</span>
+                  </div>
+                  <div purpose="event-info">
+                    <p purpose="event-city">{{event.workshopCity}}</p>
+                    <p purpose="event-time">{{event.timeRange}}</p>
+                  </div>
+                  <p purpose="event-type" :track="trackByType[event.type]"><img alt="" :src="iconByType[event.type]">{{event.type.replace(' workshop', '')}}</p>
+                  <span purpose="event-link">Register</span>
+                </a>
+              </div>
+            </div>
+            <div purpose="schedule-empty" v-else>
+              <p>No workshops match your search yet. Try another city, or request one below.</p>
+            </div>
+            <div purpose="show-more" v-if="filteredWorkshops.length > numberOfWorkshopsShown">
+              <button purpose="show-more-button" @click="clickShowMoreWorkshops()">Show more workshops <span>{{filteredWorkshops.length - numberOfWorkshopsShown}} more</span></button>
+            </div>
+          </div>
+        </div>
+        <div purpose="request-banner">
+          <div>
+            <h3>Nothing nearby?</h3>
+            <p>Request a workshop in your area, or bring one to your team.</p>
+          </div>
+          <a class="btn btn-primary" purpose="cta-button" href="/contact#gitops">Request a workshop</a>
+        </div>
+      </div>
+
     </div>
   </div>
   <cloud-city></cloud-city>
