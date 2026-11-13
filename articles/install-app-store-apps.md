@@ -6,6 +6,8 @@ In Fleet, you can install Apple App Store apps on your macOS, iOS, and iPadOS ho
 
 You can also manage which Google Play Store apps are available for self-service in your end user's Android work profiles. Google only allows free Google Play Store apps. [Paid apps aren't supported](https://www.androidenterprise.community/discussions/conversations/distributing-paid-apps/653).
 
+On Windows hosts, you can install Microsoft Store apps.
+
 ## Add an app
 
 ### Apple (VPP)
@@ -60,6 +62,32 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
   -F 'icon=@/path/to/app-icon.png'
 ```
 
+### Microsoft Store (Windows)
+
+1. Head to the [Microsoft Store](https://apps.microsoft.com), find the app, and copy the ID at the end of the URL (e.g. "9PLM9XGG6VKS" from `https://apps.microsoft.com/detail/9PLM9XGG6VKS`).
+
+2. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
+
+3. Select **Add software > App store**, choose the Windows platform, then enter the application ID.
+
+4. Optionally, turn on **Self-service**, use the **Target** option to limit which hosts can install the app, and expand **Advanced options** to edit the pre-install query and the install, post-install, and uninstall scripts.
+
+Fleet adds default install and uninstall scripts that install and uninstall the app for all users on the host through the Microsoft Store. In the scripts, Fleet replaces `$MICROSOFT_STORE_ID` with the app's Microsoft Store ID and `$PACKAGE_ID` with its package family name. To go back to the default scripts, delete the app and add it again.
+
+> If an app is also available as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), use the Fleet-maintained app. Fleet knows its version, and you can [patch it](https://fleetdm.com/guides/patching-end-user-experience).
+
+
+#### Supported Microsoft Store apps
+
+Fleet supports modern (MSIX) apps from the Microsoft Store. Some apps in the Microsoft Store use their own installer (e.g. MSI or EXE) instead, and Fleet can't add them. To install one of these apps, add it as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps) or a [custom package](https://fleetdm.com/guides/deploy-software-packages).
+
+To check an app before you add it, look at the ID at the end of its Microsoft Store URL:
+
+- IDs that start with `9` (e.g. `9PLM9XGG6VKS`) are usually MSIX apps.
+- IDs that start with `XP` (e.g. `XP99J3KP4XZ4VV`) are usually apps with their own installer.
+
+> Some Microsoft Store listings can't be installed by Fleet because Microsoft doesn't provide a package for them. This is common for games and for apps that are no longer available in the Microsoft Store.
+
 ## Edit or delete the app
 
 1. In Fleet, head to the **Software** page and select a fleet in the fleets dropdown.
@@ -84,7 +112,33 @@ curl -X POST https://<your_fleet_server_url>/api/v1/fleet/software/web_apps \
 
 4. In the modal dialog that opens, click **Enable auto updates** and configure an update window of at least one hour.
 
+## Update Microsoft Store apps
+
+The Microsoft Store doesn't share version numbers for modern (MSIX) apps, so Fleet shows **Latest** as the app's version. Each install gets the latest version available in the Microsoft Store.
+
+The Microsoft Store updates apps automatically. To make sure automatic updates stay on, [deploy a Windows configuration profile](https://fleetdm.com/guides/custom-os-settings) below:
+
+```xml
+<Replace>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ApplicationManagement/AllowAppStoreAutoUpdate</LocURI>
+    </Target>
+    <Data>1</Data>
+  </Item>
+</Replace>
+```
+
+After the profile is applied, **App updates** in the Microsoft Store's **Settings** is turned on and grayed out, so end users can't turn it off. To let end users turn automatic updates on or off again, delete the profile.
+
+To update an app right away (if new version available), select **Reinstall** on the host's **Host details** page. Fleet installs the latest version from the Microsoft Store.
+
 ## Managed configuration
+
+Currently, managed configuration isn't supported for Microsoft Store apps.
 
 ### Apple (VPP)
 
@@ -217,6 +271,39 @@ If the app is in the foreground when the configuration is sent and a newer versi
 
 Android apps can be installed via self-service in the end user's managed Google Play Store (work profile).
 
+### Microsoft Store (Windows)
+
+Apps can be installed and uninstalled manually on each host's **Host details** page, via self-service on the end user's **Fleet Desktop > My device** page, or [automatically via policy automation](https://fleetdm.com/guides/automatic-software-install-in-fleet). They can also be installed during [setup experience](https://fleetdm.com/guides/setup-experience).
+
+Fleet runs the install, post-install, and uninstall scripts as the system, like other software. Apps are installed for all users on the host, including users who sign in later. No user needs to be logged in. The first time a user signs in after an install, the app can take a few seconds to appear in their Start menu. Uninstalling an app removes it for all users. If the app is open, its window can stay open until the user closes it.
+
+If an end user already installed the app themselves, Fleet installs it for all users, so you don't need to uninstall it first. When you select **Reinstall**, Fleet installs the latest version from the Microsoft Store. App settings and data are kept.
+
+If the app is open during a reinstall, the Microsoft Store closes it to install the update. The app doesn't open again on its own.
+
+Only free apps are supported. Paid apps fail to install with a licensing error.
+
+#### Let end users install only the apps you allow
+
+To prevent end users from installing apps themselves, you can block access to the Microsoft Store. [Deploy a Windows configuration profile](https://fleetdm.com/guides/custom-os-settings) below to block it. Then add the apps you allow to self service, so end users install them from **Fleet Desktop > My device**.
+
+> This profile is only supported on Windows Enterprise and Education.
+
+```xml
+<Replace>
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_WindowsStore/RemoveWindowsStore_2</LocURI>
+    </Target>
+    <Data><![CDATA[<enabled/>]]></Data>
+  </Item>
+</Replace>
+```
+
+
 ## API and GitOps
 
 Fleet also provides a REST API for managing app store apps programmatically. Learn more in the API [reference docs](https://fleetdm.com/docs/rest-api/rest-api#add-app-store-app).
@@ -228,4 +315,4 @@ To manage App Store apps using Fleet's best practice GitOps, check out the `app_
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2026-01-08">
-<meta name="description" value="This guide will walk you through installing Apple App Store and Google Play Store apps on macOS, iOS, iPadOS, and Android hosts.">
+<meta name="description" value="This guide will walk you through installing Apple App Store, Google Play Store, and Microsoft Store apps on macOS, iOS, iPadOS, Android, and Windows hosts.">
