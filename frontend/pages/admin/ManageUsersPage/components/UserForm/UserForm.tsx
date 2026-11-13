@@ -240,7 +240,7 @@ const UserForm = ({
               settings in Fleet.
             </p>
             <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/permissions#user-permissions"
+              url="https://fleetdm.com/guides/role-based-access#user-permissions"
               text="Learn more about user permissions"
               newTab
               variant="banner-link"
@@ -296,7 +296,7 @@ const UserForm = ({
                   and settings in Fleet.
                 </p>
                 <CustomLink
-                  url="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
+                  url="https://fleetdm.com/guides/role-based-access#fleet-level-user-permissions"
                   text="Learn more about user permissions"
                   newTab
                   variant="banner-link"
