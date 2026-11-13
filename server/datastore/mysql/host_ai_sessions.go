@@ -485,7 +485,8 @@ SELECT id FROM (
 	batchSize := hostAISessionsCleanupBatchSize
 
 	// A session can have thousands of events, so they're deleted in batches before their session rather than by one
-	// cascading DELETE, each statement on its own so none holds its locks for long.
+	// cascading DELETE, each statement on its own so none holds its locks for long. The cascade stays for the few an
+	// ingest may store between the last batch and the session's delete.
 	deleteSession := func(id uint) (int64, error) {
 		for {
 			res, err := ds.writer(ctx).ExecContext(ctx,

@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS host_ai_sessions (
 		return fmt.Errorf("create host_ai_sessions table: %w", err)
 	}
 
+	// The cleanup deletes a session's events in batches before the session, so the cascade only removes those an
+	// ingest stored in between. Without it, deleting the session would fail on them.
 	_, err = tx.Exec(`
 CREATE TABLE IF NOT EXISTS host_ai_session_events (
 	id              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
