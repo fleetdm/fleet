@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 // Rpmvercmp Compares two evr strings (EPOCH:VERSION-RELEASE) by looking at each part in order:
@@ -37,14 +38,15 @@ func Rpmvercmp(a, b string) int {
 }
 
 type segment struct {
-	number  *int
-	letters string
-	offset  int
+	number    *int
+	letters   string
+	offset    int
+	exhausted bool
 }
 
 func (s segment) isEmpty() bool {
 	//  We need to ignore tildes because they are meant to be 'modifiers'.
-	return s.offset == 0 && s.number == nil && s.letters == "" || s.letters == "~"
+	return s.exhausted || (s.offset == 0 && s.number == nil && s.letters == "") || s.letters == "~"
 }
 
 func (s segment) compare(b segment) int {
@@ -92,59 +94,44 @@ func (s segment) compare(b segment) int {
 // Returns the next maximal alphabetic or numeric segment,
 // with separators (non-alphanumeric characters) ignored.
 func nextSeg(ver string) segment {
-	var end int
-
-	var wasNum bool
-	var wasLetter bool
-
-	var foundTilde bool
-	var foundNonAlphaNum bool
-
-	for i, c := range ver {
-		// Non-alpha num chars are either separators or a tilde
-		foundNonAlphaNum = !unicode.IsNumber(c) && !unicode.IsLetter(c)
-		foundTilde = c == '~'
-
-		// Check whether we arrived at a different segment.
-		if (unicode.IsNumber(c) && wasLetter) ||
-			(unicode.IsLetter(c) && wasNum) ||
-			foundNonAlphaNum {
-			end = i
+	start := 0
+	for start < len(ver) {
+		r, size := utf8.DecodeRuneInString(ver[start:])
+		if unicode.IsNumber(r) || unicode.IsLetter(r) || r == '~' {
 			break
 		}
-
-		wasNum = unicode.IsNumber(c)
-		wasLetter = unicode.IsLetter(c)
+		start += size
 	}
 
-	if end == 0 {
-		// Edge case: 'ver' starts
-		// with non-alphanumeric char
-		// like a separator or tilde.
-		if foundNonAlphaNum {
-			end = 1
-		} else {
-			end = len(ver)
+	if start == len(ver) {
+		return segment{offset: start, exhausted: start > 0}
+	}
+
+	if ver[start] == '~' {
+		return segment{letters: "~", offset: start + 1}
+	}
+
+	firstRune, _ := utf8.DecodeRuneInString(ver[start:])
+	isNumber := unicode.IsNumber(firstRune)
+	end := len(ver)
+	for i, r := range ver[start:] {
+		if i == 0 {
+			continue
+		}
+		if unicode.IsNumber(r) != isNumber || (!unicode.IsNumber(r) && !unicode.IsLetter(r)) {
+			end = start + i
+			break
 		}
 	}
 
-	r := segment{
-		offset: end,
-	}
-
-	// Skip over non-alphanumeric chars
-	// (except tildes)
-	if foundNonAlphaNum && !foundTilde {
-		r.offset++
-	}
-
-	if wasNum {
-		val, err := strconv.Atoi(ver[:end])
+	r := segment{offset: end}
+	if isNumber {
+		val, err := strconv.Atoi(ver[start:end])
 		if err == nil {
 			r.number = &val
 		}
 	} else {
-		r.letters = ver[:end]
+		r.letters = ver[start:end]
 	}
 
 	return r

@@ -15,9 +15,10 @@ on:
       - '**.tsx'
 
 # This allows a subsequently queued workflow run to interrupt previous runs
+# but not on main branch to preserve fuzz testing runs
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 defaults:
   run:
