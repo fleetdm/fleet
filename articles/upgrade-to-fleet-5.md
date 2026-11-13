@@ -694,6 +694,20 @@ Change these before you upgrade.
 
 GitHub issue: [#28334](https://github.com/fleetdm/fleet/issues/28334)
 
+### Apple installer endpoints removed
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `POST /mdm/apple/installers`, `GET /mdm/apple/installers`, `GET /mdm/apple/installers/:installer_id`, `DELETE /mdm/apple/installers/:installer_id`, and `GET /api/mdm/apple/installer` | Removed. |
+
+#### What to do
+
+Change these before you upgrade.
+
+1. If a script uploads packages with `POST /mdm/apple/installers`, use [Add package](https://fleetdm.com/docs/rest-api/rest-api#add-package) instead.
+
+GitHub issue: [#56003](https://github.com/fleetdm/fleet/issues/56003)
+
 ### Manual enrollment profile off by default
 
 | Fleet 4 | Fleet 5 |
