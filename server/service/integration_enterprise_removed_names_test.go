@@ -89,6 +89,7 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		rejectNamed("GET", tc[0], "", "order_key", tc[1], "order_key", tc[1])
 	}
 	rejectNamed("GET", "/fleets/0/policies", "", "inherited_order_key", "team_id", "inherited_order_key", "team_id")
+	rejectNamed("POST", "/translate", `{"list": [{"type": "team", "payload": {"identifier": "a"}}]}`, "type", "team")
 
 	// The rejected create calls did not create anything, and the new name is accepted.
 	require.Len(t, s.listReports(), reportsBefore)

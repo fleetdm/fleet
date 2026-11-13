@@ -23,7 +23,6 @@ import (
 	"slices"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -131,15 +130,6 @@ func (s *integrationTestSuite) TestTranslator() {
 	require.Len(t, payload.List, 1)
 	assert.Equal(t, fleet.TranslatorTypeFleet, payload.List[0].Type)
 	assert.Equal(t, tm.ID, payload.List[0].Payload.ID)
-
-	// the team type was removed in Fleet 5
-	removedTeamType, ok := removednames.Find(removednames.KindTargetType, "team", "")
-	require.True(t, ok)
-	params = translatorRequest{List: []fleet.TranslatePayload{{Type: "team", Payload: fleet.StringIdentifierToIDPayload{Identifier: tm.Name}}}}
-	res := s.Do("POST", "/api/latest/fleet/translate", &params, http.StatusUnprocessableEntity)
-	name, reason := extractServerErrorNameReason(res.Body)
-	assert.Equal(t, "type", name)
-	assert.Contains(t, reason, removedTeamType.Message())
 
 	// empty body
 	s.DoJSON("POST", "/api/latest/fleet/translate", &translatorRequest{}, http.StatusBadRequest, &payload)

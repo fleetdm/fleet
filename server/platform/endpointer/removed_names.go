@@ -242,7 +242,7 @@ type anyColumnSorter interface{ SortsByAnyColumn() }
 var anyColumnSorterType = reflect.TypeFor[anyColumnSorter]()
 
 func sortsByAnyColumn(t reflect.Type) bool {
-	return t.Implements(anyColumnSorterType) || reflect.PointerTo(t).Implements(anyColumnSorterType)
+	return reflect.PointerTo(t).Implements(anyColumnSorterType)
 }
 
 // declaredQueryNames returns the parameters t declares in `query` tags.
