@@ -361,6 +361,18 @@ func TestValidateAppleAppConfiguration(t *testing.T) {
 			errSub:  "invalid plist: line 1: element <dict> must not have a namespace",
 		},
 		{
+			name:    "root prefix bound to the empty namespace",
+			input:   `<plist:dict xmlns:plist=""><key>a</key><string>b</string></plist:dict>`,
+			wantErr: true,
+			errSub:  "invalid plist: line 1: element <plist:dict> must not have a namespace prefix",
+		},
+		{
+			name:    "key prefix bound to the empty namespace",
+			input:   "<dict>\n<a:key xmlns:a=\"\">a</a:key><string>b</string></dict>",
+			wantErr: true,
+			errSub:  "invalid plist: line 2: element <a:key> must not have a namespace prefix",
+		},
+		{
 			name:    "non-breaking space between elements",
 			input:   "<dict>\u00a0<key>a</key><string>b</string></dict>",
 			wantErr: true,

@@ -408,6 +408,7 @@ func TestValidatedAppConfigurationEmbedsInInstallApplication(t *testing.T) {
 			{"UTF-8 byte order mark", "\xEF\xBB\xBF" + fullWrapper},
 			{"DOCTYPE with an internal subset", `<!DOCTYPE plist [<!ENTITY x "y">]>` + bareDict},
 			{"character reference after the plist end tag", `<plist version="1.0">` + bareDict + `</plist>&#32;`},
+			{"root prefix bound to the empty namespace", `<plist:dict xmlns:plist=""><key>K</key><string>v</string></plist:dict>`},
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {

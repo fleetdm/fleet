@@ -566,6 +566,11 @@ func checkAppleAppConfigXML(config []byte) error {
 			if t.Name.Space != "" {
 				return fail("element <%s> must not have a namespace", name)
 			}
+			// The decoder drops a prefix bound to the empty namespace, but
+			// CoreFoundation and the wrapper stripping read the name as written.
+			if qname := raw[1:bytes.IndexAny(raw, xmlWhitespace+"/>")]; string(qname) != name {
+				return fail("element <%s> must not have a namespace prefix", qname)
+			}
 			kind, ok := plistElemKinds[name]
 			if !ok {
 				return fail("unknown element <%s>", name)
