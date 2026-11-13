@@ -1919,7 +1919,7 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T, lockEndUserInfo bool
 					"idp_name": "SimpleSAML",
 					"metadata_url": "%s"
 				},
-				"macos_setup": {
+				"setup_experience": {
 					"enable_end_user_authentication": true,
 					"lock_end_user_info": %t
 				}
@@ -1943,7 +1943,7 @@ func (s *integrationMDMTestSuite) setUpMDMSSO(t *testing.T, lockEndUserInfo bool
 						"idp_name": "",
 						"metadata_url": ""
 					},
-					"macos_setup": {
+					"setup_experience": {
 						"enable_end_user_authentication": false,
 						"lock_end_user_info": false
 					}

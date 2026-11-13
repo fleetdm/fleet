@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "157.0.1",
+      "version": "160.0",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (AArch64 en-US)' AND publisher = 'Mozilla') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (AArch64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '157.0.1') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Mozilla Firefox (AArch64 en-US)' AND publisher = 'Mozilla' AND version_compare(version, '160.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'firefox.exe');"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/157.0.1/win64-aarch64/en-US/Firefox%20Setup%20157.0.1.exe",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/160.0/win64-aarch64/en-US/Firefox%20Setup%20160.0.exe",
       "install_script_ref": "8c6800a6",
       "uninstall_script_ref": "2671caaf",
-      "sha256": "fc86cd7e73b68e876770852bf4741b046441069ad57cee88626311cad12a7206",
+      "sha256": "c650ff01102df067c5921d8f3657a3998626553b3c6144d1488f541f17d20c6d",
       "default_categories": [
         "Browsers"
       ]

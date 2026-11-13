@@ -139,7 +139,7 @@ func (ds *Datastore) InviteByToken(ctx context.Context, token string) (*fleet.In
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &invite, "SELECT * FROM invites WHERE token = ?", token)
 	if err == sql.ErrNoRows {
 		return nil, ctxerr.Wrap(ctx, notFound("Invite").
-			WithMessage(fmt.Sprintf("with token %s", token)))
+			WithMessage("with provided token"))
 	} else if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx get invite by token")
 	}

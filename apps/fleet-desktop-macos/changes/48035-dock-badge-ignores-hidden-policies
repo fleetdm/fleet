@@ -1,1 +1,0 @@
-- The Dock badge now counts only failing policies that are shown to the end user, ignoring policies hidden by the IT admin.

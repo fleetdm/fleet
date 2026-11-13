@@ -91,25 +91,11 @@ spec:
       custom_settings: null
       enable_disk_encryption: false
       enable_escrow_disk_encryption_key: false
-    macos_setup:
-      bootstrap_package:
-      enable_end_user_authentication: false
-      enable_managed_local_account: false
-      enable_release_device_manually: false
-      end_user_local_account_type: admin
-      lock_end_user_info: false
-      macos_enable_bootstrap_package_during_manual_enrollment: false
-      macos_enable_bootstrap_package_during_migration: false
-      macos_setup_assistant:
-      manual_agent_install:
-      macos_require_all_software: false
-      windows_require_all_software: false
-      script:
-      software:
     setup_experience:
       macos_bootstrap_package:
       enable_create_local_admin_account: false
       enable_end_user_authentication: false
+      enable_managed_local_account: false
       apple_enable_release_device_manually: false
       end_user_local_account_type: admin
       lock_end_user_info: false
@@ -142,8 +128,6 @@ spec:
       entity_id: ""
   scripts: null
   org_info:
-    org_logo_url: ""
-    org_logo_url_light_background: ""
     org_logo_url_dark_mode: ""
     org_logo_url_light_mode: ""
     org_name: ""

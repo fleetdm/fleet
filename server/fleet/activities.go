@@ -639,16 +639,16 @@ func (a ActivityTypeReadHostDiskEncryptionKey) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 
-type ActivityTypeViewedHostRecoveryLockPassword struct {
+type ActivityTypeReadHostRecoveryLockPassword struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
 }
 
-func (a ActivityTypeViewedHostRecoveryLockPassword) ActivityName() string {
-	return "viewed_host_recovery_lock_password"
+func (a ActivityTypeReadHostRecoveryLockPassword) ActivityName() string {
+	return "read_host_recovery_lock_password"
 }
 
-func (a ActivityTypeViewedHostRecoveryLockPassword) HostIDs() []uint {
+func (a ActivityTypeReadHostRecoveryLockPassword) HostIDs() []uint {
 	return []uint{a.HostID}
 }
 

@@ -164,12 +164,9 @@ const SiteTopNav = ({
 
   const renderNavItem = (navItem: INavItem) => {
     const { name, iconName, withParams } = navItem;
-    const darkLogoURL =
-      config.org_info.org_logo_url_dark_mode || config.org_info.org_logo_url;
-    const lightLogoURL =
-      config.org_info.org_logo_url_light_mode ||
-      config.org_info.org_logo_url_light_background;
-    const orgLogoURL = darkMode ? darkLogoURL : lightLogoURL;
+    const orgLogoURL = darkMode
+      ? config.org_info.org_logo_url_dark_mode
+      : config.org_info.org_logo_url_light_mode;
     const active = navItem.location.regex.test(currentPath);
 
     const navItemBaseClass = "site-nav-item";

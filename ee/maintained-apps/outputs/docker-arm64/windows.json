@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.97.0",
+      "version": "4.99.0",
       "queries": {
         "exists": "SELECT 1 WHERE EXISTS (SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND publisher = 'Docker Inc.') OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
-        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND publisher = 'Docker Inc.' AND version_compare(version, '4.97.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
+        "patched": "SELECT 1 WHERE EXISTS (SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Docker Desktop' AND publisher = 'Docker Inc.' AND version_compare(version, '4.99.0') < 0)) OR NOT EXISTS (SELECT 1 FROM system_info WHERE cpu_type LIKE 'ARM%');",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'docker desktop.exe');"
       },
-      "installer_url": "https://desktop.docker.com/win/main/arm64/244584/Docker%20Desktop%20Installer.exe",
+      "installer_url": "https://desktop.docker.com/win/main/arm64/245822/Docker%20Desktop%20Installer.exe",
       "install_script_ref": "b06042dd",
       "uninstall_script_ref": "0b74af50",
-      "sha256": "91d18626e6c297bebc9fadb73451844b7cb3300b38161aabba1aa44d87e8c40e",
+      "sha256": "312535365fda69082db216fe2828da09b1453b9e9b8beed8e45aea805cdcb7a5",
       "default_categories": [
         "Developer tools"
       ]

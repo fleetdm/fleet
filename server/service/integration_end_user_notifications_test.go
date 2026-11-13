@@ -251,17 +251,14 @@ func (s *integrationTestSuite) TestEndUserNotifications() {
 	})
 
 	t.Run("GET returns the view the notification's kind builds", func(t *testing.T) {
-		// each mode-aware logo field has a deprecated twin, and the config is rejected when the two
-		// disagree, so both move together and are restored afterwards
+		// the logos are restored afterwards
 		setOrgLogos := func(light, dark string) {
 			s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 				"org_info": {
-					"org_logo_url": %q,
 					"org_logo_url_dark_mode": %q,
-					"org_logo_url_light_background": %q,
 					"org_logo_url_light_mode": %q
 				}
-			}`, dark, dark, light, light)), http.StatusOK, &appConfigResponse{})
+			}`, dark, light)), http.StatusOK, &appConfigResponse{})
 		}
 
 		var before appConfigResponse

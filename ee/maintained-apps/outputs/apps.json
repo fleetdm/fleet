@@ -2679,7 +2679,7 @@
       "name": "DockView",
       "slug": "dockview/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.sergey-gerasimenko.DockView",
+      "unique_identifier": "com.macplus-software.com.DockView-2",
       "description": "DockView is a utility to preview application windows in the dock."
     },
     {
@@ -9793,6 +9793,13 @@
       "platform": "darwin",
       "unique_identifier": "com.electron.wispr-flow",
       "description": "Wispr Flow is a voice-to-text dictation with AI-powered auto-editing."
+    },
+    {
+      "name": "Wispr Flow",
+      "slug": "wispr-flow/windows",
+      "platform": "windows",
+      "unique_identifier": "Wispr Flow",
+      "description": "Wispr Flow is a voice-to-text dictation app with AI-powered auto-editing."
     },
     {
       "name": "EdrawMax",

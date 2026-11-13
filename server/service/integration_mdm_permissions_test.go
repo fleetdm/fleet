@@ -91,7 +91,7 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			},
 			"enable_disk_encryption": true,
