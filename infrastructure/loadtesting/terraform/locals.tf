@@ -19,8 +19,7 @@ locals {
     "FLEET_VULNERABILITIES_DATABASES_PATH" : "/home/fleet"
     "FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING" : "false"
     "FLEET_LOGGING_DEBUG" : "true"
-    # No Elastic APM: its instrumentation is gorilla-specific, so the server turns off its stdlib ServeMux fast path
-    # whenever it is active. Tracing can be added per-run through var.fleet_config.
+    # Tracing can be added per-run through var.fleet_config.
   }, var.fleet_config) : { name = k, value = v }]
   # Private Subnets from VPN VPC
   vpn_cidr_blocks = [

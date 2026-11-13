@@ -38,8 +38,6 @@ env:
   TF_VAR_slack_p1_webhook: ${{ secrets.SLACK_HELP_P1_RAW_WEBHOOK_URL }}
   TF_VAR_slack_p2_webhook: ${{ secrets.SLACK_G_HELP_P2_WEBHOOK_URL }}
   TF_VAR_fleet_sentry_dsn: ${{ secrets.DOGFOOD_SENTRY_DSN }}
-  TF_VAR_elastic_url: ${{ secrets.ELASTIC_APM_SERVER_URL }}
-  TF_VAR_elastic_token: ${{ secrets.ELASTIC_APM_SECRET_TOKEN }}
   TF_VAR_geolite2_license: ${{ secrets.MAXMIND_LICENSE }}
   TF_VAR_dogfood_sidecar_enroll_secret: ${{ secrets.DOGFOOD_SERVERS_CANARY_ENROLL_SECRET }}
   TF_VAR_otel_bearer_token: ${{ secrets.DOGFOOD_SIGNOZ_OTEL_BEARER_TOKEN }}

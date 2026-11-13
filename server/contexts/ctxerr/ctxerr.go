@@ -270,7 +270,7 @@ func FromContext(ctx context.Context) Handler {
 
 // Handle handles err by passing it to the registered error handler,
 // deduplicating it and storing it for a configured duration. It also takes
-// care of sending it to the configured OpenTelemetry/APM/Sentry, if any.
+// care of sending it to the configured OpenTelemetry/Sentry, if any.
 func Handle(ctx context.Context, err error) {
 	if err == nil {
 		return
@@ -290,7 +290,7 @@ func Handle(ctx context.Context, err error) {
 
 	cause := ferr
 	if rootCause := FleetCause(ferr); rootCause != nil {
-		// use the FleetCause error so we send the most relevant stacktrace to APM
+		// use the FleetCause error so we report the most relevant stacktrace
 		// (the one from the initial New/Wrap call).
 		cause = rootCause
 	}

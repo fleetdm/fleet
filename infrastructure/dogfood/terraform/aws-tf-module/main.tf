@@ -34,8 +34,6 @@ variable "fleet_image" {
 }
 variable "geolite2_license" {}
 variable "fleet_sentry_dsn" {}
-variable "elastic_url" {}
-variable "elastic_token" {}
 variable "fleet_calendar_periodicity" {
   default     = "30s"
   description = "The refresh period for the calendar integration."
@@ -63,16 +61,14 @@ locals {
   fleet_image_tag = strcontains(var.fleet_image, "@sha256:") ? "sha256-${substr(split("@sha256:", var.fleet_image)[1], 0, 12)}" : reverse(split(":", var.fleet_image))[0]
   geolite2_image  = "${aws_ecr_repository.fleet.repository_url}:${local.fleet_image_tag}-geolite2-${formatdate("YYYYMMDDhhmm", timestamp())}"
   extra_environment_variables = {
-    FLEET_LICENSE_KEY             = var.fleet_license
-    FLEET_LOGGING_DEBUG           = "true"
-    FLEET_LOGGING_JSON            = "true"
-    FLEET_LOGGING_TRACING_ENABLED = "true"
-    FLEET_LOGGING_TRACING_TYPE    = "opentelemetry"
-    OTEL_SERVICE_NAME             = "fleet"
-    OTEL_RESOURCE_ATTRIBUTES      = "deployment.environment.name=${local.customer},deployment.environment=${local.customer}"
-    OTEL_EXPORTER_OTLP_ENDPOINT   = "https://otlp.signoz.dogfood.fleetdm.com"
-    # FLEET_LOGGING_TRACING_ENABLED              = "true"
-    # FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
+    FLEET_LICENSE_KEY                          = var.fleet_license
+    FLEET_LOGGING_DEBUG                        = "true"
+    FLEET_LOGGING_JSON                         = "true"
+    FLEET_LOGGING_TRACING_ENABLED              = "true"
+    FLEET_LOGGING_TRACING_TYPE                 = "opentelemetry"
+    OTEL_SERVICE_NAME                          = "fleet"
+    OTEL_RESOURCE_ATTRIBUTES                   = "deployment.environment.name=${local.customer},deployment.environment=${local.customer}"
+    OTEL_EXPORTER_OTLP_ENDPOINT                = "https://otlp.signoz.dogfood.fleetdm.com"
     FLEET_LOGGING_ENABLE_TOPICS                = "deprecated-field-names"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "10"
     FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS    = "10"
@@ -81,10 +77,7 @@ locals {
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
     FLEET_OSQUERY_POLICY_UPDATE_INTERVAL       = "30m"
-    # ELASTIC_APM_SERVER_URL                     = var.elastic_url
-    # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
-    # ELASTIC_APM_SERVICE_NAME                   = "dogfood"
-    FLEET_CALENDAR_PERIODICITY = var.fleet_calendar_periodicity
+    FLEET_CALENDAR_PERIODICITY                 = var.fleet_calendar_periodicity
     # Webhook Results & Status Logging Destination
     FLEET_SERVER_VPP_VERIFY_TIMEOUT = "20m"
     FLEET_SERVER_GZIP_RESPONSES     = "true"

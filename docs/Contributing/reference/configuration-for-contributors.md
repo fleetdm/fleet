@@ -188,15 +188,12 @@ Documentation for setting has moved to the [Fleet server configuration](https://
 
 Enables OpenTelemetry tracing and metrics export. When enabled, traces and metrics are sent to the OTLP endpoint configured via the standard `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable.
 
-By default, OpenTelemetry is used. Set `tracing_type` to `elasticapm` only if you want to use Elastic APM instead.
-
 - Default value: `false`
 - Environment variable: `FLEET_LOGGING_TRACING_ENABLED`
 - Config file format:
   ```yaml
   logging:
     tracing_enabled: true
-    # tracing_type: elasticapm  # Only set if using Elastic APM instead of OpenTelemetry
   ```
 
 ### logging.otel_logs_enabled
