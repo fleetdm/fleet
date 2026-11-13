@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import FileSaver from "file-saver";
-import React from "react";
+import React, { useRef } from "react";
 
 import Button from "components/buttons/Button";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -8,8 +8,8 @@ import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem";
 import { ISupportedGraphicNames } from "components/ListItem/ListItem";
 import { notify } from "components/ToastNotification";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
+import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import useGitOpsMode from "hooks/useGitOpsMode";
 import { IScript } from "interfaces/script";
 import scriptAPI from "services/entities/scripts";
@@ -86,6 +86,9 @@ const ScriptListItem = ({
   const { graphicName, platform } = getFileRenderDetails(script.name);
   const { gitOpsModeEnabled } = useGitOpsMode();
 
+  const nameRef = useRef<HTMLSpanElement>(null);
+  const isNameTruncated = useCheckTruncatedElement(nameRef);
+
   // Technicians have no action buttons; GitOps-mode admins have the Edit
   // pencil disabled (so Enter does nothing). In both cases the row click is
   // the only way to open the Edit modal, so expose it to the keyboard.
@@ -148,12 +151,24 @@ const ScriptListItem = ({
       graphic={graphicName}
       title={
         <TooltipWrapper
-          tipContent={`ID: ${script.id}`}
+          tipContent={
+            isNameTruncated ? (
+              <>
+                Name: <b className={`${baseClass}__full-name`}>{script.name}</b>
+                <br />
+                ID: {script.id}
+              </>
+            ) : (
+              `ID: ${script.id}`
+            )
+          }
           underline={false}
           position="top"
           showArrow
         >
-          <TooltipTruncatedText value={script.name} fixedPositionStrategy />
+          <span className={`${baseClass}__name`} ref={nameRef}>
+            {script.name}
+          </span>
         </TooltipWrapper>
       }
       details={
