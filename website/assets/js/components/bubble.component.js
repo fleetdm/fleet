@@ -50,7 +50,13 @@ parasails.registerComponent('bubble', {
         break;
       case 'gitops':
         roleLink = '/guides/role-based-access#gitops';
-        break;
+case 'maintainer':
+case 'observer':
+case 'observer+':
+case 'technician':
+case 'gitops':
+roleLink = '/guides/role-based-access#roles';
+break;
     }
 
     return {
