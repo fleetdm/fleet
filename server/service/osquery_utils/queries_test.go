@@ -733,7 +733,8 @@ func TestGetDetailQueries(t *testing.T) {
 
 	// the Entra join user query is premium only
 	premiumCtx := license.NewContext(t.Context(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	queriesPremium := GetDetailQueries(premiumCtx, config.FleetConfig{}, nil, nil, Integrations{}, nil)
+	withToolCalls := config.FleetConfig{Osquery: config.OsqueryConfig{AISessionMaxToolCalls: fleet.DefaultHostAISessionMaxEvents}}
+	queriesPremium := GetDetailQueries(premiumCtx, withToolCalls, nil, nil, Integrations{}, nil)
 	premiumQueries := append([]string{}, baseQueries...)
 	premiumQueries = append(premiumQueries, "entra_join_user_windows", "ai_agent_sessions", "ai_agent_session_events")
 	require.Len(t, queriesPremium, len(premiumQueries))
@@ -741,13 +742,18 @@ func TestGetDetailQueries(t *testing.T) {
 
 	// collecting AI sessions can be turned off in the org settings
 	aiSessionsOff := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{AISessionsDisabled: true}}
-	queriesPremiumNoAISessions := GetDetailQueries(premiumCtx, config.FleetConfig{}, aiSessionsOff, nil, Integrations{}, nil)
+	queriesPremiumNoAISessions := GetDetailQueries(premiumCtx, withToolCalls, aiSessionsOff, nil, Integrations{}, nil)
 	require.NotContains(t, queriesPremiumNoAISessions, "ai_agent_sessions")
 	require.NotContains(t, queriesPremiumNoAISessions, "ai_agent_session_events")
 	require.Contains(t, queriesPremiumNoAISessions, "entra_join_user_windows")
-	queriesPremiumAISessions := GetDetailQueries(premiumCtx, config.FleetConfig{}, &fleet.AppConfig{}, nil, Integrations{}, nil)
+	queriesPremiumAISessions := GetDetailQueries(premiumCtx, withToolCalls, &fleet.AppConfig{}, nil, Integrations{}, nil)
 	require.Contains(t, queriesPremiumAISessions, "ai_agent_sessions")
 	require.Contains(t, queriesPremiumAISessions, "ai_agent_session_events")
+
+	// with no tool calls to store, only the sessions are collected
+	queriesPremiumNoToolCalls := GetDetailQueries(premiumCtx, config.FleetConfig{}, &fleet.AppConfig{}, nil, Integrations{}, nil)
+	require.Contains(t, queriesPremiumNoToolCalls, "ai_agent_sessions")
+	require.NotContains(t, queriesPremiumNoToolCalls, "ai_agent_session_events")
 
 	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries

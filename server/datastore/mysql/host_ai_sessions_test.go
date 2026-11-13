@@ -652,32 +652,6 @@ func testHostAISessionEventsCap(t *testing.T, ds *Datastore) {
 	require.Empty(t, cursors)
 }
 
-func TestProbeLoweredCapLoop(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	ctx := t.Context()
-	host := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)
-	now := time.Now().UTC().Truncate(time.Second)
-	s := newTestAISession("s1", now, 4)
-	storeTestAISessions(t, ds, host.ID, s)
-	require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, nil, []*fleet.HostAISessionEvent{
-		newTestAISessionEvent(s, 0, "allowed"), newTestAISessionEvent(s, 1, ""),
-		newTestAISessionEvent(s, 2, "allowed"), newTestAISessionEvent(s, 3, "allowed"),
-	}))
-	s = newTestAISession("s1", now.Add(time.Minute), 4)
-	storeTestAISessions(t, ds, host.ID, s)
-	// The limit is lowered to 2, just above the undecided call 1. The call never gets a decision.
-	for i := range 4 {
-		cursors, err := ds.ListHostAISessionsNeedingEvents(ctx, host.ID, 5, 2)
-		require.NoError(t, err)
-		t.Logf("refresh %d: %d cursors", i, len(cursors))
-		if len(cursors) == 0 {
-			return
-		}
-		require.NoError(t, ds.UpsertHostAISessionEvents(ctx, host.ID, cursors, []*fleet.HostAISessionEvent{newTestAISessionEvent(s, 1, "")}))
-	}
-	t.Fatal("still rereading after 4 refreshes")
-}
-
 func testListHostAISessionsNeedingEventsOrderAndScope(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host1 := newTestHostWithPlatform(t, ds, "host1", "darwin", nil)

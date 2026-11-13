@@ -292,7 +292,8 @@ type OsqueryConfig struct {
 
 	EnableLogRotation bool `yaml:"enable_log_rotation"`
 	MaxJitterPercent  int  `yaml:"max_jitter_percent"`
-	// AISessionMaxToolCalls is how many of an AI agent session's tool calls Fleet stores, its first ones.
+	// AISessionMaxToolCalls is how many of an AI agent session's tool calls Fleet stores, its first ones. 0 stores the
+	// sessions without their tool calls.
 	AISessionMaxToolCalls int `yaml:"ai_session_max_tool_calls"`
 	// AISessionMaxToolCallsPerRefresh is how many new tool calls Fleet asks a host for per AI agent session at each
 	// refresh; 0 leaves it to what fits in the host's result.
@@ -387,8 +388,9 @@ type OsqueryConfig struct {
 	MaxConcurrentQueryReportWrites int `yaml:"max_concurrent_query_report_writes"`
 }
 
-// Validate checks that osquery_host_identifier is one of the supported values.
-// The osquery agent uses this to determine which identifier is reported as the host UUID.
+// Validate checks that osquery_host_identifier is one of the supported values, and that
+// osquery_ai_session_max_tool_calls isn't negative.
+// The osquery agent uses the host identifier to determine which identifier is reported as the host UUID.
 func (o OsqueryConfig) Validate(initFatal func(err error, msg string)) {
 	allowed := map[string]struct{}{
 		"provided": {},
@@ -399,6 +401,10 @@ func (o OsqueryConfig) Validate(initFatal func(err error, msg string)) {
 	if _, ok := allowed[o.HostIdentifier]; !ok {
 		initFatal(fmt.Errorf("%s is not a valid value for osquery_host_identifier", o.HostIdentifier),
 			"set host identifier")
+	}
+	if o.AISessionMaxToolCalls < 0 {
+		initFatal(fmt.Errorf("%d is not a valid value for osquery_ai_session_max_tool_calls: it can't be negative", o.AISessionMaxToolCalls),
+			"set AI session max tool calls")
 	}
 }
 
@@ -3307,6 +3313,7 @@ func TestConfig() FleetConfig {
 			AllowBodyAuthFallback: true,
 			ConfigETags:           true,
 			ConfigInMemoryCache:   true, // off in production; on here to cover the cache paths
+			AISessionMaxToolCalls: 10000,
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,

@@ -54,9 +54,6 @@ WHERE ended_at >= (SELECT unix_time FROM time) - 604800`,
 // aiAgentSessionEventsQuery reads the tool calls of sessions stored on earlier refreshes, a few sessions at a time,
 // up to each session's first maxEvents and, when maxEventsPerRefresh is set, that many new ones per session.
 func aiAgentSessionEventsQuery(maxEvents, maxEventsPerRefresh int) DetailQuery {
-	if maxEvents <= 0 {
-		maxEvents = fleet.DefaultHostAISessionMaxEvents
-	}
 	return DetailQuery{
 		Description: "Fleet Premium only. Built for each host at every refresh from the AI sessions Fleet already stored, so a " +
 			"session's tool calls trail the session by a refresh. Asks for the tool calls of up to 5 sessions that still need them, " +

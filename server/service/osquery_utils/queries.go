@@ -4446,8 +4446,10 @@ func GetDetailQueries(
 		generatedMap["entra_join_user_windows"] = windowsEntraJoinUser
 		if appConfig == nil || !appConfig.ServerSettings.AISessionsDisabled {
 			generatedMap["ai_agent_sessions"] = aiAgentSessions
-			generatedMap["ai_agent_session_events"] = aiAgentSessionEventsQuery(
-				fleetConfig.Osquery.AISessionMaxToolCalls, fleetConfig.Osquery.AISessionMaxToolCallsPerRefresh)
+			if fleetConfig.Osquery.AISessionMaxToolCalls > 0 {
+				generatedMap["ai_agent_session_events"] = aiAgentSessionEventsQuery(
+					fleetConfig.Osquery.AISessionMaxToolCalls, fleetConfig.Osquery.AISessionMaxToolCallsPerRefresh)
+			}
 		}
 	}
 

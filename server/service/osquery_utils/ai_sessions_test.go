@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"math"
 	"slices"
@@ -307,16 +306,14 @@ func TestBuildAIAgentSessionEventsQuery(t *testing.T) {
 	require.Contains(t, query, "tool_call_index >= 3 AND tool_call_index < 4")
 
 	cursors = cursors[:1]
-	// The detail query asks with the configured limit, or the default when none is set.
-	for configured, want := range map[int]uint{7: 7, 0: fleet.DefaultHostAISessionMaxEvents} {
-		ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int, maxEventsArg uint) ([]*fleet.HostAISessionEventsCursor, error) {
-			require.Equal(t, want, maxEventsArg)
-			return cursors, nil
-		}
-		query, ok = aiAgentSessionEventsQuery(configured, 0).QueryFunc(ctx, logger, host, ds)
-		require.True(t, ok)
-		require.Contains(t, query, fmt.Sprintf("tool_call_index < %d", want))
+	// The detail query asks with the configured limit.
+	ds.ListHostAISessionsNeedingEventsFunc = func(ctx context.Context, hostID uint, limit int, maxEventsArg uint) ([]*fleet.HostAISessionEventsCursor, error) {
+		require.EqualValues(t, 7, maxEventsArg)
+		return cursors, nil
 	}
+	query, ok = aiAgentSessionEventsQuery(7, 0).QueryFunc(ctx, logger, host, ds)
+	require.True(t, ok)
+	require.Contains(t, query, "tool_call_index < 7")
 }
 
 func TestDirectIngestAIAgentSessions(t *testing.T) {
