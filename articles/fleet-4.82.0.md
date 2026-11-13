@@ -25,7 +25,7 @@ GitHub issues: [#39314](https://github.com/fleetdm/fleet/issues/39314), [#39238]
 
 ### New technician role
 
-Fleet now includes a Technician role designed for helpdesk and IT support teams. Technicians can run scripts, view results, and install or uninstall software. See the [REST API docs](https://fleetdm.com/docs/api/rest-api) for which endpoints each role can use.
+Fleet now includes a Technician role designed for helpdesk and IT support teams. Technicians can run scripts, view results, and install or uninstall software. Check out the [permissions table](https://fleetdm.com/guides/role-based-access#user-permissions) for a full list of permissions.
 
 This enables least-privilege access for day-to-day support tasks while keeping sensitive configuration settings restricted.
 

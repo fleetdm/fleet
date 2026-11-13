@@ -16,7 +16,7 @@ Easy-to-follow test steps for checking a release manually.
 # Important reference data
 
 1. [fleetctl preview setup](https://fleetdm.com/fleetctl-preview)
-2. [Permissions documentation](https://fleetdm.com/docs/api/rest-api) (roles are listed under each endpoint)
+2. [Permissions documentation](https://fleetdm.com/docs/using-fleet/permissions)
 3. [Fleet free vs premium documentation](https://fleetdm.com/pricing)
 
 # Smoke tests
