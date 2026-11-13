@@ -22,7 +22,6 @@ describe("LocationModal", () => {
       <LocationModal
         hostGeolocation={createMockHostGeolocation()}
         onExit={noop}
-        onClickLock={noop}
       />
     );
 
@@ -48,7 +47,6 @@ describe("LocationModal", () => {
         hostGeolocation={createMockHostGeolocation()}
         detailsUpdatedAt={twoDaysAgo}
         onExit={noop}
-        onClickLock={noop}
       />
     );
 
@@ -60,13 +58,12 @@ describe("LocationModal", () => {
       <LocationModal
         iosOrIpadosDetails={makeIosDetails("unlocked")}
         onExit={noop}
-        onClickLock={noop}
       />
     );
 
     expect(
       screen.getByText(
-        /To view location, Apple requires that iOS hosts are locked \(Lost Mode\) first./i
+        /To view location, Apple requires that iOS\/iPadOS hosts are locked \(put in Lost Mode\) first./i
       )
     ).toBeVisible();
   });
@@ -76,13 +73,12 @@ describe("LocationModal", () => {
       <LocationModal
         iosOrIpadosDetails={makeIosDetails("locking")}
         onExit={noop}
-        onClickLock={noop}
       />
     );
 
     expect(
       screen.getByText(
-        /To view location, Apple requires that iOS hosts are locked \(Lost Mode\) first./i
+        /To view location, Apple requires that iOS\/iPadOS hosts are locked \(put in Lost Mode\) first./i
       )
     ).toBeVisible();
     expect(
@@ -97,7 +93,6 @@ describe("LocationModal", () => {
       <LocationModal
         iosOrIpadosDetails={makeIosDetails("locating")}
         onExit={noop}
-        onClickLock={noop}
       />
     );
 
@@ -114,7 +109,6 @@ describe("LocationModal", () => {
         iosOrIpadosDetails={makeIosDetails("wiping")}
         // no hostGeolocation => hasLocation = false
         onExit={noop}
-        onClickLock={noop}
       />
     );
 
@@ -129,7 +123,6 @@ describe("LocationModal", () => {
         hostGeolocation={createMockHostGeolocation()}
         iosOrIpadosDetails={makeIosDetails("wiping")}
         onExit={noop}
-        onClickLock={noop}
       />
     );
 
@@ -137,17 +130,34 @@ describe("LocationModal", () => {
     expect(screen.getByText("Minneapolis, US")).toBeVisible();
   });
 
-  it("renders Lock/Cancel footer buttons when iOS host is unlocked", () => {
+  it("tells the user where to lock and renders only a Close button when iOS host is unlocked", () => {
     render(
       <LocationModal
         iosOrIpadosDetails={makeIosDetails("unlocked")}
         onExit={noop}
-        onClickLock={noop}
       />
     );
 
-    expect(screen.getByRole("button", { name: "Cancel" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Lock" })).toBeVisible();
+    expect(screen.getByText(/To lock, go to/i)).toBeVisible();
+    expect(screen.getByText("Actions > Lock")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Close" })).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Lock" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Cancel" })
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not tell the user where to lock when lock is pending", () => {
+    render(
+      <LocationModal
+        iosOrIpadosDetails={makeIosDetails("locking")}
+        onExit={noop}
+      />
+    );
+
+    expect(screen.queryByText(/To lock, go to/i)).not.toBeInTheDocument();
   });
 
   it("renders Close footer button otherwise", () => {
@@ -157,7 +167,6 @@ describe("LocationModal", () => {
         // non‑iOS host
         iosOrIpadosDetails={makeIosDetails("unlocked", false)}
         onExit={noop}
-        onClickLock={noop}
       />
     );
 

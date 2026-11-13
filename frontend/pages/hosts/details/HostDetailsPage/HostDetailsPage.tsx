@@ -2492,10 +2492,6 @@ const HostDetailsPage = ({
               isIosOrIpadosHost,
               hostMdmDeviceStatus,
             }}
-            onClickLock={() => {
-              setShowLockHostModal(true);
-              setShowLocationModal(undefined);
-            }}
             detailsUpdatedAt={host.detail_updated_at}
           />
         )}
