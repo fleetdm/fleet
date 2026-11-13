@@ -1,12 +1,6 @@
 # Add Microsoft Store apps to Windows with script-only packages
 
-You can install Microsoft Store apps for all users on Windows hosts with a script-only package. No user needs to be signed in. Built-in support for Microsoft Store apps is [coming soon](https://github.com/fleetdm/fleet/issues/43493).
-
-## Prerequisites
-
-- Fleet 4.89.0 or later.
-- Windows hosts enrolled in Fleet with scripts enabled. See the [scripts guide](https://fleetdm.com/guides/scripts) if you deployed Fleet's agent without `--enable-scripts`.
-- A free Microsoft Store app. Paid apps fail to install with a licensing error.
+You can install Microsoft Store apps for all users on Windows hosts with a script-only package. No user needs to be signed in. Only free apps are supported. Paid apps fail to install with a licensing error. Built-in support for Microsoft Store apps is [coming soon](https://github.com/fleetdm/fleet/issues/43493).
 
 ## Step 1: Find the Store ID and package family name
 
