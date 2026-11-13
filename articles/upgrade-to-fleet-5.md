@@ -9,7 +9,7 @@ Fleet will support Fleet 4.96 with security fixes through June 30, 2027.
 #### How to upgrade
 
 1. [Upgrade](https://fleetdm.com/docs/deploy/upgrading-fleet#upgrading-fleet) to the **latest Fleet 4 release**.
-2. Work through the list of [breaking changes](#breaking-changes).
+2. Work through the list of [breaking changes](#breaking-changes). Best practice is to use your AI tool of choice (e.g. Claude, Codex, Copilot). Point it at your GitOps repository, scripts, and automations, along with this guide. Ask it to find and update everything that changes in Fleet 5.
 3. Back up your Fleet database. If you need to go back to Fleet 4 after upgrading, restore this backup. Fleet 4 can't read the settings Fleet 5 renames, so it would turn off features like Windows MDM.
 4. Upgrade to the **latest Fleet 5 release**. Why? If you upgrade to an earlier version of Fleet 5, you'll miss database migrations included in later Fleet 4 releases (e.g. 4.96.0 or 4.96.1).
 5. If you use the [fleetctl CLI](https://fleetdm.com/guides/fleetctl) or [GitOps](https://fleetdm.com/docs/configuration/yaml-files) (fleetctl runs in CI/CD), upgrade fleetctl to 5 everywhere you run it. fleetctl 4 isn't supported with Fleet 5 and can fail in [GitOps runs](#fleetctl-5-required-for-gitops).
