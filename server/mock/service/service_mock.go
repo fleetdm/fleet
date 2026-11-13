@@ -303,6 +303,8 @@ type NewAppConfigFunc func(ctx context.Context, p fleet.AppConfig) (info *fleet.
 
 type AppConfigObfuscatedFunc func(ctx context.Context) (info *fleet.AppConfig, err error)
 
+type ConfigListsByTeamIDsFunc func(ctx context.Context, teamIDs []uint) (map[uint]*fleet.ConfigLists, error)
+
 type ModifyAppConfigFunc func(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (info *fleet.AppConfig, err error)
 
 type SandboxEnabledFunc func() bool
@@ -1420,6 +1422,9 @@ type Service struct {
 
 	AppConfigObfuscatedFunc        AppConfigObfuscatedFunc
 	AppConfigObfuscatedFuncInvoked bool
+
+	ConfigListsByTeamIDsFunc        ConfigListsByTeamIDsFunc
+	ConfigListsByTeamIDsFuncInvoked bool
 
 	ModifyAppConfigFunc        ModifyAppConfigFunc
 	ModifyAppConfigFuncInvoked bool
@@ -3450,6 +3455,13 @@ func (s *Service) AppConfigObfuscated(ctx context.Context) (info *fleet.AppConfi
 	s.AppConfigObfuscatedFuncInvoked = true
 	s.mu.Unlock()
 	return s.AppConfigObfuscatedFunc(ctx)
+}
+
+func (s *Service) ConfigListsByTeamIDs(ctx context.Context, teamIDs []uint) (map[uint]*fleet.ConfigLists, error) {
+	s.mu.Lock()
+	s.ConfigListsByTeamIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConfigListsByTeamIDsFunc(ctx, teamIDs)
 }
 
 func (s *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (info *fleet.AppConfig, err error) {

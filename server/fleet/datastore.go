@@ -2856,6 +2856,11 @@ type Datastore interface {
 	// corresponding to the criteria.
 	ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt ListOptions) ([]*MDMConfigProfilePayload, *PaginationMetadata, error)
 
+	// ConfigListsByTeamIDs returns the custom configuration profiles, scripts,
+	// and setup experience assets of each fleet ID (0 is "No fleet"). Every
+	// requested ID has an entry in the result.
+	ConfigListsByTeamIDs(ctx context.Context, teamIDs []uint) (map[uint]*ConfigLists, error)
+
 	// ResendHostMDMProfile updates the host's profile status to NULL thereby triggering the profile
 	// to be resent upon the next cron run.
 	ResendHostMDMProfile(ctx context.Context, hostUUID string, profileUUID string) error

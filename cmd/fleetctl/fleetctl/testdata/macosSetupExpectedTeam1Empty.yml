@@ -21,28 +21,28 @@ spec:
       name_template: null
       windows_require_bitlocker_pin: null
       apple_settings:
-        configuration_profiles: null
+        configuration_profiles: []
         enable_disk_encryption: false
         enable_escrow_disk_encryption_key: false
       linux_settings:
         enable_escrow_disk_encryption_key: false
       android_settings:
-        configuration_profiles: null
+        configuration_profiles: []
         certificates: null
       setup_experience:
-        macos_bootstrap_package: null
+        macos_bootstrap_package: ""
         enable_create_local_admin_account: false
         enable_end_user_authentication: false
         end_user_local_account_type: "admin"
         lock_end_user_info: false
-        apple_setup_assistant: null
+        apple_setup_assistant: ""
         macos_manual_agent_install: null
         macos_enable_bootstrap_package_during_manual_enrollment: false
         macos_enable_bootstrap_package_during_migration: false
         macos_require_all_software: false
         windows_require_all_software: false
         apple_enable_release_device_manually: false
-        macos_script: null
+        macos_script: ""
         software: null
       macos_updates:
         deadline: null
@@ -64,10 +64,10 @@ spec:
         grace_period_days: null
       windows_settings:
         require_bitlocker_pin: false
-        configuration_profiles: null
+        configuration_profiles: []
         enable_disk_encryption: false
         enable_managed_local_account: false
-    scripts: null
+    scripts: []
     secrets: null
     webhook_settings:
       host_status_webhook: null

@@ -103,6 +103,14 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.GetWindowsEnrollmentDefaultFleetFunc = func(ctx context.Context) (*uint, string, error) {
 		return nil, "", nil
 	}
+	// Config and fleet responses read these lists from their own tables.
+	ds.ConfigListsByTeamIDsFunc = func(ctx context.Context, teamIDs []uint) (map[uint]*fleet.ConfigLists, error) {
+		lists := make(map[uint]*fleet.ConfigLists, len(teamIDs))
+		for _, id := range teamIDs {
+			lists[id] = fleet.NewConfigLists()
+		}
+		return lists, nil
+	}
 	ds.ListMicrosoftGraphCredentialMetadataFunc = func(ctx context.Context) ([]*fleet.MicrosoftGraphCredentialMetadata, error) {
 		return nil, nil
 	}

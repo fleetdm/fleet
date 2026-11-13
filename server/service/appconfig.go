@@ -257,6 +257,9 @@ func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 			StagedUploadAvailable:  svc.StagedUploadAvailable(ctx),
 		},
 	}
+	if err := addAppConfigLists(ctx, svc, &response.AppConfig); err != nil {
+		return nil, err
+	}
 	return response, nil
 }
 
@@ -377,6 +380,11 @@ func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet
 
 	if lic == nil || (!lic.IsPremium()) || response.FleetDesktop.TransparencyURL == "" {
 		response.FleetDesktop.TransparencyURL = fleet.DefaultTransparencyURL
+	}
+
+	// Primary, because the request may have just changed VPP assignments.
+	if err := addAppConfigLists(ctxdb.RequirePrimary(ctx, true), svc, &response.AppConfig); err != nil {
+		return appConfigResponse{Err: err}, nil
 	}
 
 	return response, nil
@@ -1040,6 +1048,17 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = newAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
 	} else {
 		appConfig.MDM.WindowsSettings.EnableManagedLocalAccount = oldAppConfig.MDM.WindowsSettings.EnableManagedLocalAccount
+	}
+
+	// Responses leave these out for roles that can't read them, but a client may still send
+	// null (older responses returned it), and that must not delete the saved item, in
+	// overwrite mode too. "" still clears it, and that's what GitOps sends for an omitted or
+	// empty key.
+	if newAppConfig.MDM.MacOSSetup.BootstrapPackage.Set && !newAppConfig.MDM.MacOSSetup.BootstrapPackage.Valid {
+		appConfig.MDM.MacOSSetup.BootstrapPackage = oldAppConfig.MDM.MacOSSetup.BootstrapPackage
+	}
+	if newAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Set && !newAppConfig.MDM.MacOSSetup.MacOSSetupAssistant.Valid {
+		appConfig.MDM.MacOSSetup.MacOSSetupAssistant = oldAppConfig.MDM.MacOSSetup.MacOSSetupAssistant
 	}
 
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
@@ -2318,6 +2337,10 @@ func (svc *Service) validateMDM(
 	invalid *fleet.InvalidArgumentError,
 	overwrite bool,
 ) error {
+	mdm.MacOSSettings.CustomSettings = fleet.WithoutEchoedProfileSpecs(mdm.MacOSSettings.CustomSettings, oldMdm.MacOSSettings.CustomSettings)
+	mdm.WindowsSettings.CustomSettings = fleet.WithoutEchoedProfileSpecsOpt(mdm.WindowsSettings.CustomSettings, oldMdm.WindowsSettings.CustomSettings)
+	mdm.AndroidSettings.CustomSettings = fleet.WithoutEchoedProfileSpecsOpt(mdm.AndroidSettings.CustomSettings, oldMdm.AndroidSettings.CustomSettings)
+
 	if !lic.IsPremium() {
 		// gated on newly enabling (not the stored value) so a downgraded
 		// license with settings still on can save unrelated config changes

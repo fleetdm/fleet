@@ -287,7 +287,7 @@ type TeamConfig struct {
 	MDM                TeamMDM             `json:"mdm"`
 	// the below aren't serialized as-is into config JSON column in the teams table
 	Features Features              `json:"features"`
-	Scripts  optjson.Slice[string] `json:"scripts,omitempty"`
+	Scripts  optjson.Slice[string] `json:"scripts,omitzero"`
 	Software *SoftwareSpec         `json:"software,omitempty"`
 }
 

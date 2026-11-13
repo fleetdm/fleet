@@ -329,7 +329,7 @@ type MDM struct {
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
-	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
+	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program,omitzero"`
 
 	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
 	AndroidEnabledAndConfigured bool            `json:"android_enabled_and_configured"`
@@ -853,7 +853,7 @@ type MacOSSettings struct {
 	//
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings []MDMProfileSpec `json:"custom_settings" renameto:"configuration_profiles"`
+	CustomSettings []MDMProfileSpec `json:"custom_settings,omitzero" renameto:"configuration_profiles"`
 
 	// EnableDiskEncryption enforces FileVault on macOS hosts.
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
@@ -1027,12 +1027,12 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage                                  optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
+	BootstrapPackage                                  optjson.String                     `json:"bootstrap_package,omitzero" renameto:"macos_bootstrap_package"`
 	EnableEndUserAuthentication                       bool                               `json:"enable_end_user_authentication"`
 	LockEndUserInfo                                   optjson.Bool                       `json:"lock_end_user_info"`
-	MacOSSetupAssistant                               optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
+	MacOSSetupAssistant                               optjson.String                     `json:"macos_setup_assistant,omitzero" renameto:"apple_setup_assistant"`
 	EnableReleaseDeviceManually                       optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	Script                                            optjson.String                     `json:"script" renameto:"macos_script"`
+	Script                                            optjson.String                     `json:"script,omitzero" renameto:"macos_script"`
 	Software                                          optjson.Slice[*MacOSSetupSoftware] `json:"software"`
 	ManualAgentInstall                                optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware                                bool                               `json:"macos_require_all_software" removedkey:"require_all_software_macos" renamescope:"macos_setup,setup_experience"`
@@ -1261,7 +1261,7 @@ type AppConfig struct {
 	//
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for scripts is in MySQL.)
-	Scripts optjson.Slice[string] `json:"scripts"`
+	Scripts optjson.Slice[string] `json:"scripts,omitzero"`
 
 	YaraRules []YaraRule `json:"yara_rules,omitempty"`
 
@@ -2607,7 +2607,7 @@ func (v *Version) AuthzType() string {
 type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings" renameto:"configuration_profiles"`
+	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings,omitzero" renameto:"configuration_profiles"`
 
 	// EnableManagedLocalAccount turns on the hidden managed local admin account created by
 	// fleetd on Windows hosts during Autopilot/OOBE enrollment.
@@ -2648,7 +2648,7 @@ var _ WithMDMProfileSpecs = WindowsSettings{}
 type AndroidSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"custom_settings" renameto:"configuration_profiles"`
+	CustomSettings optjson.Slice[MDMProfileSpec]          `json:"custom_settings,omitzero" renameto:"configuration_profiles"`
 	Certificates   optjson.Slice[CertificateTemplateSpec] `json:"certificates"`
 }
 
