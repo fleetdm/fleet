@@ -76,7 +76,6 @@ Fleet adds default install and uninstall scripts that install and uninstall the 
 
 > If an app is also available as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), use the Fleet-maintained app. Fleet knows its version, and you can [patch it](https://fleetdm.com/guides/patching-end-user-experience).
 
-> Some Microsoft Store listings can't be installed by Fleet because Microsoft doesn't provide a package for them. This is common for games and for apps that are no longer available in the Microsoft Store.
 
 #### Supported Microsoft Store apps
 
