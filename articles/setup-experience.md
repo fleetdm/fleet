@@ -287,6 +287,8 @@ Add setup experience software:
 
 To see the end user experience on iOS/iPadOS, check out the [iOS video](https://www.youtube.com/shorts/_XXNGrQPqys) and [iPadOS video](https://www.youtube.com/shorts/IIzo4NyUolM)
 
+On company-owned Android hosts, add Chrome and other built-in Google apps to update them during setup. Learn how in the [app store apps guide](https://fleetdm.com/guides/install-app-store-apps#configure-automatic-updates-for-an-app).
+
 ### Retries
 
 For macOS, Windows, and Linux hosts, custom packages and Fleet-maintained app installs are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. When Fleet retries, IT admins can see error messages for all attempts in the **Host details > Activity** card. The end user only sees an error message if the third, and final, attempt fails.
@@ -321,29 +323,6 @@ To reduce these risks:
 - Keep the setup experience software list short. Each item extends setup time.
 - Before a large rollout, confirm your VPP token is valid. For paid apps, also confirm you have enough available licenses. Free apps don't need this check.
 - If available, choose Fleet-maintained app over App Store (VPP) app for better control
-
-### Update built-in Google apps on Android
-
-Company-owned Android hosts come with Google apps, like Chrome, already installed at the version that shipped with the device. Google Play updates them later, sometimes hours or days after setup. To update them during setup, add them to setup experience software:
-
-1. Add each app to the fleet as a [Google Play app](https://fleetdm.com/guides/install-app-store-apps#google-play-android), using its application ID from the table below.
-2. Go to **Controls > Setup experience > 4. Install software**, select the **Android** tab, and add the apps.
-
-| App | Application ID |
-|---|---|
-| Google Chrome | `com.android.chrome` |
-| Android System WebView | `com.google.android.webview` |
-| Google | `com.google.android.googlequicksearchbox` |
-| Gmail | `com.google.android.gm` |
-| Google Calendar | `com.google.android.calendar` |
-| Google Drive | `com.google.android.apps.docs` |
-| Google Meet | `com.google.android.apps.tachyon` |
-| Google Maps | `com.google.android.apps.maps` |
-| Google Photos | `com.google.android.apps.photos` |
-| YouTube | `com.google.android.youtube` |
-| YouTube Music | `com.google.android.apps.youtube.music` |
-| Google Messages | `com.google.android.apps.messaging` |
-| Gemini | `com.google.android.apps.bard` |
 
 ### Python (.py) packages on macOS
 
