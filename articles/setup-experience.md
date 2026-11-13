@@ -322,6 +322,31 @@ To reduce these risks:
 - Before a large rollout, confirm your VPP token is valid. For paid apps, also confirm you have enough available licenses. Free apps don't need this check.
 - If available, choose Fleet-maintained app over App Store (VPP) app for better control
 
+### Update built-in Google apps on Android
+
+Company-owned Android hosts come with Google apps, like Chrome, already installed at the version that shipped with the device. Google Play updates them later, sometimes hours or days after setup. To update them during setup, add them to setup experience software:
+
+1. Add each app to the fleet as a [Google Play app](https://fleetdm.com/guides/install-app-store-apps#google-play-android), using its application ID from the table below.
+2. Go to **Controls > Setup experience > 4. Install software**, select the **Android** tab, and add the apps.
+
+| App | Application ID |
+|---|---|
+| Google Chrome | `com.android.chrome` |
+| Android System WebView | `com.google.android.webview` |
+| Google | `com.google.android.googlequicksearchbox` |
+| Gmail | `com.google.android.gm` |
+| Google Calendar | `com.google.android.calendar` |
+| Google Drive | `com.google.android.apps.docs` |
+| Google Meet | `com.google.android.apps.tachyon` |
+| Google Maps | `com.google.android.apps.maps` |
+| Google Photos | `com.google.android.apps.photos` |
+| YouTube | `com.google.android.youtube` |
+| YouTube Music | `com.google.android.apps.youtube.music` |
+| Google Messages | `com.google.android.apps.messaging` |
+| Gemini | `com.google.android.apps.bard` |
+
+Which Google apps come preinstalled depends on the device maker.
+
 ### Python (.py) packages on macOS
 
 A new Mac doesn't include a Python interpreter. Python comes with Apple's Command Line Tools (CLT). Without CLT, `.py` packages in setup experience fail with an `xcode-select: error: No developer tools were found` error.
