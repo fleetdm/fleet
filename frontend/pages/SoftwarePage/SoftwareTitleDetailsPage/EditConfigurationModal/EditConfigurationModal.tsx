@@ -177,6 +177,12 @@ const EditConfigurationModal = ({
     debounceValidate(value);
   };
 
+  const onInputBlur = () => {
+    // Beat the pending debounce so tabbing away surfaces the error immediately.
+    debounceValidate.cancel();
+    setFormError(validateForm(formData));
+  };
+
   const editorMode = isApplePlatform ? "xml" : "json";
 
   const renderHelpText = () => {
@@ -227,6 +233,7 @@ const EditConfigurationModal = ({
       value={formData}
       helpText={renderHelpText()}
       onChange={onInputChange}
+      onBlur={onInputBlur}
       onLoad={onEditorLoad}
       readOnly={isUpdatingConfiguration}
       disabled={gitOpsModeEnabled}
