@@ -63,7 +63,7 @@ Use this when every host on a fleet needs the same printer, with no end user cho
 
 1. Build a Printing (`com.apple.mcxprinting`) payload in [iMazing Profile Creator](https://imazing.com/profile-editor), starting from this [example profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/printer.mobileconfig). For each printer, set the display name, connection URI, and PPD. Or skip the GUI and have an AI coding agent generate and validate the payload for you. See [Build and validate configuration profiles with AI instead of a GUI](https://fleetdm.com/guides/build-configuration-profiles-with-ai).
 2. In Fleet, go to **Controls > OS settings > Configuration profiles** and choose a fleet.
-3. Select **Add profile** and upload the `.mobileconfig` file.
+3. Select **Add profile**, select **Create manually**, and upload the `.mobileconfig` file.
 
 > **Warning:** [Apple allows only one Printing payload](https://support.apple.com/guide/deployment/printing-payload-settings-dep9514788c/web) per host. If you need more than one printer, add every printer to the same profile rather than uploading separate profiles, or the second upload replaces the first.
 
