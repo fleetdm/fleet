@@ -3492,7 +3492,7 @@ type uploadBootstrapPackageResponse struct {
 // TODO: Per-fleet authorization still runs after parsing because fleet_id is in the body.
 func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	decoded := uploadBootstrapPackageRequest{}
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -4245,7 +4245,7 @@ type createAppleDDMAssetRequest struct {
 func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := new(createAppleDDMAssetRequest)
 
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",

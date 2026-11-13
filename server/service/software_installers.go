@@ -96,7 +96,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	decoded.TitleID = uint(titleID)
 
 	maxInstallerSize := installersize.FromContext(ctx)
-	err = parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err = r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {
@@ -376,7 +376,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	decoded := uploadSoftwareInstallerRequest{}
 
 	maxInstallerSize := installersize.FromContext(ctx)
-	err := parseMultipartForm(ctx, r, platform_http.MaxMultipartFormSize)
+	err := r.ParseMultipartForm(platform_http.MaxMultipartFormSize)
 	if err != nil {
 		var mbe *http.MaxBytesError
 		if errors.As(err, &mbe) {

@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"testing"
 
@@ -56,6 +58,41 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 		{"PATCH", "/fleets/1/secrets", `{"secrets": [{"secret": "a", "team_id": 1}]}`, "team_id"},
 	} {
 		reject(tc[0], tc[1], tc[2], tc[3])
+	}
+
+	// Keys inside the free-form host filters and the AB and VPP token arrays of the config, with force too, which skips strict
+	// decoding.
+	for _, tc := range [][]string{
+		{"POST", "/hosts/transfer/filter", `{"fleet_id": null, "filters": {"team_id": 1}}`, "team_id"},
+		{"POST", "/hosts/delete", `{"filters": {"team_id": 1}}`, "team_id"},
+		{"PATCH", "/config", `{"mdm": {"apple_business": [{"organization_name": "a", "macos_team": "a"}]}}`, "macos_team"},
+		{"PATCH", "/config?force=true", `{"mdm": {"apple_business": [{"organization_name": "a", "byod_team": "a"}]}}`, "byod_team"},
+		{"PATCH", "/config?force=true", `{"mdm": {"volume_purchasing_program": [{"location": "a", "teams": ["a"]}]}}`, "teams"},
+	} {
+		reject(tc[0], tc[1], tc[2], tc[3])
+	}
+
+	// Multipart uploads: the old field is rejected whether or not fleet_id is also sent.
+	for _, path := range []string{"/software/package", "/scripts", "/configuration_profiles", "/setup_experience/script", "/bootstrap"} {
+		for _, fields := range []map[string]string{{"team_id": "0"}, {"fleet_id": "0", "team_id": "0"}} {
+			t.Run("POST "+path+" form field team_id", func(t *testing.T) {
+				var body bytes.Buffer
+				w := multipart.NewWriter(&body)
+				for name, value := range fields {
+					require.NoError(t, w.WriteField(name, value))
+				}
+				require.NoError(t, w.Close())
+				resp := s.DoRawWithHeaders("POST", "/api/latest/fleet"+path, body.Bytes(), http.StatusUnprocessableEntity,
+					map[string]string{"Content-Type": w.FormDataContentType(), "Authorization": "Bearer " + s.token})
+				var got struct {
+					Errors []map[string]string `json:"errors"`
+				}
+				require.NoError(t, json.NewDecoder(resp.Body).Decode(&got))
+				require.Equal(t, []map[string]string{{
+					"name": "team_id", "reason": `The "team_id" parameter is not available anymore. What to use instead: ` + removednames.GuideURL,
+				}}, got.Errors)
+			})
+		}
 	}
 
 	// Query parameters are rejected before the body is read, so these requests carry none. The new name next to the old one does not win.

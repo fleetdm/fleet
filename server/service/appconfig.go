@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	strconv "strconv"
 	"strings"
@@ -583,6 +584,9 @@ func (svc *Service) verifyChangedAppleAccountProvisioning(ctx context.Context, o
 	return nil
 }
 
+// appConfigFields has the fields of fleet.AppConfig without its UnmarshalJSON, so the removed-names scan looks inside it.
+type appConfigFields fleet.AppConfig
+
 func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fleet.ApplySpecOptions) (*fleet.AppConfig, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
 		return nil, err
@@ -641,6 +645,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if _, ok := errors.AsType[*endpointer.RemovedKeyError](err); !ok {
 			err = &fleet.BadRequestError{Message: "failed to decode app config", InternalErr: err}
 		}
+		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
+	}
+	// Strict decoding would only report a renamed key as unknown, and force skips strict decoding, which would drop an old AB or
+	// VPP fleet key and unassign the token.
+	if err := endpointer.RejectRemovedJSONKeys(p, reflect.TypeFor[appConfigFields]()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
 

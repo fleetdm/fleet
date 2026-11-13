@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	eu "github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/fleetdm/fleet/v4/server/platform/http/multipartform"
 	"github.com/fleetdm/fleet/v4/server/platform/jsondecode"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/go-kit/kit/endpoint"
@@ -343,8 +342,4 @@ func writeCapabilitiesHeader(w http.ResponseWriter, capabilities fleet.Capabilit
 	}
 
 	w.Header().Set(fleet.CapabilitiesHeader, capabilities.String())
-}
-
-func parseMultipartForm(ctx context.Context, r *http.Request, maxMemory int64) error {
-	return multipartform.Parse(ctx, r, maxMemory)
 }

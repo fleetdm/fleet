@@ -649,6 +649,13 @@ func MakeDecoder(
 					Gzipped:        gzipped,
 				}
 			}
+
+			// Checked even when decoding failed, since an upload that sends team_id instead of fleet_id can fail there first.
+			if r.MultipartForm != nil && !SkipsRemovedNamesScan(r.URL.Path) {
+				if err := RejectRemovedFormFields(r.MultipartForm.Value); err != nil {
+					return nil, err
+				}
+			}
 			return ret, err
 		}
 	}

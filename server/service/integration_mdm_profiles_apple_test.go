@@ -482,7 +482,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// add a declaration to the team
 	declIdent := "decl-ident-" + uuid.NewString()
 	fields := map[string][]string{
-		"team_id": {fmt.Sprintf("%d", tm.ID)},
+		"fleet_id": {fmt.Sprintf("%d", tm.ID)},
 	}
 	body, headers := generateNewProfileMultipartRequest(
 		t, "some-declaration.json", declarationForTest(declIdent), s.token, fields,
@@ -1652,7 +1652,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 
 	// add a profile to team 2 (h1 and h3 are now part of team 2)
 	body, headers = generateNewProfileMultipartRequest(t,
-		"some_name.mobileconfig", mobileconfigForTest("T2.2", "T2.2"), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm2.ID)}})
+		"some_name.mobileconfig", mobileconfigForTest("T2.2", "T2.2"), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm2.ID)}})
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	s.awaitTriggerProfileSchedule(t)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
@@ -1932,7 +1932,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		"label_prof.mobileconfig",
 		mobileconfigForTest("label_prof", "label_prof"),
 		s.token,
-		map[string][]string{"team_id": {fmt.Sprintf("%d", tm1.ID)}},
+		map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm1.ID)}},
 	)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 
@@ -2059,7 +2059,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	generateNewReq := func(name string, teamID *uint) (*bytes.Buffer, map[string]string) {
 		args := map[string][]string{}
 		if teamID != nil {
-			args["team_id"] = []string{fmt.Sprintf("%d", *teamID)}
+			args["fleet_id"] = []string{fmt.Sprintf("%d", *teamID)}
 		}
 		return generateNewProfileMultipartRequest(t, "some_filename.mobileconfig", testProfiles[name].Mobileconfig, s.token, args)
 	}
@@ -2270,7 +2270,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 
 		body, headers = generateNewProfileMultipartRequest(t, "some_filename.mobileconfig", cp.Mobileconfig, s.token, map[string][]string{
-			"team_id": {fmt.Sprintf("%d", testTeam.ID)},
+			"fleet_id": {fmt.Sprintf("%d", testTeam.ID)},
 		})
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 
@@ -2287,7 +2287,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 
 		cp.TeamID = &testTeam.ID
 		body, headers = generateNewProfileMultipartRequest(t, "some_filename.mobileconfig", cp.Mobileconfig, s.token, map[string][]string{
-			"team_id": {fmt.Sprintf("%d", testTeam.ID)},
+			"fleet_id": {fmt.Sprintf("%d", testTeam.ID)},
 		})
 
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
