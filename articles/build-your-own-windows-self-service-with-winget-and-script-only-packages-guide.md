@@ -1,4 +1,4 @@
-# Add Microsoft Store apps to self-service with script-only packages
+# Add Microsoft Store apps to self service with script-only packages
 
 You can install Microsoft Store apps for all users on Windows hosts with a script-only package. No user needs to be signed in. Only free apps are supported. Paid apps fail to install with a licensing error. Built-in support for Microsoft Store apps is [coming soon](https://github.com/fleetdm/fleet/issues/43493).
 
@@ -51,7 +51,7 @@ Add the install script as a script-only package, with the uninstall script from 
 1. Go to **Software** and select the fleet.
 2. Select **Add software > Custom package** and upload `install-company-portal.ps1`.
 3. Expand **Advanced options** and paste the uninstall script into **Uninstall script**.
-4. Optionally, turn on **Self-service**.
+4. Optionally, turn on **Self service**.
 5. Select **Add software**.
 
 ### GitOps
@@ -87,7 +87,7 @@ software:
 
 - [Deploy software packages](https://fleetdm.com/guides/deploy-software-packages)
 
-<meta name="articleTitle" value="Add Microsoft Store apps to self-service with script-only packages">
+<meta name="articleTitle" value="Add Microsoft Store apps to self service with script-only packages">
 <meta name="authorFullName" value="Allen Houchins">
 <meta name="authorGitHubUsername" value="allenhouchins">
 <meta name="category" value="guides">
