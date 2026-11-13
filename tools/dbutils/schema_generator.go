@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/WatchBeam/clock"
@@ -71,6 +72,8 @@ func main() {
 	ds, err := mysql.New(config, clock.NewMockClock(), mysql.Logger(slog.New(slog.DiscardHandler)), mysql.LimitAttempts(1))
 	panicif(err)
 	defer ds.Close()
+	var migrationStart string
+	panicif(db.QueryRow(`SELECT NOW(6)`).Scan(&migrationStart))
 	panicif(ds.MigrateTables(context.Background()))
 
 	// Set created_at/updated_at for app_config_json to prevent the schema from being changed every time
@@ -80,6 +83,7 @@ func main() {
 	panicif(err)
 	_, err = db.Exec(`UPDATE app_config_json SET created_at = ?, updated_at = ?`, fixedDate, fixedDate)
 	panicif(err)
+	pinMigrationTimestamps(db, migrationStart, fixedDate)
 
 	// Tests create these built-in labels themselves via test.AddBuiltinLabels.
 	testBuiltinLabels := []string{
@@ -123,6 +127,50 @@ func main() {
 	panicif(err)
 	if !slices.Equal(applied, fromFiles) {
 		panic(fmt.Sprintf("applied migrations %v do not match migration filenames %v", applied, fromFiles))
+	}
+}
+
+// pinMigrationTimestamps replaces every timestamp/datetime value written while the migrations ran
+// (DEFAULT CURRENT_TIMESTAMP, ON UPDATE CURRENT_TIMESTAMP, NOW()) with fixedDate, so the dump
+// doesn't change on every run. Literal dates seeded by migrations are older and left alone.
+func pinMigrationTimestamps(db *sql.DB, since string, fixedDate time.Time) {
+	var cols []struct {
+		Table  string `db:"table_name"`
+		Column string `db:"column_name"`
+	}
+	panicif(sqlx.Select(sqlx.NewDb(db, "mysql"), &cols, `
+		SELECT c.TABLE_NAME AS table_name, c.COLUMN_NAME AS column_name
+		FROM information_schema.COLUMNS c
+		JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME
+		WHERE c.TABLE_SCHEMA = 'schemadb' AND t.TABLE_TYPE = 'BASE TABLE'
+			AND c.TABLE_NAME != 'migration_status_tables' AND c.DATA_TYPE IN ('timestamp', 'datetime')
+		ORDER BY c.TABLE_NAME, c.ORDINAL_POSITION`))
+
+	byTable := map[string][]string{}
+	var tables []string
+	for _, c := range cols {
+		if _, ok := byTable[c.Table]; !ok {
+			tables = append(tables, c.Table)
+		}
+		byTable[c.Table] = append(byTable[c.Table], c.Column)
+	}
+	for _, table := range tables {
+		// Set all columns in one statement: explicitly assigning a column stops
+		// ON UPDATE CURRENT_TIMESTAMP from bumping it again.
+		var sets, conds []string
+		var args []any
+		for _, col := range byTable[table] {
+			sets = append(sets, fmt.Sprintf("`%[1]s` = IF(`%[1]s` >= ?, ?, `%[1]s`)", col))
+			args = append(args, since, fixedDate)
+			conds = append(conds, fmt.Sprintf("`%s` >= ?", col))
+		}
+		for range byTable[table] {
+			args = append(args, since)
+		}
+		//nolint:gosec // identifiers come from information_schema
+		stmt := fmt.Sprintf("UPDATE `%s` SET %s WHERE %s", table, strings.Join(sets, ", "), strings.Join(conds, " OR "))
+		_, err := db.Exec(stmt, args...)
+		panicif(err)
 	}
 }
 
