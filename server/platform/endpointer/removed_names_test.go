@@ -115,6 +115,7 @@ func TestRejectRemovedQueryParams(t *testing.T) {
 		{name: "a parameter the type still declares", typ: reflect.TypeFor[scanRequest](), query: "team_id=1"},
 		{name: "declared through an embedded struct", typ: reflect.TypeFor[scanRequest](), query: "fleet_id=1&team_name=x", wantKey: "team_name"},
 		{name: "removed sort key", query: "order_key=team_name", wantKey: "team_name", wantParam: "order_key"},
+		{name: "removed sort key among several", query: "order_key=name,%20team_name%20", wantKey: "team_name", wantParam: "order_key"},
 		{name: "removed inherited sort key", query: "order_key=name&inherited_order_key=team_name", wantKey: "team_name", wantParam: "inherited_order_key"},
 		{name: "sort keys are matched as values of the order key parameters only", query: "order_key=fleet_name&sort=team_name"},
 		{name: "a type that sorts by any result column", typ: reflect.TypeFor[columnSortRequest](), query: "order_key=team_name"},
