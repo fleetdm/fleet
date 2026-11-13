@@ -130,6 +130,10 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context, cursor string
 		return 0, ctxerr.Wrap(ctx, err, "reconcile certificate templates")
 	}
 
+	if err := r.reconcileFleetDefaultPolicies(ctx); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "reconcile fleet default policies")
+	}
+
 	// Profile rows are only written once the whole batch was sent, so a host can have its
 	// rows reset for redelivery (e.g. by the setup experience replacing its policy) after they
 	// were read here. Rows reset since this time are not overwritten with the stale state.

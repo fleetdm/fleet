@@ -617,7 +617,7 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 	// Verify the enroll secret before anything that could reveal server
 	// configuration state, so callers without a valid secret always get the
 	// same response.
-	_, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
+	verifiedSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollSecret)
 	switch {
 	case fleet.IsNotFound(err):
 		return nil, fleet.NewAuthFailedError("invalid secret")
@@ -689,12 +689,25 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		personalUsageSetting = "PERSONAL_USAGE_DISALLOWED"
 	}
 
+	var teamID uint
+	if id := verifiedSecret.GetTeamID(); id != nil {
+		teamID = *id
+	}
+	policyName, err := svc.EnsureFleetDefaultPolicy(ctx, enterprise.Name(), teamID)
+	if err != nil {
+		// Enrolling without the setup passcode beats not enrolling; the host still gets it once it's
+		// moved to its own policy.
+		svc.logger.ErrorContext(ctx, "failed to ensure the fleet's android default policy, enrolling with the global one",
+			"fleet_id", teamID, "err", err)
+		policyName = fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID)
+	}
+
 	token := &androidmanagement.EnrollmentToken{
 		// Default duration is 1 hour
 
 		AdditionalData:     string(enrollmentTokenRequest),
 		AllowPersonalUsage: personalUsageSetting,
-		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID),
+		PolicyName:         policyName,
 		OneTimeOnly:        true,
 	}
 	token, err = svc.androidAPIClient.EnterprisesEnrollmentTokensCreate(ctx, enterprise.Name(), token)

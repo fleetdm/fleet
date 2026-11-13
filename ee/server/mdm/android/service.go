@@ -101,11 +101,41 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "getting existing zero-touch token")
 	}
-	if existing != nil {
+	if existing != nil && existing.UsesFleetPolicy {
 		return buildDPCExtrasResponse(existing), nil
 	}
 
-	// No token exists — create one via AMAPI
+	token, err := svc.newZeroTouchToken(ctx, teamID)
+	if err != nil {
+		if existing == nil {
+			return nil, err
+		}
+		svc.logger.WarnContext(ctx, "failed to replace the zero-touch token created against the global default policy",
+			"fleet_id", teamID, "err", err)
+		return buildDPCExtrasResponse(existing), nil
+	}
+
+	if existing == nil {
+		token, err = svc.ds.CreateZeroTouchEnrollmentToken(ctx, token)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "persisting zero-touch enrollment token")
+		}
+		return buildDPCExtrasResponse(token), nil
+	}
+
+	// The old token isn't deleted from AMAPI, so devices already set up with its DPC extras in the
+	// zero-touch portal keep enrolling; they just get the passcode after setup instead of during it.
+	replaced, err := svc.ds.ReplaceZeroTouchEnrollmentToken(ctx, existing.TokenName, token)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "failed to save the zero-touch token that replaces the one created against the global default policy",
+			"fleet_id", teamID, "err", err)
+		return buildDPCExtrasResponse(existing), nil
+	}
+	return buildDPCExtrasResponse(replaced), nil
+}
+
+// newZeroTouchToken creates a zero-touch enrollment token in AMAPI that points at the fleet's default policy.
+func (svc *Service) newZeroTouchToken(ctx context.Context, teamID *uint) (*android.ZeroTouchToken, error) {
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
@@ -116,6 +146,15 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 		return nil, ctxerr.Wrap(ctx, err, "getting client authentication secret")
 	}
 	_ = svc.apiClient.SetAuthenticationSecret(secret)
+
+	var policyTeamID uint
+	if teamID != nil {
+		policyTeamID = *teamID
+	}
+	policyName, err := svc.EnsureFleetDefaultPolicy(ctx, enterprise.Name(), policyTeamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "ensuring the fleet's default policy")
+	}
 
 	additionalData, err := json.Marshal(teamEnrollmentRequest{
 		TeamID: teamID,
@@ -130,7 +169,7 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 		Duration:           zeroTouchTokenDuration,
 		AdditionalData:     string(additionalData),
 		AllowPersonalUsage: "PERSONAL_USAGE_DISALLOWED",
-		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), android.DefaultAndroidPolicyID),
+		PolicyName:         policyName,
 		OneTimeOnly:        false,
 	}
 	amapiToken, err = svc.apiClient.EnterprisesEnrollmentTokensCreate(ctx, enterprise.Name(), amapiToken)
@@ -143,18 +182,13 @@ func (svc *Service) GetZeroTouchConfiguration(ctx context.Context, teamID *uint)
 		return nil, ctxerr.Wrap(ctx, err, "parsing token expiration timestamp")
 	}
 
-	token := &android.ZeroTouchToken{
-		TeamID:     teamID,
-		TokenName:  amapiToken.Name,
-		TokenValue: amapiToken.Value,
-		ExpiresAt:  expiresAt,
-	}
-	token, err = svc.ds.CreateZeroTouchEnrollmentToken(ctx, token)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "persisting zero-touch enrollment token")
-	}
-
-	return buildDPCExtrasResponse(token), nil
+	return &android.ZeroTouchToken{
+		TeamID:          teamID,
+		TokenName:       amapiToken.Name,
+		TokenValue:      amapiToken.Value,
+		ExpiresAt:       expiresAt,
+		UsesFleetPolicy: true,
+	}, nil
 }
 
 func (svc *Service) getClientAuthenticationSecret(ctx context.Context) (string, error) {

@@ -77,6 +77,10 @@ type Service interface {
 	// Creates a long-lived reusable enrollment token on first call; returns the existing one on subsequent calls.
 	// teamID is the fleet to enroll devices into; nil means "Unassigned."
 	GetZeroTouchConfiguration(ctx context.Context, teamID *uint) (*ZeroTouchConfigurationResponse, error)
+
+	// EnsureFleetDefaultPolicy makes sure the default policy of a fleet (0 is Unassigned) exists in AMAPI and
+	// returns its name, for enrollment tokens to point at.
+	EnsureFleetDefaultPolicy(ctx context.Context, enterpriseName string, teamID uint) (string, error)
 }
 
 // /////////////////////////////////////////////
