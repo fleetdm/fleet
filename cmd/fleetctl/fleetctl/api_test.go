@@ -1,8 +1,13 @@
 package fleetctl
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -236,6 +241,82 @@ func TestRunApiCommand(t *testing.T) {
 				require.Equal(t, c.expectOutput, out)
 			} else {
 				require.Empty(t, b.String())
+			}
+		})
+	}
+}
+
+func TestGetToken(t *testing.T) {
+	writeTestConfig := func(t *testing.T, token string) string {
+		configPath := filepath.Join(t.TempDir(), "config")
+		require.NoError(t, writeConfig(configPath, configFile{
+			Contexts: map[string]Context{"default": {Token: token}},
+		}))
+		return configPath
+	}
+
+	t.Run("env var unset uses config token", func(t *testing.T) {
+		t.Setenv(apiTokenEnvVar, "")
+		token, err := getToken(writeTestConfig(t, "config-token"), "default")
+		require.NoError(t, err)
+		require.Equal(t, "config-token", token)
+	})
+
+	t.Run("env var set and config token empty", func(t *testing.T) {
+		t.Setenv(apiTokenEnvVar, "env-token")
+		token, err := getToken(writeTestConfig(t, ""), "default")
+		require.NoError(t, err)
+		require.Equal(t, "env-token", token)
+	})
+
+	t.Run("env var takes precedence over config token", func(t *testing.T) {
+		t.Setenv(apiTokenEnvVar, "env-token")
+		token, err := getToken(writeTestConfig(t, "config-token"), "default")
+		require.NoError(t, err)
+		require.Equal(t, "env-token", token)
+	})
+}
+
+func TestClientFromCLIUsesTokenEnvVar(t *testing.T) {
+	configFile := filepath.Join(t.TempDir(), "config")
+
+	var gotAuth atomic.Value
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth.Store(r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	t.Setenv("FLEET_SERVER_ADDRESS", srv.URL)
+
+	runAppForTest(t, []string{"config", "set", "--config", configFile, "--token", "config-token", "--address", srv.URL})
+
+	t.Setenv(apiTokenEnvVar, "env-token")
+	runAppNoChecks([]string{"get", "packs", "--config", configFile}) //nolint:errcheck
+	require.Equal(t, "Bearer env-token", gotAuth.Load())
+}
+
+func TestConfigSetTokenWarnsWhenEnvVarOverrides(t *testing.T) {
+	cases := []struct {
+		desc     string
+		envToken string
+		wantWarn bool
+	}{
+		{desc: "env var unset", envToken: "", wantWarn: false},
+		{desc: "env var matches saved token", envToken: "abc", wantWarn: false},
+		{desc: "env var differs from saved token", envToken: "other", wantWarn: true},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			t.Setenv(apiTokenEnvVar, c.envToken)
+			configFile := filepath.Join(t.TempDir(), "config")
+
+			var errBuf bytes.Buffer
+			_, err := runWithErrWriter([]string{"config", "set", "--config", configFile, "--token", "abc"}, &errBuf)
+			require.NoError(t, err)
+			if c.wantWarn {
+				require.Contains(t, errBuf.String(), apiTokenEnvVar+" is set and will be used instead of the token saved in the config")
+			} else {
+				require.NotContains(t, errBuf.String(), apiTokenEnvVar)
 			}
 		})
 	}
