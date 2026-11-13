@@ -14,7 +14,7 @@ func init() {
 // against the global default policy, so they keep uses_fleet_policy = 0 until they're replaced.
 func Up_20261113161959(tx *sql.Tx) error {
 	if _, err := tx.Exec(`
-		CREATE TABLE android_fleet_default_policies (
+		CREATE TABLE IF NOT EXISTS android_fleet_default_policies (
 			team_id INT UNSIGNED NOT NULL,
 			checksum BINARY(16) NOT NULL,
 			created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -24,6 +24,9 @@ func Up_20261113161959(tx *sql.Tx) error {
 		return fmt.Errorf("creating android_fleet_default_policies: %w", err)
 	}
 
+	if columnExists(tx, "android_zero_touch_tokens", "uses_fleet_policy") {
+		return nil
+	}
 	if _, err := tx.Exec(`
 		ALTER TABLE android_zero_touch_tokens
 		ADD COLUMN uses_fleet_policy TINYINT(1) NOT NULL DEFAULT 0`); err != nil {
