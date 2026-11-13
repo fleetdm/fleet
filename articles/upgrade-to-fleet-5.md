@@ -354,16 +354,21 @@ GitHub issue: [#53872](https://github.com/fleetdm/fleet/issues/53872)
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `os_version` includes the OS name (for example `macOS 15.2`), and there's no `os_name` in host responses | Separate `os_name` and `os_version` keys in the hosts returned by [List hosts](https://fleetdm.com/docs/rest-api/rest-api#list-hosts), [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host), [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier), [Get host by Fleet Desktop token](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-fleet-desktop-token), [Get host's device health report](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-health-report), [List label's hosts](https://fleetdm.com/docs/rest-api/rest-api#list-labels-hosts), and [Search targets](https://fleetdm.com/docs/rest-api/rest-api#search-targets), and as columns in [Get hosts report in CSV](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-report-in-csv). For example, `"os_name": "macOS"` and `"os_version": "15.2"`, or `"os_name": "Windows 11 Home Single Language 23H2"` and `"os_version": "10.0.22631.5335"`. |
-| Windows OS names start with "Microsoft" (for example `Microsoft Windows 11 Pro 23H2`) in the `os_name` filter, and in `name` and `name_only` in [List operating systems](https://fleetdm.com/docs/rest-api/rest-api#list-operating-systems) and [Get operating system version](https://fleetdm.com/docs/rest-api/rest-api#get-operating-system-version) | Windows OS names don't include "Microsoft" (for example `Windows 11 Pro 23H2`), including in the `os_name` filter |
+| Windows OS names start with "Microsoft" (for example `Microsoft Windows 11 Pro 23H2`) in the `os_name` filter, and in `name` and `name_only` in [List operating systems](https://fleetdm.com/docs/rest-api/rest-api#list-operating-systems) and [Get operating system version](https://fleetdm.com/docs/rest-api/rest-api#get-operating-system-version) | Windows OS names don't include "Microsoft" (for example `Windows 11 Pro 23H2`), including in the `os_name` filter and in `os_name` in List operating systems and Get operating system version |
+| `name` (name and version, for example `macOS 14.1.2`), `name_only` (name only), and `version` for each operating system in [List operating systems](https://fleetdm.com/docs/rest-api/rest-api#list-operating-systems), [Get operating system version](https://fleetdm.com/docs/rest-api/rest-api#get-operating-system-version), and the `os_versions` in [Get vulnerability](https://fleetdm.com/docs/rest-api/rest-api#get-vulnerability). `order_key=version` in List operating systems | `os_name` and `os_version`. For example, `"os_name": "macOS"` and `"os_version": "14.1.2"`. `name` and `name_only` are removed. `order_key=os_version` sorts in the same order |
+| CachyOS, Omarchy, and Arch Linux ARM hosts are all counted in the `Arch Linux` operating system in List operating systems and **Software > OS** | CachyOS and Omarchy each have their own operating system. Arch Linux ARM hosts are still counted in `Arch Linux` |
 
 #### What to do
 
-Fleet 4 doesn't return `os_name`, so you can't switch to it early. Instead:
+Fleet 4 doesn't return `os_name` from these endpoints, so you can't switch to it early. Instead:
 
 1. Before you upgrade, update code that splits the OS name out of `os_version`. When a host has `os_name`, read the name from `os_name` and the version from `os_version`. When it doesn't, keep splitting `os_version`. This works on both versions.
-2. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
+2. Before you upgrade, update code that reads operating systems from List operating systems, Get operating system version, and Get vulnerability. When an operating system has `os_name`, read the name from `os_name` and the version from `os_version`. When it doesn't, read `name_only` and `version`. This works on both versions.
+3. After you upgrade, remove "Microsoft " from any Windows OS name you filter by or compare against.
+4. After you upgrade, change `order_key=version` to `order_key=os_version` in calls to List operating systems. Until you do, those calls fail with a `422` error.
+5. After you upgrade, if you count CachyOS or Omarchy hosts under the `Arch Linux` operating system, look for their own operating systems instead.
 
-GitHub issue: [#53877](https://github.com/fleetdm/fleet/issues/53877)
+GitHub issues: [#53877](https://github.com/fleetdm/fleet/issues/53877), [#56203](https://github.com/fleetdm/fleet/issues/56203)
 
 ### Windows wipe options moved
 
