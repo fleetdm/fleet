@@ -156,13 +156,13 @@ Your local settings override project settings, so you can always customize witho
 │   ├── fleet-database.md      #   MySQL: migrations, goqu, reader/writer
 │   ├── fleet-api.md           #   API: endpoint registration, versioning, error responses
 │   └── fleet-orbit.md         #   Orbit: agent packaging, TUF updates, platform-specific code
-├── skills/                    # 34 workflow skills (invoke with /), see "Skills reference" below
+├── skills/                    # 35 workflow skills (invoke with /), see "Skills reference" below
 │   ├── review-pr/             #   Review a PR
 │   ├── test/                  #   Run tests for recent changes
 │   ├── fix-ci/                #   Diagnose CI failures
 │   ├── spec-story/            #   Break a story into sub-issues
 │   ├── new-migration/         #   Scaffold a DB migration
-│   └── ...                    #   + 29 more (lint, fleet-gitops, vuln-triage, content-style, …)
+│   └── ...                    #   + 30 more (lint, fleet-gitops, vuln-triage, content-style, …)
 ├── agents/                    # Specialized AI agents
 │   ├── go-reviewer.md         #   Go reviewer (proactive, sonnet)
 │   ├── frontend-reviewer.md   #   Frontend reviewer (proactive, sonnet)
@@ -197,6 +197,7 @@ Several skills use the `gh` CLI for GitHub operations (PR review, CI diagnosis, 
 | `/cherry-pick` | `/cherry-pick 43082` or `/cherry-pick 43082 rc-minor-fleet-v4.83.0` | Cherry-picks a merged PR into an RC branch. Auto-detects the latest `rc-minor-fleet-v*` or `rc-patch-fleet-v*` branch, or accepts an explicit target. Handles squash-merged and merge commits. Requires `gh`. |
 | `/push-reference-docs` | `/push-reference-docs` | Moves reference-doc updates from one release docs branch to another (e.g., 4.89 → 4.90) when a feature slips to a later release. Handles open/closed/merged PR states. Requires `gh`. |
 | `/who-blocks-this-pr` | `/who-blocks-this-pr 12345` | Determines which files still need approval and from whom, based on CODEOWNERS and `website/config/custom.js`. Requires `gh`. |
+| `/triage-bugs` | `/triage-bugs 109` or `/triage-bugs 109 sweep` | Triages the bug Inbox on a product group's board the way the EM does at standup. Finds Inbox bugs a merged PR already fixed, asks openers for missing expected behavior or repro steps, moves bugs that need a design call to Drafting with the Product Designer assigned, and moves complete bugs to Ready. Drafts every comment and move in chat, and posts only what you approve. Requires `gh` with `project` scope. |
 | `/release-retro` | `/release-retro` | Formats release retro notes into a Slack recap post and `~timebox` GitHub issues. Requires `gh` **and** the Slack MCP server (not part of the out-of-box setup). |
 | `/vuln-triage` | `/vuln-triage CVE-2024-1234` | Triages vulnerability false positives/negatives across NVD, OSV, OVAL, MSRC, and Office data sources. Uses the `nvdvuln` tool and WebFetch. |
 | `/fix-sql-parser` | `/fix-sql-parser "SELECT ..."` | Fixes the osquery SQL parser in `frontend/utilities/osquery_sql_parser/` when it rejects a valid query or accepts an invalid one. First checks whether the rejection is on purpose (non-SELECT statements, bind parameters, other SQL dialects), then fixes the grammar and regenerates the parser. |
