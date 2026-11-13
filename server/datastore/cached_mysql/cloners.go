@@ -8,21 +8,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-type packsList []*fleet.Pack
-
-func (pl packsList) Clone() (fleet.Cloner, error) {
-	var cloned packsList
-	if pl == nil {
-		return cloned, nil
-	}
-
-	cloned = make(packsList, 0, len(pl))
-	for _, p := range pl {
-		cloned = append(cloned, p.Copy())
-	}
-	return cloned, nil
-}
-
 type rawJSONMessage json.RawMessage
 
 func (r *rawJSONMessage) Clone() (fleet.Cloner, error) {

@@ -42,12 +42,6 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 	{"controls.android_settings.custom_settings", "controls.android_settings.configuration_profiles"},
 
 	// Controls: macos_setup -> setup_experience (parent first, then children)
-	{"controls.macos_setup", "controls.setup_experience"},
-	{"controls.setup_experience.bootstrap_package", "controls.setup_experience.macos_bootstrap_package"},
-	{"controls.setup_experience.macos_setup_assistant", "controls.setup_experience.apple_setup_assistant"},
-	{"controls.setup_experience.enable_release_device_manually", "controls.setup_experience.apple_enable_release_device_manually"},
-	{"controls.setup_experience.script", "controls.setup_experience.macos_script"},
-	{"controls.setup_experience.manual_agent_install", "controls.setup_experience.macos_manual_agent_install"},
 	{"controls.setup_experience.enable_managed_local_account", "controls.setup_experience.enable_create_local_admin_account"},
 
 	// Org settings: server_settings
@@ -95,7 +89,7 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 var DeprecatedGitOpsKeyScopes = map[string][]string{
 	// Deprecated spelling of the Apple toggle under setup_experience, but the canonical name of the Windows toggle under
 	// windows_settings.
-	"enable_managed_local_account": {"macos_setup", "setup_experience"},
+	"enable_managed_local_account": {"setup_experience"},
 }
 
 // RemovedGitOpsKeys are the team-related keys that Fleet 5 removed from GitOps files. They are rejected, not migrated

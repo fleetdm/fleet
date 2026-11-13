@@ -7,7 +7,7 @@ effort: medium
 
 # Command palette authoring
 
-The canonical guide lives in **`frontend/docs/patterns.md` § Command palette** — read that first. It covers what belongs (and what doesn't), the group-to-file mapping, required/optional fields, label conventions, the full keyword/synonym checklist, permission gating, `teamName` chips, search-only items, and test expectations.
+The canonical guide lives in **`frontend/docs/patterns.md` § Command palette** — read that first. It covers what belongs (and what doesn't), the group-to-file mapping, required/optional fields, label conventions, the full keyword/synonym checklist, permission gating, `teamName` chips, and test expectations.
 
 This skill exists to make sure that guide gets followed when palette-worthy changes land.
 

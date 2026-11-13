@@ -39,8 +39,6 @@ const REGEX_DETAIL_PAGES = {
   HOST_DETAILS: /\/hosts\/\d+/i,
   LABEL_EDIT: /\/labels\/\d+/i,
   LABEL_NEW: /\/labels\/new/i,
-  PACK_EDIT: /\/packs\/\d+/i,
-  PACK_NEW: /\/packs\/new/i,
   QUERIES_EDIT: /\/queries\/\d+/i,
   QUERIES_NEW: /\/queries\/new/i,
   POLICY_EDIT: /\/policies\/\d+/i,
@@ -50,7 +48,6 @@ const REGEX_DETAIL_PAGES = {
 };
 
 const REGEX_GLOBAL_PAGES = {
-  MANAGE_PACKS: /\/packs\/manage/i,
   ORGANIZATION: /\/settings\/organization/i,
   USERS: /\/settings\/users/i,
   INTEGRATIONS: /\/settings\/integrations/i,

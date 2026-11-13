@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
-	"github.com/gorilla/mux"
 )
 
 const orgLogoMaxFileSize = fleet.OrgLogoMaxFileSize
@@ -132,7 +131,7 @@ func (r getOrgLogoResponse) HijackRender(_ context.Context, w http.ResponseWrite
 }
 
 func (getOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (any, error) {
-	raw := mux.Vars(r)["mode"]
+	raw, _ := platform_http.PathVar(r, "mode")
 	if raw == "" {
 		raw = r.URL.Query().Get("mode")
 	}

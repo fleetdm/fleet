@@ -2528,7 +2528,7 @@ func (svc *Service) validateMDM(
 			firstInvalidErr := invalidArgErr.Errors[0] // We only expect one invalid argument error entry from the validate
 			invalid.AppendInvalidArgument(firstInvalidErr)
 		} else {
-			invalid.Append("macos_setup", err.Error())
+			invalid.Append("setup_experience", err.Error())
 		}
 	}
 

@@ -1122,7 +1122,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 
 	// test that all fields are correctly returned with team 2
 	var listResp listMDMConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm2.ID))
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp, "fleet_id", fmt.Sprint(tm2.ID))
 	require.Len(t, listResp.Profiles, 3)
 	require.NotZero(t, listResp.Profiles[0].CreatedAt)
 	require.NotZero(t, listResp.Profiles[0].UploadedAt)
@@ -1221,7 +1221,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		},
 	}, getProfResp.MDMConfigProfilePayload)
 	// list for a non-existing team returns 404
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusNotFound, &listResp, "team_id", "99999")
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusNotFound, &listResp, "fleet_id", "99999")
 
 	cases := []struct {
 		queries   []string // alternate query name and value
@@ -1284,7 +1284,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 			var listResp listMDMConfigProfilesResponse
 			queryArgs := c.queries
 			if c.teamID != nil {
-				queryArgs = append(queryArgs, "team_id", fmt.Sprint(*c.teamID))
+				queryArgs = append(queryArgs, "fleet_id", fmt.Sprint(*c.teamID))
 			}
 			s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", nil, http.StatusOK, &listResp, queryArgs...)
 
@@ -2206,7 +2206,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileNameAndDescription() {
 	}
 	list := func() map[string]*fleet.MDMConfigProfilePayload {
 		var resp listMDMConfigProfilesResponse
-		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &resp, "team_id", fmt.Sprint(team.ID))
+		s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &resp, "fleet_id", fmt.Sprint(team.ID))
 		byUUID := make(map[string]*fleet.MDMConfigProfilePayload, len(resp.Profiles))
 		for _, p := range resp.Profiles {
 			byUUID[p.ProfileUUID] = p
@@ -2323,7 +2323,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileNameAndDescription() {
 	batch := func(profiles []fleet.BatchModifyMDMConfigProfilePayload, wantStatus int) {
 		s.Do("POST", "/api/latest/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesRequest{
 			ConfigurationProfiles: profiles,
-		}, wantStatus, "team_id", fmt.Sprint(team.ID))
+		}, wantStatus, "fleet_id", fmt.Sprint(team.ID))
 	}
 	batch([]fleet.BatchModifyMDMConfigProfilePayload{
 		// padded like a hand-written YAML value; stored trimmed
@@ -2447,7 +2447,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 	require.True(t, get(forcedUUID).SelfService)
 
 	var listResp listMDMConfigProfilesResponse
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "fleet_id", teamID)
 	for _, p := range listResp.Profiles {
 		require.Equal(t, p.ProfileUUID == ssUUID || p.ProfileUUID == forcedUUID, p.SelfService, p.Name)
 		require.Equal(t, p.ProfileUUID == winUUID || p.ProfileUUID == declUUID, p.Hidden, p.Name)
@@ -2455,7 +2455,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 
 	// batch: the flip seeds opt-ins too, and is declarative for the flags
 	batch := func(profiles []fleet.MDMProfileBatchPayload, wantStatus int) {
-		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, wantStatus, "team_id", teamID)
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: profiles}, wantStatus, "fleet_id", teamID)
 	}
 	batch([]fleet.MDMProfileBatchPayload{{Name: "B", Contents: mobileconfigForTest("B", "com.test.b")}}, http.StatusNoContent)
 	var bUUID string
@@ -2471,7 +2471,7 @@ func (s *integrationMDMTestSuite) TestConfigProfileSelfServiceAndHidden() {
 	require.True(t, get(bUUID).SelfService)
 	requireOptedIn("host-2", bUUID)
 	listResp = listMDMConfigProfilesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "team_id", teamID)
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles", listMDMConfigProfilesRequest{}, http.StatusOK, &listResp, "fleet_id", teamID)
 	require.Len(t, listResp.Profiles, 3)
 	for _, p := range listResp.Profiles {
 		require.Equal(t, p.Name == "W" || p.Name == "A", p.Hidden, p.Name)

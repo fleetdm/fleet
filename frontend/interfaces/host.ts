@@ -12,7 +12,6 @@ import {
   DiskEncryptionStatus,
   HostNameSettingStatus,
 } from "./mdm";
-import packInterface, { IPack } from "./pack";
 import { HostPlatform } from "./platform";
 import hostPolicyInterface, { IHostPolicy } from "./policy";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
@@ -74,7 +73,6 @@ export default PropTypes.shape({
   // `gigs_all_disk_space` includes disk space from all partitions
   gigs_all_disk_space: PropTypes.number,
   labels: PropTypes.arrayOf(labelInterface),
-  packs: PropTypes.arrayOf(packInterface),
   software: PropTypes.arrayOf(softwareInterface),
   status: PropTypes.string,
   display_name: PropTypes.string,
@@ -545,7 +543,6 @@ export interface IHost {
   // `gigs_all_disk_space` includes disk space from all partitions
   gigs_all_disk_space?: number;
   labels: ILabel[];
-  packs: IPack[];
   software?: ISoftware[];
   issues: IHostIssues;
   status: HostStatus;

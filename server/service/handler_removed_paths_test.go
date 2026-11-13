@@ -106,6 +106,10 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 		{"/api/latest/fleet/teams/1/policies/count", "/teams/{fleet_id}/policies/count"}, // a literal next to {policy_id}
 		{"/api/v1/fleet/teams/1/policies/7", "/teams/{fleet_id}/policies/{policy_id}"},
 		{"/api/v1/fleet/team/1/schedule/7", "/team/{fleet_id}/schedule/{report_id}"},
+		{"/api/v1/fleet/packs/schedule", "/packs/schedule"}, // a literal next to {id}
+		{"/api/latest/fleet/packs/schedule/7", "/packs/schedule/{id}"},
+		{"/api/v1/fleet/packs/id/7", "/packs/id/{id}"},
+		{"/api/v1/fleet/packs/my-pack", "/packs/{id}"},
 	} {
 		for _, method := range []string{http.MethodGet, http.MethodPost} {
 			t.Run(method+" "+c.path, func(t *testing.T) {
@@ -150,6 +154,8 @@ func TestRemovedPathOverlaps(t *testing.T) {
 		{http.MethodGet, "/api/v1/fleet/hosts/1/refetch", http.StatusMethodNotAllowed, http.MethodPost},
 		{http.MethodGet, "/api/v1/fleet/hosts/1/labels", http.StatusMethodNotAllowed, "POST, DELETE"},
 		{http.MethodGet, "/api/v1/fleet/hosts/1/nothing", http.StatusNotFound, ""},
+		{http.MethodGet, "/api/v1/fleet/packs/1/scheduled", http.StatusGone, ""},
+		{http.MethodGet, "/api/v1/fleet/packs/1/nothing", http.StatusNotFound, ""},
 	} {
 		t.Run(c.method+" "+c.path, func(t *testing.T) {
 			t.Parallel()
