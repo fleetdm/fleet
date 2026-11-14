@@ -70,12 +70,6 @@ func testConditionalAccessGoogleIntegration(t *testing.T, ds *Datastore) {
 	var ids []uint
 	require.NoError(t, sqlx.SelectContext(ctx, ds.reader(ctx), &ids, `SELECT id FROM google_conditional_access_integrations`))
 	require.Equal(t, []uint{1}, ids)
-
-	require.NoError(t, ds.DeleteGoogleConditionalAccessIntegration(ctx))
-	_, err = ds.GetGoogleConditionalAccessIntegration(ctx)
-	require.True(t, fleet.IsNotFound(err))
-	// Deleting with nothing stored is not an error.
-	require.NoError(t, ds.DeleteGoogleConditionalAccessIntegration(ctx))
 }
 
 func testConditionalAccessGoogleConcurrentFirstSave(t *testing.T, ds *Datastore) {
@@ -173,12 +167,6 @@ func testConditionalAccessGoogleDeviceUsers(t *testing.T, ds *Datastore) {
 	require.Equal(t, 2, deleted)
 	require.Equal(t, 1, countDevices())
 	require.True(t, googleDeviceRowExists(t, ds, "uuid-migrated"))
-
-	// Deleting the integration removes everything.
-	insertDevice("C02cajzvg", "uuid-1", "devices/d1/deviceUsers/1")
-	require.NoError(t, ds.DeleteGoogleConditionalAccessIntegration(ctx))
-	require.Empty(t, googleDeviceUserNames(t, ds, "C02cajzvg"))
-	require.Zero(t, countDevices())
 }
 
 func googleTokenHash(token string) []byte {

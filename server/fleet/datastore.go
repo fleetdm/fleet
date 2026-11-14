@@ -4338,9 +4338,6 @@ type Datastore interface {
 	// their DeviceUser rows, that don't belong to the customer, and returns how many
 	// device rows it deleted. An empty customer ID deletes any row.
 	DeleteGoogleConditionalAccessDevicesExcept(ctx context.Context, customerID string, limit int) (int, error)
-	// DeleteGoogleConditionalAccessIntegration deletes the Google conditional access integration
-	// and every stored device and DeviceUser row.
-	DeleteGoogleConditionalAccessIntegration(ctx context.Context) error
 	// PurgeDeletedGoogleConditionalAccessIntegration deletes up to limit device rows of an
 	// integration deleted before deletedBefore, and the integration row once none are left.
 	// It does nothing for an integration that isn't deleted, and reports whether rows remain.
