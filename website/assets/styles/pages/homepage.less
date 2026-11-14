@@ -337,7 +337,7 @@
   }
   [purpose='islands'] {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
   }
   [purpose='island'] {
@@ -383,6 +383,7 @@
       }
     }
     [purpose='island-content'] {
+      container: island-content / inline-size;
       display: flex;
       flex-direction: column;
       gap: 24px;
@@ -406,6 +407,46 @@
       }
       [purpose='fleet-logo'] {
         height: 24px;
+      }
+      [purpose='duo-logo'] {
+        height: 32px;
+      }
+      [purpose='google-workspace-logo'] {
+        height: 22px;
+      }
+      [purpose='sophos-logo'] {
+        height: 14px;
+      }
+      // Groups of four logos in a true grid: 2×2, or a single row of 4 when the island is wide enough (see @container rule at the bottom of this file). Never 3+1.
+      [purpose='logo-grid'] {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, max-content));
+        align-items: center;
+        justify-items: start;
+        gap: 20px 24px;
+        min-width: 0;
+        max-width: 100%;
+        img {
+          max-width: 100%;
+          object-fit: contain;
+          object-position: left center;
+        }
+      }
+      // Smaller groups of four logos are split into two pairs that never break apart, so they show as a single row of 4 or as 2×2. Never 3+1.
+      [purpose='logo-pair'] {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 24px;
+        min-width: 0;
+        max-width: 100%;
+        img {
+          flex: 0 1 auto;
+          min-width: 0;
+          object-fit: contain;
+          object-position: left center;
+        }
       }
     }
   }
@@ -1229,7 +1270,7 @@
       gap: @section-gap;
     }
     [purpose='islands'] {
-      grid-template-columns: 1fr;
+      grid-template-columns: minmax(0, 1fr);
     }
     [purpose='islands-footer'] {
       flex-direction: column;
@@ -1360,5 +1401,13 @@
         width: calc(~' 100% - 40px');
       }
     }
+  }
+}
+
+// Show a logo grid as a single row of 4 once its island is wide enough for the widest group (Endpoint protection: 539px).
+// Note: This lives outside of #homepage because the version of LESS this website uses cannot nest @container rules.
+@container island-content (min-width: 540px) {
+  #homepage [purpose='island'] [purpose='island-logos'] [purpose='logo-grid'] {
+    grid-template-columns: repeat(4, max-content);
   }
 }
