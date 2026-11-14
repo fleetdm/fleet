@@ -569,8 +569,11 @@
     }
   }
   [purpose='testimonials-masonry'] {
-    columns: 3;
+    // Cards read left to right across each row (same order as the 1-column mobile layout).
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     column-gap: 24px;
+    align-items: start;
   }
   [purpose='testimonials-fade'] {
     position: absolute;
@@ -1144,7 +1147,7 @@
       }
     }
     [purpose='testimonials-masonry'] {
-      columns: 2;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     [purpose='logo-tiles'] {
       grid-template-columns: repeat(3, 1fr);
@@ -1286,7 +1289,7 @@
       }
     }
     [purpose='testimonials-masonry'] {
-      columns: 1;
+      grid-template-columns: minmax(0, 1fr);
     }
     [purpose='testimonials-section'] {
       h2 {
