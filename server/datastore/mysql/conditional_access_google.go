@@ -81,20 +81,6 @@ func (ds *Datastore) DeleteGoogleConditionalAccessDevicesExcept(ctx context.Cont
 	return int(n), nil
 }
 
-func (ds *Datastore) DeleteGoogleConditionalAccessIntegration(ctx context.Context) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		for _, stmt := range []string{
-			`DELETE FROM google_conditional_access_devices`,
-			`DELETE FROM google_conditional_access_integrations`,
-		} {
-			if _, err := tx.ExecContext(ctx, stmt); err != nil {
-				return ctxerr.Wrap(ctx, err, "deleting google conditional access rows")
-			}
-		}
-		return nil
-	})
-}
-
 func (ds *Datastore) PurgeDeletedGoogleConditionalAccessIntegration(ctx context.Context, deletedBefore time.Time, limit int) (bool, error) {
 	var more bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {

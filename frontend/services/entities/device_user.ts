@@ -69,11 +69,6 @@ export interface IInitiateDeviceSSOResponse {
 }
 
 export interface IGetDeviceGoogleConditionalAccessResponse {
-  enabled: boolean;
-  eligible: boolean;
-  registered: boolean;
-  managed: boolean;
-  retry_blocked: boolean;
   /** fleetdm.com's sign-in page, present only when the host should sign in. */
   sign_in_url?: string;
 }

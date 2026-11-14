@@ -2472,8 +2472,6 @@ type SaveGoogleConditionalAccessIntegrationFunc func(ctx context.Context, integr
 
 type DeleteGoogleConditionalAccessDevicesExceptFunc func(ctx context.Context, customerID string, limit int) (int, error)
 
-type DeleteGoogleConditionalAccessIntegrationFunc func(ctx context.Context) error
-
 type PurgeDeletedGoogleConditionalAccessIntegrationFunc func(ctx context.Context, deletedBefore time.Time, limit int) (bool, error)
 
 type SetGoogleConditionalAccessIntegrationStateFunc func(ctx context.Context, secret string, fromStates []fleet.ConditionalAccessGoogleState, toState fleet.ConditionalAccessGoogleState, errorMessage *string) (bool, error)
@@ -6380,9 +6378,6 @@ type DataStore struct {
 
 	DeleteGoogleConditionalAccessDevicesExceptFunc        DeleteGoogleConditionalAccessDevicesExceptFunc
 	DeleteGoogleConditionalAccessDevicesExceptFuncInvoked bool
-
-	DeleteGoogleConditionalAccessIntegrationFunc        DeleteGoogleConditionalAccessIntegrationFunc
-	DeleteGoogleConditionalAccessIntegrationFuncInvoked bool
 
 	PurgeDeletedGoogleConditionalAccessIntegrationFunc        PurgeDeletedGoogleConditionalAccessIntegrationFunc
 	PurgeDeletedGoogleConditionalAccessIntegrationFuncInvoked bool
@@ -15304,13 +15299,6 @@ func (s *DataStore) DeleteGoogleConditionalAccessDevicesExcept(ctx context.Conte
 	s.DeleteGoogleConditionalAccessDevicesExceptFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteGoogleConditionalAccessDevicesExceptFunc(ctx, customerID, limit)
-}
-
-func (s *DataStore) DeleteGoogleConditionalAccessIntegration(ctx context.Context) error {
-	s.mu.Lock()
-	s.DeleteGoogleConditionalAccessIntegrationFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteGoogleConditionalAccessIntegrationFunc(ctx)
 }
 
 func (s *DataStore) PurgeDeletedGoogleConditionalAccessIntegration(ctx context.Context, deletedBefore time.Time, limit int) (bool, error) {

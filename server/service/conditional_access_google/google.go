@@ -22,6 +22,7 @@ import (
 	"google.golang.org/api/cloudidentity/v1"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc/codes"
 )
 
 // EndpointOverrideEnv points the API and the token exchange at a mock server. Dev only.
@@ -65,7 +66,8 @@ func newCloudIdentity(ctx context.Context, creds Credentials, logger *slog.Logge
 		Subject:      creds.AdminEmail,
 	}
 
-	// The token exchange and the API calls share this client's timeout and response cap.
+	// The token exchange and the API calls share this client's timeout and response cap. Only
+	// API calls follow ctx: the oauth2 jwt token request carries no context.
 	httpClient := fleethttp.NewClient(fleethttp.WithMaxResponseSize(maxGoogleResponseBytes))
 	opts := []option.ClientOption{option.WithHTTPClient(conf.Client(context.WithValue(ctx, oauth2.HTTPClient, httpClient)))}
 	if endpoint != "" {
@@ -105,11 +107,34 @@ func (c *cloudIdentityClient) SetClientState(ctx context.Context, deviceUserName
 	if len(mask) == 0 {
 		return errors.New("client state has no field to write")
 	}
-	if _, err := c.svc.Devices.DeviceUsers.ClientStates.Patch(c.clientStateName(deviceUserName), &body).
-		Customer(c.customer()).UpdateMask(strings.Join(mask, ",")).Context(ctx).Do(); err != nil {
+	op, err := c.svc.Devices.DeviceUsers.ClientStates.Patch(c.clientStateName(deviceUserName), &body).
+		Customer(c.customer()).UpdateMask(strings.Join(mask, ",")).Context(ctx).Do()
+	if err != nil {
 		return &Error{err: err, resourceCall: true}
 	}
+	if op.Done && op.Error != nil {
+		return &Error{err: operationError(op.Error), resourceCall: true}
+	}
 	return nil
+}
+
+// operationError turns the error Google reports inside a finished operation, with HTTP 200
+// and a google.rpc.Code, into the API error the classifiers read.
+func operationError(s *cloudidentity.Status) *googleapi.Error {
+	code := http.StatusInternalServerError
+	switch codes.Code(s.Code) { //nolint:gosec // google.rpc.Code values fit in a uint32
+	case codes.NotFound:
+		code = http.StatusNotFound
+	case codes.PermissionDenied:
+		code = http.StatusForbidden
+	case codes.Unauthenticated:
+		code = http.StatusUnauthorized
+	}
+	msg := s.Message
+	if msg == "" {
+		msg = fmt.Sprintf("Google operation failed with code %d", s.Code)
+	}
+	return &googleapi.Error{Code: code, Message: msg}
 }
 
 func (c *cloudIdentityClient) ListDeviceUserNames(ctx context.Context, deviceID string) ([]string, error) {

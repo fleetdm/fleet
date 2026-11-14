@@ -113,8 +113,9 @@ func (svc *Service) GetGoogleConditionalAccessDeviceStatus(ctx context.Context, 
 
 	// Counting an attempt is a read-then-write.
 	ctx = ctxdb.RequirePrimary(ctx, true)
-	status, active, err := svc.googleConditionalAccessRegistrationState(ctx, host)
-	if err != nil || active == nil || !status.Eligible || status.Registered {
+	status := &fleet.GoogleConditionalAccessDeviceStatus{}
+	active, err := svc.googleConditionalAccessSignInRequired(ctx, host)
+	if err != nil || active == nil {
 		return status, err
 	}
 	customerID := active.settings.CustomerID
@@ -129,7 +130,7 @@ func (svc *Service) GetGoogleConditionalAccessDeviceStatus(ctx context.Context, 
 		return nil, ctxerr.Wrap(ctx, err, "start google conditional access registration")
 	}
 	if !started {
-		status.RetryBlocked = true
+		// Too many sign-ins were started without a register call.
 		return status, nil
 	}
 	if status.SignInURL, err = svc.googleConditionalAccess.Relay.SignInURL(customerID, host.UUID, token); err != nil {
@@ -142,44 +143,34 @@ func (svc *Service) GoogleConditionalAccessSignInRequired(ctx context.Context, h
 	// skipauth: The host is authenticated by its device token or UUID.
 	svc.authz.SkipAuthorization(ctx)
 
-	if !fleet.IsAppleMobilePlatform(host.Platform) {
-		return false, nil
-	}
-	status, _, err := svc.googleConditionalAccessRegistrationState(ctx, host)
-	if err != nil {
-		return false, err
-	}
-	return status.Eligible && !status.Registered, nil
+	active, err := svc.googleConditionalAccessSignInRequired(ctx, host)
+	return active != nil, err
 }
 
-// googleConditionalAccessRegistrationState fills the status fields that only take
-// reads. active is nil unless the status is enabled.
-func (svc *Service) googleConditionalAccessRegistrationState(
-	ctx context.Context, host *fleet.Host,
-) (*fleet.GoogleConditionalAccessDeviceStatus, *activeGoogleConditionalAccess, error) {
-	status := &fleet.GoogleConditionalAccessDeviceStatus{}
+// googleConditionalAccessSignInRequired returns the active integration when the host
+// should sign in to Google: a company-owned iOS or iPadOS host that isn't registered. It
+// only reads.
+func (svc *Service) googleConditionalAccessSignInRequired(ctx context.Context, host *fleet.Host) (*activeGoogleConditionalAccess, error) {
 	// Android hosts don't sign in: the sync cron registers them.
 	if !fleet.IsAppleMobilePlatform(host.Platform) {
-		return status, nil, nil
+		return nil, nil
 	}
 	active, err := svc.activeGoogleConditionalAccess(ctx, nil)
 	if err != nil || active == nil {
-		return status, nil, err
+		return nil, err
 	}
-	status.Enabled = true
-
-	if status.Eligible, err = svc.googleConditionalAccessEligible(ctx, host); err != nil || !status.Eligible {
-		return status, active, err
+	eligible, err := svc.googleConditionalAccessEligible(ctx, host)
+	if err != nil || !eligible {
+		return nil, err
 	}
 	device, err := svc.ds.GetGoogleConditionalAccessDevice(ctx, host.UUID, active.settings.CustomerID)
 	if err != nil && !fleet.IsNotFound(err) {
-		return status, active, ctxerr.Wrap(ctx, err, "get google conditional access device")
+		return nil, ctxerr.Wrap(ctx, err, "get google conditional access device")
 	}
 	if device.Registered() {
-		status.Registered = true
-		status.Managed = device.Managed()
+		return nil, nil
 	}
-	return status, active, nil
+	return active, nil
 }
 
 func newGoogleRegistrationToken() (string, []byte, error) {

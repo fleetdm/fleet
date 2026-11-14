@@ -179,6 +179,24 @@ func (g *googleDeviceTest) device(host *fleet.Host) *fleet.GoogleConditionalAcce
 	return dev
 }
 
+// registered reports whether the host has a name that is marked or waiting to be.
+func (g *googleDeviceTest) registered(host *fleet.Host) bool {
+	dev, err := g.s.ds.GetGoogleConditionalAccessDevice(g.t.Context(), host.UUID, googleTestCustomer)
+	if !fleet.IsNotFound(err) {
+		require.NoError(g.t, err)
+	}
+	return dev.Registered()
+}
+
+// managed reports whether every name the host is registered with is marked.
+func (g *googleDeviceTest) managed(host *fleet.Host) bool {
+	dev, err := g.s.ds.GetGoogleConditionalAccessDevice(g.t.Context(), host.UUID, googleTestCustomer)
+	if !fleet.IsNotFound(err) {
+		require.NoError(g.t, err)
+	}
+	return dev.Managed()
+}
+
 func (g *googleDeviceTest) hasDevice(host *fleet.Host) bool {
 	_, err := g.s.ds.GetGoogleConditionalAccessDevice(g.t.Context(), host.UUID, googleTestCustomer)
 	if fleet.IsNotFound(err) {
@@ -260,7 +278,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRegist
 	// A company-owned iPhone is handed a sign-in URL; a personal one and a Mac aren't.
 	token := g.signIn(ade)
 	st := g.iosStatus(byod)
-	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{Enabled: true}, st)
+	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{}, st)
 	var macStatus fleet.GoogleConditionalAccessDeviceStatus
 	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/google-ca-mac-token/conditional_access/google", nil, http.StatusOK)
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&macStatus))
@@ -291,7 +309,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRegist
 
 	// A registered host gets no URL and no attempt is counted.
 	require.False(t, g.signInRequired(ade))
-	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{Enabled: true, Eligible: true, Registered: true, Managed: true}, g.iosStatus(ade))
+	require.Empty(t, g.iosStatus(ade).SignInURL)
+	require.True(t, g.managed(ade))
 	require.Zero(t, g.device(ade).RegistrationAttempts)
 
 	// The token can't be replayed.
@@ -347,17 +366,16 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRegist
 		"devices/second/deviceUsers/ok": fleet.GoogleConditionalAccessDeviceUserManaged,
 		failing:                         fleet.GoogleConditionalAccessDeviceUserPending,
 	}, g.states(second))
-	st = g.iosStatus(second)
-	require.True(t, st.Registered)
-	require.False(t, st.Managed)
-	require.Empty(t, st.SignInURL)
+	require.Empty(t, g.iosStatus(second).SignInURL)
+	require.True(t, g.registered(second))
+	require.False(t, g.managed(second))
 	require.Equal(t, "second", g.googleDeviceID(second))
 	g.client.setDev(func(d *googleDeviceMock) { d.markErrs = nil })
 	g.sync()
 	require.Equal(t, fleet.GoogleConditionalAccessDeviceUserPending, g.states(second)[failing], "retried before the backoff")
 	g.syncAfter(2 * time.Minute)
 	require.Equal(t, fleet.GoogleConditionalAccessDeviceUserManaged, g.states(second)[failing])
-	require.True(t, g.iosStatus(second).Managed)
+	require.True(t, g.managed(second))
 
 	// Names under two device records are all stored and marked; the host shows the
 	// first one's device.
@@ -388,14 +406,15 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRetryC
 		g.signIn(host)
 	}
 	st := g.iosStatus(host)
-	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{Enabled: true, Eligible: true, RetryBlocked: true}, st)
+	// The cap is reached: no URL is handed out.
+	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{}, st)
 
 	// Once the first attempt is older than the window, a URL is handed out again.
 	g.execSQL(`UPDATE google_conditional_access_devices SET first_registration_attempt_at = NOW(6) - INTERVAL 25 HOUR WHERE host_uuid = ?`, host.UUID)
 	g.signIn(host)
 	g.signIn(host)
 	token := g.signIn(host)
-	require.True(t, g.iosStatus(host).RetryBlocked)
+	require.Empty(t, g.iosStatus(host).SignInURL)
 
 	// A register call resets the counter, whatever its result. The last token is
 	// still valid while blocked.
@@ -424,7 +443,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleUnmark() {
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedHostGoogleDeviceID{}.ActivityName(), googleDeviceIDActivity(removed, "removed"), 0)
 	// The ID is gone at once and the host can register again right away.
 	require.Empty(t, g.googleDeviceID(removed))
-	require.False(t, g.iosStatus(removed).Registered)
+	require.False(t, g.registered(removed))
 	// Removing it again logs nothing.
 	before := s.countActivitiesOfType(fleet.ActivityTypeDeletedHostGoogleDeviceID{}.ActivityName())
 	s.Do("DELETE", removedPath, nil, http.StatusNoContent)
@@ -523,7 +542,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleStaleNames()
 		"devices/left/deviceUsers/1": fleet.GoogleConditionalAccessDeviceUserStale,
 		"devices/here/deviceUsers/1": fleet.GoogleConditionalAccessDeviceUserManaged,
 	}, g.states(two))
-	require.True(t, g.iosStatus(two).Registered)
+	require.True(t, g.registered(two))
 	// The host's device ID moves off the deleted record to one that is still marked.
 	require.Equal(t, "here", g.googleDeviceID(two))
 
@@ -531,7 +550,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleStaleNames()
 	g.client.setDev(func(d *googleDeviceMock) { d.goneDevices = map[string]bool{"here": true} })
 	require.NoError(t, g.syncer.CheckDevices(t.Context()))
 	require.Empty(t, g.googleDeviceID(two))
-	require.False(t, g.iosStatus(two).Registered)
+	require.False(t, g.registered(two))
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDelegationFailure() {
@@ -591,7 +610,8 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleBookmarkMigr
 		"devices/bm-device/deviceUsers/1": fleet.GoogleConditionalAccessDeviceUserManaged,
 		"devices/bm-device/deviceUsers/2": fleet.GoogleConditionalAccessDeviceUserManaged,
 	}, g.states(migrated))
-	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{Enabled: true, Eligible: true, Registered: true, Managed: true}, g.iosStatus(migrated))
+	require.Empty(t, g.iosStatus(migrated).SignInURL)
+	require.True(t, g.managed(migrated))
 	require.Equal(t, "bm-device", g.googleDeviceID(migrated))
 	require.Empty(t, g.states(gone))
 	require.NotEmpty(t, g.iosStatus(gone).SignInURL)
@@ -614,7 +634,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleBookmarkMigr
 		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "google_device_id": "bm-device"}`, migrated.ID, migrated.DisplayName()), 0)
 	g.sync()
 	require.Empty(t, g.states(migrated))
-	require.False(t, g.iosStatus(migrated).Registered)
+	require.False(t, g.registered(migrated))
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleAndroidResolution() {
@@ -725,7 +745,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleCleanup() {
 	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(g.signIn(kept), "devices/kept/deviceUsers/1"))
 	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(g.signIn(takeover), "devices/takeover/deviceUsers/1"))
 	g.execSQL(`UPDATE google_conditional_access_devices SET customer_id = 'C03previous' WHERE host_uuid IN (?, ?)`, kept.UUID, takeover.UUID)
-	require.False(t, g.iosStatus(takeover).Registered)
+	require.False(t, g.registered(takeover))
 	require.Empty(t, g.googleDeviceID(kept))
 	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(g.signIn(takeover), "devices/takeover/deviceUsers/2"))
 	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
@@ -733,7 +753,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleCleanup() {
 	}, g.states(takeover))
 	g.sync()
 	require.Empty(t, g.states(kept))
-	require.True(t, g.iosStatus(takeover).Registered)
+	require.True(t, g.registered(takeover))
 
 	// DELETE drops the registration, and the cron purges the device rows and the row 30
 	// days later, with no Google or fleetdm.com call.
@@ -806,7 +826,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleMockServer()
 	res, body = get(html.UnescapeString(m[1]))
 	require.Equal(t, http.StatusFound, res.StatusCode, body)
 	require.Equal(t, "/google-conditional-access/done", res.Header.Get("Location"))
-	require.True(t, g.iosStatus(host).Registered)
+	require.True(t, g.registered(host))
 
 	// Every name is MANAGED in the mock with the host UUID.
 	names := g.states(host)
