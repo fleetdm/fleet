@@ -235,14 +235,25 @@ func (e *TimeoutError) Error() string {
 // StatusCode implements the kithttp StatusCoder interface
 func (e *TimeoutError) StatusCode() int { return http.StatusRequestTimeout }
 
+// badRequestErrorInterface matches Fleet's bad request errors (e.g. fleet.BadRequestError),
+// which signal a 400 through this method rather than a StatusCode method.
+type badRequestErrorInterface interface {
+	error
+	BadRequestError() []map[string]string
+}
+
 // EncodeSCEPResponse writes a SCEP response back to the SCEP client.
 func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
 	resp := response.(SCEPResponse)
 	if resp.Err != nil {
 		status := http.StatusInternalServerError
 		var esc kithttp.StatusCoder
-		if errors.As(resp.Err, &esc) {
+		var bre badRequestErrorInterface
+		switch {
+		case errors.As(resp.Err, &esc):
 			status = esc.StatusCode()
+		case errors.As(resp.Err, &bre):
+			status = http.StatusBadRequest
 		}
 
 		http.Error(w, resp.Err.Error(), status)
