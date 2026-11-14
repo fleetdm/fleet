@@ -9,6 +9,42 @@ package appicons
 #cgo darwin LDFLAGS: -framework Cocoa
 #import <Appkit/AppKit.h>
 #include <stdlib.h>
+
+// Returns a retained TIFF of cgref with 8-bit unsigned samples, the only sample
+// format golang.org/x/image/tiff decodes. Recent macOS versions render app icons
+// with 16-bit float samples, so those are redrawn into an 8-bit RGBA bitmap.
+// Icons that are already 8-bit are encoded as before so their hash is stable.
+static CFDataRef TIFF8FromCGImage(CGImageRef cgref) {
+	NSBitmapImageRep *brep = [[NSBitmapImageRep alloc] initWithCGImage:cgref];
+	BOOL needsRedraw = [brep bitsPerSample] != 8 ||
+		([brep bitmapFormat] & NSBitmapFormatFloatingPointSamples) != 0;
+	if (needsRedraw) {
+		[brep release];
+		brep = nil;
+		size_t width = CGImageGetWidth(cgref);
+		size_t height = CGImageGetHeight(cgref);
+		CGColorSpaceRef cs = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+		CGContextRef ctx = CGBitmapContextCreate(NULL, width, height, 8, 0, cs,
+			kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
+		CGColorSpaceRelease(cs);
+		if (ctx == NULL) {
+			return NULL;
+		}
+		CGContextDrawImage(ctx, CGRectMake(0, 0, width, height), cgref);
+		CGImageRef converted = CGBitmapContextCreateImage(ctx);
+		CGContextRelease(ctx);
+		if (converted == NULL) {
+			return NULL;
+		}
+		brep = [[NSBitmapImageRep alloc] initWithCGImage:converted];
+		CGImageRelease(converted);
+	}
+	// Retain so the caller owns the data and can CFRelease it.
+	CFDataRef data = (CFDataRef)[[brep TIFFRepresentation] retain];
+	[brep release];
+	return data;
+}
+
 void Icon(CFDataRef *iconDataRef, char* path) {
 	// Go threads have no autorelease pool, so drain autoreleased objects here.
 	@autoreleasepool {
@@ -22,10 +58,20 @@ void Icon(CFDataRef *iconDataRef, char* path) {
 			*iconDataRef = NULL;
 			return;
 		}
-		NSBitmapImageRep *brep = [[NSBitmapImageRep alloc] initWithCGImage:cgref];
-		// Retain so the caller owns the data and can CFRelease it.
-		*iconDataRef = (CFDataRef)[[brep TIFFRepresentation] retain];
-		[brep release];
+		*iconDataRef = TIFF8FromCGImage(cgref);
+	}
+}
+
+// NormalizeTIFF decodes TIFF bytes and re-encodes them like Icon does.
+CFDataRef NormalizeTIFF(const void *bytes, long length) {
+	@autoreleasepool {
+		NSData *data = [NSData dataWithBytes:bytes length:length];
+		NSBitmapImageRep *rep = [NSBitmapImageRep imageRepWithData:data];
+		CGImageRef cgref = [rep CGImage];
+		if (cgref == NULL) {
+			return NULL;
+		}
+		return TIFF8FromCGImage(cgref);
 	}
 }
 */
@@ -105,4 +151,18 @@ func getAppIcon(appPath string, queryContext table.QueryContext) (image.Image, u
 	checksum := crc64.Checksum(tiffBytes, crcTable)
 
 	return img, checksum, nil
+}
+
+// normalizeIconTIFF re-encodes TIFF data the same way icons are encoded
+// before decoding, so the conversion can be tested with fixture images.
+func normalizeIconTIFF(b []byte) ([]byte, error) {
+	if len(b) == 0 {
+		return nil, errors.New("empty tiff data")
+	}
+	data := C.NormalizeTIFF(unsafe.Pointer(&b[0]), C.long(len(b)))
+	if data == 0 {
+		return nil, errors.New("normalizing tiff data")
+	}
+	defer C.CFRelease(C.CFTypeRef(data))
+	return C.GoBytes(unsafe.Pointer(C.CFDataGetBytePtr(data)), C.int(C.CFDataGetLength(data))), nil
 }
