@@ -323,14 +323,14 @@ func (e *Error) IsStale() bool {
 }
 
 func (e *Error) IsAuthError() bool {
-	if tokenErr, ok := errors.AsType[*oauth2.RetrieveError](e.err); ok {
-		// Google refuses a bad subject, scope or signature with a 4xx; a 5xx is an outage.
-		return tokenErr.Response != nil && tokenErr.Response.StatusCode >= 400 && tokenErr.Response.StatusCode < 500
-	}
-	apiErr, ok := errors.AsType[*googleapi.Error](e.err)
-	if !ok {
+	status, answered := e.httpStatus()
+	if !answered || status < http.StatusBadRequest || e.IsUnavailable() {
 		return false
 	}
+	if _, ok := errors.AsType[*oauth2.RetrieveError](e.err); ok {
+		// The token exchange refuses a bad subject, scope or signature.
+		return true
+	}
 	// A 403 on a device resource can mean the device left the Workspace.
-	return apiErr.Code == http.StatusUnauthorized || (apiErr.Code == http.StatusForbidden && !e.resourceCall)
+	return status == http.StatusUnauthorized || (status == http.StatusForbidden && !e.resourceCall)
 }
