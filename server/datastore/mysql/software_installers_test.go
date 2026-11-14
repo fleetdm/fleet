@@ -1133,6 +1133,7 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 			require.WithinDuration(t, beforeInstallRequest, res.CreatedAt, time.Minute)
 			createdAt := res.CreatedAt
 			require.WithinDuration(t, beforeInstallRequest, *res.UpdatedAt, time.Minute)
+			require.Equal(t, &teamID, res.HostTeamID)
 
 			beforeInstallResult := time.Now()
 			_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
@@ -1145,6 +1146,13 @@ func testGetSoftwareInstallResult(t *testing.T, ds *Datastore) {
 				PostInstallScriptOutput:   tc.postInstallScriptOutput,
 			}, nil)
 			require.NoError(t, err)
+
+			// the host's fleet is read with the result, not kept from when the install was queued
+			require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(nil, []uint{host.ID})))
+			res, err = ds.GetSoftwareInstallResults(ctx, installUUID)
+			require.NoError(t, err)
+			require.Nil(t, res.HostTeamID)
+			require.Equal(t, &teamID, res.InstallerGlobalOrTeamID)
 
 			// edit installer to ensure host software install is unaffected
 			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
