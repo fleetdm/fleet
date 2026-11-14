@@ -22,8 +22,6 @@ type device struct {
 	customerID   string // bare
 	deviceID     string // Google's deviceId field: the Android Management API device ID on Android
 	deviceType   string // IOS, ANDROID
-	model        string
-	osVersion    string
 	state        string
 	lastSyncTime time.Time
 	users        []*deviceUser
@@ -48,8 +46,6 @@ type Device struct {
 	CustomerID   string       `json:"customer_id"`
 	DeviceID     string       `json:"device_id"`
 	DeviceType   string       `json:"device_type"`
-	Model        string       `json:"model"`
-	OSVersion    string       `json:"os_version"`
 	State        string       `json:"state"`
 	LastSyncTime time.Time    `json:"last_sync_time"`
 	Users        []DeviceUser `json:"users"`
@@ -69,7 +65,7 @@ func (d *device) userName(u *deviceUser) string { return d.name() + "/deviceUser
 func (d *device) export() Device {
 	out := Device{
 		Name: d.name(), CustomerID: d.customerID, DeviceID: d.deviceID, DeviceType: d.deviceType,
-		Model: d.model, OSVersion: d.osVersion, State: d.state, LastSyncTime: d.lastSyncTime,
+		State: d.state, LastSyncTime: d.lastSyncTime,
 	}
 	for _, u := range d.users {
 		cs := map[string]*ClientState{}
@@ -166,16 +162,14 @@ type apiDevice struct {
 	Name         string `json:"name"`
 	DeviceID     string `json:"deviceId,omitempty"`
 	DeviceType   string `json:"deviceType,omitempty"`
-	Model        string `json:"model,omitempty"`
-	OSVersion    string `json:"osVersion,omitempty"`
 	OwnerType    string `json:"ownerType"`
 	LastSyncTime string `json:"lastSyncTime,omitempty"`
 }
 
 func (d *device) api() apiDevice {
 	return apiDevice{
-		Name: d.name(), DeviceID: d.deviceID, DeviceType: d.deviceType, Model: d.model, OSVersion: d.osVersion,
-		OwnerType: "COMPANY", LastSyncTime: d.lastSyncTime.UTC().Format(time.RFC3339),
+		Name: d.name(), DeviceID: d.deviceID, DeviceType: d.deviceType, OwnerType: "COMPANY",
+		LastSyncTime: d.lastSyncTime.UTC().Format(time.RFC3339),
 	}
 }
 
@@ -264,13 +258,14 @@ func (s *Server) handlePatchClientState(w http.ResponseWriter, r *http.Request, 
 		writeGoogleError(w, http.StatusBadRequest, "INVALID_ARGUMENT", err.Error())
 		return
 	}
-	if r.URL.Query().Get("updateMask") == "" {
+	updateMask := r.URL.Query().Get("updateMask")
+	if updateMask == "" {
 		writeGoogleError(w, http.StatusBadRequest, "INVALID_ARGUMENT", "updateMask is required")
 		return
 	}
 	// Validated in full first, so a refused patch changes nothing.
 	var setManaged, setCustomID bool
-	for field := range strings.SplitSeq(r.URL.Query().Get("updateMask"), ",") {
+	for field := range strings.SplitSeq(updateMask, ",") {
 		switch strings.TrimSpace(field) {
 		case "managed":
 			if body.Managed != "MANAGED" && body.Managed != "UNMANAGED" {
@@ -350,8 +345,6 @@ type SeedDevice struct {
 	CustomerID string   `json:"customer_id"`
 	DeviceID   string   `json:"device_id"`
 	DeviceType string   `json:"device_type"`
-	Model      string   `json:"model"`
-	OSVersion  string   `json:"os_version"`
 	Emails     []string `json:"emails"`
 }
 
@@ -369,11 +362,13 @@ func (s *Server) seedLocked(sd SeedDevice, resourceID string) *device {
 	}
 	d := &device{
 		id: resourceID, customerID: bareCustomerID(sd.CustomerID), deviceID: sd.DeviceID,
-		deviceType: strings.ToUpper(sd.DeviceType), model: sd.Model, osVersion: sd.OSVersion,
-		state: DeviceActive, lastSyncTime: time.Now().UTC(),
+		deviceType: strings.ToUpper(sd.DeviceType), state: DeviceActive, lastSyncTime: time.Now().UTC(),
 	}
 	for _, email := range sd.Emails {
-		d.users = append(d.users, &deviceUser{id: fakeUserID(resourceID, email), email: email})
+		id := fakeUserID(resourceID, email)
+		if d.user(id) == nil {
+			d.users = append(d.users, &deviceUser{id: id, email: email})
+		}
 	}
 	s.devices[resourceID] = d
 	s.customers[d.customerID] = struct{}{}

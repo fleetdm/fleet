@@ -59,9 +59,7 @@ func (s *Server) lookupIOS(ctx context.Context, p *pendingSignIn, code string) (
 	if s.cfg.OAuth == nil {
 		return s.fakeLookup(p.customerID, p.hostUUID, code)
 	}
-	return s.cfg.OAuth.lookup(ctx, s.cfg.PublicURL+callbackPath, code, func(c *cloudidentity.DevicesDeviceUsersLookupCall) {
-		c.Partner(s.cfg.OAuth.PartnerID).IosDeviceId(p.hostUUID)
-	})
+	return s.cfg.OAuth.lookup(ctx, s.cfg.PublicURL+callbackPath, code, p.hostUUID)
 }
 
 var errRefused = errors.New("invalid_grant: simulated by the mock")
@@ -71,14 +69,14 @@ var errRefused = errors.New("invalid_grant: simulated by the mock")
 // them when there are none, so the names can be marked; a seeded record without the user
 // is a lookup with no names.
 func (s *Server) fakeLookup(customerID, hostUUID, code string) (*lookup, error) {
+	out := &lookup{Customer: customerID, Email: s.cfg.FakeEmail}
 	switch code {
 	case CodeRefused:
 		return nil, errRefused
 	case CodeNotFound:
-		return &lookup{Customer: customerID, Email: s.cfg.FakeEmail}, nil
+		return out, nil
 	}
 	records := s.cfg.FakeDeviceRecords
-	out := &lookup{Customer: customerID, Email: s.cfg.FakeEmail}
 
 	if !s.cfg.Google {
 		for i := range records {
@@ -105,7 +103,7 @@ func (s *Server) fakeLookup(customerID, hostUUID, code string) (*lookup, error) 
 				id = "mock" + randomHex(8)
 			}
 			found = append(found, s.seedLocked(SeedDevice{
-				CustomerID: customerID, DeviceID: hostUUID, DeviceType: "IOS", Model: "iPad", OSVersion: "iPadOS 18.1",
+				CustomerID: customerID, DeviceID: hostUUID, DeviceType: "IOS",
 				Emails: []string{s.cfg.FakeEmail},
 			}, id))
 		}
@@ -137,11 +135,9 @@ func fakeUserID(deviceResourceID, email string) string {
 	return fakeID("user", deviceResourceID+"/"+email)
 }
 
-// lookup exchanges the code with real Google and, when configure is set, runs the
-// DeviceUsers lookup for the signed-in user.
-func (o *OAuthConfig) lookup(
-	ctx context.Context, redirectURL, code string, configure func(*cloudidentity.DevicesDeviceUsersLookupCall),
-) (*lookup, error) {
+// lookup exchanges the code with real Google and runs the DeviceUsers lookup for the
+// signed-in user with Fleet's partner ID and the host UUID, the pair Gmail carries.
+func (o *OAuthConfig) lookup(ctx context.Context, redirectURL, code, hostUUID string) (*lookup, error) {
 	if code == "" {
 		return nil, errors.New("missing code")
 	}
@@ -152,9 +148,6 @@ func (o *OAuthConfig) lookup(
 		return nil, fmt.Errorf("exchange the code: %w", err)
 	}
 	out := &lookup{Email: idTokenEmail(tok)}
-	if configure == nil {
-		return out, nil
-	}
 
 	opts := []option.ClientOption{option.WithHTTPClient(oauth2.NewClient(ctx, oauth2.StaticTokenSource(tok)))}
 	if o.APIEndpoint != "" {
@@ -164,8 +157,7 @@ func (o *OAuthConfig) lookup(
 	if err != nil {
 		return nil, fmt.Errorf("create cloud identity service: %w", err)
 	}
-	call := svc.Devices.DeviceUsers.Lookup("devices/-/deviceUsers").UserId("me")
-	configure(call)
+	call := svc.Devices.DeviceUsers.Lookup("devices/-/deviceUsers").UserId("me").Partner(o.PartnerID).IosDeviceId(hostUUID)
 	if err := call.Pages(ctx, func(resp *cloudidentity.GoogleAppsCloudidentityDevicesV1LookupSelfDeviceUsersResponse) error {
 		out.Names = append(out.Names, resp.Names...)
 		if resp.Customer != "" {

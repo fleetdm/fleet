@@ -149,7 +149,7 @@ the state includes the secret that authenticates the mock's calls to the Fleet s
 | `GET /_mock/state` | | dump the state |
 | `POST /_mock/reset` | | forget everything |
 | `POST /_mock/google/customers` | `{"customer_id": "C02abc"}` | add a known customer |
-| `POST /_mock/google/devices` | `{"customer_id", "device_id", "device_type", "model", "os_version", "emails": []}` | seed a record with one DeviceUser per email; returns it. `device_id` is the host UUID on iOS and the Android Management API device ID on Android |
+| `POST /_mock/google/devices` | `{"customer_id", "device_id", "device_type", "emails": []}` | seed a record with one DeviceUser per distinct email; returns it. `device_id` is the host UUID on iOS and the Android Management API device ID on Android |
 | `POST /_mock/google/devices/{id}/state` | `{"state": "active" \| "deleted" \| "left"}` | `deleted` makes calls on it a 404, `left` a 403, for the stale checks |
 | `POST /_mock/google/token-error` | `{"error": "unauthorized_client"}` | refuse delegated tokens; `""` clears |
 
