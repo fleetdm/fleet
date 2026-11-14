@@ -259,8 +259,10 @@ const (
 	errPolicyAllFleetsForContinuousAutomations           = "\"All fleets\" policy cannot have continuous_automations_enabled set"
 	errPolicyAllFleetsForProfiles                        = "\"All fleets\" policy cannot have profile_uuid set"
 	errPolicyAllFleetsForScripts                         = "\"All fleets\" policy cannot have script_id set"
+	errPolicyAllFleetsForSoftware                        = "\"All fleets\" policy cannot have software_title_id set"
 	errPatchWhenClosedRequiresContinuousAutomations      = "If \"patch_when_closed\" is true, \"continuous_automations_enabled\" can't be set to false."
 	errNotifyBeforePatchingRequiresContinuousAutomations = "If \"notify_before_patching\" is true, \"continuous_automations_enabled\" can't be set to false."
+	errPatchDeadlineRequiresContinuousAutomations        = "If \"patch_deadline\" is true, \"continuous_automations_enabled\" can't be set to false."
 )
 
 func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -501,6 +503,12 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			})
 		}
 
+		if policy.Team == "" && policy.SoftwareTitleID != nil && *policy.SoftwareTitleID != 0 {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForSoftware),
+			})
+		}
+
 		if err := policy.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),
@@ -521,8 +529,8 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			return fleet.ErrMissingLicense
 		}
 
-		// NotifyBeforePatching is premium-only.
-		if policy.NotifyBeforePatching && !license.IsPremium(ctx) {
+		// NotifyBeforePatching and PatchDeadline are premium-only.
+		if (policy.NotifyBeforePatching || policy.PatchDeadline) && !license.IsPremium(ctx) {
 			return fleet.ErrMissingLicense
 		}
 

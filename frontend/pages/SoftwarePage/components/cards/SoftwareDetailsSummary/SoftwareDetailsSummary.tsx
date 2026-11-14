@@ -16,6 +16,7 @@ import TooltipTruncatedText from "components/TooltipTruncatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { formatVppTokenLabel, IVppTokenSummary } from "interfaces/mdm";
 import {
   NO_VERSION_OR_HOST_DATA_SOURCES,
   ROLLING_ARCH_LINUX_VERSIONS,
@@ -158,6 +159,9 @@ interface ISoftwareDetailsSummaryProps {
   useSingleEditAppearanceButton?: boolean;
   fleetMaintainedAppSlug?: string;
   appStoreId?: string;
+  /** Set when the title response carries a VPP token (fleet view of an Apple
+   * App Store app). */
+  vppToken?: IVppTokenSummary;
   googlePlayId?: string;
 }
 
@@ -185,6 +189,7 @@ const SoftwareDetailsSummary = ({
   useSingleEditAppearanceButton = false,
   fleetMaintainedAppSlug,
   appStoreId,
+  vppToken,
   googlePlayId,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
@@ -245,7 +250,7 @@ const SoftwareDetailsSummary = ({
     );
   };
 
-  const renderGitOpsIdDataSet = (title: string, value?: string) =>
+  const renderGitOpsIdDataSet = (title: string, value?: string, url?: string) =>
     !!value && (
       <DataSet
         title={
@@ -253,9 +258,14 @@ const SoftwareDetailsSummary = ({
             {title}
           </TooltipWrapper>
         }
-        value={value}
+        value={url ? <CustomLink url={url} text={value} newTab /> : value}
       />
     );
+
+  // Without a country, Apple redirects to the viewer's storefront.
+  const appStoreUrl = `https://apps.apple.com/${
+    vppToken?.country_code ? `${vppToken.country_code.toLowerCase()}/` : ""
+  }app/id${appStoreId}`;
 
   const actionOptions = buildActionOptions({
     canEditSoftware: !!onClickEditSoftware,
@@ -347,7 +357,17 @@ const SoftwareDetailsSummary = ({
               "Fleet-maintained app slug",
               fleetMaintainedAppSlug
             )}
-            {renderGitOpsIdDataSet("App Store ID", appStoreId)}
+            {renderGitOpsIdDataSet("App Store ID", appStoreId, appStoreUrl)}
+            {vppToken && (
+              <DataSet
+                title={
+                  <TooltipWrapper tipContent="This is an organization unit in your Apple Business account, and licenses will be assigned from it.">
+                    VPP token
+                  </TooltipWrapper>
+                }
+                value={formatVppTokenLabel(vppToken)}
+              />
+            )}
             {renderGitOpsIdDataSet("Google Play ID", googlePlayId)}
           </dl>
           {headerPills && (

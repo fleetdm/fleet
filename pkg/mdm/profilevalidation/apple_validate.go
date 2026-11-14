@@ -22,8 +22,10 @@ func decodeAppleProfile(data []byte) (map[string]any, error) {
 		return nil, errors.New("signed profiles are not supported")
 	}
 	// DigiCert <data> placeholders aren't valid base64 until expansion; blank them as the upload
-	// parser does.
-	data = variables.ProfileDataVariableRegex.ReplaceAll(data, nil)
+	// parser does. The Contains check skips copying the whole profile when there are none.
+	if bytes.Contains(data, []byte("FLEET_VAR_")) {
+		data = variables.ProfileDataVariableRegex.ReplaceAll(data, nil)
+	}
 	var root any
 	if err := plist.Unmarshal(data, &root); err != nil {
 		return nil, fmt.Errorf("decode profile: %w", err)
@@ -281,6 +283,7 @@ func (s *ProfileValidationSchema) ValidateAppleProfile(data []byte, mode Mode) (
 		w.checkEnvelope(root)
 	}
 
+	merged := map[string]map[string]*AppleKey{}
 	contents, _ := root["PayloadContent"].([]any)
 	for _, item := range contents {
 		// A non-dictionary item is already reported against TopLevel.
@@ -298,8 +301,13 @@ func (s *ProfileValidationSchema) ValidateAppleProfile(data []byte, mode Mode) (
 			continue
 		}
 		// Every payload carries the common keys; a payload's own definition of one wins.
-		keys := maps.Clone(s.AppleEnvelope.CommonPayloadKeys.Keys)
-		maps.Copy(keys, p.Keys)
+		// Merged once per type: a profile can repeat one payload type thousands of times.
+		keys, ok := merged[payloadType]
+		if !ok {
+			keys = maps.Clone(s.AppleEnvelope.CommonPayloadKeys.Keys)
+			maps.Copy(keys, p.Keys)
+			merged[payloadType] = keys
+		}
 		w.root = p.Keys
 		w.walkKeys(keys, p.Open, p.Values, payload, "")
 		if mode == ModeStrict {

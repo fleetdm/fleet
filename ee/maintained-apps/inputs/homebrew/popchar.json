@@ -2,7 +2,7 @@
   "name": "PopChar X",
   "unique_identifier": "com.macility.popchar3",
   "token": "popchar",
-  "installer_format": "dmg",
+  "installer_format": "zip",
   "slug": "popchar/darwin",
   "default_categories": [
     "Utilities"

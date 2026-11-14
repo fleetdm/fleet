@@ -62,7 +62,7 @@ const AgentOptionsPage = ({
     () => teamsAPI.load(teamIdForApi),
     {
       enabled: isRouteOk && !!teamIdForApi,
-      select: (data: ILoadTeamResponse) => data.team,
+      select: (data: ILoadTeamResponse) => data.fleet,
       onSuccess: (data) => {
         setFormData({
           agentOptions: agentOptionsToYaml(data.agent_options),

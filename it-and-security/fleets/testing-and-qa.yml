@@ -97,6 +97,7 @@ controls:
     - path: ../lib/all/scripts/remove-emudhra-roots-fleetd.sh
 policies:
   # macOS policies
+  - path: ../lib/macos/policies/cli-trust-store-excludes-emudhra-roots.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:

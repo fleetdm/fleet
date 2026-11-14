@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/classify"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/fsutil"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ai_tools/internal/homes"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/fsutil"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/internal/homes"
 )
 
 // chromiumManifest is the subset of an extension manifest.json we read. Also

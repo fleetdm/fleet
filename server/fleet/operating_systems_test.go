@@ -22,38 +22,49 @@ func TestOperatingSystemIsWindows(t *testing.T) {
 	}
 }
 
-func TestOperatingSystemRequiresNudge(t *testing.T) {
+func TestHostAPIOS(t *testing.T) {
 	testCases := []struct {
-		platform      string
-		version       string
-		requiresNudge bool
-		parseError    bool
+		inventoryName, inventoryVersion, display string
+		wantName, wantVersion                    string
 	}{
-		{platform: "chrome"},
-		{platform: "chrome", version: "12.1"},
-		{platform: "chrome", version: "15"},
-		{platform: "darwin", parseError: true},
-		{platform: "darwin", version: "12.0.9", requiresNudge: true},
-		{platform: "darwin", version: "11", requiresNudge: true},
-		{platform: "darwin", version: "13.3.1 (a)", requiresNudge: true},
-		{platform: "darwin", version: "13.4.1 (c)", requiresNudge: true},
-		{platform: "darwin", version: "14.0"},
-		{platform: "darwin", version: "14.3.2"},
-		{platform: "darwin", version: "15.0.1"},
-		{platform: "darwin", version: "15.0.1 (a)"},
-		{platform: "windows"},
-		{platform: "windows", version: "12.2"},
-		{platform: "windows", version: "15.4"},
+		{"macOS", "15.2", "macOS 15.2", "macOS", "15.2"},
+		{"Microsoft Windows 11 Pro 24H2", "10.0.26100.1742", "Windows 11 Pro 24H2 10.0.26100.1742", "Windows 11 Pro 24H2", "10.0.26100.1742"},
+		{"Arch Linux", "rolling", "Arch Linux rolling", "Arch Linux", "rolling"},
+		{"Arch Linux", "rolling", "Arch Linux ARM rolling", "Arch Linux ARM", "rolling"},
+		{"Arch Linux", "rolling", "CachyOS Linux rolling", "CachyOS Linux", "rolling"},
+		{"Arch Linux", "rolling", "Omarchy 4.0.0", "Omarchy", "4.0.0"},
+		{"", "", "Android", "", ""},
 	}
-
 	for _, tc := range testCases {
-		os := OperatingSystem{Platform: tc.platform, Version: tc.version}
-		req, err := os.RequiresNudge()
-		if tc.parseError {
-			require.Error(t, err)
-		} else {
-			require.NoError(t, err)
-		}
-		require.Equal(t, tc.requiresNudge, req)
+		name, version := HostAPIOS(tc.inventoryName, tc.inventoryVersion, tc.display)
+		require.Equal(t, tc.wantName, name, tc.display)
+		require.Equal(t, tc.wantVersion, version, tc.display)
+	}
+}
+
+func TestInventoryOSNames(t *testing.T) {
+	require.Equal(t, []string{"Windows 11 Pro 24H2", "Microsoft Windows 11 Pro 24H2"}, InventoryOSNames("Windows 11 Pro 24H2"))
+	require.Equal(t, []string{"windows 11 pro 24h2", "Microsoft windows 11 pro 24h2"}, InventoryOSNames("windows 11 pro 24h2"))
+	require.Equal(t, []string{"Microsoft Windows 11 Pro 24H2"}, InventoryOSNames("Microsoft Windows 11 Pro 24H2"))
+	require.Equal(t, []string{"macOS"}, InventoryOSNames("macOS"))
+}
+
+func TestInventoryOSName(t *testing.T) {
+	testCases := []struct {
+		reported     string
+		wantName     string
+		forceRolling bool
+	}{
+		{"Arch Linux", "Arch Linux", false},
+		{"Arch Linux ARM", "Arch Linux", false},
+		{"CachyOS Linux", "Arch Linux", false},
+		{"Omarchy", "Arch Linux", true},
+		{"Manjaro Linux", "Manjaro Linux", false},
+		{"Ubuntu", "Ubuntu", false},
+	}
+	for _, tc := range testCases {
+		name, forceRolling := InventoryOSName(tc.reported)
+		require.Equal(t, tc.wantName, name, tc.reported)
+		require.Equal(t, tc.forceRolling, forceRolling, tc.reported)
 	}
 }

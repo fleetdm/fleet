@@ -74,7 +74,7 @@ func main() {
 	}
 	printf("Got linux=%d, windows=%d, macOS=%d\n", len(linuxHosts), len(windowsHosts), len(macOSHosts))
 
-	titles, err := apiClient.ListSoftwareTitles("per_page=1000&team_id=0&available_for_install=1")
+	titles, err := apiClient.ListSoftwareTitles("per_page=1000&fleet_id=0&available_for_install=1")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func main() {
 		windowsSoftware []fleet.SoftwareTitleListResult
 	)
 	for _, title := range titles {
-		if title.AppStoreApp != nil {
+		if len(title.AppStoreApps) > 0 {
 			macOSSoftware = append(macOSSoftware, title)
 		} else if title.SoftwarePackage != nil {
 			if ext := filepath.Ext(title.SoftwarePackage.Name); ext == ".exe" || ext == ".msi" {
@@ -96,7 +96,7 @@ func main() {
 	}
 	printf("Got software titles windows=%d, macOS=%d\n", len(windowsSoftware), len(macOSSoftware))
 
-	scripts, err := apiClient.ListScripts("per_page=1000&team_id=0")
+	scripts, err := apiClient.ListScripts("per_page=1000&fleet_id=0")
 	if err != nil {
 		log.Fatal(err)
 	}

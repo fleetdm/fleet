@@ -5,7 +5,7 @@ import { createMockScript } from "__mocks__/scriptMock";
 import {
   createMockSoftwareTitle,
   createMockSoftwarePackage,
-  createMockAppStoreApp,
+  createMockAppStoreAppVersion,
 } from "__mocks__/softwareMock";
 import createMockUser from "__mocks__/userMock";
 import { IPolicy } from "interfaces/policy";
@@ -77,7 +77,7 @@ const createMockPolicy = (overrides?: Partial<IPolicy>): IPolicy => ({
   author_email: "admin@example.com",
   resolution: "",
   platform: "darwin",
-  team_id: 1,
+  fleet_id: 1,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   critical: false,
@@ -146,7 +146,7 @@ const vppTitle: ISoftwareTitle = createMockSoftwareTitle({
   name: "VPP App",
   source: "apps",
   software_package: null,
-  app_store_app: createMockAppStoreApp({ version: "5.0.0" }),
+  app_store_apps: [createMockAppStoreAppVersion({ version: "5.0.0" })],
   packages: null,
 });
 

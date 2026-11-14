@@ -1,10 +1,13 @@
 # This workflow tests packaging of fleetd with the `fleetctl package` command
-# on Linux (ubuntu-latest).
+# on Linux (ubuntu-24.04).
 #
 # It fetches the targets: orbit, osquery and fleet-desktop from the default
 # (Fleet's) TUF server, https://tuf.fleetctl.com.
 #
-# All package types (deb, rpm, pkg.tar.zst, msi, pkg) are built on ubuntu-latest.
+# All package types (deb, rpm, pkg.tar.zst, msi, pkg) are built on ubuntu-24.04.
+# Wine in the fleetdm/wix image (used for msi) fails on ubuntu-26.04
+# ("wineserver: socket: Function not implemented").
+# Use ubuntu-latest once msi generation is pure Go: https://github.com/fleetdm/fleet/issues/50503
 name: Test packaging
 
 on:
@@ -52,7 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-24.04]
     runs-on: ${{ matrix.os }}
 
     steps:

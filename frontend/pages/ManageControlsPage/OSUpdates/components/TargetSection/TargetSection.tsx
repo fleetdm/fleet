@@ -150,7 +150,7 @@ const TargetSection = ({
 
   const isAppleMdmEnabled = appConfig.mdm.enabled_and_configured;
 
-  const isWindowsMdmEnabled = appConfig.mdm.windows_enabled_and_configured;
+  const isWindowsMdmEnabled = appConfig.mdm.windows_mdm_enabled;
 
   const defaultMacOSVersion = getDefaultOSVersion({
     osType: "darwin",

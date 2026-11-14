@@ -1,0 +1,1 @@
+- **Breaking change:** Removed the deprecated `browser` field from host software, software title, and software version API responses (and `fleetctl get software` output). Use `extension_for` instead.

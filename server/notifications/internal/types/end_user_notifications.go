@@ -17,6 +17,7 @@ type Datastore interface {
 	GetEndUserNotificationByUUID(ctx context.Context, notificationUUID string) (*api.EndUserNotification, error)
 	GetEndUserNotificationByExecutionID(ctx context.Context, executionID string) (*api.EndUserNotification, error)
 	GetNotificationAwaitingDisplay(ctx context.Context, hostID uint, kind string) (*api.EndUserNotification, error)
+	RescheduleEndUserNotificationsAwaitingDispatch(ctx context.Context, hostID uint, kind string, nextAttemptAt, expiresAt time.Time) error
 	ListEndUserNotificationsToDispatch(ctx context.Context, limit int) ([]*api.EndUserNotification, error)
 	SetEndUserNotificationsDispatched(ctx context.Context, notifications []*api.EndUserNotification) error
 	DeferEndUserNotificationsForHosts(ctx context.Context, hostIDs []uint) error

@@ -117,7 +117,6 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "author_id": 1,
         "author_name": "Alice",
         "author_email": "alice@example.com",
-        "team_id": null,
 		"fleet_id": null,
         "resolution": "policy1 resolution",
         "platform": "darwin",
@@ -133,6 +132,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 		"continuous_automations_enabled": false,
 		"patch_when_closed": false,
 		"notify_before_patching": false,
+		"patch_deadline": false,
 		"type": "dynamic"
     },
     "hosts": [
@@ -314,7 +314,6 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "author_id": 1,
         "author_name": "Alice",
         "author_email": "alice@example.com",
-        "team_id": 1,
 		"fleet_id": 1,
         "resolution": "policy1 resolution",
         "platform": "darwin",
@@ -330,6 +329,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 		"continuous_automations_enabled": false,
 		"patch_when_closed": false,
 		"notify_before_patching": false,
+		"patch_deadline": false,
 		"type": "dynamic"
     },
     "hosts": [

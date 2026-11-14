@@ -959,6 +959,30 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 		return nil // no-op for non-Android hosts
 	}
 
+	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work profile, leaving the personal side
+	// intact) instead of the EnterprisesDevicesDelete call. host_mdm_actions.wipe_ref is written to drive the work-profile wipe, and
+	// the resulting transient "wiping" status is reported as a pending unenroll for BYO Android (see suppressAndroidBYODWipeStatus).
+	// The mdm_unenrolled activity is emitted later, when the device removes its work profile and AMAPI sends the resulting
+	// STATUS_REPORT (or ENROLLMENT) notification with state=DELETED
+	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")
+	}
+	isBYO := hostMDM != nil && hostMDM.IsPersonalEnrollment
+
+	if isBYO {
+		// A work-profile wipe already in flight (from an earlier Unenroll or Wipe) will unenroll the host when it comes online,
+		// so another one would only leave an extra WIPE pending on AMAPI. Read from the primary so a quick second request
+		// sees the first one's wipe_ref.
+		lockWipe, err := svc.fleetDS.GetHostLockWipeStatus(ctxdb.RequirePrimary(ctx, true), host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting host lock/wipe status for android unenrollment")
+		}
+		if lockWipe.IsPendingWipe() {
+			return ctxerr.Wrap(ctx, &fleet.ConflictError{Message: fleet.CantUnenrollPendingUnenrollMessage}, "unenroll android host")
+		}
+	}
+
 	// Resolve Android device and enterprise
 	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, host.UUID)
 	if err != nil {
@@ -979,17 +1003,6 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
-
-	// BYO unenroll runs an AMAPI WIPE command (which on a BYO/personal device only wipes the work profile, leaving the personal side
-	// intact) instead of the EnterprisesDevicesDelete call. host_mdm_actions.wipe_ref is written to drive the work-profile wipe, but
-	// the resulting transient "wiping" status is suppressed for BYO Android (see suppressAndroidBYODWipeStatus) so no pending badge is
-	// shown. The mdm_unenrolled activity is emitted later, when the device removes its work profile and AMAPI sends the resulting
-	// STATUS_REPORT (or ENROLLMENT) notification with state=DELETED
-	hostMDM, err := svc.fleetDS.GetHostMDM(ctx, host.ID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "getting host_mdm for android unenrollment")
-	}
-	isBYO := hostMDM != nil && hostMDM.IsPersonalEnrollment
 
 	if isBYO {
 		op, err := svc.androidAPIClient.EnterprisesDevicesIssueCommand(ctx, deviceName, &androidmanagement.Command{
@@ -1521,10 +1534,33 @@ func (svc *Service) AddFleetAgentToAndroidPolicy(ctx context.Context, enterprise
 			continue
 		}
 
-		_, err = svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
+		policyBuiltAt := time.Now()
+		policy, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName,
 			[]*androidmanagement.ApplicationPolicy{fleetAgentApp})
 		if err != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, err, "google api: modify fleet agent application for host %s", uuid))
+			continue
+		}
+		androidHost, err := svc.ds.AndroidHostLiteByHostUUID(ctx, uuid)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "get android host %s", uuid))
+			continue
+		}
+		var inPolicyVersion *int64
+		if policy != nil && policy.Version > 0 {
+			inPolicyVersion = &policy.Version
+		}
+		// Save the sent Fleet agent like the Android app reconciler does, so the next status report will verify it
+		err = svc.fleetDS.BulkUpsertHostAndroidSoftwareInstalls(ctx, []fleet.HostAndroidSoftwareInstall{{
+			HostID:          androidHost.Host.ID,
+			AdamID:          packageName,
+			InstallType:     android.AppStatusForceInstalled,
+			Status:          fleet.AndroidSoftwareInstallStatusPending,
+			InPolicyVersion: inPolicyVersion,
+			PolicyBuiltAt:   policyBuiltAt,
+		}}, nil)
+		if err != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, err, "save fleet agent install for host %s", uuid))
 		}
 	}
 	return errors.Join(errs...)
@@ -1907,27 +1943,29 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 // SetAppsForAndroidPolicy sets the available apps for the given hosts' Android MDM policy to the given list of apps.
 // Note that unlike AddAppsToAndroidPolicy, this method replaces the existing app list with the given one, it is
 // not additive/PATCH semantics.
-func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) error {
+func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName string, appPolicies []*androidmanagement.ApplicationPolicy, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
 	var errs []error
+	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
 	for uuid, policyID := range hostUUIDs {
 		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
 		policyRequest, err := newAndroidPolicyApplicationsRequest(policyID, policyName, appPolicies)
 		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+			return nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 		}
 
 		var apiErr error
 		policy := &androidmanagement.Policy{Applications: appPolicies}
 		policy, apiErr = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy, androidmgmt.PoliciesPatchOpts{OnlyUpdateApps: true})
 		if _, err := recordAndroidRequestResult(ctx, svc.fleetDS, policyRequest, policy, nil, apiErr); err != nil {
-			return ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
+			return nil, ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
 		}
 
 		if apiErr != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: modify policy applications for host %s", uuid))
 		}
+		hostToPolicyRequest[uuid] = policyRequest
 	}
-	return errors.Join(errs...)
+	return hostToPolicyRequest, errors.Join(errs...)
 }
 
 func (svc *Service) CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {

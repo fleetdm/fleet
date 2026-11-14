@@ -49,12 +49,11 @@ SYSTEMS=${SYSTEMS:-macos linux linux-arm64 windows windows-arm64}
 
 echo "Generating components for $SYSTEMS"
 
-NUDGE_VERSION=1.1.10.81462
 ESCROW_BUDDY_PKG_VERSION=1.0.0
 SWIFT_DIALOG_VERSION=2.5.6
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.24.0
+    OSQUERY_VERSION=5.24.1
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -140,16 +139,19 @@ for system in $SYSTEMS; do
         mv orbit.exe orbit-windows-arm64.exe
     else
       race_value=false
+      cgo_value=0
       # Enable race on macOS Intel at least.
       #
       # For cross-compiling to Windows with `-race` we need CGO_ENABLED=1 but we cannot
       # do cross-compilation with CGO_ENABLED=1.
       if [ "$goose_value" = "darwin" ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "x86_64" ]; then
         race_value=true
+        # Native build, so cgo works (needed e.g. for the Entra device token).
+        cgo_value=1
       fi
       # NOTE(lucas): Cross-compiling orbit for arm64 from Intel macOS currently fails (CGO error),
       # thus on Intel we do not build an universal binary.
-      CGO_ENABLED=0 \
+      CGO_ENABLED=$cgo_value \
       GOOS=$goose_value \
       GOARCH=$goarch_value \
       go build \
@@ -157,6 +159,12 @@ for system in $SYSTEMS; do
       -ldflags="-s -w -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=$ORBIT_VERSION \
         -X github.com/fleetdm/fleet/v4/orbit/pkg/build.Commit=$ORBIT_COMMIT" \
       -o $orbit_target ./orbit/cmd/orbit
+    fi
+
+    # Without a codesign identity, ad-hoc sign orbit with its release identifier, which the Microsoft
+    # SSO extension's AppAllowList matches for the Entra device token.
+    if [ $system == "macos" ] && [ "$(uname -s)" = "Darwin" ] && [ -z "$CODESIGN_IDENTITY" ]; then
+        codesign -s - -i com.fleetdm.orbit -f $orbit_target
     fi
 
     ./build/fleetctl updates add \
@@ -183,18 +191,6 @@ for system in $SYSTEMS; do
         if [[ -z "$MACOS_USE_PREBUILT_DESKTOP_APP_TAR_GZ" ]]; then
             rm desktop.app.tar.gz
         fi
-    fi
-
-    # Add Nudge application on macos (if enabled).
-    if [[ $system == "macos" && -n "$NUDGE" ]]; then
-        curl https://updates.fleetdm.com/targets/nudge/macos/$NUDGE_VERSION/nudge.app.tar.gz --output nudge.app.tar.gz
-        ./build/fleetctl updates add \
-            --path $TUF_PATH \
-            --target nudge.app.tar.gz \
-            --platform macos \
-            --name nudge \
-            --version $NUDGE_VERSION -t stable
-        rm nudge.app.tar.gz
     fi
 
     # Add swiftDialog on macos (if enabled).

@@ -59,7 +59,7 @@ const createMockPolicy = (overrides?: Partial<IPolicy>): IPolicy => ({
   author_email: "admin@example.com",
   resolution: "",
   platform: "darwin",
-  team_id: 1,
+  fleet_id: 1,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
   critical: false,
@@ -235,12 +235,12 @@ const baseAppContext = {
 describe("PolicyDetailsPage - renders fresh policy data (regression #43310)", () => {
   it("renders the loaded policy's fields, not stale PolicyContext values", async () => {
     mockServer.use(
-      // team_id: null keeps the team query disabled, so no second endpoint to mock.
+      // fleet_id: null keeps the team query disabled, so no second endpoint to mock.
       http.get(baseUrl(`/policies/${POLICY_ID}`), () =>
         HttpResponse.json({
           policy: createMockPolicy({
             id: POLICY_ID,
-            team_id: null,
+            fleet_id: null,
             name: "Fresh policy name",
             description: "Fresh policy description",
             resolution: "Fresh resolution steps",

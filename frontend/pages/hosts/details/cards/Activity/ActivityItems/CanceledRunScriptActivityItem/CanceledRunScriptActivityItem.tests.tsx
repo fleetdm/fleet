@@ -35,6 +35,6 @@ describe("CanceledRunScriptActivityItem", () => {
       <CanceledRunScriptActivityItem tab="past" activity={mockActivity} />
     );
 
-    expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("info-icon")).not.toBeInTheDocument();
   });
 });

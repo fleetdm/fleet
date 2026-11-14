@@ -105,10 +105,6 @@ org_settings:
     additional_queries:
       macs: SELECT mac FROM interface_details
       time: SELECT * FROM time
-    detail_query_overrides:
-      mdm: SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM
-        mdm;
-      users:
     enable_host_users: true
     enable_software_inventory: true
     historical_data:
@@ -194,8 +190,8 @@ org_settings:
     discard_reports_data: false
     enable_analytics: true
     live_reporting_disabled: false
+    mcp_disabled: false
     report_cap: 1
-    scripts_disabled: false
     server_url: https://dogfood.fleetdm.com
   sso_settings:
     enable_jit_provisioning: true

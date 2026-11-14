@@ -1,8 +1,9 @@
 - name: Fleet Desktop.app launch agent installed
   query: SELECT 1 FROM file WHERE path = '/Library/LaunchAgents/com.fleetdm.fleet-desktop-hidden.plist' LIMIT 1;
   critical: false
-  description: Ensures the Fleet Desktop.app launch agent plist is present on disk after the MDM profile is delivered.
-  resolution: "Fleet installs the launch agent helper package when the policy fails. If it still fails after a refetch, contact #help-it."
+  description: Checks that the Fleet Desktop.app launch agent plist is on disk after the MDM profile is delivered.
+  resolution: "No action needed from you. Fleet installs the launch agent helper package automatically when this policy fails. If it keeps failing, IT reviews the install error in the host's activity."
+  hidden: true
   install_software:
     package_path: ../software/fleet-desktop-launch-agent.yml
   labels_include_any:

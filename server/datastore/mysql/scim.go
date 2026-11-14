@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -396,7 +395,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			return err
 		}
 
-		// only hosts whose IdP email actually moved need the email profiles resent
+		// only hosts whose IdP email actually moved need their IdP username profiles resent
 		var idpEmailChangedHostIDs []uint
 		if renamedBetweenEmails {
 			idpEmailChangedHostIDs, err = reconcileHostIdPMappingsForIdPEmailChange(ctx, tx, ds.logger, user.ID, hostIDs, old.UserName, user.UserName)
@@ -560,7 +559,7 @@ func renameMDMIdPAccount(
 }
 
 // renameHostIdPEmails rewrites both mapping sources and returns the hosts whose
-// authenticated row moved, the only source the IdP email variable resolves from.
+// authenticated row moved, which a host without a SCIM user takes its IdP username from.
 //
 // Authenticated rows are matched on the address rather than on scimHostIDs: the
 // account email is unique, so a row holding it belongs to that account whether or
@@ -1724,8 +1723,9 @@ func getHostIDsHavingScimIDPUsers(ctx context.Context, tx sqlx.ExtContext, scimU
 }
 
 // triggerResendProfilesForIDPUserChange resends profiles using changedVars on
-// scimHostIDs and IdP email profiles on idpEmailChangedHostIDs; a host can be in
-// either set without being in the other.
+// scimHostIDs, and IdP username profiles on the hosts of idpEmailChangedHostIDs
+// that no SCIM user is linked to, since those take their IdP username from the
+// IdP email that moved; a host can be in either set without being in the other.
 func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtContext, scimHostIDs []uint, changedVars []fleet.FleetVarName, idpEmailChangedHostIDs []uint) ([]fleet.ActivityTypeResentCertificate, error) {
 	resentCerts, err := selectCertTemplatesToResend(ctx, tx, scimHostIDs, fleetVarNamesToDBVars(changedVars))
 	if err != nil {
@@ -1735,28 +1735,55 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 		return nil, err
 	}
 
-	if len(idpEmailChangedHostIDs) == 0 {
-		return resentCerts, nil
-	}
-	emailVars := []fleet.FleetVarName{fleet.FleetVarHostEndUserEmailIDP}
-	emailCerts, err := selectCertTemplatesToResend(ctx, tx, idpEmailChangedHostIDs, fleetVarNamesToDBVars(emailVars))
+	unlinkedHostIDs, err := hostIDsWithoutScimUser(ctx, tx, idpEmailChangedHostIDs)
 	if err != nil {
 		return nil, err
 	}
-	if err := triggerResendProfilesUsingVariables(ctx, tx, idpEmailChangedHostIDs, emailVars); err != nil {
+	if len(unlinkedHostIDs) == 0 {
+		return resentCerts, nil
+	}
+	usernameVars := []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart}
+	usernameCerts, err := selectCertTemplatesToResend(ctx, tx, unlinkedHostIDs, fleetVarNamesToDBVars(usernameVars))
+	if err != nil {
 		return nil, err
 	}
-	// a template using both kinds of variable is selected twice
+	if err := triggerResendProfilesUsingVariables(ctx, tx, unlinkedHostIDs, usernameVars); err != nil {
+		return nil, err
+	}
+	// a host in both sets has its templates selected twice
 	seen := make(map[[2]uint]struct{}, len(resentCerts))
 	for _, c := range resentCerts {
 		seen[[2]uint{c.HostID, c.CertificateTemplateID}] = struct{}{}
 	}
-	for _, c := range emailCerts {
+	for _, c := range usernameCerts {
 		if _, dup := seen[[2]uint{c.HostID, c.CertificateTemplateID}]; !dup {
 			resentCerts = append(resentCerts, c)
 		}
 	}
 	return resentCerts, nil
+}
+
+// hostIDsWithoutScimUser returns the hosts of hostIDs that no SCIM user is linked to.
+func hostIDsWithoutScimUser(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint) ([]uint, error) {
+	if len(hostIDs) == 0 {
+		return nil, nil
+	}
+	stmt, args, err := sqlx.In(`SELECT DISTINCT host_id FROM host_scim_user WHERE host_id IN (?)`, hostIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "prepare select hosts with a scim user")
+	}
+	var linked []uint
+	if err := sqlx.SelectContext(ctx, tx, &linked, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select hosts with a scim user")
+	}
+	linkedSet := make(map[uint]struct{}, len(linked))
+	for _, id := range linked {
+		linkedSet[id] = struct{}{}
+	}
+	return slices.DeleteFunc(slices.Clone(hostIDs), func(id uint) bool {
+		_, ok := linkedSet[id]
+		return ok
+	}), nil
 }
 
 func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtContext, deletedScimUserID uint) ([]fleet.ActivityTypeResentCertificate, error) {
@@ -1957,7 +1984,8 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 	SET
 		hmap.status = NULL,
 		hmap.detail = NULL,
-		hmap.command_uuid = ''
+		hmap.command_uuid = '',
+		hmap.retries = 0
 	WHERE
 		h.id IN (:host_ids) AND
 		hmap.operation_type = :operation_type_install AND
@@ -2268,7 +2296,8 @@ func resendCAProfilesDB(ctx context.Context, tx sqlx.ExtContext, dataVar fleet.F
 			SET
 				hmap.status = NULL,
 				hmap.detail = NULL,
-				hmap.command_uuid = ''
+				hmap.command_uuid = '',
+				hmap.retries = 0
 			WHERE
 				h.id IN (?) AND
 				hmap.profile_uuid IN (?) AND
@@ -2293,7 +2322,8 @@ func resendCAProfilesDB(ctx context.Context, tx sqlx.ExtContext, dataVar fleet.F
 			SET
 				hmap.status = NULL,
 				hmap.detail = NULL,
-				hmap.command_uuid = ''
+				hmap.command_uuid = '',
+				hmap.retries = 0
 			WHERE
 				h.team_id <=> ? AND
 				hmap.profile_uuid = ? AND
@@ -2355,9 +2385,9 @@ func triggerResendDeviceNamesForIDPChange(ctx context.Context, tx sqlx.ExtContex
 	return reconcileHostDeviceNamesForHostsDB(ctx, tx, affectedHostIDs)
 }
 
-// queueManagedConfigResendJobs finds app store app configs that reference any of
-// the affected fleet variables and inserts worker jobs to re-push the managed
-// configuration with the updated values, or sets a flag for VPP apps.
+// queueManagedConfigResendJobs finds App Store app configurations that reference any of the affected Fleet
+// variables and flags the affected hosts' installs, so the App Store app configuration cron and the Android app
+// reconciler will send them with the updated values.
 func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostIDs []uint, affectedVars []any) error {
 	if len(hostIDs) == 0 {
 		return nil
@@ -2406,14 +2436,14 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		return ctxerr.Wrap(ctx, err, "find affected app configs")
 	}
 
-	var apps []affectedApp
+	var androidAppTeamIDs []uint
 	var appleAppTeamIDs []uint
 	for _, app := range affectedApps {
 		if app.Platform == fleet.IOSPlatform || app.Platform == fleet.IPadOSPlatform {
 			appleAppTeamIDs = append(appleAppTeamIDs, app.AppTeamID)
 			continue
 		}
-		apps = append(apps, app)
+		androidAppTeamIDs = append(androidAppTeamIDs, app.AppTeamID)
 	}
 
 	// Flag the hosts' installs of the affected iOS and iPadOS apps for the configuration cron, whatever version they're of, since a
@@ -2437,43 +2467,12 @@ func queueManagedConfigResendJobs(ctx context.Context, tx sqlx.ExtContext, hostI
 		}
 	}
 
-	if len(apps) == 0 {
+	if len(androidAppTeamIDs) == 0 {
 		return nil
 	}
 
-	// Get the enterprise name from the DB.
-	var enterpriseID string
-	if err := sqlx.GetContext(ctx, tx, &enterpriseID, `SELECT enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// No enterprise configured — nothing to do.
-			return nil
-		}
-		return ctxerr.Wrap(ctx, err, "get android enterprise id")
-	}
-	enterpriseName := "enterprises/" + enterpriseID
-
-	// Insert a job for each affected app config.
-	const insertJob = `
-	INSERT INTO jobs (name, args, state, error)
-	VALUES (?, ?, 'queued', '')
-`
-	for _, app := range apps {
-		args, err := json.Marshal(map[string]any{
-			"task":               "make_android_app_available",
-			"application_id":     app.ApplicationID,
-			"app_team_id":        app.AppTeamID,
-			"enterprise_name":    enterpriseName,
-			"app_config_changed": true,
-		})
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "marshal job args for managed config resend")
-		}
-		if _, err := tx.ExecContext(ctx, insertJob, "software_worker", json.RawMessage(args)); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert managed config resend job")
-		}
-	}
-
-	return nil
+	// Flag the affected Android apps for the Android app reconciler
+	return setHostAndroidSoftwareInstallsNeedsResendTx(ctx, tx, hostIDs, androidAppTeamIDs)
 }
 
 // emailsRequireUpdate compares two slices of emails and returns true if they are different

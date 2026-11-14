@@ -6,13 +6,21 @@ TMPDIR=$(mktemp -d)
 
 # functions
 
+app_process_running() {
+  local bundle_id="$1" app
+  while IFS= read -r app; do
+    grep -qixF -- "$bundle_id" <<< "$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)" && return 0
+  done < <(ps -axo comm= | sed -n 's|^ *\(.*\.app\)/Contents/MacOS/.*|\1|p' | sort -u)
+  return 1
+}
+
 quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
   # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null)
   if [[ "$app_running" != "true" ]]; then
     return
   fi
@@ -27,12 +35,17 @@ quit_application() {
   echo "Quitting application '$bundle_id'..."
 
   # try to quit the application within the timeout period
-  local quit_success=false still_running
+  local quit_success=false still_running quit_error
   SECONDS=0
   while (( SECONDS < timeout_duration )); do
-    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1
+    quit_error=$(osascript -e 'on run argv' -e 'tell application id (item 1 of argv) to quit' -e 'end run' -- "$bundle_id" 2>&1 >/dev/null)
+    if [[ "$quit_error" == *"(-600)" ]] && ! app_process_running "$bundle_id"; then
+      echo "Application '$bundle_id' isn't running."
+      quit_success=true
+      break
+    fi
     sleep 1
-    if still_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
+    if still_running=$(osascript -e 'on run argv' -e 'return application id (item 1 of argv) is running' -e 'end run' -- "$bundle_id" 2>/dev/null) && [[ "$still_running" == "false" ]]; then
       echo "Application '$bundle_id' quit successfully."
       quit_success=true
       break
@@ -46,7 +59,7 @@ quit_application() {
 }
 
 # extract contents
-unzip "$INSTALLER_PATH" -d "$TMPDIR"
+unzip "$INSTALLER_PATH" -d "$TMPDIR" || exit 1
 
 # discover the installer app by finding any .app that contains an installer executable
 INSTALLER_APP=""
@@ -64,6 +77,7 @@ fi
 
 # vpn-installer.sh kills anything still running from the app before replacing it,
 # so a failed quit doesn't stop the install.
+quit_application 'com.express.vpn'
 quit_application 'com.expressvpn.ExpressVPN'
 
 # Remove quarantine attributes so Gatekeeper won't block binaries during install

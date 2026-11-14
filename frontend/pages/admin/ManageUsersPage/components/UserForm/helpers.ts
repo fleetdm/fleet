@@ -20,7 +20,7 @@ export type UserFormState = {
   sso_enabled: boolean;
   mfa_enabled: boolean;
   global_role: UserRole | null;
-  teams: ITeam[];
+  fleets: ITeam[];
 };
 
 export interface IUserFormValidationContext {
@@ -88,8 +88,8 @@ export const validateUserForm = (
     }
   }
 
-  if (context.isPremiumTier && !data.global_role && !data.teams.length) {
-    errors.teams = "Select at least one fleet";
+  if (context.isPremiumTier && !data.global_role && !data.fleets.length) {
+    errors.fleets = "Select at least one fleet";
   }
 
   return errors;

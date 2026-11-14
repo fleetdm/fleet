@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "155.0.8059.150",
+      "version": "156.0.8078.132",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Comet' AND publisher = 'PERPLEXITY AI, INC.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Comet' AND publisher = 'PERPLEXITY AI, INC.' AND version_compare(version, '155.0.8059.150') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Comet' AND publisher = 'PERPLEXITY AI, INC.' AND version_compare(version, '156.0.8078.132') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'comet.exe');"
       },
       "installer_url": "https://www.perplexity.ai/rest/browser/download?platform=win_x64&channel=stable",
       "install_script_ref": "9f163ee3",
       "uninstall_script_ref": "faa38912",
-      "sha256": "a71aa350322c13d1ab4a2287fbee7db323d37a911e6fa78427ae81b2a3f767b6",
+      "sha256": "74605c34ca289c43094ddc71aa9eda870d8d62047dddc8b853bb69aa81c8be21",
       "default_categories": [
         "Browsers"
       ]

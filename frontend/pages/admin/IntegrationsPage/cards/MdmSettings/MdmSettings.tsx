@@ -32,7 +32,7 @@ const MdmSettings = ({
   isPremiumTier = false,
 }: IMdmSettingsProps) => {
   const isMdmEnabled = !!appConfig?.mdm.enabled_and_configured;
-  const isWindowsMdmEnabled = !!appConfig?.mdm.windows_enabled_and_configured;
+  const isWindowsMdmEnabled = !!appConfig?.mdm.windows_mdm_enabled;
   // The macOS EULA is shown by Apple's automated enrollment, and end user
   // migration relies on it too, so both need Apple MDM and Apple Business
   // Manager.
@@ -157,7 +157,7 @@ const MdmSettings = ({
           />
           <MicrosoftEntraSection
             router={router}
-            windowsMdmEnabled={!!appConfig?.mdm.windows_enabled_and_configured}
+            windowsMdmEnabled={!!appConfig?.mdm.windows_mdm_enabled}
             tenantAdded={!!appConfig?.mdm.windows_entra_tenant_ids?.length}
             isPremiumTier={isPremiumTier}
           />

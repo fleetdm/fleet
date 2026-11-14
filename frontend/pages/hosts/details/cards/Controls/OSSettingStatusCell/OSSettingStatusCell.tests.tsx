@@ -126,9 +126,7 @@ describe("OS setting status cell", () => {
     // introduced across the rest of the controls UI. Retries reuse the in-progress icon and are
     // distinguished by the status text and details message alone.
     it("reuses the in-progress icon rather than introducing a new one", () => {
-      expect(ANDROID_CERT_RETRYING_DISPLAY_CONFIG?.iconName).toEqual(
-        "pending-outline"
-      );
+      expect(ANDROID_CERT_RETRYING_DISPLAY_CONFIG?.iconName).toEqual("pending");
 
       const { container: retrying } = render(
         <OSSettingStatusCell profile={retryingCert()} />

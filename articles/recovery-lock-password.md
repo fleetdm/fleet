@@ -25,20 +25,16 @@ Fleet automatically generates, encrypts, and stores the password server-side. Ad
 
 Fleet will begin setting passwords on eligible hosts automatically in the current fleet. Progress appears in each host's **OS settings** status.
 
-### fleetctl
+### GitOps
 
-Add `enable_recovery_lock_password: true` under the `mdm` key in your fleet or unassigned (global) YAML config:
+Add `macos_recovery_lock_password_enabled: true` under `controls` in the fleet's YAML file, or in `fleets/unassigned.yml` for hosts that aren't assigned to a fleet:
 
 ```yaml
-mdm:
-  enable_recovery_lock_password: true
+controls:
+  macos_recovery_lock_password_enabled: true
 ```
 
-Then apply:
-
-```sh
-fleetctl apply -f config.yml
-```
+Then run `fleetctl gitops`.
 
 ### API
 
@@ -50,7 +46,7 @@ PATCH /api/latest/fleet/config
 ```json
 {
   "mdm": {
-    "enable_recovery_lock_password": true
+    "macos_recovery_lock_password_enabled": true
   }
 }
 ```
@@ -63,10 +59,8 @@ PATCH /api/latest/fleet/fleets/{fleet_id}
 
 ```json
 {
-  "config": {
-    "mdm": {
-      "enable_recovery_lock_password": true
-    }
+  "mdm": {
+    "macos_recovery_lock_password_enabled": true
   }
 }
 ```

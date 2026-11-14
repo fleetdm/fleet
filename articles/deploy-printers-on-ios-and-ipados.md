@@ -13,7 +13,7 @@ You can add printers to iOS and iPadOS hosts with a configuration profile. iOS a
 
 1. Build an AirPrint (`com.apple.airprint`) payload in [iMazing Profile Creator](https://imazing.com/profile-editor), starting from this [example profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/ios-ipados/configuration-profiles/airprint.mobileconfig). For each printer, add its IP address or hostname and resource path. Or skip the GUI and have an AI coding agent generate and validate the payload for you. See [Build and validate configuration profiles with AI instead of a GUI](https://fleetdm.com/guides/build-configuration-profiles-with-ai).
 2. In Fleet, go to **Controls > OS settings > Configuration profiles** and choose a fleet.
-3. Select **Add profile** and upload the `.mobileconfig` file.
+3. Select **Add profile**, select **Create manually**, and upload the `.mobileconfig` file.
 
 Unlike the macOS Printing payload, [you can deliver more than one AirPrint payload](https://support.apple.com/guide/deployment/airprint-payload-settings-dep3b4cf515/web) to the same host.
 

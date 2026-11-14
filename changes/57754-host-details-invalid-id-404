@@ -1,0 +1,1 @@
+- Fixed host details showing a loading spinner forever for a URL whose host id is not a number or is 0. The page now shows the 404 page.

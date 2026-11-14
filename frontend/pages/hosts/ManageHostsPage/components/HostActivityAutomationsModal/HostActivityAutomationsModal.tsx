@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
+import CustomLinkSizeContext from "components/CustomLink/CustomLinkSizeContext";
 import InputField from "components/forms/fields/InputField";
 import Slider from "components/forms/fields/Slider";
 import { isValidURL } from "components/forms/validators";
@@ -126,15 +127,17 @@ const HostActivityAutomationsModal = ({
           }}
         />
         <div className="form-field__help-text">
-          To see the data included in each activity, check out the documentation
-          for{" "}
-          {
-            <CustomLink
-              url="https://fleetdm.com/learn-more-about/audit-logs"
-              text="audit logs"
-              newTab
-            />
-          }
+          <CustomLinkSizeContext.Provider value="small">
+            To see the data included in each activity, check out the
+            documentation for{" "}
+            {
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/host-audit-logs"
+                text="audit logs"
+                newTab
+              />
+            }
+          </CustomLinkSizeContext.Provider>
         </div>
       </>
     );

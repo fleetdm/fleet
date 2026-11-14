@@ -149,7 +149,7 @@ func applyWindowsSCEPStatusProbeResultDB(ctx context.Context, tx sqlx.ExtContext
 			}
 			return false, false, ctxerr.Wrap(ctx, err, "load windows scep profile for status probe")
 		}
-		changed, _, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, installCmdUUID,
+		changed, _, err := failOrRetryWindowsHostProfileDB(ctx, tx, hostUUID, profileUUID, installCmdUUID, false,
 			windowsSCEPStatusFailedDetail(errorCode))
 		return changed, false, err
 	}

@@ -3,6 +3,7 @@
   "slug": "lenovo-dock-manager/windows",
   "package_identifier": "Lenovo.DockManager",
   "unique_identifier": "Lenovo Dock Manager",
+  "open_process_names": ["dockmgr.exe"],
   "fuzzy_match_name": true,
   "program_publisher": "Lenovo",
   "installer_arch": "x64",

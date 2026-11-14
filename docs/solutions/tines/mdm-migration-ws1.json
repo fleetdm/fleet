@@ -1,0 +1,175 @@
+{
+  "schema_version": 31,
+  "standard_lib_version": 98,
+  "action_runtime_version": 93,
+  "name": "MDM Migration (WS1)",
+  "description": "",
+  "guid": "ff3c409ec7581ef3f9a43327ee1a6d51",
+  "slug": "mdm_migration_ws1",
+  "agents": [
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Lookup device ID in Workspace ONE by Serial Number",
+      "disabled": false,
+      "description": "",
+      "guid": "6936d1537025ddb458947d17626a8a6a",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "url": "https://<<RESOURCE.ws1_server_url>>/api/mdm/devices?searchby=Serialnumber&id=<<webhook_action.body.host.hardware_serial>>",
+        "method": "get",
+        "headers": {
+          "accept": "application/json",
+          "Authorization": "Bearer <<CREDENTIAL.ws1_bearer_token>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::WebhookAgent",
+      "name": "Webhook Action",
+      "disabled": false,
+      "description": null,
+      "guid": "d0c626165516ad241dbca700f0d34ead",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "path": "2a2a891acefe1d6d95727996d2f8a298",
+        "secret": "d8c8ed4f77b198c15842cb001ffb7e5f",
+        "verbs": "get,post"
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Send Enterprise Wipe Command using Device ID",
+      "disabled": false,
+      "description": "",
+      "guid": "b1b7071da9d6a4f90f4163d357e7b513",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "url": "https://<<RESOURCE.ws1_server_url>>/API/mdm/devices/<<lookup_device_id_in_workspace_one_by_serial_number.body.Id.Value>>/commands?command=EnterpriseWipe",
+        "method": "post",
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer <<CREDENTIAL.ws1_bearer_token>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    }
+  ],
+  "diagram_notes": [
+    {
+      "content": "Receive Webhook",
+      "position": [
+        -495,
+        -150
+      ],
+      "guid": "ee605b6b36c4e56bede006cfa27aaf0f",
+      "width": 180
+    },
+    {
+      "content": "Lookup Workspace ONE Device ID by Serial Number",
+      "position": [
+        -300,
+        -150
+      ],
+      "guid": "37c34f2422a04d327f6a372e9db7a3b1",
+      "width": 270
+    },
+    {
+      "content": "Send Enterprise Wipe Command using Workspace ONE Device ID",
+      "position": [
+        -15,
+        -150
+      ],
+      "guid": "db8523dfa563cc114677515f914715c1",
+      "width": 270
+    }
+  ],
+  "links": [
+    {
+      "source": 0,
+      "receiver": 2
+    },
+    {
+      "source": 1,
+      "receiver": 0
+    }
+  ],
+  "diagram_layout": "{\"6936d1537025ddb458947d17626a8a6a\":[-270,0],\"b1b7071da9d6a4f90f4163d357e7b513\":[15,105],\"d0c626165516ad241dbca700f0d34ead\":[-495,-75]}",
+  "story_library_metadata": {},
+  "monitor_failures": true,
+  "synchronous_webhooks_enabled": false,
+  "integrations": [],
+  "sections": [],
+  "parent_only_send_to_story": false,
+  "send_to_story_timeout_enabled": false,
+  "send_to_story_timeout_duration_seconds": null,
+  "keep_events_for": 86400,
+  "reporting_status": true,
+  "send_to_story_enabled": false,
+  "entry_agent_guid": null,
+  "exit_agent_guids": [],
+  "api_entry_action_guids": [],
+  "api_exit_action_guids": [],
+  "send_to_story_access": null,
+  "send_to_story_access_source": 0,
+  "send_to_story_skill_use_requires_confirmation": true,
+  "pages": [],
+  "tags": [],
+  "time_saved_unit": "minutes",
+  "time_saved_value": 0,
+  "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2448e973a07b9f4421f839439918d608",
+  "recipients": [],
+  "integration_product": null,
+  "integration_vendor": null,
+  "llm_product_instructions": "",
+  "start_reference": null,
+  "app_endpoints": [],
+  "send_to_stories": [],
+  "exported_at": "2026-10-28T04:35:07Z",
+  "icon": ":magic_wand:"
+}

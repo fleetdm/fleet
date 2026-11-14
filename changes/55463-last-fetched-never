@@ -1,0 +1,1 @@
+- Fixed host details showing "Last fetched almost 27 years ago" for hosts that haven't been fetched yet; the header now shows the last MDM check-in until the first fetch.

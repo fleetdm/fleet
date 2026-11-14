@@ -80,6 +80,11 @@ on:
         type: number
         default: 0
         required: false
+      websocket_transport:
+        description: "Agent WebSocket transport: the server notifies agents of live queries and orbit config changes instead of them polling. Uncheck to compare with load tests run without it."
+        type: boolean
+        default: true
+        required: false
       terraform_action:
         description: Dry run only? No "terraform apply"
         type: choice
@@ -119,6 +124,7 @@ env:
   TF_VAR_redis_parameter_group_family: "${{ inputs.fleet_redis_parameter_group_family }}"
   TF_VAR_enable_apple_mdm: "${{ inputs.mock_apns_server_instance_count != 0 }}"
   TF_VAR_apple_apns_mock_instance_count: "${{ inputs.mock_apns_server_instance_count }}"
+  TF_VAR_enable_websocket_transport: "${{ inputs.websocket_transport }}"
 
 permissions:
   id-token: write

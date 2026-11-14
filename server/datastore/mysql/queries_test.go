@@ -34,7 +34,6 @@ func TestQueries(t *testing.T) {
 		{"DeleteMany", testQueriesDeleteMany},
 		{"Save", testQueriesSave},
 		{"List", testQueriesList},
-		{"LoadPacksForQueries", testQueriesLoadPacksForQueries},
 		{"DuplicateNew", testQueriesDuplicateNew},
 		{"ObserverCanRunQuery", testObserverCanRunQuery},
 		{"ListQueriesFiltersByTeamID", testListQueriesFiltersByTeamID},
@@ -45,6 +44,7 @@ func TestQueries(t *testing.T) {
 		{"ListScheduledQueriesForAgentsWithLabels", testListScheduledQueriesForAgentsWithLabels},
 		{"QueriesPerHost", testQueriesPerHost},
 		{"HasLabelScopedScheduledQueries", testHasLabelScopedScheduledQueries},
+		{"ScheduledQueriesDigest", testScheduledQueriesDigest},
 		{"LabelScopedScheduledQueryScopes", testLabelScopedScheduledQueryScopes},
 		{"QueryLabelsAtomic", testQueryLabelsAtomic},
 		{"ClearResultsThenCleanup", testQueriesClearResultsThenCleanup},
@@ -213,6 +213,45 @@ func testQueriesApply(t *testing.T, ds *Datastore) {
 	}
 	err = ds.ApplyQueries(context.Background(), zwass.ID, invalidQueries, nil)
 	require.ErrorIs(t, err, fleet.ErrQueryInvalidPlatform)
+}
+
+func TestDeleteQueryStatsInBatches(t *testing.T) {
+	ds := CreateMySQLDS(t)
+	ctx := t.Context()
+
+	setDeleteQueryStatsBatchSize(t, 2)
+	var batches int
+	deleteQueryStatsAfterBatchHook = func(d *Datastore) {
+		if d == ds {
+			batches++
+		}
+	}
+	t.Cleanup(func() { deleteQueryStatsAfterBatchHook = nil })
+
+	q1 := test.NewQuery(t, ds, nil, "q1", "select 1", 0, true)
+	q2 := test.NewQuery(t, ds, nil, "q2", "select 2", 0, true)
+	kept := test.NewQuery(t, ds, nil, "kept", "select 3", 0, true)
+	for _, id := range []uint{q1.ID, q2.ID, kept.ID} {
+		for hostID := 1; hostID <= 3; hostID++ {
+			_, err := ds.writer(ctx).ExecContext(ctx, `INSERT INTO scheduled_query_stats
+				(host_id, scheduled_query_id, average_memory, executions, output_size, system_time, user_time, wall_time)
+				VALUES (?, ?, 1, 1, 1, 1, 1, 1)`, hostID, id)
+			require.NoError(t, err)
+		}
+	}
+	require.NoError(t, ds.UpdateQueryAggregatedStats(ctx))
+
+	ds.deleteQueryStats(ctx, []uint{q1.ID, q2.ID})
+
+	// 3 rows per query with a batch size of 2 take 2 deletes each.
+	require.Equal(t, 4, batches)
+	var statIDs []uint
+	require.NoError(t, ds.writer(ctx).SelectContext(ctx, &statIDs, `SELECT scheduled_query_id FROM scheduled_query_stats`))
+	require.Equal(t, []uint{kept.ID, kept.ID, kept.ID}, statIDs)
+	var aggregatedIDs []uint
+	require.NoError(t, ds.writer(ctx).SelectContext(ctx, &aggregatedIDs,
+		`SELECT id FROM aggregated_stats WHERE type = ?`, fleet.AggregatedStatsTypeScheduledQuery))
+	require.Equal(t, []uint{kept.ID}, aggregatedIDs)
 }
 
 func testQueriesDelete(t *testing.T, ds *Datastore) {
@@ -726,130 +765,6 @@ func testQueriesList(t *testing.T, ds *Datastore) {
 		}
 	}
 	require.True(t, foundAgg)
-}
-
-func testQueriesLoadPacksForQueries(t *testing.T, ds *Datastore) {
-	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
-	queries := []*fleet.Query{
-		{Name: "q1", Query: "select * from time", Logging: fleet.LoggingSnapshot},
-		{Name: "q2", Query: "select * from osquery_info", Logging: fleet.LoggingDifferential},
-	}
-	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
-	require.NoError(t, err)
-
-	specs := []*fleet.PackSpec{
-		{Name: "p1"},
-		{Name: "p2"},
-		{Name: "p3"},
-	}
-	err = ds.ApplyPackSpecs(context.Background(), specs)
-	require.Nil(t, err)
-
-	q0, err := ds.QueryByName(context.Background(), nil, queries[0].Name)
-	require.Nil(t, err)
-	assert.Empty(t, q0.Packs)
-
-	q1, err := ds.QueryByName(context.Background(), nil, queries[1].Name)
-	require.Nil(t, err)
-	assert.Empty(t, q1.Packs)
-
-	specs = []*fleet.PackSpec{
-		{
-			Name: "p2",
-			Queries: []fleet.PackSpecQuery{
-				{
-					Name:      "q0",
-					QueryName: queries[0].Name,
-					Interval:  60,
-				},
-			},
-		},
-	}
-	err = ds.ApplyPackSpecs(context.Background(), specs)
-	require.Nil(t, err)
-
-	q0, err = ds.QueryByName(context.Background(), nil, queries[0].Name)
-	require.Nil(t, err)
-	if assert.Len(t, q0.Packs, 1) {
-		assert.Equal(t, "p2", q0.Packs[0].Name)
-	}
-
-	q1, err = ds.QueryByName(context.Background(), nil, queries[1].Name)
-	require.Nil(t, err)
-	assert.Empty(t, q1.Packs)
-
-	specs = []*fleet.PackSpec{
-		{
-			Name: "p1",
-			Queries: []fleet.PackSpecQuery{
-				{
-					QueryName: queries[1].Name,
-					Interval:  60,
-				},
-			},
-		},
-		{
-			Name: "p3",
-			Queries: []fleet.PackSpecQuery{
-				{
-					QueryName: queries[1].Name,
-					Interval:  60,
-				},
-			},
-		},
-	}
-	err = ds.ApplyPackSpecs(context.Background(), specs)
-	require.Nil(t, err)
-
-	q0, err = ds.QueryByName(context.Background(), nil, queries[0].Name)
-	require.Nil(t, err)
-	if assert.Len(t, q0.Packs, 1) {
-		assert.Equal(t, "p2", q0.Packs[0].Name)
-	}
-
-	q1, err = ds.QueryByName(context.Background(), nil, queries[1].Name)
-	require.Nil(t, err)
-	if assert.Len(t, q1.Packs, 2) {
-		sort.Slice(q1.Packs, func(i, j int) bool { return q1.Packs[i].Name < q1.Packs[j].Name })
-		assert.Equal(t, "p1", q1.Packs[0].Name)
-		assert.Equal(t, "p3", q1.Packs[1].Name)
-	}
-
-	specs = []*fleet.PackSpec{
-		{
-			Name: "p3",
-			Queries: []fleet.PackSpecQuery{
-				{
-					Name:      "q0",
-					QueryName: queries[0].Name,
-					Interval:  60,
-				},
-				{
-					Name:      "q1",
-					QueryName: queries[1].Name,
-					Interval:  60,
-				},
-			},
-		},
-	}
-	err = ds.ApplyPackSpecs(context.Background(), specs)
-	require.Nil(t, err)
-
-	q0, err = ds.QueryByName(context.Background(), nil, queries[0].Name)
-	require.Nil(t, err)
-	if assert.Len(t, q0.Packs, 2) {
-		sort.Slice(q0.Packs, func(i, j int) bool { return q0.Packs[i].Name < q0.Packs[j].Name })
-		assert.Equal(t, "p2", q0.Packs[0].Name)
-		assert.Equal(t, "p3", q0.Packs[1].Name)
-	}
-
-	q1, err = ds.QueryByName(context.Background(), nil, queries[1].Name)
-	require.Nil(t, err)
-	if assert.Len(t, q1.Packs, 2) {
-		sort.Slice(q1.Packs, func(i, j int) bool { return q1.Packs[i].Name < q1.Packs[j].Name })
-		assert.Equal(t, "p1", q1.Packs[0].Name)
-		assert.Equal(t, "p3", q1.Packs[1].Name)
-	}
 }
 
 func testQueriesDuplicateNew(t *testing.T, ds *Datastore) {
@@ -1718,6 +1633,79 @@ func testListScheduledQueriesForAgentsWithLabels(t *testing.T, ds *Datastore) {
 	queries, err = ds.ListScheduledQueriesForAgents(ctx, nil, &hostNoLabels.ID, false)
 	require.NoError(t, err)
 	requireQueries(t, queries, []string{queryNoLabel.Name})
+}
+
+func testScheduledQueriesDigest(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-digest"})
+	require.NoError(t, err)
+	label, err := ds.NewLabel(ctx, &fleet.Label{Name: "test-digest", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	digest := func(teamID *uint) string {
+		d, err := ds.ScheduledQueriesDigest(ctx, teamID)
+		require.NoError(t, err)
+		return d
+	}
+	emptyGlobal, emptyTeam := digest(nil), digest(&team.ID)
+
+	q, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:               "global-scheduled",
+		Query:              "SELECT 1",
+		Saved:              true,
+		Interval:           60,
+		AutomationsEnabled: true,
+		Logging:            fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	global := digest(nil)
+	assert.NotEqual(t, emptyGlobal, global)
+	assert.Equal(t, emptyTeam, digest(&team.ID), "global reports don't change the team digest")
+	assert.Equal(t, global, digest(nil), "stable")
+
+	// Fields agents don't see don't change the digest.
+	q.Description = "new description"
+	q.ObserverCanRun = true
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	assert.Equal(t, global, digest(nil))
+
+	// Unscheduled reports aren't in the config.
+	_, err = ds.NewQuery(ctx, &fleet.Query{Name: "unscheduled", Query: "SELECT 2", Saved: true, Logging: fleet.LoggingSnapshot})
+	require.NoError(t, err)
+	assert.Equal(t, global, digest(nil))
+
+	// Fields agents see do.
+	q.Interval = 120
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	changed := digest(nil)
+	assert.NotEqual(t, global, changed)
+
+	q.Query = "SELECT 3"
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	assert.NotEqual(t, changed, digest(nil))
+	changed = digest(nil)
+
+	q.LabelsIncludeAny = []fleet.LabelIdent{{LabelID: label.ID, LabelName: label.Name}}
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	scoped := digest(nil)
+	assert.NotEqual(t, changed, scoped)
+
+	q.LabelsIncludeAny = nil
+	q.LabelsIncludeAll = []fleet.LabelIdent{{LabelID: label.ID, LabelName: label.Name}}
+	require.NoError(t, ds.SaveQuery(ctx, q, false, false))
+	assert.NotEqual(t, scoped, digest(nil))
+
+	_, err = ds.NewQuery(ctx, &fleet.Query{
+		Name:     "team-scheduled",
+		Query:    "SELECT 1",
+		Saved:    true,
+		Interval: 60,
+		TeamID:   &team.ID,
+		Logging:  fleet.LoggingSnapshot,
+	})
+	require.NoError(t, err)
+	assert.NotEqual(t, emptyTeam, digest(&team.ID))
 }
 
 func testHasLabelScopedScheduledQueries(t *testing.T, ds *Datastore) {

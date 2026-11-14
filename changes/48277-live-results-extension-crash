@@ -1,0 +1,1 @@
+- Fixed an error page on the live report page when a browser extension that modifies page text (e.g. text masking extensions) was active while results streamed in.

@@ -388,7 +388,7 @@ Every quarter during [OKR planning](https://fleetdm.com/handbook/company/leaders
 2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
 3. Click on a test, then click on "Tasks".  
 4. Click on "Create task." Then, "Create GitHub issue."
-5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-people" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
+5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-people" label). Vanta will auto-populate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
 6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
 
 

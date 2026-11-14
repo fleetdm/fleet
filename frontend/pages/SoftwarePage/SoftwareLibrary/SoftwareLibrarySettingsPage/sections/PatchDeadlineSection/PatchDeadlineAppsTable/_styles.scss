@@ -1,0 +1,26 @@
+.patch-deadline-apps-table {
+  @include vertical-data-set-layout;
+  align-self: stretch;
+
+  &__header {
+    align-self: stretch;
+  }
+
+  &__list-title {
+    font-weight: $bold;
+    color: $core-fleet-black;
+  }
+
+  &__row-content {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
+  &__name {
+    // flex: 1 + min-width: 0 lets TooltipTruncatedText shrink and ellipsize.
+    flex: 1;
+    min-width: 0;
+    color: $core-fleet-black;
+  }
+}

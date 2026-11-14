@@ -12,7 +12,6 @@ import {
   DiskEncryptionStatus,
   HostNameSettingStatus,
 } from "./mdm";
-import packInterface, { IPack } from "./pack";
 import { HostPlatform } from "./platform";
 import hostPolicyInterface, { IHostPolicy } from "./policy";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
@@ -35,6 +34,7 @@ export default PropTypes.shape({
   osquery_version: PropTypes.string,
   orbit_version: PropTypes.string,
   fleet_desktop_version: PropTypes.string,
+  os_name: PropTypes.string,
   os_version: PropTypes.string,
   build: PropTypes.string,
   platform_like: PropTypes.string,
@@ -56,7 +56,7 @@ export default PropTypes.shape({
   distributed_interval: PropTypes.number,
   config_tls_refresh: PropTypes.number,
   logger_tls_period: PropTypes.number,
-  team_id: PropTypes.number,
+  fleet_id: PropTypes.number,
   pack_stats: PropTypes.arrayOf(
     PropTypes.shape({
       pack_id: PropTypes.number,
@@ -64,7 +64,7 @@ export default PropTypes.shape({
       query_stats: PropTypes.arrayOf(queryStatsInterface),
     })
   ),
-  team_name: PropTypes.string,
+  fleet_name: PropTypes.string,
   additional: PropTypes.object, // eslint-disable-line react/forbid-prop-types
   percent_disk_space_available: PropTypes.number,
   gigs_disk_space_available: PropTypes.number,
@@ -73,7 +73,6 @@ export default PropTypes.shape({
   // `gigs_all_disk_space` includes disk space from all partitions
   gigs_all_disk_space: PropTypes.number,
   labels: PropTypes.arrayOf(labelInterface),
-  packs: PropTypes.arrayOf(packInterface),
   software: PropTypes.arrayOf(softwareInterface),
   status: PropTypes.string,
   display_name: PropTypes.string,
@@ -212,20 +211,21 @@ export type HostMdmPendingAction =
   | "wipe"
   | "clear_passcode"
   | "location"
+  | "unenroll"
   | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
   /**
    * encryption_key_archived indicates where there is any archived key for the host. It is only
-   * populated for GET /hosts/:id and GET /hosts/identifiers/:identifier endpoints. It is not
-   * populated for list hosts or other hosts endpoints.
+   * populated for the GET /hosts/:id endpoint. It is not populated for list hosts or other hosts
+   * endpoints.
    */
   encryption_key_archived?: boolean;
   /**
    * bootstrap_token_escrowed indicates whether Fleet has escrowed a bootstrap token for
    * the macOS host. Only applicable to macOS hosts. It is only populated for
-   * GET /hosts/:id and GET /hosts/identifiers/:identifier endpoints.
+   * the GET /hosts/:id endpoint.
    */
   bootstrap_token_escrowed?: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
@@ -322,12 +322,8 @@ export interface IHostResponse {
 export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
-  /** @deprecated use `org_logo_url_dark_mode` */
-  org_logo_url: string;
-  /** @deprecated use `org_logo_url_light_mode` */
-  org_logo_url_light_background: string;
-  org_logo_url_dark_mode?: string;
-  org_logo_url_light_mode?: string;
+  org_logo_url_dark_mode: string;
+  org_logo_url_light_mode: string;
   org_contact_url: string;
   disk_encryption_enabled?: boolean;
   platform?: HostPlatform;
@@ -509,6 +505,9 @@ export interface IHost {
   osquery_version: string;
   orbit_version: string | null;
   fleet_desktop_version: string | null;
+  /** e.g. "macOS" or "Windows 11 Pro 24H2"; use getHostOSDisplayName to show it */
+  os_name: string;
+  /** The version without the name, e.g. "15.2" */
   os_version: string;
   build: string;
   platform_like: string; // TODO: replace with more specific union type
@@ -533,9 +532,9 @@ export interface IHost {
   distributed_interval: number;
   config_tls_refresh: number;
   logger_tls_period: number;
-  team_id: number | null;
+  fleet_id: number | null;
   pack_stats: IPackStats[] | null;
-  team_name: string | null;
+  fleet_name: string | null;
   additional?: object; // eslint-disable-line @typescript-eslint/ban-types
   percent_disk_space_available: number;
   gigs_disk_space_available: number;
@@ -544,7 +543,6 @@ export interface IHost {
   // `gigs_all_disk_space` includes disk space from all partitions
   gigs_all_disk_space?: number;
   labels: ILabel[];
-  packs: IPack[];
   software?: ISoftware[];
   issues: IHostIssues;
   status: HostStatus;
@@ -567,6 +565,9 @@ export interface IHost {
   end_users?: IHostEndUser[];
   custom_host_vitals?: IHostCustomVital[];
   conditional_access_bypassed: boolean;
+  /** The host's device ID in Google. Only returned for iOS, iPadOS, and
+   * Android hosts, and "" until it's set. */
+  google_device_id?: string;
   mdm_enrollment_hardware_attested?: boolean;
   dep_assigned_to_fleet: boolean;
   /** The OS version this host is required to reach. Null when OS updates
@@ -576,6 +577,10 @@ export interface IHost {
   /** The date by which os_update_minimum_version must be installed, in
    * YYYY-MM-DD. Null and "Pending" follow os_update_minimum_version. */
   os_update_deadline?: string | null;
+  /** When Fleet next forces a patch deadline install on this host (ISO 8601).
+   * Only loaded for macOS hosts, and null when no patch policy has `deadline`
+   * enabled or the host has nothing scheduled. */
+  patch_deadline_at?: string | null;
   // iOS/iPadOS-only vitals collected via the DeviceInformation MDM command.
   // Omitted entirely (not just null) for every other platform.
   udid?: string;

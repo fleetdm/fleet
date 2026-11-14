@@ -3,6 +3,7 @@
   "slug": "gdevelop/windows",
   "package_identifier": "GDevelop.GDevelop",
   "unique_identifier": "GDevelop",
+  "exists_query": "SELECT 1 FROM programs WHERE (name = 'GDevelop' OR name LIKE 'GDevelop 5 %') AND publisher = 'GDevelop Team';",
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

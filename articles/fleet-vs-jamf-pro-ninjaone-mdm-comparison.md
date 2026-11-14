@@ -1,6 +1,6 @@
 ## Overview
 
-Fleet is an open-source, multi-platform device management solution supporting macOS, Windows, Linux, iOS, iPadOS, ChromeOS, and Android. Fleet provides zero-touch deployment for Apple devices through Apple Business or Apple School Manager, for Windows through Windows Autopilot, and for company-owned Android devices through Android zero-touch enrollment. Fleet supports Declarative Device Management (DDM) and native GitOps workflows for version-controlled configuration management. Fleet’s [osquery](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems) foundation delivers near real-time device reporting across all platforms. Organizations can self-host or be hosted in Fleet’s managed-cloud environment with [MDM migration](https://fleetdm.com/guides/mdm-migration) support for transitions from your management service.
+Fleet is an open-source, multi-platform device management solution supporting macOS, Windows, Linux, iOS, iPadOS, ChromeOS, and Android. Fleet provides zero-touch deployment for Apple devices through Apple Business or Apple School Manager, for Windows through an OEM service that installs Fleet's agent or Windows Autopilot, and for company-owned Android devices through Android zero-touch enrollment. Fleet supports Declarative Device Management (DDM) and native GitOps workflows for version-controlled configuration management. Fleet’s [osquery](https://fleetdm.com/guides/osquery-a-tool-to-easily-ask-questions-about-operating-systems) foundation delivers near real-time device reporting across all platforms. Organizations can self-host or be hosted in Fleet’s managed-cloud environment with [MDM migration](https://fleetdm.com/guides/mdm-migration) support for transitions from your management service.
 
 Jamf Pro is an Apple-focused Mobile Device Management (MDM) solution supporting macOS, iOS, iPadOS, tvOS, visionOS, and watchOS devices, and it also supports Android. Jamf Pro provides zero-touch deployment through Apple Business and Apple School Manager. Jamf Pro offers cloud-hosted deployment only, with on-premises support deprecated. Jamf Pro does not [support Windows](https://fleetdm.com/announcements/fleet-introduces-windows-mdm) or Linux devices natively, so organizations with mixed environments need additional management solutions.
 
@@ -13,7 +13,7 @@ NinjaOne is a cloud-native IT management solution combining remote monitoring an
 | Architecture | API-first design, unified REST API | GUI with multiple APIs | Cloud-native RMM/MDM with API |
 | Source code | Open-source, open-core | Proprietary | Proprietary |
 | Platform support | macOS, Windows, Linux, iOS, iPadOS, ChromeOS, Android | macOS, iOS, iPadOS, tvOS, visionOS, watchOS, Android | Windows, macOS, Linux, iOS, iPadOS, Android |
-| Zero-touch enrollment | Apple (Apple Business), Windows (Autopilot), Android (zero-touch) | Apple (Apple Business) | Apple (Apple Business), Windows (Autopilot), Android (zero-touch) |
+| Zero-touch enrollment | Apple (Apple Business), Windows (OEM service or Autopilot), Android (zero-touch) | Apple (Apple Business) | Apple (Apple Business), Windows (Autopilot), Android (zero-touch) |
 | GitOps support | Native GitOps workflows | Requires third-party tools (Terraform provider) | OpenAPI spec |
 | Declarative Device Management (DDM) | Supported | Supported | Supported |
 | Self-hosting | Full self-hosting support | Cloud-only (on-premises deprecated) | Cloud-only |
@@ -32,7 +32,7 @@ NinjaOne is a cloud-native IT management solution combining remote monitoring an
 
 Fleet, Jamf Pro, and NinjaOne support zero-touch enrollment for Apple devices through Apple Business.
 
-Fleet supports Windows enrollment via Windows Autopilot, which requires Microsoft Entra ID, and can assign Autopilot hosts to a fleet before they enroll. Fleet also supports [Android zero-touch enrollment](https://fleetdm.com/guides/android-zero-touch-enrollment), so company-owned Android devices enroll in Fleet the first time they're turned on. Jamf Pro’s zero-touch enrollment capabilities focus on Apple platforms it supports (macOS, iOS/iPadOS, tvOS, visionOS, and watchOS).
+Fleet supports zero-touch Windows enrollment through an OEM service such as Dell ReadyImage or Lenovo RTP. The OEM service installs Fleet's agent, and doesn't need Autopilot, Microsoft Entra ID P1, or Intune. Hosts that get Fleet's agent this way join the fleet of the enroll secret in the agent's package, so new hosts can land in a fleet you choose when they enroll. Fleet also supports Windows Autopilot, which requires Microsoft Entra ID, and can assign Autopilot hosts to a fleet before they enroll. Fleet also supports [Android zero-touch enrollment](https://fleetdm.com/guides/android-zero-touch-enrollment), so company-owned Android devices enroll in Fleet the first time they're turned on. Jamf Pro’s zero-touch enrollment capabilities focus on Apple platforms it supports (macOS, iOS/iPadOS, tvOS, visionOS, and watchOS).
 
 NinjaOne also supports Android zero-touch enrollment and Windows Autopilot.
 

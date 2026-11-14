@@ -4,7 +4,7 @@ type MockResponse = Record<string, unknown>;
 
 type MockResponseFunction = (
   url: string,
-  data?: any
+  data?: unknown
 ) => MockResponse | Promise<MockResponse>;
 
 export type MockEndpointHandler = MockResponse | MockResponseFunction;
@@ -58,7 +58,7 @@ const REQUEST_RESPONSE_MAPPINGS: IResponses = {
       observer_can_run: false,
       query: "SELECT * FROM osquery_info;",
       id: 1,
-      team_id: null,
+      fleet_id: null,
       platform: "linux",
     },
     "autofill/policies": RESPONSES.aiAutofillPolicy,

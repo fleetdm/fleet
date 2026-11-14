@@ -193,7 +193,7 @@ spec:
         apple_enable_release_device_manually: false
         apple_setup_assistant: ""
         macos_manual_agent_install: false
-        require_all_software_macos: false
+        macos_require_all_software: false
         script: ""
         software: []
       macos_updates:
@@ -431,8 +431,8 @@ spec:
     jira: null
     zendesk: null
   org_info:
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     contact_url: ""
     org_name: Fleet
   server_settings:
@@ -480,7 +480,6 @@ spec:
       destination_url: ""
       enable_failing_policies_webhook: false
       host_batch_size: 0
-      policy_ids: null
     host_status_webhook:
       days_count: 0
       destination_url: ""
@@ -492,7 +491,6 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
   mdm:
-    apple_bm_default_fleet: ""
     windows_mdm_enabled: false
     macos_updates:
       minimum_version: ""
@@ -514,7 +512,7 @@ spec:
 
 ### Settings
 
-For possible options, see the parameter for the parameters of the [Modify configuration API endpoint](../REST%20API/rest-api.md#modify-configuration).
+For possible options, see the parameter for the parameters of the [Modify configuration API endpoint](../../../API/rest-api.md#modify-configuration).
 
 Each section's key must be one level below the `spec` key, indented with spaces (not `<tab>` characters) as required by the YAML format.
 

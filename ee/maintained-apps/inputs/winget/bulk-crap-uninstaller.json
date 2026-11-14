@@ -3,6 +3,7 @@
   "slug": "bulk-crap-uninstaller/windows",
   "package_identifier": "Klocman.BulkCrapUninstaller",
   "unique_identifier": "BCUninstaller",
+  "open_process_names": ["bcuninstaller.exe"],
   "fuzzy_match_name": true,
   "installer_arch": "x86",
   "installer_type": "exe",

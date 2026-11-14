@@ -1,0 +1,1 @@
+- Changed Android apps and configuration changes to be sent to hosts in a cron job, to correctly update hosts after label changes, fleet deletion, and GitOps runs, and to stop unnecessary resends.

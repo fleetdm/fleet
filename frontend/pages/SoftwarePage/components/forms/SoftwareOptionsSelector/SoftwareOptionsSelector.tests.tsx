@@ -122,7 +122,7 @@ describe("SoftwareOptionsSelector", () => {
       const link = await screen.findByRole("link", { name: /add category/i });
       expect(link).toHaveAttribute(
         "href",
-        "/software/library/categories?fleet_id=1"
+        "/software/library/settings/categories?fleet_id=1"
       );
       expect(screen.getByText("to assign software to it.")).toBeInTheDocument();
     });
@@ -135,7 +135,7 @@ describe("SoftwareOptionsSelector", () => {
       const link = await screen.findByRole("link", { name: /add category/i });
       expect(link).toHaveAttribute(
         "href",
-        "/software/library/categories?fleet_id=0"
+        "/software/library/settings/categories?fleet_id=0"
       );
     });
 

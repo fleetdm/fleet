@@ -53,6 +53,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesSearchByBundleAndDisplayName", testListSoftwareTitlesSearchByBundleAndDisplayName},
 		{"ListSoftwareTitlesMultiplePackages", testListSoftwareTitlesMultiplePackages},
 		{"ListSoftwareTitlesPolicyDispatchPerInstaller", testListSoftwareTitlesPolicyDispatchPerInstaller},
+		{"ListSoftwareTitlesAppStoreApps", testListSoftwareTitlesAppStoreApps},
 		{"SoftwareTitleNameForHostFilter", testSoftwareTitleNameForHostFilter},
 		{"SoftwareTitleByIDNoFleetScopedToVisibleFleets", testSoftwareTitleByIDNoFleetScopedToVisibleFleets},
 		{"GetFleetMaintainedVersionsOrder", testGetFleetMaintainedVersionsOrder},
@@ -1008,6 +1009,117 @@ func testListSoftwareTitlesPolicyDispatchPerInstaller(t *testing.T, ds *Datastor
 
 	require.Equal(t, installer2ID, titles[0].Packages[1].InstallerID)
 	assert.Empty(t, titles[0].Packages[1].AutomaticInstallPolicies, "installer 2 should NOT carry any policies (regression: aggregate title-level list)")
+}
+
+func testListSoftwareTitlesAppStoreApps(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "AppStoreApps", "app-store-apps@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "app-store-apps-team"})
+	require.NoError(t, err)
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	const iosAdamID = "77770001"
+	const macAdamID = "77770002"
+
+	cases := []struct {
+		name    string
+		fleetID uint
+	}{
+		{name: "no team", fleetID: 0},
+		{name: "team", fleetID: team.ID},
+	}
+	for _, c := range cases {
+		t.Log(c.name)
+		fleetID := c.fleetID
+
+		// add an iOS app with a default version and a "Beta" version, and a macOS app with one version
+		iosFirstVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			AdamID:           iosAdamID,
+			Platform:         fleet.IOSPlatform,
+			SelfService:      true,
+			Name:             "iOS Versions App",
+			BundleIdentifier: "com.example." + iosAdamID,
+			LatestVersion:    "2.6.0",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+		iosSecondVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			AdamID:           iosAdamID,
+			Platform:         fleet.IOSPlatform,
+			VersionName:      "Beta",
+			Name:             "iOS Versions App",
+			BundleIdentifier: "com.example." + iosAdamID,
+			LatestVersion:    "2.6.0",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+		macVersion, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+			AdamID:           macAdamID,
+			Platform:         fleet.MacOSPlatform,
+			Name:             "macOS App",
+			BundleIdentifier: "com.example." + macAdamID,
+			LatestVersion:    "1.0",
+		}, &fleetID, nil)
+		require.NoError(t, err)
+
+		// add an automatic install policy for the macOS app
+		policy, err := ds.NewTeamPolicy(ctx, fleetID, &user.ID, fleet.PolicyPayload{Name: "app-store-apps-policy-" + c.name, Query: "SELECT 1;"})
+		require.NoError(t, err)
+		policy.VPPAppsTeamsID = new(macVersion.AppTeamID)
+		err = ds.SavePolicy(ctx, policy, false, false)
+		require.NoError(t, err)
+
+		// list titles for the fleet, the iOS title should list both versions first-added first
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID}, adminFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 2)
+		titlesByID := map[uint]fleet.SoftwareTitleListResult{titles[0].ID: titles[0], titles[1].ID: titles[1]}
+
+		iosTitle := titlesByID[iosFirstVersion.TitleID]
+		require.Equal(t, []fleet.AppStoreAppListItem{
+			{ID: iosFirstVersion.AppTeamID, Name: fleet.DefaultAppStoreAppVersionName, AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0", SelfService: true},
+			{ID: iosSecondVersion.AppTeamID, Name: "Beta", AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0"},
+		}, iosTitle.AppStoreApps)
+
+		// read the macOS title, the policy should be on its only version
+		macTitle := titlesByID[macVersion.TitleID]
+		require.Len(t, macTitle.AppStoreApps, 1)
+		require.Equal(t, macVersion.AppTeamID, macTitle.AppStoreApps[0].ID)
+		require.Len(t, macTitle.AppStoreApps[0].AutomaticInstallPolicies, 1)
+		require.Equal(t, policy.ID, macTitle.AppStoreApps[0].AutomaticInstallPolicies[0].ID)
+
+		// add an automatic install policy for the iOS "Beta" version and list titles, only the "Beta" version should have it
+		iosPolicy, err := ds.NewTeamPolicy(ctx, fleetID, &user.ID, fleet.PolicyPayload{Name: "app-store-apps-ios-policy-" + c.name, Query: "SELECT 1;"})
+		require.NoError(t, err)
+		iosPolicy.VPPAppsTeamsID = new(iosSecondVersion.AppTeamID)
+		err = ds.SavePolicy(ctx, iosPolicy, false, false)
+		require.NoError(t, err)
+		titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID}, adminFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 2)
+		titlesByID = map[uint]fleet.SoftwareTitleListResult{titles[0].ID: titles[0], titles[1].ID: titles[1]}
+		iosTitle = titlesByID[iosFirstVersion.TitleID]
+		require.Empty(t, iosTitle.AppStoreApps[0].AutomaticInstallPolicies)
+		require.Len(t, iosTitle.AppStoreApps[1].AutomaticInstallPolicies, 1)
+		require.Equal(t, iosPolicy.ID, iosTitle.AppStoreApps[1].AutomaticInstallPolicies[0].ID)
+
+		// read the iOS title's versions, only the "Beta" version should have the policy
+		iosVersions, err := ds.GetAppStoreAppVersionsByTeamAndTitleID(ctx, fleetID, iosFirstVersion.TitleID)
+		require.NoError(t, err)
+		require.Len(t, iosVersions, 2)
+		require.Empty(t, iosVersions[0].AutomaticInstallPolicies)
+		require.Len(t, iosVersions[1].AutomaticInstallPolicies, 1)
+		require.Equal(t, iosPolicy.ID, iosVersions[1].AutomaticInstallPolicies[0].ID)
+
+		// select the iOS title for setup experience and list setup experience software, every version should have install_during_setup
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, string(fleet.IOSPlatform), fleetID, []uint{iosFirstVersion.TitleID})
+		require.NoError(t, err)
+		setupTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, string(fleet.IOSPlatform), fleetID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, setupTitles, 1)
+		require.Len(t, setupTitles[0].AppStoreApps, 2)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApps[0].InstallDuringSetup)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApps[1].InstallDuringSetup)
+	}
 }
 
 func testListSoftwareTitlesInstallersOnly(t *testing.T, ds *Datastore) {
@@ -2399,7 +2511,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
+	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw}, fleet.UpdateHostSoftwareOptions{})
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -2966,47 +3078,17 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Nil(t, titleResult.AutoUpdateStartTime)
 	require.Nil(t, titleResult.AutoUpdateEndTime)
 
-	// Attempt to enable auto-update with invalid start time.
-	startTime := "26:00"
-	endTime := "12:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "auto_update_window_start must be in HH:MM")
-
-	// Attempt to enable auto-update with invalid end time.
-	startTime = "12:00"
-	endTime = "abc"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "auto_update_window_end must be in HH:MM")
-
-	// Attempt to enable auto-update with less than an hour between start and end time.
-	startTime = "12:00"
-	endTime = "12:30"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "The update window must be at least one hour long")
-
 	// Enable auto-update.
-	startTime = "02:00"
-	endTime = "04:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	startTime := "02:00"
+	endTime := "04:00"
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		AdamID:              "adam_vpp_app_1",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	titleResult, err = ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -3054,11 +3136,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Equal(t, endTime, *listedByName.AutoUpdateEndTime)
 
 	// Save a disabled auto-update schedule for the other VPP app, the window is not stored for a disabled schedule so the app should not be listed.
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title2ID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(false),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		AdamID:              "adam_vpp_app_2",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(false),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	// List the iPadOS schedules, only the enabled app should be returned.
@@ -3087,9 +3172,12 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	require.Empty(t, schedules)
 
 	// Disable auto-update.
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled: ptr.Bool(false),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		AdamID:            "adam_vpp_app_1",
+		Platform:          fleet.IPadOSPlatform,
+		AutoUpdateEnabled: new(false),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	titleResult, err = ds.SoftwareTitleByID(ctx, titleID, teamID, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -3111,11 +3199,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Enable auto-update back for the iPadOS app.
 	startTime = "02:00"
 	endTime = "04:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, titleID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		AdamID:              "adam_vpp_app_1",
+		Platform:            fleet.IPadOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	// Get scheduled updates for iOS, should return none.
@@ -3126,11 +3217,14 @@ func testUpdateAutoUpdateConfig(t *testing.T, ds *Datastore) {
 	// Enable auto-update for the iOS app.
 	startTime = "00:00"
 	endTime = "05:00"
-	err = ds.UpdateSoftwareTitleAutoUpdateConfig(ctx, title3ID, *teamID, fleet.SoftwareAutoUpdateConfig{
-		AutoUpdateEnabled:   ptr.Bool(true),
-		AutoUpdateStartTime: ptr.String(startTime),
-		AutoUpdateEndTime:   ptr.String(endTime),
-	})
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		AdamID:              "adam_vpp_app_3",
+		Platform:            fleet.IOSPlatform,
+		AutoUpdateEnabled:   new(true),
+		AutoUpdateStartTime: new(startTime),
+		AutoUpdateEndTime:   new(endTime),
+	}, teamID, nil)
 	require.NoError(t, err)
 
 	// Should still get 1 for iPadOS.

@@ -1,2 +1,2 @@
-url: https://zoom.us/client/latest/ZoomInstallerFull.msi?archType=winarm64
-display_name: Zoom
+- url: https://zoom.us/client/latest/ZoomInstallerFull.msi?archType=winarm64
+  display_name: Zoom

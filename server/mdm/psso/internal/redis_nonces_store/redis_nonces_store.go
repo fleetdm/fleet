@@ -8,6 +8,7 @@ package redis_nonces_store
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -23,6 +24,10 @@ const DefaultNonceExpiration = 5 * time.Minute
 // prefix avoids collisions with other Redis key domains (live queries,
 // calendar locks, ACME nonces).
 const prefix = "pssononce:"
+
+// usedLoginAssertionPrefix isn't under prefix, so Consume, which deletes the key named by a caller-supplied nonce,
+// can't reach these records.
+const usedLoginAssertionPrefix = "pssousedloginassertion:"
 
 // RedisPool is duplicated here (rather than imported from the parent psso
 // package) to avoid an import cycle: psso/providers.go imports this internal
@@ -54,6 +59,22 @@ func (r *RedisNoncesStore) Store(ctx context.Context, nonce string, expireTime t
 		return ctxerr.Wrap(ctx, err, "redis failed to set psso nonce")
 	}
 	return nil
+}
+
+// MarkLoginAssertionUsed records the fingerprint with a TTL of expireTime, and reports whether it wasn't already
+// recorded.
+func (r *RedisNoncesStore) MarkLoginAssertionUsed(ctx context.Context, fingerprint string, expireTime time.Duration) (bool, error) {
+	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
+	defer conn.Close()
+
+	_, err := redigo.String(conn.Do("SET", r.testPrefix+usedLoginAssertionPrefix+fingerprint, "1", "PX", expireTime.Milliseconds(), "NX"))
+	if errors.Is(err, redigo.ErrNil) {
+		return false, nil
+	}
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "redis failed to record psso login assertion")
+	}
+	return true, nil
 }
 
 // Consume removes nonce from Redis and reports whether it was present. A

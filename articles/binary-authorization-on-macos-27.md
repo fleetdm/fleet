@@ -216,7 +216,7 @@ Then add the declaration and target it to hosts that have the `macOS 27+` label:
 
 1. Save your declaration as a `.json` file.
 2. Go to **Controls > OS settings > Configuration profiles**.
-3. Select **Add profile** and upload the `.json` file.
+3. Select **Add profile**, select **Create manually**, and upload the `.json` file.
 4. Under **Target**, select **Include any** and choose the `macOS 27+` label.
 5. Select **Save**.
 

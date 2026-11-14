@@ -1,0 +1,1 @@
+- Fixed `GET /api/v1/fleet/hosts` with `populate_software` holding every host's software in memory until the whole page was sent, which could run Fleet servers out of memory on large pages.
