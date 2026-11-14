@@ -957,7 +957,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		"test_prof",
 		mobileconfigForTest("test_prof", "test_prof"),
 		s.token,
-		map[string][]string{"team_id": {fmt.Sprint(t1.ID)}},
+		map[string][]string{"fleet_id": {fmt.Sprint(t1.ID)}},
 	)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
 
@@ -1332,7 +1332,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 		"test_prof",
 		mobileconfigForTest("test_prof2", "test_prof2"),
 		s.token,
-		map[string][]string{"team_id": {fmt.Sprint(t1.ID)}},
+		map[string][]string{"fleet_id": {fmt.Sprint(t1.ID)}},
 	)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", profileBody.Bytes(), http.StatusForbidden, profileHeaders)
 

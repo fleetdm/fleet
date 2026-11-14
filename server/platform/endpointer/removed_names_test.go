@@ -1,9 +1,12 @@
 package endpointer
 
 import (
+	"bytes"
 	"cmp"
+	"context"
 	"encoding/json"
 	"errors"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/stretchr/testify/require"
 )
@@ -30,17 +34,20 @@ type scanItem struct {
 
 type scanRequest struct {
 	scanEmbedded
-	Name     string              `json:"name"`
-	Skipped  string              `json:"-"`
-	Item     *scanItem           `json:"item"`
-	Items    []scanItem          `json:"items"`
-	Renamed  []scanItem          `json:"queries" renameto:"reports"`
-	ByName   map[string]scanItem `json:"by_name"`
-	Settings map[string]any      `json:"settings"`
-	Anything any                 `json:"anything"`
-	Raw      json.RawMessage     `json:"raw"`
-	Own      scanSelfDecoding    `json:"own"`
-	OldKept  *uint               `query:"team_id,optional"` //nolint:apiparamcheck // a surface that has not been renamed yet
+	Name     string                  `json:"name"`
+	Skipped  string                  `json:"-"`
+	Item     *scanItem               `json:"item"`
+	Items    []scanItem              `json:"items"`
+	Renamed  []scanItem              `json:"queries" renameto:"reports"`
+	Inline   []scanItem              `json:"old_list" renameto:"new_list,inline"`
+	ByName   map[string]scanItem     `json:"by_name"`
+	Settings map[string]any          `json:"settings"`
+	Anything any                     `json:"anything"`
+	Raw      json.RawMessage         `json:"raw"`
+	Own      scanSelfDecoding        `json:"own"`
+	Wrapped  optjson.Slice[scanItem] `json:"wrapped"`
+	WrapOne  optjson.Any[scanItem]   `json:"wrap_one"`
+	OldKept  *uint                   `query:"team_id,optional"` //nolint:apiparamcheck // a surface that has not been renamed yet
 }
 
 // requireRejected checks that err is a *RemovedKeyError for wantKey, or nil when wantKey is empty.
@@ -69,6 +76,7 @@ func TestRejectRemovedJSONKeys(t *testing.T) {
 		{name: "removed key in a nested struct, declared name next to it", body: `{"items": [{"name": "a", "teams": 1}]}`, wantKey: "teams"},
 		{name: "removed key in a container sent under its renameto name", body: `{"reports": [{"teams": 1}]}`, wantKey: "teams"},
 		{name: "removed key in a container sent under its json name", body: `{"queries": [{"teams": 1}]}`, wantKey: "teams"},
+		{name: "removed key in a container whose renameto has options", body: `{"new_list": [{"teams": 1}]}`, wantKey: "teams"},
 		{name: "removed key after unrelated unknown keys", body: `{"extra": 1, "another": {"x": 1}, "teams": []}`, wantKey: "teams"},
 
 		{name: "new names only, one through an embedded struct", body: `{"fleet_id": 1, "name": "a"}`},
@@ -77,6 +85,9 @@ func TestRejectRemovedJSONKeys(t *testing.T) {
 		{name: "any is not looked into", body: `{"anything": {"team_id": 1}}`},
 		{name: "raw JSON is not looked into", body: `{"raw": {"team_id": 1}}`},
 		{name: "a type that decodes itself is not looked into", body: `{"own": {"team_id": 1}}`},
+		{name: "an optjson slice is looked into", body: `{"wrapped": [{"name": "a", "teams": 1}]}`, wantKey: "teams"},
+		{name: "an optjson value is looked into", body: `{"wrap_one": {"teams": 1}}`, wantKey: "teams"},
+		{name: "a name declared inside an optjson wrapper is accepted", body: `{"wrapped": [{"team_id": 1}], "wrap_one": null}`},
 		{name: "a json:- field is not a name the type declares", body: `{"Skipped": "x"}`},
 		{name: "maps are not looked into, their keys are data", body: `{"by_name": {"teams": {"teams": 1}}}`},
 		{name: "removed names as values", body: `{"name": "team_id", "items": [{"name": "teams"}]}`},
@@ -147,4 +158,47 @@ func TestMakeDecoderRemovedNames(t *testing.T) {
 	require.Error(t, decode(1<<20, "/", `{"team_id": `))
 	_, ok := errors.AsType[platform_http.PayloadTooLargeError](decode(8, "/", `{"fleet_id": 1, "x": "0123456789"}`))
 	require.True(t, ok)
+}
+
+func TestMakeDecoderRemovedFormFields(t *testing.T) {
+	SetRemovedNames(nil, nil, []string{"/orbit/"})
+	SetRemovedFormFields([]string{"team_id"})
+	t.Cleanup(func() {
+		SetRemovedNames(nil, nil, nil)
+		SetRemovedFormFields(nil)
+	})
+
+	upload := func(target string, fields map[string]string) error {
+		var body bytes.Buffer
+		w := multipart.NewWriter(&body)
+		for name, value := range fields {
+			require.NoError(t, w.WriteField(name, value))
+		}
+		require.NoError(t, w.Close())
+		r := httptest.NewRequest(http.MethodPost, target, &body)
+		r.Header.Set("Content-Type", w.FormDataContentType())
+		_, err := MakeDecoder(formUploadRequest{}, defaultJSONUnmarshal, nil, nil, nil, nil, 1<<20)(t.Context(), r)
+		return err
+	}
+
+	require.NoError(t, upload("/", map[string]string{"fleet_id": "1"}))
+	requireRejected(t, upload("/", map[string]string{"fleet_id": "1", "team_id": "1"}), "team_id")
+	// The decoder fails without fleet_id, but the removed name is the error reported.
+	requireRejected(t, upload("/", map[string]string{"team_id": "1"}), "team_id")
+	require.EqualError(t, upload("/", map[string]string{"other": "1"}), "fleet_id is required")
+	requireRejected(t, upload("/?team_id=1", map[string]string{"fleet_id": "1"}), "team_id")
+	require.NoError(t, upload("/api/fleet/orbit/upload", map[string]string{"fleet_id": "1", "team_id": "1"}))
+}
+
+// formUploadRequest decodes itself from a multipart form that requires fleet_id.
+type formUploadRequest struct{}
+
+func (formUploadRequest) DecodeRequest(_ context.Context, r *http.Request) (any, error) {
+	if err := r.ParseMultipartForm(1 << 20); err != nil {
+		return nil, err
+	}
+	if len(r.MultipartForm.Value["fleet_id"]) == 0 {
+		return nil, errors.New("fleet_id is required")
+	}
+	return formUploadRequest{}, nil
 }

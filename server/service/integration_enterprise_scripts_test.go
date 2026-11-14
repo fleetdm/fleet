@@ -1116,7 +1116,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// team id does not exist
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {"123"}})
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {"123"}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusNotFound, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "The fleet does not exist.")
@@ -1127,7 +1127,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create with existing name for this time for a team
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "team"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script1.sh", []byte(`echo "team"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
@@ -1138,7 +1138,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create a windows script
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script2.ps1", []byte(`Write-Host "Hello, World!"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script2.ps1", []byte(`Write-Host "Hello, World!"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
@@ -1168,7 +1168,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// script already exists with this name for this team
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusConflict, headers)
 	errMsg = extractServerErrorText(res.Body)
@@ -1176,7 +1176,7 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create with a different name for this team
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script2.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+		"script2.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {fmt.Sprintf("%d", tm.ID)}})
 
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
@@ -2109,7 +2109,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 	// create a saved script execution request
 	var newScriptResp fleet.CreateScriptResponse
 	body, headers := generateNewScriptMultipartRequest(t,
-		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprint(tm.ID)}})
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"fleet_id": {fmt.Sprint(tm.ID)}})
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)

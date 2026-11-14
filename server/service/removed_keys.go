@@ -10,6 +10,7 @@ func init() {
 	endpointer.SetDeletedKeyRules(deletedKeyRules())
 	endpointer.SetRemovedNames(requestNames(removednames.KindJSONKey), requestNames(removednames.KindQueryParam),
 		[]string{"/osquery/", "/orbit/", "/fleetd/", "/device/"})
+	endpointer.SetRemovedFormFields(requestNames(removednames.KindFormField))
 }
 
 // requestNames lists the removed names of a kind that a request can no longer send.

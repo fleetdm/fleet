@@ -16,8 +16,8 @@ import (
 // list of names (SetRemovedNames) and by the Go type the request decodes into: a name is only rejected where that type has no
 // field of that name. That gives the scan three properties without any per-field tags:
 //   - a type that still declares the old name (a surface not renamed yet) keeps accepting it, so surfaces switch over one by one;
-//   - free-form JSON (maps, any, json.RawMessage, types with their own UnmarshalJSON) is never looked into, so a profile or agent
-//     option that happens to contain "team" is not rejected;
+//   - free-form JSON (maps, any, json.RawMessage, types with their own UnmarshalJSON other than optjson wrappers) is never looked
+//     into, so a profile or agent option that happens to contain "team" is not rejected;
 //   - a request type that declares nothing about a removed name needs no change when a new endpoint is added.
 
 type removedNames struct {
@@ -52,6 +52,31 @@ func SetRemovedNames(jsonKeys, queryParams, skipPaths []string) {
 	removedNamesList.Store(names)
 }
 
+var removedFormFields atomic.Pointer[map[string]struct{}]
+
+// SetRemovedFormFields sets the multipart form field names the scan rejects. Form field names are case-sensitive.
+func SetRemovedFormFields(fields []string) {
+	set := make(map[string]struct{}, len(fields))
+	for _, f := range fields {
+		set[f] = struct{}{}
+	}
+	removedFormFields.Store(&set)
+}
+
+// RejectRemovedFormFields returns a *RemovedKeyError if a parsed multipart form uses a removed field name.
+func RejectRemovedFormFields(values map[string][]string) error {
+	fields := removedFormFields.Load()
+	if fields == nil {
+		return nil
+	}
+	for name := range values {
+		if _, isRemoved := (*fields)[name]; isRemoved {
+			return &RemovedKeyError{Key: name}
+		}
+	}
+	return nil
+}
+
 // SkipsRemovedNamesScan reports whether the request path is one of the skip paths.
 func SkipsRemovedNamesScan(path string) bool {
 	names := removedNamesList.Load()
@@ -81,6 +106,9 @@ func RejectRemovedJSONKeys(data []byte, t reflect.Type) error {
 }
 
 func scanValue(dec *jsontext.Decoder, t reflect.Type, removed map[string]struct{}) error {
+	if w := indirectType(t); w.Implements(jsonValueWrapperType) {
+		t = reflect.Zero(w).Interface().(jsonValueWrapper).JSONValueType()
+	}
 	opaque := isOpaque(t)
 	t = indirectType(t)
 	switch dec.PeekKind() {
@@ -134,9 +162,14 @@ func scanArray(dec *jsontext.Decoder, elem reflect.Type, removed map[string]stru
 	return err
 }
 
+// jsonValueWrapper is implemented by types such as optjson.Slice that decode themselves only to record whether the value was
+// set, so the scan looks inside the type they wrap.
+type jsonValueWrapper interface{ JSONValueType() reflect.Type }
+
 var (
-	unmarshalerType = reflect.TypeFor[json.Unmarshaler]()
-	jsonFieldsCache sync.Map // reflect.Type → map[string]reflect.Type
+	jsonValueWrapperType = reflect.TypeFor[jsonValueWrapper]()
+	unmarshalerType      = reflect.TypeFor[json.Unmarshaler]()
+	jsonFieldsCache      sync.Map // reflect.Type → map[string]reflect.Type
 )
 
 // isOpaque reports whether t decodes itself, so its members are not struct fields the scan can see.
@@ -184,7 +217,8 @@ func jsonFields(t reflect.Type) map[string]reflect.Type {
 				name = sf.Name
 			}
 			// The scan runs before the rewriter, so a field can arrive under its renameto name too.
-			for _, n := range []string{name, sf.Tag.Get("renameto")} {
+			renamed, _, _ := strings.Cut(sf.Tag.Get("renameto"), ",")
+			for _, n := range []string{name, renamed} {
 				if n != "" {
 					fields[strings.ToLower(n)] = sf.Type
 				}

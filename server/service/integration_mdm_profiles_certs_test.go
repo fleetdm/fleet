@@ -432,7 +432,7 @@ func (s *integrationMDMTestSuite) TestWindowsConditionalAccessRenderedProfiles()
 	require.NoError(t, err)
 	// As copied, the SCEP profile still has the challenge placeholder and is rejected.
 	body, headers := generateNewProfileMultipartRequest(t, "OktaSCEP.xml", []byte(profiles.SCEPProfile), s.token,
-		map[string][]string{"team_id": {fmt.Sprint(tm.ID)}})
+		map[string][]string{"fleet_id": {fmt.Sprint(tm.ID)}})
 	resp := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	require.Contains(t, extractServerErrorText(resp.Body), `"Challenge" field must contain a global enroll secret`)
 	// The challenge can be a secret variable; it is expanded for validation and stored as the variable.
@@ -444,7 +444,7 @@ func (s *integrationMDMTestSuite) TestWindowsConditionalAccessRenderedProfiles()
 		"OktaBrowsers.xml": profiles.BrowserProfile,
 	} {
 		body, headers := generateNewProfileMultipartRequest(t, fileName, []byte(contents), s.token,
-			map[string][]string{"team_id": {fmt.Sprint(tm.ID)}})
+			map[string][]string{"fleet_id": {fmt.Sprint(tm.ID)}})
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	}
 
