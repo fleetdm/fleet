@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -68,6 +69,8 @@ type fakeGoogle struct {
 	apiDrop bool
 	// blockAPI holds API calls until closed.
 	blockAPI chan struct{}
+	// pages answers successive API calls in order, before apiBody.
+	pages []string
 }
 
 func decodeJWTPart(part string) map[string]any {
@@ -109,6 +112,13 @@ func (f *fakeGoogle) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.bodies = append(f.bodies, string(body))
 	if f.apiDrop {
 		dropConnection(w)
+		return
+	}
+	if len(f.pages) > 0 {
+		page := f.pages[0]
+		f.pages = f.pages[1:]
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(page))
 		return
 	}
 	status := f.apiStatus
@@ -206,6 +216,9 @@ func TestCheckDelegationReturnsGoogleReason(t *testing.T) {
 	err := client.CheckDelegation(t.Context())
 	require.EqualError(t, err, "Not Authorized to access this resource/api")
 	require.False(t, fleet.IsNotFound(err))
+	// A 403 on the delegation check isn't about a resource.
+	require.False(t, IsStale(err))
+	require.True(t, IsAuthError(err))
 }
 
 func TestCheckDelegationNotFoundIsNotAMissingResource(t *testing.T) {
@@ -216,6 +229,8 @@ func TestCheckDelegationNotFoundIsNotAMissingResource(t *testing.T) {
 	err := client.CheckDelegation(t.Context())
 	require.EqualError(t, err, "Requested entity was not found.")
 	require.False(t, fleet.IsNotFound(err))
+	require.False(t, IsStale(err))
+	require.False(t, IsAuthError(err))
 }
 
 func TestGoogleErrorMessages(t *testing.T) {
@@ -371,6 +386,19 @@ func TestSetClientStateNotFound(t *testing.T) {
 
 	err := client.SetClientState(t.Context(), "devices/gone/deviceUsers/user1", fleet.GoogleConditionalAccessClientState{Managed: new(false)})
 	require.True(t, fleet.IsNotFound(err))
+	require.True(t, IsStale(err))
+	require.False(t, IsAuthError(err))
+}
+
+func TestSetClientStateForbiddenIsStale(t *testing.T) {
+	client, fake := newTestCloudIdentity(t)
+	fake.apiStatus = http.StatusForbidden
+	fake.apiBody = `{"error":{"code":403,"message":"nope"}}`
+
+	err := client.SetClientState(t.Context(), "devices/left/deviceUsers/user1", fleet.GoogleConditionalAccessClientState{Managed: new(true), CustomID: new("host-uuid-1")})
+	require.False(t, fleet.IsNotFound(err))
+	require.True(t, IsStale(err))
+	require.False(t, IsAuthError(err))
 }
 
 func TestCloudIdentityTokenReusedPerClient(t *testing.T) {
@@ -441,4 +469,120 @@ func TestGoogleErrorUnavailable(t *testing.T) {
 		require.ErrorIs(t, err, context.Canceled)
 		require.True(t, IsUnavailable(err))
 	})
+}
+
+func TestAuthError(t *testing.T) {
+	client, fake := newTestCloudIdentity(t)
+	fake.tokenStatus = http.StatusBadRequest
+	fake.tokenBody = `{"error":"unauthorized_client","error_description":"Client is unauthorized"}`
+
+	err := client.SetClientState(t.Context(), "devices/d/deviceUsers/u", fleet.GoogleConditionalAccessClientState{Managed: new(true), CustomID: new("host-uuid-1")})
+	require.True(t, IsAuthError(err))
+	require.False(t, IsStale(err))
+
+	client, fake = newTestCloudIdentity(t)
+	fake.apiStatus = http.StatusUnauthorized
+	fake.apiBody = `{"error":{"code":401,"message":"bad token"}}`
+	require.True(t, IsAuthError(client.CheckDelegation(t.Context())))
+
+	// A token endpoint outage or rate limit isn't a delegation problem.
+	client, fake = newTestCloudIdentity(t)
+	fake.tokenStatus = http.StatusBadGateway
+	fake.tokenBody = "<html>Bad Gateway</html>"
+	require.False(t, IsAuthError(client.CheckDelegation(t.Context())))
+	client, fake = newTestCloudIdentity(t)
+	fake.tokenStatus = http.StatusTooManyRequests
+	fake.tokenBody = `{"error":"rate_limit_exceeded"}`
+	require.False(t, IsAuthError(client.CheckDelegation(t.Context())))
+
+	// Network failures aren't auth errors.
+	client, fake = newTestCloudIdentity(t)
+	fake.apiDrop = true
+	require.False(t, IsAuthError(client.CheckDelegation(t.Context())))
+	require.False(t, IsAuthError(errors.New("other")))
+}
+
+func TestListDeviceUserNames(t *testing.T) {
+	client, fake := newTestCloudIdentity(t)
+	fake.pages = []string{
+		`{"deviceUsers":[{"name":"devices/dev1/deviceUsers/a"}],"nextPageToken":"p2"}`,
+		`{"deviceUsers":[{"name":"devices/dev1/deviceUsers/b"}]}`,
+	}
+
+	names, err := client.ListDeviceUserNames(t.Context(), "dev1")
+	require.NoError(t, err)
+	require.Equal(t, []string{"devices/dev1/deviceUsers/a", "devices/dev1/deviceUsers/b"}, names)
+	require.Len(t, fake.requests, 2)
+	req := fake.requests[0]
+	require.Equal(t, http.MethodGet, req.Method)
+	require.Equal(t, "/v1/devices/dev1/deviceUsers", req.URL.Path)
+	require.Equal(t, "customers/02cajzvg", req.URL.Query().Get("customer"))
+	require.Equal(t, "p2", fake.requests[1].URL.Query().Get("pageToken"))
+
+	fake.apiStatus = http.StatusNotFound
+	fake.apiBody = `{"error":{"code":404,"message":"Requested entity was not found."}}`
+	_, err = client.ListDeviceUserNames(t.Context(), "gone")
+	require.True(t, fleet.IsNotFound(err))
+}
+
+func TestDeviceExists(t *testing.T) {
+	client, fake := newTestCloudIdentity(t)
+	fake.apiBody = `{"name":"devices/dev1"}`
+
+	exists, err := client.DeviceExists(t.Context(), "dev1")
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.Len(t, fake.requests, 1)
+	require.Equal(t, http.MethodGet, fake.requests[0].Method)
+	require.Equal(t, "/v1/devices/dev1", fake.requests[0].URL.Path)
+	require.Equal(t, "customers/02cajzvg", fake.requests[0].URL.Query().Get("customer"))
+
+	fake.apiStatus = http.StatusNotFound
+	fake.apiBody = `{"error":{"code":404,"message":"Requested entity was not found."}}`
+	exists, err = client.DeviceExists(t.Context(), "dev1")
+	require.NoError(t, err)
+	require.False(t, exists)
+
+	// A device that left the Workspace is for the caller to decide on.
+	fake.apiStatus = http.StatusForbidden
+	fake.apiBody = `{"error":{"code":403,"message":"nope"}}`
+	_, err = client.DeviceExists(t.Context(), "dev1")
+	require.True(t, IsStale(err))
+	require.False(t, IsAuthError(err))
+
+	fake.apiStatus = http.StatusBadRequest
+	fake.apiBody = `{"error":{"code":400,"message":"bad"}}`
+	_, err = client.DeviceExists(t.Context(), "dev1")
+	require.Error(t, err)
+	require.False(t, IsStale(err))
+}
+
+func TestFindDeviceIDs(t *testing.T) {
+	client, fake := newTestCloudIdentity(t)
+	fake.pages = []string{
+		`{"devices":[{"name":"devices/dev1","deviceId":"358304e85c824471"},{"name":"devices/other","deviceId":"358304e85c8244710"}],"nextPageToken":"p2"}`,
+		`{"devices":[{"name":"devices/dev2","deviceId":"358304E85C824471"}]}`,
+	}
+
+	// Only exact matches are kept, whatever Google's filter lets through.
+	ids, err := client.FindDeviceIDs(t.Context(), "358304e85c824471")
+	require.NoError(t, err)
+	require.Equal(t, []string{"dev1", "dev2"}, ids)
+	require.Len(t, fake.requests, 2)
+	req := fake.requests[0]
+	require.Equal(t, http.MethodGet, req.Method)
+	require.Equal(t, "/v1/devices", req.URL.Path)
+	require.Equal(t, "customers/02cajzvg", req.URL.Query().Get("customer"))
+	require.Equal(t, "id:358304e85c824471", req.URL.Query().Get("filter"))
+	require.Equal(t, "p2", fake.requests[1].URL.Query().Get("pageToken"))
+
+	ids, err = client.FindDeviceIDs(t.Context(), "none")
+	require.NoError(t, err)
+	require.Empty(t, ids)
+
+	fake.apiStatus = http.StatusForbidden
+	fake.apiBody = `{"error":{"code":403,"message":"The caller does not have permission"}}`
+	_, err = client.FindDeviceIDs(t.Context(), "358304e85c824471")
+	require.Error(t, err)
+	require.False(t, IsStale(err))
 }
