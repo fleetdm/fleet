@@ -1,0 +1,272 @@
+<title>Analytics</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500&display=swap">
+<style>
+/*__BASE_CSS__*/
+.act-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.domains { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; }
+.domain { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.domain .k { color: var(--ink-2); }
+.domain .v { font-size: 20px; line-height: 1.2; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.domain .s { font-size: 12px; color: var(--ink-2); }
+.host-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px 24px; font-size: 12px; }
+.host-list > div { display: flex; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); padding-bottom: 4px; min-width: 0; }
+.host-list a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+</style>
+
+<div class="wrap">
+  <header class="top" id="top"></header>
+  <div class="title-row">
+    <div>
+      <h1>Analytics</h1>
+      <p class="subtitle">Is the data behind the DEX dashboards complete and fresh, and what does it say about security posture and the Fleet agent? Covers macOS, Windows, and Linux.</p>
+    </div>
+  </div>
+  <section class="hero" id="hero" aria-label="Summary"></section>
+  <div class="stats" id="stats"></div>
+
+  <section class="sec" aria-labelledby="trend-h">
+    <div class="sec-head">
+      <h2 id="trend-h">Over time</h2>
+      <div class="trend-tools" id="trend-tools"></div>
+    </div>
+    <div class="grid" id="trend"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="dom-h">
+    <div class="sec-head">
+      <h2 id="dom-h">Coverage by area</h2>
+      <span class="hint" id="dom-hint"></span>
+    </div>
+    <div class="domains" id="domains"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="src-h">
+    <div class="sec-head">
+      <h2 id="src-h">Data sources</h2>
+      <span class="hint">Click a source to see which computers are missing it</span>
+    </div>
+    <div id="sources"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="sec-h">
+    <div class="sec-head">
+      <h2 id="sec-h">Security posture</h2>
+      <span class="hint">Share of computers with each control on, from Fleet and the posture reports</span>
+    </div>
+    <div class="grid" id="posture"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="agent-h">
+    <div class="sec-head">
+      <h2 id="agent-h">Fleet agent</h2>
+      <span class="hint" id="agent-hint"></span>
+    </div>
+    <div class="grid">
+      <div class="panel"><h3>fleetd</h3><div id="v-orbit"></div></div>
+      <div class="panel"><h3>osquery</h3><div id="v-osquery"></div></div>
+      <div class="panel"><h3>MDM enrollment</h3><div id="mdm"></div></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="act-h">
+    <div class="sec-head">
+      <h2 id="act-h">Computers to look at</h2>
+      <span class="hint">A computer can show in more than one group</span>
+    </div>
+    <div class="act-bar"><div class="chips" id="act-chips"></div><span id="act-tools"></span></div>
+    <div id="act"></div>
+  </section>
+
+  <details class="method">
+    <summary>How this is measured</summary>
+    <div class="cols">
+      <div>
+        <p><span class="term">Who's counted:</span> computers that checked in within the last <span id="stale-days"></span> days. A source is <span class="term">fresh</span> on a computer when it reported within the last <span id="fresh-days"></span> days. A computer that hasn't checked in that recently counts only against Fleet check-in, since no other source can be fresh while it's offline.</p>
+        <p><span class="term">Sources:</span> Fleet's own data (check-in, host details, software inventory, and policies) exists on every computer. Each DEX report counts only for the platforms it runs on, and only once it's added to Fleet. A report Fleet clipped at its 1,000-row limit is marked as clipped.</p>
+      </div>
+      <div>
+        <p><span class="term">Coverage by area:</span> the share of fresh readings across the area's sources and the computers that should report them.</p>
+        <p><span class="term">Security posture:</span> disk encryption comes from Fleet (FileVault, BitLocker, or LUKS). The rest comes from the <code>DEX - System experience - Security posture</code> report on macOS, and the Windows Security Center, Secure Boot, and TPM reports on Windows. "No data" means the report hasn't run on that computer.</p>
+      </div>
+      <div>
+        <p><span class="term">Fleet agent:</span> the newest version is the one on the stable channel of Fleet's update server (updates.fleetdm.com), checked on each run. When the update server can't be reached, it's the highest version at least two computers run, so a lone test build doesn't set the bar.</p>
+        <p><span class="term">Restart overdue:</span> up for <span id="uptime-days"></span> days or more without a restart, which usually means updates are waiting.</p>
+      </div>
+    </div>
+  </details>
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>window.__DATA__=/*__DATA__*/null;</script>
+<script>
+/*__BASE_JS__*/
+</script>
+<script>
+const CONTROLS = {
+  macos: [["disk", "Disk encryption"], ["firewall", "Firewall"], ["gatekeeper", "Gatekeeper"], ["sip", "System Integrity Protection"]],
+  windows: [["disk", "Disk encryption"], ["firewall", "Firewall"], ["antivirus", "Antivirus"], ["secure_boot", "Secure Boot"], ["tpm", "TPM"]],
+  linux: [["disk", "Disk encryption"]],
+};
+const CONTROL_LABEL = Object.fromEntries(Object.values(CONTROLS).flat());
+const DOMAINS = ["Hardware and health", "Software", "Network", "Security", "Fleet agent"];
+const G = [
+  { key: "control", label: "Missing a security control", tone: "bad" },
+  { key: "agent", label: "Out-of-date fleetd", tone: "warn" },
+  { key: "restart", label: "Restart overdue", tone: "warn" },
+  { key: "policy", label: "Failing a policy", tone: "info" },
+];
+let shown = new Set(G.map((g) => g.key));
+
+const HOSTS = Object.entries(DATA.hosts).map(([id, x]) => ({ id: Number(id), _id: id, ...x }));
+const fleets = [...new Set(HOSTS.map((x) => x.f))].sort();
+const platformCounts = {};
+for (const x of HOSTS) platformCounts[x.p] = (platformCounts[x.p] || 0) + 1;
+const noun = (n) => (PLATFORM === "macos" ? fmt.plural(n, "Mac") : fmt.plural(n, "computer"));
+const nounWord = (plural) => (PLATFORM === "macos" ? (plural ? "Macs" : "Mac") : (plural ? "computers" : "computer"));
+const isFresh = (a) => a != null && a <= DATA.fresh_days;
+const tone = (p) => (p == null ? "neutral" : p >= 90 ? "good" : p >= 50 ? "warn" : "bad");
+const missingControls = (x) => (CONTROLS[x.p] || []).filter(([k]) => x.c[k] === 0).map(([, label]) => label);
+const agentBehind = (x) => DATA.newest.orbit && x.v[0] && vcmp(x.v[0], DATA.newest.orbit) < 0;
+
+function sourceStats(hosts) {
+  return DATA.sources.map((s) => {
+    // Only check-in counts offline computers: nothing else can be fresh while one is offline.
+    const expected = hosts.filter((x) => s.key in x.s && (s.key === "checkin" || isFresh(x.s.checkin)));
+    const fresh = expected.filter((x) => isFresh(x.s[s.key]));
+    const newest = Math.min(...expected.map((x) => x.s[s.key]).filter((a) => a != null));
+    return { ...s, _id: s.key, expected, fresh, pct: s.found && expected.length ? pct(fresh.length, expected.length) : null, newest: Number.isFinite(newest) ? newest : null };
+  }).filter((s) => s.expected.length);
+}
+
+function render() {
+  const hosts = HOSTS.filter((x) => inFleet(x.f) && inPlatform(x.p));
+  const sources = sourceStats(hosts);
+  const used = sources.filter((s) => s.found);
+  const allFresh = hosts.filter((x) => used.every((s) => !(s.key in x.s) || isFresh(x.s[s.key])));
+  const diskKnown = hosts.filter((x) => x.c.disk != null);
+  const diskOff = hosts.filter((x) => x.c.disk === 0);
+  const behind = hosts.filter(agentBehind);
+  const failing = hosts.filter((x) => (x.fp || 0) > 0);
+  const overdue = hosts.filter((x) => x.up != null && x.up >= DATA.uptime_overdue);
+  const lagging = [...used].sort((a, b) => a.pct - b.pct);
+  const worst = lagging[0];
+
+  mount("hero",
+    h("div", {}, h("div", { class: "eyebrow" }, "Every source fresh"),
+      h("div", { class: "big" }, h("b", {}, fmt.n(allFresh.length)), h("span", {}, `of ${noun(hosts.length)}`))),
+    h("div", { class: "hero-mid" },
+      h("p", { class: "lede" }, !worst ? "No data sources report on these computers yet."
+        : worst.pct >= 90 ? `Every data source is fresh on 90% or more of the ${nounWord(true)} that should report it.`
+        : `The ${worst.label} is the least complete: fresh on ${fmt.n(worst.fresh.length)} of ${fmt.n(worst.expected.length)} ${nounWord(true)}.`),
+      h("p", { class: "support" }, [
+        sources.some((s) => !s.found) ? `${fmt.plural(sources.filter((s) => !s.found).length, "report")} ${sources.filter((s) => !s.found).length === 1 ? "isn't" : "aren't"} set up.` : null,
+        diskKnown.length ? `Disk encryption is off on ${noun(diskOff.length)}.` : null,
+        DATA.newest.orbit ? `${noun(behind.length)} ${behind.length === 1 ? "runs" : "run"} a fleetd older than ${DATA.newest.orbit}.` : null,
+      ].filter(Boolean).join(" "))),
+    h("div", { class: "rail" }, h("div", { class: "eyebrow" }, "Right now"),
+      h("div", { class: "rail-row" }, h("span", {}, "Disk encryption off"), h("b", { class: diskOff.length ? "hl-bad" : null }, fmt.n(diskOff.length))),
+      h("div", { class: "rail-row" }, h("span", {}, "Out-of-date fleetd"), h("b", {}, fmt.n(behind.length))),
+      h("div", { class: "rail-row" }, h("span", {}, "Failing a policy"), h("b", {}, fmt.n(failing.length))),
+      h("div", { class: "rail-row" }, h("span", {}, `Up ${DATA.uptime_overdue}+ days`), h("b", {}, fmt.n(overdue.length)))));
+
+  const stat = (k, v, s) => h("div", { class: "stat" }, h("span", { class: "k" }, k), h("span", { class: "v" }, v), h("span", { class: "s" }, s));
+  mount("stats",
+    stat(nounWord(true)[0].toUpperCase() + nounWord(true).slice(1), fmt.n(hosts.length), `checked in within ${DATA.stale_days} days`),
+    stat("Every source fresh", fmt.pct(pct(allFresh.length, hosts.length)), `${fmt.n(allFresh.length)} of ${noun(hosts.length)}`),
+    stat("Disk encryption on", fmt.pct(pct(diskKnown.length - diskOff.length, diskKnown.length)), `${fmt.n(diskKnown.length - diskOff.length)} of ${fmt.n(diskKnown.length)} reporting`),
+    stat("fleetd current", fmt.pct(pct(hosts.length - behind.length, hosts.length)), DATA.newest.orbit ? `on ${DATA.newest.orbit}` : "no version data"),
+    stat("Failing a policy", fmt.n(failing.length), `${fmt.pct(pct(failing.length, hosts.length))} of ${noun(hosts.length)}`),
+    stat("Restart overdue", fmt.n(overdue.length), `up ${DATA.uptime_overdue}+ days`));
+
+  renderTrend(["computers", "all_fresh", "disk_known", "disk_on", "agent_current"], [
+    { title: "Every source fresh", series: [{ label: "Every source fresh", color: "var(--info)", value: (r) => pct(r.all_fresh, r.computers) }], yFmt: fmt.pct, yMax: 100 },
+    { title: "Disk encryption and fleetd", yFmt: fmt.pct, yMax: 100, series: [
+      { label: "Disk encryption on", color: "var(--good)", value: (r) => pct(r.disk_on, r.disk_known) },
+      { label: "fleetd current", color: "var(--warn)", value: (r) => pct(r.agent_current, r.computers) }] },
+  ]);
+
+  document.getElementById("dom-hint").textContent = `Share of readings fresh within ${DATA.fresh_days} days`;
+  mount("domains", DOMAINS.map((d) => {
+    const ss = used.filter((s) => s.domain === d);
+    const exp = ss.reduce((n, s) => n + s.expected.length, 0), fr = ss.reduce((n, s) => n + s.fresh.length, 0);
+    const p = exp ? pct(fr, exp) : null;
+    return h("div", { class: "domain" }, h("span", { class: "k" }, d), h("span", { class: "v" }, p == null ? "---" : fmt.pct(p)),
+      h("span", { class: "s" }, p == null ? "no sources here" : pill(`${fmt.plural(ss.length, "source")}`, tone(p))));
+  }));
+
+  const columns = [
+    { key: "label", label: "Source", value: (s) => s.label.toLowerCase(), cell: (s) => h("span", { class: "cell-main" }, s.label) },
+    { key: "domain", label: "Area", value: (s) => s.domain, cell: (s) => h("span", { class: "cell-sub" }, s.domain) },
+    { key: "platforms", label: "Platforms", value: (s) => (s.platforms || []).join(","), cell: (s) => h("span", { class: "cell-sub" }, s.platforms ? s.platforms.map(platformLabel).join(", ") : "All") },
+    { key: "expected", label: nounWord(true)[0].toUpperCase() + nounWord(true).slice(1), num: true, value: (s) => s.expected.length },
+    { key: "fresh", label: `Fresh ${DATA.fresh_days}d`, num: true, value: (s) => s.pct ?? -1, cell: (s) => (s.found ? [`${fmt.n(s.fresh.length)}`, mini(s.pct, tone(s.pct))] : "---") },
+    { key: "newest", label: "Newest reading", num: true, value: (s) => s.newest ?? 1e9, cell: (s) => (s.newest == null ? "---" : fmt.ago(s.newest)) },
+    { key: "status", label: "Status", value: (s) => (s.found ? s.pct : -1), cell: (s) => (!s.found ? pill("Not set up", "neutral") : s.clipped ? pill("Clipped", "warn")
+      : pill(s.pct >= 90 ? "Fresh" : s.pct >= 50 ? "Partial" : "Behind", tone(s.pct))) },
+  ];
+  const detail = (s) => {
+    if (!s.found) return h("p", { style: "margin:0" }, "This report isn't in Fleet yet. Add it from dex-reports.yml.");
+    const missing = s.expected.filter((x) => !isFresh(x.s[s.key])).sort((a, b) => (b.s[s.key] ?? 1e9) - (a.s[s.key] ?? 1e9));
+    return missing.length ? h("div", { class: "host-list" }, missing.slice(0, 120).map((x) => h("div", {}, hostLink(x.id, x.n),
+      h("span", { class: "cell-sub" }, x.s[s.key] == null ? "never reported" : `last ${fmt.ago(x.s[s.key])}`))))
+      : h("p", { style: "margin:0" }, `Fresh on every ${nounWord(false)} that should report it.`);
+  };
+  mount("sources", sources.length ? sortTable({ columns, groups: [{ rows: sources }], sort: ["fresh", "asc"], detail, id: "source-table" }) : empty("No sources", ""));
+
+  const plats = Object.keys(CONTROLS).filter((p) => inPlatform(p) && hosts.some((x) => x.p === p));
+  mount("posture", plats.length ? plats.map((p) => {
+    const ph = hosts.filter((x) => x.p === p);
+    return h("div", { class: "panel" }, h("h3", {}, `${platformLabel(p)} (${fmt.n(ph.length)})`), barRows(CONTROLS[p].map(([k, label]) => {
+      const on = ph.filter((x) => x.c[k] === 1).length, off = ph.filter((x) => x.c[k] === 0).length, none = ph.length - on - off;
+      return { label, valueText: fmt.pct(pct(on, on + off)), segs: [
+        { value: on, color: "var(--good)", tip: `${label} on: ${noun(on)}` },
+        { value: off, color: "var(--bad)", tip: `${label} off: ${noun(off)}` },
+        { value: none, color: "var(--neutral)", tip: `${label}, no data: ${noun(none)}` }] };
+    }), ph.length), legend([["On", "var(--good)"], ["Off", "var(--bad)"], ["No data", "var(--neutral)"]]));
+  }) : [empty("No computers", "")]);
+
+  document.getElementById("agent-hint").textContent = DATA.newest.orbit
+    ? `Newest fleetd ${DATA.newest.orbit}, osquery ${DATA.newest.osquery}, ${DATA.newest_source === "stable" ? "from Fleet's stable channel" : "the newest your fleet runs (Fleet's update server wasn't reachable)"}` : "";
+  const versionBars = (i, newest) => {
+    const counts = {};
+    for (const x of hosts) if (x.v[i]) counts[x.v[i]] = (counts[x.v[i]] || 0) + 1;
+    const rows = Object.entries(counts).sort((a, b) => vcmp(b[0], a[0])).slice(0, 8);
+    return rows.length ? barRows(rows.map(([v, n]) => ({ label: v, segs: [{ value: n, color: newest && vcmp(v, newest) >= 0 ? "var(--good)" : "var(--warn)", tip: `${v}: ${noun(n)}` }] })))
+      : empty("No version data", "");
+  };
+  mount("v-orbit", versionBars(0, DATA.newest.orbit));
+  mount("v-osquery", versionBars(1, DATA.newest.osquery));
+  const mdm = {};
+  for (const x of hosts) { const k = x.mdm || "Not reported"; mdm[k] = (mdm[k] || 0) + 1; }
+  mount("mdm", barRows(Object.entries(mdm).sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ label: k, segs: [{ value: n, color: /^On/.test(k) ? "var(--good)" : /^Off|Pending/.test(k) ? "var(--warn)" : "var(--neutral)", tip: `${k}: ${noun(n)}` }] }))));
+
+  // Computers to look at
+  const tests = { control: (x) => missingControls(x).length > 0, agent: agentBehind, restart: (x) => x.up != null && x.up >= DATA.uptime_overdue, policy: (x) => (x.fp || 0) > 0 };
+  const why = { control: (x) => `Off: ${missingControls(x).join(", ")}`, agent: (x) => `fleetd ${x.v[0]}`, restart: (x) => `Up ${fmt.n(Math.round(x.up))} days`, policy: (x) => fmt.plural(x.fp, "failing policy", "failing policies") };
+  mount("act-chips", G.map((g) => h("button", { type: "button", class: "chip", style: `--tone:var(--${g.tone})`, "aria-pressed": shown.has(g.key) ? "true" : "false",
+    onclick: () => { shown.has(g.key) ? shown.delete(g.key) : shown.add(g.key); render(); } }, h("i"), g.label, h("b", {}, fmt.n(hosts.filter(tests[g.key]).length)))));
+  const groups = G.filter((g) => shown.has(g.key)).map((g) => ({ label: g.label, pill: pill(fmt.n(hosts.filter(tests[g.key]).length), g.tone),
+    rows: hosts.filter(tests[g.key]).map((x) => ({ ...x, _id: `${g.key}-${x.id}`, _why: why[g.key](x) })) })).filter((g) => g.rows.length);
+  mount("act-tools", groups.length ? copyButton("Copy as CSV", () => csv([["group", "host", "fleet", "platform", "detail", "fleet_url"],
+    ...groups.flatMap((g) => g.rows.map((x) => [g.label, x.n, x.f, platformLabel(x.p), x._why, hostUrl(x.id)]))])) : null);
+  const tcols = [
+    { key: "name", label: nounWord(false)[0].toUpperCase() + nounWord(false).slice(1), value: (x) => x.n.toLowerCase(), cell: (x) => [hostLink(x.id, x.n), PLATFORM ? null : h("span", { class: "plat" }, platformLabel(x.p))] },
+    { key: "fleet", label: "Fleet", value: (x) => x.f.toLowerCase(), cell: (x) => h("span", { class: "cell-sub" }, x.f) },
+    { key: "why", label: "Detail", value: (x) => x._why, cell: (x) => h("span", { class: "cell-sub" }, x._why) },
+    { key: "checkin", label: "Last check-in", num: true, value: (x) => x.s.checkin ?? 1e9, cell: (x) => (x.s.checkin == null ? "never" : fmt.ago(x.s.checkin)) },
+  ];
+  mount("act", groups.length ? sortTable({ columns: tcols, groups, sort: ["name", "asc"], id: "look-table" }) : empty("Nothing to look at", "Every computer here has its controls on, a current fleetd, a recent restart, and no failing policies."));
+
+  document.getElementById("stale-days").textContent = DATA.stale_days;
+  document.getElementById("fresh-days").textContent = DATA.fresh_days;
+  document.getElementById("uptime-days").textContent = DATA.uptime_overdue;
+  document.getElementById("foot").textContent = `Data from ${DATA.fleet_url.replace(/^https?:\/\//, "")} via the Fleet API (List hosts, Get report data). Rebuilt daily.`;
+}
+
+renderTop(fleets, render, platformCounts);
+render();
+</script>
