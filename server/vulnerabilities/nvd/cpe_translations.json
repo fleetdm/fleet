@@ -720,6 +720,17 @@
   },
   {
     "software": {
+      "name": ["@anthropic-ai/claude-code"],
+      "source": ["npm_packages"]
+    },
+    "filter": {
+      "product": ["claude_code"],
+      "vendor": ["anthropic"],
+      "target_sw": ["node.js"]
+    }
+  },
+  {
+    "software": {
       "source": ["npm_packages"]
     },
     "filter": {
