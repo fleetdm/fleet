@@ -2981,7 +2981,7 @@ func putHostGoogleDeviceIDEndpoint(ctx context.Context, request any, svc fleet.S
 }
 
 func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) error {
-	host, err := svc.authorizeHostGoogleDeviceID(ctx, hostID)
+	host, err := svc.authorizeHostGoogleWrite(ctx, hostID)
 	if err != nil {
 		return err
 	}
@@ -3000,12 +3000,42 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID must be 255 characters or less.")
 	}
 
-	appConfig, err := svc.ds.AppConfig(ctx)
+	// Fleet marks the device in Google, so the rules are the sign-in's.
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	ci, customerID, err := svc.connectedGoogleCloudIdentity(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get app config")
+		return err
 	}
-	changed, err := svc.ds.SetHostGoogleDeviceID(ctx, host.UUID,
-		googleConditionalAccessCustomerID(appConfig.Integrations.GoogleConditionalAccess), googleDeviceID, nil)
+	if ci == nil {
+		return fleet.NewInvalidArgumentError("google_device_id",
+			"Google conditional access isn't connected. Connect it in Settings > Integrations > Conditional access.")
+	}
+	eligible, err := svc.googleConditionalAccessEligible(ctx, host)
+	if err != nil {
+		return err
+	}
+	if !eligible {
+		return fleet.NewInvalidArgumentError("google_device_id",
+			"Google device ID is only supported on company-owned hosts (MDM status: On (automatic)).")
+	}
+
+	// The datastore decides again under a lock; this spares Google a call for a repeat
+	// or a refused value.
+	stored, err := svc.ds.GetHostGoogleDeviceID(ctx, host.UUID, customerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host google device id")
+	}
+	var names []string
+	switch {
+	case stored == "":
+		if names, err = listGoogleDeviceUserNames(ctx, ci, googleDeviceID); err != nil {
+			return err
+		}
+	case strings.EqualFold(stored, googleDeviceID):
+		return nil
+	}
+
+	changed, err := svc.ds.SetHostGoogleDeviceID(ctx, host.UUID, customerID, googleDeviceID, names)
 	if conflict, ok := errors.AsType[*fleet.HostGoogleDeviceIDConflictError](err); ok {
 		var userID uint
 		if user := authz.UserFromContext(ctx); user != nil {
@@ -3015,12 +3045,19 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 			"host_id", host.ID, "user_id", userID,
 			"stored_google_device_id", conflict.StoredID, "google_device_id", googleDeviceID)
 	}
+	if conflict, ok := errors.AsType[*fleet.GoogleConditionalAccessDeviceUserConflictError](err); ok {
+		svc.logger.WarnContext(ctx, "refused a google device with a user registered to another host",
+			"host_id", host.ID, "device_user_name", conflict.Name)
+		return fleet.NewInvalidArgumentError("google_device_id", "This Google device is already registered to another host.").
+			WithStatus(http.StatusConflict)
+	}
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "set host google device id")
 	}
 	if !changed {
 		return nil
 	}
+	svc.markGoogleDeviceUsers(ctx, ci, host, names)
 	// The binding is already saved and a retry is a no-op that logs nothing, so the error carries the
 	// change to keep a trail of it.
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeSetHostGoogleDeviceID{
@@ -3057,7 +3094,7 @@ func deleteHostGoogleDeviceIDEndpoint(ctx context.Context, request any, svc flee
 }
 
 func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) error {
-	host, err := svc.authorizeHostGoogleDeviceID(ctx, hostID)
+	host, err := svc.authorizeHostGoogleWrite(ctx, hostID)
 	if err != nil {
 		return err
 	}
@@ -3093,7 +3130,9 @@ func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) e
 	return nil
 }
 
-func (svc *Service) authorizeHostGoogleDeviceID(ctx context.Context, hostID uint) (*fleet.Host, error) {
+// authorizeHostGoogleWrite authorizes a Premium write of a host's Google data: its
+// device ID and its conditional access registration.
+func (svc *Service) authorizeHostGoogleWrite(ctx context.Context, hostID uint) (*fleet.Host, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
