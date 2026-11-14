@@ -351,6 +351,8 @@ ${issueSummary}`;
         let DRI_BY_PATH = {};
         if (repo === 'fleet') {
           DRI_BY_PATH = sails.config.custom.githubRepoDRIByPath;
+        } else if (repo === 'confidential') {
+          DRI_BY_PATH = sails.config.custom.confidentialGithubRepoDRIByPath;
         } else {
           // Other repos don't have this configured.
           // FUTURE: Configure it for them

@@ -76,6 +76,22 @@ var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps
 	"opal-composer/darwin":              {OpalComposerVersionTrimmer},
 	"plistedit-pro/darwin":              {PlistEditProVersionTrimmer},
 	"rocketman-choices-packager/darwin": {RocketmanChoicesPackagerVersionTrimmer},
+	"krita/darwin":                      {KritaVersionShortener},
+	"4k-slideshow-maker/darwin":         {OpenMediaVersionShortener},
+	"4k-stogram/darwin":                 {OpenMediaVersionShortener},
+	"4k-video-downloader/darwin":        {OpenMediaVersionShortener},
+	"4k-video-to-mp3/darwin":            {OpenMediaVersionShortener},
+	"4k-youtube-to-mp3/darwin":          {OpenMediaVersionShortener},
+	"google-earth-pro/darwin":           {GoogleEarthProVersionShortener},
+	"disk-drill/darwin":                 {DiskDrillVersionShortener},
+	"kdenlive/darwin":                   {KdenliveVersionShortener},
+	"syncmate/darwin":                   {SyncMateVersionShortener},
+	"bitrix24/darwin":                   {Bitrix24VersionShortener},
+	"chrome-remote-desktop-host/darwin": {ChromeRemoteDesktopHostVersionShortener},
+	"malwarebytes/darwin":               {MalwarebytesVersionShortener},
+	"plex-media-server/darwin":          {PlexMediaServerVersionShortener},
+	"sigmaos/darwin":                    {SigmaOSVersionShortener},
+	"redcine-x-pro/darwin":              {REDCINEXProVersionShortener},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"maps"
 	"net/url"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -25,9 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/google/uuid"
 )
-
-// LEGACY VARIABLE
-var fleetVarHostEndUserEmailIDPRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserEmailIDP))
 
 // EnqueueResult holds the results of profile enqueue operations.
 type EnqueueResult struct {
@@ -254,7 +250,7 @@ func preprocessProfileContents(
 					break initialFleetVarLoop
 				}
 
-			case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP) || fleetVar == string(fleet.FleetVarHostHardwareSerial) || fleetVar == string(fleet.FleetVarHostPlatform) ||
+			case fleetVar == string(fleet.FleetVarHostHardwareSerial) || fleetVar == string(fleet.FleetVarHostPlatform) ||
 				fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) ||
 				fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) ||
 				fleetVar == string(fleet.FleetVarSCEPRenewalID) || fleetVar == string(fleet.FleetVarCertificateRenewalID) ||
@@ -319,6 +315,10 @@ func preprocessProfileContents(
 				// Otherwise, error out since this variable is unknown
 				detail := fmt.Sprintf("Unknown Fleet variable $FLEET_VAR_%s found in profile. Please update or remove.",
 					fleetVar)
+				// A profile saved before the upgrade can still use a variable Fleet 5 removed.
+				if err := fleet.FindRemovedFleetVariable(fleetVar); err != nil {
+					detail = err.Error()
+				}
 				_, err := fleet.MarkProfilesFailed(ctx, ds, logger, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, detail, variablesUpdatedAt)
 				if err != nil {
 					return err
@@ -510,18 +510,6 @@ func preprocessProfileContents(
 						return ctxerr.Wrap(ctx, err, "replacing Smallstep SCEP URL variable")
 					}
 
-				case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP):
-					// FIXME: if this is used together with a CA, and fail inside getFirstIDPEmail, the profile will fail, but not get the correct variablesUpdatedAt var.
-					email, ok, err := getFirstIDPEmail(ctx, ds, target, hostUUID, "")
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "getting IDP email")
-					}
-					if !ok {
-						failed = true
-						break fleetVarLoop
-					}
-					hostContents = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, hostContents, email)
-
 				case fleetVar == string(fleet.FleetVarHostHardwareSerial):
 					hostLite, ok, err = profiles.HydrateHost(ctx, ds, hostLite, onMismatchedHostCount)
 					if err != nil {
@@ -679,54 +667,12 @@ const digiCertVarHint = " The variable is used in the DigiCert certificate autho
 // ejbcaVarHint tells admins that a failing IdP variable lives in the EJBCA CA fields, not in the profile.
 const ejbcaVarHint = " The variable is used in the EJBCA certificate authority, not in the profile."
 
-// getFirstIDPEmail returns the host's IdP email. On failure, detailHint is added to the profile detail.
-func getFirstIDPEmail(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostUUID, detailHint string) (string, bool, error) {
-	// Insert the end user email IDP into the profile contents
-	emails, err := ds.GetHostEmails(ctx, hostUUID, fleet.DeviceMappingMDMIdpAccounts)
-	if err != nil {
-		// This is a server error, so we exit.
-		return "", false, ctxerr.Wrap(ctx, err, "getting host emails")
-	}
-	if len(emails) == 0 {
-		// We couldn't retrieve the end user email IDP, so mark the profile as failed with additional detail.
-		err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-			CommandUUID: target.CmdUUID,
-			HostUUID:    hostUUID,
-			Status:      &fleet.MDMDeliveryFailed,
-			Detail: fmt.Sprintf("There is no IdP email for this host. "+
-				"Fleet couldn't populate $FLEET_VAR_%s.%s "+
-				"[Learn more](https://fleetdm.com/learn-more-about/idp-email)",
-				fleet.FleetVarHostEndUserEmailIDP, detailHint),
-			OperationType: fleet.MDMOperationTypeInstall,
-		})
-		if err != nil {
-			return "", false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user email IdP")
-		}
-		return "", false, nil
-	}
-	return emails[0], true, nil
-}
-
 // replaceFleetVarInCAItem expands the Fleet variables of one field of a certificate authority for the host. varHint is added to the profile
 // detail of a failure, to tell the admin the variable is in the certificate authority.
 func replaceFleetVarInCAItem(ctx context.Context, ds fleet.Datastore, target *fleet.CmdTarget, hostLite fleet.Host, caVarsCache map[string]string, item *string, hostIDForUUIDCache map[string]uint, variablesUpdatedAt *time.Time, onMismatchedHostCount func(int) error, varHint string) (bool, error) {
 	caFleetVars := variables.Find(*item)
 	for _, caVar := range caFleetVars {
 		switch {
-		case caVar == string(fleet.FleetVarHostEndUserEmailIDP):
-			email, ok := caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)]
-			if !ok {
-				var err error
-				email, ok, err = getFirstIDPEmail(ctx, ds, target, hostLite.UUID, varHint)
-				if err != nil {
-					return false, ctxerr.Wrap(ctx, err, "getting IDP email")
-				}
-				if !ok {
-					return false, nil
-				}
-				caVarsCache[string(fleet.FleetVarHostEndUserEmailIDP)] = email
-			}
-			*item = variables.Replace(*item, caVar, email)
 		case caVar == string(fleet.FleetVarHostHardwareSerial):
 			hardwareSerial, ok := caVarsCache[string(fleet.FleetVarHostHardwareSerial)]
 			if !ok {
@@ -787,7 +733,24 @@ func replaceFleetVarInCAItem(ctx context.Context, ds fleet.Datastore, target *fl
 			}
 			*item = variables.Replace(*item, caVar, value)
 		default:
-			// We should not reach this since we validated the variables when saving the CA
+			// Validated when the CA was saved, so this is a CA saved before the upgrade that still uses a variable Fleet 5
+			// removed. Fail rather than send the variable to the CA as literal text.
+			detail := fmt.Sprintf("Unknown Fleet variable $FLEET_VAR_%s. Please update or remove.", caVar)
+			if err := fleet.FindRemovedFleetVariable(caVar); err != nil {
+				detail = err.Error()
+			}
+			err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+				CommandUUID:        target.CmdUUID,
+				HostUUID:           hostLite.UUID,
+				Status:             &fleet.MDMDeliveryFailed,
+				Detail:             detail + varHint,
+				OperationType:      fleet.MDMOperationTypeInstall,
+				VariablesUpdatedAt: variablesUpdatedAt,
+			})
+			if err != nil {
+				return false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for unknown CA variable")
+			}
+			return false, nil
 		}
 	}
 	return true, nil

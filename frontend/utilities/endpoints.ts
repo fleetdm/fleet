@@ -37,7 +37,6 @@ export default {
   POLICY_AUTOMATION_ACTIVITIES: (id: number) =>
     `/${API_VERSION}/fleet/policies/${id}/automation_activities`,
   POLICY_RESET: (id: number) => `/${API_VERSION}/fleet/policies/${id}/reset`,
-  GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
 
   // Device endpoints
   DEVICE_USER_DETAILS: `/${API_VERSION}/fleet/device`,
@@ -183,9 +182,6 @@ export default {
   MDM_ANDROID_SSE_URL: `/api/${API_VERSION}/fleet/android_enterprise/signup_sse`,
   MDM_ANDROID_ZERO_TOUCH_CONFIGURATION: `/${API_VERSION}/fleet/android_enterprise/zero_touch_configuration`,
 
-  // apple mdm endpoints
-  MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
-
   // Apple Business (AB) endpoints
   MDM_AB_TOKENS: `/${API_VERSION}/fleet/ab_tokens`,
   MDM_AB_TOKEN: (id: number) => `/${API_VERSION}/fleet/ab_tokens/${id}`,
@@ -199,7 +195,6 @@ export default {
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
   MDM_APPLE_BM: `/${API_VERSION}/fleet/abm`, // TODO: Deprecated?
-  MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
 
   // Apple VPP endpoints
@@ -212,14 +207,14 @@ export default {
     `/${API_VERSION}/fleet/vpp_tokens/${id}/fleets`,
 
   // MDM profile endpoints
-  MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
-  MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,
+  MDM_PROFILES: `/${API_VERSION}/fleet/configuration_profiles`,
+  MDM_PROFILE: (id: string) =>
+    `/${API_VERSION}/fleet/configuration_profiles/${id}`,
 
   // Apple DDM asset endpoints
   MDM_ASSETS: `/${API_VERSION}/fleet/assets`,
   MDM_ASSET: (uuid: string) => `/${API_VERSION}/fleet/assets/${uuid}`,
 
-  MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
   PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/configuration_profiles/summary`,
   DISK_ENCRYPTION: `/${API_VERSION}/fleet/disk_encryption`,
   HOST_NAME_TEMPLATE: `/${API_VERSION}/fleet/host_name_template`,
@@ -233,10 +228,9 @@ export default {
   MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/enrollment_profiles/automatic`,
   MDM_APPLE_DEFAULT_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/enrollment_profiles/automatic/default`,
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
-    `/${API_VERSION}/fleet/mdm/bootstrap/${teamId}/metadata`,
+    `/${API_VERSION}/fleet/bootstrap/${teamId}/metadata`,
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/bootstrap`,
-  MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/bootstrap/summary`,
-  MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
+  MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/bootstrap/summary`,
   MDM_EULA: (token: string) =>
     `/${API_VERSION}/fleet/setup_experience/eula/${token}`,
   MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/setup_experience/eula`,
@@ -272,21 +266,15 @@ export default {
   OS_VERSION: (id: number) => `/${API_VERSION}/fleet/os_versions/${id}`,
 
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,
-  PACKS: `/${API_VERSION}/fleet/packs`,
   PERFORM_REQUIRED_PASSWORD_RESET: `/${API_VERSION}/fleet/perform_required_password_reset`,
   QUERIES: `/${API_VERSION}/fleet/reports`,
   QUERY_REPORT: (id: number) => `/${API_VERSION}/fleet/reports/${id}/report`,
   RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
   REST_API_ENDPOINTS: `/${API_VERSION}/fleet/rest_api`,
   LIVE_QUERY: `/${API_VERSION}/fleet/reports/run`,
-  SCHEDULE_QUERY: `/${API_VERSION}/fleet/packs/schedule`,
-  SCHEDULED_QUERIES: (packId: number): string => {
-    return `/${API_VERSION}/fleet/packs/${packId}/scheduled`;
-  },
   SETUP: `/v1/setup`, // not a typo - hasn't been updated yet
 
   // Software endpoints
-  SOFTWARE: `/${API_VERSION}/fleet/software`,
   SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`, // Powers software/inventory and software/library pages
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
@@ -325,9 +313,6 @@ export default {
   TARGETS: `/${API_VERSION}/fleet/targets`,
   TEAM_POLICIES: (teamId: number): string => {
     return `/${API_VERSION}/fleet/fleets/${teamId}/policies`;
-  },
-  TEAM_SCHEDULE: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/fleets/${teamId}/schedule`;
   },
   TEAMS: `/${API_VERSION}/fleet/fleets`,
   TEAMS_AGENT_OPTIONS: (teamId: number): string => {
@@ -368,8 +353,6 @@ export default {
   SCRIPT_RUN_BATCH: `/${API_VERSION}/fleet/scripts/run/batch`,
   SCRIPT_CANCEL_BATCH: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/batch/${executionId}/cancel`,
-  SCRIPT_RUN_BATCH_SUMMARY_V1: (id: string) =>
-    `/${API_VERSION}/fleet/scripts/batch/summary/${id}`,
   SCRIPT_RUN_BATCH_SUMMARY_V2: (id: string) =>
     `/${API_VERSION}/fleet/scripts/batch/${id}`,
   SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,

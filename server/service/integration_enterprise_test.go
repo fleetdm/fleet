@@ -111,6 +111,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	fleetCfg := config.TestConfig()
 	fleetCfg.MDM.WindowsWSTEPIdentityCert = "testdata/server.pem"
 	fleetCfg.MDM.WindowsWSTEPIdentityKey = "testdata/server.key"
+	fleetCfg.MicrosoftCompliancePartner.ClientID = testEntraClientID
 
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -421,7 +422,7 @@ func waitBatchSetSoftwareInstallers(t *testing.T, s *withServer, teamName string
 	timeout := time.After(1 * time.Minute)
 	for {
 		var batchResultResponse batchSetSoftwareInstallersResultResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "team_name", teamName)
+		s.DoJSON("GET", "/api/latest/fleet/software/batch/"+requestUUID, nil, http.StatusOK, &batchResultResponse, "fleet_name", teamName)
 		if batchResultResponse.Status == fleet.BatchSetSoftwareInstallersStatusCompleted ||
 			batchResultResponse.Status == fleet.BatchSetSoftwareInstallersStatusFailed {
 			return batchResultResponse

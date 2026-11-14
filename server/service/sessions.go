@@ -968,7 +968,7 @@ func (svc *Service) validateSession(ctx context.Context, session *fleet.Session)
 
 	sessionDuration := svc.config.Session.Duration
 	if session.APIOnly != nil && *session.APIOnly {
-		sessionDuration = 0 // make API-only tokens unlimited
+		sessionDuration = 0 // API-only tokens remain unlimited until manual rotation is implemented
 	}
 
 	// duration 0 = unlimited

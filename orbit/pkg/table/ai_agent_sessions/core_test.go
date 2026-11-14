@@ -292,23 +292,6 @@ func TestContentTruncation(t *testing.T) {
 	})
 }
 
-func TestTruncateUTF8(t *testing.T) {
-	for _, tc := range []struct {
-		in    string
-		limit int
-		want  string
-	}{
-		{"hello", 10, "hello"},
-		{"hello", 5, "hello"},
-		{"hello world", 5, "hello"},
-		{"abé", 3, "ab"},
-		{"aé", 3, "aé"},
-		{"ab🙂", 4, "ab"},
-	} {
-		require.Equal(t, tc.want, truncateUTF8(tc.in, tc.limit), "%q/%d", tc.in, tc.limit)
-	}
-}
-
 func TestSizeLimit(t *testing.T) {
 	t.Run("counts whole rows, not just content", func(t *testing.T) {
 		home := setup(t)

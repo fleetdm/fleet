@@ -465,7 +465,9 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.Equal(t, "Firefox", useErr.Entity.Name)
 		require.Equal(t, "Foobar", useErr.Entity.FleetName)
 
-		require.NoError(t, ds.DeleteAndroidAppConfiguration(ctx, appID, foobarTeam.ID))
+		// replace the configuration with one that doesn't use the host vital, so the final delete succeeds
+		require.NoError(t, ds.updateAndroidAppConfigurationTx(ctx, ds.writer(ctx), uint(appTeamID), //nolint:gosec // dismiss G115
+			[]byte(`{"managedConfiguration":{"assetTag":"static"}}`)))
 	})
 
 	t.Run("scripts", func(t *testing.T) {
@@ -622,7 +624,7 @@ func testDeleteUsedCustomHostVital(t *testing.T, ds *Datastore) {
 		require.Equal(t, "chv-del-label", useErr.Entity.Name)
 		require.Equal(t, "Unassigned", useErr.Entity.FleetName)
 
-		require.NoError(t, ds.DeleteLabel(ctx, label.Name, fleet.TeamFilter{User: test.UserAdmin}))
+		require.NoError(t, ds.DeleteLabel(ctx, label.ID))
 	})
 
 	// With all references removed, delete now succeeds.

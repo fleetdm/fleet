@@ -126,7 +126,7 @@ func (svc *Service) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, er
 
 type getVulnerabilityRequest struct {
 	CVE    string `url:"cve"`
-	TeamID *uint  `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint  `query:"fleet_id,optional"`
 }
 
 type getVulnerabilityResponse struct {
@@ -163,6 +163,9 @@ func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Se
 	osVersions, _, err := svc.ListOSVersionsByCVE(ctx, vuln.CVE.CVE, request.TeamID)
 	if err != nil {
 		return getVulnerabilityResponse{Err: err}, nil
+	}
+	for _, osVersion := range osVersions {
+		osVersion.UseAPINames()
 	}
 
 	software, _, err := svc.ListSoftwareByCVE(ctx, vuln.CVE.CVE, request.TeamID)

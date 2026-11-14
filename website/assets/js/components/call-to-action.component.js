@@ -58,7 +58,7 @@ parasails.registerComponent('callToAction', {
       <div purpose="custom-cta-buttons" class="mx-auto d-flex flex-sm-row flex-column justify-content-center">
           <a purpose="primary-button" :class="[ secondaryButtonHref ? 'mr-sm-4 ml-sm-0' : '']" class="text-white d-sm-flex align-items-center justify-content-center btn btn-primary mx-auto":href="calltoActionPrimaryBtnHref">{{calltoActionPrimaryBtnText}}</a>
         <span class="d-flex" v-if="secondaryButtonHref && secondaryButtonText">
-          <a purpose="secondary-button" class="btn btn-lg text-white btn-white mr-2 pl-0 mx-auto mx-sm-0 mt-2 mt-sm-0" target="_blank" :href="calltoActionSecondaryBtnHref">{{calltoActionSecondaryBtnText}}</a>
+          <animated-arrow-button purpose="secondary-button" text-color="#FFF" class="mx-auto mx-sm-0 mt-2 mt-sm-0" target="_blank" :href="calltoActionSecondaryBtnHref">{{calltoActionSecondaryBtnText}}</animated-arrow-button>
         </span>
       </div>
     </div>

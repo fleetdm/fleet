@@ -33,9 +33,9 @@ var teamEntries = []Entry{
 	// Multipart form fields (software and script uploads).
 	{Kind: KindFormField, Scope: ScopeRequest, Old: "team_id", New: "fleet_id"},
 
-	// CSV export column headers.
-	{Kind: KindCSVColumn, Scope: ScopeResponse, Old: "team_id", New: "fleet_id"},
-	{Kind: KindCSVColumn, Scope: ScopeResponse, Old: "team_name", New: "fleet_name"},
+	// CSV export column headers, which GET /hosts/report also takes in its columns parameter.
+	{Kind: KindCSVColumn, Scope: ScopeRequest | ScopeResponse, Old: "team_id", New: "fleet_id"},
+	{Kind: KindCSVColumn, Scope: ScopeRequest | ScopeResponse, Old: "team_name", New: "fleet_name"},
 
 	// Keys inside the stored details of activities.
 	{Kind: KindJSONKey, Scope: ScopeActivityDetails, Old: "team_id", New: "fleet_id"},
@@ -86,6 +86,7 @@ var teamEntries = []Entry{
 	{Kind: KindCommand, Scope: ScopeRequest, Old: "fleetctl get t", New: "fleetctl get fleets"},
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "team", New: "fleet", Context: "fleetctl report"},
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "team", New: "fleet", Context: "fleetctl user create"},
+	{Kind: KindFlag, Scope: ScopeRequest, Old: "t", New: "fleet", Context: "fleetctl user create"},
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "team", New: "fleet", Context: "fleetctl generate-gitops"},
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "team", New: "fleet", Context: "fleetctl hosts transfer"},
 	{Kind: KindFlag, Scope: ScopeRequest, Old: "team", New: "fleet", Context: "fleetctl run-script"},
@@ -105,8 +106,19 @@ var teamEntries = []Entry{
 	abmEntry("ios_team", "ios_fleet"),
 	abmEntry("ipados_team", "ipados_fleet"),
 	abmEntry("byod_team", "byod_fleet"),
+	yamlEntry("org_settings.mdm.apple_bm_default_team", "org_settings.mdm.apple_business"),
 	yamlEntry("org_settings.mdm.volume_purchasing_program[].teams",
 		"org_settings.mdm.volume_purchasing_program[].fleets"),
+
+	// The key that holds a fleet in a fleetctl apply spec of kind fleet.
+	yamlEntry("spec.team", "spec.fleet"),
+
+	// The GitOps file for hosts that belong to no fleet, and the fleet name in it. The name is compared without regard to case.
+	{Kind: KindFileName, Scope: ScopeRequest, Old: "no-team.yml", New: "unassigned.yml"},
+	{Kind: KindYAMLValue, Scope: ScopeRequest, Old: "name: No team", New: "name: Unassigned"},
+
+	// SAML attributes.
+	{Kind: KindSAMLAttribute, Scope: ScopeRequest, Old: "FLEET_JIT_USER_ROLE_TEAM_<ID>", New: "FLEET_JIT_USER_ROLE_FLEET_<ID>"},
 
 	// Spec kinds accepted by fleetctl apply.
 	{Kind: KindSpecKind, Scope: ScopeRequest, Old: "team", New: "fleet"},

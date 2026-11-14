@@ -73,6 +73,11 @@ terraform.tfstate*
 
 # generated orbit installers and artifacts
 fleet-osquery*
+fleet-macos*.pkg
+fleet-windows-*.msi
+fleet-linux-*.deb
+fleet-linux-*.rpm
+fleet-linux-*.pkg.tar.zst
 desktop.app.tar.gz
 osqueryd.app.tar.gz
 desktop.tar.gz

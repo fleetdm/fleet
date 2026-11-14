@@ -77,7 +77,7 @@
       background: #FFF;
     }
     .input-group:focus-within {
-      border: 1px solid @core-vibrant-blue;
+      border: 1px solid @core-fleet-black;
     }
     .form-control {
       border-radius: 6px;
@@ -160,11 +160,19 @@
     }
   }
   [purpose='submit-button'] {
+    min-height: 36px;
+    padding: 7.5px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 150%;
+    // Same keyboard focus ring as primary buttons; Bootstrap's .btn:focus removes the outline.
+    &:focus-visible {
+      outline: 2px solid @core-fleet-black;
+      outline-offset: 2px;
+    }
     border: none;
     display: flex;
     cursor: pointer;
-    height: 37px;
-    padding: 16px 32px;
     width: 100%;
     justify-content: center;
     align-items: center;
@@ -172,11 +180,8 @@
     color: #FFF;
     text-align: center;
     font-family: Inter;
-    font-size: 14px;
     font-style: normal;
     font-weight: 700;
-    line-height: 21px;
-    border-radius: 8px;
     background: #192147;
     position: relative;
     img {
@@ -601,14 +606,11 @@
     border-top: 1px solid #E2E4EA;
     // margin-bottom: 24px;
     [purpose='access-type-select'] {
-      height: 36px;
-      padding: 0px 6px 0px 8px;
+      .text-input();
       color: #192147;
       font-family: Inter;
-      font-size: 12px;
       font-style: normal;
       font-weight: 400;
-      line-height: 24px;
       text-transform: uppercase;
       width: 130px;
       cursor: pointer;
@@ -628,12 +630,10 @@
 
       }
       input {
+        .text-input();
         display: flex;
         width: 260px;
-        height: 36px;
-        padding: 0px 6px 0px 8px;
         align-items: center;
-        font-size: 14px;
         color: #515774;
         &:focus {
           border-color: #192147;
@@ -716,7 +716,7 @@
           }
         }
         .form-control {
-          height: 40px;
+          .text-input();
 
         }
       }
@@ -823,7 +823,7 @@
     }
   }
   input.form-control {
-    height: 40px;
+    .text-input();
   }
 
   [parasails-component='modal'] {
@@ -862,15 +862,12 @@
     [purpose='modal-form-option'] {
       margin-bottom: 24px;
       input {
+        .text-input();
         display: flex;
-        height: 40px;
-        padding: 8px 12px;
         align-items: flex-start;
-        font-size: 13px;
       }
       input, textarea {
         color: #515774;
-        font-size: 13px;
         &:focus {
           border-color: #192147;
         }

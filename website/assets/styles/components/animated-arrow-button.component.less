@@ -2,35 +2,14 @@
 /**
  * <animated-arrow-button>
  *
- * App-wide styles for our animated arrow buttons.
+ * App-wide styles for our animated arrow buttons. The look lives in the
+ * .secondary-button() mixin (mixins-and-variables/buttons.less), which plain-HTML
+ * copies of this button (e.g. in layout.ejs and 404.ejs) share.
+ * The arrow-color and text-color props override the default colors inline.
  */
 
 [parasails-component='animated-arrow-button'] {
-  width: fit-content;
-  display: flex;
-  align-items: center;
-  padding: 6px 0px;
-  text-decoration: none;
-  font-weight: 700;
-  cursor: pointer;
-  [purpose='button-text'] {
-    color: @core-fleet-black;
-  }
-  [purpose='animated-arrow'] {
-    margin-left: 8px;
-    stroke-width: 2px;
-    min-height: 12px;
-    min-width: 12px;
-    fill: none;
-    // stroke: #FF5C83; « Note: this is overridden by the arrow-color prop;
-  }
-  [purpose='arrow-line'] {
-    opacity: 0;
-    transition: opacity 10ms ease-out;
-  }
-  [purpose='chevron'] {
-    transition: transform 200ms ease-out;
-  }
+  .secondary-button();
   // FUTURE: uncomment this section and add support for multiple button types.
   // &.secondary {
   //   [purpose='animated-arrow'] {
@@ -49,17 +28,4 @@
   //     stroke: #FFF;
   //   }
   // }
-  &:hover {
-    text-decoration: none;
-    [purpose='button-text'] {
-      color: @core-fleet-black;
-    }
-    [purpose='arrow-line'] {
-      opacity: 1;
-      transition: opacity 300ms ease-out;
-    }
-    [purpose='chevron'] {
-      transform: translateX(5px);
-    }
-  }
 }

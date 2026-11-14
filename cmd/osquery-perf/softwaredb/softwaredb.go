@@ -145,7 +145,7 @@ func (db *DB) DarwinToMaps(indices []uint32) []map[string]string {
 			m["extension_id"] = *s.ExtensionID
 		}
 		if s.ExtensionFor != nil {
-			m["browser"] = *s.ExtensionFor
+			m["extension_for"] = *s.ExtensionFor
 		}
 		if s.Source == "homebrew_packages" {
 			// Homebrew formulae report their keg directory, which is what the executable hash
@@ -177,7 +177,7 @@ func (db *DB) WindowsToMaps(indices []uint32) []map[string]string {
 			m["extension_id"] = *s.ExtensionID
 		}
 		if s.ExtensionFor != nil {
-			m["browser"] = *s.ExtensionFor
+			m["extension_for"] = *s.ExtensionFor
 		}
 		results = append(results, m)
 	}
@@ -207,7 +207,7 @@ func (db *DB) UbuntuToMaps(indices []uint32) []map[string]string {
 			m["extension_id"] = *s.ExtensionID
 		}
 		if s.ExtensionFor != nil {
-			m["browser"] = *s.ExtensionFor
+			m["extension_for"] = *s.ExtensionFor
 		}
 		results = append(results, m)
 	}

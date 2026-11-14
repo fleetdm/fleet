@@ -2,6 +2,9 @@
   query: SELECT 1 FROM windows_security_products WHERE name LIKE '%Microsoft Defender Antivirus%' AND signatures_up_to_date = 1;
   critical: false
   description: Checks the status of antivirus and signature updates from the Windows Security Center.
-  resolution: Run all available Windows updates.
+  resolution: >-
+    No action needed from you. Microsoft Defender updates its signatures automatically. If it keeps failing, IT checks
+    that the host can reach Windows Update.
+  hidden: true
   platform: windows
   

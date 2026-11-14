@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "5.4.5.1509",
+      "version": "5.4.6.1572",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'LastPass Universal Windows Installer' AND publisher = 'LastPass US LP.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'LastPass Universal Windows Installer' AND publisher = 'LastPass US LP.' AND version_compare(version, '5.4.5.1509') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'LastPass Universal Windows Installer' AND publisher = 'LastPass US LP.' AND version_compare(version, '5.4.6.1572') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'lastpass.exe');"
       },
       "installer_url": "https://download.cloud.lastpass.com/windows_installer/LastPassInstaller.msi",
       "install_script_ref": "22e48c46",
       "uninstall_script_ref": "62d1f9f2",
-      "sha256": "77b8877a7c8edcf1e2baef30c92516c58836a7f1529cbde1d8ce4ab3f26e441b",
+      "sha256": "9d99ebfcf82220627b878b58485f4fcfc3a686dc1b9ca9b5cf3e7df8f47d577c",
       "default_categories": [
         "Productivity"
       ],
