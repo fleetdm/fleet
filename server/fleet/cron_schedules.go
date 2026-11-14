@@ -91,11 +91,14 @@ const (
 	// CronAppStoreAppConfigurationReconciler installs iOS and iPadOS App Store apps again on hosts whose latest install didn't send
 	// the configuration of the version they should have. Runs every 1 minute.
 	CronAppStoreAppConfigurationReconciler CronScheduleName = "app_store_app_configuration_reconciler"
-	// CronGoogleConditionalAccess unmarks, retries marks and migrates bookmark-era
-	// hosts for Google conditional access. Premium only; runs every 5m.
+	// CronGoogleConditionalAccess unmarks, retries marks, migrates bookmark-era hosts,
+	// registers new Android hosts, and deletes the rows of a previous customer or of an
+	// integration deleted 30 days ago, for Google conditional access. Premium only; runs
+	// every 5m.
 	CronGoogleConditionalAccess CronScheduleName = "google_conditional_access"
 	// CronGoogleConditionalAccessDeviceCheck deletes the stored DeviceUsers whose Google
-	// device is gone. Premium only; runs every 1h.
+	// device is gone, sets stale those whose device left the Workspace, and retries the
+	// Android hosts the 5m cron stopped trying. Premium only; runs every 1h.
 	CronGoogleConditionalAccessDeviceCheck CronScheduleName = "google_conditional_access_device_check"
 )
 

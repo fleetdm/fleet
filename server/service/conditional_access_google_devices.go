@@ -420,7 +420,7 @@ func listGoogleDeviceUserNames(ctx context.Context, ci conditional_access_google
 // either way: a failed mark stays pending with its error and the cron retries it.
 func (svc *Service) markGoogleDeviceUsers(ctx context.Context, ci conditional_access_google.CloudIdentity, host *fleet.Host, names []string) {
 	for _, name := range names {
-		if _, err := markGoogleDeviceUser(ctx, svc.ds, ci, name, host.UUID); err != nil {
+		if err := markGoogleDeviceUser(ctx, svc.ds, ci, name, host.UUID); err != nil {
 			svc.logger.ErrorContext(ctx, "mark google device user", "device_user_name", name, "err", err)
 			ctxerr.Handle(ctx, err)
 		}
@@ -428,24 +428,23 @@ func (svc *Service) markGoogleDeviceUsers(ctx context.Context, ci conditional_ac
 }
 
 // markGoogleDeviceUser writes MANAGED on a pending name. A refusal from Google is
-// recorded on the name, and stale reports whether Google no longer has it, which the
-// sync cron acts on; registration leaves that to the cron.
+// recorded on the name and returned; the sync cron decides whether Google still has it.
 func markGoogleDeviceUser(
 	ctx context.Context, ds fleet.Datastore, ci conditional_access_google.CloudIdentity, name, hostUUID string,
-) (stale bool, err error) {
+) error {
 	pending, managed := fleet.GoogleConditionalAccessDeviceUserPending, fleet.GoogleConditionalAccessDeviceUserManaged
 	du := fleet.GoogleConditionalAccessDeviceUser{HostUUID: hostUUID, Name: name, State: pending}
 	if markErr := ci.SetClientState(ctx, name, fleet.GoogleConditionalAccessDesiredClientState(du)); markErr != nil {
 		msg := markErr.Error()
 		if _, err := ds.UpdateGoogleConditionalAccessDeviceUserState(ctx, name, pending, pending, &msg); err != nil {
-			return false, ctxerr.Wrap(ctx, errors.Join(markErr, err), "record google device user error")
+			return ctxerr.Wrap(ctx, errors.Join(markErr, err), "record google device user error")
 		}
-		return conditional_access_google.IsStale(markErr), markErr
+		return markErr
 	}
 	if _, err := ds.UpdateGoogleConditionalAccessDeviceUserState(ctx, name, pending, managed, nil); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "set google device user managed")
+		return ctxerr.Wrap(ctx, err, "set google device user managed")
 	}
-	return false, nil
+	return nil
 }
 
 // googleSignInEmail returns the email fleetdm.com sent when it is an address, since an

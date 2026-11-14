@@ -521,8 +521,59 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleUnmark() {
 	}, g.states(deleted))
 	g.client.setDev(func(d *googleDeviceMock) { d.unmarkErrs = nil })
 	g.sync()
+	require.Equal(t, fleet.GoogleConditionalAccessDeviceUserUnmanaging, g.states(deleted)["devices/deleted/deviceUsers/flaky"], "retried before the backoff")
+	g.syncAfter(2 * time.Minute)
 	require.Empty(t, g.states(deleted))
 	require.False(t, g.hasDevice(deleted))
+
+	// A 403 on an unmark means the device left the Workspace only when Google can't read
+	// the device either. A readable device means the service account can't write, and the
+	// unmark is kept for a retry.
+	left := g.newIOSHost("ios", true)
+	register(left, "devices/left/deviceUsers/1")
+	denied := g.newIOSHost("ios", true)
+	register(denied, "devices/denied/deviceUsers/1")
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.unmarkErrs = map[string]error{
+			"devices/left/deviceUsers/1":   googleResourceError{status: http.StatusForbidden},
+			"devices/denied/deviceUsers/1": googleResourceError{status: http.StatusForbidden},
+		}
+		d.leftDevices = map[string]bool{"left": true}
+	})
+	for _, h := range []*fleet.Host{left, denied} {
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", h.ID), nil, http.StatusOK)
+	}
+	g.sync()
+	require.Empty(t, g.states(left))
+	require.False(t, g.hasDevice(left))
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		"devices/denied/deviceUsers/1": fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, g.states(denied))
+	g.client.setDev(func(d *googleDeviceMock) { d.unmarkErrs, d.leftDevices = nil, nil })
+	g.syncAfter(time.Hour)
+	require.Empty(t, g.states(denied))
+
+	// A name registered again while the cron unmarks it is marked again, since the
+	// UNMANAGED write may have landed after the registration's MANAGED one.
+	raced := g.newIOSHost("ios", true)
+	racedName := "devices/raced/deviceUsers/1"
+	register(raced, racedName)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/google_device_id", raced.ID), nil, http.StatusNoContent)
+	g.client.reset()
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.onUnmark = func(name string) {
+			if name == racedName {
+				g.execSQL(`UPDATE google_conditional_access_device_users SET state = ? WHERE device_user_name = ?`,
+					fleet.GoogleConditionalAccessDeviceUserManaged, name)
+			}
+		}
+	})
+	g.sync()
+	_, _, _, unmanaged = g.client.calls()
+	require.Equal(t, []string{racedName}, unmanaged)
+	require.Equal(t, []string{racedName + " " + raced.UUID}, g.client.devCalls().managed)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{racedName: fleet.GoogleConditionalAccessDeviceUserManaged}, g.states(raced))
+	g.client.setDev(func(d *googleDeviceMock) { d.onUnmark = nil })
 
 	// A deleted host's failed mark is never retried.
 	failed := g.newIOSHost("ios", true)
@@ -571,6 +622,28 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleStaleNames()
 	_, _, _, unmanaged := g.client.calls()
 	require.Empty(t, unmanaged)
 
+	// A 403 on a retried mark sets the name stale only when Google can't read its device
+	// either. A readable device means the service account can't write: the name stays
+	// pending with the error and is retried.
+	left, denied := g.newIOSHost("ios", true), g.newIOSHost("ios", true)
+	leftName, deniedName := "devices/left403/deviceUsers/1", "devices/denied403/deviceUsers/1"
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.markErrs = map[string]error{leftName: errors.New("Google returned HTTP 500"), deniedName: errors.New("Google returned HTTP 500")}
+	})
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(g.signIn(left), leftName))
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(g.signIn(denied), deniedName))
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.markErrs = map[string]error{
+			leftName:   googleResourceError{status: http.StatusForbidden},
+			deniedName: googleResourceError{status: http.StatusForbidden},
+		}
+		d.leftDevices = map[string]bool{"left403": true}
+	})
+	g.syncAfter(2 * time.Minute)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{leftName: fleet.GoogleConditionalAccessDeviceUserStale}, g.states(left))
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{deniedName: fleet.GoogleConditionalAccessDeviceUserPending}, g.states(denied))
+	require.True(t, g.iosStatus(denied).Registered)
+
 	// The hourly check deletes a name whose device is gone, sets stale a name whose device
 	// left the Workspace, and leaves the others.
 	two := g.newIOSHost("ios", true)
@@ -617,6 +690,29 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDelegationFa
 	require.NoError(t, err)
 	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
 	require.Nil(t, row.ErrorMessage)
+
+	// A refusal in the middle of a run fails it the same way.
+	host := g.newIOSHost("ios", true)
+	name := "devices/auth/deviceUsers/1"
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(g.signIn(host), name))
+	g.client.setDev(func(d *googleDeviceMock) { d.unmarkErrs = map[string]error{name: googleAuthError{}} })
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
+	require.Error(t, g.syncer.Sync(t.Context()))
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, row.State)
+
+	// Once the integration shows the failure, the runs that keep failing don't report it again.
+	g.client.checkErr = googleAuthError{}
+	require.NoError(t, g.syncer.Sync(t.Context()))
+	require.NoError(t, g.syncer.CheckDevices(t.Context()))
+	row, err = s.ds.GetGoogleConditionalAccessIntegration(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, row.State)
+	g.client.checkErr = nil
+	g.client.setDev(func(d *googleDeviceMock) { d.unmarkErrs = nil })
+	g.sync()
+	require.Empty(t, g.states(host))
 
 	// A recovered delegation doesn't connect an integration fleetdm.com never registered.
 	row.ProxyServerSecret, row.State, row.ErrorMessage = "", fleet.ConditionalAccessGoogleStateDelegationFailed, new("refused")
@@ -670,6 +766,21 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleBookmarkMigr
 	g.client.setDev(func(d *googleDeviceMock) { d.googleCalls = 0 })
 	g.sync()
 	require.Zero(t, g.client.devCalls().googleCalls)
+	// Hours later the host whose device was gone is looked up once more.
+	g.syncAfter(7 * time.Hour)
+	require.Equal(t, 1, g.client.devCalls().googleCalls)
+
+	// A listing that fails for another reason is left alone for as long.
+	failing := g.newIOSHost("ios", true)
+	g.execSQL(`INSERT INTO google_conditional_access_devices (host_uuid, customer_id, google_device_id) VALUES (?, '', 'bm-failing')`, failing.UUID)
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.googleCalls = 0
+		d.listErr = errors.New("listing has more pages than expected")
+	})
+	g.sync()
+	g.sync()
+	require.Equal(t, 1, g.client.devCalls().googleCalls)
+	g.client.setDev(func(d *googleDeviceMock) { d.listErr = nil })
 
 	// An admin removal drops the device ID with the names, so the sync doesn't migrate the host again.
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/google_device_id", migrated.ID), nil, http.StatusNoContent)
@@ -756,6 +867,14 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleAndroidResol
 	require.Len(t, g.cronActivities, 2)
 	require.Zero(t, g.registrationAttempts(late))
 
+	// A host whose names went stale is registered again, with no new activity since its
+	// device ID didn't change.
+	g.execSQL(`UPDATE google_conditional_access_device_users SET state = ? WHERE host_uuid = ?`,
+		fleet.GoogleConditionalAccessDeviceUserStale, late.UUID)
+	g.sync()
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{"devices/and-late/deviceUsers/1": managed}, g.states(late))
+	require.Len(t, g.cronActivities, 2)
+
 	// A bookmark-era device ID whose record is gone is replaced by the resolved one.
 	bookmark := g.newAndroidHost(true)
 	g.execSQL(`INSERT INTO google_conditional_access_devices (host_uuid, customer_id, google_device_id) VALUES (?, '', 'bm-dead')`, bookmark.UUID)
@@ -774,6 +893,21 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleAndroidResol
 	finds := len(g.client.devCalls().finds)
 	g.sync()
 	require.Empty(t, g.states(host))
+	require.Len(t, g.client.devCalls().finds, finds)
+
+	// An outage stops the pass without counting an attempt; another failure counts one.
+	outage := g.newAndroidHost(true)
+	g.client.setDev(func(d *googleDeviceMock) { d.listErr = googleUnavailableError{} })
+	require.Error(t, g.syncer.Sync(t.Context()))
+	require.False(t, g.hasDevice(outage))
+	g.client.setDev(func(d *googleDeviceMock) { d.listErr = errors.New("listing has more pages than expected") })
+	g.sync()
+	require.EqualValues(t, 1, g.registrationAttempts(outage))
+	g.client.setDev(func(d *googleDeviceMock) { d.listErr = nil })
+
+	// The hourly run leaves the hosts the sync cron still tries on every run.
+	finds = len(g.client.devCalls().finds)
+	require.NoError(t, g.syncer.CheckDevices(t.Context()))
 	require.Len(t, g.client.devCalls().finds, finds)
 }
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -53,9 +52,9 @@ func NewGoogleConditionalAccessSyncer(
 	}
 }
 
-// googleSyncRun is one run's integration and Cloud Identity client.
+// googleSyncRun is one run's customer, integration and Cloud Identity client.
 type googleSyncRun struct {
-	settings    fleet.GoogleConditionalAccessIntegration
+	customerID  string
 	integration *fleet.ConditionalAccessGoogleIntegration
 	ci          conditional_access_google.CloudIdentity
 }
@@ -88,13 +87,13 @@ func (s *GoogleConditionalAccessSyncer) Sync(ctx context.Context) error {
 		return err
 	}
 	resolveAndroidHosts := func(ctx context.Context, run *googleSyncRun) error {
-		return s.resolveAndroidHosts(ctx, run, googleAndroidFastAttempts)
+		return s.resolveAndroidHosts(ctx, run, 0, googleAndroidFastAttempts)
 	}
 	for _, job := range []func(context.Context, *googleSyncRun) error{
 		s.unmark, s.retryMarks, s.migrateBookmarkHosts, resolveAndroidHosts,
 	} {
 		if err := job(ctx, run); err != nil {
-			return s.handleDelegationError(ctx, run, err)
+			return s.handleRunError(ctx, run, err)
 		}
 	}
 	return nil
@@ -102,7 +101,8 @@ func (s *GoogleConditionalAccessSyncer) Sync(ctx context.Context) error {
 
 // CheckDevices deletes the names whose Google device is gone and sets stale those whose
 // device left the Workspace, so their host registers again on its next open. It also
-// tries the Android hosts the sync cron gave up on.
+// tries the Android hosts the sync cron stopped trying, which the sync cron never lists,
+// so the two don't work on the same host.
 func (s *GoogleConditionalAccessSyncer) CheckDevices(ctx context.Context) error {
 	ctx = ctxdb.RequirePrimary(ctx, true)
 	integration, err := s.integration(ctx)
@@ -129,12 +129,12 @@ func (s *GoogleConditionalAccessSyncer) CheckDevices(ctx context.Context) error 
 	err = s.eachDeviceUser(ctx, run, []fleet.GoogleConditionalAccessDeviceUserState{
 		fleet.GoogleConditionalAccessDeviceUserPending, fleet.GoogleConditionalAccessDeviceUserManaged,
 	}, false, func(du fleet.GoogleConditionalAccessDeviceUser) error {
-		device := googleDeviceOf(du.Name)
+		device := fleet.GoogleDeviceIDFromDeviceUserName(du.Name)
 		check, ok := checked[device]
 		if !ok {
 			found, err := run.ci.DeviceExists(ctx, device)
 			switch {
-			case conditional_access_google.IsAuthError(err):
+			case googleStopsRun(err):
 				return err
 			case conditional_access_google.IsStale(err):
 				check.staleErr = err
@@ -159,13 +159,16 @@ func (s *GoogleConditionalAccessSyncer) CheckDevices(ctx context.Context) error 
 			return nil
 		}
 		s.logger.InfoContext(ctx, "google device gone, deleting its device user", "device_user_name", du.Name)
-		return s.ds.DeleteGoogleConditionalAccessDeviceUser(ctx, du.Name, du.State, false)
+		if _, err := s.ds.DeleteGoogleConditionalAccessDeviceUser(ctx, du.Name, du.State, false); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete google device user of a gone device")
+		}
+		return nil
 	})
 	if err == nil {
-		err = s.resolveAndroidHosts(ctx, run, 0)
+		err = s.resolveAndroidHosts(ctx, run, googleAndroidFastAttempts, 0)
 	}
 	if err != nil {
-		return s.handleDelegationError(ctx, run, err)
+		return s.handleRunError(ctx, run, err)
 	}
 	return nil
 }
@@ -219,7 +222,7 @@ func (s *GoogleConditionalAccessSyncer) start(
 	if err != nil {
 		return nil, s.setDelegationFailed(ctx, integration, err)
 	}
-	run := &googleSyncRun{settings: settings, integration: integration, ci: ci}
+	run := &googleSyncRun{customerID: settings.CustomerID, integration: integration, ci: ci}
 	// One cheap call tells a broken delegation from a broken device.
 	if err := ci.CheckDelegation(ctx); err != nil {
 		if conditional_access_google.IsAuthError(err) {
@@ -233,19 +236,26 @@ func (s *GoogleConditionalAccessSyncer) start(
 			fleet.ConditionalAccessGoogleStateConnected, nil); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "set google conditional access connected")
 		}
+		integration.State = fleet.ConditionalAccessGoogleStateConnected
 	}
 	return run, nil
 }
 
-func (s *GoogleConditionalAccessSyncer) handleDelegationError(ctx context.Context, run *googleSyncRun, err error) error {
+// googleStopsRun reports whether err ends the run: Google refused the delegation, which
+// every later call would hit too, or is unavailable, which the next run retries.
+func googleStopsRun(err error) bool {
+	return conditional_access_google.IsAuthError(err) || conditional_access_google.IsUnavailable(err)
+}
+
+func (s *GoogleConditionalAccessSyncer) handleRunError(ctx context.Context, run *googleSyncRun, err error) error {
 	if conditional_access_google.IsAuthError(err) {
 		return s.setDelegationFailed(ctx, run.integration, err)
 	}
-	return err
+	return ctxerr.Wrap(ctx, err, "google conditional access run")
 }
 
-// setDelegationFailed records the failure on the integration for the admin and returns
-// it, so the run is reported as failed.
+// setDelegationFailed records the failure on the integration for the admin. The run is
+// reported as failed the first time only: the integration shows it after that.
 func (s *GoogleConditionalAccessSyncer) setDelegationFailed(ctx context.Context, integration *fleet.ConditionalAccessGoogleIntegration, cause error) error {
 	msg := "Couldn't connect to Google: " + cause.Error()
 	// Only the same registration, still connected, is changed, so an admin's concurrent
@@ -255,7 +265,37 @@ func (s *GoogleConditionalAccessSyncer) setDelegationFailed(ctx context.Context,
 		fleet.ConditionalAccessGoogleStateDelegationFailed, &msg); err != nil {
 		return ctxerr.Wrap(ctx, err, "set google conditional access delegation failed")
 	}
+	if integration.State == fleet.ConditionalAccessGoogleStateDelegationFailed {
+		s.logger.WarnContext(ctx, "google conditional access delegation still failing", "err", cause)
+		return nil
+	}
 	return ctxerr.Wrap(ctx, cause, "google conditional access delegation failed")
+}
+
+// googleNameGone reports whether the error of a write to a name means Google no longer
+// has the name for the customer. A 404 does. A 403 is also what a service account that
+// can't write gets, so it counts only when Google can't read the name's device either.
+func (s *GoogleConditionalAccessSyncer) googleNameGone(ctx context.Context, run *googleSyncRun, name string, writeErr error) (bool, error) {
+	if !conditional_access_google.IsStale(writeErr) {
+		return false, nil
+	}
+	if fleet.IsNotFound(writeErr) {
+		return true, nil
+	}
+	found, err := run.ci.DeviceExists(ctx, fleet.GoogleDeviceIDFromDeviceUserName(name))
+	switch {
+	case googleStopsRun(err):
+		return false, err
+	case conditional_access_google.IsStale(err):
+		return true, nil
+	case err != nil:
+		s.logger.WarnContext(ctx, "check google device of a refused write", "device_user_name", name, "err", err)
+		return false, nil
+	case found:
+		s.logger.WarnContext(ctx, "google refused a write on a device it lets Fleet read, check the service account's admin role",
+			"device_user_name", name, "err", writeErr)
+	}
+	return !found, nil
 }
 
 func (s *GoogleConditionalAccessSyncer) eachDeviceUser(
@@ -265,7 +305,7 @@ func (s *GoogleConditionalAccessSyncer) eachDeviceUser(
 	after := ""
 	for {
 		dus, err := s.ds.ListGoogleConditionalAccessDeviceUsers(ctx, fleet.GoogleConditionalAccessDeviceUserFilter{
-			CustomerID: run.settings.CustomerID, States: states, HostExists: hostExists, AfterName: after, Limit: googleSyncBatchSize,
+			CustomerID: run.customerID, States: states, HostExists: hostExists, AfterName: after, Limit: googleSyncBatchSize,
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list google device users")
@@ -284,22 +324,55 @@ func (s *GoogleConditionalAccessSyncer) eachDeviceUser(
 
 func (s *GoogleConditionalAccessSyncer) unmark(ctx context.Context, run *googleSyncRun) error {
 	unmanaging := fleet.GoogleConditionalAccessDeviceUserUnmanaging
+	now := s.now()
 	return s.eachDeviceUser(ctx, run, []fleet.GoogleConditionalAccessDeviceUserState{unmanaging}, false,
 		func(du fleet.GoogleConditionalAccessDeviceUser) error {
-			err := run.ci.SetClientState(ctx, du.Name, fleet.GoogleConditionalAccessDesiredClientState(du))
-			switch {
-			case conditional_access_google.IsAuthError(err):
+			if !googleUnmarkRetryDue(du, now) {
+				return nil
+			}
+			writeErr := run.ci.SetClientState(ctx, du.Name, fleet.GoogleConditionalAccessDesiredClientState(du))
+			if googleStopsRun(writeErr) {
+				return writeErr
+			}
+			// A record Google no longer has needs no unmark.
+			gone, err := s.googleNameGone(ctx, run, du.Name, writeErr)
+			if err != nil {
 				return err
-			case err != nil && !conditional_access_google.IsStale(err):
-				msg := err.Error()
+			}
+			if writeErr != nil && !gone {
+				msg := writeErr.Error()
 				if _, err := s.ds.UpdateGoogleConditionalAccessDeviceUserState(ctx, du.Name, unmanaging, unmanaging, &msg); err != nil {
 					return ctxerr.Wrap(ctx, err, "record google unmark error")
 				}
 				return nil
 			}
-			// A record Google no longer has needs no unmark.
-			return s.ds.DeleteGoogleConditionalAccessDeviceUser(ctx, du.Name, unmanaging, true)
+			deleted, err := s.ds.DeleteGoogleConditionalAccessDeviceUser(ctx, du.Name, unmanaging, true)
+			if err != nil || deleted {
+				return ctxerr.Wrap(ctx, err, "delete unmarked google device user")
+			}
+			return s.markRegisteredAgain(ctx, run, du)
 		})
+}
+
+// markRegisteredAgain marks a name its host registered again while the cron unmarked it:
+// the registration's MANAGED write may have come before the cron's UNMANAGED one. A
+// name still pending is left to the registration's own mark and to retryMarks.
+func (s *GoogleConditionalAccessSyncer) markRegisteredAgain(ctx context.Context, run *googleSyncRun, du fleet.GoogleConditionalAccessDeviceUser) error {
+	repending, err := s.ds.UpdateGoogleConditionalAccessDeviceUserState(ctx, du.Name,
+		fleet.GoogleConditionalAccessDeviceUserManaged, fleet.GoogleConditionalAccessDeviceUserPending, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "set re-registered google device user pending")
+	}
+	if !repending {
+		return nil
+	}
+	if err := markGoogleDeviceUser(ctx, s.ds, run.ci, du.Name, du.HostUUID); err != nil {
+		if googleStopsRun(err) {
+			return err
+		}
+		s.logger.WarnContext(ctx, "mark re-registered google device user", "device_user_name", du.Name, "err", err)
+	}
+	return nil
 }
 
 func (s *GoogleConditionalAccessSyncer) retryMarks(ctx context.Context, run *googleSyncRun) error {
@@ -308,18 +381,25 @@ func (s *GoogleConditionalAccessSyncer) retryMarks(ctx context.Context, run *goo
 			if !googleMarkRetryDue(du, s.now()) {
 				return nil
 			}
-			stale, err := markGoogleDeviceUser(ctx, s.ds, run.ci, du.Name, du.HostUUID)
-			switch {
-			case conditional_access_google.IsAuthError(err):
+			markErr := markGoogleDeviceUser(ctx, s.ds, run.ci, du.Name, du.HostUUID)
+			if markErr == nil {
+				return nil
+			}
+			if googleStopsRun(markErr) {
+				return markErr
+			}
+			gone, err := s.googleNameGone(ctx, run, du.Name, markErr)
+			if err != nil {
 				return err
-			case stale:
-				s.logger.InfoContext(ctx, "google refused a stored device user, the host signs in again", "device_user_name", du.Name, "err", err)
-				if _, err := s.ds.UpdateGoogleConditionalAccessDeviceUserState(ctx, du.Name,
-					fleet.GoogleConditionalAccessDeviceUserPending, fleet.GoogleConditionalAccessDeviceUserStale, new(err.Error())); err != nil {
-					return ctxerr.Wrap(ctx, err, "set google device user stale")
-				}
-			case err != nil:
-				s.logger.WarnContext(ctx, "mark google device user", "device_user_name", du.Name, "err", err)
+			}
+			if !gone {
+				s.logger.WarnContext(ctx, "mark google device user", "device_user_name", du.Name, "err", markErr)
+				return nil
+			}
+			s.logger.InfoContext(ctx, "google refused a stored device user, the host signs in again", "device_user_name", du.Name, "err", markErr)
+			if _, err := s.ds.UpdateGoogleConditionalAccessDeviceUserState(ctx, du.Name,
+				fleet.GoogleConditionalAccessDeviceUserPending, fleet.GoogleConditionalAccessDeviceUserStale, new(markErr.Error())); err != nil {
+				return ctxerr.Wrap(ctx, err, "set google device user stale")
 			}
 			return nil
 		})
@@ -328,7 +408,7 @@ func (s *GoogleConditionalAccessSyncer) retryMarks(ctx context.Context, run *goo
 // migrateBookmarkHosts stores and marks the DeviceUsers of hosts that only have a Google
 // device ID from the bookmark flow, so their users don't have to sign in again.
 func (s *GoogleConditionalAccessSyncer) migrateBookmarkHosts(ctx context.Context, run *googleSyncRun) error {
-	customerID := run.settings.CustomerID
+	customerID := run.customerID
 	now := s.now()
 	for k, retryAt := range s.bookmarkSkips {
 		if !now.Before(retryAt) {
@@ -361,17 +441,17 @@ func (s *GoogleConditionalAccessSyncer) migrateBookmarkHost(ctx context.Context,
 	// A host that can't be migrated is left to the sign-in flow.
 	skip := func() { s.bookmarkSkips[skipKey] = s.now().Add(googleBookmarkRetryDelay) }
 	names, err := run.ci.ListDeviceUserNames(ctx, h.GoogleDeviceID)
-	switch {
-	case conditional_access_google.IsAuthError(err):
+	if googleStopsRun(err) {
 		return err
-	case conditional_access_google.IsStale(err), err == nil && len(names) == 0:
+	}
+	if err != nil || len(names) == 0 {
+		if err != nil && !conditional_access_google.IsStale(err) {
+			s.logger.WarnContext(ctx, "list google device users of bookmark-era host", "host_uuid", h.HostUUID, "err", err)
+		}
 		skip()
 		return nil
-	case err != nil:
-		s.logger.DebugContext(ctx, "list google device users of bookmark-era host", "host_uuid", h.HostUUID, "err", err)
-		return nil
 	}
-	err = s.ds.RecordGoogleConditionalAccessRegistration(ctx, h.HostUUID, run.settings.CustomerID, names)
+	err = s.ds.RecordGoogleConditionalAccessRegistration(ctx, h.HostUUID, run.customerID, names)
 	if conflict, ok := errors.AsType[*fleet.GoogleConditionalAccessDeviceUserConflictError](err); ok {
 		s.logger.WarnContext(ctx, "bookmark-era google device user registered to another host",
 			"host_uuid", h.HostUUID, "device_user_name", conflict.Name)
@@ -382,8 +462,8 @@ func (s *GoogleConditionalAccessSyncer) migrateBookmarkHost(ctx context.Context,
 		return ctxerr.Wrap(ctx, err, "record bookmark-era google registration")
 	}
 	for _, name := range names {
-		if _, err := markGoogleDeviceUser(ctx, s.ds, run.ci, name, h.HostUUID); err != nil {
-			if conditional_access_google.IsAuthError(err) {
+		if err := markGoogleDeviceUser(ctx, s.ds, run.ci, name, h.HostUUID); err != nil {
+			if googleStopsRun(err) {
 				return err
 			}
 			s.logger.WarnContext(ctx, "mark bookmark-era google device user", "device_user_name", name, "err", err)
@@ -394,9 +474,10 @@ func (s *GoogleConditionalAccessSyncer) migrateBookmarkHost(ctx context.Context,
 
 // resolveAndroidHosts registers company-owned Android hosts without a sign-in: the
 // Android Management API device ID Fleet stores for them is the deviceId of their record
-// in Google. A maxAttempts above 0 leaves out the hosts that failed that many times.
-func (s *GoogleConditionalAccessSyncer) resolveAndroidHosts(ctx context.Context, run *googleSyncRun, maxAttempts int) error {
-	hosts, err := s.ds.ListGoogleConditionalAccessUnresolvedAndroidHosts(ctx, run.settings.CustomerID, maxAttempts, googleSyncBatchSize)
+// in Google. It takes the hosts that failed at least minAttempts times and, when
+// maxAttempts is above 0, fewer than maxAttempts times.
+func (s *GoogleConditionalAccessSyncer) resolveAndroidHosts(ctx context.Context, run *googleSyncRun, minAttempts, maxAttempts int) error {
+	hosts, err := s.ds.ListGoogleConditionalAccessUnresolvedAndroidHosts(ctx, run.customerID, minAttempts, maxAttempts, googleSyncBatchSize)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list unresolved android google hosts")
 	}
@@ -409,7 +490,7 @@ func (s *GoogleConditionalAccessSyncer) resolveAndroidHosts(ctx context.Context,
 }
 
 func (s *GoogleConditionalAccessSyncer) resolveAndroidHost(ctx context.Context, run *googleSyncRun, h fleet.GoogleConditionalAccessAndroidHost) error {
-	customerID := run.settings.CustomerID
+	customerID := run.customerID
 	// Google creates the record when the managed account first checks in, which can be
 	// after the enrollment, so a host that can't be registered is counted and tried again.
 	countAttempt := func() error {
@@ -420,13 +501,13 @@ func (s *GoogleConditionalAccessSyncer) resolveAndroidHost(ctx context.Context, 
 	}
 
 	deviceIDs, err := run.ci.FindDeviceIDs(ctx, h.AndroidDeviceID)
-	if conditional_access_google.IsAuthError(err) {
+	if googleStopsRun(err) {
 		return err
 	}
 	var names []string
 	for _, deviceID := range deviceIDs {
 		deviceNames, listErr := run.ci.ListDeviceUserNames(ctx, deviceID)
-		if conditional_access_google.IsAuthError(listErr) {
+		if googleStopsRun(listErr) {
 			return listErr
 		}
 		// A record deleted since the search has no names to add.
@@ -437,13 +518,17 @@ func (s *GoogleConditionalAccessSyncer) resolveAndroidHost(ctx context.Context, 
 		names = append(names, deviceNames...)
 	}
 	if err != nil {
-		s.logger.DebugContext(ctx, "find google device users of android host", "host_uuid", h.HostUUID, "err", err)
+		s.logger.WarnContext(ctx, "find google device users of android host", "host_uuid", h.HostUUID, "err", err)
 		return countAttempt()
 	}
 	if names = dedupeDeviceUserNames(names); len(names) == 0 {
 		return countAttempt()
 	}
 
+	previousID, err := s.ds.GetHostGoogleDeviceID(ctx, h.HostUUID, customerID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get android host's google device id")
+	}
 	err = s.ds.RecordGoogleConditionalAccessRegistration(ctx, h.HostUUID, customerID, names)
 	if conflict, ok := errors.AsType[*fleet.GoogleConditionalAccessDeviceUserConflictError](err); ok {
 		s.logger.WarnContext(ctx, "android host's google device user registered to another host",
@@ -453,11 +538,11 @@ func (s *GoogleConditionalAccessSyncer) resolveAndroidHost(ctx context.Context, 
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "record android google registration")
 	}
-	s.logAndroidRegistration(ctx, h, customerID)
+	s.logAndroidRegistration(ctx, h, customerID, previousID)
 
 	for _, name := range names {
-		if _, err := markGoogleDeviceUser(ctx, s.ds, run.ci, name, h.HostUUID); err != nil {
-			if conditional_access_google.IsAuthError(err) {
+		if err := markGoogleDeviceUser(ctx, s.ds, run.ci, name, h.HostUUID); err != nil {
+			if googleStopsRun(err) {
 				return err
 			}
 			s.logger.WarnContext(ctx, "mark android host's google device user", "device_user_name", name, "err", err)
@@ -466,17 +551,21 @@ func (s *GoogleConditionalAccessSyncer) resolveAndroidHost(ctx context.Context, 
 	return nil
 }
 
-// logAndroidRegistration logs the activity of a registration. A failure doesn't stop the
-// marking, which is what lets the host in.
-func (s *GoogleConditionalAccessSyncer) logAndroidRegistration(ctx context.Context, h fleet.GoogleConditionalAccessAndroidHost, customerID string) {
-	host, err := s.ds.HostLite(ctx, h.HostID)
-	if err != nil {
-		s.logger.ErrorContext(ctx, "get android host for google registration activity", "host_uuid", h.HostUUID, "err", err)
-		return
-	}
+// logAndroidRegistration logs the activity of a registration that changed the host's
+// Google device ID: a host whose names went stale is registered again on the same device.
+// A failure doesn't stop the marking, which is what lets the host in.
+func (s *GoogleConditionalAccessSyncer) logAndroidRegistration(ctx context.Context, h fleet.GoogleConditionalAccessAndroidHost, customerID, previousID string) {
 	googleDeviceID, err := s.ds.GetHostGoogleDeviceID(ctx, h.HostUUID, customerID)
 	if err != nil {
 		s.logger.ErrorContext(ctx, "get android host's google device id", "host_uuid", h.HostUUID, "err", err)
+		return
+	}
+	if googleDeviceID == previousID {
+		return
+	}
+	host, err := s.ds.HostLite(ctx, h.HostID)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "get android host for google registration activity", "host_uuid", h.HostUUID, "err", err)
 		return
 	}
 	if err := s.newActivity(ctx, nil, fleet.ActivityTypeSetHostGoogleDeviceID{
@@ -540,7 +629,8 @@ func googleMarkRetryDue(du fleet.GoogleConditionalAccessDeviceUser, now time.Tim
 	return now.Sub(du.UpdatedAt) >= wait
 }
 
-func googleDeviceOf(deviceUserName string) string {
-	device, _, _ := strings.Cut(strings.TrimPrefix(deviceUserName, "devices/"), "/")
-	return device
+// googleUnmarkRetryDue reports whether the cron should unmark a queued name: at once,
+// and after a failure with the backoff of a failed mark.
+func googleUnmarkRetryDue(du fleet.GoogleConditionalAccessDeviceUser, now time.Time) bool {
+	return du.ErrorMessage == nil || googleMarkRetryDue(du, now)
 }

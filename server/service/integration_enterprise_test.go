@@ -566,9 +566,11 @@ type mockedGoogleConditionalAccessClient struct {
 
 // googleDeviceMock is the device side of the mock: the DeviceUsers in Google.
 type googleDeviceMock struct {
-	managed     []string            // "name hostUUID" per successful SetManaged
-	markErrs    map[string]error    // by DeviceUser name
-	unmarkErrs  map[string]error    // by DeviceUser name
+	managed    []string         // "name hostUUID" per successful SetManaged
+	markErrs   map[string]error // by DeviceUser name
+	unmarkErrs map[string]error // by DeviceUser name
+	// onUnmark runs inside each successful UNMANAGED write, under the mock's lock.
+	onUnmark    func(name string)
 	deviceUsers map[string][]string // DeviceUser names by device ID
 	goneDevices map[string]bool     // by device ID
 	leftDevices map[string]bool     // by device ID, no longer in the customer's Workspace
@@ -606,6 +608,12 @@ type googleAuthError struct{}
 
 func (googleAuthError) Error() string     { return "unauthorized_client: Client is unauthorized" }
 func (googleAuthError) IsAuthError() bool { return true }
+
+// googleUnavailableError is Google failing on its side, such as a 503 or a 429.
+type googleUnavailableError struct{}
+
+func (googleUnavailableError) Error() string       { return "Google returned HTTP 503" }
+func (googleUnavailableError) IsUnavailable() bool { return true }
 
 func (m *mockedGoogleConditionalAccessClient) Register(_ context.Context, serverURL, customerID string) (*conditional_access_google.Registration, error) {
 	m.mu.Lock()
@@ -661,6 +669,9 @@ func (c *mockedGoogleCloudIdentity) SetClientState(_ context.Context, name strin
 			return err
 		}
 		c.m.unmanaged = append(c.m.unmanaged, name)
+		if c.m.dev.onUnmark != nil {
+			c.m.dev.onUnmark(name)
+		}
 		return nil
 	}
 	if err := c.m.dev.markErrs[name]; err != nil {

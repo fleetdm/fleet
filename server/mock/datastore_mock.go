@@ -2490,11 +2490,11 @@ type QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFunc func(ctx context.Co
 
 type ListGoogleConditionalAccessDeviceUsersFunc func(ctx context.Context, filter fleet.GoogleConditionalAccessDeviceUserFilter) ([]fleet.GoogleConditionalAccessDeviceUser, error)
 
-type DeleteGoogleConditionalAccessDeviceUserFunc func(ctx context.Context, name string, state fleet.GoogleConditionalAccessDeviceUserState, deleteEmptyDevice bool) error
+type DeleteGoogleConditionalAccessDeviceUserFunc func(ctx context.Context, name string, state fleet.GoogleConditionalAccessDeviceUserState, deleteEmptyDevice bool) (bool, error)
 
 type ListGoogleConditionalAccessBookmarkHostsFunc func(ctx context.Context, customerID string, afterHostID uint, limit int) ([]fleet.GoogleConditionalAccessBookmarkHost, error)
 
-type ListGoogleConditionalAccessUnresolvedAndroidHostsFunc func(ctx context.Context, customerID string, maxAttempts int, limit int) ([]fleet.GoogleConditionalAccessAndroidHost, error)
+type ListGoogleConditionalAccessUnresolvedAndroidHostsFunc func(ctx context.Context, customerID string, minAttempts int, maxAttempts int, limit int) ([]fleet.GoogleConditionalAccessAndroidHost, error)
 
 type CountGoogleConditionalAccessResolutionAttemptFunc func(ctx context.Context, hostUUID string, customerID string) error
 
@@ -15359,7 +15359,7 @@ func (s *DataStore) ListGoogleConditionalAccessDeviceUsers(ctx context.Context, 
 	return s.ListGoogleConditionalAccessDeviceUsersFunc(ctx, filter)
 }
 
-func (s *DataStore) DeleteGoogleConditionalAccessDeviceUser(ctx context.Context, name string, state fleet.GoogleConditionalAccessDeviceUserState, deleteEmptyDevice bool) error {
+func (s *DataStore) DeleteGoogleConditionalAccessDeviceUser(ctx context.Context, name string, state fleet.GoogleConditionalAccessDeviceUserState, deleteEmptyDevice bool) (bool, error) {
 	s.mu.Lock()
 	s.DeleteGoogleConditionalAccessDeviceUserFuncInvoked = true
 	s.mu.Unlock()
@@ -15373,11 +15373,11 @@ func (s *DataStore) ListGoogleConditionalAccessBookmarkHosts(ctx context.Context
 	return s.ListGoogleConditionalAccessBookmarkHostsFunc(ctx, customerID, afterHostID, limit)
 }
 
-func (s *DataStore) ListGoogleConditionalAccessUnresolvedAndroidHosts(ctx context.Context, customerID string, maxAttempts int, limit int) ([]fleet.GoogleConditionalAccessAndroidHost, error) {
+func (s *DataStore) ListGoogleConditionalAccessUnresolvedAndroidHosts(ctx context.Context, customerID string, minAttempts int, maxAttempts int, limit int) ([]fleet.GoogleConditionalAccessAndroidHost, error) {
 	s.mu.Lock()
 	s.ListGoogleConditionalAccessUnresolvedAndroidHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListGoogleConditionalAccessUnresolvedAndroidHostsFunc(ctx, customerID, maxAttempts, limit)
+	return s.ListGoogleConditionalAccessUnresolvedAndroidHostsFunc(ctx, customerID, minAttempts, maxAttempts, limit)
 }
 
 func (s *DataStore) CountGoogleConditionalAccessResolutionAttempt(ctx context.Context, hostUUID string, customerID string) error {
