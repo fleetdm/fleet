@@ -181,6 +181,7 @@ import CamoStudio from "./png/CamoStudio.png";
 import Camtasia from "./png/Camtasia.png";
 import CamundaModeler from "./png/CamundaModeler.png";
 import Canva from "./png/Canva.png";
+import Cap from "./png/Cap.png";
 import CapCut from "./png/CapCut.png";
 import Captain from "./png/Captain.png";
 import Capto from "./png/Capto.png";
@@ -1339,6 +1340,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   camtasia: Camtasia,
   "camunda modeler": CamundaModeler,
   canva: Canva,
+  cap: Cap,
   capcut: CapCut,
   captain: Captain,
   capto: Capto,
