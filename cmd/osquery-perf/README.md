@@ -86,6 +86,13 @@ the same `--seed` reports what it would have reported anyway. `0` keeps the inve
 `*_uninstall_prob` flags are ignored in this mode. The embedded fixtures, the template software
 and the common and unique software don't churn.
 
+### Realistic hosts preset
+
+`--host_behavior realistic` turns on the host behavior below with the values the load tests use
+(see `infrastructure/loadtesting/terraform/osquery_perf/README.md`). Flags you pass yourself
+override it. It leaves host counts, OS templates, MDM and offline hosts (`--stale_prob`,
+`--online_fraction`) to you. Without it, osquery-perf behaves as before.
+
 ### Inventory size, releases and app launches
 
 These need `--software_churn_per_day`.

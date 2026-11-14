@@ -1,8 +1,10 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math"
+	"os"
 	"slices"
 	"testing"
 	"time"
@@ -634,4 +636,35 @@ func TestMacLastOpenedParses(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 50, opened)
+}
+
+func TestApplyHostBehavior(t *testing.T) {
+	newFlags := func() *flag.FlagSet {
+		fs := flag.NewFlagSet("osquery-perf", flag.ContinueOnError)
+		for _, v := range hostBehaviorPresets["realistic"] {
+			fs.String(v[0], "default", "")
+		}
+		return fs
+	}
+
+	fs := newFlags()
+	require.NoError(t, fs.Parse([]string{"--label_match_prob", "0.5"}))
+	require.NoError(t, applyHostBehavior(fs, "realistic"))
+	assert.Equal(t, "0.5", fs.Lookup("label_match_prob").Value.String(), "an explicit flag wins")
+	assert.Equal(t, "large", fs.Lookup("software_inventory").Value.String())
+	assert.Equal(t, "0.04", fs.Lookup("policy_flip_per_day").Value.String())
+
+	fs = newFlags()
+	require.NoError(t, applyHostBehavior(fs, ""))
+	assert.Equal(t, "default", fs.Lookup("software_inventory").Value.String())
+	require.Error(t, applyHostBehavior(fs, "nope"))
+
+	// Every preset flag is one osquery-perf defines.
+	src, err := os.ReadFile("agent.go")
+	require.NoError(t, err)
+	for name, values := range hostBehaviorPresets {
+		for _, v := range values {
+			assert.Regexp(t, `flag\.[A-Za-z0-9]+\("`+v[0]+`",`, string(src), "%s preset: --%s", name, v[0])
+		}
+	}
 }

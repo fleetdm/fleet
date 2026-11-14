@@ -3219,6 +3219,49 @@ func (a *agent) withReleases(rows []map[string]string, now time.Time) []map[stri
 	return rows
 }
 
+// hostBehaviorPresets are the --host_behavior presets: flag values that make simulated hosts
+// behave like a real fleet, worse than typical but each still seen in real fleets.
+var hostBehaviorPresets = map[string][][2]string{
+	"realistic": {
+		{"orbit_prob", "1.0"},
+		{"policy_pass_prob", "0.9"},
+		{"policy_flip_per_day", "0.04"},
+		{"label_match_prob", "0.1"},
+		{"common_user_count", "4"},
+		{"unique_user_count", "4"},
+		{"software_churn_per_day", "0.05"},
+		{"software_inventory", "large"},
+		{"software_release_days", "90"},
+		{"software_query_fail_prob", "0.05"},
+		{"last_opened_change_prob", "0.025"},
+		{"host_cert_count", "50"},
+		{"cert_churn_per_day", "0.02"},
+		{"software_installer_permafail_prob", "0.10"},
+	},
+}
+
+// applyHostBehavior sets the preset's flags on fs, except those passed explicitly.
+func applyHostBehavior(fs *flag.FlagSet, preset string) error {
+	if preset == "" {
+		return nil
+	}
+	values, ok := hostBehaviorPresets[preset]
+	if !ok {
+		return fmt.Errorf("unknown --host_behavior %q", preset)
+	}
+	explicit := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) { explicit[f.Name] = true })
+	for _, v := range values {
+		if explicit[v[0]] {
+			continue
+		}
+		if err := fs.Set(v[0], v[1]); err != nil {
+			return fmt.Errorf("--host_behavior %s: setting --%s: %w", preset, v[0], err)
+		}
+	}
+	return nil
+}
+
 // windowsDirName strips the characters a Windows directory name can't hold.
 var windowsDirName = strings.NewReplacer(`\`, "", "/", "", ":", "", "*", "", "?", "", `"`, "", "<", "", ">", "", "|", "")
 
@@ -5286,7 +5329,7 @@ func main() {
 		// list of vulnerable software.  Use -1 to load all vulnerable software.
 		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet.  Use -1 to load all vulnerable software.")
 		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 50, "Number of applications that may report a last opened timestamp to fleet")
-		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.5, "Probability of last opened timestamp to be reported as changed [0, 1]")
+		lastOpenedChangeProb        = flag.Float64("last_opened_change_prob", 0.025, "Probability of last opened timestamp to be reported as changed [0, 1]")
 		commonUserCount             = flag.Int("common_user_count", 10, "Number of common host users reported to fleet")
 		uniqueUserCount             = flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 		policyPassProb              = flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
@@ -5330,6 +5373,8 @@ func main() {
 		disableScriptExec  = flag.Bool("disable_script_exec", false, "Disable script execution support")
 		scriptExecFailProb = flag.Float64("script_exec_fail_prob", 0.5, "Probability of a script execution exiting with code 1 [0, 1]")
 
+		hostBehavior = flag.String("host_behavior", "",
+			"Preset of host behavior flags: \"realistic\" sets the suggested values from the load-test docs (policy flips, label membership, software churn, inventory sizes, releases, certificates and more). Flags passed explicitly win; host counts, OS templates, MDM and offline hosts stay separate")
 		softwareInventory = flag.String("software_inventory", "",
 			"Software inventory sizes: empty keeps each platform's fixed range; \"large\" gives every host software DB items in a long-tailed spread (macOS ~685 on average including ~100 npm packages, Windows ~400, Ubuntu ~2,900). \"large\" needs --software_churn_per_day")
 		hostCertCount = flag.Int("host_cert_count", -1,
@@ -5365,6 +5410,9 @@ func main() {
 	)
 
 	flag.Parse()
+	if err := applyHostBehavior(flag.CommandLine, *hostBehavior); err != nil {
+		log.Fatal(err)
+	}
 	rand.Seed(*randSeed)
 
 	seedSet := false

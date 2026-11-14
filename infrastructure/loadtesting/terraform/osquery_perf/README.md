@@ -46,7 +46,7 @@ These options make simulated hosts behave more like a real fleet. All of them ar
 
 **Stable host identities.** Set the workflow's `stable_host_identities` input (or `-var=stable_host_identities=true`) to run each container as its own ECS service with its own `--seed`. A container that ECS replaces, or that you redeploy with a new osquery-perf build or new flags, comes back as the same hosts instead of enrolling new ones. Pass `--http_message_signature_prob 0` with it: hosts that sign their requests can't re-enroll after a restart. MDM hosts re-enroll after a restart, so Fleet resends their profiles.
 
-**Host behavior flags.** Add these to `extra_flags`. The suggested values are deliberately worse than a typical fleet, but each one still happens in real fleets.
+**Host behavior flags.** Add these to `extra_flags`. The suggested values are deliberately worse than a typical fleet, but each one still happens in real fleets. `--host_behavior realistic` sets all of them except `--stale_prob` and `--online_fraction`, which change how many hosts load Fleet. A flag you pass yourself overrides the preset.
 
 | Flag | Default | Suggested | What it does |
 |---|---|---|---|
@@ -55,14 +55,14 @@ These options make simulated hosts behave more like a real fleet. All of them ar
 | `--policy_sticky` | off | on | Each host decides once per policy (passing with `--policy_pass_prob`) instead of re-rolling on every report. |
 | `--policy_flip_per_day` | `0` | `0.04` | Share of each host's policy results that change a day, at the same pass rate. Implies `--policy_sticky`. Real fleets flip about 2%, and each flip can trigger a policy automation. |
 | `--label_match_prob` | `1` | `0.1` | Share of custom labels each host belongs to, decided once per host and label. At `1`, every host is in every label. |
-| `--stale_prob` | `0` | `0.3` | Share of hosts that enroll, report once and then never check in again, like the machines a real fleet stops hearing from. |
-| `--online_fraction` | `1` | `0.73` | Share of each day the other hosts check in, in one window per host that starts at its own time of day. With `--stale_prob 0.3`, about half the hosts are online at once. MDM Macs answer a push that came while they were offline once they're back. |
+| `--stale_prob` | `0` | `0.1` | Share of hosts that enroll, report once and then never check in again, like the machines a real fleet stops hearing from. |
+| `--online_fraction` | `1` | `0.93` | Share of each day the other hosts check in, in one window per host that starts at its own time of day. MDM Macs answer a push that came while they were offline once they're back. |
 | `--common_user_count`, `--unique_user_count` | `10`, `10` | `4`, `4` | Users per host. Real hosts have 2–6. |
 | `--software_churn_per_day` | off (`-1`) | `0.05` | Keeps each host's software inventory stable and replaces this share of it a day, across restarts too. `0.05` is a developer-heavy fleet: weekly Homebrew upgrades and auto-updating apps and browser extensions. Off, about a third of Windows and Ubuntu reports replace the whole inventory. |
 | `--software_inventory` | each platform's fixed range | `large` | Long-tailed inventory sizes: Macs about 685 items on average (90th percentile about 1,200, up to about 4,200), about 100 of them npm packages; Windows about 400 (up to about 1,800); Ubuntu about 2,900. Needs `--software_churn_per_day`. |
 | `--software_release_days` | off (`0`) | `90` | Gives each software item a new version about every 90 days, at the same time for the whole fleet. Hosts install it within `--software_rollout_days` (default `7`). At 5,000 hosts that's a few thousand new versions a day. |
 | `--software_query_fail_prob` | `0.5` | `0.05` | Share of software reports that fail. Fleet skips failed reports, so the default halves software ingestion. |
-| `--last_opened_change_prob` | `0.5` | `0.025` | Chance that each of a host's 50 tracked apps was opened since its last report: about 25 apps a day per host. With `--software_churn_per_day`, Windows hosts report app launches too. |
+| `--last_opened_change_prob` | `0.025` | default | Chance that each of a host's 50 tracked apps was opened since its last report: about 25 apps a day per host. With `--software_churn_per_day`, Windows hosts report app launches too. |
 | `--host_cert_count` | off (`-1`) | `50` | Average number of certificates each host has of its own, on top of the 10 every host shares. They stay the same across restarts. Off, each host has 0–10, redrawn on restart. |
 | `--cert_churn_per_day` | `0` | `0.02` | Share of those certificates renewed a day. |
 | `--software_installer_permafail_prob` | `0` | `0.10` | Share of hosts whose software installs always fail, like a package that can't install on part of the fleet. Exercises Fleet's install retry limit. |
@@ -71,15 +71,10 @@ These options make simulated hosts behave more like a real fleet. All of them ar
 Example `extra_flags`:
 
 ```
-["--orbit_prob", "1.0", "--http_message_signature_prob", "0",
- "--policy_pass_prob", "0.9", "--policy_flip_per_day", "0.04", "--label_match_prob", "0.1",
- "--stale_prob", "0.3", "--online_fraction", "0.73", "--common_user_count", "4", "--unique_user_count", "4",
- "--software_churn_per_day", "0.05", "--software_inventory", "large", "--software_release_days", "90",
- "--software_query_fail_prob", "0.05", "--last_opened_change_prob", "0.025",
- "--host_cert_count", "50", "--cert_churn_per_day", "0.02", "--software_installer_permafail_prob", "0.10"]
+["--http_message_signature_prob", "0", "--host_behavior", "realistic", "--stale_prob", "0.1", "--online_fraction", "0.93"]
 ```
 
-Stale and offline hosts cut the load to about what half the hosts would make. To load Fleet with every host, leave `--stale_prob` and `--online_fraction` at their defaults.
+Offline hosts barely add requests, so enroll them on top of the hosts you want online. With `--stale_prob 0.1` and `--online_fraction 0.93`, about 83% of the hosts are online at once: 6,000 hosts load Fleet like 5,000. A real fleet is closer to half (`0.3` and `0.73`).
 
 MDM Macs also report declaration (DDM) status and escrow FileVault keys that Fleet can decrypt. These don't need a flag.
 
