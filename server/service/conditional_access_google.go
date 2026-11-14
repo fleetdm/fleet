@@ -121,6 +121,10 @@ func (svc *Service) applyGoogleConditionalAccessSettings(
 	if err := svc.verifyGoogleConditionalAccess(ctx, settings, key, "service_account_key"); err != nil {
 		return err
 	}
+	// From here fleetdm.com and the stored state change together, so a client that
+	// disconnects must not stop it halfway: a registration whose secret isn't saved can't
+	// be removed.
+	ctx = context.WithoutCancel(ctx)
 	wasRegistered := existing.Registered()
 	registeredCustomerID := googleConditionalAccessCustomerID(current)
 	leftCustomer := wasRegistered && registeredCustomerID != settings.CustomerID
@@ -336,6 +340,10 @@ func (svc *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
 	if !active && !keyStored && current == nil {
 		return &fleet.BadRequestError{Message: "integration not found"}
 	}
+
+	// A client that disconnects must not stop the removal halfway, which would leave
+	// Fleet with a registration fleetdm.com no longer has.
+	ctx = context.WithoutCancel(ctx)
 
 	// fleetdm.com goes first, so a failure changes nothing and frees the customer for
 	// another server right away. Nothing is unmarked in Google, and the device rows are
