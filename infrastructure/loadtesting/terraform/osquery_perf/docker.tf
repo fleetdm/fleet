@@ -35,7 +35,7 @@ resource "docker_registry_image" "loadtest" {
 }
 
 resource "docker_image" "loadtest" {
-  name         = "${resource.aws_ecr_repository.loadtest.repository_url}:loadtest-${local.loadtest_tag}"
+  name         = "${resource.aws_ecr_repository.loadtest.repository_url}:loadtest-${local.image_tag}"
   keep_locally = true
   force_remove = true
   build {
