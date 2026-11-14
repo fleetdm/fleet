@@ -485,7 +485,7 @@
             <div purpose="island">
               <div purpose="island-header">
                 <p purpose="island-title">Identity</p>
-                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Entra</span></p>
+                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Entra</span><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="Microsoft Entra ID (P1, P2), Entra ID Governance, Entra Verified ID, and Defender for Identity">+ 3 more</a></p>
               </div>
               <div purpose="island-content">
                 <p purpose="island-label">You keep:</p>
@@ -502,7 +502,7 @@
             <div purpose="island">
               <div purpose="island-header">
                 <p purpose="island-title">Endpoint protection</p>
-                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Defender</span></p>
+                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Defender</span><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="Microsoft Defender (P1, P2, XDR) and Purview Endpoint DLP">+ 1 more</a></p>
               </div>
               <div purpose="island-content">
                 <p purpose="island-label">You keep:</p>
@@ -519,7 +519,15 @@
             <div purpose="island">
               <div purpose="island-header">
                 <p purpose="island-title">Device management</p>
-                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Intune</span></p>
+                <!--
+                  why include Agent 365 here?  Technically, Fleet nor any other MDM covers the Gemini-esque integrations and features of Agent 365.
+                  But that's clear from context, since this is the device management section.
+                  The other aspects of Agent 365 are covered by other products, such as Google, or can be kept in Microsoft, no bundle required!
+                  Rather than making this harder to read and trying to add all that complexity, we keep it simple.
+                  Besides, this sort of psychological backflipping and meaningless debate is how Microsoft succeeded at scaling this pricing and bundling in the first place.
+                  Let's keep things simple and direct.
+                -->
+                <p purpose="island-microsoft-product"><img alt="" src="/images/logo-microsoft-16x16.svg"><span>Microsoft Intune</span><a purpose="tooltip" data-toggle="tooltip" tabindex="0" data-placement="top" title="Microsoft Intune (Plan 1, Plan 2, Suite), Windows Autopatch, Enterprise App Management, and Agent 365">+ 3 more</a></p>
               </div>
               <div purpose="island-content">
                 <p purpose="island-label">Switch to:</p>
@@ -549,7 +557,7 @@
             </div>
           </div>
           <div purpose="islands-footer">
-            <p><strong>Prefer Entra or Defender?</strong> Fleet works great with both, and fully supports Autopilot and Microsoft conditional access.</p>
+            <p><strong>Prefer Microsoft?</strong> Fleet works great with Entra, Defender, Teams, and Copilot, and fully supports Autopilot and Microsoft conditional access.</p>
             <animated-arrow-button href="/guides/windows-zero-touch-without-entra-or-autopilot">Learn about zero touch, $0</animated-arrow-button>
           </div>
         </div>

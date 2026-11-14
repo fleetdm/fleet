@@ -61,7 +61,7 @@ parasails.registerPage('homepage', {
     this.animateTicker('bottom-cta-ticker-option');
     $('[data-toggle="tooltip"]').tooltip({
       container: '#homepage',
-      trigger: 'hover',
+      trigger: 'hover focus',
     });
     // If every testimonial already fits, skip the veil and the "Show more" button.
     let masonry = this.$el.querySelector('[purpose="testimonials-masonry"]');
@@ -140,7 +140,7 @@ parasails.registerPage('homepage', {
       await setTimeout(()=>{
         $('[data-toggle="tooltip"]').tooltip({
           container: '#homepage',
-          trigger: 'hover',
+          trigger: 'hover focus',
         });
       }, 250);
     },
