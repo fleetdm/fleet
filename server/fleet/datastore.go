@@ -1817,26 +1817,6 @@ type Datastore interface {
 	// only if the command corresponds to a VPP software (un)install for the specified host (else error notFound)
 	GetVPPCommandResults(ctx context.Context, commandUUID string, hostUUID string) ([]*MDMCommandResult, error)
 
-	// NewMDMAppleInstaller creates and stores an Apple installer to Fleet.
-	NewMDMAppleInstaller(ctx context.Context, name string, size int64, manifest string, installer []byte, urlToken string) (*MDMAppleInstaller, error)
-
-	// MDMAppleInstaller returns the installer with its contents included (MDMAppleInstaller.Installer) from its token.
-	MDMAppleInstaller(ctx context.Context, token string) (*MDMAppleInstaller, error)
-
-	// MDMAppleInstallerDetailsByID returns the installer details of an installer, all fields except its content,
-	// (MDMAppleInstaller.Installer is nil).
-	MDMAppleInstallerDetailsByID(ctx context.Context, id uint) (*MDMAppleInstaller, error)
-
-	// DeleteMDMAppleInstaller deletes an installer.
-	DeleteMDMAppleInstaller(ctx context.Context, id uint) error
-
-	// MDMAppleInstallerDetailsByToken loads the installer details, all fields except its content,
-	// (MDMAppleInstaller.Installer is nil) from its secret token.
-	MDMAppleInstallerDetailsByToken(ctx context.Context, token string) (*MDMAppleInstaller, error)
-
-	// ListMDMAppleInstallers list all the uploaded installers.
-	ListMDMAppleInstallers(ctx context.Context) ([]MDMAppleInstaller, error)
-
 	// MDMAppleListDevices lists all the MDM enrolled devices.
 	MDMAppleListDevices(ctx context.Context) ([]MDMAppleDevice, error)
 

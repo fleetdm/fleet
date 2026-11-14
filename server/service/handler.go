@@ -688,13 +688,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.POST("/api/_version_/fleet/enrollment_profiles/automatic/rotate_token", rotateMDMAppleAutomaticEnrollmentTokenEndpoint, rotateMDMAppleAutomaticEnrollmentTokenRequest{})
 	mdmAppleMW.DELETE("/api/_version_/fleet/enrollment_profiles/automatic", deleteMDMAppleSetupAssistantEndpoint, deleteMDMAppleSetupAssistantRequest{})
 
-	// TODO: are those undocumented endpoints still needed? I think they were only used
-	// by 'fleetctl apple-mdm' sub-commands.
-	// Generous limit for these unknown old unused endpoints-
-	mdmAppleMW.WithRequestBodySizeLimit(512*units.MiB).POST("/api/_version_/fleet/mdm/apple/installers", uploadAppleInstallerEndpoint, uploadAppleInstallerRequest{})
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/installers/{installer_id:[0-9]+}", getAppleInstallerEndpoint, getAppleInstallerDetailsRequest{})
-	mdmAppleMW.DELETE("/api/_version_/fleet/mdm/apple/installers/{installer_id:[0-9]+}", deleteAppleInstallerEndpoint, deleteAppleInstallerDetailsRequest{})
-	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/installers", listMDMAppleInstallersEndpoint, listMDMAppleInstallersRequest{})
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple/devices", listMDMAppleDevicesEndpoint, listMDMAppleDevicesRequest{})
 
 	// Deprecated: GET /enrollment_profiles/manual is deprecated and will be removed in a future major release.
@@ -1018,8 +1011,6 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	neAppleMDM.GET(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
 	neAppleMDM.POST(apple_mdm.EnrollPath, mdmAppleEnrollEndpoint, mdmAppleEnrollRequest{})
 
-	neAppleMDM.GET(apple_mdm.InstallerPath, mdmAppleGetInstallerEndpoint, mdmAppleGetInstallerRequest{})
-	neAppleMDM.HEAD(apple_mdm.InstallerPath, mdmAppleHeadInstallerEndpoint, mdmAppleHeadInstallerRequest{})
 	neAppleMDM.POST("/api/_version_/fleet/ota_enrollment", mdmAppleOTAEndpoint, mdmAppleOTARequest{})
 
 	// Deprecated: GET /mdm/bootstrap is replaced by GET /bootstrap. Fleet no longer sends hosts this URL, but it stays for hosts that
