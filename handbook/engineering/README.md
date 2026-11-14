@@ -540,9 +540,9 @@ Please see [Confirm latest versions of dependencies](https://fleetdm.com/handboo
 
 Please see [Indicate your product group is release-ready](https://fleetdm.com/handbook/engineering/releases#indicate-your-product-group-is-release-ready).
 
-##### Submit test coverage requests to QA Wolf
+##### Request Playwright test coverage
 
-Please see [Submit test coverage requests to QA Wolf](https://fleetdm.com/handbook/engineering/releases#submit-test-coverage-requests-to-qa-wolf).
+Please see [Request Playwright test coverage](https://fleetdm.com/handbook/engineering/releases#request-playwright-test-coverage).
 
 ##### Prepare Fleet release
 
