@@ -170,14 +170,16 @@ func (m *Manager) setComposeState(id, state string, userStopped, stamp bool) {
 func (m *Manager) dockerComposeDownFor(id string) error {
 	m.stateMu.Lock()
 	var cwd, project string
-	if info := m.procs[id]; info != nil {
-		cwd = info.Cwd
+	// The run being stopped: Start makes a new ProcInfo for each run, so it
+	// identifies the run even after its lifecycle entry is gone. Compose down
+	// takes a while, and id can be started again (and even finish) meanwhile.
+	run := m.procs[id]
+	if run != nil {
+		cwd = run.Cwd
 	}
 	if a, ok := m.lastArgs[id]; ok {
 		project = composeProjectFromArgs(a.Args)
 	}
-	// The run being stopped; compose down takes a while, and id can be started
-	// again meanwhile.
 	lc := m.lifecycles[id]
 	m.stateMu.Unlock()
 	if cwd == "" {
@@ -203,9 +205,8 @@ func (m *Manager) dockerComposeDownFor(id string) error {
 		final = "done"
 	}
 	m.stateMu.Lock()
-	// A newer run owns id now: leave its state and pid alone. (No entry is
-	// fine: the run being stopped may simply have exited on its own.)
-	if cur := m.lifecycles[id]; cur != nil && cur != lc {
+	// A newer run owns id now: leave its state and pid alone.
+	if m.procs[id] != run {
 		m.stateMu.Unlock()
 		if lc != nil {
 			m.finishLifecycle(id, lc)
