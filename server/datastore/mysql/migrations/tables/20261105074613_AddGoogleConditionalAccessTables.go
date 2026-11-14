@@ -10,9 +10,9 @@ func init() {
 }
 
 func Up_20261105074613(tx *sql.Tx) error {
-	// The per-server secret and OAuth client ID fleetdm.com issued on registration and the
-	// connection state. The customer ID and admin email live in the app config only. A
-	// single global row, pinned to id 1 so concurrent saves upsert the same row.
+	// The per-server secret fleetdm.com issued on registration and the connection state.
+	// The customer ID and admin email live in the app config only. A single global row,
+	// pinned to id 1 so concurrent saves upsert the same row.
 	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS google_conditional_access_integrations (
 			id                  INT UNSIGNED NOT NULL DEFAULT 1,
