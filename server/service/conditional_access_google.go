@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"reflect"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -112,7 +113,7 @@ func (svc *Service) applyGoogleConditionalAccessSettings(
 	}
 	// A registration is always for the customer the config names.
 	current := appConfig.Integrations.GoogleConditionalAccess
-	keyChanged := !bytes.Equal(storedKey, key)
+	keyChanged := !sameGoogleServiceAccountKey(storedKey, key)
 	changed := keyChanged || current == nil || *current != settings
 	if !changed && existing != nil && existing.State == fleet.ConditionalAccessGoogleStateConnected {
 		return nil
@@ -138,11 +139,8 @@ func (svc *Service) applyGoogleConditionalAccessSettings(
 	// Saved before registering, so a failed registration is retried by the next config
 	// update.
 	if keyChanged {
-		if err := svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{{
-			Name:  fleet.MDMAssetGoogleConditionalAccessServiceAccountKey,
-			Value: key,
-		}}, nil); err != nil {
-			return ctxerr.Wrap(ctx, err, "store google conditional access service account key")
+		if err := svc.storeGoogleConditionalAccessKey(ctx, key); err != nil {
+			return err
 		}
 	}
 	if err := svc.saveGoogleConditionalAccessSettings(ctx, appConfig, settings); err != nil {
@@ -150,17 +148,17 @@ func (svc *Service) applyGoogleConditionalAccessSettings(
 	}
 	if err := svc.registerGoogleConditionalAccess(ctx, appConfig.ServerSettings.ServerURL, settings, existing, registeredCustomerID); err != nil {
 		if leftCustomer {
-			// The previous registration is gone and nothing replaced it; the retry logs the
-			// addition.
-			deleted := fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}
-			if actErr := svc.NewActivity(ctx, authz.UserFromContext(ctx), deleted); actErr != nil {
-				svc.logger.ErrorContext(ctx, "create activity for deletion of google conditional access integration", "err", actErr)
-			}
+			svc.newGoogleConditionalAccessLeftActivity(ctx)
 		}
 		return err
 	}
-	// The first successful registration logs the addition, and a change to a registered
-	// integration logs one edit, even when it replaced the registration.
+	return svc.newGoogleConditionalAccessConnectedActivity(ctx, wasRegistered, changed)
+}
+
+// newGoogleConditionalAccessConnectedActivity logs the addition on the first successful
+// registration, and one edit for a change to a registered integration, even when the
+// change replaced the registration.
+func (svc *Service) newGoogleConditionalAccessConnectedActivity(ctx context.Context, wasRegistered, changed bool) error {
 	var activity fleet.ActivityDetails
 	switch {
 	case !wasRegistered:
@@ -174,6 +172,16 @@ func (svc *Service) applyGoogleConditionalAccessSettings(
 		return ctxerr.Wrapf(ctx, err, "create activity %s", activity.ActivityName())
 	}
 	return nil
+}
+
+// newGoogleConditionalAccessLeftActivity logs the deletion when a customer change dropped
+// the previous registration and the new one failed, so nothing replaced it; the retry logs
+// the addition. Its own failure is only logged: the caller returns the registration error.
+func (svc *Service) newGoogleConditionalAccessLeftActivity(ctx context.Context) {
+	deleted := fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), deleted); err != nil {
+		svc.logger.ErrorContext(ctx, "create activity for deletion of google conditional access integration", "err", err)
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -345,30 +353,14 @@ func (svc *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
 	// Fleet with a registration fleetdm.com no longer has.
 	ctx = context.WithoutCancel(ctx)
 
-	// fleetdm.com goes first, so a failure changes nothing and frees the customer for
-	// another server right away. Nothing is unmarked in Google, and the device rows are
-	// kept for a re-add for the same customer. The setting is cleared last, so a failed
-	// DELETE can be retried.
-	registered := existing.Registered()
-	if registered {
-		if err := svc.deleteGoogleConditionalAccessRegistration(ctx, appConfig.ServerSettings.ServerURL,
-			googleConditionalAccessCustomerID(current), googleConditionalAccessSecret(existing)); err != nil {
-			return err
-		}
-	}
-	if active {
-		if err := svc.saveGoogleConditionalAccessRow(ctx, nil, fleet.ConditionalAccessGoogleStateDeleted, nil); err != nil {
-			return err
-		}
-		if registered {
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}); err != nil {
-				return ctxerr.Wrap(ctx, err, "create activity for deletion of google conditional access integration")
-			}
-		}
+	// The setting is cleared last, so a failed DELETE can be retried.
+	if err := svc.removeGoogleConditionalAccess(ctx, appConfig.ServerSettings.ServerURL,
+		googleConditionalAccessCustomerID(current), existing); err != nil {
+		return err
 	}
 	if keyStored {
-		if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete google conditional access service account key")
+		if err := svc.deleteGoogleConditionalAccessKey(ctx); err != nil {
+			return err
 		}
 	}
 	if current != nil {
@@ -378,6 +370,253 @@ func (svc *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// removeGoogleConditionalAccess drops customerID's fleetdm.com registration first, so a
+// failure changes nothing and the customer is free for another server right away, then
+// marks the row deleted. Nothing is unmarked in Google, and the device rows are kept for a
+// re-add for the same customer.
+func (svc *Service) removeGoogleConditionalAccess(
+	ctx context.Context, serverURL, customerID string, existing *fleet.ConditionalAccessGoogleIntegration,
+) error {
+	if existing == nil || existing.State == fleet.ConditionalAccessGoogleStateDeleted {
+		return nil
+	}
+	registered := existing.Registered()
+	if registered {
+		if err := svc.deleteGoogleConditionalAccessRegistration(ctx, serverURL, customerID, existing.ProxyServerSecret); err != nil {
+			return err
+		}
+	}
+	if err := svc.saveGoogleConditionalAccessRow(ctx, nil, fleet.ConditionalAccessGoogleStateDeleted, nil); err != nil {
+		return err
+	}
+	if registered {
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for deletion of google conditional access integration")
+		}
+	}
+	return nil
+}
+
+type googleConditionalAccessAction int
+
+const (
+	googleConditionalAccessNoop googleConditionalAccessAction = iota
+	googleConditionalAccessConnect
+	googleConditionalAccessRemove
+)
+
+// googleConditionalAccessPlan is the work an app config update implies for the
+// integration, decided before the dry-run return so the delegation check can run in
+// a dry run too.
+type googleConditionalAccessPlan struct {
+	action   googleConditionalAccessAction
+	settings fleet.GoogleConditionalAccessIntegration
+	existing *fleet.ConditionalAccessGoogleIntegration
+	key      []byte
+	// storeKey is set when key came with the update and replaces the stored key.
+	storeKey bool
+	// oldCustomerID and oldServerURL are the config's before the update, which an existing
+	// registration was made with, so they are used to leave or remove it. serverURL is the
+	// server URL after the update, used to register.
+	oldCustomerID string
+	oldServerURL  string
+	serverURL     string
+	// leftCustomer is set once a customer change has dropped the previous registration.
+	leftCustomer bool
+	// retry is set when the settings didn't change and a previous connection didn't
+	// complete. A retry never fails the config update: its error is recorded as the
+	// integration's error message instead, except for a Google outage, which skips the retry.
+	retry       bool
+	retryReason string
+}
+
+// planGoogleConditionalAccess compares the desired settings with the config's and the
+// connection state, so a GitOps run that resends the same settings makes no Google or
+// fleetdm.com call. Only an update that carries the Google settings (requested) is
+// planned, so an unrelated config change never reads the integration or depends on Google
+// or fleetdm.com being reachable. Nil settings mean the integration is off, and nothing is
+// read when it is off before and after the update.
+func (svc *Service) planGoogleConditionalAccess(
+	ctx context.Context, oldSettings, settings *fleet.GoogleConditionalAccessIntegration, requested bool,
+	newKey []byte, oldServerURL, serverURL string,
+) (*googleConditionalAccessPlan, error) {
+	if !requested || (oldSettings == nil && settings == nil) {
+		return nil, nil
+	}
+	if svc.googleConditionalAccess == nil {
+		return nil, ctxerr.New(ctx, "google conditional access client is not configured")
+	}
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	existing, err := svc.googleConditionalAccessIntegration(ctx)
+	if err != nil {
+		return nil, err
+	}
+	plan := &googleConditionalAccessPlan{
+		existing: existing, oldCustomerID: googleConditionalAccessCustomerID(oldSettings),
+		oldServerURL: oldServerURL, serverURL: serverURL,
+	}
+
+	if settings == nil {
+		plan.action = googleConditionalAccessRemove
+		return plan, nil
+	}
+	plan.settings = *settings
+
+	connected := googleConditionalAccessConnected(existing, oldSettings, *settings)
+	if newKey == nil && connected {
+		return plan, nil
+	}
+	key, err := svc.googleConditionalAccessKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if newKey != nil {
+		if sameGoogleServiceAccountKey(key, newKey) {
+			if connected {
+				return plan, nil
+			}
+		} else {
+			plan.action = googleConditionalAccessConnect
+			plan.key = newKey
+			plan.storeKey = true
+			return plan, nil
+		}
+	}
+	if len(key) == 0 {
+		// Removing the integration deletes its key, so adding it back needs a key too.
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("integrations.google_conditional_access.api_key_json",
+			"api_key_json is required because no service account key is stored"))
+	}
+	plan.action = googleConditionalAccessConnect
+	plan.key = key
+	plan.retry = oldSettings != nil && *oldSettings == *settings
+	return plan, nil
+}
+
+func (svc *Service) verifyGoogleConditionalAccessPlan(ctx context.Context, plan *googleConditionalAccessPlan) error {
+	if plan == nil || plan.action != googleConditionalAccessConnect {
+		return nil
+	}
+	if plan.retry {
+		err := svc.checkGoogleDelegation(ctx, plan.settings, plan.key)
+		if _, outage := errors.AsType[*fleet.GatewayError](err); outage {
+			// An outage says nothing about the connection, so its state is kept and the next
+			// update retries.
+			svc.logger.WarnContext(ctx, "skip google conditional access retry", "err", err)
+			plan.action = googleConditionalAccessNoop
+		} else if err != nil {
+			plan.retryReason = err.Error()
+		}
+		return nil
+	}
+	return svc.verifyGoogleConditionalAccess(ctx, plan.settings, plan.key, "integrations.google_conditional_access")
+}
+
+// applyGoogleConditionalAccessPlan does the part of the plan that must come before the
+// app config is saved, so a failure leaves the config unchanged: leaving a changed or
+// removed customer on fleetdm.com, and storing a new key. The removed integration's key
+// is deleted by finishGoogleConditionalAccessPlan, so a failed save doesn't need a new
+// key upload to add it back.
+func (svc *Service) applyGoogleConditionalAccessPlan(ctx context.Context, plan *googleConditionalAccessPlan) error {
+	if plan == nil {
+		return nil
+	}
+	// As in the endpoints, a client that disconnects must not stop a change on fleetdm.com
+	// before Fleet has recorded it.
+	ctx = ctxdb.RequirePrimary(context.WithoutCancel(ctx), true)
+	switch plan.action {
+	case googleConditionalAccessRemove:
+		return svc.removeGoogleConditionalAccess(ctx, plan.oldServerURL, plan.oldCustomerID, plan.existing)
+	case googleConditionalAccessConnect:
+		if plan.retry {
+			return nil
+		}
+		if err := svc.leaveChangedGoogleConditionalAccessCustomer(ctx, plan); err != nil {
+			return err
+		}
+		if plan.storeKey {
+			// Stored before registering, so a failed registration is retried with this key.
+			return svc.storeGoogleConditionalAccessKey(ctx, plan.key)
+		}
+	}
+	return nil
+}
+
+// finishGoogleConditionalAccessPlan does the rest of the plan once the app config holds
+// the new settings: a failed registration is recorded against the settings the config
+// shows, and a removed integration's key is deleted only once the config says it is off.
+func (svc *Service) finishGoogleConditionalAccessPlan(ctx context.Context, plan *googleConditionalAccessPlan) error {
+	if plan == nil {
+		return nil
+	}
+	// As in the endpoints, a client that disconnects must not stop a registration from
+	// being saved, or dropped if the save fails.
+	ctx = ctxdb.RequirePrimary(context.WithoutCancel(ctx), true)
+	switch plan.action {
+	case googleConditionalAccessRemove:
+		return svc.deleteGoogleConditionalAccessKey(ctx)
+	case googleConditionalAccessConnect:
+	default:
+		return nil
+	}
+	wasRegistered := plan.leftCustomer || plan.existing.Registered()
+	if !plan.retry {
+		if err := svc.registerGoogleConditionalAccess(ctx, plan.serverURL, plan.settings, plan.existing, plan.oldCustomerID); err != nil {
+			if plan.leftCustomer {
+				svc.newGoogleConditionalAccessLeftActivity(ctx)
+			}
+			return err
+		}
+		return svc.newGoogleConditionalAccessConnectedActivity(ctx, wasRegistered, true)
+	}
+
+	// A retry has the same customer as before, so there is no customer to leave.
+	if plan.retryReason != "" {
+		return svc.saveGoogleConditionalAccessRow(ctx, plan.existing,
+			fleet.ConditionalAccessGoogleStateDelegationFailed, &plan.retryReason)
+	}
+	err := svc.registerGoogleConditionalAccess(ctx, plan.serverURL, plan.settings, plan.existing, plan.oldCustomerID)
+	if err == nil {
+		err = svc.newGoogleConditionalAccessConnectedActivity(ctx, wasRegistered, false)
+	}
+	if err != nil {
+		svc.logger.ErrorContext(ctx, "retry google conditional access connection", "err", err)
+	}
+	return nil
+}
+
+// leaveChangedGoogleConditionalAccessCustomer leaves the previous customer when the
+// customer ID changed.
+func (svc *Service) leaveChangedGoogleConditionalAccessCustomer(ctx context.Context, plan *googleConditionalAccessPlan) error {
+	if !plan.existing.Registered() || plan.oldCustomerID == plan.settings.CustomerID {
+		return nil
+	}
+	if err := svc.leaveGoogleConditionalAccessCustomer(ctx, plan.oldServerURL, plan.oldCustomerID,
+		googleConditionalAccessSecret(plan.existing)); err != nil {
+		return err
+	}
+	plan.existing = nil
+	plan.leftCustomer = true
+	return nil
+}
+
+// takeGoogleConditionalAccessKey clears the key from the settings, since it is stored in
+// mdm_config_assets and never with the app config, and returns it when one was given.
+func (svc *Service) takeGoogleConditionalAccessKey(gca *fleet.GoogleConditionalAccessIntegration, invalid *fleet.InvalidArgumentError) []byte {
+	if gca == nil {
+		return nil
+	}
+	key := gca.APIKeyJSON
+	gca.APIKeyJSON = ""
+	if !key.Provided() {
+		return nil
+	}
+	if svc.config.Server.PrivateKey == "" || testSetEmptyPrivateKey {
+		invalid.Append("integrations.google_conditional_access.api_key_json", missingServerPrivateKeyMessage)
+	}
+	return []byte(key)
 }
 
 // GoogleConditionalAccessClient holds the fleetdm.com relay and the Cloud Identity
@@ -398,6 +637,16 @@ func NewGoogleConditionalAccessClient(relayURI string, logger *slog.Logger) *Goo
 		Relay:         conditional_access_google.NewRelay(relayURI, opts...),
 		CloudIdentity: conditional_access_google.NewCloudIdentityFactory(logger),
 	}
+}
+
+// googleConditionalAccessConnected reports whether the integration is connected with
+// settings, given the settings currently in the config.
+func googleConditionalAccessConnected(
+	existing *fleet.ConditionalAccessGoogleIntegration, current *fleet.GoogleConditionalAccessIntegration,
+	settings fleet.GoogleConditionalAccessIntegration,
+) bool {
+	return existing != nil && existing.State == fleet.ConditionalAccessGoogleStateConnected &&
+		current != nil && *current == settings
 }
 
 func googleConditionalAccessSecret(existing *fleet.ConditionalAccessGoogleIntegration) string {
@@ -582,4 +831,31 @@ func (svc *Service) googleConditionalAccessKey(ctx context.Context) ([]byte, err
 		return nil, ctxerr.Wrap(ctx, err, "load google conditional access service account key")
 	}
 	return assets[fleet.MDMAssetGoogleConditionalAccessServiceAccountKey].Value, nil
+}
+
+func (svc *Service) storeGoogleConditionalAccessKey(ctx context.Context, key []byte) error {
+	if err := svc.ds.ReplaceMDMConfigAssets(ctx, []fleet.MDMConfigAsset{{
+		Name:  fleet.MDMAssetGoogleConditionalAccessServiceAccountKey,
+		Value: key,
+	}}, nil); err != nil {
+		return ctxerr.Wrap(ctx, err, "store google conditional access service account key")
+	}
+	return nil
+}
+
+func (svc *Service) deleteGoogleConditionalAccessKey(ctx context.Context) error {
+	if err := svc.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete google conditional access service account key")
+	}
+	return nil
+}
+
+// sameGoogleServiceAccountKey compares the keys as JSON, so a GitOps run that resends the
+// stored key with different formatting changes nothing.
+func sameGoogleServiceAccountKey(a, b []byte) bool {
+	var av, bv map[string]any
+	if json.Unmarshal(a, &av) != nil || json.Unmarshal(b, &bv) != nil {
+		return bytes.Equal(a, b)
+	}
+	return reflect.DeepEqual(av, bv)
 }

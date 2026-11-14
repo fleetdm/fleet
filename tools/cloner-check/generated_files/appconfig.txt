@@ -122,6 +122,7 @@ github.com/fleetdm/fleet/v4/server/fleet/GoogleWorkspaceIntegration	ApiKey	fleet
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	GoogleConditionalAccess	*fleet.GoogleConditionalAccessIntegration
 github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	CustomerID	string
 github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	AdminEmail	string
+github.com/fleetdm/fleet/v4/server/fleet/GoogleConditionalAccessIntegration	APIKeyJSON	fleet.GoogleServiceAccountKey	string
 github.com/fleetdm/fleet/v4/server/fleet/Integrations	CertificatesIdPIntrospectionURLs	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
@@ -274,5 +275,9 @@ github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAssertion
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaAudienceURI	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	OktaCertificate	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	BypassDisabled	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessSettings	Google	*fleet.ConditionalAccessGoogleStatus
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessGoogleStatus	ServiceAccountKeyConfigured	bool
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessGoogleStatus	State	fleet.ConditionalAccessGoogleState	string
+github.com/fleetdm/fleet/v4/server/fleet/ConditionalAccessGoogleStatus	ErrorMessage	*string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	strictDecoding	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	didUnmarshalLegacySettings	[]string
