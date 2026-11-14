@@ -62,7 +62,7 @@ It's tempting to give a new class of hardware its own management silo. Resist it
 
 In Fleet, that means enrolling the Spark into your existing workstations fleet and adding a dynamic label that matches its hardware model. DGX-specific policies and reports are scoped to that label, so they only grade the devices they apply to. If someone reimages a Spark onto a different OS, it stops matching the label and stops being graded against a baseline that no longer fits.
 
-Everything lives in Git. The approved kernel list, the firmware allow-list, the health policies, and the update scripts are YAML and shell files, reviewed in a pull request and deployed by CI. A new baseline is a merge. A bad baseline is a revert. When an auditor asks who approved the change and what it did on each device, the answer is the Git history plus the activity feed, not a reconstruction from memory.
+Everything lives in Git. The approved kernel list, the firmware allow-list, the health policies, and the update scripts are YAML and shell files, reviewed in a pull request and deployed by CI. A new baseline is a merge. A bad baseline is a revert. When an auditor asks who approved the change and what it did on each device, the answer is the Git history plus the activity feed, not a reconstruction from memory. Your AI tool can open those pull requests, too. Learn how to [connect your AI tool to Fleet](https://fleetdm.com/guides/connect-your-ai-tool-to-fleet).
 
 The same platform also brings vulnerability detection. Fleet matches Ubuntu packages against Canonical's OVAL data, which accounts for backported fixes. That gives a DGX Spark the CVE coverage the vendor model leaves out.
 
