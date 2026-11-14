@@ -61,6 +61,8 @@ type googleSyncRun struct {
 	customerID  string
 	integration *fleet.ConditionalAccessGoogleIntegration
 	ci          conditional_access_google.CloudIdentity
+	// delegationChecked is set once the delegation check passed in this run.
+	delegationChecked bool
 }
 
 // Sync unmarks queued names and those of unenrolled hosts, retries failed marks, migrates
@@ -179,14 +181,16 @@ func (s *GoogleConditionalAccessSyncer) start(
 		return nil, s.setDelegationFailed(ctx, integration, err)
 	}
 	run := &googleSyncRun{customerID: settings.CustomerID, integration: integration, ci: ci}
-	// One cheap call tells a broken delegation from a broken device.
-	if err := ci.CheckDelegation(ctx); err != nil {
-		if conditional_access_google.IsAuthError(err) {
-			return nil, s.setDelegationFailed(ctx, integration, err)
-		}
-		return nil, ctxerr.Wrap(ctx, err, "check google delegation")
-	}
+	// A connected integration is checked only when a device call needs the answer, so a
+	// run with nothing to do doesn't call Google. One that shows the failure is checked on
+	// every run, so it shows connected again once Google accepts it.
 	if integration.State == fleet.ConditionalAccessGoogleStateDelegationFailed {
+		if err := s.checkDelegation(ctx, run); err != nil {
+			if conditional_access_google.IsAuthError(err) {
+				return nil, s.setDelegationFailed(ctx, integration, err)
+			}
+			return nil, ctxerr.Wrap(ctx, err, "check google delegation")
+		}
 		if _, err := s.ds.SetGoogleConditionalAccessIntegrationState(ctx, integration.ProxyServerSecret,
 			[]fleet.ConditionalAccessGoogleState{fleet.ConditionalAccessGoogleStateDelegationFailed},
 			fleet.ConditionalAccessGoogleStateConnected, nil); err != nil {
@@ -195,6 +199,22 @@ func (s *GoogleConditionalAccessSyncer) start(
 		integration.State = fleet.ConditionalAccessGoogleStateConnected
 	}
 	return run, nil
+}
+
+// checkDelegation runs the delegation check at most once per run. Besides recovering a
+// failed integration, it decides what a 403 naming a device means: Google answers that
+// for a device that left the Workspace, but also for every device once the impersonated
+// admin loses its device privileges. Its error is an auth error or an outage, both of
+// which end the run.
+func (s *GoogleConditionalAccessSyncer) checkDelegation(ctx context.Context, run *googleSyncRun) error {
+	if run.delegationChecked {
+		return nil
+	}
+	if err := run.ci.CheckDelegation(ctx); err != nil {
+		return err
+	}
+	run.delegationChecked = true
+	return nil
 }
 
 // googleStopsRun reports whether err ends the run: Google refused the delegation, which
@@ -265,6 +285,9 @@ func (s *GoogleConditionalAccessSyncer) googleNameGone(ctx context.Context, run 
 	case googleStopsRun(err):
 		return false, err
 	case conditional_access_google.IsStale(err):
+		if err := s.checkDelegation(ctx, run); err != nil {
+			return false, err
+		}
 		return true, nil
 	case err != nil:
 		s.logger.WarnContext(ctx, "check google device of a refused write", "device_user_name", name, "err", err)
@@ -427,6 +450,11 @@ func (s *GoogleConditionalAccessSyncer) migrateBookmarkHost(ctx context.Context,
 	names, err := run.ci.ListDeviceUserNames(ctx, h.GoogleDeviceID)
 	if googleStopsRun(err) {
 		return err
+	}
+	if conditional_access_google.IsStale(err) && !fleet.IsNotFound(err) {
+		if err := s.checkDelegation(ctx, run); err != nil {
+			return err
+		}
 	}
 	if err != nil || len(names) == 0 {
 		if err != nil && !conditional_access_google.IsStale(err) {

@@ -666,51 +666,77 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDelegationFa
 	g := s.newGoogleDeviceTest()
 	g.connectIntegration()
 
-	// A refused delegation fails the run and is shown on the integration until a run
-	// succeeds again.
-	g.client.checkErr = googleAuthError{}
-	require.Error(t, g.syncer.Sync(t.Context()))
-	row, err := s.ds.GetGoogleConditionalAccessIntegration(t.Context())
-	require.NoError(t, err)
-	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, row.State)
-	require.NotNil(t, row.ErrorMessage)
-	g.client.checkErr = nil
-	g.sync()
-	row, err = s.ds.GetGoogleConditionalAccessIntegration(t.Context())
-	require.NoError(t, err)
-	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
-	require.Nil(t, row.ErrorMessage)
+	getRow := func() *fleet.ConditionalAccessGoogleIntegration {
+		row, err := s.ds.GetGoogleConditionalAccessIntegration(t.Context())
+		require.NoError(t, err)
+		return row
+	}
 
-	// A refusal in the middle of a run fails it the same way.
+	// A connected integration with nothing to do makes no Google call, so a delegation
+	// that would be refused goes unnoticed until there is work.
+	g.client.reset()
+	g.client.checkErr = googleAuthError{}
+	require.NoError(t, g.syncer.Sync(t.Context()))
+	require.NoError(t, g.syncer.RetryAndroidHosts(t.Context()))
+	checks, _, _, _ := g.client.calls()
+	require.Empty(t, checks)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, getRow().State)
+	g.client.checkErr = nil
+
+	// A refusal during the work fails the run and is shown on the integration.
 	host := g.newIOSHost("ios", true)
 	name := "devices/auth/deviceUsers/1"
 	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(g.signIn(host), name))
 	g.client.setDev(func(d *googleDeviceMock) { d.unmarkErrs = map[string]error{name: googleAuthError{}} })
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK)
 	require.Error(t, g.syncer.Sync(t.Context()))
-	row, err = s.ds.GetGoogleConditionalAccessIntegration(t.Context())
-	require.NoError(t, err)
+	row := getRow()
 	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, row.State)
+	require.NotNil(t, row.ErrorMessage)
 
-	// Once the integration shows the failure, the runs that keep failing don't report it again.
+	// While it shows the failure, each run checks the delegation first, and the runs that
+	// keep failing don't report it again.
 	g.client.checkErr = googleAuthError{}
 	require.NoError(t, g.syncer.Sync(t.Context()))
 	require.NoError(t, g.syncer.RetryAndroidHosts(t.Context()))
-	row, err = s.ds.GetGoogleConditionalAccessIntegration(t.Context())
-	require.NoError(t, err)
-	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, row.State)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, getRow().State)
+	// Once Google accepts it again the integration shows connected and the work resumes.
 	g.client.checkErr = nil
 	g.client.setDev(func(d *googleDeviceMock) { d.unmarkErrs = nil })
 	g.sync()
 	require.Empty(t, g.states(host))
+	row = getRow()
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, row.State)
+	require.Nil(t, row.ErrorMessage)
+
+	// A 403 on a write and on its device reads as the device leaving the Workspace only
+	// once the delegation check passes: an admin whose device privileges were revoked gets
+	// 403s on every device, and the names are kept.
+	revoked := g.newIOSHost("ios", true)
+	revokedName := "devices/revoked/deviceUsers/1"
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.markErrs = map[string]error{revokedName: errors.New("Google returned HTTP 500")}
+	})
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(g.signIn(revoked), revokedName))
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.markErrs = map[string]error{revokedName: googleResourceError{status: http.StatusForbidden}}
+		d.leftDevices = map[string]bool{"revoked": true}
+	})
+	g.client.checkErr = googleAuthError{}
+	g.syncer.now = func() time.Time { return time.Now().Add(2 * time.Minute) }
+	require.Error(t, g.syncer.Sync(t.Context()))
+	g.syncer.now = time.Now
+	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, getRow().State)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{revokedName: fleet.GoogleConditionalAccessDeviceUserPending}, g.states(revoked))
+	g.client.checkErr = nil
+	g.client.setDev(func(d *googleDeviceMock) { d.markErrs, d.leftDevices = nil, nil })
+	row = getRow()
 
 	// A recovered delegation doesn't connect an integration fleetdm.com never registered.
 	row.ProxyServerSecret, row.State, row.ErrorMessage = "", fleet.ConditionalAccessGoogleStateDelegationFailed, new("refused")
 	require.NoError(t, s.ds.SaveGoogleConditionalAccessIntegration(t.Context(), row))
 	g.sync()
-	row, err = s.ds.GetGoogleConditionalAccessIntegration(t.Context())
-	require.NoError(t, err)
-	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, row.State)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, getRow().State)
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleBookmarkMigration() {
