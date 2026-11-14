@@ -1,0 +1,1 @@
+- Fixed Crestron AirMedia and Crestron AirMedia Peripherals (Windows) Fleet-maintained apps failing to add with a 403 error. When a vendor's server rejects a Fleet-maintained app installer download with a 403, Fleet now retries once with a User-Agent that doesn't include the Go HTTP client token.
