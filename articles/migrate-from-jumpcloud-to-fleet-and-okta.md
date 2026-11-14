@@ -2,7 +2,7 @@
 
 Fleet is an open-source device management platform for macOS, Windows, Linux, iOS, iPadOS, Android, and Chromebooks. You can do MDM, deploy software, patch, and verify device settings from one place, and manage it all as code. Fleet doesn't include a directory or single sign-on, so you pair it with an identity provider (IdP) like Okta, which Fleet uses for sign-in during setup, user provisioning, and device checks.
 
-This guide moves the two jobs JumpCloud does for you to two tools: directory, SSO, and MFA go to Okta, and device management goes to Fleet. You'll run both side by side, move devices in batches, and retire JumpCloud last. Each step ends with a prompt you can paste into Claude to get walked through it.
+You can do this whole migration by asking Claude. This guide moves the two jobs JumpCloud does for you to two tools: directory, SSO, and MFA go to Okta, and device management goes to Fleet. You'll run both side by side, move devices in batches, and retire JumpCloud last. Each step starts with a prompt you can paste into Claude to get walked through it, followed by the details so you can check its work.
 
 ## Prerequisites
 
@@ -17,13 +17,15 @@ This guide moves the two jobs JumpCloud does for you to two tools: directory, SS
 
 ## Step 1: Stand up Okta next to JumpCloud
 
+> Ask Claude: "I'm moving from JumpCloud to Okta. Walk me through exporting my users and groups from JumpCloud, importing them into Okta, and moving my SSO apps over one at a time with a pilot group. Ask me how many users, groups, and SSO apps I have first."
+
 Create your users and groups in Okta, then add the apps your people sign in to. Move SSO apps one at a time and test each with a pilot group. Plan for users to set a new Okta password and enroll in MFA, since you can't count on carrying passwords over.
 
 <!-- TODO: verify with JumpCloud and Okta docs whether any password or MFA enrollment migration is supported. Also verify the JumpCloud features that don't have a 1:1 Okta equivalent (LDAP, RADIUS, password manager) and link to Okta's equivalents. -->
 
-> Ask Claude: "I'm moving from JumpCloud to Okta. Walk me through exporting my users and groups from JumpCloud, importing them into Okta, and moving my SSO apps over one at a time with a pilot group. Ask me how many users, groups, and SSO apps I have first."
-
 ## Step 2: Connect Fleet to Okta
+
+> Ask Claude: "Walk me through connecting Fleet to Okta. I need SSO for Fleet admins, a separate SAML app for end user authentication during device setup, and SCIM so Fleet maps Okta users to hosts. Use Fleet's setup experience and foreign vitals guides."
 
 Do these in Fleet before you move any devices:
 
@@ -33,9 +35,9 @@ Do these in Fleet before you move any devices:
 
 > **Note:** If you use Okta, give the end user authentication SAML app a sign-in policy that disallows FastPass. Otherwise enrollment can get stuck. Details are in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
 
-> Ask Claude: "Walk me through connecting Fleet to Okta. I need SSO for Fleet admins, a separate SAML app for end user authentication during device setup, and SCIM so Fleet maps Okta users to hosts. Use Fleet's setup experience and foreign vitals guides."
-
 ## Step 3: Turn on MDM for each platform
+
+> Ask Claude: "Walk me through turning on Windows, Apple, and Android MDM in Fleet. Ask which platforms I manage, then give me the steps for each, using Fleet's Windows MDM setup, Apple MDM setup, and Android MDM setup guides."
 
 Turn these on before you move any devices:
 
@@ -47,9 +49,9 @@ Turn these on before you move any devices:
 
 <!-- TODO: confirm whether an existing JumpCloud Android Enterprise binding blocks or changes the Fleet signup, and whether the Android Enterprise enterprise can be reused or must be unbound. -->
 
-> Ask Claude: "Walk me through turning on Windows, Apple, and Android MDM in Fleet. Ask which platforms I manage, then give me the steps for each, using Fleet's Windows MDM setup, Apple MDM setup, and Android MDM setup guides."
-
 ## Step 4: Move a pilot group
+
+> Ask Claude: "Here is a list of my JumpCloud policies, commands, and software. Help me translate each one into a Fleet configuration profile, script, or software package, and tell me which ones don't have a direct match. Ask me for the list first."
 
 Pick 10 to 20 devices across every OS you manage, and run steps 5 to 7 on them first. Put them in their own fleet so you can test profiles, scripts, and software before everyone gets them.
 
@@ -65,9 +67,9 @@ Move JumpCloud's work into Fleet as you go. These don't map 1:1:
 
 <!-- TODO: confirm the JumpCloud-side terms in this table (policy templates, commands, device groups) and which JumpCloud features (for example, LDAP, RADIUS, and password management) have no Fleet equivalent and move to Okta or another tool. -->
 
-> Ask Claude: "Here is a list of my JumpCloud policies, commands, and software. Help me translate each one into a Fleet configuration profile, script, or software package, and tell me which ones don't have a direct match. Ask me for the list first."
-
 ## Step 5: Move Windows devices
+
+> Ask Claude: "Walk me through moving Windows PCs from JumpCloud to Fleet. Start with the OEM path (Dell ReadyImage, Lenovo RTP, or my hardware provider's equivalent) for new PCs. Then cover migrating existing PCs and removing the JumpCloud agent. Use Fleet's Windows MDM setup guide and don't suggest Autopilot."
 
 For new PCs, skip Autopilot and Intune. You don't need Windows Autopilot, Microsoft Entra ID P1, or Intune to manage Windows hosts with Fleet. Use an OEM service such as Dell ReadyImage, Lenovo RTP, or the equivalent from your hardware provider:
 
@@ -89,9 +91,9 @@ You only need Entra ID P1 if you choose Entra automatic enrollment or Autopilot.
 <!-- TODO: verify that Fleet's automatic Windows migration applies to hosts enrolled in JumpCloud, and that Fleet can enroll PCs where JumpCloud manages local accounts. Add the JumpCloud agent uninstall command after checking JumpCloud's docs. -->
 <!-- TODO: add a note on Okta sign-in to Windows (Okta's local account provisioning for Windows is described as coming soon in the Provision Windows devices with Fleet, Okta, and a partner guide). -->
 
-> Ask Claude: "Walk me through moving Windows PCs from JumpCloud to Fleet. Start with the OEM path (Dell ReadyImage, Lenovo RTP, or my hardware provider's equivalent) for new PCs. Then cover migrating existing PCs and removing the JumpCloud agent. Use Fleet's Windows MDM setup guide and don't suggest Autopilot."
-
 ## Step 6: Move Macs, iPhones, and iPads
+
+> Ask Claude: "Walk me through moving Macs, iPhones, and iPads from JumpCloud MDM to Fleet using Apple Business and Apple's native migration on version 26. Include batching, FileVault keys, and what end users will see. Use Fleet's MDM migration guide."
 
 New Macs enroll automatically through Apple Business. For devices you already have:
 
@@ -106,9 +108,9 @@ If you use Okta Platform SSO, see [Deploying Platform SSO with Okta and Fleet](h
 
 <!-- TODO: confirm how to release devices from JumpCloud MDM (the default workflow needs the old MDM to unenroll each host) and whether JumpCloud escrows FileVault keys that can be exported. Confirm the iOS and iPadOS steps for devices enrolled in JumpCloud, and whether Okta conditional access supports Windows in the release you ship against. -->
 
-> Ask Claude: "Walk me through moving Macs, iPhones, and iPads from JumpCloud MDM to Fleet using Apple Business and Apple's native migration on version 26. Include batching, FileVault keys, and what end users will see. Use Fleet's MDM migration guide."
-
 ## Step 7: Move Android devices
+
+> Ask Claude: "Walk me through moving Android phones from JumpCloud to Fleet. Cover BYOD work profiles and company-owned devices. Use Fleet's Android MDM setup and BYOD migration guides."
 
 Android Enterprise is already on from step 3. For work profile (BYOD) devices:
 
@@ -120,9 +122,9 @@ Company-owned devices bought from an authorized reseller can use [Android zero-t
 
 <!-- TODO: confirm how to move company-owned (fully managed) Android devices that are already enrolled in JumpCloud. -->
 
-> Ask Claude: "Walk me through moving Android phones from JumpCloud to Fleet. Cover BYOD work profiles and company-owned devices. Use Fleet's Android MDM setup and BYOD migration guides."
-
 ## Step 8: Cut over and retire JumpCloud
+
+> Ask Claude: "Make a cutover and rollback plan for moving from JumpCloud to Fleet and Okta. I have devices on [Windows, macOS, iOS, Android] and [number] SSO apps. Order the batches, list what to verify after each, and tell me how to back out."
 
 Cut over in this order, one batch at a time:
 
@@ -134,8 +136,6 @@ Cut over in this order, one batch at a time:
 To roll back, keep the JumpCloud tenant and agent in place for the devices you haven't removed it from. For a device that already moved, point the app or device back at JumpCloud and re-enroll it.
 
 <!-- TODO: confirm the JumpCloud re-enrollment steps for rollback, and have a JumpCloud-knowledgeable reviewer check the cutover order for directory dependencies such as LDAP, RADIUS, and local account management. -->
-
-> Ask Claude: "Make a cutover and rollback plan for moving from JumpCloud to Fleet and Okta. I have devices on [Windows, macOS, iOS, Android] and [number] SSO apps. Order the batches, list what to verify after each, and tell me how to back out."
 
 ## Verify
 
