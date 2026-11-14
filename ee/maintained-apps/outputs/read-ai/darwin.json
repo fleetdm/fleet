@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "1.46.0",
+      "version": "1.46.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.readai.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.readai.desktop' AND version_compare(bundle_short_version, '1.46.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.readai.desktop' AND version_compare(bundle_short_version, '1.46.1') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.readai.desktop' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://desktop.read.ai/installers/darwin/aarch64/1.46.0/Read+AI_1.46.0_aarch64.dmg",
+      "installer_url": "https://desktop.read.ai/installers/darwin/aarch64/1.46.1/Read+AI_1.46.1_aarch64.dmg",
       "install_script_ref": "1ee7f2fb",
       "uninstall_script_ref": "3d8992ba",
-      "sha256": "4aa6be8430b73de16cc719ad755c0eb24f2653e4a33570c58664009d37253875",
+      "sha256": "4f71d6ec97423a5042c1887e38906a9145dec9af54eb1dcb3a74b0a6d20cf283",
       "default_categories": [
         "Productivity"
       ]

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "4.9.0",
+      "version": "4.10.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.zettlr.app';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.zettlr.app' AND version_compare(bundle_short_version, '4.9.0') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.zettlr.app' AND version_compare(bundle_short_version, '4.10.0') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.zettlr.app' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://github.com/Zettlr/Zettlr/releases/download/v4.9.0/Zettlr-4.9.0-arm64.dmg",
+      "installer_url": "https://github.com/Zettlr/Zettlr/releases/download/v4.10.0/Zettlr-4.10.0-arm64.dmg",
       "install_script_ref": "f690397e",
       "uninstall_script_ref": "072f983c",
-      "sha256": "dca807ccec54cc341df5fc495e9ce502d08b679a136118041efc8f1173de8c3c",
+      "sha256": "e20016dfa854be12f9559f10900e0a2f1e12aa0d9dac60a1ef3ab42e56d04abc",
       "default_categories": [
         "Productivity"
       ]
