@@ -32,6 +32,10 @@ resource "aws_ecr_repository" "loadtest" {
 resource "docker_registry_image" "loadtest" {
   name          = docker_image.loadtest.name
   keep_remotely = true
+  # Each run rebuilds the image under the same tag, which on its own doesn't push it.
+  triggers = {
+    image_id = docker_image.loadtest.image_id
+  }
 }
 
 resource "docker_image" "loadtest" {

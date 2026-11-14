@@ -7,8 +7,9 @@ locals {
   # Docker tags can't contain "/", which branch names often do.
   image_tag = replace(var.git_tag_branch, "/", "-")
 
-  server_url         = "http://${data.terraform_remote_state.infra.outputs.internal_alb_dns_name}"
-  osquery_perf_image = "${resource.aws_ecr_repository.loadtest.repository_url}:loadtest-${local.image_tag}"
+  server_url = "http://${data.terraform_remote_state.infra.outputs.internal_alb_dns_name}"
+  # Taken from the pushed image so tasks only (re)start once the new image is in ECR.
+  osquery_perf_image = docker_registry_image.loadtest.name
 
   # Container index => its osquery-perf --seed (index + 1).
   stable_containers = var.stable_host_identities ? {
