@@ -76,11 +76,6 @@ func (s *Server) handleCreateRegistration(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, map[string]string{"fleetServerSecret": reg.secret})
 }
 
-type secretRequest struct {
-	CustomerID string `json:"googleCustomerId"`
-	Secret     string `json:"fleetServerSecret"`
-}
-
 // registration returns a copy of the customer's registration, or nil.
 func (s *Server) registration(customerID string) *registration {
 	s.mu.Lock()
@@ -93,19 +88,18 @@ func (s *Server) registration(customerID string) *registration {
 	return &cp
 }
 
-// authenticates reports whether secret is the registration's. A nil registration has none.
-func (r *registration) authenticates(secret string) bool {
-	return r != nil && secret != "" && r.secret == secret
-}
-
 func (s *Server) handleDeleteRegistration(w http.ResponseWriter, r *http.Request) {
-	var req secretRequest
+	var req struct {
+		CustomerID string `json:"googleCustomerId"`
+		Secret     string `json:"fleetServerSecret"`
+	}
 	if err := decodeJSON(r, &req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	s.mu.Lock()
-	ok := s.registrations[req.CustomerID].authenticates(req.Secret)
+	reg := s.registrations[req.CustomerID]
+	ok := reg != nil && req.Secret != "" && reg.secret == req.Secret
 	if ok {
 		delete(s.registrations, req.CustomerID)
 	}
