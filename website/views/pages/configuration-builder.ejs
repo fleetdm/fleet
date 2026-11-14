@@ -61,7 +61,7 @@
             </div>
           </div>
           <div class="invalid-feedback" v-if="formErrors.platform">Please select an option</div>
-          <ajax-button type="submit" purpose="submit-button" class="btn btn-primary" :syncing="syncing" v-if="platformSelectFormData.platform">Create</ajax-button>
+          <ajax-button type="submit" purpose="submit-button" class="btn" :syncing="syncing" v-if="platformSelectFormData.platform">Create</ajax-button>
         </ajax-form>
       </div>
     </div>

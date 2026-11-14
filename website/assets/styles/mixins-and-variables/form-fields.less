@@ -1,0 +1,43 @@
+// Text inputs and selects come in the same two heights as primary buttons, so a field
+// and its submit button line up: normal (36px) and large (48px).
+// Use .text-input() for normal or .text-input(large).
+.text-input(@size: normal) {
+  .text-input-size-internal(@size);
+  .text-input-focus();
+}
+
+// Internal: use .text-input() instead. Only .form-control-sm in bootstrap-overrides.less calls
+// this directly, since .form-control already has the focus style.
+.text-input-size-internal(normal) {
+  height: 36px;
+  padding: 6.5px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 150%;
+  // Bootstrap's .custom-select draws its arrow in the right padding, so keep its 1.75rem there.
+  &.custom-select {
+    padding-right: 1.75rem;
+  }
+}
+
+.text-input-size-internal(large) {
+  height: 48px;
+  padding: 11px 16px;
+  border-radius: 8px;
+  font-size: 16px;
+  line-height: 150%;
+  // Bootstrap's .custom-select draws its arrow in the right padding, so keep its 1.75rem there.
+  &.custom-select {
+    padding-right: 1.75rem;
+  }
+}
+
+// Same focus treatment as .form-control (see bootstrap-overrides.less), for inputs styled
+// with the mixins above that aren't .form-control.
+.text-input-focus() {
+  &:focus {
+    border-color: @core-fleet-black;
+    outline: none;
+    box-shadow: none;
+  }
+}

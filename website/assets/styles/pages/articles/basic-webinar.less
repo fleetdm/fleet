@@ -128,13 +128,11 @@
       line-height: 150%;
     }
     input {
+      .text-input();
       display: flex;
-      height: 36px;
-      padding: 0 12px;
       align-items: center;
       gap: 8px;
       align-self: stretch;
-      border-radius: 6px;
       border: 1px solid #C5C7D1;
       background: #FFF;
     }
@@ -142,8 +140,6 @@
 
   [purpose='watch-button'] {
     display: flex;
-    height: 36px;
-    padding: 16px 12px;
     justify-content: center;
     align-items: center;
     gap: 4px;
@@ -153,10 +149,8 @@
 
     /* Body SM (bold) */
     font-family: Inter;
-    font-size: 14px;
     font-style: normal;
     font-weight: 700;
-    line-height: 150%;
     width: 100%;
   }
   [purpose='watch-cta'] {

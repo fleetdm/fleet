@@ -60,7 +60,7 @@ html, body {
   transition-duration: 500ms;
 }
 // The announcement banner (configured in config/announcement-banner.js): reeded glass, in the aqua of the domes in our cloud city art.
-// Each flute carries the same shine as our green CTA buttons (see .cta-button() in buttons.less).  Script in layout.ejs lights the
+// Each flute carries a diagonal shine.  Script in layout.ejs lights the
 // flutes: a broad shine at rest, a light that follows the cursor on hover, and the occasional glint.  On hover, the
 // glass near the cursor reflects a stretch of the cloud city.
 a[purpose='announcement-banner'] {
@@ -236,60 +236,8 @@ a[purpose='announcement-banner'] {
   }
 
   [purpose='glass-header-btn'] {
-    .cta-button();
-    height: 36px;
-    font-size: 14px;
-    line-height: 1;
-    padding: 16px 12px;
-    border-radius: 8px;
-  }
-
-  [purpose='layout-animated-arrow-button'] {
-    width: fit-content;
+    .primary-button();
     display: flex;
-    align-items: center;
-    padding: 6px 0px;
-    text-align: center;
-    font-family: Inter;
-    font-size: 15px;
-    line-height: 24px; /* 160% */
-    color: @core-fleet-black;
-    font-weight: 600;
-    text-decoration: none;
-    margin-right: 16px;
-    margin-left: 8px;
-    cursor: pointer;
-    [purpose='button-text'] {
-      color: @core-fleet-black;
-    }
-    [purpose='animated-arrow'] {
-      margin-left: 8px;
-      stroke-width: 2px;
-      height: 12px;
-      width: 12px;
-      fill: none;
-      stroke: @core-vibrant-green;
-    }
-    [purpose='arrow-line'] {
-      opacity: 0;
-      transition: opacity 10ms ease-out;
-    }
-    [purpose='chevron'] {
-      transition: transform 100ms ease-out;
-    }
-    &:hover {
-      text-decoration: none;
-      [purpose='button-text'] {
-        color: @core-fleet-black;
-      }
-      [purpose='arrow-line'] {
-        opacity: 1;
-        transition: opacity 150ms ease-out;
-      }
-      [purpose='chevron'] {
-        transform: translateX(5px);
-      }
-    }
   }
 
   [purpose='mobile-nav-toggle-btn'] {
@@ -349,9 +297,6 @@ a[purpose='announcement-banner'] {
         width: 16px;
       }
     }
-    [purpose='layout-animated-arrow-button'] {
-      margin-left: 16px;
-    }
     [purpose='mobile-dropdown-link'] {
       width: 100%;
       padding: 8px 32px 8px 0px;
@@ -403,7 +348,7 @@ a[purpose='announcement-banner'] {
         background: #FFF;
         align-items: center;
         &:focus-within {
-          border: 1px solid @core-vibrant-green;
+          border: 1px solid @core-fleet-black;
         }
       }
       [purpose='inner-search-input'] {
@@ -744,47 +689,18 @@ a[purpose='announcement-banner'] {
           line-height: 18px; /* 150% */
           margin-bottom: 8px;
         }
+        // Plain-HTML copy of <animated-arrow-button>: the header renders outside the Vue app.
         [purpose='cta-animated-arrow-button'] {
-          color: #192147;
-          text-align: center;
-          font-family: Inter;
-          font-size: 12px;
-          font-style: normal;
-          font-weight: 600;
-          line-height: 24px; /* 200% */
-
+          .secondary-button();
+          padding: 0px;
         }
       }
     }
-    [purpose='button-text'] {
-      color: @core-fleet-black;
-    }
-    [purpose='animated-arrow'] {
-      margin-left: 8px;
-      stroke-width: 2px;
-      height: 12px;
-      width: 12px;
-      fill: none;
-      stroke: @core-vibrant-green;
-    }
-    [purpose='arrow-line'] {
-      opacity: 0;
-      transition: opacity 10ms ease-out;
-    }
-    [purpose='chevron'] {
-      transition: transform 100ms ease-out;
-    }
+    // The whole card is the link, so hovering anywhere on it animates the arrow.
     &:hover {
       text-decoration: none;
-      [purpose='button-text'] {
-        color: @core-fleet-black;
-      }
-      [purpose='arrow-line'] {
-        opacity: 1;
-        transition: opacity 150ms ease-out;
-      }
-      [purpose='chevron'] {
-        transform: translateX(5px);
+      [purpose='cta-animated-arrow-button'] {
+        .secondary-button-hover();
       }
     }
   }
