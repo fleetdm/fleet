@@ -514,8 +514,9 @@ func getAvailablePolicyName(ctx context.Context, db sqlx.QueryerContext, teamID 
 func softwareInstallerTitleSelect(payload *fleet.UploadSoftwareInstallerPayload) (string, []any) {
 	switch {
 	case payload.BundleIdentifier != "":
-		// match by bundle identifier and source first, or standard matching if we don't have a bundle identifier match
-		return `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND extension_for = '') ORDER BY bundle_identifier = ? DESC LIMIT 1`,
+		// match by bundle identifier and source first, or fall back to matching by name against titles that
+		// don't have a bundle identifier yet (a title with a different bundle identifier is a different app)
+		return `SELECT id FROM software_titles WHERE (bundle_identifier = ? AND source = ?) OR (name = ? AND source = ? AND extension_for = '' AND bundle_identifier IS NULL) ORDER BY bundle_identifier = ? DESC LIMIT 1`,
 			[]any{payload.BundleIdentifier, payload.Source, payload.Title, payload.Source, payload.BundleIdentifier}
 	case payload.Source == "programs" && payload.UpgradeCode != "":
 		// select by either name or upgrade code, preferring upgrade code

@@ -3686,6 +3686,29 @@ func testGetOrGenerateSoftwareInstallerTitleID(t *testing.T, ds *Datastore) {
 			require.Equal(t, tt.expectedUpgradeCode, actual.UpgradeCode)
 		})
 	}
+
+	t.Run("same name but different bundle identifier does not reuse the other app's title", func(t *testing.T) {
+		var existingID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &existingID, `SELECT id FROM software_titles WHERE name = ? AND source = ? AND bundle_identifier = ?`,
+				"Existing Title", "apps", "existing.title")
+		})
+		require.NotZero(t, existingID)
+
+		id, err := ds.getOrGenerateSoftwareInstallerTitleID(ctx, ds.writer(ctx), &fleet.UploadSoftwareInstallerPayload{
+			Title:            "Existing Title",
+			Source:           "apps",
+			BundleIdentifier: "com.other.app",
+		})
+		require.NoError(t, err)
+		require.NotEqual(t, existingID, id)
+
+		var bundleID string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &bundleID, `SELECT bundle_identifier FROM software_titles WHERE id = ?`, id)
+		})
+		require.Equal(t, "com.other.app", bundleID)
+	})
 }
 
 func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) {
