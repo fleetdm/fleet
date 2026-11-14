@@ -29,6 +29,12 @@ func (svc *Service) CreateStagedUpload(ctx context.Context, target fleet.StagedU
 		return nil, err
 	}
 
+	if target == fleet.StagedUploadTargetBootstrapPackage {
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return nil, err
+		}
+	}
+
 	if svc.stagedUploadStore == nil {
 		return nil, &fleet.BadRequestError{Message: stagedUploadUnavailableMsg}
 	}
