@@ -401,6 +401,44 @@ func TestSetClientStateForbiddenIsStale(t *testing.T) {
 	require.False(t, IsAuthError(err))
 }
 
+func TestSetClientStateOperationResult(t *testing.T) {
+	state := fleet.GoogleConditionalAccessClientState{Managed: new(true)}
+	cases := []struct {
+		name                     string
+		body                     string
+		wantErr                  string
+		notFound, stale, authErr bool
+	}{
+		{name: "done", body: `{"done":true,"response":{"managed":"MANAGED"}}`},
+		// Without an operations service there's nothing to poll, so an unfinished write isn't an error.
+		{name: "not done", body: `{"done":false}`},
+		{name: "done with permission denied", body: `{"done":true,"error":{"code":7,"message":"Caller lacks permission"}}`,
+			wantErr: "Caller lacks permission", stale: true},
+		{name: "done with not found", body: `{"done":true,"error":{"code":5,"message":"Device user not found"}}`,
+			wantErr: "Device user not found", notFound: true, stale: true},
+		{name: "done with unauthenticated", body: `{"done":true,"error":{"code":16,"message":"Bad credentials"}}`,
+			wantErr: "Bad credentials", authErr: true},
+		{name: "done with an error and no message", body: `{"done":true,"error":{"code":13}}`,
+			wantErr: "Google operation failed with code 13"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			client, fake := newTestCloudIdentity(t)
+			fake.apiBody = c.body
+
+			err := client.SetClientState(t.Context(), "devices/dev1/deviceUsers/user1", state)
+			if c.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.EqualError(t, err, c.wantErr)
+			require.Equal(t, c.notFound, fleet.IsNotFound(err))
+			require.Equal(t, c.stale, IsStale(err))
+			require.Equal(t, c.authErr, IsAuthError(err))
+		})
+	}
+}
+
 func TestCloudIdentityTokenReusedPerClient(t *testing.T) {
 	fake, creds := newTestGoogle(t)
 
