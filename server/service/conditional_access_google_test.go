@@ -57,7 +57,10 @@ type googleCADisconnectTest struct {
 // newGoogleCADisconnectTest starts from a connected integration when customerID is set.
 func newGoogleCADisconnectTest(t *testing.T, customerID string) *googleCADisconnectTest {
 	g := &googleCADisconnectTest{}
-	appConfig := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"}}
+	appConfig := &fleet.AppConfig{
+		OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+		ServerSettings: fleet.ServerSettings{ServerURL: "https://fleet.example.com"},
+	}
 	if customerID != "" {
 		appConfig.Integrations.GoogleConditionalAccess = &fleet.GoogleConditionalAccessIntegration{
 			CustomerID: customerID, AdminEmail: "admin@example.com",
@@ -125,6 +128,9 @@ func newGoogleCADisconnectTest(t *testing.T, customerID string) *googleCADisconn
 		g.key = nil
 		return nil
 	}
+	// Every app config update reads these.
+	ds.ListVPPTokensFunc = func(context.Context) ([]*fleet.VPPTokenDB, error) { return nil, nil }
+	ds.ListABMTokensFunc = func(context.Context) ([]*fleet.ABMToken, error) { return nil, nil }
 
 	g.relay = &disconnectingGoogleCARelay{mockedGoogleConditionalAccessClient: &mockedGoogleConditionalAccessClient{}}
 	opts := &TestServerOpts{
@@ -199,6 +205,40 @@ func TestGoogleConditionalAccessClientDisconnects(t *testing.T) {
 		_, _, deregisters, _ := g.relay.calls()
 		require.Equal(t, []string{"C02cajzvg"}, deregisters)
 		require.Equal(t, []string{fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}.ActivityName()}, g.activities)
+	})
+
+	// The rest of an app config update runs on the canceled request, so these check the
+	// integration's state rather than the update's result.
+	const connectConfig = `{"integrations": {"google_conditional_access": {
+		"customer_id": "C02cajzvg", "admin_email": "admin@example.com", "api_key_json": ` + googleCATestKey + `}}}`
+
+	t.Run("a config update saves the registration", func(t *testing.T) {
+		g := newGoogleCADisconnectTest(t, "")
+		_, _ = g.svc.ModifyAppConfig(g.ctx, []byte(connectConfig), fleet.ApplySpecOptions{})
+		require.Equal(t, connected("C02cajzvg"), g.row)
+		_, registers, deregisters, _ := g.relay.calls()
+		require.Equal(t, []string{"C02cajzvg"}, registers)
+		require.Empty(t, deregisters)
+		require.Equal(t, []string{fleet.ActivityTypeAddedConditionalAccessIntegrationGoogle{}.ActivityName()}, g.activities)
+	})
+
+	t.Run("a config update drops a registration that can't be saved", func(t *testing.T) {
+		g := newGoogleCADisconnectTest(t, "")
+		g.saveSecretErr = errors.New("save failed")
+		_, err := g.svc.ModifyAppConfig(g.ctx, []byte(connectConfig), fleet.ApplySpecOptions{})
+		require.ErrorContains(t, err, "save failed")
+		_, _, deregisters, _ := g.relay.calls()
+		require.Equal(t, []string{"C02cajzvg"}, deregisters)
+		require.False(t, g.row.Registered())
+	})
+
+	t.Run("a config update doesn't keep the secret of a customer it left", func(t *testing.T) {
+		g := newGoogleCADisconnectTest(t, "C02cajzvg")
+		_, _ = g.svc.ModifyAppConfig(g.ctx, []byte(`{"integrations": {"google_conditional_access": {"customer_id": "C03other"}}}`),
+			fleet.ApplySpecOptions{})
+		_, _, deregisters, _ := g.relay.calls()
+		require.Equal(t, []string{"C02cajzvg"}, deregisters)
+		require.False(t, g.row.Registered())
 	})
 }
 

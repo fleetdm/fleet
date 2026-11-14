@@ -2775,6 +2775,15 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleAppConfig() 
 	require.Equal(t, fleet.ConditionalAccessGoogleStateRegistrationFailed, cfg.ConditionalAccess.Google.State)
 	require.Contains(t, *cfg.ConditionalAccess.Google.ErrorMessage, "still unavailable")
 	g.client.reset()
+	// A Google outage during a retry says nothing about the delegation, so the connection
+	// state is kept for the next retry.
+	g.client.checkErr = googleOutageError{}
+	patch(settings, http.StatusOK)
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)
+	cfg = g.getConfig()
+	require.Equal(t, fleet.ConditionalAccessGoogleStateRegistrationFailed, cfg.ConditionalAccess.Google.State)
+	require.Contains(t, *cfg.ConditionalAccess.Google.ErrorMessage, "still unavailable")
+	g.client.reset()
 	g.client.checkErr = errors.New("Not Authorized to access this resource/api")
 	patch(settings, http.StatusOK)
 	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)
