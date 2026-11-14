@@ -2134,7 +2134,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Contains(t, extractServerErrorText(res.Body), "private key")
 	g.requireCalls(nil, nil, nil)
 
-	// Both writes are authorized (the policy has its own test).
+	// Both writes are authorized: global admins and gitops only (the policy has its own test).
 	maintainer := &fleet.User{Name: "GCA maintainer", Email: "gca-maintainer@example.com", GlobalRole: new(fleet.RoleMaintainer)}
 	require.NoError(t, maintainer.SetPassword(test.GoodPassword, 10, 10))
 	_, err := s.ds.NewUser(ctx, maintainer)
