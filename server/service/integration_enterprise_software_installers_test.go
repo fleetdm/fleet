@@ -3733,8 +3733,10 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 
 	// check that we created an activity for the policy creation
 	wantAct := fleet.ActivityTypeCreatedPolicy{
-		ID:   respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID,
-		Name: respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].Name,
+		ID:       respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID,
+		Name:     respTitle.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].Name,
+		TeamID:   new(int64(team1.ID)), //nolint:gosec // dismiss G115
+		TeamName: &team1.Name,
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -3792,6 +3794,18 @@ func (s *integrationEnterpriseTestSuite) TestAutomaticPolicies() {
 	require.Equal(t, "[Install software] ruby (deb)", ts.Policies[1].Name)
 	require.Equal(t, "[Install software] ruby (rpm)", ts.Policies[2].Name)
 	require.Equal(t, "[Install software] Fleet osquery (msi)", ts.Policies[3].Name)
+
+	// Upload dummy_installer.pkg to "No fleet" with automatic policy.
+	s.uploadSoftwareInstaller(t, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "some pkg install script 4",
+		Filename:         "dummy_installer.pkg",
+		AutomaticInstall: true,
+	}, http.StatusOK, "")
+	ts = fleet.ListTeamPoliciesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", fleet.PolicyNoTeamID), nil, http.StatusOK, &ts)
+	require.Len(t, ts.Policies, 1)
+	s.lastActivityMatches(fleet.ActivityTypeCreatedPolicy{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id":0, "policy_id":%d, "policy_name":"[Install software] DummyApp (pkg)"}`, ts.Policies[0].ID), 0)
 }
 
 // test for #26668

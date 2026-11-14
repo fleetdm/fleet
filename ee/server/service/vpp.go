@@ -1643,10 +1643,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	}
 
 	if appID.AddAutoInstallPolicy && app.AddedAutomaticInstallPolicy != nil {
-		policyAct := fleet.ActivityTypeCreatedPolicy{
-			ID:   app.AddedAutomaticInstallPolicy.ID,
-			Name: app.AddedAutomaticInstallPolicy.Name,
-		}
+		policyAct := createdAutomaticInstallPolicyActivity(app.AddedAutomaticInstallPolicy, &teamName)
 
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), policyAct); err != nil {
 			svc.logger.WarnContext(ctx, "failed to create activity for create automatic install policy for app store app", "err", err)
