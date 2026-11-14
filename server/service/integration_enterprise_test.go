@@ -608,10 +608,12 @@ func (c *mockedGoogleCloudIdentity) CheckDelegation(_ context.Context) error {
 	return c.m.checkErr
 }
 
-func (c *mockedGoogleCloudIdentity) SetUnmanaged(_ context.Context, name string) error {
+func (c *mockedGoogleCloudIdentity) SetClientState(_ context.Context, name string, state fleet.GoogleConditionalAccessClientState) error {
 	c.m.mu.Lock()
 	defer c.m.mu.Unlock()
-	c.m.unmanaged = append(c.m.unmanaged, name)
+	if state.Managed != nil && !*state.Managed {
+		c.m.unmanaged = append(c.m.unmanaged, name)
+	}
 	return nil
 }
 

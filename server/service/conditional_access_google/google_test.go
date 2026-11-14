@@ -327,26 +327,49 @@ func TestCloudIdentityCallStopsOnCancel(t *testing.T) {
 	require.Less(t, time.Since(start), 5*time.Second)
 }
 
-func TestSetUnmanaged(t *testing.T) {
-	client, fake := newTestCloudIdentity(t)
+func TestSetClientState(t *testing.T) {
+	cases := []struct {
+		name  string
+		state fleet.GoogleConditionalAccessClientState
+		mask  string
+		body  string
+	}{
+		{"managed", fleet.GoogleConditionalAccessClientState{Managed: new(true)}, "managed", `{"managed":"MANAGED"}`},
+		{"unmanaged", fleet.GoogleConditionalAccessClientState{Managed: new(false)}, "managed", `{"managed":"UNMANAGED"}`},
+		{"managed with custom ID", fleet.GoogleConditionalAccessClientState{Managed: new(true), CustomID: new("host-uuid-1")},
+			"managed,customId", `{"managed":"MANAGED","customId":"host-uuid-1"}`},
+		{"custom ID only", fleet.GoogleConditionalAccessClientState{CustomID: new("host-uuid-1")}, "customId", `{"customId":"host-uuid-1"}`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			client, fake := newTestCloudIdentity(t)
 
-	require.NoError(t, client.SetUnmanaged(t.Context(), "devices/dev1/deviceUsers/user1"))
+			require.NoError(t, client.SetClientState(t.Context(), "devices/dev1/deviceUsers/user1", c.state))
 
-	require.Len(t, fake.requests, 1)
-	req := fake.requests[0]
-	require.Equal(t, http.MethodPatch, req.Method)
-	require.Equal(t, "/v1/devices/dev1/deviceUsers/user1/clientStates/02cajzvg-fleet", req.URL.Path)
-	require.Equal(t, "customers/02cajzvg", req.URL.Query().Get("customer"))
-	require.Equal(t, "managed", req.URL.Query().Get("updateMask"))
-	require.JSONEq(t, `{"managed":"UNMANAGED"}`, fake.bodies[0])
+			require.Len(t, fake.requests, 1)
+			req := fake.requests[0]
+			require.Equal(t, http.MethodPatch, req.Method)
+			require.Equal(t, "/v1/devices/dev1/deviceUsers/user1/clientStates/02cajzvg-fleet", req.URL.Path)
+			require.Equal(t, "customers/02cajzvg", req.URL.Query().Get("customer"))
+			require.Equal(t, c.mask, req.URL.Query().Get("updateMask"))
+			require.JSONEq(t, c.body, fake.bodies[0])
+		})
+	}
+
+	t.Run("nothing to write", func(t *testing.T) {
+		client, fake := newTestCloudIdentity(t)
+		err := client.SetClientState(t.Context(), "devices/dev1/deviceUsers/user1", fleet.GoogleConditionalAccessClientState{})
+		require.Error(t, err)
+		require.Empty(t, fake.requests)
+	})
 }
 
-func TestSetUnmanagedNotFound(t *testing.T) {
+func TestSetClientStateNotFound(t *testing.T) {
 	client, fake := newTestCloudIdentity(t)
 	fake.apiStatus = http.StatusNotFound
 	fake.apiBody = `{"error":{"code":404,"message":"Requested entity was not found.","status":"NOT_FOUND"}}`
 
-	err := client.SetUnmanaged(t.Context(), "devices/gone/deviceUsers/user1")
+	err := client.SetClientState(t.Context(), "devices/gone/deviceUsers/user1", fleet.GoogleConditionalAccessClientState{Managed: new(false)})
 	require.True(t, fleet.IsNotFound(err))
 }
 
@@ -360,7 +383,7 @@ func TestCloudIdentityTokenReusedPerClient(t *testing.T) {
 	require.Empty(t, fake.assertions)
 
 	require.NoError(t, client.CheckDelegation(t.Context()))
-	require.NoError(t, client.SetUnmanaged(t.Context(), "devices/dev1/deviceUsers/user1"))
+	require.NoError(t, client.SetClientState(t.Context(), "devices/dev1/deviceUsers/user1", fleet.GoogleConditionalAccessClientState{Managed: new(false)}))
 	// One token for both calls of the same client.
 	require.Len(t, fake.assertions, 1)
 }

@@ -4,6 +4,8 @@ package conditional_access_google
 
 import (
 	"context"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // Relay registers this server with the relay on fleetdm.com. Customer IDs include the
@@ -19,9 +21,9 @@ type Relay interface {
 type CloudIdentity interface {
 	// CheckDelegation lists one device under the customer. It proves read access only.
 	CheckDelegation(ctx context.Context) error
-	// SetUnmanaged writes UNMANAGED on Fleet's client state of a DeviceUser. It returns
-	// a fleet.IsNotFound error when Google has no such DeviceUser.
-	SetUnmanaged(ctx context.Context, deviceUserName string) error
+	// SetClientState writes the set fields of state on Fleet's client state of a
+	// DeviceUser. It returns a fleet.IsNotFound error when Google has no such DeviceUser.
+	SetClientState(ctx context.Context, deviceUserName string, state fleet.GoogleConditionalAccessClientState) error
 }
 
 // CloudIdentityFactory builds a CloudIdentity without calling Google. Build one per
