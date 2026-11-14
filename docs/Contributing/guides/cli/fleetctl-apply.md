@@ -491,7 +491,7 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
   mdm:
-    windows_enabled_and_configured: false
+    windows_mdm_enabled: false
     macos_updates:
       minimum_version: ""
       deadline: ""
