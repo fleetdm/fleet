@@ -157,7 +157,7 @@ func claimGoogleConditionalAccessDevice(ctx context.Context, tx sqlx.ExtContext,
 }
 
 func (ds *Datastore) StartGoogleConditionalAccessRegistration(
-	ctx context.Context, hostUUID, customerID string, tokenHash []byte, tokenExpiresAt time.Time,
+	ctx context.Context, hostUUID, customerID string, tokenHash []byte, tokenTTL time.Duration,
 ) (bool, error) {
 	var started bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -170,12 +170,13 @@ func (ds *Datastore) StartGoogleConditionalAccessRegistration(
 			return nil
 		}
 
+		// The token expires by the database's clock, the one that checks it when it is consumed.
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE google_conditional_access_devices
-			SET registration_token_hash = ?, registration_token_expires_at = ?,
+			SET registration_token_hash = ?, registration_token_expires_at = NOW(6) + INTERVAL ? MICROSECOND,
 				registration_attempts = IF(?, registration_attempts + 1, 1),
 				first_registration_attempt_at = IF(?, first_registration_attempt_at, NOW(6))
-			WHERE host_uuid = ?`, tokenHash, tokenExpiresAt, row.InWindow, row.InWindow, hostUUID); err != nil {
+			WHERE host_uuid = ?`, tokenHash, tokenTTL.Microseconds(), row.InWindow, row.InWindow, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "counting google conditional access registration attempt")
 		}
 		started = true

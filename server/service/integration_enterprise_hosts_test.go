@@ -1234,6 +1234,8 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	res = s.Do("PUT", idPath(byodHost), map[string]any{"google_device_id": "device-a"}, http.StatusUnprocessableEntity)
 	requireErrorReason(res, "Google device ID is only supported on company-owned hosts (MDM status: On (automatic)).")
 	require.Empty(t, storedID(byodHost))
+	res = s.Do("PUT", idPath(g.newAndroidHost(false)), map[string]any{"google_device_id": "device-a"}, http.StatusUnprocessableEntity)
+	requireErrorReason(res, "Google device ID is only supported on company-owned hosts (MDM status: On (automatic)).")
 
 	// the device must exist in Google and have users
 	res = s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-gone"}, http.StatusUnprocessableEntity)
@@ -1242,6 +1244,13 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	requireErrorReason(res, "This device has no users in Google.")
 	g.client.setDev(func(d *googleDeviceMock) { d.listErr = errors.New("Google returned HTTP 500") })
 	s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-a"}, http.StatusBadGateway)
+	// a 403 means the device left the Workspace, unless Google refuses the delegation for every device
+	g.client.setDev(func(d *googleDeviceMock) { d.listErr = googleResourceError{status: http.StatusForbidden} })
+	res = s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-a"}, http.StatusUnprocessableEntity)
+	requireErrorReason(res, "Google has no device with this ID.")
+	g.client.checkErr = errors.New("The caller does not have permission")
+	s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-a"}, http.StatusBadGateway)
+	g.client.checkErr = nil
 	g.client.setDev(func(d *googleDeviceMock) { d.listErr = nil })
 	require.Empty(t, storedID(iosHost))
 	require.Empty(t, g.states(iosHost))

@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -127,4 +128,28 @@ func TestGoogleConditionalAccessDesiredClientState(t *testing.T) {
 
 	du := GoogleConditionalAccessDeviceUser{HostUUID: "host-uuid-1", Name: "devices/d/deviceUsers/u", State: GoogleConditionalAccessDeviceUserUnmanaging}
 	require.Equal(t, GoogleConditionalAccessClientState{Managed: new(false)}, GoogleConditionalAccessDesiredClientState(du))
+}
+
+func TestValidGoogleDeviceUserName(t *testing.T) {
+	longest := "devices/" + strings.Repeat("a", 255-len("devices//deviceUsers/u")) + "/deviceUsers/u"
+	for name, want := range map[string]bool{
+		"devices/9c6ee6a9-0b5a-4d6a-8f0e-1f2b3c4d5e6f/deviceUsers/2b1a8a5e-3c4d-4e5f-9a6b-7c8d9e0f1a2b": true,
+		"devices/d/deviceUsers/u":                true,
+		longest:                                  true,
+		longest + "u":                            false,
+		"":                                       false,
+		"devices/d":                              false,
+		"devices/d/deviceUsers/":                 false,
+		"devices//deviceUsers/u":                 false,
+		"devices/-/deviceUsers/u":                false,
+		"devices/d/deviceUsers/-":                false,
+		"devices/d/deviceUsers/u/clientStates/x": false,
+		"devices/d/deviceUsers/u?x=1":            false,
+		"devices/d#/deviceUsers/u":               false,
+		"device/d/deviceUsers/u":                 false,
+		"devices/d/users/u":                      false,
+		"/devices/d/deviceUsers/u":               false,
+	} {
+		require.Equal(t, want, ValidGoogleDeviceUserName(name), "%q", name)
+	}
 }

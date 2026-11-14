@@ -231,7 +231,7 @@ func googleRegistrationAttempts(t *testing.T, ds *Datastore, hostUUID string) (u
 func testConditionalAccessGoogleRegistrationAttempts(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	const customer = "C02cajzvg"
-	expires := time.Now().Add(10 * time.Minute)
+	const expires = 10 * time.Minute
 
 	_, err := ds.GetGoogleConditionalAccessDevice(ctx, "uuid-1", customer)
 	require.True(t, fleet.IsNotFound(err))
@@ -285,7 +285,7 @@ func testConditionalAccessGoogleRegistrationAttempts(t *testing.T, ds *Datastore
 	require.Nil(t, firstAt)
 
 	// An expired token is refused.
-	ok, err = ds.StartGoogleConditionalAccessRegistration(ctx, "uuid-1", customer, googleTokenHash("t-expired"), time.Now().Add(-time.Second))
+	ok, err = ds.StartGoogleConditionalAccessRegistration(ctx, "uuid-1", customer, googleTokenHash("t-expired"), -time.Second)
 	require.NoError(t, err)
 	require.True(t, ok)
 	_, err = ds.ConsumeGoogleConditionalAccessRegistrationToken(ctx, customer, googleTokenHash("t-expired"))
@@ -313,7 +313,7 @@ func testConditionalAccessGoogleRegistrationAttempts(t *testing.T, ds *Datastore
 func testConditionalAccessGoogleConcurrentRegistrationStarts(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	const customer = "C02cajzvg"
-	expires := time.Now().Add(10 * time.Minute)
+	const expires = 10 * time.Minute
 
 	// Half the goroutines race on the same new host, the rest each create their own.
 	const n = 20
@@ -354,7 +354,7 @@ func testConditionalAccessGoogleRecordRegistration(t *testing.T, ds *Datastore) 
 	ctx := t.Context()
 	const customer = "C02cajzvg"
 
-	ok, err := ds.StartGoogleConditionalAccessRegistration(ctx, "uuid-1", customer, googleTokenHash("t1"), time.Now().Add(time.Hour))
+	ok, err := ds.StartGoogleConditionalAccessRegistration(ctx, "uuid-1", customer, googleTokenHash("t1"), time.Hour)
 	require.NoError(t, err)
 	require.True(t, ok)
 
@@ -387,7 +387,7 @@ func testConditionalAccessGoogleRecordRegistration(t *testing.T, ds *Datastore) 
 	require.True(t, dev.Managed())
 
 	// A name stored on another host is refused and nothing is written.
-	ok, err = ds.StartGoogleConditionalAccessRegistration(ctx, "uuid-2", customer, googleTokenHash("t2"), time.Now().Add(time.Hour))
+	ok, err = ds.StartGoogleConditionalAccessRegistration(ctx, "uuid-2", customer, googleTokenHash("t2"), time.Hour)
 	require.NoError(t, err)
 	require.True(t, ok)
 	err = ds.RecordGoogleConditionalAccessRegistration(ctx, "uuid-2", customer, []string{"devices/d2/deviceUsers/a", "devices/d1/deviceUsers/b"})
@@ -618,7 +618,7 @@ func testConditionalAccessGoogleDeleteHosts(t *testing.T, ds *Datastore) {
 	registered := newTestHostWithPlatform(t, ds, "registered", "ios", nil)
 	register(registered)
 	unregistered := newTestHostWithPlatform(t, ds, "unregistered", "ipados", nil)
-	ok, err := ds.StartGoogleConditionalAccessRegistration(ctx, unregistered.UUID, customer, googleTokenHash("t1"), time.Now().Add(time.Hour))
+	ok, err := ds.StartGoogleConditionalAccessRegistration(ctx, unregistered.UUID, customer, googleTokenHash("t1"), time.Hour)
 	require.NoError(t, err)
 	require.True(t, ok)
 	stale := newTestHostWithPlatform(t, ds, "stale", "android", nil)
@@ -755,7 +755,7 @@ func testConditionalAccessGoogleDeviceID(t *testing.T, ds *Datastore) {
 
 	// A migrated row keeps its ID when the host's first status call claims it for the
 	// customer, and a row left by another customer doesn't.
-	expires := time.Now().Add(time.Hour)
+	const expires = time.Hour
 	ok, err = ds.StartGoogleConditionalAccessRegistration(ctx, "uuid-migrated", customer, googleTokenHash("t1"), expires)
 	require.NoError(t, err)
 	require.True(t, ok)

@@ -571,6 +571,7 @@ type googleDeviceMock struct {
 	deviceUsers map[string][]string // DeviceUser names by device ID
 	goneDevices map[string]bool     // by device ID
 	listErr     error
+	signInErr   error
 }
 
 // googleResourceError is Google's 404 on a device or DeviceUser it no longer has, or its
@@ -587,6 +588,9 @@ func (e googleResourceError) IsNotFound() bool { return e.status == http.StatusN
 func (googleResourceError) IsStale() bool      { return true }
 
 func (m *mockedGoogleConditionalAccessClient) SignInURL(customerID, hostUUID, token string) (string, error) {
+	if err := m.devCalls().signInErr; err != nil {
+		return "", err
+	}
 	return conditional_access_google.NewRelay("https://fleetdm.example.com").SignInURL(customerID, hostUUID, token)
 }
 

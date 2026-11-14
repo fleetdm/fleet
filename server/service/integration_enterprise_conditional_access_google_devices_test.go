@@ -103,10 +103,16 @@ func (g *googleDeviceTest) signIn(host *fleet.Host) string {
 }
 
 func (g *googleDeviceTest) register(secret string, reg fleet.GoogleConditionalAccessRegistration, wantStatus int) fleet.GoogleConditionalAccessRegisterResult {
+	return g.registerWithAuthorization("Bearer "+secret, reg, wantStatus)
+}
+
+func (g *googleDeviceTest) registerWithAuthorization(
+	authorization string, reg fleet.GoogleConditionalAccessRegistration, wantStatus int,
+) fleet.GoogleConditionalAccessRegisterResult {
 	body, err := json.Marshal(reg)
 	require.NoError(g.t, err)
 	res := g.s.DoRawWithHeaders("POST", "/api/latest/fleet/google_conditional_access/register", body, wantStatus,
-		map[string]string{"Authorization": "Bearer " + secret})
+		map[string]string{"Authorization": authorization})
 	var resp struct {
 		Result fleet.GoogleConditionalAccessRegisterResult `json:"result"`
 	}
@@ -215,6 +221,10 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRegist
 	// A wrong secret is refused and leaves the token usable.
 	g.register("wrong", fleet.GoogleConditionalAccessRegistration{Token: token, Names: []string{"devices/x/deviceUsers/y"}}, http.StatusUnauthorized)
 	g.register("", fleet.GoogleConditionalAccessRegistration{Token: token}, http.StatusUnauthorized)
+	// The secret is a bearer token, whatever the case of the scheme.
+	g.registerWithAuthorization("secret-"+googleTestCustomer, fleet.GoogleConditionalAccessRegistration{Token: "t"}, http.StatusUnauthorized)
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterNotAllowed,
+		g.registerWithAuthorization("bearer secret-"+googleTestCustomer, fleet.GoogleConditionalAccessRegistration{Token: "t"}, http.StatusOK))
 
 	// Registering two names stores and marks both, and binds the host to their device.
 	activitiesBefore := s.countActivitiesOfType(fleet.ActivityTypeSetHostGoogleDeviceID{}.ActivityName())
@@ -314,6 +324,64 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRegist
 	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
 		"devices/wiped-newest/deviceUsers/1": fleet.GoogleConditionalAccessDeviceUserManaged,
 	}, g.states(wiped))
+
+	// A lookup with a name that isn't a DeviceUser, or with more names than a sign-in
+	// registers, is refused whole.
+	strict := g.newIOSHost("ipados", true)
+	strictNames := make([]string, fleet.GoogleConditionalAccessMaxSignInDeviceUsers+1)
+	for i := range strictNames {
+		strictNames[i] = fmt.Sprintf("devices/strict/deviceUsers/%d", i+1)
+	}
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterError,
+		g.registerNames(g.signIn(strict), strictNames[0], "devices/strict/deviceUsers/2/clientStates/x"))
+	require.Empty(t, g.states(strict))
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterError, g.registerNames(g.signIn(strict), strictNames...))
+	require.Empty(t, g.states(strict))
+
+	// The most names it registers, with an email that isn't one left out of the activity.
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.register("secret-"+googleTestCustomer, fleet.GoogleConditionalAccessRegistration{
+		Token: g.signIn(strict), Names: strictNames[:fleet.GoogleConditionalAccessMaxSignInDeviceUsers],
+		Customer: googleTestCustomer, Email: "not an email",
+	}, http.StatusOK))
+	require.Len(t, g.states(strict), fleet.GoogleConditionalAccessMaxSignInDeviceUsers)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeSetHostGoogleDeviceID{}.ActivityName(), googleDeviceIDActivity(strict, "strict"), 0)
+
+	// A sign-in that finishes after an admin set the host's ID doesn't replace that registration.
+	late := g.newIOSHost("ios", true)
+	token = g.signIn(late)
+	lateNames := []string{"devices/late-admin/deviceUsers/1", "devices/late-admin/deviceUsers/2"}
+	g.client.setDev(func(d *googleDeviceMock) { d.deviceUsers = map[string][]string{"late-admin": lateNames} })
+	s.DoJSON("PUT", fmt.Sprintf("/api/latest/fleet/hosts/%d/google_device_id", late.ID),
+		map[string]any{"google_device_id": "late-admin"}, http.StatusOK, &putHostGoogleDeviceIDResponse{})
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterNotAllowed, g.registerNames(token, "devices/late-user/deviceUsers/1"))
+	require.Equal(t, "late-admin", g.googleDeviceID(late))
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		lateNames[0]: fleet.GoogleConditionalAccessDeviceUserManaged, lateNames[1]: fleet.GoogleConditionalAccessDeviceUserManaged,
+	}, g.states(late))
+
+	// With no key stored the host is still registered, and its names wait for the cron.
+	keyless := g.newIOSHost("ios", true)
+	token = g.signIn(keyless)
+	require.NoError(t, s.ds.DeleteMDMConfigAssetsByName(t.Context(), []fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}))
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(token, "devices/keyless/deviceUsers/1"))
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		"devices/keyless/deviceUsers/1": fleet.GoogleConditionalAccessDeviceUserPending,
+	}, g.states(keyless))
+	g.connectIntegration()
+
+	// A sign-in started before the integration was removed is refused like any other call.
+	orphan := g.newIOSHost("ios", true)
+	orphanReg := fleet.GoogleConditionalAccessRegistration{Names: []string{"devices/orphan/deviceUsers/1"}, Email: "user@example.com"}
+	orphanReg.Token, orphanReg.Customer = g.signIn(orphan), googleTestCustomer
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
+	g.register("secret-"+googleTestCustomer, orphanReg, http.StatusUnauthorized)
+	g.connectIntegration()
+
+	// One started under a customer the integration has since left is refused too.
+	orphanReg.Token, orphanReg.Customer = g.signIn(orphan), "C03other"
+	g.connect("C03other", "admin@example.com", newGoogleCATestKey(t, "sa@example.iam.gserviceaccount.com"), http.StatusOK)
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterNotAllowed, g.register("secret-C03other", orphanReg, http.StatusOK))
+	require.Empty(t, g.states(orphan))
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRetryCap() {
@@ -339,6 +407,13 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRetryC
 	// still valid while blocked.
 	require.Equal(t, fleet.GoogleConditionalAccessRegisterNotFound, g.registerNames(token))
 	g.signIn(host)
+
+	// A sign-in URL that can't be built counts no attempt.
+	broken := g.newIOSHost("ios", true)
+	g.client.setDev(func(d *googleDeviceMock) { d.signInErr = errors.New("invalid relay uri") })
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+broken.UUID+"/conditional_access/google", nil, http.StatusInternalServerError)
+	g.client.setDev(func(d *googleDeviceMock) { d.signInErr = nil })
+	require.False(t, g.hasDevice(broken))
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleUnmark() {
