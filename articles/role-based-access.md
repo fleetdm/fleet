@@ -12,7 +12,7 @@ To see the specific permissions for each type of user, check out the [REST API d
 + **Technician:** _Available in Fleet Premium_. Technicians have the ability to run saved scripts, view their results, and install/uninstall software.
 + **Observer+:** _Available in Fleet Premium_. Observer+ is an observer with the added ability to run *any* report.
 + **Observer:** The observer role is a read-only role. It can access most entities in Fleet, like reports, policies, labels, application configuration, fleets, etc. They can also run reports configured with the `observer_can_run` flag set to `true`.
-+ **GitOps:** _Available in Fleet Premium_. GitOps is a modern approach to Continuous Deployment (CD) that uses Git as the single source of truth for declarative infrastructure and application configurations. GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
++ **GitOps:** GitOps is a modern approach to Continuous Deployment (CD) that uses Git as the single source of truth for declarative infrastructure and application configurations. GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 ## Fleet-level user permissions
 
