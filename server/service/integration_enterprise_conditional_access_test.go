@@ -2198,6 +2198,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.JSONEq(t, key, string(g.storedKey()))
 	row, err := s.ds.GetGoogleConditionalAccessIntegration(ctx)
 	require.NoError(t, err)
+	row.UpdatedAt = time.Time{}
 	require.Equal(t, &fleet.ConditionalAccessGoogleIntegration{ //nolint:gosec // test value, not a credential
 		ProxyServerSecret: "secret-C02cajzvg", State: fleet.ConditionalAccessGoogleStateConnected,
 	}, row)
