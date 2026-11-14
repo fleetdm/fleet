@@ -301,3 +301,24 @@ func TestEncodeErrorUUIDMatchesLoggedError(t *testing.T) {
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &got))
 	require.Equal(t, wrapped.UUID(), got.UUID)
 }
+
+// TestEncodeErrorSetsJSONContentType: every error body is JSON, so the response
+// must say so instead of leaving Go to sniff text/plain.
+func TestEncodeErrorSetsJSONContentType(t *testing.T) {
+	t.Parallel()
+
+	for name, err := range map[string]error{
+		"unauthorized": platform_http.NewUserMessageError(errors.New("auth required"), http.StatusUnauthorized),
+		"bad request":  platform_http.NewUserMessageError(errors.New("bad input"), http.StatusBadRequest),
+		"generic":      errors.New("boom"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			recorder := httptest.NewRecorder()
+			EncodeError(t.Context(), err, recorder, nil)
+
+			require.Equal(t, "application/json; charset=utf-8", recorder.Header().Get("Content-Type"))
+		})
+	}
+}
