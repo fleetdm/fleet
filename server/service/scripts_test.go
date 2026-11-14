@@ -1402,6 +1402,87 @@ func TestScriptFleetVariablesValidation(t *testing.T) {
 	})
 }
 
+func TestBatchSetScriptsDryRunNewFleet(t *testing.T) {
+	ds := new(mock.Store)
+	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: lic, SkipCreateTestUsers: true})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetDuplicateStringGroupsUnderCollationFunc = func(ctx context.Context, values []string) ([]fleet.DuplicateStringGroup, error) {
+		if len(values) == 2 && values[0] == values[1] {
+			return []fleet.DuplicateStringGroup{{Indices: []int{0, 1}}}, nil
+		}
+		return nil, nil
+	}
+
+	newFleet := new("New fleet")
+	cases := []struct {
+		name     string
+		payloads []fleet.ScriptPayload
+		wantErr  string
+	}{
+		{
+			"unsupported interpreter",
+			[]fleet.ScriptPayload{{Name: "unsupported.sh", ScriptContents: []byte("#!/usr/bin/perl\nprint \"hello\";")}},
+			"Interpreter not supported",
+		},
+		{
+			"unsupported file type",
+			[]fleet.ScriptPayload{{Name: "script.txt", ScriptContents: []byte("echo hello")}},
+			"File type not supported",
+		},
+		{
+			"unsupported Fleet variable",
+			[]fleet.ScriptPayload{{Name: "vars.sh", ScriptContents: []byte("echo $FLEET_VAR_NONEXISTENT")}},
+			"Fleet variable $FLEET_VAR_NONEXISTENT is not supported in scripts.",
+		},
+		{
+			"duplicate names",
+			[]fleet.ScriptPayload{
+				{Name: "dup.sh", ScriptContents: []byte("echo one")},
+				{Name: "dup.sh", ScriptContents: []byte("echo two")},
+			},
+			"More than one script has the same file name",
+		},
+		{
+			"valid payload",
+			[]fleet.ScriptPayload{{Name: "valid.sh", ScriptContents: []byte("#!/bin/sh\necho hello")}},
+			"",
+		},
+		{"empty payload", nil, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res, err := svc.BatchSetScripts(ctx, nil, newFleet, c.payloads, true)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Empty(t, res)
+			require.False(t, ds.BatchSetScriptsFuncInvoked, "a dry run must not save scripts")
+		})
+	}
+
+	t.Run("real run still fails", func(t *testing.T) {
+		_, err := svc.BatchSetScripts(ctx, nil, newFleet, nil, false)
+		require.True(t, fleet.IsNotFound(err))
+		require.False(t, ds.BatchSetScriptsFuncInvoked)
+	})
+
+	t.Run("fleet-scoped user can't validate for a new fleet", func(t *testing.T) {
+		teamCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+			ID:    2,
+			Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleAdmin}},
+		}})
+		_, err := svc.BatchSetScripts(teamCtx, nil, newFleet, nil, true)
+		checkAuthErr(t, true, err)
+	})
+}
+
 func TestUpdateScriptValidatesFileType(t *testing.T) {
 	ds := new(mock.Store)
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
