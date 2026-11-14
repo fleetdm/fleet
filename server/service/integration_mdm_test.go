@@ -150,6 +150,8 @@ type appleVPPConfigSrvConf struct {
 	// server received, in order. Used by tests that assert Fleet released a
 	// previously-reserved VPP seat (e.g. on install failure or cancel).
 	Disassociations []vpp.DisassociateAssetsRequest
+	// Associations records every /assets/associate request the mock accepted.
+	Associations []vpp.AssociateAssetsRequest
 	// AuthCalls records the path and Authorization header of every
 	// /assets/associate and /assets/disassociate request, in order. Used by
 	// tests that assert which VPP token an operation used.
@@ -683,7 +685,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				return
 			}
 
-			fmt.Printf("Mock VPP Server: Trying to associate %v with %v\n", associations.SerialNumbers, associations.Assets)
+			fmt.Printf("Mock VPP Server: Trying to associate %v %v with %v\n", associations.SerialNumbers, associations.ClientUserIds, associations.Assets)
 
 			if len(associations.Assets) == 0 {
 				w.Header().Set("Content-Type", "application/json")
@@ -698,7 +700,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 				return
 			}
 
-			if len(associations.SerialNumbers) == 0 {
+			if len(associations.SerialNumbers) == 0 && len(associations.ClientUserIds) == 0 {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadRequest)
 				res := vpp.ErrorResponse{
@@ -766,6 +768,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 					panic(err)
 				}
 			}
+			s.appleVPPConfigSrvConfig.Associations = append(s.appleVPPConfigSrvConfig.Associations, associations)
 			_, _ = w.Write([]byte(`{"eventId": "123-345"}`))
 			return
 		}
