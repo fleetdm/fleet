@@ -74,6 +74,14 @@ export function pythonArgsFor(settings: Settings): string[] {
   ];
 }
 
+/// The port and folder a running http.server was started with (its command
+/// is `python3 <pythonArgsFor>`). Settings can change after it starts, and the
+/// card must show where it actually serves.
+export function pythonServedFrom(command: string): { port: number; directory: string } | null {
+  const m = / http\.server (\d+) --directory (.+)$/.exec(command);
+  return m ? { port: Number(m[1]), directory: m[2] } : null;
+}
+
 export function ngrokIsLaunchable(settings: Settings): boolean {
   const cfg = settings.ngrok;
   return cfg.enabled && (cfg.start_all || cfg.default_tunnels.length > 0);

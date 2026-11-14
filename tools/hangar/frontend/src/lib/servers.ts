@@ -169,8 +169,8 @@ export function serveEnvFor(server: ServerProfile): Array<[string, string]> {
     .map((e) => ({ ...e, key: e.key.trim() }))
     .filter((e) => e.enabled && e.key.length > 0)
     .map((e) => [e.key, e.value] as [string, string]);
-  // A push URL the user set by hand wins over the mock's.
-  if (server.mock_apns && !userEnvValue(server, APNS_PUSH_URL_ENV)) {
+  // A push URL the user set by hand wins over the mock's, even an empty one.
+  if (server.mock_apns && userEnvValue(server, APNS_PUSH_URL_ENV) === undefined) {
     rows.push([APNS_PUSH_URL_ENV, apnsMockUrl(server)]);
   }
   if (!isDefaultStack(server)) {
@@ -236,9 +236,10 @@ export function userEnvValue(
   server: ServerProfile,
   key: string,
 ): string | undefined {
-  return server.fleet_serve.env.find(
-    (e) => e.enabled && e.key.trim() === key,
-  )?.value;
+  // The last enabled row wins, as it does in the env fleet serve starts with.
+  return server.fleet_serve.env
+    .filter((e) => e.enabled && e.key.trim() === key)
+    .pop()?.value;
 }
 
 /// Why this server's Fleet won't push to its mock even with mock APNs on, or

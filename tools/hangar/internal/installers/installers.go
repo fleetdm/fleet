@@ -25,7 +25,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/tools/hangar/internal/paths"
 	"github.com/fleetdm/fleet/tools/hangar/internal/settings"
@@ -484,11 +483,31 @@ type Manifest struct {
 	Files map[string]ManifestEntry `json:"files"`
 }
 
-// UpdateManifest merges entries for the jobs whose output file was written at
-// or after since into dir/manifest.json, keeping entries for other files.
-// Entries for files that no longer exist are dropped. Returns how many jobs
-// produced a file.
-func UpdateManifest(dir string, jobs []Job, since time.Time, entry ManifestEntry) (int, error) {
+// Snapshot records each job's output file before a build (nil when missing),
+// so UpdateManifest can tell the files the build replaced from untouched ones.
+func Snapshot(jobs []Job) map[string]os.FileInfo {
+	before := make(map[string]os.FileInfo, len(jobs))
+	for _, j := range jobs {
+		info, err := os.Stat(j.OutFile)
+		if err != nil {
+			info = nil
+		}
+		before[j.OutFile] = info
+	}
+	return before
+}
+
+// replaced reports whether a build put a new file at a path. build.sh moves
+// each finished package into place, so a rebuilt output is a different file.
+func replaced(before, after os.FileInfo) bool {
+	return before == nil || !os.SameFile(before, after) || !after.ModTime().Equal(before.ModTime())
+}
+
+// UpdateManifest merges entries for the jobs whose output file the build
+// replaced (compared with Snapshot's before) into dir/manifest.json, keeping
+// entries for other files. Entries for files that no longer exist are
+// dropped. Returns how many jobs produced a file.
+func UpdateManifest(dir string, jobs []Job, before map[string]os.FileInfo, entry ManifestEntry) (int, error) {
 	path := filepath.Join(dir, ManifestName)
 	m := Manifest{Files: map[string]ManifestEntry{}}
 	if b, err := os.ReadFile(path); err == nil {
@@ -502,7 +521,7 @@ func UpdateManifest(dir string, jobs []Job, since time.Time, entry ManifestEntry
 	built := 0
 	for _, j := range jobs {
 		info, err := os.Stat(j.OutFile)
-		if err != nil || info.ModTime().Before(since) {
+		if err != nil || !replaced(before[j.OutFile], info) {
 			continue
 		}
 		e := entry

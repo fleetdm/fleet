@@ -112,6 +112,32 @@ func TestReadContext(t *testing.T) {
 	}
 }
 
+func TestReadCredentials(t *testing.T) {
+	cfg := filepath.Join(t.TempDir(), "config")
+	yaml := `contexts:
+  proxied:
+    address: https://fleet.example.com
+    token: tok
+    tls-skip-verify: true
+    url-prefix: /fleet
+    custom-headers:
+      X-Access: letmein
+`
+	if err := os.WriteFile(cfg, []byte(yaml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := ReadCredentials(cfg, "proxied")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Address != "https://fleet.example.com" || c.Token != "tok" || !c.TLSSkipVerify || c.URLPrefix != "/fleet" || c.CustomHeaders["X-Access"] != "letmein" {
+		t.Errorf("ReadCredentials = %+v", c)
+	}
+	if _, err := ReadCredentials(cfg, "missing"); err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Errorf("missing context err = %v", err)
+	}
+}
+
 func TestReadConfigRaw(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, "config")

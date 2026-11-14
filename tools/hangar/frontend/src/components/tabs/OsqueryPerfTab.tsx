@@ -2270,7 +2270,15 @@ export function resolveApnsTarget(
     serveNeedsRestartForApns(server, serveProc.env_keys ?? []);
   const override = form.mdm_apns_url.trim();
   if (override) {
-    return { url: override, server, overridden: true, serveNeedsRestart: false, mockMoved: false };
+    // Typing the server's own mock URL is still that mock, so keep its warnings.
+    const ownMock = server?.mock_apns && override === apnsMockUrl(server) ? server : undefined;
+    return {
+      url: override,
+      server,
+      overridden: true,
+      serveNeedsRestart: !!ownMock && serveNeedsRestart,
+      mockMoved: !!ownMock && apnsMockMoved(ownMock, procs),
+    };
   }
   if (server?.mock_apns) {
     return {

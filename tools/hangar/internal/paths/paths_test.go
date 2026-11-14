@@ -61,7 +61,7 @@ func TestHasPathPrefix(t *testing.T) {
 	}{
 		{"/a/b/c", "/a/b", true},
 		{"/a/b", "/a/b", true},
-		{"/a/bc", "/a/b", false},  // component-wise: "bc" != "b"
+		{"/a/bc", "/a/b", false},   // component-wise: "bc" != "b"
 		{"/a/b2/c", "/a/b", false}, // sibling
 		{"/a", "/a/b", false},      // p shorter than prefix
 		{"/x/y", "/a/b", false},
@@ -108,6 +108,21 @@ func TestOnDisk(t *testing.T) {
 	}
 	if got := OnDisk("relative/path"); got != "relative/path" {
 		t.Errorf("relative path changed: %q", got)
+	}
+
+	// ".." after a symlink is applied where the link points, as the OS does.
+	if err := os.MkdirAll(filepath.Join(base, "elsewhere", "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(base, "elsewhere", "fleet"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(base, "elsewhere", "sub"), filepath.Join(base, "link")); err != nil {
+		t.Fatal(err)
+	}
+	wantReal, _ := filepath.EvalSymlinks(filepath.Join(base, "elsewhere", "fleet"))
+	if got := OnDisk(filepath.Join(base, "link") + "/../fleet"); got != wantReal {
+		t.Errorf("OnDisk(link/../fleet) = %q, want %q", got, wantReal)
 	}
 
 	other := filepath.Join(base, "code", "fleet")

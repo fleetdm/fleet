@@ -16,9 +16,9 @@ func TestParseContainers(t *testing.T) {
 	}, "\n")
 	got := parseContainers(raw)
 	want := []Container{
-		{ID: "3f2a9c1b7d4e", Name: "fleet-mysql-1", Image: "mysql:8.0.36", Project: "fleet", Service: "mysql", Status: "Up 2 hours", Ports: []uint16{3306}},
-		{ID: "9b8c7d6e5f4a", Name: "fleet-s2-minio-1", Image: "minio/minio", Project: "fleet-s2", Service: "minio", Status: "Up 5 minutes", Ports: []uint16{9010, 9011}},
-		{ID: "0a1b2c3d4e5f", Name: "gifted_wu", Image: "fleetdm/wix:latest", Status: "Up 30 seconds", Ports: []uint16{}},
+		{ID: "3f2a9c1b7d4e", Name: "fleet-mysql-1", Image: "mysql:8.0.36", Project: "fleet", Service: "mysql", Status: "Up 2 hours", Ports: []PortRange{{3306, 3306}}},
+		{ID: "9b8c7d6e5f4a", Name: "fleet-s2-minio-1", Image: "minio/minio", Project: "fleet-s2", Service: "minio", Status: "Up 5 minutes", Ports: []PortRange{{9010, 9011}}},
+		{ID: "0a1b2c3d4e5f", Name: "gifted_wu", Image: "fleetdm/wix:latest", Status: "Up 30 seconds", Ports: []PortRange{}},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("parseContainers =\n%+v\nwant\n%+v", got, want)
@@ -29,11 +29,13 @@ func TestParseContainers(t *testing.T) {
 }
 
 func TestPublishedPorts(t *testing.T) {
-	for in, want := range map[string][]uint16{
-		"":                             {},
-		"6379/tcp":                     {},
-		"127.0.0.1:16379->6379/tcp":    {16379},
-		"0.0.0.0:1-65535->1-65535/tcp": {1}, // absurd range: first port only
+	for in, want := range map[string][]PortRange{
+		"":                          {},
+		"6379/tcp":                  {},
+		"127.0.0.1:16379->6379/tcp": {{16379, 16379}},
+		// Docker groups consecutive ports into one range of any size, and
+		// a port inside it (3306 here) must not be lost.
+		"0.0.0.0:3000-4024->3000-4024/tcp, [::]:3000-4024->3000-4024/tcp": {{3000, 4024}},
 	} {
 		if got := publishedPorts(in); !reflect.DeepEqual(got, want) {
 			t.Errorf("publishedPorts(%q) = %v, want %v", in, got, want)

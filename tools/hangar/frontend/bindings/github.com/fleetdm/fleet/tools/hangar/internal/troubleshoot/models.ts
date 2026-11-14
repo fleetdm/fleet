@@ -24,7 +24,7 @@ export class Container {
     /**
      * Ports are the published host ports.
      */
-    "ports": number[];
+    "ports": PortRange[];
 
     /** Creates a new Container instance. */
     constructor($$source: Partial<Container> = {}) {
@@ -57,7 +57,7 @@ export class Container {
      * Creates a new Container instance from a string or object.
      */
     static createFrom($$source: any = {}): Container {
-        const $$createField6_0 = $$createType0;
+        const $$createField6_0 = $$createType1;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ports" in $$parsedSource) {
             $$parsedSource["ports"] = $$createField6_0($$parsedSource["ports"]);
@@ -130,5 +130,35 @@ export class KillOutcome {
     }
 }
 
+/**
+ * PortRange is one published host port (From == To), or a run of them that
+ * docker lists as a single range.
+ */
+export class PortRange {
+    "from": number;
+    "to": number;
+
+    /** Creates a new PortRange instance. */
+    constructor($$source: Partial<PortRange> = {}) {
+        if (!("from" in $$source)) {
+            this["from"] = 0;
+        }
+        if (!("to" in $$source)) {
+            this["to"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new PortRange instance from a string or object.
+     */
+    static createFrom($$source: any = {}): PortRange {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new PortRange($$parsedSource as Partial<PortRange>);
+    }
+}
+
 // Private type creation functions
-const $$createType0 = $Create.Array($Create.Any);
+const $$createType0 = PortRange.createFrom;
+const $$createType1 = $Create.Array($$createType0);

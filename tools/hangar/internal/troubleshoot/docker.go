@@ -24,7 +24,14 @@ type Container struct {
 	Service string `json:"service"`
 	Status  string `json:"status"`
 	// Ports are the published host ports.
-	Ports []uint16 `json:"ports"`
+	Ports []PortRange `json:"ports"`
+}
+
+// PortRange is one published host port (From == To), or a run of them that
+// docker lists as a single range.
+type PortRange struct {
+	From uint16 `json:"from"`
+	To   uint16 `json:"to"`
 }
 
 const containerFormat = `{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Label "com.docker.compose.project"}}\t{{.Label "com.docker.compose.service"}}\t{{.Status}}\t{{.Ports}}`
@@ -109,24 +116,23 @@ func parseContainers(raw string) []Container {
 var hostPort = regexp.MustCompile(`:(\d+)(?:-(\d+))?->`)
 
 // publishedPorts reads the host side of docker ps's Ports column, e.g.
-// "0.0.0.0:3306->3306/tcp, [::]:3306->3306/tcp, 33060/tcp" is [3306].
-func publishedPorts(s string) []uint16 {
-	ports := []uint16{}
-	seen := map[uint64]bool{}
+// "0.0.0.0:3306->3306/tcp, [::]:3306->3306/tcp, 33060/tcp" is [3306-3306].
+// Ranges stay ranges: docker groups consecutive ports with no size limit.
+func publishedPorts(s string) []PortRange {
+	ports := []PortRange{}
+	seen := map[PortRange]bool{}
 	for _, m := range hostPort.FindAllStringSubmatch(s, -1) {
 		lo, err := strconv.ParseUint(m[1], 10, 16)
 		if err != nil {
 			continue
 		}
-		hi := lo
-		if h, err := strconv.ParseUint(m[2], 10, 16); err == nil && h >= lo && h-lo < 1024 {
-			hi = h
+		r := PortRange{From: uint16(lo), To: uint16(lo)}
+		if hi, err := strconv.ParseUint(m[2], 10, 16); err == nil && hi >= lo {
+			r.To = uint16(hi)
 		}
-		for p := lo; p <= hi; p++ {
-			if !seen[p] {
-				seen[p] = true
-				ports = append(ports, uint16(p))
-			}
+		if !seen[r] {
+			seen[r] = true
+			ports = append(ports, r)
 		}
 	}
 	return ports

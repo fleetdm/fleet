@@ -34,7 +34,7 @@ type InstallersService struct {
 	starting   bool
 	// manifests tracks the previous build's manifest update, which runs just
 	// after its process exits. The next build waits for it: the update claims
-	// files newer than its build's start, so it would claim the next build's.
+	// files replaced since its build started, so it would claim the next build's.
 	manifests sync.WaitGroup
 
 	share installers.Share
@@ -349,9 +349,8 @@ func (s *InstallersService) InstallersStartBuild(contextName string, manual bool
 	}
 	s.manifests.Wait()
 	_ = s.pm.ClearLogChannel(installers.LogChannel)
-	// File mtimes are compared against this to tell this build's outputs from
-	// files left by an earlier one.
-	since := time.Now().Add(-time.Second)
+	// Tells this build's outputs from files an earlier build left in place.
+	before := installers.Snapshot(jobs)
 	if err := s.pm.Start(installers.ProcID, processes.StartArgs{
 		Label:   label,
 		Cwd:     info.OutputDir,
@@ -371,7 +370,7 @@ func (s *InstallersService) InstallersStartBuild(contextName string, manual bool
 	go func() {
 		defer s.manifests.Done()
 		<-done
-		if _, err := installers.UpdateManifest(info.OutputDir, jobs, since, entry); err != nil {
+		if _, err := installers.UpdateManifest(info.OutputDir, jobs, before, entry); err != nil {
 			slog.Warn("installers: update manifest", "dir", info.OutputDir, "err", err)
 		}
 	}()

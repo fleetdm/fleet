@@ -2631,14 +2631,17 @@ function DockerCard({ settings }: { settings: Settings }) {
     setBusy(key);
     setError(null);
     setNote(null);
+    let stopErr: string | null = null;
     try {
       await api.troubleshootStopContainers(ids);
       setNote(`${ids.length} container${ids.length === 1 ? "" : "s"} stopped`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      stopErr = e instanceof Error ? e.message : String(e);
     }
     setBusy(null);
     await scan();
+    // The rescan clears errors; a failed Stop must stay on screen.
+    if (stopErr) setError(stopErr);
   }
 
   const groups = useMemo(() => dockerGroups(found ?? [], settings), [found, settings]);
@@ -2705,7 +2708,9 @@ function DockerCard({ settings }: { settings: Settings }) {
                 )}
               </div>
               {g.containers.map((c) => {
-                const clashes = g.server ? [] : c.ports.filter((p) => portOwners.has(p));
+                const clashes = g.server
+                  ? []
+                  : [...portOwners.keys()].filter((p) => c.ports.some((r) => p >= r.from && p <= r.to));
                 return (
                   <div
                     key={c.id}
@@ -2725,7 +2730,8 @@ function DockerCard({ settings }: { settings: Settings }) {
                         <span className="dim">
                           {" · "}
                           {c.image.startsWith("fleetdm/wix") ? `${c.image} (.msi build from fleetctl package)` : c.image}
-                          {c.ports.length > 0 && ` · ${c.ports.map((p) => `:${p}`).join(" ")}`}
+                          {c.ports.length > 0 &&
+                            ` · ${c.ports.map((r) => (r.from === r.to ? `:${r.from}` : `:${r.from}-${r.to}`)).join(" ")}`}
                           {` · ${c.status}`}
                         </span>
                       </span>

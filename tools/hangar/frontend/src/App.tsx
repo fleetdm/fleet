@@ -246,7 +246,10 @@ export default function App() {
         (s) => healthMap[s.id]?.serve.up || healthMap[s.id]?.docker.up,
       )
     : false;
-  const anyRunning = anyServerUp || ngrokRunning || pythonRunning;
+  // Shutdown stops every managed process (osquery-perf, SCEP servers, package
+  // builds, ...), so any of them running means asking first.
+  const anyProcRunning = procs.some((p) => p.state === "running" || p.state === "stopping");
+  const anyRunning = anyServerUp || ngrokRunning || pythonRunning || anyProcRunning;
   const shutdownTargets: ComposeTarget[] = settings
     ? settings.servers
         .filter((s) => s.worktree_path)
@@ -476,9 +479,11 @@ function QuitModal({
               className="dim"
               style={{ fontSize: "var(--fs-x-small)", lineHeight: 1.5 }}
             >
-              This will stop every server's fleet serve, ngrok, the python
-              server, and run <span className="mono">docker compose down</span>{" "}
-              for each server before closing the app.
+              This will stop everything Hangar is running (every server's
+              fleet serve, ngrok, the python server, SCEP servers, osquery-perf,
+              package builds) and run{" "}
+              <span className="mono">docker compose down</span> for each server
+              before closing the app.
             </div>
             <div
               style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}

@@ -459,6 +459,15 @@ function BuildCard({
   // the old fleet and secret as they were, and a slower earlier pick can't land
   // after a later one.
   const pickSeq = useRef(0);
+  // Switching tabs unmounts this card; a scan or fleet read finishing after
+  // that would save a stale copy of the settings, so it's dropped instead.
+  useEffect(
+    () => () => {
+      scanSeq.current++;
+      pickSeq.current++;
+    },
+    [],
+  );
   const pickTeam = async (value: string) => {
     const team = scan?.teams.find((t) => fleetOptionValue(t.id ?? null) === value);
     if (!team?.has_secret) return;
@@ -466,9 +475,12 @@ function BuildCard({
     // A rescan finishing now must not re-read the previous fleet over this one.
     scanSeq.current++;
     setScanning(false);
+    const cur = targetRef.current;
     try {
       const secret = await api.installersFleetSecret(contextName, team.id ?? null);
-      if (seq !== pickSeq.current) return;
+      // A secret typed (or another fleet picked) meanwhile wins over this read.
+      const now = targetRef.current;
+      if (seq !== pickSeq.current || now.team_name !== cur.team_name || now.enroll_secret !== cur.enroll_secret) return;
       setSecretErr("");
       update({
         team_id: team.id ?? null,
@@ -571,9 +583,9 @@ function BuildCard({
       {/* Where the enroll secret comes from: a fleet on the context's server, or typed in */}
       {!manual && (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <Field label="Fleet">
+          <Field label="Fleet" htmlFor="installers-fleet">
             <div style={{ display: "flex", gap: "var(--pad-small)" }}>
-              <select value={fleetValue} onChange={(e) => pickTeam(e.target.value)} disabled={!scan} style={{ flex: 1, minWidth: 0 }}>
+              <select id="installers-fleet" value={fleetValue} onChange={(e) => pickTeam(e.target.value)} disabled={!scan} style={{ flex: 1, minWidth: 0 }}>
                 {/* A hand-entered secret belongs to no fleet Hangar knows about, so
                     the dropdown says so instead of showing the last fleet picked. */}
                 {manualSecret && <option value={MANUAL_FLEET}>— secret entered by hand</option>}
@@ -623,6 +635,7 @@ function BuildCard({
       <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap" }}>
         <Field
           label="Fleet URL"
+          htmlFor="installers-fleet-url"
           hint={
             loopback
               ? "Loopback address — other machines can't reach it. Use the public (e.g. ngrok) URL."
@@ -635,7 +648,7 @@ function BuildCard({
           warn={loopback}
         >
           <div style={{ display: "flex", gap: "var(--pad-small)" }}>
-            <input value={target.fleet_url} placeholder="https://fleet.example.com" onChange={(e) => update({ fleet_url: e.target.value })} style={{ flex: 1, minWidth: 0 }} />
+            <input id="installers-fleet-url" value={target.fleet_url} placeholder="https://fleet.example.com" onChange={(e) => update({ fleet_url: e.target.value })} style={{ flex: 1, minWidth: 0 }} />
             {scan?.server_url && !urlMatchesScan && (
               <button onClick={() => update({ fleet_url: scan.server_url })} title={scan.server_url}>
                 Use server_url
@@ -645,10 +658,12 @@ function BuildCard({
         </Field>
         <Field
           label="Enroll secret"
+          htmlFor="installers-enroll-secret"
           hint={target.enroll_secret.trim() ? (target.team_name ? `from ${target.team_name}` : "entered by hand") : undefined}
         >
           <div style={{ display: "flex", gap: "var(--pad-small)" }}>
             <input
+              id="installers-enroll-secret"
               type={showSecret ? "text" : "password"}
               value={target.enroll_secret}
               placeholder={manual ? "paste an enroll secret" : "pick a fleet, or paste one"}
@@ -735,11 +750,13 @@ function BuildCard({
           </label>
           <Field
             label="Extra fleetctl package flags"
+            htmlFor="installers-extra-flags"
             full
             hint={flagsErr || "Added to every build, e.g. --host-identifier=instance. Quote values with spaces."}
             warn={!!flagsErr}
           >
             <input
+              id="installers-extra-flags"
               className="mono"
               value={options.extra_flags}
               placeholder="--host-identifier=instance"
@@ -1179,12 +1196,15 @@ function BuildStatus({
 
 function Field({
   label,
+  htmlFor,
   hint,
   warn,
   full,
   children,
 }: {
   label: string;
+  // The control's id, so the label names it for assistive technology.
+  htmlFor?: string;
   hint?: string;
   warn?: boolean;
   full?: boolean;
@@ -1192,7 +1212,9 @@ function Field({
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4, flex: full ? undefined : 1, minWidth: full ? undefined : 200, width: full ? "100%" : undefined }}>
-      <span style={{ fontWeight: 600 }}>{label}</span>
+      <label htmlFor={htmlFor} style={{ fontWeight: 600 }}>
+        {label}
+      </label>
       {children}
       {hint ? (
         <span className={warn ? undefined : "dim"} style={{ color: warn ? "var(--ui-error)" : undefined }}>

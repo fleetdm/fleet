@@ -15,6 +15,7 @@ import {
   staleNgrokTunnels,
   ngrokIsLaunchable,
   pythonArgsFor,
+  pythonServedFrom,
   serveArgsFor,
   serveEnvFor,
   serveLabelFor,
@@ -1496,6 +1497,7 @@ function ActiveProcessesPanel({
         />
         <PythonCell
           running={pythonRunning}
+          servedFrom={pythonProc ? pythonServedFrom(pythonProc.command) : null}
           lanIp={pythonLanIp}
           settings={settings}
           preview={pythonArgs().preview}
@@ -1818,6 +1820,7 @@ function NgrokCell({
 
 function PythonCell({
   running,
+  servedFrom,
   lanIp,
   settings,
   preview,
@@ -1827,6 +1830,8 @@ function PythonCell({
   onSettings,
 }: {
   running: boolean;
+  /// What the running server was started with; null to fall back to Settings.
+  servedFrom: { port: number; directory: string } | null;
   /// Host LAN address, or "" when unknown — see the fetch in ServerTab.
   lanIp: string;
   settings: Settings;
@@ -1841,13 +1846,15 @@ function PythonCell({
   if (running) {
     // The reason to run this is to point another device at it, so the card
     // shows the address that device dials.
-    const url = `http://${lanIp}:${cfg.port}`;
+    const port = servedFrom?.port ?? cfg.port;
+    const dir = servedFrom ? (servedFrom.directory === "." ? "repo root" : servedFrom.directory) : (cfg.directory ?? "repo root");
+    const url = `http://${lanIp}:${port}`;
     return (
       <Cell>
         <ProcRow
           dotState="run"
           name="python http.server"
-          subline={`serving ${cfg.directory ?? "repo root"} on :${cfg.port}`}
+          subline={`serving ${dir} on :${port}`}
           onStop={onStop}
           busy={busy}
           down={false}

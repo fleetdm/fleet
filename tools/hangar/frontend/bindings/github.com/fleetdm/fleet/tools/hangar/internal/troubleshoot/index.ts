@@ -4,5 +4,6 @@
 export {
     Container,
     DetectedProcess,
-    KillOutcome
+    KillOutcome,
+    PortRange
 } from "./models.js";

@@ -352,7 +352,10 @@ func InstallCommand(name, fileURL string) (cmd, shell string) {
 	case ".pkg":
 		return fmt.Sprintf(`d=$(mktemp -d) && curl -fLo "$d/fleetd.pkg" '%s' && sudo installer -pkg "$d/fleetd.pkg" -target /`, fileURL), "sh"
 	case ".msi":
-		return fmt.Sprintf(`$f = Join-Path $env:TEMP 'fleetd-installer.msi'; Invoke-WebRequest -Uri '%s' -OutFile $f; Start-Process msiexec.exe -Wait -ArgumentList '/i', ('"' + $f + '"'), '/qn'`, fileURL), "powershell"
+		// Stop on a failed download, and download to a fresh name, so msiexec
+		// never installs an older package left in %TEMP%. Hiding the progress
+		// bar makes Invoke-WebRequest many times faster on Windows PowerShell.
+		return fmt.Sprintf(`$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue'; $f = Join-Path $env:TEMP ('fleetd-' + [guid]::NewGuid() + '.msi'); Invoke-WebRequest -UseBasicParsing -Uri '%s' -OutFile $f; Start-Process msiexec.exe -Wait -ArgumentList '/i', ('"' + $f + '"'), '/qn'`, fileURL), "powershell"
 	}
 	return "", ""
 }

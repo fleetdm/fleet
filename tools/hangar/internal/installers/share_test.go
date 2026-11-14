@@ -164,6 +164,10 @@ func TestListShared(t *testing.T) {
 	}
 	if msi := files[3]; msi.Shell != "powershell" || !strings.Contains(msi.Command, "msiexec.exe") || !strings.Contains(msi.Command, "'http://10.0.0.5:8000/rc/fleetd-rc-windows-arm64.msi'") {
 		t.Errorf("msi command = %q", msi.Command)
+	} else if !strings.HasPrefix(msi.Command, "$ErrorActionPreference = 'Stop';") || !strings.Contains(msi.Command, "NewGuid()") {
+		// A failed download must stop before msiexec, which would otherwise
+		// install whatever an earlier run left at a fixed path.
+		t.Errorf("msi command doesn't stop on a failed download into a fresh file: %q", msi.Command)
 	}
 	// Not sharing: same files, no URLs or commands.
 	bare, err := ListShared(root, "")

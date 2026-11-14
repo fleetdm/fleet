@@ -122,10 +122,14 @@ type Credentials struct {
 	Token         string
 	RootCA        string
 	TLSSkipVerify bool
+	// URLPrefix and CustomHeaders are applied to API requests like fleetctl
+	// does, for servers behind a path prefix or an access proxy.
+	URLPrefix     string
+	CustomHeaders map[string]string
 }
 
-// ReadCredentials returns the named context's address, token and TLS options
-// from the fleetctl config at configPath.
+// ReadCredentials returns the named context's address, token, TLS options,
+// URL prefix and custom headers from the fleetctl config at configPath.
 func ReadCredentials(configPath, name string) (Credentials, error) {
 	b, err := os.ReadFile(configPath)
 	if err != nil {
@@ -133,10 +137,12 @@ func ReadCredentials(configPath, name string) (Credentials, error) {
 	}
 	var doc struct {
 		Contexts map[string]struct {
-			Address       string `yaml:"address"`
-			Token         string `yaml:"token"`
-			RootCA        string `yaml:"rootca"`
-			TLSSkipVerify bool   `yaml:"tls-skip-verify"`
+			Address       string            `yaml:"address"`
+			Token         string            `yaml:"token"`
+			RootCA        string            `yaml:"rootca"`
+			TLSSkipVerify bool              `yaml:"tls-skip-verify"`
+			URLPrefix     string            `yaml:"url-prefix"`
+			CustomHeaders map[string]string `yaml:"custom-headers"`
 		} `yaml:"contexts"`
 	}
 	if err := yaml.Unmarshal(b, &doc); err != nil {
@@ -146,7 +152,10 @@ func ReadCredentials(configPath, name string) (Credentials, error) {
 	if !ok {
 		return Credentials{}, fmt.Errorf("fleetctl context %q not found in %s", name, configPath)
 	}
-	return Credentials{Address: c.Address, Token: c.Token, RootCA: c.RootCA, TLSSkipVerify: c.TLSSkipVerify}, nil
+	return Credentials{
+		Address: c.Address, Token: c.Token, RootCA: c.RootCA, TLSSkipVerify: c.TLSSkipVerify,
+		URLPrefix: c.URLPrefix, CustomHeaders: c.CustomHeaders,
+	}, nil
 }
 
 // ReadConfigRaw returns the raw fleetctl config contents (empty if absent).

@@ -305,11 +305,18 @@ func TestTUFChannels(t *testing.T) {
 
 func TestUpdateManifest(t *testing.T) {
 	dir := t.TempDir()
-	since := time.Now().Add(-time.Second)
-	old := filepath.Join(dir, "fleetd-rc-macos.pkg")
-	if err := os.WriteFile(old, []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
+	write := func(path string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
+	// Written just now, like a package from a build that ended a moment ago,
+	// so its modification time alone can't tell it from this build's output.
+	old := filepath.Join(dir, "fleetd-rc-macos.pkg")
+	write(old)
+	msi := filepath.Join(dir, "fleetd-rc-windows-amd64.msi")
+	write(msi)
 	// An existing entry for a file that's gone is pruned; one for a file that
 	// still exists (and wasn't rebuilt) is kept.
 	seed := Manifest{Files: map[string]ManifestEntry{
@@ -320,36 +327,43 @@ func TestUpdateManifest(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ManifestName), b, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chtimes(old, since.Add(-time.Hour), since.Add(-time.Hour)); err != nil {
-		t.Fatal(err)
-	}
 
 	built := filepath.Join(dir, "fleetd-rc-linux-arm64-desktop.deb")
-	if err := os.WriteFile(built, []byte("x"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	jobs := []Job{
 		{Key: "deb-arm64", OutFile: built},
 		{Key: "rpm-arm64", OutFile: filepath.Join(dir, "fleetd-rc-linux-arm64-desktop.rpm")}, // failed: no file
-		{Key: "macos", OutFile: old},                                                         // stale: not rebuilt
+		{Key: "macos", OutFile: old},                                                         // failed rebuild: old file left in place
+		{Key: "windows-amd64", OutFile: msi},                                                 // rebuilt over an existing file
 	}
-	n, err := UpdateManifest(dir, jobs, since, ManifestEntry{Team: "Workstations", FleetURL: "https://f"})
+	before := Snapshot(jobs)
+
+	// The build: a new .deb, and the .msi replaced the way build.sh does it.
+	write(built)
+	tmp := filepath.Join(dir, ".work-msi")
+	write(tmp)
+	if err := os.Rename(tmp, msi); err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := UpdateManifest(dir, jobs, before, ManifestEntry{Team: "Workstations", FleetURL: "https://f"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n != 1 {
-		t.Errorf("built = %d, want 1", n)
+	if n != 2 {
+		t.Errorf("built = %d, want 2", n)
 	}
 	var m Manifest
 	b, _ = os.ReadFile(filepath.Join(dir, ManifestName))
 	if err := json.Unmarshal(b, &m); err != nil {
 		t.Fatal(err)
 	}
-	if len(m.Files) != 2 {
+	if len(m.Files) != 3 {
 		t.Fatalf("manifest files = %v", m.Files)
 	}
-	if e := m.Files["fleetd-rc-linux-arm64-desktop.deb"]; e.Platform != "deb-arm64" || e.Team != "Workstations" {
-		t.Errorf("new entry = %+v", e)
+	for name, platform := range map[string]string{"fleetd-rc-linux-arm64-desktop.deb": "deb-arm64", "fleetd-rc-windows-amd64.msi": "windows-amd64"} {
+		if e := m.Files[name]; e.Platform != platform || e.Team != "Workstations" {
+			t.Errorf("entry for %s = %+v", name, e)
+		}
 	}
 	if e := m.Files["fleetd-rc-macos.pkg"]; e.Team != "old" {
 		t.Errorf("kept entry = %+v", e)
@@ -465,6 +479,33 @@ func TestScan(t *testing.T) {
 	b, _ := json.Marshal(res)
 	if strings.Contains(string(b), "ws") || strings.Contains(string(b), "global") {
 		t.Errorf("scan JSON leaks a secret: %s", b)
+	}
+}
+
+func TestScanHonorsURLPrefixAndCustomHeaders(t *testing.T) {
+	inner := fakeFleet(t, "premium", true)
+	defer inner.Close()
+	// Like a server behind an access proxy on a path prefix.
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rest, ok := strings.CutPrefix(r.URL.Path, "/fleet-prefix")
+		if !ok || r.Header.Get("X-Access") != "letmein" || r.Header.Get("Authorization") != "Bearer tok" {
+			http.Error(w, "blocked by proxy", http.StatusForbidden)
+			return
+		}
+		r.URL.Path = rest
+		inner.Config.Handler.ServeHTTP(w, r)
+	}))
+	defer proxy.Close()
+	c, err := NewClient(fleetctl.Credentials{
+		Address: proxy.URL, Token: "tok", URLPrefix: "/fleet-prefix/",
+		// Like fleetctl, a custom header can't replace the context's token.
+		CustomHeaders: map[string]string{"X-Access": "letmein", "Authorization": "Bearer other"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res, err := c.Scan(context.Background()); err != nil || res.ServerURL != "https://fleet.public" {
+		t.Fatalf("scan through the proxy = %+v, %v", res, err)
 	}
 }
 

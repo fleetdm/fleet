@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -92,10 +93,17 @@ func expand(p, home string) string {
 // and the same folder would compare as two. Elements that can't be read are
 // kept as given.
 func OnDisk(p string) string {
-	p = filepath.Clean(p)
 	if !filepath.IsAbs(p) {
-		return p
+		return filepath.Clean(p)
 	}
+	// Clean drops ".." lexically, but the OS applies it after following
+	// symlinks: with link -> /elsewhere/sub, link/../fleet is /elsewhere/fleet.
+	if slices.Contains(strings.Split(p, string(filepath.Separator)), "..") {
+		if resolved, err := filepath.EvalSymlinks(p); err == nil {
+			p = resolved
+		}
+	}
+	p = filepath.Clean(p)
 	out := string(filepath.Separator)
 	for _, elem := range strings.Split(p, string(filepath.Separator))[1:] {
 		out = filepath.Join(out, onDiskName(out, elem))

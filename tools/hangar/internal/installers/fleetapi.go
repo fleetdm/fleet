@@ -50,9 +50,10 @@ const UnassignedName = "Unassigned"
 
 // Client calls one Fleet server's API with a fleetctl context's credentials.
 type Client struct {
-	base  string
-	token string
-	http  *http.Client
+	base    string
+	token   string
+	headers map[string]string
+	http    *http.Client
 }
 
 // NewClient builds a client from fleetctl context credentials, honoring the
@@ -76,9 +77,15 @@ func NewClient(c fleetctl.Credentials) (*Client, error) {
 		}
 		tlsCfg.RootCAs = pool
 	}
+	// fleetctl joins the address, url-prefix and request path the same way.
+	base := strings.TrimRight(c.Address, "/")
+	if prefix := strings.Trim(c.URLPrefix, "/"); prefix != "" {
+		base += "/" + prefix
+	}
 	return &Client{
-		base:  strings.TrimRight(c.Address, "/"),
-		token: c.Token,
+		base:    base,
+		token:   c.Token,
+		headers: c.CustomHeaders,
 		// Clients are short-lived (one per scan), so don't leave idle connections behind.
 		http: &http.Client{Timeout: 15 * time.Second, Transport: &http.Transport{TLSClientConfig: tlsCfg, DisableKeepAlives: true}},
 	}, nil
@@ -97,6 +104,9 @@ func (c *Client) get(ctx context.Context, path string, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+path, nil)
 	if err != nil {
 		return err
+	}
+	for k, v := range c.headers {
+		req.Header.Set(k, v)
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	resp, err := c.http.Do(req)
