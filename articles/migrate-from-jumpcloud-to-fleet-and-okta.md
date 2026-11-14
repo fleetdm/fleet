@@ -1,6 +1,6 @@
 # Migrate from JumpCloud to Fleet and Okta
 
-Ask Claude to do the migration. It checks with Fleet, proposes the changes, and opens a pull request for your team to review, so you approve every change before it goes out. No black box: you can also ask your AI exactly how Fleet works.
+ 
 
 This guide moves the two jobs JumpCloud does for you to two tools: directory, SSO, and MFA go to Okta, and device management goes to Fleet. You'll run both side by side, move devices in batches, and retire JumpCloud last. Each step starts with a prompt you can paste into Claude, followed by the details, including any code and config, so you can check its work.
 
