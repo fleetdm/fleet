@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -372,12 +373,22 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		}
 	}
 
-	var upgradeCode string
+	upgradeCode := input.UpgradeCode
+	if upgradeCode != "" {
+		if input.IgnoreUpgradeCode {
+			return nil, ctxerr.New(ctx, "upgrade_code and ignore_upgrade_code can't both be set")
+		}
+		if !upgradeCodeRegex.MatchString(upgradeCode) {
+			return nil, ctxerr.Errorf(ctx, "upgrade_code %q isn't a braced GUID", upgradeCode)
+		}
+	}
 	if (input.InstallerType == installerTypeMSI || input.UninstallType == installerTypeMSI) && input.InstallerScope == machineScope {
-		for _, fe := range m.AppsAndFeaturesEntries {
-			if fe.UpgradeCode != "" {
-				upgradeCode = fe.UpgradeCode
-				break
+		if upgradeCode == "" {
+			for _, fe := range m.AppsAndFeaturesEntries {
+				if fe.UpgradeCode != "" {
+					upgradeCode = fe.UpgradeCode
+					break
+				}
 			}
 		}
 		if upgradeCode == "" {
@@ -617,6 +628,9 @@ func isResolvedType(installerType string) bool {
 	return installerType != "" && !isVendorType(installerType) && installerType != installerTypePortable
 }
 
+// upgradeCodeRegex matches the braced GUID form osquery reports in programs.upgrade_code.
+var upgradeCodeRegex = regexp.MustCompile(`^\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}$`)
+
 var fileTypes = map[string]struct{}{
 	installerTypeMSI:  {},
 	installerTypeMSIX: {},
@@ -741,7 +755,11 @@ type inputApp struct {
 	// IgnoreUpgradeCode leaves the MSI UpgradeCode out of the manifest, for apps that mint
 	// a new one every build (e.g. QGIS). Fleet resolves a Windows FMA's software title by
 	// its upgrade code, so a per-build code would move the app to a new title on each update.
-	IgnoreUpgradeCode bool     `json:"ignore_upgrade_code"`
+	IgnoreUpgradeCode bool `json:"ignore_upgrade_code"`
+	// UpgradeCode supplies the MSI UpgradeCode for an installer whose winget manifest doesn't
+	// list one, such as an exe bootstrapper that installs an MSI (Adobe Acrobat). Without it,
+	// the app's software title can only match inventory by name.
+	UpgradeCode       string   `json:"upgrade_code"`
 	DefaultCategories []string `json:"default_categories"`
 	Frozen            bool     `json:"frozen"`
 	PatchPolicyPath   string   `json:"patch_policy_path"`
