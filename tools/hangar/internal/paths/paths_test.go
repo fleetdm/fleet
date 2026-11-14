@@ -1,6 +1,7 @@
 package paths
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -89,5 +90,31 @@ func TestHasExt(t *testing.T) {
 		if got := HasExt(c.path, c.allowed...); got != c.want {
 			t.Errorf("HasExt(%q, %v) = %v, want %v", c.path, c.allowed, got, c.want)
 		}
+	}
+}
+
+func TestOnDisk(t *testing.T) {
+	base := t.TempDir()
+	real := filepath.Join(base, "Code", "Fleet")
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := OnDisk(real); got != real {
+		t.Errorf("OnDisk(%q) = %q, want it unchanged", real, got)
+	}
+	// A missing element is kept as given after the ones that exist.
+	if got, want := OnDisk(filepath.Join(real, "nope")), filepath.Join(real, "nope"); got != want {
+		t.Errorf("OnDisk with a missing element = %q, want %q", got, want)
+	}
+	if got := OnDisk("relative/path"); got != "relative/path" {
+		t.Errorf("relative path changed: %q", got)
+	}
+
+	other := filepath.Join(base, "code", "fleet")
+	if _, err := os.Stat(other); err != nil {
+		t.Skip("case-sensitive volume: code/fleet is a different (missing) folder")
+	}
+	if got := OnDisk(other); got != real {
+		t.Errorf("OnDisk(%q) = %q, want %q", other, got, real)
 	}
 }
