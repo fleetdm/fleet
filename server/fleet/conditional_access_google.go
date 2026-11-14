@@ -162,11 +162,11 @@ const (
 
 // GoogleConditionalAccessDeviceUser is a Google DeviceUser resource name stored on a host.
 type GoogleConditionalAccessDeviceUser struct {
-	HostUUID     string                                 `db:"host_uuid" json:"-"`
-	Name         string                                 `db:"device_user_name" json:"name"`
-	State        GoogleConditionalAccessDeviceUserState `db:"state" json:"state"`
-	ErrorMessage *string                                `db:"error_message" json:"error_message"`
-	UpdatedAt    time.Time                              `db:"updated_at" json:"updated_at"`
+	HostUUID     string                                 `db:"host_uuid"`
+	Name         string                                 `db:"device_user_name"`
+	State        GoogleConditionalAccessDeviceUserState `db:"state"`
+	ErrorMessage *string                                `db:"error_message"`
+	UpdatedAt    time.Time                              `db:"updated_at"`
 }
 
 // GoogleConditionalAccessClientState is what Fleet tells Google about a DeviceUser. A nil
@@ -189,11 +189,8 @@ func GoogleConditionalAccessDesiredClientState(du GoogleConditionalAccessDeviceU
 
 // GoogleConditionalAccessDevice is a host's registration row with its DeviceUsers.
 type GoogleConditionalAccessDevice struct {
-	HostUUID                   string     `db:"host_uuid"`
-	CustomerID                 string     `db:"customer_id"`
-	RegistrationAttempts       uint       `db:"registration_attempts"`
-	FirstRegistrationAttemptAt *time.Time `db:"first_registration_attempt_at"`
-	DeviceUsers                []GoogleConditionalAccessDeviceUser
+	HostUUID    string `db:"host_uuid"`
+	DeviceUsers []GoogleConditionalAccessDeviceUser
 }
 
 // Registered reports whether the host has a name that is marked or waiting to be.

@@ -1171,8 +1171,8 @@ func (s *integrationEnterpriseTestSuite) TestTeamAdminCanReadHostPastActivities(
 
 func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	t := s.T()
-	hosts := s.createHosts(t, "ios", "android", "darwin")
-	iosHost, androidHost, macHost := hosts[0], hosts[1], hosts[2]
+	hosts := s.createHosts(t, "ios", "android", "darwin", "ipados")
+	iosHost, androidHost, macHost, pendingHost := hosts[0], hosts[1], hosts[2], hosts[3]
 
 	idPath := func(h *fleet.Host) string { return fmt.Sprintf("/api/latest/fleet/hosts/%d/google_device_id", h.ID) }
 	hostJSON := func(path string) map[string]any {
@@ -1251,6 +1251,15 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	res = s.Do("PUT", idPath(macHost), map[string]any{"google_device_id": "device-d"}, http.StatusUnprocessableEntity)
 	name, _ = extractServerErrorNameReason(res.Body)
 	require.Equal(t, "google_device_id", name)
+
+	// a host that hasn't enrolled has no UUID to bind the ID to
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(), `UPDATE hosts SET uuid = '' WHERE id = ?`, pendingHost.ID)
+		return err
+	})
+	res = s.Do("PUT", idPath(pendingHost), map[string]any{"google_device_id": "device-d"}, http.StatusUnprocessableEntity)
+	requireErrorReason(res, "Google device ID can't be set on a host that hasn't enrolled.")
+	require.Empty(t, storedID(pendingHost))
 
 	res = s.Do("PUT", idPath(iosHost), map[string]any{}, http.StatusUnprocessableEntity)
 	name, _ = extractServerErrorNameReason(res.Body)

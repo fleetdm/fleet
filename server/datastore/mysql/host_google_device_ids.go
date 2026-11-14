@@ -43,7 +43,7 @@ func (ds *Datastore) SetHostGoogleDeviceID(ctx context.Context, hostUUID, custom
 				return fleet.NewInvalidArgumentError("google_device_id", "This Google device ID is already used by another host.").
 					WithStatus(http.StatusConflict)
 			}
-			return err
+			return ctxerr.Wrap(ctx, err, "setting host google device id")
 		}
 		if len(names) > 0 {
 			if err := recordGoogleDeviceUsersDB(ctx, tx, hostUUID, customerID, names); err != nil {
@@ -106,10 +106,11 @@ func setGoogleDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUID strin
 
 // bindGoogleDeviceIDDB sets the host's device ID, taking it from a row left by another
 // customer, which doesn't count. A device bound to another host of the customer, or to a
-// row with no customer yet, fails with a duplicate error, returned unwrapped.
+// row with no customer yet, fails with a duplicate error, returned unwrapped. An empty
+// customerID matches every customer, so it takes the ID from no row.
 func bindGoogleDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, customerID, googleDeviceID string) error {
 	err := setGoogleDeviceIDDB(ctx, tx, hostUUID, &googleDeviceID)
-	if !IsDuplicate(err) {
+	if !IsDuplicate(err) || customerID == "" {
 		return err
 	}
 	res, releaseErr := tx.ExecContext(ctx, `
@@ -128,17 +129,23 @@ func bindGoogleDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUID, cus
 // name under: when the last one under it is gone, the ID moves to the device of another
 // registered name, or is cleared. The caller holds the lock on the host's row.
 func repointGoogleDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUID string) error {
-	var stored *string
-	if err := sqlx.GetContext(ctx, tx, &stored,
-		`SELECT google_device_id FROM google_conditional_access_devices WHERE host_uuid = ?`, hostUUID); err != nil {
+	// The caller read before it took the lock, which fixed the transaction's snapshot, so
+	// only locking reads see what was committed while it waited.
+	var row struct {
+		ID         *string `db:"google_device_id"`
+		CustomerID string  `db:"customer_id"`
+	}
+	if err := sqlx.GetContext(ctx, tx, &row, `
+		SELECT google_device_id, customer_id FROM google_conditional_access_devices
+		WHERE host_uuid = ? FOR UPDATE`, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "reading host google device id")
 	}
-	if stored == nil {
+	if row.ID == nil {
 		return nil
 	}
 	stmt, args, err := sqlx.In(`
 		SELECT device_user_name FROM google_conditional_access_device_users
-		WHERE host_uuid = ? AND state IN (?) ORDER BY device_user_name`, hostUUID,
+		WHERE host_uuid = ? AND state IN (?) ORDER BY device_user_name FOR UPDATE`, hostUUID,
 		[]fleet.GoogleConditionalAccessDeviceUserState{fleet.GoogleConditionalAccessDeviceUserPending, fleet.GoogleConditionalAccessDeviceUserManaged})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "building select of registered google device users")
@@ -147,33 +154,36 @@ func repointGoogleDeviceIDDB(ctx context.Context, tx sqlx.ExtContext, hostUUID s
 	if err := sqlx.SelectContext(ctx, tx, &names, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "selecting registered google device users")
 	}
-	next, kept := googleDeviceIDForNames(*stored, names)
-	if kept {
+	next, _, kept := googleDeviceIDForNames(*row.ID, names)
+	switch {
+	case kept:
 		return nil
-	}
-	err = setGoogleDeviceIDDB(ctx, tx, hostUUID, next)
-	if IsDuplicate(err) {
-		// Another host is bound to that device; this one is left without an ID.
+	case next == nil:
 		err = setGoogleDeviceIDDB(ctx, tx, hostUUID, nil)
+	default:
+		if err = bindGoogleDeviceIDDB(ctx, tx, hostUUID, row.CustomerID, *next); IsDuplicate(err) {
+			// Another host is bound to that device; this one is left without an ID.
+			err = setGoogleDeviceIDDB(ctx, tx, hostUUID, nil)
+		}
 	}
 	return ctxerr.Wrap(ctx, err, "moving host google device id")
 }
 
 // googleDeviceIDForNames picks the device ID of a host with the given names: stored,
 // reported as kept, when one of the names is under it, else the device of the first
-// name, or nil with no names.
-func googleDeviceIDForNames(stored string, names []string) (id *string, kept bool) {
+// name, returned with the name it came from, or nil with no names.
+func googleDeviceIDForNames(stored string, names []string) (id *string, from string, kept bool) {
 	for _, name := range names {
 		deviceID := fleet.GoogleDeviceIDFromDeviceUserName(name)
 		if deviceID == "" {
 			continue
 		}
 		if stored != "" && strings.EqualFold(deviceID, stored) {
-			return &stored, true
+			return &stored, name, true
 		}
 		if id == nil {
-			id = &deviceID
+			id, from = &deviceID, name
 		}
 	}
-	return id, false
+	return id, from, false
 }

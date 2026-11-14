@@ -22,6 +22,7 @@ func TestHostGoogleDeviceIDs(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"SetAndGet", testHostGoogleDeviceIDSetAndGet},
+		{"NoCustomer", testHostGoogleDeviceIDNoCustomer},
 		{"KeptOnAppleReenrollment", testHostGoogleDeviceIDKeptOnAppleReenrollment},
 		{"KeptOnAndroidReenrollment", testHostGoogleDeviceIDKeptOnAndroidReenrollment},
 		{"ConcurrentDifferentValues", testHostGoogleDeviceIDConcurrentDifferentValues},
@@ -287,6 +288,40 @@ func testHostGoogleDeviceIDConcurrentSameValueDifferentHosts(t *testing.T, ds *D
 			require.Empty(t, id)
 		}
 	}
+}
+
+// With no customer configured a row keeps belonging to the customer it was set for.
+func testHostGoogleDeviceIDNoCustomer(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	names := []string{"devices/device-a/deviceUsers/1"}
+
+	_, err := ds.SetHostGoogleDeviceID(ctx, "uuid-1", googleTestCustomer, "device-a", names)
+	require.NoError(t, err)
+
+	// the same value is a no-op and a different one is refused, as with the customer
+	changed, err := ds.SetHostGoogleDeviceID(ctx, "uuid-1", "", "device-a", nil)
+	require.NoError(t, err)
+	require.False(t, changed)
+	_, err = ds.SetHostGoogleDeviceID(ctx, "uuid-1", "", "device-b", nil)
+	var conflictErr *fleet.HostGoogleDeviceIDConflictError
+	require.ErrorAs(t, err, &conflictErr)
+	require.Equal(t, "device-a", conflictErr.StoredID) //nolint:nilaway // cannot be nil due to require.ErrorAs above
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		names[0]: fleet.GoogleConditionalAccessDeviceUserPending,
+	}, googleDeviceUserStates(t, ds, "uuid-1"))
+
+	// its ID still counts as used by another host
+	_, err = ds.SetHostGoogleDeviceID(ctx, "uuid-2", "", "device-a", nil)
+	requireOtherHostConflict(t, err)
+	require.Equal(t, "device-a", googleDeviceID(t, ds, "uuid-1"))
+
+	// an ID set with no customer is the next customer's
+	changed, err = ds.SetHostGoogleDeviceID(ctx, "uuid-2", "", "device-b", nil)
+	require.NoError(t, err)
+	require.True(t, changed)
+	id, err := ds.GetHostGoogleDeviceID(ctx, "uuid-2", "C03other")
+	require.NoError(t, err)
+	require.Equal(t, "device-b", id)
 }
 
 const googleTestCustomer = "C02cajzvg"
