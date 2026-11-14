@@ -347,7 +347,8 @@ export class SharedFile {
 
 /**
  * Team is one enrollment target found by a scan. ID nil is Unassigned (the
- * global enroll secret). Secrets never leave the backend.
+ * global enroll secret). A scan result carries no secrets: the tab asks for
+ * the one it needs once a fleet is picked (SecretFor).
  */
 export class Team {
     "id": number | null;
