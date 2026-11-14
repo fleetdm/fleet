@@ -427,7 +427,7 @@ type googleConditionalAccessPlan struct {
 	leftCustomer bool
 	// retry is set when the settings didn't change and a previous connection didn't
 	// complete. A retry never fails the config update: its error is recorded as the
-	// integration's error message instead.
+	// integration's error message instead, except for a Google outage, which skips the retry.
 	retry       bool
 	retryReason string
 }
@@ -500,7 +500,13 @@ func (svc *Service) verifyGoogleConditionalAccessPlan(ctx context.Context, plan 
 		return nil
 	}
 	if plan.retry {
-		if err := svc.checkGoogleDelegation(ctx, plan.settings, plan.key); err != nil {
+		err := svc.checkGoogleDelegation(ctx, plan.settings, plan.key)
+		if _, outage := errors.AsType[*fleet.GatewayError](err); outage {
+			// An outage says nothing about the connection, so its state is kept and the next
+			// update retries.
+			svc.logger.WarnContext(ctx, "skip google conditional access retry", "err", err)
+			plan.action = googleConditionalAccessNoop
+		} else if err != nil {
 			plan.retryReason = err.Error()
 		}
 		return nil
@@ -517,7 +523,9 @@ func (svc *Service) applyGoogleConditionalAccessPlan(ctx context.Context, plan *
 	if plan == nil {
 		return nil
 	}
-	ctx = ctxdb.RequirePrimary(ctx, true)
+	// As in the endpoints, a client that disconnects must not stop a change on fleetdm.com
+	// before Fleet has recorded it.
+	ctx = ctxdb.RequirePrimary(context.WithoutCancel(ctx), true)
 	switch plan.action {
 	case googleConditionalAccessRemove:
 		return svc.removeGoogleConditionalAccess(ctx, plan.oldServerURL, plan.oldCustomerID, plan.existing)
@@ -543,7 +551,9 @@ func (svc *Service) finishGoogleConditionalAccessPlan(ctx context.Context, plan 
 	if plan == nil {
 		return nil
 	}
-	ctx = ctxdb.RequirePrimary(ctx, true)
+	// As in the endpoints, a client that disconnects must not stop a registration from
+	// being saved, or dropped if the save fails.
+	ctx = ctxdb.RequirePrimary(context.WithoutCancel(ctx), true)
 	switch plan.action {
 	case googleConditionalAccessRemove:
 		return svc.deleteGoogleConditionalAccessKey(ctx)
