@@ -1820,7 +1820,7 @@ software:
 			}
 
 			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-				return []*fleet.VPPTokenDB{{Location: "Fleet Device Management Inc.", CountryCode: "us"}, {Location: "Acme Inc.", CountryCode: "us"}}, nil
+				return []*fleet.VPPTokenDB{{ID: 1, Location: "Fleet Device Management Inc.", CountryCode: "us"}, {ID: 2, Location: "Acme Inc.", CountryCode: "us"}}, nil
 			}
 
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {

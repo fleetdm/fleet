@@ -2890,6 +2890,7 @@ func (svc *Service) validateVPPAssignments(
 	}
 
 	tokensToSave := make(map[uint][]uint, len(volumePurchasingProgramInfo))
+	repeated := make(map[uint]struct{})
 	for _, vpp := range volumePurchasingProgramInfo {
 		for _, tmName := range vpp.Teams {
 			if tmName == fleet.DisplayNameAllTeams {
@@ -2925,7 +2926,17 @@ func (svc *Service) validateVPPAssignments(
 		}
 
 		tok := tokensByLocation[loc]
+		if _, ok := tokensToSave[tok.ID]; ok {
+			if _, ok := repeated[tok.ID]; !ok {
+				invalid.Appendf("mdm.volume_purchasing_program", "Couldn't apply. VPP token %q is listed more than once. List each token once, with all of its fleets.", vpp.Location)
+				repeated[tok.ID] = struct{}{}
+			}
+			continue
+		}
 		tokensToSave[tok.ID] = tokenTeams
+	}
+	if len(repeated) > 0 {
+		return nil, nil
 	}
 
 	return tokensToSave, nil
