@@ -93,7 +93,10 @@ func SanitizeColumn(col string) string {
 // If the order key is empty, no ORDER BY clause is added (no error).
 // If allowlist is nil, the function will panic (programming error).
 // If allowlist is empty, any non-empty order key will return an error.
-func AppendListOptionsWithParamsSecure(sql string, params []any, opts ListOptions, allowlist OrderKeyAllowlist) (string, []any, error) {
+//
+// tieBreaks are ORDER BY terms added after the order keys when an order key is set. They are not validated, so they must
+// be fixed SQL and never user input.
+func AppendListOptionsWithParamsSecure(sql string, params []any, opts ListOptions, allowlist OrderKeyAllowlist, tieBreaks ...string) (string, []any, error) {
 	if allowlist == nil {
 		panic("AppendListOptionsWithParamsSecure: allowlist cannot be nil; use empty map to disallow all sorting")
 	}
@@ -154,6 +157,10 @@ func AppendListOptionsWithParamsSecure(sql string, params []any, opts ListOption
 				sql += fmt.Sprintf(`, %s %s`, actualSecondary, dir)
 			}
 			// If secondary key not in allowlist, silently ignore (it's optional/for tests)
+		}
+
+		for _, tieBreak := range tieBreaks {
+			sql += ", " + tieBreak
 		}
 	}
 
