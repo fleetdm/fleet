@@ -63,7 +63,7 @@ custom-tap/
 
 1. Write the cask DSL in `inputs/homebrew/custom-tap/Casks/<token>.rb`.
 2. Run `./regenerate.sh` from inside `custom-tap/` to produce `api/<token>.json`. Requires macOS with Homebrew and `jq`.
-3. In the app's input manifest (`inputs/homebrew/<token>.json`), set `cask_path` to `ee/maintained-apps/inputs/homebrew/custom-tap/api/<token>.json`. See `inputs/homebrew/fleet-desktop.json` for an example.
+3. In the app's input manifest (`inputs/homebrew/<token>.json`), set `cask_path` to `ee/maintained-apps/inputs/homebrew/custom-tap/api/<token>.json`. See `inputs/homebrew/druva-insync.json` for an example.
 
 See [`inputs/homebrew/custom-tap/README.md`](inputs/homebrew/custom-tap/README.md) for the full contributor flow. Apps without `cask_path` continue to be fetched from `formulae.brew.sh`.
 
