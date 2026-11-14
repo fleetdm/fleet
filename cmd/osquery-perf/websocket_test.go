@@ -35,6 +35,7 @@ func TestWSTransportCoalescesTriggers(t *testing.T) {
 		nodeKey:            "test-node-key",
 		stats:              &osquery_perf.Stats{},
 		hostIdentityClient: &hostidentity.Client{},
+		onlineFraction:     1,
 	}
 	ws := newWSTransport(a)
 	// Install the transport as syncWSTransport does: an active transport is
@@ -64,4 +65,41 @@ func TestWSTransportCoalescesTriggers(t *testing.T) {
 		return !ws.busy && !ws.pending
 	}, 2*time.Second, time.Millisecond)
 	assert.Equal(t, int64(2), reads.Load())
+}
+
+// TestWSTransportOfflineHost verifies an offline host neither connects nor checks in over the
+// WebSocket transport, so Fleet stops seeing it like a powered-off machine.
+func TestWSTransportOfflineHost(t *testing.T) {
+	var requests atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	a := &agent{
+		serverAddress:      srv.URL,
+		nodeKey:            "test-node-key",
+		stats:              &osquery_perf.Stats{},
+		hostIdentityClient: &hostidentity.Client{},
+		stale:              true,
+	}
+	ws := newWSTransport(a)
+	a.ws = ws
+	done := make(chan struct{})
+	go func() {
+		ws.run()
+		close(done)
+	}()
+
+	ws.trigger()
+	time.Sleep(200 * time.Millisecond)
+	assert.Zero(t, requests.Load(), "an offline host dialed or read")
+
+	ws.stop()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the transport didn't stop while waiting to come online")
+	}
 }

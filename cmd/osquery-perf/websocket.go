@@ -26,6 +26,9 @@ const (
 	wsHandshakeTimeout   = 30 * time.Second
 )
 
+// wsOfflineCheckInterval is how often a connected transport checks whether its host went offline.
+var wsOfflineCheckInterval = time.Minute
+
 // wsTransport simulates orbit's WebSocket notification transport
 // (orbit/pkg/wstransport.Manager): one distributed read+write cycle per
 // "check now" notification, coalescing triggers arriving mid-cycle into a
@@ -73,7 +76,7 @@ func (w *wsTransport) stopped() bool {
 func (w *wsTransport) run() {
 	backoff := wsBackoffBase
 	for {
-		if w.stopped() {
+		if w.stopped() || !w.waitOnline() {
 			return
 		}
 		conn, err := w.dial()
@@ -117,11 +120,23 @@ func (w *wsTransport) readLoop(conn *websocket.Conn) {
 	// Unblock the blocking read when the transport is stopped.
 	stop := make(chan struct{})
 	defer close(stop)
+	// An offline host (--stale_prob, --online_fraction) holds no connection either.
 	go func() {
-		select {
-		case <-w.done:
-			_ = conn.Close()
-		case <-stop:
+		offline := time.NewTicker(wsOfflineCheckInterval)
+		defer offline.Stop()
+		for {
+			select {
+			case <-w.done:
+				_ = conn.Close()
+				return
+			case <-stop:
+				return
+			case <-offline.C:
+				if !w.agent.online(time.Now()) {
+					_ = conn.Close()
+					return
+				}
+			}
 		}
 	}()
 
@@ -138,7 +153,7 @@ func (w *wsTransport) readLoop(conn *websocket.Conn) {
 		if err := conn.ReadJSON(&msg); err != nil {
 			// A stopped transport closes the connection itself; the resulting
 			// read error is not worth logging.
-			if !w.stopped() {
+			if !w.stopped() && w.agent.online(time.Now()) {
 				log.Printf("agent %d: websocket read failed: %s", w.agent.agentIndex, err)
 			}
 			return
@@ -169,6 +184,9 @@ func (w *wsTransport) readLoop(conn *websocket.Conn) {
 // poll ticks, coalescing them under the same rule as orbit's Manager.trigger:
 // at most one cycle in flight, at most one follow-up queued.
 func (w *wsTransport) trigger() {
+	if !w.agent.online(time.Now()) {
+		return
+	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if w.busy {
@@ -234,6 +252,17 @@ func (w *wsTransport) dial() (*websocket.Conn, error) {
 }
 
 // sleep waits for d or until stopped; it reports false when stopped.
+// waitOnline blocks while the host is offline, and reports false if the transport is stopped
+// meanwhile.
+func (w *wsTransport) waitOnline() bool {
+	for !w.agent.online(time.Now()) {
+		if !w.sleep(wsOfflineCheckInterval) {
+			return false
+		}
+	}
+	return true
+}
+
 func (w *wsTransport) sleep(d time.Duration) bool {
 	if d <= 0 {
 		return !w.stopped()
