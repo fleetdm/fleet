@@ -37,35 +37,18 @@ module.exports = {
     // Only filter and sort testimonials when static content has been built.
     // If the build-static-content script was not run, we'll show a placeholder testimonial that is added by the custom hook.
     if (sails.config.builtStaticContent.compiledPagePartialsAppPath) {
-      // The testimonials are shown left to right in this order: well-known brands first, with the Stripe quotes spread out.
-      // Note: A name that appears more than once in this list matches that author's quotes in the order they appear in testimonials.yml.
+      // Same sort order and exclusions as the /customers page (see view-customers.js).
       let sortOrderOfTestimonialAuthorsShownOnThisPage = [
-        'Kenny Botelho',// NVIDIA
-        'Scott MacVicar',// Stripe
-        'Erik Gomez',// Uber
-        'Dan Grzelak',// Atlassian
-        'Brian LaShomb',// Epic Games
-        'nico waisman',// Lyft
-        'Andre Shields',// Rivian
-        'Roger Cantrell',// Nutanix
-        'Andy Gombar',// Webflow
-        'Adam Pippert',// Red Hat
-        'Brad Girardeau',// Figma
-        'Ahmed Elshaer',// Salesforce
-        'Adam Anklewicz',// Thumbtack
+        'Kenny Botelho',
+        'Scott MacVicar',
+        'Adam Anklewicz',
         'Nick Fohs',
-        'Wes Whetstone',// Stripe
-        'Dan Jackson',// Fastly
-        'Eric Tan',// Flock Safety
-        'Viktor Filipsson',// Sonos
-        'Luis Madrigal',// Uber
-        'Mike Arpaia',// osquery
+        'Wes Whetstone',
+        'Erik Gomez',
         'Matt Carr',
-        'Justin LaBo',// Benchling
-        'Austin Anderson',
-        'Chayce O\'Neal',// ConductorOne
-        'Mike Meyer',// Foursquare
-        'Wes Whetstone',// Stripe
+        'nico waisman',
+        'Dan Grzelak',
+        'Eric Tan',
       ];
 
       let testimonialAuthorsToExcludeOnThisPage = [
@@ -84,16 +67,22 @@ module.exports = {
         return !testimonialAuthorsToExcludeOnThisPage.includes(testimonial.quoteAuthorName);
       });
 
-      // Put the testimonials in the order above, followed by any others in the order they are listed in testimonials.yml.
-      let remainingTestimonials = _.clone(testimonials);
-      let sortedTestimonials = [];
-      for(let authorName of sortOrderOfTestimonialAuthorsShownOnThisPage) {
-        let indexOfNextQuote = _.findIndex(remainingTestimonials, {quoteAuthorName: authorName});
-        if(indexOfNextQuote !== -1) {
-          sortedTestimonials.push(remainingTestimonials.splice(indexOfNextQuote, 1)[0]);
+      testimonials.sort((a, b)=>{
+        if(sortOrderOfTestimonialAuthorsShownOnThisPage.indexOf(a.quoteAuthorName) === -1){
+          return 1;
+        } else if(sortOrderOfTestimonialAuthorsShownOnThisPage.indexOf(b.quoteAuthorName) === -1) {
+          return -1;
         }
-      }//∞
-      testimonials = sortedTestimonials.concat(remainingTestimonials);
+        return sortOrderOfTestimonialAuthorsShownOnThisPage.indexOf(a.quoteAuthorName) - sortOrderOfTestimonialAuthorsShownOnThisPage.indexOf(b.quoteAuthorName);
+      });
+
+      // Move Wes Whetstone's (Stripe) quotes so they are mixed in with other companies instead of being next to Scott MacVicar's (Stripe) quote.
+      // The first one stays near the top (in the second row, in a different column than Scott's), and any others are spread out further down.
+      let wesQuotes = _.filter(testimonials, (testimonial)=>testimonial.quoteAuthorName === 'Wes Whetstone');
+      testimonials = _.difference(testimonials, wesQuotes);
+      wesQuotes.forEach((testimonial, index)=>{
+        testimonials.splice(Math.min(index === 0 ? 5 : 24 + 12 * (index - 1), testimonials.length), 0, testimonial);
+      });
     }//ﬁ
 
     let testimonialsWithVideoLinks = _.filter(testimonials, (testimonial)=>{
