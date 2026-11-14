@@ -101,3 +101,77 @@ func TestIsInvalidReferencedCustomHostVitalsError(t *testing.T) {
 		})
 	}
 }
+
+func TestDiffCustomHostVitals(t *testing.T) {
+	vitals := func(names ...string) []CustomHostVital {
+		out := make([]CustomHostVital, 0, len(names))
+		for i, name := range names {
+			out = append(out, CustomHostVital{ID: uint(i + 1), Name: name}) //nolint:gosec // dismiss G115
+		}
+		return out
+	}
+	desired := func(names ...string) []CustomHostVital {
+		out := make([]CustomHostVital, 0, len(names))
+		for _, name := range names {
+			out = append(out, CustomHostVital{Name: name})
+		}
+		return out
+	}
+
+	cases := []struct {
+		name       string
+		existing   []CustomHostVital
+		desired    []CustomHostVital
+		wantCreate []string
+		wantRename []CustomHostVitalRename
+		wantDelete []CustomHostVital
+	}{
+		{
+			name:     "same names change nothing",
+			existing: vitals("Asset tag", "Function"),
+			desired:  desired("Function", "Asset tag"),
+		},
+		{
+			name:       "a case-only change renames",
+			existing:   vitals("Function", "Department"),
+			desired:    desired("FUNCTION", "Role"),
+			wantCreate: []string{"Role"},
+			wantRename: []CustomHostVitalRename{{ID: 1, From: "Function", To: "FUNCTION"}},
+			wantDelete: []CustomHostVital{{ID: 2, Name: "Department"}},
+		},
+		{
+			name:       "an exact match wins over a case-only match",
+			existing:   vitals("Ӏ tag", "ӏ tag"),
+			desired:    desired("Ӏ tag"),
+			wantDelete: []CustomHostVital{{ID: 2, Name: "ӏ tag"}},
+		},
+		{
+			name:       "a name that matches several vitals only by case creates a new one",
+			existing:   vitals("Ӏ tag", "ӏ tag"),
+			desired:    desired("Ӏ TAG"),
+			wantCreate: []string{"Ӏ TAG"},
+			wantDelete: []CustomHostVital{{ID: 1, Name: "Ӏ tag"}, {ID: 2, Name: "ӏ tag"}},
+		},
+		{
+			name:       "an accent-only change deletes and creates",
+			existing:   vitals("Cafe"),
+			desired:    desired("Café"),
+			wantCreate: []string{"Café"},
+			wantDelete: []CustomHostVital{{ID: 1, Name: "Cafe"}},
+		},
+		{
+			name:       "a different Unicode normalization renames",
+			existing:   vitals("Café"),
+			desired:    desired("Café"),
+			wantRename: []CustomHostVitalRename{{ID: 1, From: "Café", To: "Café"}},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			create, rename, del := DiffCustomHostVitals(c.existing, c.desired)
+			require.Equal(t, c.wantCreate, create)
+			require.Equal(t, c.wantRename, rename)
+			require.Equal(t, c.wantDelete, del)
+		})
+	}
+}

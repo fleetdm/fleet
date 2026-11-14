@@ -673,33 +673,20 @@ func (ds *Datastore) GetCustomHostVitals(ctx context.Context, ids []uint) ([]fle
 	return vitals, nil
 }
 
-func (ds *Datastore) UpsertCustomHostVitals(ctx context.Context, vitals []fleet.CustomHostVital) (created []fleet.CustomHostVital, deleted []fleet.CustomHostVital, err error) {
-	incomingNames := make(map[string]struct{}, len(vitals))
-	for _, v := range vitals {
-		incomingNames[v.Name] = struct{}{}
-	}
-
+func (ds *Datastore) UpsertCustomHostVitals(ctx context.Context, vitals []fleet.CustomHostVital) (created, renamed, deleted []fleet.CustomHostVital, err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		created, deleted = nil, nil
+		created, renamed, deleted = nil, nil, nil
 
 		var existing []fleet.CustomHostVital
 		if err := sqlx.SelectContext(ctx, tx, &existing, `SELECT id, name FROM custom_host_vitals`); err != nil {
 			return ctxerr.Wrap(ctx, err, "list existing custom host vitals")
 		}
 
-		existingNames := make(map[string]struct{}, len(existing))
-		for _, e := range existing {
-			existingNames[e.Name] = struct{}{}
-			if _, ok := incomingNames[e.Name]; !ok {
-				deleted = append(deleted, e)
-			}
-		}
-
 		var toInsert []string
-		for _, v := range vitals {
-			if _, ok := existingNames[v.Name]; !ok {
-				toInsert = append(toInsert, v.Name)
-			}
+		var toRename []fleet.CustomHostVitalRename
+		toInsert, toRename, deleted = fleet.DiffCustomHostVitals(existing, vitals)
+		for _, r := range toRename {
+			renamed = append(renamed, fleet.CustomHostVital{ID: r.ID, Name: r.To})
 		}
 
 		for _, v := range deleted {
@@ -726,6 +713,19 @@ func (ds *Datastore) UpsertCustomHostVitals(ctx context.Context, vitals []fleet.
 			}
 		}
 
+		// A new name can equal another renamed vital's current name under the
+		// collation, so park them all first under names no one can choose.
+		for _, v := range renamed {
+			if _, err := tx.ExecContext(ctx, `UPDATE custom_host_vitals SET name = CONCAT(id, ' ', UUID()) WHERE id = ?`, v.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "park renamed custom host vital")
+			}
+		}
+		for _, v := range renamed {
+			if _, err := tx.ExecContext(ctx, `UPDATE custom_host_vitals SET name = ? WHERE id = ?`, v.Name, v.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "rename custom host vital")
+			}
+		}
+
 		// Inserted one at a time (rather than a single multi-row INSERT) so each
 		// row's LastInsertId can be captured for the returned `created` list.
 		for _, name := range toInsert {
@@ -740,7 +740,7 @@ func (ds *Datastore) UpsertCustomHostVitals(ctx context.Context, vitals []fleet.
 		return nil
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
-	return created, deleted, nil
+	return created, renamed, deleted, nil
 }

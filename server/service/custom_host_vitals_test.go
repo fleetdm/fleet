@@ -38,8 +38,8 @@ func TestCustomHostVitalsAuth(t *testing.T) {
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{ID: id}, nil
 	}
-	ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
-		return nil, nil, nil
+	ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+		return nil, nil, nil, nil
 	}
 
 	globalRoles := []struct {
@@ -197,65 +197,69 @@ func TestUpsertCustomHostVitals(t *testing.T) {
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)}})
 
 	t.Run("rejects invalid names without persisting", func(t *testing.T) {
-		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, []fleet.CustomHostVital, error) {
 			t.Fatal("UpsertCustomHostVitals should not be called for an invalid name")
-			return nil, nil, nil
+			return nil, nil, nil, nil
 		}
 		err := svc.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: " bad"}}, false)
 		require.Error(t, err)
 	})
 
 	t.Run("rejects duplicate names within the same payload without persisting", func(t *testing.T) {
-		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, []fleet.CustomHostVital, error) {
 			t.Fatal("UpsertCustomHostVitals should not be called for a duplicate name")
-			return nil, nil, nil
+			return nil, nil, nil, nil
 		}
 		err := svc.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}, {Name: "Function"}}, false)
 		require.Error(t, err)
 	})
 
 	t.Run("rejects names that are duplicates under the case-insensitive collation", func(t *testing.T) {
-		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, []fleet.CustomHostVital, error) {
 			t.Fatal("UpsertCustomHostVitals should not be called for a case-only duplicate name")
-			return nil, nil, nil
+			return nil, nil, nil, nil
 		}
 		err := svc.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}, {Name: "function"}}, false)
 		require.Error(t, err)
 	})
 
 	t.Run("dry run validates without persisting", func(t *testing.T) {
-		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, []fleet.CustomHostVital, error) {
 			t.Fatal("UpsertCustomHostVitals should not be called on a dry run")
-			return nil, nil, nil
+			return nil, nil, nil, nil
 		}
 		err := svc.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}}, true)
 		require.NoError(t, err)
 	})
 
-	t.Run("emits an activity per created and deleted vital", func(t *testing.T) {
-		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
-			require.Equal(t, []fleet.CustomHostVital{{Name: "Function"}}, vitals)
-			return []fleet.CustomHostVital{{ID: 2, Name: "Function"}}, []fleet.CustomHostVital{{ID: 1, Name: "Department"}}, nil
+	t.Run("emits an activity per created, renamed and deleted vital", func(t *testing.T) {
+		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+			require.Equal(t, []fleet.CustomHostVital{{Name: "Function"}, {Name: "ROLE"}}, vitals)
+			return []fleet.CustomHostVital{{ID: 2, Name: "Function"}},
+				[]fleet.CustomHostVital{{ID: 3, Name: "ROLE"}},
+				[]fleet.CustomHostVital{{ID: 1, Name: "Department"}}, nil
 		}
 		var activities []activity_api.ActivityDetails
 		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 			activities = append(activities, activity)
 			return nil
 		}
-		err := svc.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}}, false)
+		err := svc.UpsertCustomHostVitals(ctx, []fleet.CustomHostVital{{Name: "Function"}, {Name: "ROLE"}}, false)
 		require.NoError(t, err)
-		require.Len(t, activities, 2)
-		require.IsType(t, fleet.ActivityTypeCreatedCustomHostVital{}, activities[0])
-		require.IsType(t, fleet.ActivityTypeDeletedCustomHostVital{}, activities[1])
+		require.Equal(t, []activity_api.ActivityDetails{
+			fleet.ActivityTypeCreatedCustomHostVital{CustomHostVitalID: 2, CustomHostVitalName: "Function"},
+			fleet.ActivityTypeEditedCustomHostVital{CustomHostVitalID: 3, CustomHostVitalName: "ROLE"},
+			fleet.ActivityTypeDeletedCustomHostVital{CustomHostVitalID: 1, CustomHostVitalName: "Department"},
+		}, activities)
 	})
 
 	t.Run("surfaces a still-referenced vital as a conflict", func(t *testing.T) {
-		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, error) {
-			return nil, nil, &fleet.CustomHostVitalUsedError{CustomHostVitalUsedInfo: fleet.CustomHostVitalUsedInfo{
+		ds.UpsertCustomHostVitalsFunc = func(ctx context.Context, vitals []fleet.CustomHostVital) ([]fleet.CustomHostVital, []fleet.CustomHostVital, []fleet.CustomHostVital, error) {
+			return nil, nil, nil, &fleet.CustomHostVitalUsedError{
 				CustomHostVitalID:   1,
 				CustomHostVitalName: "Department",
 				Entity:              fleet.EntityUsingCustomHostVital{Type: fleet.CustomHostVitalEntityScript, Name: "collect.sh", FleetName: "Unassigned"},
-			}}
+			}
 		}
 		err := svc.UpsertCustomHostVitals(ctx, nil, false)
 		require.Error(t, err)
