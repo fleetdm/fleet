@@ -11,6 +11,7 @@ import {
 } from "../../lib/ipc";
 import {
   activeServer,
+  apnsMockMoved,
   apnsMockUrl,
   procId,
   serveNeedsRestartForApns,
@@ -1953,7 +1954,10 @@ function ApnsField({
       ? `Using this URL instead of ${server.name}'s own mock (${apnsMockUrl(server)}).`
       : null;
   } else if (auto) {
-    if (status === null) {
+    if (apns.mockMoved) {
+      tone = "warn";
+      note = `${server.name}'s mock APNs is still running on its old port. Restart it from the Server tab; hosts connect once it's on ${apns.url}.`;
+    } else if (status === null) {
       tone = "neutral";
       note = `Checking ${server.name}'s mock APNs…`;
     } else if (status.up) {
@@ -2234,6 +2238,9 @@ export type ApnsTarget = {
   /// That server's fleet serve is running without the push URL its mock
   /// APNs setting asks for.
   serveNeedsRestart: boolean;
+  /// That server's mock is still on the port it had before the one in
+  /// Settings changed, so nothing answers on `url` yet.
+  mockMoved: boolean;
 };
 
 export function resolveApnsTarget(
@@ -2253,11 +2260,19 @@ export function resolveApnsTarget(
     !!server && !!serveProc && server.mock_apns &&
     serveNeedsRestartForApns(server, serveProc.env_keys ?? []);
   const override = form.mdm_apns_url.trim();
-  if (override) return { url: override, server, overridden: true, serveNeedsRestart: false };
-  if (server?.mock_apns) {
-    return { url: apnsMockUrl(server), server, overridden: false, serveNeedsRestart };
+  if (override) {
+    return { url: override, server, overridden: true, serveNeedsRestart: false, mockMoved: false };
   }
-  return { url: "", server, overridden: false, serveNeedsRestart: false };
+  if (server?.mock_apns) {
+    return {
+      url: apnsMockUrl(server),
+      server,
+      overridden: false,
+      serveNeedsRestart,
+      mockMoved: apnsMockMoved(server, procs),
+    };
+  }
+  return { url: "", server, overridden: false, serveNeedsRestart: false, mockMoved: false };
 }
 
 export function perfArgsFor(form: PerfFormConfig, apnsUrl: string): string[] {

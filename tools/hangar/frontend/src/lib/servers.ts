@@ -3,7 +3,7 @@
 // docker compose project, and serve config. Server 1 keeps the canonical dev
 // ports so it behaves byte-identically to the single-server era; additional
 // servers get offset ports + a scoped docker stack.
-import type { ServerProfile, ServerPorts, Settings } from "./ipc";
+import type { ProcInfo, ServerProfile, ServerPorts, Settings } from "./ipc";
 
 export const MAX_SERVERS = 3;
 
@@ -216,8 +216,11 @@ export const APNS_DISABLE_PUSH_ENV = "FLEET_DEV_MDM_APPLE_DISABLE_PUSH";
 
 /// 127.0.0.1, not localhost: the mock listens on IPv4 only. Matches
 /// apnsmock.URL on the Go side.
-export function apnsMockUrl(server: ServerProfile): string {
-  return `http://127.0.0.1:${server.ports.apns_mock}`;
+export function apnsMockUrl(
+  server: ServerProfile,
+  port = server.ports.apns_mock,
+): string {
+  return `http://127.0.0.1:${port}`;
 }
 
 export function apnsMockProcId(server: ServerProfile): string {
@@ -261,6 +264,30 @@ export function serveNeedsRestartForApns(
   const startedWithPushUrl = serveEnvKeys.includes(APNS_PUSH_URL_ENV);
   const wantsPushUrl = serveEnvFor(server).some(([k]) => k === APNS_PUSH_URL_ENV);
   return startedWithPushUrl !== wantsPushUrl;
+}
+
+/// The port this server's running mock listens on, read from its command line,
+/// or undefined when Hangar isn't running one. It keeps that port when the one
+/// in Settings changes.
+export function apnsMockRunningPort(
+  server: ServerProfile,
+  procs: ProcInfo[],
+): number | undefined {
+  const proc = procs.find(
+    (p) =>
+      p.id === apnsMockProcId(server) &&
+      (p.state === "running" || p.state === "stopping"),
+  );
+  const port = proc && /--listen \S+:(\d+)/.exec(proc.command)?.[1];
+  return port ? Number(port) : undefined;
+}
+
+/// True when the mock is running on another port than Settings now give it.
+/// Fleet's push URL and osquery-perf's --mdm_apns_url follow Settings, so
+/// nothing reaches the mock until it's restarted.
+export function apnsMockMoved(server: ServerProfile, procs: ProcInfo[]): boolean {
+  const port = apnsMockRunningPort(server, procs);
+  return server.mock_apns && port !== undefined && port !== server.ports.apns_mock;
 }
 
 /// `go run ./cmd/apple-apns-mock` from the primary repo, like Hangar's other
