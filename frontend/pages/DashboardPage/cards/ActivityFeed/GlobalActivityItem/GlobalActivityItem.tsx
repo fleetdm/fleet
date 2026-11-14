@@ -689,11 +689,20 @@ const TAGGED_TEMPLATES = {
     );
   },
   setHostGoogleDeviceId: (activity: IActivity) => {
+    const googleEmail = activity.details?.google_email;
     return (
       <>
         {" "}
         marked <b>{activity.details?.host_display_name}</b> as company-owned in
-        Google.
+        Google
+        {googleEmail ? (
+          <>
+            {" "}
+            when <b>{googleEmail}</b> signed in.
+          </>
+        ) : (
+          "."
+        )}
       </>
     );
   },
@@ -1968,6 +1977,15 @@ const TAGGED_TEMPLATES = {
   deletedMSEntraConditionalAccess: () => (
     <> deleted Microsoft Entra conditional access configuration.</>
   ),
+  addedConditionalAccessGoogle: () => (
+    <> configured Google conditional access.</>
+  ),
+  editedConditionalAccessGoogle: () => (
+    <> edited Google conditional access configuration.</>
+  ),
+  deletedConditionalAccessGoogle: () => (
+    <> deleted Google conditional access configuration.</>
+  ),
   addedConditionalAccessOkta: () => <> configured Okta conditional access.</>,
   deletedConditionalAccessOkta: () => (
     <> deleted Okta conditional access configuration.</>
@@ -3140,6 +3158,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedMSEntraConditionalAccess: {
       return TAGGED_TEMPLATES.deletedMSEntraConditionalAccess();
+    }
+    case ActivityType.AddedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.addedConditionalAccessGoogle();
+    }
+    case ActivityType.EditedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.editedConditionalAccessGoogle();
+    }
+    case ActivityType.DeletedConditionalAccessGoogle: {
+      return TAGGED_TEMPLATES.deletedConditionalAccessGoogle();
     }
     case ActivityType.AddedConditionalAccessOkta: {
       return TAGGED_TEMPLATES.addedConditionalAccessOkta();

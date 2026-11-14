@@ -12,6 +12,11 @@ export interface IConditionalAccessWindowsProfilesResponse {
   scep_profile: string;
   browser_profile: string;
 }
+export interface IGoogleConditionalAccessFormData {
+  customer_id: string;
+  admin_email: string;
+  service_account_key: Record<string, unknown>;
+}
 
 const conditionalAccessService = {
   triggerMicrosoftConditionalAccess: (
@@ -26,6 +31,19 @@ const conditionalAccessService = {
   },
   deleteMicrosoftConditionalAccess: () => {
     return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_MICROSOFT);
+  },
+  connectGoogleConditionalAccess: (
+    formData: IGoogleConditionalAccessFormData
+  ) => {
+    return sendRequest("POST", endpoints.CONDITIONAL_ACCESS_GOOGLE, formData);
+  },
+  updateGoogleConditionalAccess: (
+    formData: Partial<IGoogleConditionalAccessFormData>
+  ) => {
+    return sendRequest("PATCH", endpoints.CONDITIONAL_ACCESS_GOOGLE, formData);
+  },
+  deleteGoogleConditionalAccess: () => {
+    return sendRequest("DELETE", endpoints.CONDITIONAL_ACCESS_GOOGLE);
   },
   getIdpAppleProfile: (): Promise<string> => {
     return sendRequest(
