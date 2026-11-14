@@ -42,6 +42,8 @@ import type {
   ServeStatus,
 } from "../../lib/useSystemHealth";
 import { useApnsMockStatus } from "../../lib/useApnsMockStatus";
+import { copyText } from "../../lib/clipboard";
+import { scepProfileById, scepProfileIdOf } from "../../lib/scep";
 import type { SettingsSection } from "./SettingsTab";
 
 type ChainStep = {
@@ -1118,6 +1120,11 @@ function ActiveProcessesPanel({
   const [ngrokInfo, setNgrokInfo] = useState<NgrokYamlInfo | null>(null);
   const [pythonLanIp, setPythonLanIp] = useState("");
   const apnsMockRunning = isRunning(procs, apnsMockProcId(server));
+  // SCEP servers aren't per Fleet server, but any running one is a process
+  // to see and stop here; they're started from the SCEP tab.
+  const scepProcs = procs.filter(
+    (p) => scepProfileIdOf(p.id) !== null && (p.state === "running" || p.state === "stopping"),
+  );
   // Probe a running mock where it actually listens, which is its old port
   // after the one in Settings changes.
   const apnsMockPort = apnsMockRunningPort(server, procs) ?? server.ports.apns_mock;
@@ -1145,26 +1152,30 @@ function ActiveProcessesPanel({
       : "mock APNs";
 
   // The file server's address only matters while it's up and something else is
-  // dialling it, and it moves with the network — so it's read on the transition
-  // into running rather than polled. Depending on `pythonRunning` also covers
-  // the server already being up when Hangar starts, and clears the stale
-  // address on stop so a later start can't show the previous network's IP.
+  // dialling it, and it moves with the network, so it's re-read while running.
+  // Depending on `pythonRunning` also covers the server already being up when
+  // Hangar starts, and clears the address on stop so a later start can't show
+  // the previous network's IP.
   useEffect(() => {
     if (!pythonRunning) {
       setPythonLanIp("");
       return;
     }
     let cancelled = false;
-    api
-      .lanIp()
-      .then((ip) => {
-        if (!cancelled) setPythonLanIp(ip);
-      })
-      .catch(() => {
-        if (!cancelled) setPythonLanIp("");
-      });
+    const read = () =>
+      api
+        .lanIp()
+        .then((ip) => {
+          if (!cancelled) setPythonLanIp(ip);
+        })
+        .catch(() => {
+          if (!cancelled) setPythonLanIp("");
+        });
+    read();
+    const timer = setInterval(read, 10_000);
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, [pythonRunning]);
 
@@ -1284,6 +1295,14 @@ function ActiveProcessesPanel({
     setBusy(null);
   }
 
+  async function scepStop(profileId: string) {
+    setBusy(`scep-stop-${profileId}`);
+    try {
+      await api.scepStopProfile(profileId);
+    } catch {}
+    setBusy(null);
+  }
+
   async function apnsMockStart() {
     const mock = apnsMockStartArgs(server, settings);
     if (!mock) return;
@@ -1359,7 +1378,8 @@ function ActiveProcessesPanel({
     (docker.up ? 1 : 0) +
     (ngrokRunning ? 1 : 0) +
     (pythonRunning ? 1 : 0) +
-    (apnsMockRunning ? 1 : 0);
+    (apnsMockRunning ? 1 : 0) +
+    scepProcs.length;
   const configuredCount =
     (showNgrok && !ngrokRunning ? 1 : 0) +
     (showPython && !pythonRunning ? 1 : 0) +
@@ -1496,6 +1516,28 @@ function ActiveProcessesPanel({
           onLogs={goToLogs}
           onSettings={() => goToSettings("fleet-server")}
         />
+        {scepProcs.map((p) => {
+          const profileId = scepProfileIdOf(p.id) as string;
+          const profile = scepProfileById(settings, profileId);
+          return (
+            <Cell key={p.id}>
+              <ProcRow
+                dotState="run"
+                name={profile?.name ? `SCEP server · ${profile.name}` : "SCEP server"}
+                subline={[
+                  p.state === "stopping" ? "stopping" : "running",
+                  profile ? `:${profile.port}` : null,
+                  p.started_at_ms ? `uptime ${formatUptime(now, p.started_at_ms)}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+                onStop={() => scepStop(profileId)}
+                busy={busy === `scep-stop-${profileId}`}
+                down={false}
+              />
+            </Cell>
+          );
+        })}
       </div>
     </div>
   );
@@ -1795,20 +1837,55 @@ function PythonCell({
   onSettings: () => void;
 }) {
   const cfg = settings.python_server;
+  const [copied, setCopied] = useState(false);
   if (running) {
+    // The reason to run this is to point another device at it, so the card
+    // shows the address that device dials.
+    const url = `http://${lanIp}:${cfg.port}`;
     return (
       <Cell>
         <ProcRow
           dotState="run"
           name="python http.server"
-          // Showing the LAN address, not just the port: the reason to run this
-          // is to point another device at it, and on the road the address
-          // changes under you. Falls back to the bare ":port" when unknown.
-          subline={`serving ${cfg.directory ?? "repo root"} on ${lanIp}:${cfg.port}`}
+          subline={`serving ${cfg.directory ?? "repo root"} on :${cfg.port}`}
           onStop={onStop}
           busy={busy}
           down={false}
         />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "0 var(--pad-medium) var(--pad-medium)",
+            fontSize: "var(--fs-xx-small)",
+          }}
+        >
+          <span className="dim">LAN URL</span>
+          {lanIp ? (
+            <>
+              <span className="mono">{url}</span>
+              <button
+                className="link-btn"
+                onClick={() =>
+                  copyText(url)
+                    .then(() => {
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 1500);
+                    })
+                    .catch(() => {})
+                }
+              >
+                {copied ? "copied" : "copy"}
+              </button>
+              <button className="link-btn" onClick={() => api.openUrl(url)}>
+                open ↗
+              </button>
+            </>
+          ) : (
+            <span className="dim">unknown · no network?</span>
+          )}
+        </div>
       </Cell>
     );
   }
