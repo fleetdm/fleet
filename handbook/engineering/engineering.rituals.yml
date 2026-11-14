@@ -120,12 +120,15 @@
   moreInfoUrl:
   dri: "AndreyKizimenko"
 -
-  task: "Submit test coverage requests to QA Wolf"
+  task: "Request Playwright test coverage"
   startedOn: "2025-07-29" 
   frequency: "Triweekly"
-  description: "After each release cycle, review merged work and submit automation candidates to QA Wolf using the coverage request form."
-  moreInfoUrl: "https://fleetdm.com/handbook/engineering/releases#submit-test-coverage-requests-to-qa-wolf"
+  description: "After each release, review merged work and list the end-to-end tests to add or update in Fleet's Playwright suite."
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/releases#request-playwright-test-coverage"
   dri: "AndreyKizimenko"
+  autoIssue:
+    labels: [ ":help-qa" ]
+    repo: "fleet"
 -
   task: "Check production dependencies of fleetdm.com"
   startedOn: "2023-11-10" 
@@ -214,3 +217,13 @@
     labels: [ ":help-qa" ]
     repo: "fleet"
 
+- 
+  task: "Check load testing AWS for orphaned resources"
+  startedOn: "2026-12-01"
+  frequency: "Monthly"
+  description: "Check the load testing AWS account for resources nothing uses anymore: unattached EBS volumes, load balancers with no targets, unassigned Elastic IPs, and leftovers from destroyed load test and SigNoz workspaces. They bill every day until someone deletes them, so get them removed the same week."
+  moreInfoUrl: 
+  dri: "AndreyKizimenko"
+  autoIssue:
+    labels: [ ":help-qa" ]
+    repo: "fleet"
