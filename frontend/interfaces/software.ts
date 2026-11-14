@@ -18,15 +18,6 @@ export default PropTypes.shape({
   vulnerabilities: PropTypes.arrayOf(vulnerabilityInterface),
 });
 
-export interface ISoftwareResponse {
-  counts_updated_at: string;
-  software: ISoftware[];
-}
-
-export interface ISoftwareCountResponse {
-  count: number;
-}
-
 export interface IGetSoftwareByIdResponse {
   software: ISoftware;
 }
@@ -225,6 +216,7 @@ export interface IAppStoreAppVersion {
   version: string;
   status: ISoftwareAppStoreAppStatus;
   self_service: boolean;
+  install_during_setup?: boolean;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   labels_include_any: ILabelSoftwareTitle[] | null;
   labels_include_all: ILabelSoftwareTitle[] | null;
@@ -239,6 +231,9 @@ export interface IAppStoreAppVersion {
   /** iOS/iPadOS: XML plist string. Android: parsed JSON object (BE sends
    * json.RawMessage which Axios auto-parses). */
   configuration?: string | Record<string, unknown>;
+  /** The token the app was added from on this fleet. Null for Google Play
+   * apps and when the title isn't fetched for a fleet. */
+  vpp_token?: IVppTokenSummary | null;
 }
 
 /**
@@ -270,7 +265,6 @@ export interface ISoftwareTitle {
   /** All custom packages on this title (trimmed shape on list responses).
    * `null` when the title has no custom packages. */
   packages: ISoftwarePackage[] | null;
-  app_store_app: IAppStoreApp | null;
   /** All App Store app versions on this title, in `created_at` order.
    * `null` when the title has no App Store app. See
    * [[ISoftwareTitleDetails.app_store_apps]]. */
@@ -280,8 +274,6 @@ export interface ISoftwareTitle {
   auto_update_window_end?: string;
   /** Fleet marked this software as an AI tool (Premium; always false on Free). */
   ai_tool?: boolean;
-  /** @deprecated Use extension_for instead */
-  browser?: string;
 }
 
 export interface ISoftwareTitleDetails {
@@ -298,12 +290,10 @@ export interface ISoftwareTitleDetails {
    * When present, treat as the source of truth; `software_package` is a
    * convenience alias to `packages[0]`. */
   packages: ISoftwarePackage[] | null;
-  app_store_app: IAppStoreApp | null;
   /** All App Store app versions on this title, in `created_at` order
    * (first-added precedence). `null` when the title has no App Store app.
    * iOS/iPadOS/Android titles may have up to 10 versions; macOS VPP has at
-   * most one entry. When present, treat as the source of truth;
-   * `app_store_app` is a convenience alias to `app_store_apps[0]`. */
+   * most one entry. */
   app_store_apps: IAppStoreAppVersion[] | null;
   source: SoftwareSource;
   extension_for?: SoftwareExtensionFor;
@@ -317,8 +307,6 @@ export interface ISoftwareTitleDetails {
   auto_update_window_end?: string;
   /** Fleet marked this software as an AI tool (Premium; always false on Free). */
   ai_tool?: boolean;
-  /** @deprecated Use extension_for instead */
-  browser?: string;
 }
 
 export interface ISoftwareVulnerability {
@@ -352,8 +340,6 @@ export interface ISoftwareVersion {
   hosts_count?: number;
   /** Fleet marked this software as an AI tool (Premium; always false on Free). */
   ai_tool?: boolean;
-  /** @deprecated Use extension_for instead */
-  browser?: string;
 }
 
 export type SoftwareTypePlatform =

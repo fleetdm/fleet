@@ -374,10 +374,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	require.NoError(t, err)
 	_, err = svc.MDMGetEULABytes(ctx, "foo")
 	require.NoError(t, err)
-	// Generating a new key pair does not actually make any changes to fleet, or expose any
-	// information. The user must configure fleet with the new key pair and restart the server.
-	_, err = svc.NewMDMAppleDEPKeyPair(ctx)
-	require.NoError(t, err)
 
 	// The manual enrollment profile embeds the SCEP challenge, so only global
 	// and team admins and maintainers can read it (same roles as enroll secrets).
@@ -452,7 +448,15 @@ func TestAppleMDMAuthorization(t *testing.T) {
 </dict>
 </plist>`))
 
-	t.Run("EnqueueMDMAppleCommand", func(t *testing.T) {
+	t.Run("RunMDMCommand", func(t *testing.T) {
+		// Every host of this test has MDM on.
+		ds.AreHostsConnectedToFleetMDMFunc = func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {
+			connected := make(map[string]bool, len(hosts))
+			for _, h := range hosts {
+				connected[h.UUID] = hostUUIDToID[h.UUID] != 0
+			}
+			return connected, nil
+		}
 		mdmStore := opts.MDMStorage.(*mdmmock.MDMAppleStore)
 		var enqueuedIDs []string
 		mdmStore.EnqueueCommandFunc = func(ctx context.Context, ids []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
@@ -492,7 +496,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 			t.Run(c.desc, func(t *testing.T) {
 				enqueuedIDs, activityHostUUIDs = nil, nil
 				ctx = test.UserContext(ctx, c.user)
-				_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64FreeCmd, c.uuids)
+				_, err = svc.RunMDMCommand(ctx, rawB64FreeCmd, c.uuids)
 				checkAuthErr(t, err, c.shouldFailWithAuth)
 				require.ElementsMatch(t, c.wantEnqueued, enqueuedIDs)
 				require.ElementsMatch(t, c.wantEnqueued, activityHostUUIDs)
@@ -515,7 +519,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
     <string>uuid</string>
 </dict>
 </plist>`, "DeviceLock")))
-		_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"})
+		_, err = svc.RunMDMCommand(ctx, rawB64PremiumCmd, []string{"host1"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
 
@@ -532,7 +536,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
     <string>uuid</string>
 </dict>
 </plist>`, "ClearPasscode"))
-		_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"})
+		_, err = svc.RunMDMCommand(ctx, rawB64PremiumCmd, []string{"host1"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
 	})
@@ -609,49 +613,6 @@ func TestAppleMDMAuthorization(t *testing.T) {
 				// TODO(sarah): move test to shared file
 				_, err = svc.GetMDMCommandResults(ctx, c.cmdUUID, "")
 				checkAuthErr(t, err, c.shouldFailWithAuth)
-			})
-		}
-	})
-
-	t.Run("ListMDMAppleCommands", func(t *testing.T) {
-		ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, opt *fleet.MDMCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
-			return []*fleet.MDMAppleCommand{
-				{DeviceID: "no team", TeamID: nil},
-				{DeviceID: "tm1", TeamID: ptr.Uint(1)},
-				{DeviceID: "tm2", TeamID: ptr.Uint(2)},
-			}, nil
-		}
-
-		listCmdsCases := []struct {
-			desc       string
-			user       *fleet.User
-			want       []string // the expected device ids in the results
-			shouldFail bool     // with forbidden error
-		}{
-			{"no role", test.UserNoRoles, []string{}, true},
-			{"maintainer can view", test.UserMaintainer, []string{"no team", "tm1", "tm2"}, false},
-			{"observer can view", test.UserObserver, []string{"no team", "tm1", "tm2"}, false},
-			{"observer+ can view", test.UserObserverPlus, []string{"no team", "tm1", "tm2"}, false},
-			{"admin can view", test.UserAdmin, []string{"no team", "tm1", "tm2"}, false},
-			{"tm1 maintainer can view tm1", test.UserTeamMaintainerTeam1, []string{"tm1"}, false},
-			{"tm1 observer can view tm1", test.UserTeamObserverTeam1, []string{"tm1"}, false},
-			{"tm1 observer+ can view tm1", test.UserTeamObserverPlusTeam1, []string{"tm1"}, false},
-			{"tm1 admin can view tm1", test.UserTeamAdminTeam1, []string{"tm1"}, false},
-		}
-		for _, c := range listCmdsCases {
-			t.Run(c.desc, func(t *testing.T) {
-				ctx = test.UserContext(ctx, c.user)
-				res, err := svc.ListMDMAppleCommands(ctx, &fleet.MDMCommandListOptions{})
-				checkAuthErr(t, err, c.shouldFail)
-				if c.shouldFail {
-					return
-				}
-
-				got := make([]string, len(res))
-				for i, r := range res {
-					got[i] = r.DeviceID
-				}
-				require.Equal(t, c.want, got)
 			})
 		}
 	})
@@ -847,7 +808,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 }
 
 func TestNewMDMAppleConfigProfile(t *testing.T) {
-	identifier := "Bar.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+	identifier := "Bar.$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 	setup := func(t *testing.T, license *fleet.LicenseInfo, identifier string) (fleet.Service, context.Context, *mock.Store, *TestServerOpts) {
 		svc, ctx, ds, _ := setupAppleMDMService(t, license)
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
@@ -1161,7 +1122,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 
 	t.Run("Fleet variables used in the upload are threaded through to the datastore call", func(t *testing.T) {
 		svc, ctx, ds, _ := setup(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-		identifierWithVar := "com.fleetdm.test.$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
+		identifierWithVar := "com.fleetdm.test.$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
 		existing := newExistingProfile(identifierWithVar, "Test Profile", 0)
 		mcBytes := mcBytesForTest("Test Profile", identifierWithVar, "UUID")
 
@@ -1176,7 +1137,7 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 
 		err := svc.UpdateMDMConfigProfile(ctx, existing.ProfileUUID, "", mcBytes, nil, fleet.LabelsIncludeAll, nil, optjson.Slice[byte]{}, nil, nil, nil)
 		require.NoError(t, err)
-		assert.Contains(t, capturedVars, fleet.FleetVarHostEndUserEmailIDP)
+		assert.Contains(t, capturedVars, fleet.FleetVarHostEndUserIDPUsername)
 	})
 
 	t.Run("secrets_updated_at from expanding embedded secrets is threaded through to the datastore call", func(t *testing.T) {
@@ -1418,23 +1379,6 @@ func TestUpdateMDMAppleConfigProfile(t *testing.T) {
 			})
 		}
 	})
-}
-
-func TestBatchSetMDMAppleProfilesWithSecrets(t *testing.T) {
-	svc, ctx, _, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-
-	// Test profile with FLEET_SECRET in PayloadDisplayName
-	profileWithSecret := mcBytesForTest("Profile $FLEET_SECRET_PASSWORD", "test.identifier", "UUID")
-	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{profileWithSecret}, false)
-	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
-
-	// Test multiple profiles where one has a secret in PayloadDisplayName
-	goodProfile := mcBytesForTest("Good Profile", "good.identifier", "UUID1")
-	badProfile := mcBytesForTest("Bad $FLEET_SECRET_KEY Profile", "bad.identifier", "UUID2")
-	err = svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{goodProfile, badProfile}, false)
-	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
-	assert.ErrorContains(t, err, "profiles[1]")
 }
 
 func TestSetABMTokenDefaultFreeLicense(t *testing.T) {
@@ -2292,19 +2236,16 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		}
 		return &fleet.Host{ID: hostID, UUID: "WR0N6-UU1D", Platform: "darwin"}, nil
 	}
-	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+	ds.HostLiteByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.HostLite, error) {
 		if identifier == "h0571d3n71f13r" {
-			return &fleet.Host{ID: uint(42), UUID: "H057-UU1D-1337", Platform: "darwin"}, nil
+			return &fleet.HostLite{ID: uint(42)}, nil
 		}
-		return &fleet.Host{ID: uint(21), UUID: "WR0N6-UU1D", Platform: "darwin"}, nil
+		return &fleet.HostLite{ID: uint(21)}, nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
-		return nil, nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return nil, nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
@@ -2426,7 +2367,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 			}
 			ds.AppConfigFuncInvoked = false
 			ds.HostFuncInvoked = false
-			ds.HostByIdentifierFuncInvoked = false
+			ds.HostLiteByIdentifierFuncInvoked = false
 			ds.GetHostMDMAppleProfilesFuncInvoked = false
 
 			var gotHost *fleet.HostDetail
@@ -2437,9 +2378,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 				gotHost = h
 			}
 			if c.hostIdentifier != nil {
-				h, err := svc.HostByIdentifier(ctx, *c.hostIdentifier, fleet.HostDetailOptions{})
+				h, err := svc.GetHostByIDOrIdentifier(ctx, *c.hostIdentifier, fleet.HostDetailOptions{})
 				require.NoError(t, err)
-				require.True(t, ds.HostByIdentifierFuncInvoked)
+				require.True(t, ds.HostLiteByIdentifierFuncInvoked)
 				gotHost = h
 			}
 			require.NotNil(t, gotHost)
@@ -5140,402 +5081,6 @@ func TestMDMCommandAndReportResultsInstallApplicationAutoUpdateFailure(t *testin
 	require.True(t, ds.GetPastActivityDataForVPPAppInstallFuncInvoked)
 	require.NotNil(t, emitted)
 	require.True(t, emitted.FromAutoUpdate, "auto-update terminal failures must carry FromAutoUpdate so the activity is attributed to Fleet")
-}
-
-func TestMDMBatchSetAppleProfiles(t *testing.T) {
-	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-
-	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		return &fleet.Team{ID: 1, Name: name}, nil
-	}
-	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: id, Name: "team"}, nil
-	}
-	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
-		return nil
-	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
-	) (updates fleet.MDMProfilesUpdates, err error) {
-		return fleet.MDMProfilesUpdates{}, nil
-	}
-	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, tid *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
-		return nil, nil, nil
-	}
-	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
-		return nil
-	}
-
-	type testCase struct {
-		name     string
-		user     *fleet.User
-		premium  bool
-		teamID   *uint
-		teamName *string
-		profiles [][]byte
-		wantErr  string
-	}
-
-	testCases := []testCase{
-		{
-			"global admin",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
-			nil,
-			nil,
-			nil,
-			"",
-		},
-		{
-			"global admin, team",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			true,
-			ptr.Uint(1),
-			nil,
-			nil,
-			"",
-		},
-		{
-			"global maintainer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
-			false,
-			nil,
-			nil,
-			nil,
-			"",
-		},
-		{
-			"global maintainer, team",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
-			true,
-			ptr.Uint(1),
-			nil,
-			nil,
-			"",
-		},
-		{
-			"global observer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
-			false,
-			nil,
-			nil,
-			nil,
-			authz.ForbiddenErrorMessage,
-		},
-		{
-			"team admin, DOES belong to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
-			true,
-			ptr.Uint(1),
-			nil,
-			nil,
-			"",
-		},
-		{
-			"team admin, DOES belong to team by name",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
-			true,
-			nil,
-			ptr.String("team"),
-			nil,
-			"",
-		},
-		{
-			"team admin, DOES NOT belong to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
-			true,
-			ptr.Uint(1),
-			nil,
-			nil,
-			authz.ForbiddenErrorMessage,
-		},
-		{
-			"team admin, DOES NOT belong to team by name",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
-			true,
-			nil,
-			ptr.String("team"),
-			nil,
-			authz.ForbiddenErrorMessage,
-		},
-		{
-			"team maintainer, DOES belong to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
-			true,
-			ptr.Uint(1),
-			nil,
-			nil,
-			"",
-		},
-		{
-			"team maintainer, DOES NOT belong to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
-			true,
-			ptr.Uint(1),
-			nil,
-			nil,
-			authz.ForbiddenErrorMessage,
-		},
-		{
-			"team observer, DOES belong to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
-			true,
-			ptr.Uint(1),
-			nil,
-			nil,
-			authz.ForbiddenErrorMessage,
-		},
-		{
-			"team observer, DOES NOT belong to team",
-			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
-			true,
-			ptr.Uint(1),
-			nil,
-			nil,
-			authz.ForbiddenErrorMessage,
-		},
-		{
-			"user no roles",
-			&fleet.User{ID: 1337},
-			false,
-			nil,
-			nil,
-			nil,
-			authz.ForbiddenErrorMessage,
-		},
-		{
-			"team id with free license",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
-			ptr.Uint(1),
-			nil,
-			nil,
-			ErrMissingLicense.Error(),
-		},
-		{
-			"team name with free license",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
-			nil,
-			ptr.String("team"),
-			nil,
-			ErrMissingLicense.Error(),
-		},
-		{
-			"team id and name specified",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			true,
-			ptr.Uint(1),
-			ptr.String("team"),
-			nil,
-			"cannot specify both team_id and team_name",
-		},
-		{
-			"duplicate profile name",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			true,
-			ptr.Uint(1),
-			nil,
-			[][]byte{
-				mobileconfigForTest("N1", "I1"),
-				mobileconfigForTest("N1", "I2"),
-			},
-			`More than one configuration profile have the same name (PayloadDisplayName): "N1"`,
-		},
-		{
-			"duplicate profile identifier",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			true,
-			ptr.Uint(1),
-			nil,
-			[][]byte{
-				mobileconfigForTest("N1", "I1"),
-				mobileconfigForTest("N2", "I2"),
-				mobileconfigForTest("N3", "I1"),
-			},
-			`More than one configuration profile have the same identifier (PayloadIdentifier): "I1"`,
-		},
-		{
-			"no duplicates",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
-			nil,
-			nil,
-			[][]byte{
-				mobileconfigForTest("N1", "I1"),
-				mobileconfigForTest("N2", "I2"),
-				mobileconfigForTest("N3", "I3"),
-			},
-			``,
-		},
-		{
-			"unsupported payload type",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
-			nil,
-			nil,
-			[][]byte{[]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-			<plist version="1.0">
-			<dict>
-				<key>PayloadContent</key>
-				<array>
-					<dict>
-						<key>Enable</key>
-						<string>On</string>
-						<key>PayloadDisplayName</key>
-						<string>FileVault 2</string>
-						<key>PayloadIdentifier</key>
-						<string>com.apple.MCX.FileVault2.A5874654-D6BA-4649-84B5-43847953B369</string>
-						<key>PayloadType</key>
-						<string>%s</string>
-						<key>PayloadUUID</key>
-						<string>A5874654-D6BA-4649-84B5-43847953B369</string>
-						<key>PayloadVersion</key>
-						<integer>1</integer>
-					</dict>
-				</array>
-				<key>PayloadDisplayName</key>
-				<string>Config Profile Name</string>
-				<key>PayloadIdentifier</key>
-				<string>com.example.config.FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
-				<key>PayloadType</key>
-				<string>Configuration</string>
-				<key>PayloadUUID</key>
-				<string>FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
-				<key>PayloadVersion</key>
-				<integer>1</integer>
-			</dict>
-			</plist>`, mobileconfig.FleetFileVaultPayloadType))},
-			mobileconfig.DiskEncryptionProfileRestrictionErrMsg,
-		},
-		{
-			"uses a Fleet Variable",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-			false,
-			nil,
-			nil,
-			[][]byte{[]byte(`<?xml version="1.0" encoding="UTF-8"?>
-			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-			<plist version="1.0">
-			<dict>
-				<key>PayloadContent</key>
-				<array>
-					<dict>
-						<key>Username</key>
-						<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
-					</dict>
-				</array>
-				<key>PayloadDisplayName</key>
-				<string>Config Profile Name</string>
-				<key>PayloadIdentifier</key>
-				<string>com.example.config.FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
-				<key>PayloadType</key>
-				<string>Configuration</string>
-				<key>PayloadUUID</key>
-				<string>FE42D0A2-DBA9-4B72-BC67-9288665B8D59</string>
-				<key>PayloadVersion</key>
-				<integer>1</integer>
-			</dict>
-			</plist>`)},
-			`profile variables are not supported by this deprecated endpoint`,
-		},
-	}
-	for name := range fleetmdm.FleetReservedProfileNames() {
-		testCases = append(
-			testCases,
-			testCase{
-				"reserved payload outer name " + name,
-				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-				true,
-				nil,
-				nil,
-				[][]byte{mobileconfigForTest(name, "I1")},
-				name,
-			},
-			testCase{
-				"reserved payload inner name " + name,
-				&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
-				true,
-				nil,
-				nil,
-				[][]byte{mobileconfigForTestWithContent("N1", "I1", "I1", "PayloadType", name)},
-				name,
-			},
-		)
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			defer func() { ds.BatchSetMDMAppleProfilesFuncInvoked = false }()
-
-			// prepare the context with the user and license
-			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
-			tier := fleet.TierFree
-			if tt.premium {
-				tier = fleet.TierPremium
-			}
-			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
-
-			err := svc.BatchSetMDMAppleProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false)
-			if tt.wantErr == "" {
-				require.NoError(t, err)
-				require.True(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
-				return
-			}
-			require.Error(t, err)
-			require.ErrorContains(t, err, tt.wantErr)
-			require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
-		})
-	}
-}
-
-func TestMDMBatchSetAppleProfilesDryRunPayloadScopeConflictValidation(t *testing.T) {
-	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-
-	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
-		return []*fleet.MDMConfigProfilePayload{}, nil, nil
-	}
-
-	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
-		return errors.New("scope conflict")
-	}
-
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-
-	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{mobileconfigForTest("N1", "I1")}, true)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "scope conflict")
-	require.True(t, ds.VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked)
-}
-
-func TestMDMBatchSetAppleProfilesDryRun(t *testing.T) {
-	svc, ctx, ds, svcOpts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-
-	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		return &fleet.Team{ID: 1, Name: name}, nil
-	}
-	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
-		return &fleet.Team{ID: id, Name: "team"}, nil
-	}
-	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
-		return nil
-	}
-	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, tid *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
-		return nil, nil, nil
-	}
-	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
-		return nil
-	}
-
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-
-	// dry run doesn't call methods that save stuff in the db
-	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{}, true)
-	require.NoError(t, err)
-	require.False(t, ds.BatchSetMDMAppleProfilesFuncInvoked)
-	require.False(t, svcOpts.ActivityMock.NewActivityFuncInvoked)
 }
 
 func TestUpdateMDMAppleSettings(t *testing.T) {
@@ -9663,7 +9208,7 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	<array>
 		<dict>
 			<key>ComputerName</key>
-			<string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string>
+			<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
 		</dict>
 	</array>
 </dict>
@@ -9678,7 +9223,16 @@ func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
 	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	vars, err := validateConfigProfileFleetVariables(profileWithVars, premiumLic, &fleet.GroupedCertificateAuthorities{})
 	require.NoError(t, err)
-	require.Contains(t, vars, "HOST_END_USER_EMAIL_IDP")
+	require.Contains(t, vars, "HOST_END_USER_IDP_USERNAME")
+
+	// A removed variable gets its Fleet 5 error whatever the license.
+	profileWithRemovedVar := strings.ReplaceAll(profileWithVars, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME", "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}")
+	for _, lic := range []*fleet.LicenseInfo{freeLic, premiumLic} {
+		_, err = validateConfigProfileFleetVariables(profileWithRemovedVar, lic, &fleet.GroupedCertificateAuthorities{})
+		var removedErr *fleet.RemovedFleetVariableError
+		require.ErrorAs(t, err, &removedErr, lic.Tier)
+		require.ErrorContains(t, err, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`)
+	}
 
 	// Test profile without variables (should work with free license)
 	profileNoVars := `<?xml version="1.0" encoding="UTF-8"?>

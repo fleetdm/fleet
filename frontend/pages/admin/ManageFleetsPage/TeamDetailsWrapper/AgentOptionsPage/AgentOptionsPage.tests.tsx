@@ -46,7 +46,7 @@ const renderAgentOptionsPage = () => {
     createGetConfigHandler(),
     http.get(baseUrl("/fleets/:id"), () =>
       HttpResponse.json({
-        team: {
+        fleet: {
           id: 1,
           name: "Team 1",
           agent_options: { config: { options: { pack_delimiter: "/" } } },

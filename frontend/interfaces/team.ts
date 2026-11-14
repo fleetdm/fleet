@@ -52,7 +52,7 @@ export interface ITeam extends ITeamSummary {
     encryption settings (`apple_settings`, `windows_settings`,
     `linux_settings`) are enabled. Read the per-platform fields instead. */
     enable_disk_encryption: boolean;
-    enable_recovery_lock_password: boolean;
+    macos_recovery_lock_password_enabled: boolean;
     name_template?: string;
     /** @deprecated Use `windows_settings.require_bitlocker_pin`. */
     windows_require_bitlocker_pin: boolean;
@@ -72,13 +72,11 @@ export interface ITeam extends ITeamSummary {
       macos_enable_bootstrap_package_during_manual_enrollment: boolean;
       macos_enable_bootstrap_package_during_migration: boolean;
       macos_manual_agent_install: boolean | null;
-      require_all_software_macos: boolean | null;
-      require_all_software_windows: boolean | null;
+      macos_require_all_software: boolean | null;
+      windows_require_all_software: boolean | null;
       lock_end_user_info: boolean | null;
       enable_create_local_admin_account?: boolean;
       end_user_local_account_type?: EndUserLocalAccountType;
-    };
-    macos_setup?: {
       enable_managed_local_account?: boolean;
     };
     windows_settings?: {

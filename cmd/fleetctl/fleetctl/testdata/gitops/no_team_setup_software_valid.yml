@@ -1,10 +1,10 @@
 name: Unassigned
 controls:
-  macos_setup:
+  setup_experience:
     software:
       - package_path: lib/software_ruby.yml
       - app_store_id: "1"
-    script: lib/setup_script.sh
+    macos_script: lib/setup_script.sh
 policies:
 software:
   app_store_apps:

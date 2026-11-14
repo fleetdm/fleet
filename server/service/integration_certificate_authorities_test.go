@@ -569,10 +569,15 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			require.Contains(t, errMsg, "certificate_user_principal_name cannot be empty if specified")
 		})
 
+		disallowedCAVars := map[string]string{
+			"$FLEET_VAR_BOZO":                    "FLEET_VAR_BOZO is not allowed",
+			"$FLEET_VAR_HOST_END_USER_EMAIL_IDP": `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore.`,
+		}
+
 		t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
 			// allowed usage
 			testCopy := goodDigiCertCA
-			testCopy.CertificateUserPrincipalNames = []string{"$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " ${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"}
+			testCopy.CertificateUserPrincipalNames = []string{"$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername) + " ${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"}
 			req, err := newApplyRequest(testCopy, false)
 			require.NoError(t, err)
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
@@ -586,19 +591,21 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			})
 
 			// disallowed usage
-			testCopy.CertificateUserPrincipalNames = []string{"$FLEET_VAR_BOZO"}
-			req, err = newApplyRequest(testCopy, false)
-			require.NoError(t, err)
-			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
-			errMsg := extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, "certificate_authorities.digicert")
-			require.Contains(t, errMsg, "FLEET_VAR_BOZO is not allowed")
+			for value, wantErr := range disallowedCAVars {
+				testCopy.CertificateUserPrincipalNames = []string{value}
+				req, err = newApplyRequest(testCopy, false)
+				require.NoError(t, err)
+				res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+				errMsg := extractServerErrorText(res.Body)
+				require.Contains(t, errMsg, "certificate_authorities.digicert")
+				require.Contains(t, errMsg, wantErr)
+			}
 		})
 
 		t.Run("digicert Fleet vars in common name", func(t *testing.T) {
 			// allowed usage
 			testCopy := goodDigiCertCA
-			testCopy.CertificateCommonName = "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
+			testCopy.CertificateCommonName = "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername) + "}${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
 			req, err := newApplyRequest(testCopy, false)
 			require.NoError(t, err)
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
@@ -612,19 +619,21 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			})
 
 			// disallowed usage
-			testCopy.CertificateCommonName = "$FLEET_VAR_BOZO"
-			req, err = newApplyRequest(testCopy, false)
-			require.NoError(t, err)
-			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
-			errMsg := extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, "certificate_authorities.digicert")
-			require.Contains(t, errMsg, "FLEET_VAR_BOZO is not allowed")
+			for value, wantErr := range disallowedCAVars {
+				testCopy.CertificateCommonName = value
+				req, err = newApplyRequest(testCopy, false)
+				require.NoError(t, err)
+				res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+				errMsg := extractServerErrorText(res.Body)
+				require.Contains(t, errMsg, "certificate_authorities.digicert")
+				require.Contains(t, errMsg, wantErr)
+			}
 		})
 
 		t.Run("digicert Fleet vars in seat id", func(t *testing.T) {
 			// allowed usage
 			testCopy := goodDigiCertCA
-			testCopy.CertificateSeatID = "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
+			testCopy.CertificateSeatID = "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername) + "}${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
 			req, err := newApplyRequest(testCopy, false)
 			require.NoError(t, err)
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
@@ -638,13 +647,15 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			})
 
 			// disallowed usage
-			testCopy.CertificateSeatID = "$FLEET_VAR_BOZO"
-			req, err = newApplyRequest(testCopy, false)
-			require.NoError(t, err)
-			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
-			errMsg := extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, "certificate_authorities.digicert")
-			require.Contains(t, errMsg, "FLEET_VAR_BOZO is not allowed")
+			for value, wantErr := range disallowedCAVars {
+				testCopy.CertificateSeatID = value
+				req, err = newApplyRequest(testCopy, false)
+				require.NoError(t, err)
+				res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+				errMsg := extractServerErrorText(res.Body)
+				require.Contains(t, errMsg, "certificate_authorities.digicert")
+				require.Contains(t, errMsg, wantErr)
+			}
 		})
 
 		t.Run("digicert API token not set", func(t *testing.T) {
@@ -2938,9 +2949,9 @@ func (s *integrationMDMTestSuite) TestEJBCACertificateAuthorities() {
 			"certificate_authority_name":       ejbcatest.CAName,
 			"certificate_profile_name":         ejbcatest.CertProfile,
 			"end_entity_profile_name":          ejbcatest.EndEntityProfile,
-			"certificate_common_name":          "$FLEET_VAR_HOST_END_USER_EMAIL_IDP",
+			"certificate_common_name":          "$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
 			"username_template":                "$FLEET_VAR_HOST_HARDWARE_SERIAL",
-			"certificate_user_principal_names": []string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+			"certificate_user_principal_names": []string{"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"},
 		}}
 	}
 	trusted := fake.ClientP12(t, expiry, p12Password)
@@ -3090,8 +3101,8 @@ func (s *integrationMDMTestSuite) TestBatchApplyEJBCACertificateAuthorities() {
 		return fleet.EJBCA{
 			Name: name, URL: fake.HTTP.URL, ClientP12: p12, Password: p12Password, TrustCABundlePEM: fake.ServerPEM,
 			CertificateAuthorityName: ejbcatest.CAName, CertificateProfileName: ejbcatest.CertProfile,
-			EndEntityProfileName: ejbcatest.EndEntityProfile, CertificateCommonName: "$FLEET_VAR_HOST_END_USER_EMAIL_IDP",
-			UsernameTemplate: "$FLEET_VAR_HOST_HARDWARE_SERIAL", CertificateUserPrincipalNames: []string{"$FLEET_VAR_HOST_END_USER_EMAIL_IDP"},
+			EndEntityProfileName: ejbcatest.EndEntityProfile, CertificateCommonName: "$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
+			UsernameTemplate: "$FLEET_VAR_HOST_HARDWARE_SERIAL", CertificateUserPrincipalNames: []string{"$FLEET_VAR_HOST_END_USER_IDP_USERNAME"},
 		}
 	}
 	scepSpec := func(name string) fleet.CustomSCEPProxyCA {

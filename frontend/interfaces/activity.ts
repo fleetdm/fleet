@@ -51,7 +51,7 @@ export enum ActivityType {
   DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
   RetrievedHostMyDeviceURL = "retrieved_host_my_device_url",
-  ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
+  ReadHostRecoveryLockPassword = "read_host_recovery_lock_password",
   SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
   SetHostGoogleDeviceId = "set_host_google_device_id",
   DeletedHostGoogleDeviceId = "deleted_host_google_device_id",
@@ -101,12 +101,6 @@ export enum ActivityType {
   EditedAndroidProfile = "edited_android_profile",
   EditedAndroidCertificate = "edited_android_certificate",
   ResentCertificate = "resent_certificate",
-  // Deprecated: superseded by EditedDiskEncryptionSettings; kept so
-  // historical activities still render. Was generated for all platforms.
-  EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
-  // Deprecated: superseded by EditedDiskEncryptionSettings; kept so
-  // historical activities still render. Was generated for all platforms.
-  DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
   // Generated once per platform whose disk encryption settings changed.
   EditedDiskEncryptionSettings = "edited_disk_encryption_settings",
   AddedBootstrapPackage = "added_bootstrap_package",
@@ -266,7 +260,7 @@ export type IHostPastActivityType =
   | ActivityType.MdmEnrolled
   | ActivityType.ReadHostDiskEncryptionKey
   | ActivityType.RetrievedHostMyDeviceURL
-  | ActivityType.ViewedHostRecoveryLockPassword
+  | ActivityType.ReadHostRecoveryLockPassword
   | ActivityType.SetHostRecoveryLockPassword
   | ActivityType.SetHostGoogleDeviceId
   | ActivityType.DeletedHostGoogleDeviceId
@@ -592,7 +586,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Disabled conditional access automations",
   disabled_gitops_exception: "Disabled GitOps exception",
   disabled_gitops_mode: "Disabled GitOps mode",
-  disabled_macos_disk_encryption: "Turned off disk encryption",
   disabled_macos_setup_end_user_auth:
     "Turned off end user authentication (setup experience)",
   disabled_macos_update_new_hosts: "Disabled OS updates for new macOS hosts",
@@ -631,7 +624,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Enabled conditional access automations",
   enabled_gitops_exception: "Enabled GitOps exception",
   enabled_gitops_mode: "Enabled GitOps mode",
-  enabled_macos_disk_encryption: "Turned on disk encryption",
   enabled_macos_setup_end_user_auth:
     "Turned on end user authentication (setup experience)",
   enabled_macos_update_new_hosts: "Enabled OS updates for new macOS hosts",
@@ -656,7 +648,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_script_batch: "Canceled script batch",
   read_host_disk_encryption_key: "Viewed disk encryption key",
   retrieved_host_my_device_url: "Retrieved My device URL",
-  viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
+  read_host_recovery_lock_password: "Viewed Recovery Lock password",
   set_host_recovery_lock_password: "Set Recovery Lock password",
   set_host_google_device_id: "Marked as company-owned in Google",
   deleted_host_google_device_id: "Unmarked as company-owned in Google",

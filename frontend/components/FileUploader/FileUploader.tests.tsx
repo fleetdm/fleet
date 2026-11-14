@@ -227,4 +227,74 @@ describe("FileUploader", () => {
     );
     expect(screen.getByText("drop a package")).toBeInTheDocument();
   });
+
+  describe("error placement", () => {
+    it("keeps the label and shows the error inside the card by default", () => {
+      render(
+        <FileUploader
+          label="Client certificate"
+          graphicName="file-certificate"
+          message="Upload a .p12"
+          internalError="Invalid certificate"
+          onFileUpload={noop}
+        />
+      );
+
+      expect(screen.getByText("Client certificate")).toBeInTheDocument();
+      expect(screen.getAllByText("Invalid certificate")).toHaveLength(1);
+    });
+
+    it("doesn't repeat the error above the card when a selected file shows it", () => {
+      render(
+        <FileUploader
+          label="Client certificate"
+          graphicName="file-certificate"
+          message="Upload a .p12"
+          internalError="Invalid certificate"
+          fileDetails={{ name: "cert.p12", description: "Invalid certificate" }}
+          onFileUpload={noop}
+        />
+      );
+
+      expect(screen.getByText("Client certificate")).toBeInTheDocument();
+      expect(screen.getAllByText("Invalid certificate")).toHaveLength(1);
+    });
+
+    it("replaces the label with the error when errorInLabel is set", () => {
+      render(
+        <FileUploader
+          label="Okta certificate"
+          graphicName="file-pem"
+          message="Upload a .pem"
+          internalError="Upload only the Okta certificate"
+          errorInLabel
+          onFileUpload={noop}
+        />
+      );
+
+      expect(screen.queryByText("Okta certificate")).not.toBeInTheDocument();
+      expect(
+        screen.getAllByText("Upload only the Okta certificate")
+      ).toHaveLength(1);
+    });
+
+    it("shows the error in the label slot with errorInLabel once a file is selected", () => {
+      render(
+        <FileUploader
+          label="Okta certificate"
+          graphicName="file-pem"
+          message="Upload a .pem"
+          internalError="Upload only the Okta certificate"
+          errorInLabel
+          fileDetails={{ name: "okta.pem" }}
+          onFileUpload={noop}
+        />
+      );
+
+      expect(screen.queryByText("Okta certificate")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Upload only the Okta certificate")
+      ).toBeInTheDocument();
+    });
+  });
 });

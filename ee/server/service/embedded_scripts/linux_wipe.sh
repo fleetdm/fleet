@@ -2,6 +2,24 @@
 
 NETWORK_FS_TYPES="nfs|nfs4|cifs|smb|smbfs|fuse\.sshfs|afs|ncpfs|9p"
 
+# NixOS keeps its tools in the system profile, and the systemd-run unit below
+# starts with systemd's default PATH, which has none of them.
+if [ -d /run/current-system/sw/bin ]; then
+    PATH="$PATH:/run/current-system/sw/bin"
+    export PATH
+fi
+
+# A missing awk makes is_network_mount report every path as local, so never
+# start deleting without it.
+require_wipe_commands() {
+    for _cmd in awk rm; do
+        if ! command -v "$_cmd" >/dev/null 2>&1; then
+            echo "Error: $_cmd not found in PATH ($PATH); aborting wipe" >&2
+            exit 1
+        fi
+    done
+}
+
 # passwd -l below only reaches accounts in /etc/shadow, so directory users
 # (SSSD/LDAP/Kerberos/AD) need pam_nologin to keep them out mid-wipe.
 block_logins() {
@@ -237,7 +255,7 @@ wipe_system_files() {
 }
 
 prepare_system_reset() {
-    cp /usr/bin/sync /sync_bin
+    cp "$(command -v sync)" /sync_bin
     # https://docs.kernel.org/admin-guide/sysrq.html
     echo "1" > /proc/sys/kernel/sysrq
 }
@@ -250,6 +268,7 @@ system_reset() {
 }
 
 wipe_all_files() {
+    require_wipe_commands
     sleep 10 # Give fleetd enough time to register the script as completed
     prepare_system_reset
     unmount_network_filesystems
@@ -281,6 +300,6 @@ else
     # systemd-run failing rather than existing, or an old systemd leaves a host
     # locked out by block_logins and never wiped.
     if ! systemd-run --unit=fleet-wipe /bin/sh "$WIPE_SCRIPT" wipe; then
-        (/usr/bin/nohup sh "$WIPE_SCRIPT" wipe >/dev/null 2>/dev/null </dev/null) &
+        (nohup sh "$WIPE_SCRIPT" wipe >/dev/null 2>/dev/null </dev/null) &
     fi
 fi

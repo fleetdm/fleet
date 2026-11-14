@@ -42,8 +42,6 @@ import (
 // If you add a new cacheable struct, make sure to add it to this list.
 var cacheableItems = []fleet.Cloner{
 	&fleet.AppConfig{},
-	&fleet.Pack{},
-	&fleet.ScheduledQuery{},
 	&fleet.Features{},
 	&fleet.TeamMDM{},
 	&fleet.TeamConfig{},

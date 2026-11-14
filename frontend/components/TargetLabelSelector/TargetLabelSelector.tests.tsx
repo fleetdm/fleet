@@ -137,6 +137,35 @@ describe("TargetLabelSelector (tabbed) component", () => {
     expect(onAddLabel).toHaveBeenCalledTimes(1);
   });
 
+  it("surfaces the labels error while labels are loading", () => {
+    renderSelector({
+      labels: [],
+      isLoadingLabels: true,
+      labelsError: "Select at least one label",
+    });
+
+    expect(screen.getByText("Select at least one label")).toBeVisible();
+  });
+
+  it("surfaces the labels error when the labels request fails", () => {
+    renderSelector({
+      labels: [],
+      isErrorLabels: true,
+      labelsError: "Select at least one label",
+    });
+
+    expect(screen.getByText("Select at least one label")).toBeVisible();
+  });
+
+  it("surfaces the labels error in the empty state on both tabs", () => {
+    renderSelector({ labels: [], labelsError: "Select at least one label" });
+
+    expect(screen.getByText("Select at least one label")).toBeVisible();
+
+    fireEvent.click(screen.getByText("Exclude"));
+    expect(screen.getByText("Select at least one label")).toBeVisible();
+  });
+
   it("shows the GitOps tooltip on a selected label tag when disabled by GitOps mode", async () => {
     const renderWithContext = createCustomRenderer({
       context: {

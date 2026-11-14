@@ -1,0 +1,219 @@
+<div id="cybersecurity" v-cloak>
+  <div purpose="page-container">
+    <div purpose="page-content">
+
+      <div purpose="page-hero">
+        <div purpose="hero-text">
+          <div purpose="page-heading">
+            <h4>Cybersecurity</h4>
+            <h1>AI agents are running on your machines. <br purpose="desktop-break">Do you know which ones?</h1>
+          </div>
+          <p>AI agents install software, run scripts, and reach your data from employee laptops. Fleet shows you what’s running on every Mac, PC, and Linux machine, and lets you act on it.</p>
+          <div purpose="button-row">
+            <a purpose="cta-button" href="/contact?talkToUs">Get a demo</a>
+            <animated-arrow-button href="/software-management">See vulnerability management</animated-arrow-button>
+          </div>
+        </div>
+        <ai-tool-graphic></ai-tool-graphic>
+      </div>
+
+      <div purpose="pain-banner">
+        <h2>Where device management visibility falls short</h2>
+        <div purpose="pain-items">
+          <div purpose="pain-item">
+            <h5>AI tools are running before your inventory catches up</h5>
+            <p>Developers install AI agents, CLI tools, and extensions in minutes. Your MDM’s app list updates on its own schedule, so security hears about it later.</p>
+          </div>
+          <div purpose="pain-item">
+            <h5>You push settings and hope they stuck</h5>
+            <p>Most MDMs tell you a setting was sent. They can't tell you what's true on the device right now.</p>
+          </div>
+        </div>
+        <div purpose="stat">
+          <h3>Under 1 hour vs. 20 days</h3>
+          <p>Time for attackers to build a working exploit, vs. the industry median to deploy a patch (<a href="/securing/patch-management-vs-vulnerability-management">Zero Day Clock</a>)</p>
+        </div>
+      </div>
+
+      <div purpose="feature-rows">
+        <div purpose="feature-with-image">
+          <div purpose="feature-image">
+            <img purpose="wide-image" alt="A Slack message asking Fleet whether any Macs run the backdoored version of xz, and Fleet's answer: 3 of 1,120 Macs, all in Engineering." src="/images/feature-image-chat-with-your-macs-504x275@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>Your MDM, with the answers built in</h3>
+            <p>You don’t need a separate visibility tool next to your MDM. Fleet does both.</p>
+          </div>
+        </div>
+        <div purpose="feature-with-image" class="reverse">
+          <div purpose="feature-image">
+            <img alt="A commit history of device configuration changes, including adding Claude Desktop to the Workstations team and adding disk space check policies." src="/images/infrastructure-as-code-feature-image-4-504x378@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>Every change leaves a paper trail</h3>
+            <p>Fleet keeps device settings as code, so every change is reviewed, versioned, and easy to show an auditor.</p>
+            <animated-arrow-button href="/infrastructure-as-code">Change management</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="quote-section">
+        <p purpose="quote-text">“Fleet is the MDM security teams actually want to use. Open source is how security earns trust. We don’t have to rely on vendor claims. We can inspect the code, test it, and verify the security controls ourselves.”</p>
+        <div purpose="name-and-title">
+          <p purpose="author-name">Security team</p>
+          <p purpose="author-title">Identity security company</p>
+        </div>
+      </div>
+
+      <div purpose="feature-rows">
+        <div purpose="feature-with-image" class="reverse">
+          <div purpose="feature-image">
+            <div purpose="code-card" role="img" aria-label="A fleet.yml file that turns on disk encryption, sets a macOS update deadline, and adds a policy that checks FileVault is on.">
+<pre aria-hidden="true"><span purpose="code-comment"># fleet.yml</span>
+controls:
+  macos_settings:
+    custom_settings:
+<span purpose="code-value">      - path: ./profiles/disk-encryption.mobileconfig</span>
+  macos_updates:
+<span purpose="code-value">    minimum_version: "15.5"
+    deadline: "2026-06-15"</span>
+policies:
+<span purpose="code-value">  - name: Disk encryption enabled
+    platform: darwin
+    resolution: Turn on FileVault in System Settings.</span></pre>
+            </div>
+          </div>
+          <div purpose="feature-text">
+            <h3>Check the code yourself</h3>
+            <p>Your security team can read the code, test it, and verify the controls instead of taking a vendor's word for it.</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="quote-and-logos">
+        <div purpose="section-quote">
+          <div purpose="quote-author-image">
+            <img alt="Scott MacVicar" src="/images/testimonial-author-scott-macvicar-100x100@2x.png">
+          </div>
+          <div purpose="quote-content">
+            <p purpose="quote-text">“We’ve been using Fleet for a few years at Stripe and we couldn’t be happier. The fact that it’s also open-source made it easy for us to try it out and customise it to our needs.”</p>
+            <div purpose="name-and-title">
+              <p purpose="author-name">Scott MacVicar</p>
+              <p purpose="author-title">Head of Developer Infrastructure &amp; Corporate Technology, Stripe</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="logo-grid">
+          <div purpose="logo"><img height="28" alt="Okta logo" src="/images/logo-okta-85x28@2x.png"></div>
+          <div purpose="logo"><img height="32" alt="Datadog logo" src="/images/logos/logo-datadog-111x32@2x.png"></div>
+          <div purpose="logo"><img height="24" alt="Veeam logo" src="/images/logos/logo-veeam-158x48@2x.png"></div>
+          <div purpose="logo"><img height="21" alt="Cyberhaven logo" src="/images/logos/logo-cyberhaven-172x32@2x.png"></div>
+          <div purpose="logo"><img height="28" alt="GitLab logo" src="/images/logo-gitlab-124x28@2x.png"></div>
+          <div purpose="logo"><img height="28" alt="Snowflake logo" src="/images/logo-snowflake-color-117x28@2x.png"></div>
+          <div purpose="logo"><img height="21" alt="KnowBe4 logo" src="/images/logos/logo-knowbe4-108x21@2x.png"></div>
+        </div>
+      </div>
+
+      <div purpose="feature-rows">
+        <div purpose="feature-with-image">
+          <div purpose="feature-image">
+            <div purpose="glasswing-card" role="img" aria-label="Fleet joins Anthropic’s Project Glasswing">
+              <div purpose="glasswing-dots" aria-hidden="true">
+                <span></span><span></span><span></span>
+                <span></span><span></span>
+                <span></span>
+              </div>
+              <p purpose="glasswing-title" aria-hidden="true">Fleet joins Anthropic’s Project Glasswing</p>
+              <p purpose="glasswing-subtitle" aria-hidden="true">Researching AI-powered defensive security for endpoints.</p>
+            </div>
+          </div>
+          <div purpose="feature-text">
+            <h3>Testing frontier AI on endpoint security</h3>
+            <p>Fleet is part of Anthropic's Project Glasswing. We're testing how frontier AI can strengthen the security of device management and speed up defensive work, and we share what we learn in the open.</p>
+          </div>
+        </div>
+        <div purpose="feature-with-image" class="reverse">
+          <div purpose="feature-image">
+            <img alt="A list of AI tools Fleet found on Macs, including Claude Code, Cursor, GitHub Copilot, ChatGPT, and Ollama, with each tool's type." src="/images/feature-image-ai-tools-macos-504x378@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>Enable AI on Macs and mobile devices</h3>
+            <p>Give employees a secure way to control AI tools on their work computers from their mobile devices. Fleet integrates with coding agents, MCP servers, and local models.</p>
+            <animated-arrow-button href="/endpoint-governance">Endpoint governance</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="quote-section">
+        <p purpose="quote-text">“We have been using Okta and Fleet in IT. It is so nice to improve corporate security using AI agents.”</p>
+        <div purpose="quote-author">
+          <div purpose="quote-author-image">
+            <img alt="Todd Nemeth" src="/images/testimonial-author-todd-nemeth-120x120@2x.png">
+          </div>
+          <div purpose="name-and-title">
+            <p purpose="author-name">Todd Nemeth</p>
+            <p purpose="author-title">Senior Manager, IT Engineering, Figma</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="page-section">
+        <div purpose="section-heading">
+          <h2>Stop doing everything twice</h2>
+          <p>Macs, Windows PCs, and Linux machines get the same policies, checked the same way, in one place. Security doesn't stop at an OS boundary.</p>
+        </div>
+        <div purpose="pills">
+          <span purpose="pill">OS updates</span>
+          <span purpose="pill">Self service</span>
+          <span purpose="pill">Automated Device Enrollment (zero touch)</span>
+          <span purpose="pill">Declarative Device Management (DDM)</span>
+          <span purpose="pill">Platform SSO</span>
+          <span purpose="pill">Okta/Entra conditional access</span>
+          <span purpose="pill">CIS benchmarks</span>
+          <span purpose="pill">Disk encryption key escrow</span>
+          <span purpose="pill">Remote lock and wipe</span>
+        </div>
+        <div purpose="pills-link">
+          <animated-arrow-button href="/device-management">Supported operating systems</animated-arrow-button>
+        </div>
+        <div purpose="feature-with-image" class="reverse">
+          <div purpose="feature-image">
+            <img alt="The Manage automations menu on a Fleet policy, with options to install software, run a script, reserve calendar time, or block single sign-on for hosts failing the policy." src="/images/feature-image-stop-chasing-patches-800x600@2x.png">
+          </div>
+          <div purpose="feature-text">
+            <h3>Auto-patch vulnerable software</h3>
+            <p>Fleet shows which devices run software with known vulnerabilities, then installs the fix with a policy you control.</p>
+            <p>When a zero-day lands, you can see who's exposed and push the patch from the same console.</p>
+            <div purpose="stat">
+              <h3>73% → 99.8%</h3>
+              <p>Patch coverage one Fleet customer reached in a single sprint</p>
+            </div>
+            <animated-arrow-button href="/software-management">Vulnerability management</animated-arrow-button>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="trust-card">
+        <div purpose="trust-card-text">
+          <h5>SOC 2 Type II and ISO 27001</h5>
+          <p>Controls, policies, and pen test results, ready for your supplier review.</p>
+        </div>
+        <a purpose="cta-button" href="https://trust.fleetdm.com" target="_blank">Visit trust center</a>
+      </div>
+
+      <div purpose="bottom-cta">
+        <div purpose="page-heading">
+          <h4>Cybersecurity</h4>
+          <h1>Give your security team answers in seconds</h1>
+        </div>
+        <div purpose="button-row">
+          <a purpose="cta-button" href="/contact?talkToUs">Get a demo</a>
+          <animated-arrow-button href="/software-management">See vulnerability management</animated-arrow-button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <cloud-city></cloud-city>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

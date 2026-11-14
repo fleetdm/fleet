@@ -391,7 +391,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateSpecEndpointAndAMAPIFai
 
 	// Step: Get the certificate template ID
 	var listResp listCertificateTemplatesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", teamID), nil, http.StatusOK, &listResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?fleet_id=%d", teamID), nil, http.StatusOK, &listResp)
 	require.Len(t, listResp.Certificates, 1)
 	certificateTemplateID := listResp.Certificates[0].ID
 
@@ -1378,7 +1378,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateRenewal() {
 // TestCertificateTemplateAuthorizationForTeamUsers tests authorization for certificate templates with team-level users.
 // This test covers the bug fix where team admins/maintainers/gitops can read certificate templates for their own teams.
 // The bug was that CertificateTemplate struct was missing JSON tags, causing TeamID to serialize as "TeamID"
-// instead of "team_id", which prevented the OPA policy from matching correctly.
+// instead of "fleet_id", which prevented the OPA policy from matching correctly.
 func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUsers() {
 	t := s.T()
 	ctx := context.Background()
@@ -1458,7 +1458,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		s.token = teamAdminToken
 
 		var listResp listCertificateTemplatesResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", teamID), nil, http.StatusOK, &listResp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?fleet_id=%d", teamID), nil, http.StatusOK, &listResp)
 		require.Len(t, listResp.Certificates, 1)
 		require.Equal(t, teamCertID, listResp.Certificates[0].ID)
 		require.Equal(t, certTemplateTeamName, listResp.Certificates[0].Name)
@@ -1492,7 +1492,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		s.token = teamAdminToken
 
 		// Team admin should get 403 forbidden when trying to list other team's certificates
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusForbidden, &listCertificateTemplatesResponse{})
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?fleet_id=%d", otherTeamID), nil, http.StatusForbidden, &listCertificateTemplatesResponse{})
 	})
 
 	// Reading and deleting hide the existence of templates the team admin can't reach.
@@ -1530,7 +1530,7 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateAuthorizationForTeamUse
 		// The other team's template is still there.
 		s.token = originalToken
 		var listResp listCertificateTemplatesResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", otherTeamID), nil, http.StatusOK, &listResp)
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?fleet_id=%d", otherTeamID), nil, http.StatusOK, &listResp)
 		require.Len(t, listResp.Certificates, 1)
 		require.Equal(t, createResp.ID, listResp.Certificates[0].ID)
 	})
@@ -2022,7 +2022,7 @@ func (s *integrationMDMTestSuite) TestONCProfileWithheldUntilCertReady() {
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "onc-wifi", Contents: oncProfileJSON},
 		{Name: "camera-policy", Contents: cameraProfileJSON},
-	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	}}, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 
 	// Trigger profile reconciliation
 	s.awaitTriggerAndroidProfileSchedule(t)
@@ -2090,7 +2090,7 @@ func (s *integrationMDMTestSuite) TestONCProfileReleasedAfterCertTemplateDeleted
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "onc-wifi", Contents: oncProfileJSON},
 		{Name: "camera-policy", Contents: cameraProfileJSON},
-	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	}}, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 
 	s.awaitTriggerAndroidProfileSchedule(t)
 	s.assertONCProfileWithheld(t, host.UUID)
@@ -2147,7 +2147,7 @@ func (s *integrationMDMTestSuite) TestONCProfileDetailPreservedWhenAddingAnother
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: oncProfileName, Contents: oncProfileJSON},
 		{Name: cameraProfileName, Contents: cameraProfileJSON},
-	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	}}, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 	s.awaitTriggerAndroidProfileSchedule(t)
 	s.assertONCProfileWithheld(t, host.UUID)
 
@@ -2194,7 +2194,7 @@ func (s *integrationMDMTestSuite) TestONCProfileDetailPreservedWhenAddingAnother
 			{Name: oncProfileName, Contents: oncProfileJSON},
 			{Name: cameraProfileName, Contents: cameraProfileJSON},
 			{Name: "extra-batch", Contents: []byte(`{"cameraDisabled": false}`)},
-		}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+		}}, http.StatusNoContent, "fleet_id", fmt.Sprint(team.ID))
 
 		requireDetailPreservedAndStatusReset(t, "POST /mdm/profiles/batch")
 	})

@@ -208,18 +208,21 @@ describe("ControlDetailsModal", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("drops the details block for an IdP email error", () => {
+    it("drops the details block for a Fleet 5 removed variable error", () => {
       renderModal({
         control: createMockHostMdmProfile({
           name: "Wi-Fi",
           platform: "darwin",
           operation_type: "install",
           status: "failed",
-          detail: "There is no IdP email for this host.",
+          detail:
+            'The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration',
         }),
       });
 
-      expect(screen.getByText(/Learn more/)).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /fleet-5-migration/ })
+      ).toBeInTheDocument();
       expect(screen.queryByText("Details:")).not.toBeInTheDocument();
     });
 
@@ -520,8 +523,10 @@ describe("ControlDetailsModal", () => {
   // in-progress status while carrying the detail from the failed attempt, so the retry message
   // is the only place the failure is explained.
   describe("retrying android certificate", () => {
-    const CERT_ERROR =
-      "Couldn't reach the certificate authority. Failed to communicate with SCEP server";
+    // What the Fleet Android app reports, and how the UI restates it.
+    const SCEP_ERROR =
+      "Network error during SCEP enrollment: Failed to communicate with SCEP server";
+    const SCEP_MESSAGE = "Fleet couldn't reach the certificate authority.";
 
     const retryingCert = (
       overrides?: Partial<IHostMdmProfile>
@@ -532,7 +537,7 @@ describe("ControlDetailsModal", () => {
         platform: "android",
         operation_type: "install",
         status: "delivered",
-        detail: CERT_ERROR,
+        detail: SCEP_ERROR,
         certificate_template_id: 4,
         retrying: true,
         retry_count: 1,
@@ -545,22 +550,23 @@ describe("ControlDetailsModal", () => {
         screen.getByText(message, { selector: "span" })
       ).toBeInTheDocument();
 
-    it("states the error and counts the attempt", () => {
+    it("restates the error and counts the attempt", () => {
       renderModal({ control: retryingCert() });
 
       // The attempt numbers count the initial attempt, so one retry of a maximum three means
       // this is attempt two of four.
-      expectMessage(`${CERT_ERROR}. Retrying enrollment (attempt 2 of 4).`);
-      expect(screen.getByText(CERT_ERROR)).toBeInTheDocument();
+      expectMessage(`${SCEP_MESSAGE} Retrying enrollment (attempt 2 of 4).`);
+      // The app's own wording stays available in the copyable block below.
+      expect(screen.getByText(SCEP_ERROR)).toBeInTheDocument();
     });
 
     it("counts the final attempt when the retries are used up", () => {
       renderModal({ control: retryingCert({ retry_count: 3 }) });
 
-      expectMessage(`${CERT_ERROR}. Retrying enrollment (attempt 4 of 4).`);
+      expectMessage(`${SCEP_MESSAGE} Retrying enrollment (attempt 4 of 4).`);
     });
 
-    it("does not repeat the period when the detail already ends in one", () => {
+    it("does not repeat the period when an unrecognized detail already ends in one", () => {
       renderModal({
         control: retryingCert({ detail: "Something went wrong." }),
       });
@@ -585,14 +591,23 @@ describe("ControlDetailsModal", () => {
       expectMessage("Retrying enrollment (attempt 2 of 4).");
     });
 
+    it("falls back to the reported text for an unrecognized failure", () => {
+      const detail = "Unexpected error during enrollment: null";
+      renderModal({ control: retryingCert({ detail }) });
+
+      expectMessage(`${detail}. Retrying enrollment (attempt 2 of 4).`);
+    });
+
     // Defensive only: this server always sends max_retries alongside retry_count.
     it("falls back to no attempt count if the retry allowance is missing", () => {
       renderModal({ control: retryingCert({ max_retries: undefined }) });
 
-      expectMessage(`${CERT_ERROR}. Retrying enrollment.`);
+      expectMessage(`${SCEP_MESSAGE} Retrying enrollment.`);
     });
 
-    it("shows the reported error once the retries are exhausted", () => {
+    // The same restatement as while retrying, so the failure is not reworded the moment Fleet
+    // gives up. It moves from the status message to the guidance line below it.
+    it("keeps the same restatement once the retries are exhausted", () => {
       renderModal({
         control: retryingCert({
           retrying: false,
@@ -601,10 +616,11 @@ describe("ControlDetailsModal", () => {
         }),
       });
 
+      expect(screen.getByText(SCEP_MESSAGE)).toBeInTheDocument();
       expect(
         screen.getByText(/failed to apply/, { selector: "span" })
       ).toHaveTextContent("Anna's MacBook Pro failed to apply BeyondCorp.");
-      expect(screen.getByText(CERT_ERROR)).toBeInTheDocument();
+      expect(screen.getByText(SCEP_ERROR)).toBeInTheDocument();
     });
   });
 });

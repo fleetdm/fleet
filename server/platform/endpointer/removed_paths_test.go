@@ -43,7 +43,7 @@ func TestRegisterRemovedPaths(t *testing.T) {
 	}{
 		{"v1", http.MethodGet, "/api/v1/fleet/gone/1?token=secret", http.StatusGone, "gone via GET"},
 		{"dated version", http.MethodPost, "/api/2022-04/fleet/gone/abc", http.StatusGone, "gone via POST"},
-		{"head", http.MethodHead, "/api/v1/fleet/gone/1", http.StatusGone, ""},
+		{"head is not removed", http.MethodHead, "/api/v1/fleet/gone/1", http.StatusMethodNotAllowed, ""},
 		{"latest", http.MethodDelete, "/api/latest/fleet/gone/1", http.StatusGone, "gone via DELETE"},
 		{"unknown version", http.MethodGet, "/api/v9/fleet/gone/1", http.StatusNotFound, ""},
 		{"other path", http.MethodGet, "/api/v1/fleet/kept", http.StatusOK, ""},
@@ -92,7 +92,7 @@ func TestRegisterRemovedPathsWithOverlap(t *testing.T) {
 		Overlap: RemovedPathOverlap{
 			Method:            http.MethodPost,
 			RouteTemplate:     "/api/_version_/fleet/items/{id}/{old_segment}/{name}",
-			WrongMethodRoutes: map[string]string{"/api/_version_/fleet/items/{id}/live/{name}": http.MethodGet},
+			WrongMethodRoutes: map[string][]string{"/api/_version_/fleet/items/{id}/live/{name}": {http.MethodGet}},
 		},
 		Message: func(method string) string { return "gone via " + method },
 	}})

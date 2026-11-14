@@ -26,9 +26,49 @@ if (-not $uninstall -or (-not $uninstall.UninstallString -and -not $uninstall.Qu
   Exit 0
 }
 
-# Kill any running Vivaldi processes before uninstalling
-Stop-Process -Name "vivaldi" -Force -ErrorAction SilentlyContinue
-Start-Sleep -Seconds 2
+function Get-ProductName($path) {
+  try { [Diagnostics.FileVersionInfo]::GetVersionInfo($path).ProductName } catch { $null }
+}
+
+# Stop Vivaldi and the helpers it runs from its install directory. Also stop any
+# Vivaldi installer left running by an install that never finished: while it
+# runs, the uninstaller fails with exit code 60.
+$installDirs = @("${env:ProgramFiles}\Vivaldi\Application\")
+if ($uninstall.InstallLocation) {
+  $installDirs += $uninstall.InstallLocation.Trim('"').TrimEnd('\') + '\'
+}
+try {
+  $running = @(Get-CimInstance Win32_Process -ErrorAction Stop | Where-Object {
+    $path = $_.ExecutablePath
+    $path -and (
+      ($installDirs | Where-Object { $path.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) }) -or
+      ($_.CommandLine -match '\s--system-level\b' -and (Get-ProductName $path) -eq 'Vivaldi Installer')
+    )
+  })
+  if ($running) {
+    Write-Host "Stopping $(($running.Name | Sort-Object -Unique) -join ', ') ($($running.Count) processes) before uninstalling."
+    $stopped = @{}
+    foreach ($proc in $running) {
+      $stopped["$($proc.ProcessId)|$($proc.CreationDate.Ticks)"] = $true
+      Stop-Process -Id $proc.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    # Wait-Process can return while stopped processes are still exiting, so poll.
+    # Match on start time too, since Windows reuses PIDs.
+    $sw = [Diagnostics.Stopwatch]::StartNew()
+    do {
+      Start-Sleep -Milliseconds 500
+      $survivors = @(Get-CimInstance Win32_Process -ErrorAction Stop |
+        Where-Object { $stopped["$($_.ProcessId)|$($_.CreationDate.Ticks)"] })
+    } while ($survivors -and $sw.Elapsed.TotalSeconds -lt 30)
+    if ($survivors) {
+      Write-Host "Couldn't stop $(($survivors.Name | Sort-Object -Unique) -join ', ') (PID $($survivors.ProcessId -join ', ')), so not uninstalling."
+      Exit 1
+    }
+  }
+} catch {
+  Write-Host "Error stopping Vivaldi: $_"
+  Exit 1
+}
 
 $uninstallCommand = if ($uninstall.QuietUninstallString) {
   $uninstall.QuietUninstallString
