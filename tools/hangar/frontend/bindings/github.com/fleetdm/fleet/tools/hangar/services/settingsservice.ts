@@ -37,7 +37,7 @@ export function DetectFleetConfig(repo: string): $CancellablePromise<string> {
 }
 
 /**
- * GetSettings loads the persisted settings (defaults if none saved yet).
+ * GetSettings returns the current settings (defaults if none saved yet).
  */
 export function GetSettings(): $CancellablePromise<settings$0.Settings> {
     return $Call.ByID(3703475196).then(($result: any) => {
@@ -130,7 +130,8 @@ export function ReadTextFile(path: string): $CancellablePromise<string> {
 }
 
 /**
- * SaveSettings persists the given settings.
+ * SaveSettings persists the given settings. Reserved slots keep their identity,
+ * so the frontend reloads after every save.
  */
 export function SaveSettings($in: settings$0.Settings): $CancellablePromise<void> {
     return $Call.ByID(677885975, $in);

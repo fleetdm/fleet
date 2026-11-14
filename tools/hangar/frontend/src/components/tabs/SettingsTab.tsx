@@ -23,6 +23,8 @@ import {
 } from "../../lib/servers";
 import { staleNgrokTunnels } from "../../lib/orchestration";
 import { noAutocorrect } from "../../lib/noAutocorrect";
+import { useSlotUsage } from "../../lib/useSlotUsage";
+import { SlotReservedNote } from "../SlotBadges";
 
 export type SettingsSection =
   | "servers"
@@ -641,6 +643,7 @@ function ServerCard({
   onRemove: () => void;
   setError: (e: string | null) => void;
 }) {
+  const slotUsage = useSlotUsage();
   const accent = serverColorVar(server.color);
   const [ref, setRef] = useState("");
   const [creating, setCreating] = useState(false);
@@ -783,6 +786,7 @@ function ServerCard({
           </div>
           <button onClick={pickExisting}>📁 Pick existing</button>
         </div>
+        <SlotReservedNote usage={slotUsage[server.id]} />
 
         {index > 0 && (
           <div
