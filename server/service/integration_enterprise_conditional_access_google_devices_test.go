@@ -109,6 +109,14 @@ func (g *googleDeviceTest) iosStatus(host *fleet.Host) fleet.GoogleConditionalAc
 	return resp
 }
 
+// signInRequired reads the flag the Self-service web clip gets with the device details.
+func (g *googleDeviceTest) signInRequired(host *fleet.Host) bool {
+	var resp getDeviceHostResponse
+	res := g.s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+host.UUID, nil, http.StatusOK)
+	require.NoError(g.t, json.NewDecoder(res.Body).Decode(&resp))
+	return resp.GoogleConditionalAccessSignInRequired
+}
+
 // signIn returns the token in the sign-in URL the status route hands out.
 func (g *googleDeviceTest) signIn(host *fleet.Host) string {
 	st := g.iosStatus(host)
@@ -225,6 +233,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRegist
 	t.Cleanup(func() { _ = s.ds.DeleteHost(cleanupCtx, mac.ID) })
 
 	// Not connected: nothing is enabled and Google isn't called.
+	require.False(t, g.signInRequired(ade))
 	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{}, g.iosStatus(ade))
 	require.Empty(t, g.googleDeviceID(ade))
 	g.sync()
@@ -232,6 +241,14 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRegist
 	g.register("anything", fleet.GoogleConditionalAccessRegistration{Token: "t"}, http.StatusUnauthorized)
 
 	g.connectIntegration()
+
+	// The device details tell a company-owned iPhone to sign in without counting an
+	// attempt, however often they are read.
+	for range fleet.GoogleConditionalAccessMaxRegistrationAttempts + 1 {
+		require.True(t, g.signInRequired(ade))
+	}
+	require.False(t, g.hasDevice(ade))
+	require.False(t, g.signInRequired(byod))
 
 	// A company-owned iPhone is handed a sign-in URL; a personal one and a Mac aren't.
 	token := g.signIn(ade)
@@ -266,6 +283,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDeviceRegist
 	require.Equal(t, "ade", g.googleDeviceID(ade))
 
 	// A registered host gets no URL and no attempt is counted.
+	require.False(t, g.signInRequired(ade))
 	require.Equal(t, fleet.GoogleConditionalAccessDeviceStatus{Enabled: true, Eligible: true, Registered: true, Managed: true}, g.iosStatus(ade))
 	require.Zero(t, g.device(ade).RegistrationAttempts)
 

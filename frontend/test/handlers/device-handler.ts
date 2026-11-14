@@ -11,6 +11,7 @@ import createMockLicense from "__mocks__/licenseMock";
 import createMockMacAdmins from "__mocks__/macAdminsMock";
 import { IDUPDetails } from "interfaces/host";
 import {
+  IGetDeviceGoogleConditionalAccessResponse,
   IGetDeviceSoftwareResponse,
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
@@ -146,3 +147,17 @@ export const getDeviceVppCommandResultHandler = http.get(
     });
   }
 );
+
+export const googleConditionalAccessHandler = (
+  overrides?: Partial<IGetDeviceGoogleConditionalAccessResponse>
+) =>
+  http.get(baseUrl("/device/:token/conditional_access/google"), () =>
+    HttpResponse.json<IGetDeviceGoogleConditionalAccessResponse>({
+      enabled: false,
+      eligible: false,
+      registered: false,
+      managed: false,
+      retry_blocked: false,
+      ...overrides,
+    })
+  );
