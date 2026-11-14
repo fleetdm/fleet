@@ -8,6 +8,7 @@
         <li>Vanta only supports up to 1000 hosts.</li>
         <li>The integration currently only supports macOS and Windows hosts.</li>
         <li>We are currently unable to provide screen lock status. In Vanta, all hosts will appear as false. <a href="/queries/screen-lock-enabled-mac-os" target="_blank">Use this query for macOS hosts</a>, and <a href="/queries/screen-lock-enabled-windows" target="_blank">this query for Windows hosts</a> to see the true list of hosts with screen lock turned on via MDM.</li>
+        <li>Each host's owner in Vanta is set to the email of the host's end user: the IdP username if Fleet has one, otherwise a custom email or the Entra join user. Hosts without a known end user email are sent without an owner.</li>
         <li>This integration is only available to Fleet Premium customers.</li>
         <li>To reduce risk, set the API-only user's <strong>API access</strong> to <strong>Specific API endpoints</strong> instead of <strong>All API endpoints</strong>. This integration only needs these five read-only endpoints:
           <ul>
