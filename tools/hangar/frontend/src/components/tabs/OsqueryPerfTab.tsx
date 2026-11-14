@@ -1906,11 +1906,20 @@ function MdmSection({
             hint={
               <>
                 Required for Apple MDM enrollment (macOS/iOS/iPadOS);
-                Windows MDM doesn't use it. Extract with{" "}
+                Windows MDM doesn't use it. Extract it from the target server's database with{" "}
                 <span className="mono">
                   go run tools/mdm/assets/main.go export -key=&lt;server_private_key&gt; -dir=&lt;tmp&gt; -name=scep_challenge
                 </span>{" "}
                 in the Fleet repo, then paste the file contents here.
+                {appleMdm && (
+                  <>
+                    {" "}
+                    Fleet only accepts it with static challenges allowed:{" "}
+                    <span className="mono">FLEET_MDM_APPLE_SCEP_STATIC_CHALLENGE_ENABLED=1</span> in Settings →
+                    Fleet server, or <span className="mono">mdm.apple_scep_static_challenge_enabled</span> in its
+                    config. Without it, hosts retry SCEP and never enroll in MDM.
+                  </>
+                )}
               </>
             }
           >
@@ -2280,14 +2289,16 @@ export function perfArgsFor(form: PerfFormConfig, apnsUrl: string): string[] {
   if (form.server_url.trim()) {
     args.push("--server_url", form.server_url.trim());
   }
-  // Mobile-only runs skip the secret per the osquery-perf README.
-  if (form.enroll_secret.trim()) {
+  const ids = orderedSelectedIds(form.os_counts);
+  // Mobile-only runs skip the secret per the osquery-perf README, even when
+  // one is still in the form from an earlier selection.
+  const mobileOnly = ids.length > 0 && ids.every(isMobileTemplate);
+  if (!mobileOnly && form.enroll_secret.trim()) {
     args.push("--enroll_secret", form.enroll_secret.trim());
   }
   // Total = sum of per-template counts; the agent fatals if the
   // template counts don't add up to --host_count exactly, so we always
   // pass both and let the sum define the total.
-  const ids = orderedSelectedIds(form.os_counts);
   const total = totalHosts(form.os_counts);
   args.push("--host_count", String(total));
   if (ids.length > 0) {

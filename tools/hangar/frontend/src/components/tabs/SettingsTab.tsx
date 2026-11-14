@@ -2618,7 +2618,7 @@ function DockerCard({ settings }: { settings: Settings }) {
       setFound(await api.troubleshootScanDocker());
     } catch (e) {
       setFound(null);
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
     setScanning(false);
   }, []);
@@ -2635,7 +2635,7 @@ function DockerCard({ settings }: { settings: Settings }) {
       await api.troubleshootStopContainers(ids);
       setNote(`${ids.length} container${ids.length === 1 ? "" : "s"} stopped`);
     } catch (e) {
-      setError(String(e));
+      setError(e instanceof Error ? e.message : String(e));
     }
     setBusy(null);
     await scan();
@@ -2659,7 +2659,7 @@ function DockerCard({ settings }: { settings: Settings }) {
         <div style={{ minWidth: 0 }}>
           <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             Docker containers
-            <CountBadge count={found?.length ?? 0} scanning={scanning} />
+            {(found != null || scanning) && <CountBadge count={found?.length ?? 0} scanning={scanning} />}
           </div>
           <div className="dim" style={{ ...small, marginTop: 2 }}>
             running containers by compose project · Stop runs <span className="mono">docker stop</span>, which

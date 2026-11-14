@@ -1,6 +1,7 @@
 package installers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net"
@@ -694,6 +695,31 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 	}
 }
 
+func TestBuildScriptSignaledJobHasNoResult(t *testing.T) {
+	// A job whose fleetctl dies by a signal (as under Stop) reports neither ok
+	// nor failed: the tab shows it as stopped or interrupted.
+	cmd, _ := buildScriptCmd(t, `#!/usr/bin/env bash
+case "$*" in
+  *--type=rpm*) kill -TERM $$;;
+esac
+for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
+`, "deb-amd64", "rpm-amd64")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("expected non-zero exit with a killed job, output:\n%s", out)
+	}
+	for _, want := range []string{"==> [deb-amd64] ok", "==> [rpm-amd64] building", "==> done: 1 of 2 built"} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("output missing %q:\n%s", want, out)
+		}
+	}
+	for _, unwanted := range []string{"==> [rpm-amd64] failed", "==> [rpm-amd64] ok"} {
+		if strings.Contains(string(out), unwanted) {
+			t.Errorf("output has %q:\n%s", unwanted, out)
+		}
+	}
+}
+
 func TestBuildScriptRunsJobsAtOnce(t *testing.T) {
 	// Each stub run waits for all three to have started, which can only
 	// happen if they run at the same time.
@@ -713,60 +739,72 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 }
 
 func TestBuildScriptStopEndsEveryJob(t *testing.T) {
-	pids := filepath.Join(t.TempDir(), "pids")
-	cmd, dir := buildScriptCmd(t, `#!/usr/bin/env bash
-echo $$ >> "`+pids+`"
-exec sleep 30
-`, "deb-amd64", "rpm-amd64", "arch-amd64")
-	// Like the process engine: own group, and Stop signals the group.
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	var running []int
-	for deadline := time.Now().Add(5 * time.Second); len(running) < 3; {
-		if time.Now().After(deadline) {
-			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-			t.Fatalf("jobs never all started: %v", running)
-		}
-		time.Sleep(20 * time.Millisecond)
-		b, _ := os.ReadFile(pids)
-		running = running[:0]
-		for _, f := range strings.Fields(string(b)) {
-			if pid, err := strconv.Atoi(f); err == nil {
-				running = append(running, pid)
+	for name, stub := range map[string]string{
+		"killed by the signal": "exec sleep 30",
+		// fleetctl can catch SIGTERM to clean up and then exit non-zero.
+		"exits non-zero on SIGTERM": "trap 'sleep 0.2; exit 1' TERM\nsleep 30 & wait",
+	} {
+		t.Run(name, func(t *testing.T) {
+			pids := filepath.Join(t.TempDir(), "pids")
+			cmd, dir := buildScriptCmd(t, "#!/usr/bin/env bash\necho $$ >> \""+pids+"\"\n"+stub+"\n", "deb-amd64", "rpm-amd64", "arch-amd64")
+			var out bytes.Buffer
+			cmd.Stdout, cmd.Stderr = &out, &out
+			// Like the process engine: own group, and Stop signals the group.
+			cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+			if err := cmd.Start(); err != nil {
+				t.Fatal(err)
 			}
-		}
-	}
+			var running []int
+			for deadline := time.Now().Add(5 * time.Second); len(running) < 3; {
+				if time.Now().After(deadline) {
+					_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+					t.Fatalf("jobs never all started: %v", running)
+				}
+				time.Sleep(20 * time.Millisecond)
+				b, _ := os.ReadFile(pids)
+				running = running[:0]
+				for _, f := range strings.Fields(string(b)) {
+					if pid, err := strconv.Atoi(f); err == nil {
+						running = append(running, pid)
+					}
+				}
+			}
 
-	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
-		t.Fatal(err)
-	}
-	exited := make(chan error, 1)
-	go func() { exited <- cmd.Wait() }()
-	select {
-	case <-exited:
-	case <-time.After(5 * time.Second):
-		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-		t.Fatal("build didn't exit after SIGTERM")
-	}
-	if code := cmd.ProcessState.ExitCode(); code != 143 {
-		t.Errorf("exit code = %d, want 143", code)
-	}
-	for _, pid := range running {
-		for deadline := time.Now().Add(2 * time.Second); syscall.Kill(pid, 0) == nil; {
-			if time.Now().After(deadline) {
-				_ = syscall.Kill(pid, syscall.SIGKILL)
-				t.Errorf("job %d still running after Stop", pid)
-				break
+			if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
+				t.Fatal(err)
 			}
-			time.Sleep(20 * time.Millisecond)
-		}
-	}
-	entries, _ := os.ReadDir(dir)
-	for _, e := range entries {
-		if e.IsDir() {
-			t.Errorf("work dir left behind: %s", e.Name())
-		}
+			exited := make(chan error, 1)
+			go func() { exited <- cmd.Wait() }()
+			select {
+			case <-exited:
+			case <-time.After(5 * time.Second):
+				_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+				t.Fatal("build didn't exit after SIGTERM")
+			}
+			if code := cmd.ProcessState.ExitCode(); code != 143 {
+				t.Errorf("exit code = %d, want 143", code)
+			}
+			// A job cut short by Stop was stopped, not failed: the tab would show it
+			// as a failed build.
+			if strings.Contains(out.String(), "] failed") {
+				t.Errorf("a stopped job reported failure:\n%s", out.String())
+			}
+			for _, pid := range running {
+				for deadline := time.Now().Add(2 * time.Second); syscall.Kill(pid, 0) == nil; {
+					if time.Now().After(deadline) {
+						_ = syscall.Kill(pid, syscall.SIGKILL)
+						t.Errorf("job %d still running after Stop", pid)
+						break
+					}
+					time.Sleep(20 * time.Millisecond)
+				}
+			}
+			entries, _ := os.ReadDir(dir)
+			for _, e := range entries {
+				if e.IsDir() {
+					t.Errorf("work dir left behind: %s", e.Name())
+				}
+			}
+		})
 	}
 }

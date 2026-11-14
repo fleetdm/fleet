@@ -41,6 +41,18 @@ func TestPublishedPorts(t *testing.T) {
 	}
 }
 
+func TestStderrError(t *testing.T) {
+	for in, want := range map[string]string{
+		"Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?":                                                                                                                           "docker isn't running; start Docker Desktop",
+		"failed to connect to the docker API at unix:///Users/me/.docker/run/docker.sock; check if the path is correct and if the daemon is running: dial unix /Users/me/.docker/run/docker.sock: connect: no such file or directory": "docker isn't running; start Docker Desktop",
+		"Error response from daemon: No such container: 3f2a9c1b7d4e":                                                                                                                                                                 "Error response from daemon: No such container: 3f2a9c1b7d4e",
+	} {
+		if got := stderrError(in).Error(); got != want {
+			t.Errorf("stderrError(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestStopContainersRejectsNonIDs(t *testing.T) {
 	for _, id := range []string{"-f", "--time=0", "fleet-mysql-1", "3F2A9C1B7D4E", ""} {
 		if err := StopContainers([]string{id}); err == nil || !strings.Contains(err.Error(), "not a container id") {

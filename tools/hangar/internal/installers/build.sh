@@ -45,7 +45,7 @@ tag() {
 # the cwd: some fleetctl versions ignore --outfile for arm64 .msi and write
 # their default name there instead.
 build() {
-  local key=$1 type=$2 arch=$3 out=$4 work built
+  local key=$1 type=$2 arch=$3 out=$4 work built rc
   local arch_flag=()
   [ "$arch" != "-" ] && arch_flag=(--arch="$arch")
   echo "==> [$key] building $(basename "$out")"
@@ -53,7 +53,12 @@ build() {
     echo "==> [$key] failed"
     return 1
   fi
-  if ! (cd "$work" && "$HANGAR_FLEETCTL" package --type="$type" "${arch_flag[@]+"${arch_flag[@]}"}" --outfile="$work/$(basename "$out")" "${common[@]}" </dev/null) 2>&1 | tag "$key"; then
+  (cd "$work" && "$HANGAR_FLEETCTL" package --type="$type" "${arch_flag[@]+"${arch_flag[@]}"}" --outfile="$work/$(basename "$out")" "${common[@]}" </dev/null) 2>&1 | tag "$key"
+  rc=$?
+  # Killed by a signal: Stop's SIGTERM can outrun this shell's own, so print
+  # no result and let the tab say "stopped" (or "interrupted" without a Stop).
+  [ "$rc" -gt 128 ] && return "$rc"
+  if [ "$rc" -ne 0 ]; then
     echo "==> [$key] failed"
     return 1
   fi

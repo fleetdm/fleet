@@ -74,15 +74,21 @@ func dockerError(ctx context.Context, err error) error {
 	}
 	var ee *exec.ExitError
 	if errors.As(err, &ee) {
-		msg := strings.TrimSpace(string(ee.Stderr))
-		if strings.Contains(msg, "Cannot connect to the Docker daemon") {
-			return errors.New("docker isn't running; start Docker Desktop")
-		}
-		if msg != "" {
-			return errors.New(msg)
+		if msg := strings.TrimSpace(string(ee.Stderr)); msg != "" {
+			return stderrError(msg)
 		}
 	}
 	return err
+}
+
+// stderrError turns docker's stderr into the error to show. Docker 29
+// reworded the daemon-down message, so both spellings are matched.
+func stderrError(msg string) error {
+	if strings.Contains(msg, "Cannot connect to the Docker daemon") ||
+		strings.Contains(msg, "failed to connect to the docker API") {
+		return errors.New("docker isn't running; start Docker Desktop")
+	}
+	return errors.New(msg)
 }
 
 func parseContainers(raw string) []Container {
