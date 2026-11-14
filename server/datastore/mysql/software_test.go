@@ -13247,6 +13247,19 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 	dupTitleID := uint(10)
 	sameTitleA := fleet.MaintainedApp{Name: "Dup A", UniqueIdentifier: "Dup", Platform: "windows", TitleID: &dupTitleID, TitleName: "Dup"}
 	sameTitleB := fleet.MaintainedApp{Name: "Dup B", UniqueIdentifier: "Dup", Platform: "windows", TitleID: &dupTitleID, TitleName: "Dup"}
+	// Catalog apps nobody added: no title, so their names only claim programs.
+	unadded := func(name, uniqueIdentifier string) fleet.MaintainedApp {
+		return fleet.MaintainedApp{Name: name, UniqueIdentifier: uniqueIdentifier, Platform: "windows"}
+	}
+	notionCalendar := unadded("Notion Calendar", "Notion Calendar")
+	notionCalendarByIdentifier := unadded("Notion Cal", "Notion Calendar")
+	notionCalendarUnnormalized := unadded("NOTION\u200f Calendar", "")
+	notionCalendarAdded := win(11, "Notion Calendar", "Notion Calendar")
+	zoomRooms := unadded("Zoom Rooms", "Zoom Rooms")
+	acmeWriterUnadded := unadded("Acme Writer", "Acme")
+	fooBarUnadded := unadded("Foo Bar", "Foo Bar")
+	fooBarBaz := win(12, "Foo Bar Baz", "Foo Bar Baz")
+	darwinNotionCalendar := fleet.MaintainedApp{Name: "Notion Calendar", UniqueIdentifier: "Notion Calendar", Platform: "darwin"}
 
 	cases := []struct {
 		name        string
@@ -13276,6 +13289,21 @@ func TestMatchWindowsFMATitle(t *testing.T) {
 		// Destination is the installer's title, never the current catalog name.
 		{"renamed catalog: matches old name", "Zoom 6.1.0", []fleet.MaintainedApp{renamed}, "Zoom", 9, true},
 		{"renamed catalog: matches new name", "Zoom Workplace 7.0", []fleet.MaintainedApp{renamed}, "Zoom", 9, true},
+
+		// A catalog app that isn't added keeps its programs off a shorter-named app's title.
+		{"unadded longer app is no match", "Notion Calendar 1.133.0", []fleet.MaintainedApp{notion, notionCalendar}, "", 0, false},
+		{"unadded longer app is no match regardless of order", "Notion Calendar 1.133.0", []fleet.MaintainedApp{notionCalendar, notion}, "", 0, false},
+		{"unadded longer app's exact name is no match", "Notion Calendar", []fleet.MaintainedApp{notion, notionCalendar}, "", 0, false},
+		{"unadded app claims via its unique identifier", "Notion Calendar 1.133.0", []fleet.MaintainedApp{notion, notionCalendarByIdentifier}, "", 0, false},
+		{"unadded app's claim is normalized", "Notion Calendar 1.133.0", []fleet.MaintainedApp{notion, notionCalendarUnnormalized}, "", 0, false},
+		{"unadded longer app leaves the added app's programs", "Notion 7.41.1", []fleet.MaintainedApp{notion, notionCalendar}, "Notion", 4, true},
+		{"added longer app takes its programs", "Notion Calendar 1.133.0", []fleet.MaintainedApp{notion, notionCalendarAdded}, "Notion Calendar", 11, true},
+		{"unadded app outranks a renamed app's old name", "Zoom Rooms 6.0", []fleet.MaintainedApp{renamed, zoomRooms}, "", 0, false},
+		{"unadded app sharing the identifier does not block", "Acme 3.0", []fleet.MaintainedApp{acmeReader, acmeWriterUnadded}, "Acme Reader", 5, true},
+		{"unadded app shorter than the best match does not block", "Foo Bar Baz 1.0", []fleet.MaintainedApp{foo, fooBarUnadded, fooBarBaz}, "Foo Bar Baz", 12, true},
+		{"unadded app between two added ones blocks the shorter", "Foo Bar 1.0", []fleet.MaintainedApp{foo, fooBarUnadded, fooBarBaz}, "", 0, false},
+		{"unadded non-windows app is ignored", "Notion Calendar 1.133.0", []fleet.MaintainedApp{notion, darwinNotionCalendar}, "Notion", 4, true},
+		{"only unadded apps", "Notion Calendar 1.133.0", []fleet.MaintainedApp{notionCalendar}, "", 0, false},
 
 		// MySQL's utf8mb4_unicode_ci ignores Unicode format characters, so Go-side
 		// matching must too or a name carrying one silently stops matching.

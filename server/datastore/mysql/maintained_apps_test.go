@@ -38,6 +38,7 @@ func TestMaintainedApps(t *testing.T) {
 		{"ReconcileWindowsSoftwareTitles", testReconcileWindowsSoftwareTitles},
 		{"WindowsFMAMatchByUniqueIdentifier", testWindowsFMAMatchByUniqueIdentifier},
 		{"WindowsFMAMatchByNameWhenIdentifierStale", testWindowsFMAMatchByNameWhenIdentifierStale},
+		{"WindowsFMAUnaddedLongerNameKeepsItsTitle", testWindowsFMAUnaddedLongerNameKeepsItsTitle},
 		{"WindowsFMANotRenamedWithUpgradeCode", testWindowsFMANotRenamedWithUpgradeCode},
 		{"WindowsFMANoCollapseWithoutInstaller", testWindowsFMANoCollapseWithoutInstaller},
 		{"WindowsFMAAmbiguousMatchIsNoOp", testWindowsFMAAmbiguousMatchIsNoOp},
@@ -1684,8 +1685,8 @@ func testGetWindowsFMAMatches(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, names)
 
-	// A catalog entry alone is not enough: only FMAs added via an installer are
-	// returned, since that deliberate install is what bounds name-prefix matching.
+	// A catalog entry alone gets no title: only FMAs added via an installer have one to
+	// merge onto, since that deliberate install is what bounds name-prefix matching.
 	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
 		Name:             "Obsidian",
 		Slug:             "obsidian/windows",
@@ -1696,7 +1697,12 @@ func testGetWindowsFMAMatches(t *testing.T, ds *Datastore) {
 
 	names, err = ds.GetWindowsFMAMatches(ctx)
 	require.NoError(t, err)
-	require.Empty(t, names, "catalog entry with no installer must not be returned")
+	require.Len(t, names, 1)
+	require.Equal(t, "Obsidian", names[0].Name)
+	require.Equal(t, "Obsidian", names[0].UniqueIdentifier)
+	require.Nil(t, names[0].TitleID, "catalog entry with no installer must not have a title")
+	require.Empty(t, names[0].TitleName)
+	require.Empty(t, names[0].WinMatchPrefixes())
 
 	// name == unique_identifier, the common case.
 	addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
@@ -1732,11 +1738,28 @@ func testGetWindowsFMAMatches(t *testing.T, ds *Datastore) {
 	for i := range names {
 		byName[names[i].Name] = &names[i]
 	}
-	require.Len(t, byName, 2)
+	require.Len(t, byName, 3)
 	require.Equal(t, "Granola", byName["Granola"].UniqueIdentifier)
 	require.Equal(t, "CPUID CPU-Z", byName["CPU-Z"].UniqueIdentifier)
 	// Platform must be selected, since WinMatchPrefixes gates on it.
 	require.Equal(t, "windows", byName["Granola"].Platform)
+
+	// Only added apps carry a title. Platform is selected for the rest too, since
+	// windowsFMAPrefixes takes claims only from Windows apps.
+	type matchSummary struct {
+		Platform  string
+		Titled    bool
+		TitleName string
+	}
+	summaries := make(map[string]matchSummary, len(names))
+	for _, n := range names {
+		summaries[n.Name] = matchSummary{Platform: n.Platform, Titled: n.TitleID != nil, TitleName: n.TitleName}
+	}
+	require.Equal(t, map[string]matchSummary{
+		"Granola":  {Platform: "windows", Titled: true, TitleName: "Granola"},
+		"CPU-Z":    {Platform: "windows", Titled: true, TitleName: "CPU-Z"},
+		"Obsidian": {Platform: "windows"},
+	}, summaries)
 
 	// All name fields are offered as match candidates, longest first.
 	require.Equal(t, []string{"CPUID CPU-Z", "CPU-Z"}, byName["CPU-Z"].WinMatchPrefixes())
@@ -2133,7 +2156,7 @@ func testWindowsFMAMultiTeamInstallersShareTitle(t *testing.T, ds *Datastore) {
 }
 
 // testWindowsFMAExcludedWhenSpanningTitles: an app whose installers somehow point at
-// different titles has no single destination, so it is excluded rather than guessed at.
+// different titles has no single destination, so it gets no title rather than a guess.
 func testWindowsFMAExcludedWhenSpanningTitles(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2166,7 +2189,9 @@ func testWindowsFMAExcludedWhenSpanningTitles(t *testing.T, ds *Datastore) {
 
 	names, err = ds.GetWindowsFMAMatches(ctx)
 	require.NoError(t, err)
-	require.Empty(t, names, "an app spanning two titles has no unambiguous destination")
+	require.Len(t, names, 1)
+	require.Nil(t, names[0].TitleID, "an app spanning two titles has no unambiguous destination")
+	require.Empty(t, names[0].TitleName)
 }
 
 // testWindowsFMAIgnoresInstallerWithoutTitle: software_installers.title_id is nullable
@@ -2185,7 +2210,8 @@ func testWindowsFMAIgnoresInstallerWithoutTitle(t *testing.T, ds *Datastore) {
 
 	names, err := ds.GetWindowsFMAMatches(ctx)
 	require.NoError(t, err)
-	require.Empty(t, names, "an installer with no title cannot be a merge destination")
+	require.Len(t, names, 1)
+	require.Nil(t, names[0].TitleID, "an installer with no title cannot be a merge destination")
 
 	// And the reconcile pass stays a no-op rather than merging onto title 0.
 	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
@@ -2639,6 +2665,76 @@ func testWindowsFMAMatchByNameWhenIdentifierStale(t *testing.T, ds *Datastore) {
 	})
 	require.Equal(t, canonicalID, gotTitleID)
 	require.Zero(t, countTitlesNamed(t, ds, "Notion 7.2.0"))
+}
+
+// testWindowsFMAUnaddedLongerNameKeepsItsTitle: "Notion Calendar 1.133.0" begins with
+// "Notion ", but it is the Notion Calendar app. With only Notion added it must keep its
+// own title, in both ingestion and the reconcile pass, or the host shows Notion as
+// installed at Notion Calendar's version.
+func testWindowsFMAUnaddedLongerNameKeepsItsTitle(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Inventory reported before either app is added sits on versioned titles.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Notion 7.40.0", Version: "7.40.0", Source: "programs"},
+		{Name: "Notion Calendar 1.133.0", Version: "1.133.0", Source: "programs"},
+	})
+	require.NoError(t, err)
+
+	notionID := addWindowsFMAWithInstaller(t, ds, user.ID, "Notion", "Notion 6.1.0", "notion/windows")
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Notion Calendar",
+		Slug:             "notion-calendar/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Notion Calendar",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, notionID, titleIDForSoftware(t, ds, "Notion 7.40.0"))
+	require.Equal(t, "Notion Calendar 1.133.0", titleNameForSoftware(t, ds, "Notion Calendar 1.133.0"))
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Notion 7.40.0", Version: "7.40.0", Source: "programs"},
+		{Name: "Notion 7.41.1", Version: "7.41.1", Source: "programs"},
+		{Name: "Notion Calendar 1.133.0", Version: "1.133.0", Source: "programs"},
+		{Name: "Notion Calendar 1.134.0", Version: "1.134.0", Source: "programs"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, notionID, titleIDForSoftware(t, ds, "Notion 7.41.1"))
+	require.Equal(t, "Notion Calendar 1.134.0", titleNameForSoftware(t, ds, "Notion Calendar 1.134.0"))
+
+	var onNotion []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &onNotion, `SELECT name FROM software WHERE title_id = ? ORDER BY name`, notionID)
+	})
+	require.Equal(t, []string{"Notion 7.40.0", "Notion 7.41.1"}, onNotion)
+
+	// Once Notion Calendar is added too, its versions collapse onto its own title.
+	calendar, err := ds.GetMaintainedAppBySlug(ctx, "notion-calendar/windows", nil)
+	require.NoError(t, err)
+	_, calendarID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Notion Calendar",
+		Source:               "programs",
+		StorageID:            "storageid-notion-calendar",
+		Filename:             "notion-calendar.exe",
+		Extension:            "exe",
+		Platform:             "windows",
+		Version:              "1.134.0",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &calendar.ID,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, calendarID, titleIDForSoftware(t, ds, "Notion Calendar 1.133.0"))
+	require.Equal(t, calendarID, titleIDForSoftware(t, ds, "Notion Calendar 1.134.0"))
+	require.Equal(t, notionID, titleIDForSoftware(t, ds, "Notion 7.41.1"))
 }
 
 // testWindowsFMANotRenamedWithUpgradeCode: software_titles.unique_identifier resolves to
