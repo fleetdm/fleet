@@ -204,7 +204,7 @@ _fleet_headers = {
 def get_fleet_host_by_serial(serial: str) -> dict | None:
     """Look up a Fleet host by serial number. Returns the host dict or None."""
     resp = requests.get(
-        f"{FLEET_URL}/api/v1/fleet/hosts/identifier/{serial}",
+        f"{FLEET_URL}/api/v1/fleet/hosts/{serial}",
         headers=_fleet_headers,
         timeout=30,
     )

@@ -179,7 +179,7 @@
       "guid": "905527d6b88ed04d43482676d4795d88",
       "origin_story_identifier": "cloud:41eec5f387cedb446ca2f51e189c5094:7afccce6b470436f218ae523e21f3f2d",
       "options": {
-        "url": "https://<<RESOURCE.fleet_domain>>/api/v1/fleet/hosts/identifier/<<RESOURCE.host_serial_number>>?exclude_software=true&exclude_fleet_maintained_policies=true",
+        "url": "https://<<RESOURCE.fleet_domain>>/api/v1/fleet/hosts/<<RESOURCE.host_serial_number>>?exclude_software=true&exclude_fleet_maintained_policies=true",
         "content_type": "application_json",
         "method": "get",
         "headers": {

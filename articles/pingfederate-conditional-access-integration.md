@@ -8,7 +8,7 @@ How it works:
 
 1. Fleet deploys a certificate to each host. The certificate's common name (CN) is the host's UUID.
 2. At sign-in, PingFederate's [X.509 Certificate Integration Kit](https://docs.pingidentity.com/integrations/x509/x509_certificate_integration_kit/pf_x509_certificate_ik.html) asks the browser for the certificate and checks that your CA issued it.
-3. PingFederate looks up the UUID with Fleet's [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier) API, then gets the host's [device health report](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-health-report). It denies sign-in if the host isn't found or is failing a critical policy.
+3. PingFederate looks up the UUID with Fleet's [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) API, then gets the host's [device health report](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-health-report). It denies sign-in if the host isn't found or is failing a critical policy.
 
 ## Prerequisites
 
@@ -22,7 +22,7 @@ Create an [API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-us
 
 Select **Specific API endpoints** and add only the endpoints PingFederate calls:
 
-- [Get host by identifier](https://fleetdm.com/docs/rest-api/rest-api#get-host-by-identifier)
+- [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host)
 - [Get host's device health report](https://fleetdm.com/docs/rest-api/rest-api#get-hosts-device-health-report)
 
 ## Step 2: Mark critical policies
@@ -69,7 +69,7 @@ If the host doesn't trust your CA yet, deploy a second profile that installs the
 2. For **Type**, select **Rest API**.
 3. For **Base URL**, enter your Fleet server URL.
 4. Add the Fleet API token from Step 1 as an `Authorization: Bearer <token>` header.
-5. For **Test Connection URL**, enter `/api/v1/fleet/hosts/identifier/<a host's UUID>` and select **Test Connection**. The API user can call this endpoint.
+5. For **Test Connection URL**, enter `/api/v1/fleet/hosts/<a host's UUID>` and select **Test Connection**. The API user can call this endpoint.
 6. Add these attributes:
 
 | Local attribute | JSON response attribute path |
@@ -84,7 +84,7 @@ PingFederate looks up the host in Fleet in two calls. The first finds the host b
 1. Create an authentication policy contract. The default `subject` attribute is enough.
 2. Add the X.509 adapter from Step 4 to your authentication policy. On its success path, map to the policy contract.
 3. On **Attribute Sources & User Lookup**, add the Fleet data store twice:
-   - First, with the resource path `/api/v1/fleet/hosts/identifier/${ad.<adapter ID>.CN}?exclude_software=true`
+   - First, with the resource path `/api/v1/fleet/hosts/${ad.<adapter ID>.CN}?exclude_software=true`
    - Second, with the resource path `/api/v1/fleet/hosts/${ds.<first source ID>.fleetHostID}/health`
 
    Replace `<adapter ID>` with the ID of the X.509 adapter instance (for example, `${ad.x509.CN}`) and `<first source ID>` with the ID you gave the first Fleet data source. `${hostUUID}` and `${fleetHostID}` don't resolve in a lookup path.

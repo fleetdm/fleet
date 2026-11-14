@@ -18,7 +18,7 @@ For more MDM commands and detailed guidance, see [MDM commands](https://fleetdm.
 
 First, retrieve the host's UUID using its serial number.
 
-**Endpoint:** `GET /api/v1/fleet/hosts/identifier/{serial}`
+**Endpoint:** `GET /api/v1/fleet/hosts/{serial}`
 
 **Headers:**
 - `Accept: application/json`
