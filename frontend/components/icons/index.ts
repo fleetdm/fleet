@@ -2,11 +2,9 @@ import ABMIssueHosts from "./ABMIssueHosts";
 import Android from "./Android";
 import Apple from "./Apple";
 import Arrow from "./Arrow";
-import ArrowInternalLink from "./ArrowInternalLink";
 import ArrowLeft from "./ArrowLeft";
 import Calendar from "./Calendar";
 import CalendarCheck from "./CalendarCheck";
-import Centos from "./Centos";
 import Check from "./Check";
 import Checkbox from "./Checkbox";
 import CheckboxIndeterminate from "./CheckboxIndeterminate";
@@ -14,7 +12,6 @@ import CheckboxUnchecked from "./CheckboxUnchecked";
 import ChevronDown from "./ChevronDown";
 import ChevronLeft from "./ChevronLeft";
 import ChevronRight from "./ChevronRight";
-import ChevronUp from "./ChevronUp";
 import Chrome from "./Chrome";
 import Clock from "./Clock";
 import Close from "./Close";
@@ -27,19 +24,14 @@ import ExternalLink from "./ExternalLink";
 import Eye from "./Eye";
 import EyeSlash from "./EyeSlash";
 import Filter from "./Filter";
-import FilterAlt from "./FilterAlt";
-import FilterFunnel from "./FilterFunnel";
 import GitOpsMode from "./GitOpsMode";
 import Info from "./Info";
 import Install from "./Install";
 import InstallAuto from "./InstallAuto";
-import InstallSelfService from "./InstallSelfService";
 import iOS from "./iOS";
 import iPadOS from "./iPadOS";
-import Lightbulb from "./Lightbulb";
 import Linux from "./Linux";
 import LowDiskSpaceHosts from "./LowDiskSpaceHosts";
-import M1 from "./M1";
 import MissingHosts from "./MissingHosts";
 import More from "./More";
 import Pencil from "./Pencil";
@@ -66,7 +58,6 @@ import Text from "./Text";
 import TotalHosts from "./TotalHosts";
 import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
-import Ubuntu from "./Ubuntu";
 import Update from "./Update";
 import Upload from "./Upload";
 import User from "./User";
@@ -76,13 +67,11 @@ import Windows from "./Windows";
 // a mapping of the usable names of icons to the icon source.
 export const ICON_MAP = {
   arrow: Arrow,
-  "arrow-internal-link": ArrowInternalLink,
   "arrow-left": ArrowLeft,
   calendar: Calendar,
   "calendar-check": CalendarCheck,
   "chevron-left": ChevronLeft,
   "chevron-right": ChevronRight,
-  "chevron-up": ChevronUp,
   "chevron-down": ChevronDown,
   check: Check,
   checkbox: Checkbox,
@@ -93,14 +82,11 @@ export const ICON_MAP = {
   close: Close,
   "external-link": ExternalLink,
   filter: Filter,
-  "filter-alt": FilterAlt,
-  "filter-funnel": FilterFunnel,
   sort: Sort,
   "low-disk-space-hosts": LowDiskSpaceHosts,
   "missing-hosts": MissingHosts,
   "total-hosts": TotalHosts,
   "abm-issue-hosts": ABMIssueHosts,
-  lightbulb: Lightbulb,
   info: Info,
   more: More,
   plus: Plus,
@@ -127,9 +113,6 @@ export const ICON_MAP = {
   Windows,
   linux: Linux,
   Linux,
-  m1: M1,
-  centos: Centos,
-  ubuntu: Ubuntu,
   chrome: Chrome,
   ChromeOS: Chrome,
   ipados: iPadOS,
@@ -146,7 +129,6 @@ export const ICON_MAP = {
   update: Update,
   run: Run,
   install: Install,
-  "install-self-service": InstallSelfService,
   "install-auto": InstallAuto,
   settings: Settings,
   "self-service": SelfService,

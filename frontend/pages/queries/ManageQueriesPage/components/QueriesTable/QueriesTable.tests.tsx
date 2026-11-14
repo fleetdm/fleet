@@ -15,7 +15,7 @@ const testRawGlobalQueries: ISchedulableQuery[] = [
     created_at: "2024-03-22T19:01:20Z",
     updated_at: "2024-03-22T19:01:20Z",
     id: 1,
-    team_id: null,
+    fleet_id: null,
     interval: 0,
     platform: "linux",
     min_osquery_version: "",
@@ -30,7 +30,6 @@ const testRawGlobalQueries: ISchedulableQuery[] = [
     author_id: 1,
     author_name: "Tess Tuser",
     author_email: "tess@fake.com",
-    packs: [],
     stats: {
       system_time_p50: null,
       system_time_p95: null,
@@ -44,7 +43,7 @@ const testRawGlobalQueries: ISchedulableQuery[] = [
     created_at: "2024-03-22T19:01:20Z",
     updated_at: "2024-03-22T19:01:20Z",
     id: 2,
-    team_id: null,
+    fleet_id: null,
     interval: 0,
     platform: "linux",
     min_osquery_version: "",
@@ -59,7 +58,6 @@ const testRawGlobalQueries: ISchedulableQuery[] = [
     author_id: 1,
     author_name: "Tess Tuser",
     author_email: "tess@fake.com",
-    packs: [],
     stats: {
       system_time_p50: null,
       system_time_p95: null,
@@ -76,7 +74,7 @@ const testRawTeamQueries: ISchedulableQuery[] = [
     created_at: "2024-04-25T04:16:09Z",
     updated_at: "2024-04-25T04:16:09Z",
     id: 3,
-    team_id: 1,
+    fleet_id: 1,
     interval: 3600,
     platform: "",
     min_osquery_version: "",
@@ -90,7 +88,6 @@ const testRawTeamQueries: ISchedulableQuery[] = [
     author_id: 1,
     author_name: "Tess Tuser",
     author_email: "tess@fake.com",
-    packs: [],
     stats: {
       system_time_p50: null,
       system_time_p95: null,
@@ -104,7 +101,7 @@ const testRawTeamQueries: ISchedulableQuery[] = [
     created_at: "2024-04-25T04:16:09Z",
     updated_at: "2024-04-25T04:16:09Z",
     id: 4,
-    team_id: 1,
+    fleet_id: 1,
     interval: 3600,
     platform: "",
     min_osquery_version: "",
@@ -118,7 +115,6 @@ const testRawTeamQueries: ISchedulableQuery[] = [
     author_id: 1,
     author_name: "Tess Tuser",
     author_email: "tess@fake.com",
-    packs: [],
     stats: {
       system_time_p50: null,
       system_time_p95: null,
@@ -161,9 +157,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        isOnlyObserver: false,
-        isObserverPlus: false,
-        isAnyTeamObserverPlus: false,
         currentTeamId: undefined,
       },
     ];
@@ -185,9 +178,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        isOnlyObserver: false,
-        isObserverPlus: false,
-        isAnyTeamObserverPlus: false,
         currentTeamId: undefined,
         isPremiumTier: true,
       },
@@ -212,9 +202,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        isOnlyObserver: false,
-        isObserverPlus: false,
-        isAnyTeamObserverPlus: false,
         isPremiumTier: true,
         currentTeamId: 1,
       },
@@ -248,9 +235,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={undefined}
         isPremiumTier
       />
@@ -282,9 +266,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={1}
         isPremiumTier
       />
@@ -305,9 +286,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent: true,
         isLoading: false,
         onDeleteQueryClick: jest.fn(),
-        isOnlyObserver: false,
-        isObserverPlus: false,
-        isAnyTeamObserverPlus: false,
         currentTeamId: 1,
       },
     ];
@@ -335,9 +313,6 @@ describe("QueriesTable", () => {
       curTeamScopeQueriesPresent: true,
       isLoading: false,
       onDeleteQueryClick: jest.fn(),
-      isOnlyObserver: false,
-      isObserverPlus: false,
-      isAnyTeamObserverPlus: false,
       currentTeamId: 1,
       queryParams: {
         query: "dont match me bro",
@@ -373,9 +348,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={1}
       />
     );
@@ -413,9 +385,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={1}
       />
     );
@@ -452,9 +421,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={undefined}
       />
     );
@@ -480,9 +446,6 @@ describe("QueriesTable", () => {
         curTeamScopeQueriesPresent
         isLoading={false}
         onDeleteQueryClick={jest.fn()}
-        isOnlyObserver={false}
-        isObserverPlus={false}
-        isAnyTeamObserverPlus={false}
         currentTeamId={1}
       />
     );

@@ -28,9 +28,9 @@ type GitOpsSpec struct {
 // most keys as `any` so yamlls can't complete them, and leaks an internal Defined field.
 type ControlsWithTypes struct {
 	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
-	WindowsEnabledAndConfigured bool `json:"windows_enabled_and_configured"`
+	WindowsEnabledAndConfigured bool `json:"windows_mdm_enabled"`
 	EnableDiskEncryption        bool `json:"enable_disk_encryption"`
-	EnableRecoveryLockPassword  bool `json:"enable_recovery_lock_password"`
+	EnableRecoveryLockPassword  bool `json:"macos_recovery_lock_password_enabled"`
 	WindowsRequireBitLockerPIN  bool `json:"windows_require_bitlocker_pin"`
 
 	NameTemplate string `json:"name_template"`
@@ -40,7 +40,7 @@ type ControlsWithTypes struct {
 	IPadOSUpdates  *fleet.AppleOSUpdateSettings `json:"ipados_updates"`
 	WindowsUpdates *fleet.WindowsUpdates        `json:"windows_updates"`
 
-	MacOSSetup               *fleet.MacOSSetup               `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSetup               *fleet.MacOSSetup               `json:"setup_experience"`
 	AppleAccountProvisioning *fleet.AppleAccountProvisioning `json:"apple_account_provisioning"`
 	Scripts                  []fleet.BaseItem                `json:"scripts"`
 
@@ -51,10 +51,11 @@ type ControlsWithTypes struct {
 
 	AppleRequireHardwareAttestation  bool `json:"apple_require_hardware_attestation"`
 	OnlyAllowAppleBusinessEnrollment bool `json:"only_allow_apple_business_enrollment"`
+	EnableProfileValidation          bool `json:"enable_profile_validation"`
 
 	// Remaining keys accept any value for now.
 	MacOSMigration                 any `json:"macos_migration"`
-	WindowsMigrationEnabled        any `json:"windows_migration_enabled"`
+	WindowsMigrationEnabled        any `json:"windows_mdm_migration_enabled"`
 	EnableTurnOnWindowsMDMManually any `json:"enable_turn_on_windows_mdm_manually"`
 	WindowsEntraTenantIDs          any `json:"windows_entra_tenant_ids"`
 	WindowsEntraClientIDs          any `json:"windows_entra_client_ids"`

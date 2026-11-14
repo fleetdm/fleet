@@ -70,6 +70,9 @@ type TestWindowsMDMClient struct {
 // This is a test-only enrollment type to force erroneous behavior.
 const WindowsMDMEmptyBinarySecurityTokenEnrollmentType fleet.WindowsMDMEnrollmentType = -1
 
+// windowsMDMEntraEnrollmentType is a test-only enrollment type for clients that authenticate with an Entra JWT.
+const windowsMDMEntraEnrollmentType fleet.WindowsMDMEnrollmentType = -2
+
 // TestWindowsMDMClientOption allows configuring a
 // TestWindowsMDMClient.
 type TestWindowsMDMClientOption func(*TestWindowsMDMClient)
@@ -130,7 +133,7 @@ func NewTestMDMClientWindowsEmptyBinarySecurityToken(serverURL string, orbitNode
 }
 
 func NewTestMDMClientWindowsAutomatic(serverURL string, email string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
-	return newTestMDMClient(serverURL, fleet.WindowsMDMAutomaticEnrollmentType, email, opts...)
+	return newTestMDMClient(serverURL, windowsMDMEntraEnrollmentType, email, opts...)
 }
 
 func newTestMDMClient(serverURL string, enrollmentType fleet.WindowsMDMEnrollmentType, tokenIdentifier string, opts ...TestWindowsMDMClientOption) *TestWindowsMDMClient {
@@ -749,7 +752,7 @@ func (c *TestWindowsMDMClient) request(path string, reqBody []byte) (*http.Respo
 
 func (c *TestWindowsMDMClient) getToken() (binarySecToken string, tokenValueType string, err error) {
 	switch c.enrollmentType {
-	case fleet.WindowsMDMAutomaticEnrollmentType:
+	case windowsMDMEntraEnrollmentType:
 		claims := &jwt.MapClaims{
 			"upn":         c.TokenIdentifier,
 			"tid":         c.entraTenantID,

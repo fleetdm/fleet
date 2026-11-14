@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import { InjectedRouter } from "react-router";
 import { Params } from "react-router/lib/Router";
 
@@ -36,6 +36,9 @@ const MfaPage = ({ router, params }: IMfaPage) => {
     !!local.getItem("auth_pending_mfa")
   );
   local.removeItem("auth_pending_mfa");
+  // The MFA token is single-use; finishMFA changes identity on every render
+  // (and updates AppContext on success), so guard against re-submitting it.
+  const hasSubmittedMFA = useRef(false);
 
   const finishMFA = async () => {
     const { DASHBOARD, RESET_PASSWORD, NO_ACCESS } = paths;
@@ -53,7 +56,7 @@ const MfaPage = ({ router, params }: IMfaPage) => {
       setAvailableTeams(user, available_fleets);
       setCurrentTeam(undefined);
 
-      if (!user.global_role && user.teams.length === 0) {
+      if (!user.global_role && user.fleets.length === 0) {
         router.push(NO_ACCESS);
         return;
       }
@@ -77,7 +80,8 @@ const MfaPage = ({ router, params }: IMfaPage) => {
   };
 
   useEffect(() => {
-    if (shouldFinishMFA) {
+    if (shouldFinishMFA && !hasSubmittedMFA.current) {
+      hasSubmittedMFA.current = true;
       finishMFA();
     }
   }, [shouldFinishMFA, finishMFA]);

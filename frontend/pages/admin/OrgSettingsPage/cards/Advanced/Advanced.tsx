@@ -26,7 +26,6 @@ interface IAdvancedConfigFormData {
   deleteActivities: boolean;
   activityExpiryWindow: number;
   disableLiveQuery: boolean;
-  disableScripts: boolean;
   disableAIFeatures: boolean;
   disableMCP: boolean;
   disableQueryReports: boolean;
@@ -124,7 +123,6 @@ const Advanced = ({
     activityExpiryWindow:
       appConfig.activity_expiry_settings.activity_expiry_window || 30,
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
-    disableScripts: appConfig.server_settings.scripts_disabled || false,
     disableAIFeatures: appConfig.server_settings.ai_features_disabled || false,
     disableMCP: appConfig.server_settings.mcp_disabled || false,
     disableQueryReports:
@@ -188,7 +186,6 @@ const Advanced = ({
       server_settings: {
         live_reporting_disabled: formData.disableLiveQuery,
         discard_reports_data: formData.disableQueryReports,
-        scripts_disabled: formData.disableScripts,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
         ai_features_disabled: formData.disableAIFeatures,
         mcp_disabled: formData.disableMCP,

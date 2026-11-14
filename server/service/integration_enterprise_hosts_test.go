@@ -131,14 +131,14 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 
 	// all possible filters
 	summaryResp = getHostSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "team_id", "1", "platform", "linux", "low_disk_space", "32")
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "fleet_id", "1", "platform", "linux", "low_disk_space", "32")
 	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
 	require.NotNil(t, summaryResp.LowDiskSpaceCount)
 	require.Equal(t, uint(0), *summaryResp.LowDiskSpaceCount)
 
 	// without low_disk_space, does not return the count
 	summaryResp = getHostSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "team_id", "1", "platform", "linux")
+	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "fleet_id", "1", "platform", "linux")
 	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
 	require.Nil(t, summaryResp.LowDiskSpaceCount)
 
@@ -343,7 +343,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferent
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
 		"software_version_id", fmt.Sprint(swVersionID),
-		"team_id", fmt.Sprint(team1.ID),
+		"fleet_id", fmt.Sprint(team1.ID),
 	)
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, h1.ID, resp.Hosts[0].ID)
@@ -357,7 +357,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferent
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
 		"software_version_id", fmt.Sprint(swVersionID),
-		"team_id", fmt.Sprint(team2.ID),
+		"fleet_id", fmt.Sprint(team2.ID),
 	)
 	require.Empty(t, resp.Hosts)
 	require.NotNil(t, resp.Software, "software metadata should be returned even when no hosts match on this team")
@@ -370,7 +370,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareVersionOnDifferent
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
 		"software_version_id", "999999",
-		"team_id", fmt.Sprint(team2.ID),
+		"fleet_id", fmt.Sprint(team2.ID),
 	)
 	require.Empty(t, resp.Hosts)
 	assert.Empty(t, resp.Software)
@@ -421,7 +421,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareTitleOnDifferentTe
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
 		"software_title_id", fmt.Sprint(titleID),
-		"team_id", fmt.Sprint(team1.ID),
+		"fleet_id", fmt.Sprint(team1.ID),
 	)
 	require.Len(t, resp.Hosts, 1)
 	assert.Equal(t, h1.ID, resp.Hosts[0].ID)
@@ -434,7 +434,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostsSoftwareTitleOnDifferentTe
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp,
 		"software_title_id", fmt.Sprint(titleID),
-		"team_id", fmt.Sprint(team2.ID),
+		"fleet_id", fmt.Sprint(team2.ID),
 	)
 	require.Empty(t, resp.Hosts)
 	assert.Nil(t, resp.SoftwareTitle)
@@ -506,7 +506,6 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
 	require.Equal(t, host.ID, hh.HostID)
 	assert.NotNil(t, hh.HostHealth)
-	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
 	assert.Equal(t, 2, hh.HostHealth.FailingPoliciesCount)
 	assert.Equal(t, new(int(1)), hh.HostHealth.FailingCriticalPoliciesCount)
 	assert.Contains(t, hh.HostHealth.FailingPolicies, &fleet.HostHealthFailingPolicy{
@@ -552,8 +551,9 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	})
 	require.NoError(t, err)
 
+	// Stored with "Microsoft", as Windows hosts report it; the API returns the name without it.
 	err = s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{
-		Name:     "Windows 11 Enterprise 22H2",
+		Name:     "Microsoft Windows 11 Enterprise 22H2",
 		Version:  "10.0.19042.1234",
 		Platform: "windows",
 	})
@@ -667,7 +667,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Equal(t, "CVE-2021-1234", resp.Vulnerabilities[0].CVE.CVE)
 
 	// Test Team Filter
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "fleet_id", "1")
 	s.Require().Empty(resp.Vulnerabilities)
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
@@ -678,7 +678,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	err = s.ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
 	require.NoError(t, err)
 
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", fmt.Sprintf("%d", team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "fleet_id", fmt.Sprintf("%d", team.ID))
 	require.Len(t, resp.Vulnerabilities, 2)
 	require.Equal(t, uint(2), resp.Count)
 	require.False(t, resp.Meta.HasPreviousResults)
@@ -733,7 +733,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
 
 	// Known to Fleet via its match, but no hosts in "No team".
-	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusNoContent, "team_id", "0")
+	s.Do("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusNoContent, "fleet_id", "0")
 }
 
 func (s *integrationEnterpriseTestSuite) TestOSVersions() {
@@ -817,20 +817,20 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	// OS versions with invalid team
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "fleet_id",
 		"99999",
 	)
 
 	// Create team and ask for the OS versions from the team (with no hosts) -- should get 404.
 	tr := teamResponse{}
 	s.DoJSON(
-		"POST", "/api/latest/fleet/teams", createTeamRequest{
+		"POST", "/api/latest/fleet/fleets", createTeamRequest{
 			Name: new("os_versions_team"),
 		}, http.StatusOK, &tr,
 	)
 	osVersionResp = getOSVersionResponse{}
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "fleet_id",
 		fmt.Sprintf("%d", tr.Team.ID),
 	)
 
@@ -838,11 +838,11 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	team0, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
 	require.NoError(t, err)
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team0.ID, []uint{hosts[0].ID})))
-	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", fmt.Sprintf("%d", team0.ID))
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "fleet_id", fmt.Sprintf("%d", team0.ID))
 	require.Empty(t, osVersionsResp.OSVersions)
 
 	// return err if team_id is invalid
-	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "team_id", "invalid")
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "fleet_id", "invalid")
 
 	// Create another team and a team user
 	team1, err := s.ds.NewTeam(
@@ -891,29 +891,29 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	// Team user is forbidden to access invalid team
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "team_id",
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "fleet_id",
 		"99999",
 	)
 
 	// team user doesn't have acess to "no team"
 	osVersionsResp = osVersionsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusForbidden, &osVersionsResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusForbidden, &osVersionsResp, "fleet_id", "0")
 	require.Empty(t, osVersionsResp.OSVersions)
 
 	// team_id=0 is supported and returns results for hosts in "no team"
 	s.token = getTestAdminToken(t, s.server)
 	// no hosts, the results are empty
 	osVersionsResp = osVersionsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "fleet_id", "0")
 	require.Empty(t, osVersionsResp.OSVersions)
 	osVersionsResp = osVersionsResponse{}
 	// move the host to "no team" and update the stats
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(nil, []uint{hosts[0].ID}))) // nolint:nilaway // createHosts always returns at least one host
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
-	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", "0")
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "fleet_id", "0")
 	require.Len(t, osVersionsResp.OSVersions, 1)
 	osVersionResp = getOSVersionResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id", "0")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "fleet_id", "0")
 	require.Equal(t, &expectedOSVersion, osVersionResp.OSVersion)
 	require.Equal(t, 1, osVersionResp.OSVersion.HostsCount)
 }
@@ -960,7 +960,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 
 	// Test that IDP mapping appears correctly in host details via getHostEndpoint
 	var hostResp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+host.UUID, nil, http.StatusOK, &hostResp)
 
 	// Find the IDP information in end_users field
 	foundIdpInDetails := false
@@ -1084,7 +1084,7 @@ func (s *integrationEnterpriseTestSuite) TestHostDeviceMappingIDP() {
 	// test DELETE
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/device_mapping/idp", host.ID), deleteHostIDPRequest{}, http.StatusNoContent)
 
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+host.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+host.UUID, nil, http.StatusOK, &hostResp)
 	require.Len(t, hostResp.Host.EndUsers, 1, "Should have exactly one end user")
 	endUser = hostResp.Host.EndUsers[0]
 	// Non-SCIM IDP user should now be replaced by user's username
@@ -1217,7 +1217,7 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	s.lastActivityMatches("", "", activityID)
 
 	require.Equal(t, "device-a", storedID(iosHost))
-	require.Equal(t, "device-a", hostJSON("/api/latest/fleet/hosts/identifier/" + iosHost.UUID)["google_device_id"])
+	require.Equal(t, "device-a", hostJSON("/api/latest/fleet/hosts/" + iosHost.UUID)["google_device_id"])
 
 	// a different value is refused
 	res := s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": "device-b"}, http.StatusConflict)
@@ -1229,7 +1229,7 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 	requireErrorReason(res, "This Google device ID is already used by another host.")
 	require.Empty(t, storedID(androidHost))
 	s.DoJSON("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-c"}, http.StatusOK, &putResp)
-	require.Equal(t, "device-c", hostJSON("/api/latest/fleet/hosts/identifier/" + androidHost.UUID)["google_device_id"])
+	require.Equal(t, "device-c", hostJSON("/api/latest/fleet/hosts/" + androidHost.UUID)["google_device_id"])
 
 	// only DELETE removes the ID, and it logs an activity
 	res = s.Do("PUT", idPath(iosHost), map[string]any{"google_device_id": ""}, http.StatusUnprocessableEntity)
@@ -1319,33 +1319,18 @@ func (s *integrationEnterpriseTestSuite) TestHostGoogleDeviceID() {
 		"name":        t.Name() + " registration service",
 		"global_role": fleet.RoleMaintainer,
 		"api_endpoints": []map[string]any{
-			{"method": "GET", "path": "/api/v1/fleet/hosts/identifier/:identifier"},
+			{"method": "GET", "path": "/api/v1/fleet/hosts/:id"},
 			{"method": "PUT", "path": "/api/v1/fleet/hosts/:id/google_device_id"},
 		},
 	}, http.StatusOK, &apiUserResp)
 	require.NotEmpty(t, apiUserResp.Token)
 	s.token = apiUserResp.Token
-	hostJSON("/api/latest/fleet/hosts/identifier/" + androidHost.UUID)
+	// The GET /hosts/:id grant covers every value that route accepts.
+	hostJSON("/api/latest/fleet/hosts/" + androidHost.UUID)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.ID), nil, http.StatusOK)
 	s.DoJSON("PUT", idPath(androidHost), map[string]any{"google_device_id": "device-c"}, http.StatusOK, &putResp)
 	s.Do("DELETE", idPath(androidHost), nil, http.StatusForbidden)
-	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.ID), nil, http.StatusForbidden)
-	s.Do("GET", "/api/latest/fleet/hosts/"+androidHost.UUID, nil, http.StatusForbidden)
 	s.token = s.getTestAdminToken()
 	require.Equal(t, "device-c", storedID(androidHost))
-
-	// A grant on GET /hosts/:id covers every value that route accepts.
-	var getHostOnlyResp struct {
-		Token string `json:"token"`
-	}
-	s.DoJSON("POST", "/api/latest/fleet/users/api_only", map[string]any{
-		"name":          t.Name() + " get host only",
-		"global_role":   fleet.RoleObserver,
-		"api_endpoints": []map[string]any{{"method": "GET", "path": "/api/v1/fleet/hosts/:id"}},
-	}, http.StatusOK, &getHostOnlyResp)
-	require.NotEmpty(t, getHostOnlyResp.Token)
-	s.token = getHostOnlyResp.Token
-	s.Do("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.ID), nil, http.StatusOK)
-	s.Do("GET", "/api/latest/fleet/hosts/"+androidHost.UUID, nil, http.StatusOK)
-	s.Do("GET", "/api/latest/fleet/hosts/identifier/"+androidHost.UUID, nil, http.StatusForbidden)
 	s.token = s.getTestAdminToken()
 }

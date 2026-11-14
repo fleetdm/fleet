@@ -25,40 +25,6 @@ type listSoftwareRequest struct {
 	fleet.SoftwareListOptions
 }
 
-// Deprecated: listSoftwareResponse is the response struct for the deprecated
-// listSoftwareEndpoint. It differs from listSoftwareVersionsResponse in that
-// the latter includes a count of the total number of software items.
-type listSoftwareResponse struct {
-	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
-	Software        []fleet.Software `json:"software,omitempty"`
-	Err             error            `json:"error,omitempty"`
-}
-
-func (r listSoftwareResponse) Error() error { return r.Err }
-
-// Deprecated: use listSoftwareVersionsEndpoint instead
-func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*listSoftwareRequest)
-	resp, _, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
-	if err != nil {
-		return listSoftwareResponse{Err: err}, nil
-	}
-
-	// calculate the latest counts_updated_at
-	var latest time.Time
-	for _, sw := range resp {
-		if !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
-			latest = sw.CountsUpdatedAt
-		}
-	}
-	listResp := listSoftwareResponse{Software: resp}
-	if !latest.IsZero() {
-		listResp.CountsUpdatedAt = &latest
-	}
-
-	return listResp, nil
-}
-
 type listSoftwareVersionsResponse struct {
 	Count           int                       `json:"count"`
 	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
@@ -140,8 +106,7 @@ func (r streamSoftwareVersionsResponse) HijackRender(_ context.Context, w http.R
 func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 
-	// always include pagination for new software versions endpoint (not included by default in
-	// legacy endpoint for backwards compatibility)
+	// always include pagination for the software versions endpoint
 	req.SoftwareListOptions.ListOptions.IncludeMetadata = true
 
 	// fleet.DefaultPerPage is effectively unbounded, and returning a whole large
@@ -226,7 +191,7 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 
 type getSoftwareRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID *uint `query:"fleet_id,optional"`
 }
 
 type getSoftwareResponse struct {
@@ -261,7 +226,7 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
+			return nil, fleet.NewInvalidArgumentError("fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}
@@ -324,28 +289,6 @@ func (svc *Service) SoftwareLiteByID(
 /////////////////////////////////////////////////////////////////////////////////
 // Count
 /////////////////////////////////////////////////////////////////////////////////
-
-type countSoftwareRequest struct {
-	fleet.SoftwareListOptions
-}
-
-type countSoftwareResponse struct {
-	Count int   `json:"count"`
-	Err   error `json:"error,omitempty"`
-}
-
-func (r countSoftwareResponse) Error() error { return r.Err }
-
-// Deprecated: counts are now included directly in the listSoftwareVersionsResponse. This
-// endpoint is retained for backwards compatibility.
-func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*countSoftwareRequest)
-	count, err := svc.CountSoftware(ctx, req.SoftwareListOptions)
-	if err != nil {
-		return countSoftwareResponse{Err: err}, nil
-	}
-	return countSoftwareResponse{Count: count}, nil
-}
 
 func (svc Service) CountSoftware(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{

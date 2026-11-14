@@ -818,7 +818,7 @@ WHERE
 		HostID:              res.HostID,
 		HostDisplayName:     res.HostDisplayName,
 		SoftwareTitle:       res.SoftwareTitle,
-		SoftwareDisplayName: res.SoftwareDisplayName,
+		SoftwareDisplayName: ptr.ValOrZero(res.SoftwareDisplayName),
 		CommandUUID:         res.CommandUUID,
 		Status:              status,
 		SelfService:         res.SelfService,
@@ -1744,27 +1744,6 @@ LIMIT 1
 	return true, title, nil
 }
 
-func (ds *Datastore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error) {
-	const stmt = `
-SELECT
-	BINARY COALESCE(?, '') != configuration AS has_changed
-FROM
-	in_house_app_configurations
-WHERE
-	in_house_app_id = ?
-`
-
-	var hasChanged bool
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, inHouseAppID)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return len(newConfig) > 0, nil
-		}
-		return false, ctxerr.Wrap(ctx, err, "compare in-house app configuration")
-	}
-	return hasChanged, nil
-}
-
 func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error) {
 	const stmt = `SELECT configuration FROM in_house_app_configurations WHERE in_house_app_id = ?`
 
@@ -1778,10 +1757,6 @@ func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppI
 	}
 
 	return config, nil
-}
-
-func (ds *Datastore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error) {
-	return ds.bulkGetInHouseAppConfigurations(ctx, ds.reader(ctx), inHouseAppIDs)
 }
 
 func (ds *Datastore) BulkGetInHouseAppConfigurationsTx(ctx context.Context, tx sqlx.QueryerContext, inHouseAppIDs []uint) (map[uint][]byte, error) {
@@ -1820,26 +1795,6 @@ WHERE in_house_app_id IN (?)
 		m[c.InHouseAppID] = c.Configuration
 	}
 	return m, nil
-}
-
-func (ds *Datastore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error {
-	const stmt = `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`
-
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, inHouseAppID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete in-house app configuration")
-	}
-
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete in-house app configuration rows affected")
-	}
-
-	if rows == 0 {
-		return ctxerr.Wrap(ctx, notFound("InHouseAppConfiguration"))
-	}
-
-	return nil
 }
 
 func (ds *Datastore) updateInHouseAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, inHouseAppID uint, config []byte) error {

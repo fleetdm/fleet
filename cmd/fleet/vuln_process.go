@@ -33,7 +33,10 @@ vulnerability processing. By default the Fleet server command internally manages
 will disable it on the server allowing the user configure their own 'cron' mechanism. Successful processing will be indicated
 by an exit code of zero.`,
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			cfg := configManager.LoadConfig()
+			cfg, err := configManager.LoadConfig()
+			if err != nil {
+				initFatal(err, "loading config")
+			}
 			if dev_mode.IsEnabled {
 				applyDevFlags(&cfg)
 			}
@@ -64,8 +67,6 @@ by an exit code of zero.`,
 			switch status.StatusCode {
 			case fleet.AllMigrationsCompleted:
 				// only continue if db is considered up-to-date
-			case fleet.NeedsFleetv4732Fix, fleet.UnknownFleetv4732State:
-				migrationError = errors.New("database has misnumbered migrations from v4.73.2")
 			case fleet.NoMigrationsCompleted:
 				migrationError = errors.New("no migrations completed")
 			case fleet.SomeMigrationsCompleted:

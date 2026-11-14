@@ -6,8 +6,8 @@ export interface IVppFleetsValue {
 }
 
 export const valueFromToken = (token: IMdmVppToken): IVppFleetsValue => ({
-  allFleets: token.teams?.length === 0,
-  fleetIds: token.teams?.map((t) => t.team_id) ?? [],
+  allFleets: token.fleets?.length === 0,
+  fleetIds: token.fleets?.map((t) => t.fleet_id) ?? [],
 });
 
 /** The PATCH body's fleets: [] means All fleets, null means unassigned. */

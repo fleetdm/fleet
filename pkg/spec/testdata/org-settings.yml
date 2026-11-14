@@ -6,12 +6,11 @@ server_settings:
   live_reporting_disabled: false
   report_cap: 2000
   discard_reports_data: false
-  scripts_disabled: false
   server_url: https://fleet.example.com
 org_info:
   contact_url: https://fleetdm.com/company/contact
-  org_logo_url: ""
-  org_logo_url_light_background: ""
+  org_logo_url_dark_mode: ""
+  org_logo_url_light_mode: ""
   org_name: $ORG_NAME
 smtp_settings:
   authentication_method: authmethod_plain

@@ -10,10 +10,10 @@
             <h1>Your device data belongs in your environment.</h1>
           </div>
           <div purpose="page-hero-text">
-            <p>Fleet runs entirely on your infrastructure. Every feature intact. Your data never leaves your network.</p>
+            <p>Fleet is AI-native device management that runs entirely on your infrastructure. Say what you need done, approve the change, and Fleet handles the rest. Every feature is intact, and your data never leaves your network.</p>
           </div>
           <div purpose="button-row" class="d-flex justify-content-center align-items-center">
-            <a purpose="cta-button" href="/contact" no-underline>Get a demo</a>
+            <a purpose="cta-button" href="/contact?talkToUs" no-underline>Get a demo</a>
           </div>
         </div>
       </div>
@@ -39,8 +39,30 @@
 
       <div purpose="landing-page-section">
         <div purpose="section-heading">
+          <h3>AI-native, on your own infrastructure</h3>
+          <p>Fleet works natively with your team’s AI tools, like Copilot, Claude, or any AI harness your security team approves. You choose where Fleet runs, and a person on your team approves every change before it touches a device.</p>
+        </div>
+        <div purpose="feature-row">
+          <div purpose="feature-item">
+            <h5>Say what you need</h5>
+            <p>Ask for a change in plain language, like “Disable camera in Firefox.” AI drafts it against your own Fleet instance.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Approve before it ships</h5>
+            <p>A person on your team reviews every change before any device sees it. Every change has a history, and you can undo any mistake.</p>
+          </div>
+          <div purpose="feature-item">
+            <h5>Ask your devices anything</h5>
+            <p>See what’s patched and what’s compliant across <a href="/apple">Macs</a>, <a href="/windows">Windows PCs</a>, and <a href="/linux">Linux devices</a> in seconds, without the data leaving your network.</p>
+          </div>
+        </div>
+      </div>
+
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
           <h3>Who needs on-premise MDM</h3>
-          <p>For a growing number of organizations in regulated industries, government agencies, high-security enterprises, and globally distributed teams sending device telemetry to a vendor's cloud creates a compliance, sovereignty, or architecture problem that cloud-only MDMs simply cannot solve.</p>
+          <p>For a growing number of organizations in regulated industries, government agencies, high-security enterprises, and globally distributed teams, sending device telemetry to a vendor’s cloud creates a compliance, sovereignty, or architecture problem that cloud-only MDMs can’t solve.</p>
         </div>
         <div purpose="feature-row">
           <div purpose="feature-item">
@@ -49,22 +71,22 @@
           </div>
           <div purpose="feature-item">
             <h5>Financial services</h5>
-            <p>Banks and payment processors operate under regulations that restrict where employee device data can reside. DORA, SOX, and PCI-DSS often prohibit third-party cloud storage of endpoint telemetry.</p>
+            <p>Banks and payment processors operate under regulations that restrict where employee device data can reside. DORA, SOX, and PCI-DSS often prohibit third-party cloud storage of device telemetry.</p>
           </div>
           <div purpose="feature-item">
-            <h5>Healthcare &amp; life sciences</h5>
-            <p>HIPAA-covered entities managing devices that access PHI need endpoint management with full data residency control. Sending device inventory to a vendor cloud creates BAA complexity and audit risk.</p>
+            <h5>Healthcare and life sciences</h5>
+            <p>HIPAA-covered entities managing devices that access PHI need device management with full data residency control. Sending device inventory to a vendor cloud creates BAA complexity and audit risk.</p>
           </div>
           <div purpose="feature-item">
             <h5>Critical infrastructure</h5>
             <p>Energy, utilities, and industrial control environments require device management in isolated network segments. Cloud connectivity is either prohibited or architecturally impossible.</p>
           </div>
           <div purpose="feature-item">
-            <h5>Government &amp; defense</h5>
+            <h5>Government and defense</h5>
             <p>Federal agencies and defense contractors require device management within a classified or controlled network boundary. Device telemetry cannot traverse the public internet.</p>
           </div>
           <div purpose="feature-item">
-            <h5>Research &amp; universities</h5>
+            <h5>Research and universities</h5>
             <p>Research institutions with government grants or export control requirements (ITAR/EAR) cannot allow device management data to reside on commercial cloud infrastructure.</p>
           </div>
         </div>
@@ -98,11 +120,11 @@
             <p purpose="feature-text">Bare metal or VMware, Docker or Kubernetes. No internet egress required.</p>
           </div>
           <div purpose="feature">
-            <p purpose="feature-headline">Classified / air-gapped networks</p>
+            <p purpose="feature-headline">Classified and air-gapped networks</p>
             <p purpose="feature-text">Zero outbound internet dependency. Package all assets for offline deployment and distribute via internal artifact repositories.</p>
           </div>
           <div purpose="feature">
-            <p purpose="feature-headline">AWS / GCP / Azure</p>
+            <p purpose="feature-headline">AWS, GCP, or Azure</p>
             <p purpose="feature-text">Terraform into your own cloud account. VPC-isolated, no cross-account data access, no vendor visibility.</p>
           </div>
         </div>
@@ -112,11 +134,11 @@
         <div purpose="feature-with-image" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-start">
           <div purpose="feature-text" class="d-flex flex-column">
             <h3>Deploy on your infrastructure. Own every byte of your data.</h3>
-            <p>Spin up Fleet using the official Terraform module, Helm chart, or Docker Compose. Fleet's architecture is a single binary + database no microservices sprawl, no vendor agents phoning home, no surprise egress.</p>
+            <p>Spin up Fleet using the official Terraform module, Helm chart, or Docker Compose. Fleet is a single binary backed by MySQL and Redis. No microservices sprawl, no vendor agents phoning home, and no surprise egress.</p>
             <div purpose="checklist" class="flex-column d-flex">
-              <p>Device enrollment points to your own Fleet instance, not a vendor cloud</p>
-              <p>Every MDM command and query result stays inside your network</p>
-              <p>Auditors can verify zero outbound traffic to vendor infrastructure</p>
+              <p>Device enrollment points to your own Fleet instance, not a vendor cloud.</p>
+              <p>Every MDM command and report result stays inside your network.</p>
+              <p>Auditors can verify zero outbound traffic to vendor infrastructure.</p>
               <p>Upgrade on your schedule: no forced updates, no deprecation emails</p>
             </div>
           </div>
@@ -125,7 +147,7 @@
               <span purpose="terminal-dot" class="dot-red"></span>
               <span purpose="terminal-dot" class="dot-yellow"></span>
               <span purpose="terminal-dot" class="dot-green"></span>
-              <span purpose="terminal-filename">main.tf your AWS account</span>
+              <span purpose="terminal-filename">main.tf (your AWS account)</span>
             </div>
             <pre purpose="terminal-body"><span purpose="tc"># Deploy Fleet in your own AWS account</span>
 <span purpose="tk">module</span> <span purpose="ts">"fleet"</span> {
@@ -171,7 +193,7 @@
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">100% feature parity</p>
-              <p>Not a stripped-down tier. GitOps, AI workflows, Declarative MDM, live osquery, and vulnerability management all ship to self-hosted on the same day as cloud.</p>
+              <p>Not a stripped-down tier. AI-native workflows with human review, GitOps, declarative device management (DDM), live osquery, and vulnerability management all ship to self-hosted on the same day as Fleet Cloud.</p>
             </div>
             <div purpose="card-footer">
               <p>One codebase, same features everywhere</p>
@@ -198,7 +220,7 @@
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">Fully auditable open-source codebase</p>
-              <p>Public on GitHub. Every line of code touching your device data can be inspected, built from source, and verified by your team.</p>
+              <p><a href="/lp/open-source">Public on GitHub</a>. Every line of code touching your device data can be inspected, built from source, and verified by your team. Because the code is public, you can also ask Claude or Copilot how any part of Fleet works.</p>
             </div>
             <div purpose="card-footer">
               <p>No black-box binaries</p>
@@ -216,8 +238,8 @@
           </div>
           <div purpose="feature-text" class="d-flex flex-column">
             <div purpose="checklist" class="flex-column d-flex">
-              <p>AI-assisted IT workflows</p>
-              <p>GitOps based change management</p>
+              <p>AI-native changes, with a person approving each one</p>
+              <p>Zero touch for new <a href="/windows">Windows PCs</a>, with no Microsoft license required</p>
               <p>Real-time device reports</p>
               <p>Software management and app lifecycle</p>
               <p>Vulnerability management and CVE tracking</p>
@@ -231,7 +253,7 @@
         <div purpose="section-heading">
           <div purpose="heading-group">
             <h4>Head to head</h4>
-            <h2>The only MDM built for self-hosted from day one</h2>
+            <h2>Built for self-hosted from day one</h2>
           </div>
         </div>
         <div purpose="comparison-table-section">
@@ -268,18 +290,18 @@
                 </tr>
                 <tr>
                   <td>Feature parity (on-prem vs. cloud)</td>
-                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">100% one codebase, same features everywhere</div></td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">100%: one codebase, same features everywhere</div></td>
                   <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Cloud-only features keep growing; on-prem keeps falling behind.</div></td>
                   <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">N/A, cloud only.</div></td>
                 </tr>
                 <tr>
-                  <td>Air-gap / offline operation</td>
+                  <td>Air-gapped or offline operation</td>
                   <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Zero internet dependency in air-gap mode</div></td>
                   <td><div purpose="table-cell"><span purpose="tilde">~</span> Possible but not officially supported</div></td>
                   <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Requires internet connectivity to Microsoft Azure</div></td>
                 </tr>
                 <tr>
-                  <td>Open-source / auditable code</td>
+                  <td>Open source, auditable code</td>
                   <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Every line public on GitHub</div></td>
                   <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Proprietary binary only</div></td>
                   <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Proprietary, no source access.</div></td>
@@ -297,8 +319,8 @@
                   <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Microsoft Azure region selectable, not truly sovereign</div></td>
                 </tr>
                 <tr>
-                  <td>GitOps / version-controlled config</td>
-                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">YAML in Git: PR review, rollback, full audit trail.</div></td>
+                  <td>Reviewed changes and GitOps</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">AI drafts, a person reviews, and every change lives in Git with rollback and a full audit trail.</div></td>
                   <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">GUI-only on-prem, no GitOps workflow.</div></td>
                   <td><div purpose="table-cell"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">No native GitOps. Requires third-party tooling.</div></td>
                 </tr>
@@ -331,7 +353,7 @@
               <div purpose="capability">Feature parity (on-prem vs. cloud)</div>
               <div purpose="fleet-row">
                 <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
-                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">100% one codebase, same features everywhere</div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">100%: one codebase, same features everywhere</div>
               </div>
               <div purpose="competitor-row">
                 <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
@@ -343,7 +365,7 @@
               </div>
             </div>
             <div purpose="mobile-comparison">
-              <div purpose="capability">Air-gap / offline operation</div>
+              <div purpose="capability">Air-gapped or offline operation</div>
               <div purpose="fleet-row">
                 <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
                 <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Zero internet dependency in air-gap mode</div>
@@ -358,7 +380,7 @@
               </div>
             </div>
             <div purpose="mobile-comparison">
-              <div purpose="capability">Open-source / auditable code</div>
+              <div purpose="capability">Open source, auditable code</div>
               <div purpose="fleet-row">
                 <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
                 <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Every line public on GitHub</div>
@@ -403,10 +425,10 @@
               </div>
             </div>
             <div purpose="mobile-comparison">
-              <div purpose="capability">GitOps / version-controlled config</div>
+              <div purpose="capability">Reviewed changes and GitOps</div>
               <div purpose="fleet-row">
                 <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
-                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">YAML in Git: PR review, rollback, full audit trail.</div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">AI drafts, a person reviews, and every change lives in Git with rollback and a full audit trail.</div>
               </div>
               <div purpose="competitor-row">
                 <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
@@ -466,6 +488,148 @@
         </div>
       </div>
 
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>Frequently asked questions</h3>
+        </div>
+        <div purpose="faq" class="d-flex flex-column">
+          <div purpose="accordion" class="d-flex flex-column justify-content-start">
+            <div purpose="accordion-body">
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="onprem-faq__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#onprem-faq__body1" aria-controls="onprem-faq__body1">
+                  Where can I deploy Fleet?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="onprem-faq__body1" class="collapse" aria-labelledby="onprem-faq__header1">
+                  Anywhere you control: <a href="/docs/deploy/deploy-fleet">on-premises</a>, in any major cloud (AWS, Azure, GCP, DigitalOcean), in containers (Docker, or Kubernetes via Helm or Terraform), or in air-gapped environments. Teams that prefer a managed option can choose Fleet Cloud and get the same features either way.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="onprem-faq__header2" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#onprem-faq__body2" aria-controls="onprem-faq__body2">
+                  What infrastructure does a self-hosted Fleet deployment need?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="onprem-faq__body2" class="collapse" aria-labelledby="onprem-faq__header2">
+                  Fleet has three infrastructure dependencies: a MySQL database, a Redis-compatible cache (Redis or Valkey), and a TLS certificate. A single Fleet server can handle tens of thousands of hosts, and deployments scale horizontally to hundreds of thousands of devices behind a load balancer.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="onprem-faq__header3" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#onprem-faq__body3" aria-controls="onprem-faq__body3">
+                  Can Fleet run in an air-gapped environment?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="onprem-faq__body3" class="collapse" aria-labelledby="onprem-faq__header3">
+                  Yes. Fleet has zero outbound internet dependency. Package the Fleet server, agents, and updates for offline deployment, and distribute them through your internal artifact repositories.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="onprem-faq__header4" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#onprem-faq__body4" aria-controls="onprem-faq__body4">
+                  Does self-hosted Fleet have the same features as Fleet Cloud?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="onprem-faq__body4" class="collapse" aria-labelledby="onprem-faq__header4">
+                  Yes. Fleet is one codebase with one feature set. Every feature available in Fleet Cloud ships to self-hosted on the same day, including AI-native workflows, declarative device management (DDM), live osquery, and vulnerability management.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="onprem-faq__header5" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#onprem-faq__body5" aria-controls="onprem-faq__body5">
+                  Can I use AI with self-hosted Fleet?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="onprem-faq__body5" class="collapse" aria-labelledby="onprem-faq__header5">
+                  Yes. Fleet works natively with Copilot, Claude, or any AI harness, and you choose which tools your team uses. AI drafts each change against your own Fleet instance, and a person on your team approves it before it touches a device.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="onprem-faq__header6" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#onprem-faq__body6" aria-controls="onprem-faq__body6">
+                  Can I set up new Windows PCs without Microsoft licenses?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="onprem-faq__body6" class="collapse" aria-labelledby="onprem-faq__header6">
+                  Yes. Fleet gives you an order email. Forward it to Dell, Lenovo, or HP, and they install Fleet before the PC ships. No Autopilot, Entra ID, or Intune is required. See <a href="/windows">Windows device management</a>.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="onprem-faq__header7" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#onprem-faq__body7" aria-controls="onprem-faq__body7">
+                  Is Fleet open source?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="onprem-faq__body7" class="collapse" aria-labelledby="onprem-faq__header7">
+                  Yes. The majority of Fleet is released under the MIT license, and all of Fleet’s source code is public on GitHub at <a href="https://github.com/fleetdm/fleet" target="_blank">github.com/fleetdm/fleet</a>. A separate set of paid features lives in an <code>/ee</code> directory under a commercial license. See the <a href="/lp/open-source">open source MDM page</a> for the full breakdown.
+                </p>
+              </div>
+            </div>
+            <div class="d-flex flex-row justify-content-start">
+              <p purpose="contact-note">Have another question? <a href="/docs/get-started/faq">Read the full FAQ</a> or <a href="/contact">talk to an engineer</a>.</p>
+            </div>
+          </div>
+        </div>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Where can I deploy Fleet?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Anywhere you control: on-premises, in any major cloud (AWS, Azure, GCP, DigitalOcean), in containers (Docker, or Kubernetes via Helm or Terraform), or in air-gapped environments. Teams that prefer a managed option can choose Fleet Cloud and get the same features either way."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What infrastructure does a self-hosted Fleet deployment need?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Fleet has three infrastructure dependencies: a MySQL database, a Redis-compatible cache (Redis or Valkey), and a TLS certificate. A single Fleet server can handle tens of thousands of hosts, and deployments scale horizontally to hundreds of thousands of devices behind a load balancer."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can Fleet run in an air-gapped environment?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Fleet has zero outbound internet dependency. Package the Fleet server, agents, and updates for offline deployment, and distribute them through your internal artifact repositories."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does self-hosted Fleet have the same features as Fleet Cloud?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Fleet is one codebase with one feature set. Every feature available in Fleet Cloud ships to self-hosted on the same day, including AI-native workflows, declarative device management (DDM), live osquery, and vulnerability management."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I use AI with self-hosted Fleet?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Fleet works natively with Copilot, Claude, or any AI harness, and you choose which tools your team uses. AI drafts each change against your own Fleet instance, and a person on your team approves it before it touches a device."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I set up new Windows PCs without Microsoft licenses?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Fleet gives you an order email. Forward it to Dell, Lenovo, or HP, and they install Fleet before the PC ships. No Autopilot, Entra ID, or Intune is required. See Windows device management."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Fleet open source?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. The majority of Fleet is released under the MIT license, and all of Fleet's source code is public on GitHub at github.com/fleetdm/fleet. A separate set of paid features lives in an /ee directory under a commercial license. See the open source MDM page for the full breakdown."
+              }
+            }
+          ]
+        }
+        </script>
+      </div>
+
     </div>
   </div>
 
@@ -478,7 +642,7 @@
           <h1>Your infrastructure. Your data. Your terms.</h1>
         </div>
         <div purpose="button-row" class="d-flex justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" class="mr-0" href="/contact" no-underline>Get a demo</a>
+          <a purpose="cta-button" class="mr-0" href="/contact?talkToUs" no-underline>Get a demo</a>
         </div>
       </div>
     </div>

@@ -30,11 +30,13 @@ func (KeyFormat) Message(e Entry) string {
 	return fmt.Sprintf(`The "%s" key is not available anymore. What to use instead: %s`, e.Old, GuideURL)
 }
 
-// NounFormat is for a removed fleetctl flag, command, environment variable, or flag value. Noun says which one it is. A flag is shown
-// with its leading dashes. The replacement is left to the guide.
+// NounFormat is for a removed fleetctl flag, command, environment variable, or flag value, a SAML attribute, or a Fleet variable. Noun
+// says which one it is. A flag is shown with its leading dashes. The replacement is left to the guide.
 //
 //	The "--team" flag is not available anymore. What to use instead: <guide>
 //	The "fleetctl get teams" command is not available anymore. What to use instead: <guide>
+//	The "FLEET_JIT_USER_ROLE_TEAM_<ID>" SAML attribute is not available anymore. What to use instead: <guide>
+//	The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. What to use instead: <guide>
 type NounFormat struct {
 	Noun string
 }
@@ -96,6 +98,10 @@ func defaultFormat(kind Kind) Format {
 		return NounFormat{Noun: "environment variable"}
 	case KindFlagValue:
 		return NounFormat{Noun: "value"}
+	case KindSAMLAttribute:
+		return NounFormat{Noun: "SAML attribute"}
+	case KindFleetVariable:
+		return NounFormat{Noun: "variable"}
 	default:
 		return ReplacedFormat{}
 	}

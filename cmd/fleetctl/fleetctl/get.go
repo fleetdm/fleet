@@ -20,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	kithttp "github.com/go-kit/kit/transport/http"
@@ -32,7 +31,6 @@ import (
 const (
 	yamlFlagName                = "yaml"
 	jsonFlagName                = "json"
-	withReportsFlagName         = "with-reports"
 	expiredFlagName             = "expired"
 	includeServerConfigFlagName = "include-server-config"
 )
@@ -133,16 +131,6 @@ func printQuerySpec(c *cli.Context, query *fleet.QuerySpec) error {
 	return printSpec(c, spec)
 }
 
-func printPack(c *cli.Context, pack *fleet.PackSpec) error {
-	spec := specGeneric{
-		Kind:    fleet.PackKind,
-		Version: fleet.ApiVersion,
-		Spec:    pack,
-	}
-
-	return printSpec(c, spec)
-}
-
 func printSecret(c *cli.Context, secret *fleet.EnrollSecretSpec) error {
 	spec := specGeneric{
 		Kind:    fleet.EnrollSecretKind,
@@ -232,13 +220,13 @@ type UserRoles struct {
 }
 
 type TeamRole struct {
-	Team string `json:"team" renameto:"fleet"` // renameto doesn't actually do anything here but adding for visibility
+	Team string `json:"fleet"`
 	Role string `json:"role"`
 }
 
 type UserRole struct {
 	GlobalRole *string    `json:"global_role"`
-	Teams      []TeamRole `json:"teams" renameto:"fleets"` // renameto doesn't actually do anything here but adding for visibility
+	Teams      []TeamRole `json:"fleets"`
 }
 
 func usersToUserRoles(users []fleet.User) UserRoles {
@@ -288,11 +276,22 @@ func printTeams(c *cli.Context, client *service.Client, teams []fleet.Team) erro
 			team.Config.Software = software
 			teamItem = team
 		}
+		// Rename the fleet's own keys here, removing the old ones: printSpec only renames the keys it finds, and the spec key is no longer
+		// "team", whose renamed copy used to carry the new names. Delete this once the JSON tags are renamed in later PRs.
+		teamJSON, err := json.Marshal(teamItem)
+		if err != nil {
+			return err
+		}
+		var renamedTeam any
+		if err := json.Unmarshal(teamJSON, &renamedTeam); err != nil {
+			return err
+		}
+		replaceAliasKeys(renamedTeam, aliasRules, true)
 		spec := specGeneric{
 			Kind:    fleet.FleetKind,
 			Version: fleet.ApiVersion,
 			Spec: map[string]interface{}{
-				"team": teamItem,
+				"fleet": renamedTeam,
 			},
 		}
 
@@ -317,7 +316,6 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 	// The setup experience membership is the source of truth in the setup
 	// experience tables, exposed via the setup experience endpoint.
 	setupSoftwareByTitleID := make(map[uint]struct{})
-	setupAppsByName := make(map[string]struct{})
 	setupSoftware, err := client.GetSetupExperienceSoftware("macos,windows,linux,ios,ipados,android", teamID)
 	if err != nil {
 		return nil, fmt.Errorf("could not get setup experience software for fleet %d: %w", teamID, err)
@@ -326,8 +324,8 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 		if pkg := sw.SoftwarePackage; pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
 			setupSoftwareByTitleID[sw.ID] = struct{}{}
 		}
-		if app := sw.AppStoreApp; app != nil && app.InstallDuringSetup != nil && *app.InstallDuringSetup {
-			setupAppsByName[app.FullyQualifiedName()] = struct{}{}
+		if len(sw.AppStoreApps) > 0 && sw.AppStoreApps[0].InstallDuringSetup != nil && *sw.AppStoreApps[0].InstallDuringSetup {
+			setupSoftwareByTitleID[sw.ID] = struct{}{}
 		}
 	}
 
@@ -393,16 +391,12 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 				Categories:         optjson.SetSlice(pkg.Categories),
 				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
 			})
-		case detail.AppStoreApp != nil:
-			app := detail.AppStoreApp
-			var installDuringSetup optjson.Bool
-			if _, ok := setupAppsByName[app.VPPAppID.String()]; ok {
-				installDuringSetup = optjson.SetBool(true)
-			}
+		case len(detail.AppStoreApps) > 0:
+			app := detail.AppStoreApps[0]
 			appStoreAppSpec := fleet.TeamSpecAppStoreApp{
-				AppStoreID:         app.AdamID,
+				AppStoreID:         app.AppStoreID,
 				Platform:           string(app.Platform),
-				InstallDuringSetup: installDuringSetup,
+				InstallDuringSetup: setupExperienceValue(setupSoftwareByTitleID, title.ID),
 			}
 			// Output one object instead of a versions array when the app only has one version
 			if len(detail.AppStoreApps) > 1 || (len(detail.AppStoreApps) == 1 && detail.AppStoreApps[0].Name != fleet.DefaultAppStoreAppVersionName) {
@@ -499,7 +493,6 @@ func getCommand() *cli.Command {
 		Usage: "Get/list resources",
 		Subcommands: withLogTopicFlags([]*cli.Command{
 			getReportsCommand(),
-			getPacksCommand(),
 			getLabelsCommand(),
 			getHostsCommand(),
 			getEnrollSecretCommand(),
@@ -511,7 +504,6 @@ func getCommand() *cli.Command {
 			getSoftwareCommand(),
 			getMDMAppleCommand(),
 			getMDMABCommand(),
-			getMDMAppleBMCommand(),
 			getMDMCommandResultsCommand(),
 			getMDMCommandsCommand(),
 		}),
@@ -529,7 +521,8 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 		minOsqueryVersion = query.MinOsqueryVersion
 	}
 
-	scheduleInfo := fmt.Sprintf("interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s\ndiscard_data: %t",
+	scheduleInfo := fmt.Sprintf(
+		"interval: %d\nplatform: %s\nmin_osquery_version: %s\nautomations_enabled: %t\nlogging: %s\ndiscard_data: %t",
 		query.Interval,
 		platform,
 		minOsqueryVersion,
@@ -601,9 +594,8 @@ func getReportsCommand() *cli.Command {
 		},
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team"},
-				Usage:   "filter reports by fleet_id (0 means global)",
+				Name:  fleetFlagName,
+				Usage: "filter reports by fleet_id (0 means global)",
 			},
 			jsonFlag(),
 			yamlFlag(),
@@ -751,139 +743,6 @@ func userIsObserver(user fleet.User) (bool, error) {
 	return true, nil
 }
 
-func getPacksCommand() *cli.Command {
-	return &cli.Command{
-		Name:    "packs",
-		Aliases: []string{"pack", "p"},
-		Usage:   `Retrieve 2017 "Packs" data for migration into modern osquery packs`,
-		Before: func(c *cli.Context) error {
-			logDeprecatedFlagName(c, "with-queries", withReportsFlagName)
-			return nil
-		},
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:    withReportsFlagName,
-				Aliases: []string{"with-queries"},
-				Usage:   "Output reports included in pack(s) too, when used alongside --yaml or --json",
-			},
-			jsonFlag(),
-			yamlFlag(),
-			removeDeprecatedKeysFlag(),
-			configFlag(),
-			contextFlag(),
-			debugFlag(),
-		},
-		Action: func(c *cli.Context) error {
-			client, err := clientFromCLI(c)
-			if err != nil {
-				return err
-			}
-
-			name := c.Args().First()
-			shouldPrintQueries := c.Bool(withReportsFlagName)
-			queriesToPrint := make(map[string]bool)
-
-			addQueries := func(pack *fleet.PackSpec) {
-				if shouldPrintQueries {
-					for _, q := range pack.Queries {
-						queriesToPrint[q.QueryName] = true
-					}
-				}
-			}
-
-			printQueries := func() error {
-				if !shouldPrintQueries {
-					return nil
-				}
-
-				// Get global queries (teamID==nil), because 2017 packs reference global queries.
-				queries, err := client.GetQueries(nil, nil)
-				if err != nil {
-					return fmt.Errorf("could not list queries: %w", err)
-				}
-
-				// Getting all queries then filtering is usually faster than getting
-				// one query at a time.
-				for _, query := range queries {
-					if !queriesToPrint[query.Name] {
-						continue
-					}
-
-					if err := printQuerySpec(c, &fleet.QuerySpec{
-						Name:        query.Name,
-						Description: query.Description,
-						Query:       query.Query,
-					}); err != nil {
-						return fmt.Errorf("unable to print query: %w", err)
-					}
-				}
-
-				return nil
-			}
-
-			// if name wasn't provided, list all packs
-			if name == "" {
-				packs, err := client.GetPacksSpecs()
-				if err != nil {
-					return fmt.Errorf("could not list packs: %w", err)
-				}
-
-				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
-					for _, pack := range packs {
-						if err := printPack(c, pack); err != nil {
-							return fmt.Errorf("unable to print pack: %w", err)
-						}
-						addQueries(pack)
-					}
-					return printQueries()
-				}
-
-				if len(packs) == 0 {
-					log(c, "No 2017 \"Packs\" found.\n")
-					return nil
-				}
-
-				data := [][]string{}
-
-				for _, pack := range packs {
-					data = append(data, []string{
-						pack.Name,
-						pack.Platform,
-						pack.Description,
-						strconv.FormatBool(pack.Disabled),
-					})
-				}
-
-				columns := []string{"name", "platform", "description", "disabled"}
-				printTable(c, columns, data)
-				log(c, fmt.Sprintf(`Found %d 2017 "Packs".
-
-Querying in Fleet is becoming more powerful. To learn more, visit:
-https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-support-query-packs
-
-To retrieve "Pack" data in a portable format for upgrading, run `+"`fleetctl upgrade-packs`"+`.
-`, len(packs)))
-
-				return nil
-			}
-
-			// Name was specified
-			pack, err := client.GetPackSpec(name)
-			if err != nil {
-				return err
-			}
-
-			addQueries(pack)
-
-			if err := printPack(c, pack); err != nil {
-				return fmt.Errorf("unable to print pack: %w", err)
-			}
-
-			return printQueries()
-		},
-	}
-}
-
 func getLabelsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "labels",
@@ -897,10 +756,9 @@ func getLabelsCommand() *cli.Command {
 			contextFlag(),
 			debugFlag(),
 			&cli.UintFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team"},
-				Usage:   "Return labels specific to this fleet ID; default global labels only when viewing multiple labels",
-				Value:   0,
+				Name:  fleetFlagName,
+				Usage: "Return labels specific to this fleet ID; default global labels only when viewing multiple labels",
+				Value: 0,
 			},
 		},
 		Action: func(c *cli.Context) error {
@@ -1047,7 +905,6 @@ func getHostsCommand() *cli.Command {
 		Flags: []cli.Flag{
 			&cli.UintFlag{
 				Name:     fleetFlagName,
-				Aliases:  []string{"team"},
 				Usage:    "filter hosts by fleet_id",
 				Required: false,
 			},
@@ -1393,12 +1250,8 @@ func getTeamsYAMLFlag() cli.Flag {
 func getFleetsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "fleets",
-		Aliases: []string{"fleet", "f", "teams", "team", "t"},
+		Aliases: []string{"fleet", "f"},
 		Usage:   "List fleets",
-		Before: func(c *cli.Context) error {
-			logDeprecatedCommandName(c, []string{"teams", "team", "t"}, "fleets")
-			return nil
-		},
 		Flags: []cli.Flag{
 			getTeamsJSONFlag(),
 			getTeamsYAMLFlag(),
@@ -1471,9 +1324,8 @@ func getSoftwareCommand() *cli.Command {
 		Usage:   "List software titles",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
-				Name:    fleetFlagName,
-				Aliases: []string{"team"},
-				Usage:   "Only list software of hosts that belong to the specified fleet",
+				Name:  fleetFlagName,
+				Usage: "Only list software of hosts that belong to the specified fleet",
 			},
 			&cli.BoolFlag{
 				Name:  "versions",
@@ -1667,21 +1519,6 @@ func getMDMABCommand() *cli.Command {
 	}
 }
 
-func getMDMAppleBMCommand() *cli.Command {
-	return &cli.Command{
-		Name:    "mdm-apple-bm",
-		Aliases: []string{"mdm_apple_bm"},
-		Usage:   "Deprecated. Use mdm-ab instead.",
-		Flags:   getMDMABFlags(),
-		Action: func(c *cli.Context) error {
-			if logging.TopicEnabled(logging.DeprecatedFieldTopic) {
-				fmt.Fprintf(c.App.ErrWriter, "[!] 'fleetctl get mdm-apple-bm' is deprecated; use 'fleetctl get mdm-ab' instead\n")
-			}
-			return runGetMDMAB(c)
-		},
-	}
-}
-
 func getMDMABFlags() []cli.Flag {
 	return []cli.Flag{
 		configFlag(),
@@ -1698,34 +1535,55 @@ func runGetMDMAB(c *cli.Context) error {
 		return err
 	}
 
-	bm, err := client.GetAppleBM()
+	tokens, err := client.ListABTokens()
 	if err != nil {
-		if _, ok := errors.AsType[service.NotFoundErr](err); ok {
-			log(c, "Error: No Apple Business (AB) server token found. Use `fleetctl generate mdm-ab` and then `fleet serve` with `mdm` configuration to automatically enroll macOS hosts to Fleet.\n")
-			return nil
+		return fmt.Errorf("could not list AB tokens: %w", err)
+	}
+
+	if len(tokens) == 0 {
+		log(c, "Error: No Apple Business (AB) server token found. Use `fleetctl generate mdm-ab` and follow the steps to automatically enroll Apple hosts to Fleet.\n")
+		return nil
+	}
+
+	for i, token := range tokens {
+		fleetName := func(assignment fleet.ABMTokenTeam) string {
+			if assignment.ID == 0 {
+				return fleet.DisplayNameNoTeam
+			}
+			return assignment.Name
 		}
-		return fmt.Errorf("could not get Apple Business information: %w", err)
-	}
 
-	defaultTeam := bm.DefaultTeam
-	if defaultTeam == "" {
-		defaultTeam = "Unassigned"
-	}
-	printKeyValueTable(c, [][]string{
-		{"Apple ID:", bm.AppleID},
-		{"Organization name:", bm.OrgName},
-		{"MDM server URL:", bm.MDMServerURL},
-		{"Renew date:", bm.RenewDate.Format("January 2, 2006")},
-		{"Default fleet:", defaultTeam},
-	})
+		defaultTokenOutput := func(isDefaultToken bool) string {
+			if isDefaultToken {
+				return "Yes"
+			}
+			return "No"
+		}
 
-	warnDate := time.Now().Add(expirationWarning)
-	if bm.RenewDate.Before(time.Now()) {
-		// certificate is expired, print an error
-		color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business (AB) server token is expired. Laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
-	} else if bm.RenewDate.Before(warnDate) {
-		// certificate will soon expire, print a warning
-		color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business (AB) server token is less than 30 days from expiration. If it expires, laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+		printKeyValueTable(c, [][]string{
+			{"Organization name:", token.OrganizationName},
+			{"Apple ID:", token.AppleID},
+			{"MDM server URL:", token.MDMServerURL},
+			{"Renew date:", token.RenewAt.Format("January 2, 2006")},
+			{"Default token:", defaultTokenOutput(token.IsDefault)},
+			{"macOS fleet:", fleetName(token.MacOSTeam)},
+			{"iOS fleet:", fleetName(token.IOSTeam)},
+			{"iPadOS fleet:", fleetName(token.IPadOSTeam)},
+			{"BYOD fleet:", fleetName(token.BYODTeam)},
+		})
+
+		warnDate := time.Now().Add(expirationWarning)
+		if token.RenewAt.Before(time.Now()) {
+			// certificate is expired, print an error
+			color.New(color.FgRed).Fprintln(c.App.Writer, "\nERROR: Your Apple Business (AB) server token is expired. Laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+		} else if token.RenewAt.Before(warnDate) {
+			// certificate will soon expire, print a warning
+			color.New(color.FgYellow).Fprintln(c.App.Writer, "\nWARNING: Your Apple Business (AB) server token is less than 30 days from expiration. If it expires, laptops newly purchased via Apple Business will not automatically enroll in Fleet. To renew your AB server token, follow these instructions: https://fleetdm.com/docs/using-fleet/faq#how-can-i-renew-my-apple-business-manager-server-token")
+		}
+
+		if i < len(tokens)-1 {
+			fmt.Fprintln(c.App.Writer)
+		}
 	}
 
 	return nil

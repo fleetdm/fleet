@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -31,8 +30,18 @@ import SectionCard from "../MdmSettings/components/SectionCard";
 
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
+import OktaProfilesModal from "./components/OktaProfilesModal";
 
 const baseClass = "conditional-access";
+
+const troubleshootLink = (
+  <CustomLink
+    text="Learn more"
+    url="https://fleetdm.com/guides/entra-conditional-access-integration#troubleshooting"
+    newTab
+    variant="flash-message-link"
+  />
+);
 
 interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
@@ -169,11 +178,7 @@ enum EntraPhase {
   ConsentMissing = "consent-missing",
 }
 
-interface IConditionalAccessProps {
-  router: InjectedRouter;
-}
-
-const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
+const ConditionalAccess = () => {
   // HOOKS
   const { isPremiumTier, setConfig, config } = useContext(AppContext);
 
@@ -184,6 +189,7 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
   // Modal states
   const [showEntraModal, setShowEntraModal] = useState(false);
   const [showOktaModal, setShowOktaModal] = useState(false);
+  const [showOktaProfilesModal, setShowOktaProfilesModal] = useState(false);
   const [providerToDelete, setProviderToDelete] = useState<
     "microsoft-entra" | "okta" | null
   >(null);
@@ -218,20 +224,50 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
           // IT admin did not complete the consent.
           !setup_error ||
           // IT admin clicked "Cancel" in the consent dialog.
-          setup_error.includes(
-            "A Microsoft Entra admin did not consent to the permissions requested by the conditional access integration"
-          )
+          setup_error.includes("A Microsoft Entra admin did not consent")
         ) {
           notify.error(
-            "Couldn't update. Fleet didn't get permissions for Entra. Please try again and accept the permissions."
+            <>
+              Couldn&apos;t connect. Fleet didn&apos;t get permissions for
+              Entra. Please try again and accept the permissions.{" "}
+              {troubleshootLink}
+            </>
           );
         } else if (
-          setup_error.includes(
-            'No "Fleet conditional access" Entra ID group was found'
-          )
+          // Covers both the empty (HTTP 204) and unexpected-shape responses.
+          setup_error.includes("PartnerCompliancePolicies API returned")
         ) {
           notify.error(
-            `Couldn't connect. The "Fleet conditional access" group doesn't exist in Entra. Please create the group and try again.`
+            <>
+              Couldn&apos;t connect. Entra didn&apos;t create Fleet&apos;s
+              compliance policy. Have an Entra admin who&apos;s also a Fleet
+              admin select <b>Connect</b> and approve permissions in one
+              session. {troubleshootLink}
+            </>
+          );
+        } else if (
+          setup_error.includes('No "Fleet conditional access" Entra ID group')
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Create a group named &quot;Fleet
+              conditional access&quot; in Entra and try again.{" "}
+              <CustomLink
+                text="Learn how"
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/create-entra-conditional-access-group`}
+                newTab
+                variant="flash-message-link"
+              />
+            </>
+          );
+        } else if (
+          setup_error.includes("Error occurred when retrieving API tokens")
+        ) {
+          notify.error(
+            <>
+              Couldn&apos;t connect. Fleet couldn&apos;t access your Entra
+              tenant. Please try again. {troubleshootLink}
+            </>
           );
         } else {
           // For other kind of errors we just show a generic error.
@@ -243,7 +279,9 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
           //  - The Fleet server logs the error.
           //  - The MS proxy stores the error in its database.
           notify.error(
-            "Couldn't connect. Please contact your Fleet administrator."
+            <>
+              Couldn&apos;t connect. Entra returned an error. {troubleshootLink}
+            </>
           );
         }
       }
@@ -330,6 +368,10 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
     setShowOktaModal(!showOktaModal);
   };
 
+  const toggleOktaProfilesModal = () => {
+    setShowOktaProfilesModal(!showOktaProfilesModal);
+  };
+
   const handleOktaModalSuccess = (updatedConfig: IConfig) => {
     setShowOktaModal(false);
     setConfig(updatedConfig);
@@ -381,11 +423,12 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
         <div className={`${baseClass}__card-actions`}>
           <Button
             variant="subdued"
-            onClick={() =>
-              router.push(paths.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS_OKTA)
-            }
-            icon="pencil"
+            onClick={toggleOktaProfilesModal}
+            icon="settings"
           >
+            Profiles
+          </Button>
+          <Button variant="subdued" onClick={toggleOktaModal} icon="pencil">
             Edit
           </Button>
           <GitOpsModeTooltipWrapper
@@ -394,7 +437,6 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
                 variant="subdued"
                 onClick={handleOktaDelete}
                 icon="trash"
-                iconPosition="right"
                 disabled={disableChildren}
               >
                 Delete
@@ -555,6 +597,9 @@ const ConditionalAccess = ({ router }: IConditionalAccessProps) => {
             onCancel={toggleOktaModal}
             onSuccess={handleOktaModalSuccess}
           />
+        )}
+        {showOktaProfilesModal && (
+          <OktaProfilesModal onExit={toggleOktaProfilesModal} />
         )}
         {providerToDelete && (
           <DeleteConditionalAccessModal

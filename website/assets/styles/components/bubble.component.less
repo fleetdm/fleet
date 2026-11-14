@@ -19,6 +19,7 @@
     border: 1px solid #C5C7D1;
     font-weight: bold;
     padding-top: 1px;
+    cursor: default;
     &.admin {
       background-color: rgba(61, 182, 123, 20%);
       border-color: rgba(61, 182, 123, 20%);
@@ -43,6 +44,10 @@
       background-color: rgba(61, 182, 123, 20%);
       border-color: rgba(61, 182, 123, 20%);
     }
+    &.public {
+      background-color: rgba(82, 124, 219, 20%);
+      border-color: rgba(82, 124, 219, 20%);
+    }
   }
 
   &.role-link {
@@ -50,6 +55,7 @@
     display: inline-block;
     &:hover {
       span {
+        cursor: pointer;
         background-color: rgba(61, 182, 123, 40%);
         border-color: rgba(61, 182, 123, 40%);
       }
