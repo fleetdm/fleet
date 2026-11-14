@@ -4123,6 +4123,28 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	if err != nil {
 		return fmt.Errorf("error getting current reports: %w", err)
 	}
+	existingNames := make([]string, 0, len(queries))
+	for _, q := range queries {
+		existingNames = append(existingNames, q.Name)
+	}
+	desiredNames := make([]string, 0, len(config.Queries))
+	for _, q := range config.Queries {
+		desiredNames = append(desiredNames, q.Name)
+	}
+	// Match before applying: the apply renames matched rows, after which the server would find the new names.
+	kept, err := spec.MatchExistingNames(existingNames, desiredNames, func(name string) (string, bool, error) {
+		query, err := c.GetQuerySpec(config.TeamID, name)
+		if isNotFoundErr(err) {
+			return "", false, nil
+		}
+		if err != nil {
+			return "", false, err
+		}
+		return query.Name, true, nil
+	})
+	if err != nil {
+		return fmt.Errorf("error matching current reports: %w", err)
+	}
 	if len(config.Queries) > 0 {
 		numQueries := len(config.Queries)
 		if dryRun {
@@ -4148,14 +4170,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	}
 	var queriesToDelete []uint
 	for _, oldQuery := range queries {
-		found := false
-		for _, newQuery := range config.Queries {
-			if oldQuery.Name == newQuery.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if _, ok := kept[oldQuery.Name]; !ok {
 			queriesToDelete = append(queriesToDelete, oldQuery.ID)
 			if !dryRun {
 				fmt.Printf("[-] deleting report %s\n", oldQuery.Name)

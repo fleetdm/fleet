@@ -3215,6 +3215,46 @@ func nameCollationKey(name string) string {
 	return strings.ToLower(strings.TrimRight(name, " "))
 }
 
+// MatchExistingNames maps each existing label or report name that a GitOps apply of desired keeps to the name it
+// takes after the apply. The apply upserts on a unique name index, so a desired name that the index's collation
+// equates with an existing one (by case, accents or trailing spaces) renames that row in place. Only the server
+// knows that collation, so for a desired name with no exact match, lookup returns the stored name of the row the
+// server finds for it.
+func MatchExistingNames(
+	existing, desired []string,
+	lookup func(name string) (storedName string, found bool, err error),
+) (map[string]string, error) {
+	unmatched := make(map[string]struct{}, len(existing))
+	for _, name := range existing {
+		unmatched[name] = struct{}{}
+	}
+	matched := make(map[string]string, len(existing))
+	var pending []string
+	for _, name := range desired {
+		if _, ok := unmatched[name]; ok {
+			matched[name] = name
+			delete(unmatched, name)
+		} else {
+			pending = append(pending, name)
+		}
+	}
+	for _, name := range pending {
+		if len(unmatched) == 0 {
+			break
+		}
+		storedName, found, err := lookup(name)
+		if err != nil {
+			return nil, fmt.Errorf("looking up %q: %w", name, err)
+		}
+		// The row found can be outside the existing names, for example another fleet's label.
+		if _, ok := unmatched[storedName]; found && ok {
+			matched[storedName] = name
+			delete(unmatched, storedName)
+		}
+	}
+	return matched, nil
+}
+
 func isASCII(s string) bool {
 	for _, c := range s {
 		if c > unicode.MaxASCII {

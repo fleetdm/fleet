@@ -2,6 +2,7 @@ package spec
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -803,6 +804,71 @@ reports:
 `
 	_, err := gitOpsFromString(t, config)
 	assert.ErrorContains(t, err, "duplicate report names: [orbit_info]")
+}
+
+func TestMatchExistingNames(t *testing.T) {
+	t.Parallel()
+	errLookup := errors.New("server unavailable")
+	for _, tc := range []struct {
+		name              string
+		existing, desired []string
+		// stored maps a desired name to the stored name the server finds for it; a missing name is not found.
+		stored  map[string]string
+		lookErr error
+		want    map[string]string
+		wantErr error
+	}{
+		{
+			name:     "exact names keep their rows without a lookup",
+			existing: []string{"Beta", "Gamma"},
+			desired:  []string{"Gamma", "Beta"},
+			lookErr:  errLookup,
+			want:     map[string]string{"Beta": "Beta", "Gamma": "Gamma"},
+		},
+		{
+			name:     "names the server matches by collation rename the row",
+			existing: []string{"Café", "Gamma", "Delta"},
+			desired:  []string{"Cafe", "GAMMA", "Delta"},
+			stored:   map[string]string{"Cafe": "Café", "GAMMA": "Gamma"},
+			want:     map[string]string{"Café": "Cafe", "Gamma": "GAMMA", "Delta": "Delta"},
+		},
+		{
+			name:     "a match outside the existing names is ignored",
+			existing: []string{"Beta"},
+			desired:  []string{"OTHER"},
+			stored:   map[string]string{"OTHER": "Other"},
+			want:     map[string]string{},
+		},
+		{
+			name:     "names the server doesn't find are new",
+			existing: []string{"Beta"},
+			desired:  []string{"Delta"},
+			want:     map[string]string{},
+		},
+		{
+			name:     "a lookup error is returned",
+			existing: []string{"Beta"},
+			desired:  []string{"BETA"},
+			lookErr:  errLookup,
+			wantErr:  errLookup,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := MatchExistingNames(tc.existing, tc.desired, func(name string) (string, bool, error) {
+				if tc.lookErr != nil {
+					return "", false, tc.lookErr
+				}
+				storedName, ok := tc.stored[name]
+				return storedName, ok, nil
+			})
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
 }
 
 func TestDuplicateLabelNames(t *testing.T) {

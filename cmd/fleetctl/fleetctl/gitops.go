@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
+	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/text/unicode/norm"
 )
@@ -315,13 +317,29 @@ func gitopsCommand() *cli.Command {
 				}
 				// When labels are excepted and the key is omitted, preserve
 				// existing labels (no-op). Otherwise delete/update as normal.
-				labelChanges[teamName] = computeLabelChanges(
+				labelChanges[teamName], err = computeLabelChanges(
 					flFilename,
 					teamName,
 					existingLabels,
 					config.Labels,
 					appConfig.GitOpsConfig.Exceptions.Labels,
+					func(name string) (string, bool, error) {
+						label, err := fleetClient.GetLabel(name)
+						// A conflict means several fleets have a label by this name, so the lookup can't tell
+						// whether one of them is this fleet's. The deletes at the end of the run catch a rename then.
+						var sce kithttp.StatusCoder
+						if service.IsNotFoundErr(err) || (errors.As(err, &sce) && sce.StatusCode() == http.StatusConflict) {
+							return "", false, nil
+						}
+						if err != nil {
+							return "", false, err
+						}
+						return label.Name, true, nil
+					},
 				)
+				if err != nil {
+					return fmt.Errorf("computing label changes for %s: %w", flFilename, err)
+				}
 			}
 
 			// fail if scripts are supplied on no-team and global config is missing
@@ -512,12 +530,35 @@ func gitopsCommand() *cli.Command {
 
 				// Delete labels at the end of the run to avoid issues with resource contention. Deleting by ID also finds a
 				// label that was renamed (set aside) during the run because its name moved to or from the global level.
-				if !flDryRun {
-					for _, l := range labelChangesSummary.LabelsToRemove {
-						allPostOps = append(allPostOps, func() error {
-							return fleetClient.DeleteLabelByID(l.ID)
-						})
-					}
+				if teamID := teamIDLookup[teamName]; !flDryRun && teamID != nil && len(labelChangesSummary.LabelsToRemove) > 0 {
+					toRemove, specs := labelChangesSummary.LabelsToRemove, config.Labels
+					allPostOps = append(allPostOps, func() error {
+						// When the name lookup couldn't match a renamed label, applying the file still renamed it in
+						// place if the names are equal under the server's collation, so it now has a name from the file.
+						desired := make(map[string]struct{}, len(specs))
+						for _, s := range specs {
+							desired[s.Name] = struct{}{}
+						}
+						current, err := fleetClient.GetLabels(*teamID)
+						if err != nil {
+							return fmt.Errorf("getting labels to delete for %q: %w", teamName, err)
+						}
+						renamed := make(map[uint]struct{})
+						for _, l := range current {
+							if _, ok := desired[l.Name]; ok {
+								renamed[l.ID] = struct{}{}
+							}
+						}
+						for _, l := range toRemove {
+							if _, ok := renamed[l.ID]; ok {
+								continue
+							}
+							if err := fleetClient.DeleteLabelByID(l.ID); err != nil {
+								return err
+							}
+						}
+						return nil
+					})
 				}
 
 				// Special handling for tokens is required because they link to teams (by
@@ -971,7 +1012,8 @@ func computeLabelChanges(
 	existingLabels []*fleet.LabelSpec,
 	specifiedLabels []*fleet.LabelSpec,
 	labelsExcepted bool,
-) []spec.LabelChange {
+	lookupLabel func(name string) (storedName string, found bool, err error),
+) ([]spec.LabelChange, error) {
 	var regularLabels []*fleet.LabelSpec
 	var labelOperations []spec.LabelChange
 
@@ -992,23 +1034,32 @@ func computeLabelChanges(
 			change := spec.LabelChange{Name: l.Name, ID: l.ID, Op: op, TeamName: teamName, FileName: filename}
 			labelOperations = append(labelOperations, change)
 		}
-		return labelOperations
+		return labelOperations, nil
 	}
 
 	specifiedMap := make(map[string]struct{}, len(specifiedLabels))
+	specifiedNames := make([]string, 0, len(specifiedLabels))
 	for _, l := range specifiedLabels {
 		specifiedMap[l.Name] = struct{}{}
+		specifiedNames = append(specifiedNames, l.Name)
+	}
+	existingNames := make([]string, 0, len(regularLabels))
+	for _, l := range regularLabels {
+		existingNames = append(existingNames, l.Name)
+	}
+	matched, err := spec.MatchExistingNames(existingNames, specifiedNames, lookupLabel)
+	if err != nil {
+		return nil, err
 	}
 
 	// Determine which existing labels to remove.
 	for _, l := range regularLabels {
-		op := "-"
-		if _, ok := specifiedMap[l.Name]; ok {
-			op = "="
+		change := spec.LabelChange{Name: l.Name, ID: l.ID, Op: "-", TeamName: teamName, FileName: filename}
+		if newName, ok := matched[l.Name]; ok {
+			change.Name, change.Op = newName, "="
+			// Remove from the map to track which specified labels are to be added.
+			delete(specifiedMap, newName)
 		}
-		// Remove from the map to track which specified labels are to be added.
-		delete(specifiedMap, l.Name)
-		change := spec.LabelChange{Name: l.Name, ID: l.ID, Op: op, TeamName: teamName, FileName: filename}
 		labelOperations = append(labelOperations, change)
 	}
 
@@ -1018,7 +1069,7 @@ func computeLabelChanges(
 		labelOperations = append(labelOperations, change)
 	}
 
-	return labelOperations
+	return labelOperations, nil
 }
 
 // Given a set of referenced labels and info about who is using them, update a provided usage map.

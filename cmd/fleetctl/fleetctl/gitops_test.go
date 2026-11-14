@@ -2387,6 +2387,9 @@ func TestGitOpsFullGlobal(t *testing.T) {
 		return existingLabels, nil
 	}
 	ds.LabelFunc = testing_utils.LabelsByID(existingLabels...)
+	ds.GetLabelSpecFunc = func(ctx context.Context, filter fleet.TeamFilter, name string) (*fleet.LabelSpec, error) {
+		return nil, &notFoundError{}
+	}
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
 		appliedLabelSpecs = specs
 		return nil
@@ -7829,7 +7832,9 @@ func TestComputeLabelChanges(t *testing.T) {
 		existingLabels  []*fleet.LabelSpec
 		specifiedLabels []*fleet.LabelSpec
 		labelsExcepted  bool
-		expected        []spec.LabelChange
+		// storedLabels maps a name to the stored name of the label the server finds for it.
+		storedLabels map[string]string
+		expected     []spec.LabelChange
 	}{
 		{
 			name:     "labels omitted removes all regular labels when not excepted",
@@ -7891,14 +7896,70 @@ func TestComputeLabelChanges(t *testing.T) {
 				{Name: "to-add", Op: "+", TeamName: "team1", FileName: "config.yml"},
 			},
 		},
+		{
+			name:     "case-only rename updates the label under its new name",
+			filename: "config.yml",
+			teamName: "team1",
+			existingLabels: []*fleet.LabelSpec{
+				{Name: "Gamma", LabelType: fleet.LabelTypeRegular},
+				{Name: "to-remove", LabelType: fleet.LabelTypeRegular},
+			},
+			specifiedLabels: []*fleet.LabelSpec{
+				{Name: "GAMMA"},
+				{Name: "To-Add"},
+			},
+			labelsExcepted: false,
+			storedLabels:   map[string]string{"GAMMA": "Gamma"},
+			expected: []spec.LabelChange{
+				{Name: "GAMMA", Op: "=", TeamName: "team1", FileName: "config.yml"},
+				{Name: "to-remove", Op: "-", TeamName: "team1", FileName: "config.yml"},
+				{Name: "To-Add", Op: "+", TeamName: "team1", FileName: "config.yml"},
+			},
+		},
+		{
+			name:     "accent-only rename updates the label, and a label outside this fleet is added",
+			filename: "config.yml",
+			teamName: "team1",
+			existingLabels: []*fleet.LabelSpec{
+				{Name: "Café", LabelType: fleet.LabelTypeRegular},
+				{Name: "to-remove", LabelType: fleet.LabelTypeRegular},
+			},
+			specifiedLabels: []*fleet.LabelSpec{
+				{Name: "Cafe"},
+				{Name: "OTHER"},
+			},
+			labelsExcepted: false,
+			storedLabels:   map[string]string{"Cafe": "Café", "OTHER": "Other"},
+			expected: []spec.LabelChange{
+				{Name: "Cafe", Op: "=", TeamName: "team1", FileName: "config.yml"},
+				{Name: "to-remove", Op: "-", TeamName: "team1", FileName: "config.yml"},
+				{Name: "OTHER", Op: "+", TeamName: "team1", FileName: "config.yml"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			changes := computeLabelChanges(tc.filename, tc.teamName, tc.existingLabels, tc.specifiedLabels, tc.labelsExcepted)
+			changes, err := computeLabelChanges(tc.filename, tc.teamName, tc.existingLabels, tc.specifiedLabels, tc.labelsExcepted,
+				func(name string) (string, bool, error) {
+					storedName, ok := tc.storedLabels[name]
+					return storedName, ok, nil
+				})
+			require.NoError(t, err)
 			require.ElementsMatch(t, tc.expected, changes)
 		})
 	}
+
+	t.Run("lookup error is returned", func(t *testing.T) {
+		errLookup := errors.New("server unavailable")
+		_, err := computeLabelChanges("config.yml", "team1",
+			[]*fleet.LabelSpec{{Name: "Gamma", LabelType: fleet.LabelTypeRegular}},
+			[]*fleet.LabelSpec{{Name: "GAMMA"}},
+			false,
+			func(string) (string, bool, error) { return "", false, errLookup },
+		)
+		require.ErrorIs(t, err, errLookup)
+	})
 }
 
 func TestComputeLabelMoves(t *testing.T) {

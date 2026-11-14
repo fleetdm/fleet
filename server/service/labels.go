@@ -776,9 +776,11 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		return ctxerr.Wrap(ctx, err, "look up labels before apply")
 	}
 	beforeByName := make(map[string]*fleet.Label, len(beforeApply))
+	beforeByID := make(map[uint]*fleet.Label, len(beforeApply))
 	for name, l := range beforeApply {
 		if labelMatchesTeamScope(l, teamID) {
 			beforeByName[name] = l
+			beforeByID[l.ID] = l
 		}
 	}
 
@@ -822,7 +824,7 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 		if !ok || !labelMatchesTeamScope(label, teamID) {
 			continue
 		}
-		existing, existed := beforeByName[spec.Name]
+		existing, existed := beforeByID[label.ID]
 		if existed {
 			fieldsMatch := labelSpecMatchesLabel(spec, existing)
 			hostsMatch := true
@@ -867,10 +869,13 @@ func labelMatchesTeamScope(l *fleet.Label, teamID *uint) bool {
 
 // labelSpecMatchesLabel reports whether the spec's editable top-level fields
 // match the existing label. Fields compared are the ones GitOps can change:
-// description, query, label_membership_type, and host vitals criteria. Host
+// name, description, platform, query, label_membership_type, and host vitals criteria. Host
 // membership for manual labels is compared separately by snapshotting host
 // IDs around the apply.
 func labelSpecMatchesLabel(spec *fleet.LabelSpec, label *fleet.Label) bool {
+	if spec.Name != label.Name {
+		return false
+	}
 	if spec.Description != label.Description {
 		return false
 	}
