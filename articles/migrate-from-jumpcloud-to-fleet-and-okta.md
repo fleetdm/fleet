@@ -2,7 +2,7 @@
 
 Fleet is an open device management platform for PCs (including Linux), Macs, BYOD, tablets, handsets, and more. To migrate from JumpCloud, pair Fleet with a best-in-class identity provider (IdP) like Okta, Entra, or Google, which Fleet will use for sign-in during setup, user provisioning, and device checks.
 
-Ask Claude to do the migration. It checks with Fleet, proposes the changes, and opens a pull request for your team to review, so you approve every change before it goes out. No black box: you can also ask your AI exactly how Fleet works. This guide moves the two jobs JumpCloud does for you to two tools: directory, SSO, and MFA go to Okta, and device management goes to Fleet. You'll run both side by side, move devices in batches, and retire JumpCloud last. Each step starts with a prompt you can paste into Claude, followed by the details, including any code and config, so you can check its work.
+This guide moves the two jobs JumpCloud does for you to two tools: directory, SSO, and MFA go to Okta, and device management goes to Fleet. You'll run both side by side, move devices in batches, and retire JumpCloud last. Each step starts with a prompt you can paste into Claude, followed by the details, including any code and config, so you can check its work.
 
 ## Prerequisites
 
