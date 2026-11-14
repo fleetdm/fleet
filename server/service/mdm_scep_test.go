@@ -52,3 +52,12 @@ func TestSCEPPKIOperationUndecryptableEnvelope(t *testing.T) {
 	assert.Equal(t, req.TransactionID, certRep.TransactionID)
 	assert.False(t, signerCalled, "signer must not run when the envelope cannot be decrypted")
 }
+
+func TestSCEPPKIOperationRejectsMalformedBody(t *testing.T) {
+	svc := NewSCEPService(new(mock.Store), nil, slog.New(slog.DiscardHandler))
+
+	_, err := svc.PKIOperation(t.Context(), []byte("hello"))
+
+	var badReq *fleet.BadRequestError
+	require.ErrorAs(t, err, &badReq)
+}

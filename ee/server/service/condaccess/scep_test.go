@@ -145,3 +145,13 @@ func TestPKIOperationRejectsDeeplyNestedBER(t *testing.T) {
 	require.ErrorAs(t, err, &badReq)
 	require.ErrorIs(t, err, cryptoutil.ErrBERTooDeep)
 }
+
+func TestPKIOperationRejectsMalformedBody(t *testing.T) {
+	svc := NewSCEPService(nil, nil, slog.New(slog.DiscardHandler))
+
+	_, err := svc.PKIOperation(t.Context(), []byte("hello"))
+
+	var badReq *fleet.BadRequestError
+	require.ErrorAs(t, err, &badReq)
+	require.NotErrorIs(t, err, cryptoutil.ErrBERTooDeep)
+}

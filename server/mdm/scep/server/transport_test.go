@@ -317,6 +317,27 @@ func TestPKIOperationFleetBadRequestError(t *testing.T) {
 	}
 }
 
+func TestPKIOperationMalformedBody(t *testing.T) {
+	server, _, teardown := newServer(t)
+	defer teardown()
+
+	resp, err := http.Post(server.URL+"/scep?operation=PKIOperation", "application/octet-stream", strings.NewReader("hello")) //nolint:gosec
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected %d, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(string(respBody)); got != "invalid request body" {
+		t.Errorf("expected body %q, got %q", "invalid request body", got)
+	}
+}
+
 func newServer(t *testing.T, opts ...scepserver.ServiceOption) (*httptest.Server, scepserver.Service, func()) {
 	var err error
 	var depot depot.Depot // cert storage

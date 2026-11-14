@@ -177,7 +177,11 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 
 	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(kitlogadapter.NewLogger(svc.logger)))
 	if err != nil {
-		return nil, err
+		// The body is not a valid SCEP pkiMessage, which is a client error.
+		return nil, &fleet.BadRequestError{
+			Message:     "invalid request body",
+			InternalErr: err,
+		}
 	}
 
 	cert, err := caKeyPair(ctx, svc.ds)

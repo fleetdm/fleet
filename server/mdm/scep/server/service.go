@@ -127,7 +127,11 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 
 	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(kitlogadapter.NewLogger(svc.debugLogger)))
 	if err != nil {
-		return nil, err
+		// The body is not a valid SCEP pkiMessage, which is a client error.
+		svc.debugLogger.ErrorContext(ctx, "invalid request body", "err", err)
+		return nil, &BadRequestError{
+			Message: "invalid request body",
+		}
 	}
 	if err := msg.DecryptPKIEnvelope(svc.crt, svc.key); err != nil {
 		svc.debugLogger.ErrorContext(ctx, "failed to decrypt PKI envelope", "err", err)
