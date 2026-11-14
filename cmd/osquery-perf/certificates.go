@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"maps"
+	"math"
 	// osquery-perf shares one global math/rand RNG seeded from the --seed flag so load-test runs are reproducible
 	"math/rand" //nolint:depguard
 	"slices"
@@ -147,6 +148,8 @@ func (a *agent) generateCertSpecs() []simulatedCert {
 	defer a.certificatesMutex.Unlock()
 
 	switch {
+	case a.hostCertCount >= 0:
+		a.hostCertSpecs = a.stablePerHostCertSpecs(time.Now())
 	case a.hostCertSpecs == nil:
 		a.hostCertSpecs = a.newPerHostCertSpecs()
 	case rand.Intn(100) < certChurnPercent:
@@ -212,7 +215,11 @@ func (a *agent) newPerHostCertSpecs() []simulatedCert {
 	users := a.hostUsers()
 	specs := make([]simulatedCert, 0, count+1)
 	for i := range count {
-		specs = append(specs, a.newPerHostCertSpec(i, users))
+		r := rand.New(rand.NewSource(rand.Int63())) //nolint:gosec // load testing, not security-sensitive
+		notBefore := time.Now().Add(-time.Duration(rand.Intn(10)+1) * certDay)
+		// notAfter in [-1d, +99d], so some are expired
+		notAfter := time.Now().Add(-1 * certDay).Add(time.Duration(rand.Intn(100)) * certDay)
+		specs = append(specs, newPerHostCertSpec(r, i, users, notBefore, notAfter))
 	}
 	// Model a device certificate present in both the machine store and a user's store (same SHA1, two scopes),
 	// exercising the server's cross-scope handling (one host_certificates row, two host_certificate_sources rows).
@@ -231,30 +238,69 @@ func (a *agent) newPerHostCertSpecs() []simulatedCert {
 	return specs
 }
 
-func (a *agent) newPerHostCertSpec(i int, users []map[string]string) simulatedCert {
-	user := rand.Intn(2) == 0 && len(users) > 0
+// certEpoch anchors the issue dates of certs that never rotate.
+var certEpoch = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+// stablePerHostCertSpecs returns this host's per-host certs drawn from its seed: hostCertCount on
+// average, each replaced by a new cert every 1/certChurnPerDay days at its own phase. A restarted
+// host reports the same certs.
+func (a *agent) stablePerHostCertSpecs(now time.Time) []simulatedCert {
+	count := a.id.rng("cert-count").Intn(2*a.hostCertCount + 1)
+	users := a.hostUsers()
+	slices.SortFunc(users, func(x, y map[string]string) int { return strings.Compare(x["username"], y["username"]) })
+	var period float64 // seconds a cert lives before it's replaced
+	if a.certChurnPerDay > 0 {
+		period = 24 * time.Hour.Seconds() / a.certChurnPerDay
+	}
+	specs := make([]simulatedCert, 0, count+1)
+	for i := range count {
+		key := fmt.Sprintf("cert-%d", i)
+		issued := certEpoch.Add(time.Duration(a.id.fraction(key+"-issued") * float64(365*certDay)))
+		if period > 0 {
+			phase := a.id.fraction(key+"-phase") * period
+			generation := math.Floor((float64(now.Unix()) + phase) / period)
+			key = fmt.Sprintf("%s-%d", key, int64(generation))
+			issued = time.Unix(int64(generation*period-phase), 0)
+		}
+		r := a.id.rng(key)
+		notBefore := issued.Add(-time.Duration(r.Intn(10)+1) * certDay)
+		notAfter := issued.Add(time.Duration(30+r.Intn(700)) * certDay)
+		specs = append(specs, newPerHostCertSpec(r, i, users, notBefore, notAfter))
+	}
+	if count > 0 && len(users) > 0 {
+		dup := specs[0]
+		dup.user = !specs[0].user
+		dup.username = ""
+		if dup.user {
+			dup.username = users[a.id.rng("cert-dup-user").Intn(len(users))]["username"]
+		}
+		specs = append(specs, dup)
+	}
+	return specs
+}
+
+func newPerHostCertSpec(r *rand.Rand, i int, users []map[string]string, notBefore, notAfter time.Time) simulatedCert {
+	user := r.Intn(2) == 0 && len(users) > 0
 	username := ""
 	if user {
-		username = users[rand.Intn(len(users))]["username"]
+		username = users[r.Intn(len(users))]["username"]
 	}
 	return simulatedCert{
-		commonName:        uuid.NewString(),
-		subjectCommonName: fmt.Sprintf("Subject %d Common Name", i),
-		subjectOrg:        fmt.Sprintf("Subject %d Inc.", i),
-		subjectOrgUnit:    fmt.Sprintf("Subject %d Org Unit", i),
-		subjectCountry:    "US",
-		issuerCommonName:  fmt.Sprintf("Issuer %d Common Name", i),
-		issuerOrg:         fmt.Sprintf("Issuer %d Inc.", i),
-		issuerCountry:     "US",
-		keyAlgorithm:      "rsaEncryption",
-		keyStrength:       "2048",
-		keyUsage:          "Data Encipherment, Key Encipherment, Digital Signature",
-		signingAlgorithm:  "sha256WithRSAEncryption",
-		serial:            uuid.NewString(),
-		// generate so that it may be expired (notAfter in [-1d, +99d])
-		notValidAfterUnix: fmt.Sprint(time.Now().Add(-1 * certDay).Add(time.Duration(rand.Intn(100)) * certDay).Unix()),
-		// notBefore is always in the past (1-10 days)
-		notValidBeforeUnix: fmt.Sprint(time.Now().Add(-time.Duration(rand.Intn(10)+1) * certDay).Unix()),
+		commonName:         uuid.Must(uuid.NewRandomFromReader(r)).String(),
+		subjectCommonName:  fmt.Sprintf("Subject %d Common Name", i),
+		subjectOrg:         fmt.Sprintf("Subject %d Inc.", i),
+		subjectOrgUnit:     fmt.Sprintf("Subject %d Org Unit", i),
+		subjectCountry:     "US",
+		issuerCommonName:   fmt.Sprintf("Issuer %d Common Name", i),
+		issuerOrg:          fmt.Sprintf("Issuer %d Inc.", i),
+		issuerCountry:      "US",
+		keyAlgorithm:       "rsaEncryption",
+		keyStrength:        "2048",
+		keyUsage:           "Data Encipherment, Key Encipherment, Digital Signature",
+		signingAlgorithm:   "sha256WithRSAEncryption",
+		serial:             uuid.Must(uuid.NewRandomFromReader(r)).String(),
+		notValidAfterUnix:  fmt.Sprint(notAfter.Unix()),
+		notValidBeforeUnix: fmt.Sprint(notBefore.Unix()),
 		user:               user,
 		username:           username,
 	}

@@ -17,14 +17,17 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"log"
 	"maps"
+	"math"
 	"math/rand"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -495,8 +498,19 @@ type agent struct {
 	userCount                     entityCount
 	policyPassProb                float64
 	stickyPolicies                bool
+	policyFlipPerDay              float64
+	labelMatchProb                float64
+	stale                         bool
+	onlineFraction                float64
+	onlineOffset                  int64
 	scriptExecFailProb            float64
 	softwareChurnPerDay           float64
+	largeInventory                bool
+	hostCertCount                 int
+	releaseDays                   float64
+	rolloutDays                   float64
+	releaseLagKey                 uint64
+	certChurnPerDay               float64
 	installPermafail              bool
 	id                            hostSeed
 	munkiIssueProb                float64
@@ -836,11 +850,36 @@ func splitmix64(x uint64) uint64 {
 	return x ^ (x >> 31)
 }
 
+// inventoryShape is how many software items hosts of a platform report: a log-normal draw with
+// the given mean and spread, capped at max.
+type inventoryShape struct {
+	mean  float64
+	sigma float64
+	max   float64
+	// npmShare is the part of a Mac's inventory that is npm packages.
+	npmShare float64
+}
+
+// largeInventory is --software_inventory=large: the average, 90th percentile (which sets sigma)
+// and largest host of a large production fleet, each +30%.
+var largeInventory = map[string]inventoryShape{
+	"darwin":  {mean: 685, sigma: 0.547, max: 4230, npmShare: 0.146},
+	"windows": {mean: 398, sigma: 0.509, max: 1808},
+	"ubuntu":  {mean: 2913, sigma: 0.0615, max: 5962},
+}
+
+// inventorySize is how many software items the host reports, drawn once from its seed.
+func (h hostSeed) inventorySize(s inventoryShape) int {
+	z := math.Sqrt2 * math.Erfinv(2*h.fraction("software-count")-1)
+	mu := math.Log(s.mean) - s.sigma*s.sigma/2
+	return int(min(math.Exp(mu+s.sigma*z), s.max))
+}
+
 // stableSoftwareIndices returns a host's software inventory as up to count distinct indices
 // into a pool of poolSize items. Each slot keeps its item for 1/churnPerDay days and is then
 // replaced, at its own seed-derived phase, so churnPerDay of the inventory changes a day. The
 // result depends only on the seed and the clock, so a restarted host reports what it did before.
-func stableSoftwareIndices(id hostSeed, count, poolSize int, churnPerDay float64, now time.Time) []uint32 {
+func stableSoftwareIndices(id hostSeed, key string, count, poolSize int, churnPerDay float64, now time.Time) []uint32 {
 	count = min(count, poolSize)
 	if count <= 0 {
 		return nil
@@ -849,7 +888,7 @@ func stableSoftwareIndices(id hostSeed, count, poolSize int, churnPerDay float64
 	if churnPerDay > 0 {
 		period = 24 * time.Hour.Seconds() / churnPerDay
 	}
-	base := id.rng("software-slots").Uint64()
+	base := id.rng(key).Uint64()
 	pool := uint64(poolSize) //nolint:gosec // G115: poolSize > 0
 	taken := make(map[uint64]struct{}, count)
 	indices := make([]uint32, 0, count)
@@ -942,8 +981,17 @@ func newAgent(
 	mdmAPNSPushURL string,
 	websocketProb float64,
 	stickyPolicies bool,
+	policyFlipPerDay float64,
+	labelMatchProb float64,
+	staleProb float64,
+	onlineFraction float64,
 	scriptExecFailProb float64,
 	softwareChurnPerDay float64,
+	largeInventory bool,
+	hostCertCount int,
+	certChurnPerDay float64,
+	releaseDays float64,
+	rolloutDays float64,
 	id hostSeed,
 ) *agent {
 	var deviceAuthToken *string
@@ -1012,9 +1060,20 @@ func newAgent(
 		userCount:                     userCount,
 		strings:                       make(map[string]string),
 		policyPassProb:                policyPassProb,
-		stickyPolicies:                stickyPolicies,
+		stickyPolicies:                stickyPolicies || policyFlipPerDay > 0,
+		policyFlipPerDay:              policyFlipPerDay,
+		labelMatchProb:                labelMatchProb,
+		stale:                         id.stale(staleProb),
+		onlineFraction:                onlineFraction,
+		onlineOffset:                  id.onlineOffset(),
 		scriptExecFailProb:            scriptExecFailProb,
 		softwareChurnPerDay:           softwareChurnPerDay,
+		largeInventory:                largeInventory,
+		hostCertCount:                 hostCertCount,
+		certChurnPerDay:               certChurnPerDay,
+		releaseDays:                   releaseDays,
+		rolloutDays:                   rolloutDays,
+		releaseLagKey:                 id.rng("release-lag").Uint64(),
 		installPermafail:              inInstallPermafailCohort(hostUUID, softwareInstaller.permafailProb),
 		id:                            id,
 		munkiIssueProb:                munkiIssueProb,
@@ -1225,6 +1284,9 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		defer liveQueryTicker.Stop()
 
 		for range liveQueryTicker.C {
+			if !a.online(time.Now()) {
+				continue
+			}
 			// With the WebSocket transport running, the tick belongs to it
 			// (see wsPollTick).
 			if a.wsPollTick() {
@@ -1278,6 +1340,9 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 				}
 			case <-a.osqueryConfigNudge:
 			}
+			if !a.online(time.Now()) {
+				continue
+			}
 			lastFailed = a.fetchConfig(fallback) != nil
 			lastAttempt = time.Now()
 			jitter = rand.Float64() //nolint:gosec // jitter does not need cryptographic randomness
@@ -1288,6 +1353,9 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	logTicker := time.NewTicker(a.LogInterval)
 	defer logTicker.Stop()
 	for range logTicker.C {
+		if !a.online(time.Now()) {
+			continue
+		}
 		// check if we have any scheduled queries that should be returning results
 		var results []resultLog
 		now := time.Now().Unix()
@@ -1559,14 +1627,24 @@ func (a *agent) runOrbitLoop() {
 		case <-a.orbitConfigConnected:
 			// Like orbit, a connect fetches only when the server nudges, at most
 			// once per default interval.
+			if !a.online(time.Now()) {
+				continue
+			}
 			if orbitConfigInterval <= orbitConfigDefaultInterval ||
 				time.Since(lastOrbitConfigFetch) < orbitConfigDefaultInterval {
 				continue
 			}
 			fetchOrbitConfig("connect", time.Time{})
 		case at := <-a.orbitConfigNudge:
+			if !a.online(time.Now()) {
+				continue
+			}
 			fetchOrbitConfig("nudge", at)
 		case <-orbitConfigTimer.C:
+			if !a.online(time.Now()) {
+				orbitConfigTimer.Reset(orbitConfigInterval)
+				continue
+			}
 			cfg, err := orbitClient.GetConfig()
 			lastOrbitConfigFetch = time.Now()
 			if orbitConfigInterval > orbitConfigDefaultInterval {
@@ -1584,6 +1662,9 @@ func (a *agent) runOrbitLoop() {
 			orbitConfigTimer.Reset(orbitConfigInterval)
 			a.handleOrbitConfig(cfg, orbitClient, &lastEnrollAttempt)
 		case <-orbitTokenRemoteCheckTicker:
+			if !a.online(time.Now()) {
+				continue
+			}
 			if !a.disableFleetDesktop && tokenRotationEnabled {
 				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
 					a.stats.IncrementOrbitErrors()
@@ -1592,6 +1673,9 @@ func (a *agent) runOrbitLoop() {
 				}
 			}
 		case <-orbitTokenRotationTicker:
+			if !a.online(time.Now()) {
+				continue
+			}
 			if !a.disableFleetDesktop && tokenRotationEnabled {
 				newToken := ptr.String(uuid.NewString())
 				if err := orbitClient.SetOrUpdateDeviceToken(*newToken); err != nil {
@@ -1604,11 +1688,17 @@ func (a *agent) runOrbitLoop() {
 				checkToken()
 			}
 		case <-capabilitiesCheckerTicker:
+			if !a.online(time.Now()) {
+				continue
+			}
 			if err := orbitClient.Ping(); err != nil {
 				a.stats.IncrementOrbitErrors()
 				continue
 			}
 		case <-fleetDesktopPolicyTicker:
+			if !a.online(time.Now()) {
+				continue
+			}
 			if !a.disableFleetDesktop {
 				if _, err := deviceClient.DesktopSummary(*a.deviceAuthToken); err != nil {
 					a.stats.IncrementDesktopErrors()
@@ -1617,6 +1707,9 @@ func (a *agent) runOrbitLoop() {
 				}
 			}
 		case <-fleetDesktopConnectivityCheck:
+			if !a.online(time.Now()) {
+				continue
+			}
 			if !a.disableFleetDesktop {
 				if err := deviceClient.Ping(); err != nil {
 					a.stats.IncrementDesktopErrors()
@@ -1821,6 +1914,29 @@ func (a *agent) profileNotNowRequested(cmd *mdm.Command, channel string) bool {
 	return true
 }
 
+// awaitMDMPush blocks until the device should check in: a push arrives while the host is
+// online, or the host comes back online after missing one, as a real Mac does when it
+// reconnects to APNs. It returns false when the push channel closes.
+func (a *agent) awaitMDMPush(pings <-chan apnsmock.Ping, tick <-chan time.Time, missedPush *bool) bool {
+	for {
+		select {
+		case _, ok := <-pings:
+			if !ok {
+				return false
+			}
+			if a.online(time.Now()) {
+				return true
+			}
+			*missedPush = true
+		case <-tick:
+			if *missedPush && a.online(time.Now()) {
+				*missedPush = false
+				return true
+			}
+		}
+	}
+}
+
 func (a *agent) runMacosMDMLoop() {
 	// The user channel needs its own goroutine: the device loop below blocks on
 	// its APNS subscription forever, so anything sequenced after it never runs.
@@ -1832,7 +1948,14 @@ func (a *agent) runMacosMDMLoop() {
 	deviceAPNSClient := apnsmock.NewClient(a.mdmAPNSPushURL, hexToken, apnsmock.WithInitialJitter(time.Minute), apnsmock.WithLogf(log.Printf))
 	deviceAPNSClient.Start(context.Background())
 
-	for range deviceAPNSClient.Pings() {
+	pings := deviceAPNSClient.Pings()
+	offlineCheck := time.NewTicker(time.Minute)
+	defer offlineCheck.Stop()
+	missedPush := false
+	for {
+		if !a.awaitMDMPush(pings, offlineCheck.C, &missedPush) {
+			return
+		}
 		mdmCommandPayload, err := a.macMDMClient.Idle()
 		if err != nil {
 			log.Printf("MDM Idle request failed: %s", err)
@@ -2057,7 +2180,14 @@ func (a *agent) runMacosMDMUserLoop() {
 	userAPNSClient := apnsmock.NewClient(a.mdmAPNSPushURL, hexToken, apnsmock.WithInitialJitter(time.Minute), apnsmock.WithLogf(log.Printf))
 	userAPNSClient.Start(context.Background())
 
-	for range userAPNSClient.Pings() {
+	pings := userAPNSClient.Pings()
+	offlineCheck := time.NewTicker(time.Minute)
+	defer offlineCheck.Stop()
+	missedPush := false
+	for {
+		if !a.awaitMDMPush(pings, offlineCheck.C, &missedPush) {
+			return
+		}
 		mdmCommandPayload, err := a.macMDMClient.UserIdle()
 		if err != nil {
 			log.Printf("MDM Idle request failed: %s", err)
@@ -2201,6 +2331,10 @@ func (a *agent) runMacosPSSOLoop() {
 		return
 	}
 	for {
+		if !a.online(time.Now()) {
+			time.Sleep(time.Minute)
+			continue
+		}
 		a.runMacosPSSOInterval()
 	}
 }
@@ -2304,6 +2438,9 @@ func (a *agent) runWindowsMDMLoop() {
 			}
 		}
 
+		if !a.online(time.Now()) {
+			continue
+		}
 		// If the server relaxed (or restored) our DMClient poll schedule via a Replace on the poll node, match it so our
 		// scheduled polling slows down. Steady-state command delivery is then driven by the on-demand wake rather than
 		// frequent polling, which is the behavior this load test exercises.
@@ -3045,19 +3182,67 @@ func (a *agent) stableSoftware() bool {
 // useSoftwareDB decides whether the host reports software from the software DB (80%) or from
 // the embedded fixtures. A stable inventory decides once per host instead of on every report.
 func (a *agent) useSoftwareDB() bool {
+	if a.largeInventory {
+		return true
+	}
 	if a.stableSoftware() {
 		return a.id.fraction("software-db") < 0.8
 	}
 	return rand.Float64() < 0.8 //nolint:gosec // G404: load testing, not security-sensitive
 }
 
+// releaseEpoch is when the release clock starts. It is fixed so every osquery-perf process agrees
+// on it, and recent so the software DB's own versions (which vulnerability matching knows) stay
+// in place until each item's first release.
+var releaseEpoch = time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+
+// withReleases rewrites the versions of software DB rows to the release each one is on for this
+// host now (--software_release_days): release N of an item reports its version with ".N"
+// appended. Releases follow one clock for the whole fleet, keyed by the item, and each host
+// installs each one at its own delay within rolloutDays.
+func (a *agent) withReleases(rows []map[string]string, now time.Time) []map[string]string {
+	if a.releaseDays <= 0 {
+		return rows
+	}
+	period := a.releaseDays * 24 * time.Hour.Seconds()
+	rollout := a.rolloutDays * 24 * time.Hour.Seconds()
+	for _, r := range rows {
+		h := fnv.New64a()
+		_, _ = h.Write([]byte(r["source"] + "\x00" + r["name"] + "\x00" + r["version"]))
+		key := h.Sum64()
+		phase := float64(splitmix64(key)>>11) / (1 << 53) * period
+		lag := float64(splitmix64(key^a.releaseLagKey)>>11) / (1 << 53) * rollout
+		if release := int64((now.Sub(releaseEpoch).Seconds() + phase - lag) / period); release > 0 {
+			r["version"] += "." + strconv.FormatInt(release, 10)
+		}
+	}
+	return rows
+}
+
+// windowsDirName strips the characters a Windows directory name can't hold.
+var windowsDirName = strings.NewReplacer(`\`, "", "/", "", ":", "", "*", "", "?", "", `"`, "", "<", "", ">", "", "|", "")
+
+// npmCount is how many npm packages a Mac reports with --software_inventory=large.
+func (a *agent) npmCount() int {
+	return int(math.Round(float64(a.id.inventorySize(largeInventory["darwin"])) * largeInventory["darwin"].npmShare))
+}
+
 // dbSoftwareIndices returns the host's software as indices into a software DB pool of
 // poolSize items, for the platform's range of inventory sizes.
 func (a *agent) dbSoftwareIndices(platform string, poolSize int) []uint32 {
 	if a.stableSoftware() {
-		lo, hi := softwaredb.CountRange(platform)
-		count := lo + a.id.rng("software-count").Intn(hi-lo+1)
-		return stableSoftwareIndices(a.id, count, poolSize, a.softwareChurnPerDay, time.Now())
+		var count int
+		if a.largeInventory {
+			count = a.id.inventorySize(largeInventory[platform])
+			if platform == "darwin" {
+				// A Mac also reports the template, common, unique and npm software.
+				count -= len(macOSSoftware) + a.softwareCount.common + a.softwareCount.unique + a.npmCount()
+			}
+		} else {
+			lo, hi := softwaredb.CountRange(platform)
+			count = lo + a.id.rng("software-count").Intn(hi-lo+1)
+		}
+		return stableSoftwareIndices(a.id, "software-slots", count, poolSize, a.softwareChurnPerDay, time.Now())
 	}
 	if a.cachedSoftwareIndices == nil {
 		count := min(softwaredb.RandomSoftwareCount(platform), poolSize)
@@ -3112,7 +3297,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 	for _, s := range macOSSoftware {
 		var lastOpenedAt string
 		if l := a.genLastOpenedAt(s["name"]); l != nil {
-			lastOpenedAt = l.Format(time.UnixDate)
+			lastOpenedAt = fmt.Sprint(l.Unix())
 		}
 		baseVersion := s["version"]
 		templateSoftware = append(templateSoftware, map[string]string{
@@ -3180,7 +3365,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 		name := fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i)
 		var lastOpenedAt string
 		if l := a.genLastOpenedAt(name); l != nil {
-			lastOpenedAt = l.Format(time.UnixDate)
+			lastOpenedAt = fmt.Sprint(l.Unix())
 		}
 		uniqueSoftware[i] = map[string]string{
 			"name":              name,
@@ -3202,7 +3387,15 @@ func (a *agent) softwareMacOS() []map[string]string {
 	var realSoftware []map[string]string
 	if softwareDB != nil && len(softwareDB.Darwin) > 0 && a.useSoftwareDB() {
 		realSoftware = softwareDB.DarwinToMaps(a.dbSoftwareIndices("darwin", len(softwareDB.Darwin)))
-	} else {
+		if a.largeInventory {
+			realSoftware = append(realSoftware, softwareDB.DarwinNPMToMaps(stableSoftwareIndices(
+				a.id, "npm-slots", a.npmCount(), len(softwareDB.DarwinNPM), a.softwareChurnPerDay, time.Now()))...)
+		}
+		realSoftware = a.withReleases(realSoftware, time.Now())
+	}
+	// With --software_inventory=large every Mac reports software DB items; the hosts that
+	// otherwise wouldn't still report the known-vulnerable fixtures.
+	if realSoftware == nil || (a.largeInventory && a.id.fraction("software-db") >= 0.8) {
 		// Vulnerable Software
 		var vCount int
 		if a.softwareCount.vulnerable < 0 {
@@ -3211,7 +3404,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 			vCount = a.softwareCount.vulnerable
 		}
 
-		realSoftware = make([]map[string]string, 0, vCount)
+		realSoftware = slices.Grow(realSoftware, vCount)
 		perm := rand.Perm
 		if a.stableSoftware() {
 			perm = a.id.rng("vulnerable-software").Perm
@@ -3239,7 +3432,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 
 			var lastOpenedAt string
 			if l := a.genLastOpenedAt(sw.Name); l != nil {
-				lastOpenedAt = l.Format(time.UnixDate)
+				lastOpenedAt = fmt.Sprint(l.Unix())
 			}
 
 			realSoftware = append(realSoftware, map[string]string{
@@ -3778,11 +3971,9 @@ func (a *agent) runPolicy(name, query string) []map[string]string {
 		return []map[string]string{}
 	}
 
-	// Sticky results key on the policy (its query name carries the ID), not the SQL, so
-	// editing a policy's query doesn't re-roll every host.
 	roll := rand.Float64()
 	if a.stickyPolicies {
-		roll = stableFraction(a.UUID, name)
+		roll = a.stickyPolicyRoll(name, time.Now())
 	}
 	if roll < a.policyPassProb {
 		return []map[string]string{
@@ -3790,6 +3981,49 @@ func (a *agent) runPolicy(name, query string) []map[string]string {
 		}
 	}
 	return []map[string]string{}
+}
+
+// stale reports whether the host goes quiet after enrolling, decided from the seed.
+func (h hostSeed) stale(prob float64) bool {
+	return prob > 0 && h.fraction("stale") < prob
+}
+
+// onlineOffset is when, in seconds into the UTC day, the host's daily online window starts.
+func (h hostSeed) onlineOffset() int64 {
+	return int64(h.fraction("online-offset") * 86400)
+}
+
+// online reports whether the host is checking in at now. Stale hosts went quiet after
+// enrolling. The others are online for onlineFraction of each day, in one window that
+// starts at a seed-derived time, so the fleet's load stays even across the day.
+func (a *agent) online(now time.Time) bool {
+	if a.stale {
+		return false
+	}
+	if a.onlineFraction >= 1 {
+		return true
+	}
+	pos := ((now.Unix()-a.onlineOffset)%86400 + 86400) % 86400
+	return float64(pos) < a.onlineFraction*86400
+}
+
+// stickyPolicyRoll is the host's roll for a policy, compared against policyPassProb. Sticky
+// results key on the policy (its query name carries the ID), not the SQL, so editing a
+// policy's query doesn't re-roll every host. With policyFlipPerDay, each result is redrawn
+// on its own schedule: a redraw changes the result with probability 2p(1-p), so redrawing
+// every 2p(1-p)/policyFlipPerDay days changes policyFlipPerDay of the results a day while
+// the pass rate stays p. It depends only on the host, the policy and the clock, so a
+// restarted host reports what it would have anyway.
+func (a *agent) stickyPolicyRoll(name string, now time.Time) float64 {
+	p := a.policyPassProb
+	change := 2 * p * (1 - p)
+	if a.policyFlipPerDay <= 0 || change <= 0 {
+		return stableFraction(a.UUID, name)
+	}
+	period := 24 * time.Hour.Seconds() * change / a.policyFlipPerDay
+	phase := stableFraction(a.UUID, name+"\x00flip-phase") * period
+	generation := int64((float64(now.Unix()) + phase) / period)
+	return stableFraction(a.UUID, fmt.Sprintf("%s\x00%d", name, generation))
 }
 
 func (a *agent) randomQueryStats() []map[string]string {
@@ -4208,6 +4442,13 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		// across deployments, so the per-ID template lookup below can't be relied
 		// on to match it; always report membership.
 		return true, []map[string]string{{"1": "1"}}, &statusOK, nil, nil
+	case strings.HasPrefix(name, hostLabelQueryPrefix) && a.labelMatchProb < 1 &&
+		(a.templates == nil || a.templates.Lookup(name) == nil):
+		// Any other result counts as membership, so without this every host joins every custom label.
+		if stableFraction(a.UUID, name) < a.labelMatchProb {
+			return true, []map[string]string{{"1": "1"}}, &statusOK, nil, nil
+		}
+		return true, []map[string]string{}, &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
 		return true, a.randomQueryStats(), &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":
@@ -4368,7 +4609,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		if ss == fleet.StatusOK {
 			// Use database software 80% of the time if available, otherwise use embedded data
 			if softwareDB != nil && len(softwareDB.Windows) > 0 && a.useSoftwareDB() {
-				results = softwareDB.WindowsToMaps(a.dbSoftwareIndices("windows", len(softwareDB.Windows)))
+				results = a.withReleases(softwareDB.WindowsToMaps(a.dbSoftwareIndices("windows", len(softwareDB.Windows))), time.Now())
 			} else {
 				results = make([]map[string]string, 0, len(windowsSoftware))
 				for _, s := range windowsSoftware {
@@ -4384,11 +4625,37 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					results = append(results, m)
 				}
 			}
+			if a.stableSoftware() {
+				// Fleet matches app launches (software_windows_last_opened_at) to programs by install path.
+				for _, r := range results {
+					if r["source"] == "programs" && r["installed_path"] == "" {
+						r["installed_path"] = `C:\Program Files\` + windowsDirName.Replace(r["name"]) + `\`
+					}
+				}
+			}
 			a.installedSoftware.Range(func(key, value interface{}) bool {
 				results = append(results, value.(map[string]string))
 				return true
 			})
 			cachedResults.software = results
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_windows_last_opened_at":
+		// Prefetch rows for the programs software_windows just reported: queries run in
+		// lexicographic order, so cachedResults.software holds them.
+		ss := fleet.StatusOK
+		results = []map[string]string{}
+		for _, r := range cachedResults.software {
+			_, dir, ok := strings.Cut(r["installed_path"], ":")
+			if r["source"] != "programs" || !ok {
+				continue
+			}
+			if l := a.genLastOpenedAt(r["name"]); l != nil {
+				results = append(results, map[string]string{
+					"executable_path": dir + windowsDirName.Replace(r["name"]) + ".exe",
+					"last_opened_at":  fmt.Sprint(l.Unix()),
+				})
+			}
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows_program_files_scan":
@@ -4461,7 +4728,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			case "ubuntu":
 				// Use database software 80% of the time if available, otherwise use embedded data
 				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && a.useSoftwareDB() {
-					results = softwareDB.UbuntuToMaps(a.dbSoftwareIndices("ubuntu", len(softwareDB.Ubuntu)))
+					results = a.withReleases(softwareDB.UbuntuToMaps(a.dbSoftwareIndices("ubuntu", len(softwareDB.Ubuntu))), time.Now())
 				} else {
 					results = make([]map[string]string, 0, len(ubuntuSoftware))
 					for _, s := range ubuntuSoftware {
@@ -5024,6 +5291,10 @@ func main() {
 		uniqueUserCount             = flag.Int("unique_user_count", 10, "Number of unique host users reported to fleet")
 		policyPassProb              = flag.Float64("policy_pass_prob", 1.0, "Probability of policies to pass [0, 1]")
 		policySticky                = flag.Bool("policy_sticky", false, "Decide each policy's result once per host (from the host UUID and the policy) instead of re-rolling policy_pass_prob on every report")
+		staleProb                   = flag.Float64("stale_prob", 0, "Share of hosts that enroll, report once and then never check in again, like the machines a real fleet stops hearing from [0, 1]")
+		onlineFraction              = flag.Float64("online_fraction", 1, "Share of each day a host is online and checking in, in one window that starts at a different time for each host so the load stays even across the day [0, 1]")
+		labelMatchProb              = flag.Float64("label_match_prob", 1, "Probability that a host belongs to a label whose query osquery-perf doesn't recognize (custom labels), decided once per host and label. At 1, every host belongs to every custom label [0, 1]")
+		policyFlipPerDay            = flag.Float64("policy_flip_per_day", 0, "Share of each host's policy results that change per day, like a real fleet's results do (implies --policy_sticky). The pass rate stays at policy_pass_prob [0, 1]")
 		orbitProb                   = flag.Float64("orbit_prob", 0.5, "Probability of a host being identified as orbit install [0, 1]")
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
@@ -5059,6 +5330,16 @@ func main() {
 		disableScriptExec  = flag.Bool("disable_script_exec", false, "Disable script execution support")
 		scriptExecFailProb = flag.Float64("script_exec_fail_prob", 0.5, "Probability of a script execution exiting with code 1 [0, 1]")
 
+		softwareInventory = flag.String("software_inventory", "",
+			"Software inventory sizes: empty keeps each platform's fixed range; \"large\" gives every host software DB items in a long-tailed spread (macOS ~685 on average including ~100 npm packages, Windows ~400, Ubuntu ~2,900). \"large\" needs --software_churn_per_day")
+		hostCertCount = flag.Int("host_cert_count", -1,
+			"Average number of certificates unique to each host, on top of the ones every host shares. Any value from 0 also keeps them stable across restarts with the same --seed. Negative keeps the legacy 0-10, redrawn on restart and rotated at random")
+		certChurnPerDay = flag.Float64("cert_churn_per_day", 0,
+			"Share of each host's own certificates replaced by new ones per day, with --host_cert_count [0, 1]")
+		softwareReleaseDays = flag.Float64("software_release_days", 0,
+			"Average days between new versions of each software DB item; 0 turns releases off. A release comes out at the same time for every host, keyed by the item, so all osquery-perf processes agree")
+		softwareRolloutDays = flag.Float64("software_rollout_days", 7,
+			"Days over which hosts install a new release, with --software_release_days")
 		softwareChurnPerDay = flag.Float64("software_churn_per_day", -1,
 			"Share of each host's software inventory replaced per day, as updates, installs and uninstalls would [0, 1]. Any value from 0 also keeps the inventory stable between reports and across restarts with the same --seed. Negative keeps the legacy inventory, part of which is redrawn on every report")
 
@@ -5092,6 +5373,16 @@ func main() {
 		// The host identity key lives only in memory, and Fleet won't issue a second
 		// certificate for the same host, so these hosts can't come back after a restart.
 		log.Printf("WARNING: with a fixed --seed, hosts using HTTP message signatures (--http_message_signature_prob %v) can't re-enroll after a restart; set it to 0 for restartable hosts", *httpMessageSignatureProb)
+	}
+
+	switch *softwareInventory {
+	case "":
+	case "large":
+		if *softwareChurnPerDay < 0 {
+			log.Fatal("--software_inventory=large needs --software_churn_per_day")
+		}
+	default:
+		log.Fatalf("unknown --software_inventory %q", *softwareInventory)
 	}
 
 	if *softwareChurnPerDay >= 0 {
@@ -5453,8 +5744,17 @@ func main() {
 			*mdmAPNSURL,
 			*websocketProb,
 			*policySticky,
+			*policyFlipPerDay,
+			*labelMatchProb,
+			*staleProb,
+			*onlineFraction,
 			*scriptExecFailProb,
 			*softwareChurnPerDay,
+			*softwareInventory == "large",
+			*hostCertCount,
+			*certChurnPerDay,
+			*softwareReleaseDays,
+			*softwareRolloutDays,
 			hostSeed{seed: *randSeed, index: i + 1},
 		)
 		a.stats = stats

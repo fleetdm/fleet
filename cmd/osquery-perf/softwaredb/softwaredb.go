@@ -130,13 +130,25 @@ type DB struct {
 	Darwin  []DarwinSoftware
 	Windows []WindowsSoftware
 	Ubuntu  []UbuntuSoftware
+	// DarwinNPM is drawn separately from Darwin, whose sources leave npm_packages out, so a host
+	// can carry a set share of npm packages.
+	DarwinNPM []DarwinSoftware
 }
 
 // DarwinToMaps converts Darwin software at given indices to osquery result format
 func (db *DB) DarwinToMaps(indices []uint32) []map[string]string {
+	return darwinToMaps(db.Darwin, indices)
+}
+
+// DarwinNPMToMaps converts DarwinNPM software at given indices to osquery result format
+func (db *DB) DarwinNPMToMaps(indices []uint32) []map[string]string {
+	return darwinToMaps(db.DarwinNPM, indices)
+}
+
+func darwinToMaps(pool []DarwinSoftware, indices []uint32) []map[string]string {
 	results := make([]map[string]string, 0, len(indices))
 	for _, idx := range indices {
-		s := db.Darwin[idx]
+		s := pool[idx]
 		m := map[string]string{
 			"name":    s.Name,
 			"source":  s.Source,
@@ -158,6 +170,9 @@ func (db *DB) DarwinToMaps(indices []uint32) []map[string]string {
 			// Homebrew formulae report their keg directory, which is what the executable hash
 			// override query joins on.
 			m["installed_path"] = "/opt/homebrew/Cellar/" + s.Name
+		}
+		if s.Source == "npm_packages" {
+			m["installed_path"] = "/usr/local/lib/node_modules/" + s.Name + "/package.json"
 		}
 		results = append(results, m)
 	}
@@ -345,6 +360,13 @@ func LoadFromDatabase(dbPath string, seed int64) (*DB, error) {
 	}
 	softwareDB.Darwin = darwinSoftware
 	log.Printf("Loaded %d darwin software items from database", len(darwinSoftware))
+
+	darwinNPM, err := loadDarwinSoftware(db, []string{"npm_packages"}, seed)
+	if err != nil {
+		return nil, err
+	}
+	softwareDB.DarwinNPM = darwinNPM
+	log.Printf("Loaded %d darwin npm packages from database", len(darwinNPM))
 
 	// Load Windows software
 	windowsConfig := platformCounts["windows"]

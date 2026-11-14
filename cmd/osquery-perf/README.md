@@ -86,6 +86,40 @@ the same `--seed` reports what it would have reported anyway. `0` keeps the inve
 `*_uninstall_prob` flags are ignored in this mode. The embedded fixtures, the template software
 and the common and unique software don't churn.
 
+### Inventory size, releases and app launches
+
+These need `--software_churn_per_day`.
+
+- `--software_inventory large` gives every host software DB items in a long-tailed spread instead
+  of each platform's fixed range: Macs about 685 items on average including about 100 npm
+  packages, Windows about 400, Ubuntu about 2,900, with a few hosts carrying several times that.
+  Each host's size comes from the seed.
+- `--software_release_days N` gives each software DB item a new version about every N days (its
+  version with `.1`, `.2` and so on appended, counted from 2026-11-01). Releases are keyed by the
+  item, not the host, so every host and every osquery-perf process agrees on them. Each host
+  installs a release at its own delay within `--software_rollout_days`.
+- Windows programs report an install path, and hosts answer Fleet's
+  `software_windows_last_opened_at` query with launches of up to `--with_last_opened_software_count`
+  of them, the way Macs report `last_opened_at`.
+
+### Policies, labels and online hosts
+
+- `--policy_flip_per_day` changes this share of each host's policy results a day, keeping the pass
+  rate at `--policy_pass_prob`. It implies `--policy_sticky`.
+- `--label_match_prob` is the share of custom labels (queries osquery-perf doesn't recognize) each
+  host belongs to. The default, `1`, puts every host in every label.
+- `--stale_prob` is the share of hosts that enroll, report once and then never check in again.
+- `--online_fraction` is the share of each day the other hosts check in, in one window per host
+  that starts at its own time of day. Outside it, the host makes no requests; an MDM Mac answers a
+  push it missed once it's back.
+
+### Certificates
+
+`--host_cert_count N` gives each host N certificates of its own on average, on top of the ones every
+host shares, derived from the seed so a restarted host reports the same ones.
+`--cert_churn_per_day` renews this share of them a day. The default, `-1`, keeps the legacy 0–10
+per host, redrawn on restart and rotated at random.
+
 ### Homebrew executable hashes
 
 macOS hosts report a sha256 for every Mach-O executable their Homebrew formulae install, and the
