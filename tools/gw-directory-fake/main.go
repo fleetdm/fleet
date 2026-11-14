@@ -11,7 +11,7 @@
 //
 //	# Generate an editable JSON fixture with synthetic users and groups.
 //	gw-directory-fake generate -users 1000 -groups 50 -members-per-group 20 \
-//	    -domain qa.example.com -out fixture.json
+//	    -nesting-depth 2 -domain qa.example.com -out fixture.json
 //
 //	# Serve the Admin SDK API from a fixture, hot-reloading it when the file changes.
 //	gw-directory-fake serve -fixture fixture.json -addr :8091
@@ -55,10 +55,11 @@ type fixtureUser struct {
 }
 
 type fixtureGroup struct {
-	ID        string   `json:"id"`
-	Name      string   `json:"name"`
-	Email     string   `json:"email"`
-	MemberIDs []string `json:"member_ids"`
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	Email         string   `json:"email"`
+	MemberIDs     []string `json:"member_ids"`
+	ChildGroupIDs []string `json:"child_group_ids,omitempty"`
 }
 
 func main() {
@@ -80,7 +81,7 @@ func main() {
 
 func usage() {
 	fmt.Fprintf(os.Stderr, `usage:
-  gw-directory-fake generate -users N -groups M -members-per-group K -domain D -out FILE
+  gw-directory-fake generate -users N -groups M -members-per-group K -nesting-depth P -domain D -out FILE
   gw-directory-fake serve -fixture FILE -addr :8091 [-latency 0s] [-error-rate 0.0]
 `)
 	os.Exit(2)
@@ -95,13 +96,14 @@ func runGenerate(args []string) {
 	users := fs.Int("users", 100, "number of users to generate")
 	groups := fs.Int("groups", 10, "number of groups to generate")
 	membersPerGroup := fs.Int("members-per-group", 25, "members assigned to each group")
+	nestingDepth := fs.Int("nesting-depth", 0, "chain generated groups into nested parents this many levels deep (0 disables nesting)")
 	domain := fs.String("domain", "qa.example.com", "primary domain")
 	out := fs.String("out", "", "output file (default: stdout)")
 	if err := fs.Parse(args); err != nil {
 		os.Exit(2)
 	}
 
-	fx := buildFixture(*users, *groups, *membersPerGroup, *domain)
+	fx := buildFixture(*users, *groups, *membersPerGroup, *nestingDepth, *domain)
 	data, err := json.MarshalIndent(fx, "", "  ")
 	if err != nil {
 		log.Fatalf("marshal fixture: %v", err)
@@ -115,10 +117,11 @@ func runGenerate(args []string) {
 	if err := os.WriteFile(*out, data, 0o600); err != nil {
 		log.Fatalf("write %s: %v", *out, err)
 	}
-	log.Printf("wrote %s (%d users, %d groups, %d members/group)", *out, *users, *groups, *membersPerGroup)
+	log.Printf("wrote %s (%d users, %d groups, %d members/group, nesting depth %d)",
+		*out, *users, *groups, *membersPerGroup, *nestingDepth)
 }
 
-func buildFixture(numUsers, numGroups, membersPerGroup int, domain string) fixture {
+func buildFixture(numUsers, numGroups, membersPerGroup, nestingDepth int, domain string) fixture {
 	depts := []string{"Engineering", "Sales", "Marketing", "Support", "Finance", "People", "IT", "Security"}
 
 	users := make([]fixtureUser, 0, numUsers)
@@ -150,7 +153,30 @@ func buildFixture(numUsers, numGroups, membersPerGroup int, domain string) fixtu
 		})
 	}
 
+	groups = nestGroups(groups, nestingDepth, domain)
+
 	return fixture{Domain: domain, Users: users, Groups: groups}
+}
+
+// nestGroups appends a chain of parent groups above the generated groups, each
+// level containing the one below it, so a sync has nested membership to resolve.
+func nestGroups(groups []fixtureGroup, depth int, domain string) []fixtureGroup {
+	if depth <= 0 || len(groups) == 0 {
+		return groups
+	}
+	childID := groups[len(groups)-1].ID
+	for d := range depth {
+		parent := fixtureGroup{
+			ID:            fmt.Sprintf("gn%d", 2000+d),
+			Name:          fmt.Sprintf("Nested Parent %d", d+1),
+			Email:         fmt.Sprintf("nested-parent%d@%s", d+1, domain),
+			MemberIDs:     []string{},
+			ChildGroupIDs: []string{childID},
+		}
+		groups = append(groups, parent)
+		childID = parent.ID
+	}
+	return groups
 }
 
 // ---------------------------------------------------------------------------
@@ -285,23 +311,22 @@ func (s *store) handleMembers(w http.ResponseWriter, r *http.Request) {
 	groupKey := r.PathValue("groupKey")
 	fx := s.snapshot()
 
-	memberIDs := []string{}
+	members := []*directory.Member{}
 	for _, g := range fx.Groups {
-		if g.ID == groupKey {
-			memberIDs = g.MemberIDs
-			break
+		if g.ID != groupKey {
+			continue
 		}
+		for _, id := range g.MemberIDs {
+			members = append(members, &directory.Member{Kind: "admin#directory#member", Id: id, Type: "USER"})
+		}
+		for _, id := range g.ChildGroupIDs {
+			members = append(members, &directory.Member{Kind: "admin#directory#member", Id: id, Type: "GROUP"})
+		}
+		break
 	}
 
-	start, end, next := page(r, len(memberIDs), 200)
-	out := make([]*directory.Member, 0, end-start)
-	for _, id := range memberIDs[start:end] {
-		out = append(out, &directory.Member{
-			Kind: "admin#directory#member",
-			Id:   id,
-			Type: "USER",
-		})
-	}
+	start, end, next := page(r, len(members), 200)
+	out := members[start:end]
 	writeJSON(w, &directory.Members{
 		Kind:          "admin#directory#members",
 		Members:       out,
