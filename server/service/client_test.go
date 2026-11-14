@@ -1150,6 +1150,86 @@ func TestGetProfilesContentsActivation(t *testing.T) {
 	})
 }
 
+func TestGetAppStoreAppConfig(t *testing.T) {
+	t.Parallel()
+
+	const appleXML = "<dict>\n  <key>serverURL</key>\n  <string>https://example.com</string>\n</dict>\n"
+	const androidJSON = `{"managedConfiguration":{"serverURL":"https://example.com"}}`
+	wrappedXML, err := json.Marshal(appleXML)
+	require.NoError(t, err)
+
+	tempDir := t.TempDir()
+	writeConfig := func(name, contents string) string {
+		path := filepath.Join(tempDir, name)
+		require.NoError(t, os.WriteFile(path, []byte(contents), 0o600))
+		return path
+	}
+	xmlPath := writeConfig("config.xml", appleXML)
+	jsonPath := writeConfig("config.json", androidJSON)
+	invalidXMLPath := writeConfig("invalid.xml", "<dict><key>serverURL</string>\n")
+	missingPath := filepath.Join(tempDir, "missing.xml")
+
+	const appleID, playID = "546505307", "com.android.chrome"
+	cases := []struct {
+		name       string
+		appStoreID string
+		platform   string
+		path       string
+		want       json.RawMessage
+		wantErr    string
+	}{
+		{name: "no path", appStoreID: appleID, platform: "darwin"},
+		{name: "ios", appStoreID: appleID, platform: "ios", path: xmlPath, want: wrappedXML},
+		{name: "ipados", appStoreID: appleID, platform: "ipados", path: xmlPath, want: wrappedXML},
+		{name: "android", appStoreID: playID, platform: "android", path: jsonPath, want: json.RawMessage(androidJSON)},
+		{name: "no platform with an Apple ID", appStoreID: appleID, path: xmlPath, want: wrappedXML},
+		{
+			name:       "no platform with invalid XML",
+			appStoreID: appleID,
+			path:       invalidXMLPath,
+			wantErr:    `Couldn't edit app store app (546505307). Reading configuration ` + invalidXMLPath + `: `,
+		},
+		{
+			name:       "no platform with a missing file",
+			appStoreID: appleID,
+			path:       missingPath,
+			wantErr:    `Couldn't edit app store app (546505307). Reading configuration ` + missingPath + `: reading app store app configuration file: `,
+		},
+		{
+			name:       "no platform with a Play Store ID",
+			appStoreID: playID,
+			path:       jsonPath,
+			wantErr:    `Couldn't edit app store app (com.android.chrome). "configuration" requires "platform" when "app_store_id" isn't an Apple App Store ID.`,
+		},
+		{
+			name:       "macOS",
+			appStoreID: appleID,
+			platform:   "darwin",
+			path:       xmlPath,
+			wantErr:    `Couldn't edit app store app (546505307). "configuration" isn't supported for macOS App Store apps.`,
+		},
+		{
+			name:       "unknown platform",
+			appStoreID: appleID,
+			platform:   "linux",
+			path:       xmlPath,
+			wantErr:    `Couldn't edit app store app (546505307). "configuration" isn't supported for platform "linux". Use "ios", "ipados", or "android".`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := getAppStoreAppConfig(c.appStoreID, c.platform, c.path)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.want, got)
+		})
+	}
+}
+
 func TestGitOpsErrors(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()

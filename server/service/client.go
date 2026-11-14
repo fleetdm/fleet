@@ -1022,9 +1022,9 @@ func (c *Client) ApplyGroup(
 
 				for _, version := range app.ListVersions() {
 					var appConfig json.RawMessage
-					appConfig, err = getAppStoreAppConfig(app.Platform, version.Configuration.Path)
+					appConfig, err = getAppStoreAppConfig(app.AppStoreID, app.Platform, version.Configuration.Path)
 					if err != nil {
-						return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", app.AppStoreID, version.Configuration.Path, err)
+						return nil, nil, nil, nil, err
 					}
 
 					payload := fleet.VPPBatchPayload{
@@ -1571,37 +1571,54 @@ func getIconHashIfValid(path string) (string, error) {
 	return hash, nil
 }
 
-func getAppStoreAppConfig(platform, path string) (json.RawMessage, error) {
+func getAppStoreAppConfig(appStoreID, platform, path string) (json.RawMessage, error) {
 	if path == "" {
 		return nil, nil
 	}
 
+	switch fleet.InstallableDevicePlatform(platform) {
+	case fleet.AndroidPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform:
+	case "":
+		if !fleet.IsAppleAppStoreID(appStoreID) {
+			return nil, fmt.Errorf(`Couldn't edit app store app (%s). "configuration" requires "platform" when "app_store_id" isn't an Apple App Store ID.`, appStoreID)
+		}
+	case fleet.MacOSPlatform:
+		return nil, fmt.Errorf(`Couldn't edit app store app (%s). "configuration" isn't supported for macOS App Store apps.`, appStoreID)
+	default:
+		return nil, fmt.Errorf(`Couldn't edit app store app (%s). "configuration" isn't supported for platform %q. Use "ios", "ipados", or "android".`, appStoreID, platform)
+	}
+
+	config, err := readAppStoreAppConfig(platform, path)
+	if err != nil {
+		return nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", appStoreID, path, err)
+	}
+	return config, nil
+}
+
+func readAppStoreAppConfig(platform, path string) (json.RawMessage, error) {
 	contents, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading app store app configuration file: %w", err)
 	}
 
-	switch platform {
-	case string(fleet.AndroidPlatform):
+	if platform == string(fleet.AndroidPlatform) {
 		config := json.RawMessage(contents)
 		if err := fleet.ValidateAndroidAppConfiguration(config); err != nil {
 			return nil, err
 		}
 		return config, nil
-	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform):
-		if err := fleet.ValidateAppleAppConfiguration(contents); err != nil {
-			return nil, err
-		}
-		// Wrap as a JSON-encoded string of XML to match the wire format
-		// BatchAssociateVPPApps expects (see ee/server/service/vpp.go).
-		wrapped, err := json.Marshal(string(contents))
-		if err != nil {
-			return nil, fmt.Errorf("wrapping apple app configuration: %w", err)
-		}
-		return wrapped, nil
 	}
 
-	return nil, nil
+	if err := fleet.ValidateAppleAppConfiguration(contents); err != nil {
+		return nil, err
+	}
+	// Wrap as a JSON-encoded string of XML to match the wire format
+	// BatchAssociateVPPApps expects (see ee/server/service/vpp.go).
+	wrapped, err := json.Marshal(string(contents))
+	if err != nil {
+		return nil, fmt.Errorf("wrapping apple app configuration: %w", err)
+	}
+	return wrapped, nil
 }
 
 // checkRemovedSpecKeys runs the server's removed-key check on the config and fleet specs. The server would reject them
@@ -3322,9 +3339,9 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 
 			for _, version := range appStoreApp.ListVersions() {
 				var appConfig json.RawMessage
-				appConfig, err = getAppStoreAppConfig(appStoreApp.Platform, version.Configuration.Path)
+				appConfig, err = getAppStoreAppConfig(appStoreApp.AppStoreID, appStoreApp.Platform, version.Configuration.Path)
 				if err != nil {
-					return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", appStoreApp.AppStoreID, version.Configuration.Path, err)
+					return nil, nil, err
 				}
 
 				payload := fleet.VPPBatchPayload{
