@@ -1157,7 +1157,7 @@ function BuildStatus({
   if (building) {
     return (
       <span className="dim" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-        <span className="dot run" /> building… {ok > 0 ? `${ok} done` : "(.msi builds use Docker and take a few minutes)"}
+        <span className="dot run" /> building… {ok > 0 ? `${ok} done` : "(.msi builds use Docker and take the longest)"}
       </span>
     );
   }

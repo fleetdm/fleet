@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Builds a server's fleetd installers for Hangar's Installers tab: one
-# `fleetctl package` per job, continuing past failures. Hangar writes this
-# script to its data dir and runs it through the process engine, passing:
+# `fleetctl package` per job, all jobs at once, continuing past failures.
+# Hangar writes this script to its data dir and runs it through the process
+# engine, passing:
 #
 #   HANGAR_FLEETCTL     the server's own fleetctl binary
 #   HANGAR_JOBS         one job per line: key<TAB>type<TAB>arch<TAB>outfile
@@ -9,13 +10,16 @@
 #   HANGAR_COMMON_ARGS  fleetctl package flags shared by every job, one per line
 #
 # The "==> [key] building|ok|failed" lines are parsed by the tab for per-platform
-# status; keep their format in sync with lib/installers.ts.
-set -u
+# status; keep their format in sync with lib/installers.ts. A job's own output
+# is prefixed "[key] " so the interleaved log stays readable.
+#
+# Runs under macOS's bash 3.2: no `wait -n`, no associative arrays.
+set -uo pipefail
 
-work=""
-# Stop sends SIGTERM to the group; exit through the EXIT trap so the
-# in-progress job's temp dir is removed.
-trap 'rm -rf "${work:-}"' EXIT
+work_root=$(mktemp -d)
+# Stop sends SIGTERM to the whole group, every job's fleetctl included; exit
+# through the EXIT trap so the jobs' temp dirs are removed.
+trap 'rm -rf "$work_root"' EXIT
 trap 'exit 143' TERM INT
 
 common=()
@@ -23,38 +27,52 @@ while IFS= read -r a; do
   [ -n "$a" ] && common+=("$a")
 done <<< "$HANGAR_COMMON_ARGS"
 
-total=0
-failed=0
-# Jobs are read on fd 3 so fleetctl can't swallow them from stdin.
+tag() {
+  local line
+  while IFS= read -r line || [ -n "$line" ]; do
+    printf '[%s] %s\n' "$1" "$line"
+  done
+}
+
+# build runs one job into its own empty dir and only replaces $out on success,
+# so a failed run never leaves (or is mistaken for) an old file. The dir is also
+# the cwd: some fleetctl versions ignore --outfile for arm64 .msi and write
+# their default name there instead.
+build() {
+  local key=$1 type=$2 arch=$3 out=$4 work built
+  local arch_flag=()
+  [ "$arch" != "-" ] && arch_flag=(--arch="$arch")
+  echo "==> [$key] building $(basename "$out")"
+  if ! work=$(mktemp -d "$work_root/$key.XXXXXX"); then
+    echo "==> [$key] failed"
+    return 1
+  fi
+  if ! (cd "$work" && "$HANGAR_FLEETCTL" package --type="$type" "${arch_flag[@]+"${arch_flag[@]}"}" --outfile="$work/$(basename "$out")" "${common[@]}" </dev/null) 2>&1 | tag "$key"; then
+    echo "==> [$key] failed"
+    return 1
+  fi
+  built=$(find "$work" -maxdepth 1 -type f -name "*.$type" | head -n 1)
+  if [ -z "$built" ] || ! mv -f "$built" "$out"; then
+    echo "[$key] fleetctl reported success but wrote no $type file"
+    echo "==> [$key] failed"
+    return 1
+  fi
+  # fleetctl writes 0600; make it readable for sharing.
+  chmod 644 "$out"
+  echo "==> [$key] ok"
+}
+
+pids=()
+# Jobs are read on fd 3 so nothing a job runs can swallow them from stdin.
 while IFS=$'\t' read -r key type arch out <&3; do
   [ -z "$key" ] && continue
-  total=$((total + 1))
-  echo "==> [$key] building $(basename "$out")"
-  arch_flag=()
-  [ "$arch" != "-" ] && arch_flag=(--arch="$arch")
-  # Each job builds into its own empty dir and only replaces $out on success,
-  # so a failed run never leaves (or is mistaken for) an old file. The dir is
-  # also the cwd: some fleetctl versions ignore --outfile for arm64 .msi and
-  # write their default name there instead.
-  work=$(mktemp -d)
-  if (cd "$work" && "$HANGAR_FLEETCTL" package --type="$type" "${arch_flag[@]+"${arch_flag[@]}"}" --outfile="$work/$(basename "$out")" "${common[@]}" </dev/null); then
-    built=$(find "$work" -maxdepth 1 -type f -name "*.$type" | head -n 1)
-    if [ -n "$built" ] && mv -f "$built" "$out"; then
-      # fleetctl writes 0600; make it readable for sharing.
-      chmod 644 "$out"
-      echo "==> [$key] ok"
-    else
-      echo "fleetctl reported success but wrote no $type file"
-      echo "==> [$key] failed"
-      failed=$((failed + 1))
-    fi
-  else
-    echo "==> [$key] failed"
-    failed=$((failed + 1))
-  fi
-  rm -rf "$work"
-  work=""
+  build "$key" "$type" "$arch" "$out" 3<&- &
+  pids+=("$!")
 done 3<<< "$HANGAR_JOBS"
 
-echo "==> done: $((total - failed)) of $total built"
+failed=0
+for pid in "${pids[@]+"${pids[@]}"}"; do
+  wait "$pid" || failed=$((failed + 1))
+done
+echo "==> done: $((${#pids[@]} - failed)) of ${#pids[@]} built"
 [ "$failed" -eq 0 ]

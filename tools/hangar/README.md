@@ -100,7 +100,9 @@ wails3 generate bindings -clean=true -ts
   Packages land in `<file server directory>/packages/<context>/` when python http.server has a
   directory set, so test machines can download them from it, else in `<server 1's repo>/packages/`
   (gitignored). A context pointing at one of Hangar's servers builds with that server's own
-  `fleetctl`. `.msi` builds need Docker.
+  `fleetctl`. The selected platforms build at the same time, one `fleetctl package` each, so a
+  full set takes about as long as the slowest `.msi`; each log line is tagged with its platform.
+  `.msi` builds need Docker.
 - **Mock APNs.** osquery-perf won't start simulated macOS hosts that can enroll in MDM, or any
   iOS/iPadOS host, without a mock APNs server (`--mdm_apns_url`). Turning on *Mock APNs* for a
   server (Settings → Fleet server) runs `cmd/apple-apns-mock` from server 1's clone on that

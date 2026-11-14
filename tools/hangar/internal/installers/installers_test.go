@@ -10,7 +10,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -534,7 +536,10 @@ func TestScanOldRoutesAndFree(t *testing.T) {
 // TestBuildScript runs build.sh against a stub fleetctl to check the flags it
 // passes, that it keeps going after a failure, and the status lines the tab
 // parses.
-func TestBuildScript(t *testing.T) {
+// buildScriptCmd writes build.sh and a fleetctl stub into a new dir and
+// returns a command that builds platforms with them into that dir.
+func buildScriptCmd(t *testing.T, stubSrc string, platforms ...string) (*exec.Cmd, string) {
+	t.Helper()
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Skip("bash not available")
 	}
@@ -544,8 +549,27 @@ func TestBuildScript(t *testing.T) {
 		t.Fatal(err)
 	}
 	stub := filepath.Join(dir, "fleetctl")
-	stubSrc := `#!/usr/bin/env bash
-echo "args: $*" >> "` + filepath.Join(dir, "calls.log") + `"
+	if err := os.WriteFile(stub, []byte(stubSrc), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cfg := settings.DefaultInstallerOptions()
+	cfg.Platforms = platforms
+	common := CommonArgs(cfg, BuildInputs{FleetURL: "https://f", EnrollSecret: "has space"})
+	cmd := exec.Command("bash", script)
+	cmd.Env = append(os.Environ(),
+		"HANGAR_FLEETCTL="+stub,
+		"HANGAR_JOBS="+EncodeJobs(Jobs("rc", dir, cfg)),
+		"HANGAR_COMMON_ARGS="+strings.Join(common, "\n"),
+	)
+	return cmd, dir
+}
+
+func TestBuildScript(t *testing.T) {
+	calls := filepath.Join(t.TempDir(), "calls.log")
+	cmd, dir := buildScriptCmd(t, `#!/usr/bin/env bash
+echo "args: $*" >> "`+calls+`"
+echo "to stdout"
+echo "to stderr" >&2
 case "$*" in
   *--type=rpm*) exit 1;;
   *--type=deb*--arch=amd64*) exit 0;; # claims success, writes nothing
@@ -553,14 +577,7 @@ case "$*" in
   *--type=msi*--arch=arm64*) echo new > fleet-osquery-arm64.msi; exit 0;;
 esac
 for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
-`
-	if err := os.WriteFile(stub, []byte(stubSrc), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	cfg := settings.DefaultInstallerOptions()
-	cfg.Platforms = []string{"macos", "windows-arm64", "deb-amd64", "deb-arm64", "rpm-amd64", "arch-amd64"}
-	jobs := Jobs("rc", dir, cfg)
-	common := CommonArgs(cfg, BuildInputs{FleetURL: "https://f", EnrollSecret: "has space"})
+`, "macos", "windows-arm64", "deb-amd64", "deb-arm64", "rpm-amd64", "arch-amd64")
 
 	for _, n := range []string{"fleetd-rc-windows-arm64.msi", "fleetd-rc-linux-amd64.deb"} {
 		if err := os.WriteFile(filepath.Join(dir, n), []byte("old\n"), 0o600); err != nil {
@@ -568,12 +585,6 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 		}
 	}
 
-	cmd := exec.Command("bash", script)
-	cmd.Env = append(os.Environ(),
-		"HANGAR_FLEETCTL="+stub,
-		"HANGAR_JOBS="+EncodeJobs(jobs),
-		"HANGAR_COMMON_ARGS="+strings.Join(common, "\n"),
-	)
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		t.Fatalf("expected non-zero exit with a failed job, output:\n%s", out)
@@ -587,15 +598,29 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 		"==> [rpm-amd64] failed",
 		"==> [arch-amd64] ok",
 		"==> done: 4 of 6 built",
+		// A job's own output, from either stream, is tagged with its key.
+		"[arch-amd64] to stdout",
+		"[arch-amd64] to stderr",
+		"[deb-amd64] fleetctl reported success but wrote no deb file",
 	} {
 		if !strings.Contains(string(out), want) {
 			t.Errorf("output missing %q:\n%s", want, out)
 		}
 	}
-	calls, _ := os.ReadFile(filepath.Join(dir, "calls.log"))
-	lines := strings.Split(strings.TrimSpace(string(calls)), "\n")
+	logged, _ := os.ReadFile(calls)
+	lines := strings.Split(strings.TrimSpace(string(logged)), "\n")
 	if len(lines) != 6 {
-		t.Fatalf("calls = %q", calls)
+		t.Fatalf("calls = %q", logged)
+	}
+	// Jobs run at once, so calls are logged in no particular order.
+	call := func(substr string) string {
+		for _, l := range lines {
+			if strings.Contains(l, substr) {
+				return l
+			}
+		}
+		t.Fatalf("no call with %q in %q", substr, logged)
+		return ""
 	}
 	// A run that wrote nothing leaves the previous file alone.
 	if b, _ := os.ReadFile(filepath.Join(dir, "fleetd-rc-linux-amd64.deb")); string(b) != "old\n" {
@@ -617,13 +642,90 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 	if info, err := os.Stat(msi); err == nil && info.Mode().Perm() != 0o644 {
 		t.Errorf("arm64 msi mode = %v", info.Mode().Perm())
 	}
-	if !strings.HasPrefix(lines[0], "args: package --type=pkg --outfile=") || strings.Contains(lines[0], "--arch") {
-		t.Errorf("pkg call = %q", lines[0])
+	if pkg := call("--type=pkg "); !strings.HasPrefix(pkg, "args: package --type=pkg --outfile=") || strings.Contains(pkg, "--arch") {
+		t.Errorf("pkg call = %q", pkg)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "fleetd-rc-linux-amd64.pkg.tar.zst")); err != nil {
 		t.Errorf("Arch package not moved into place: %v", err)
 	}
-	if !strings.Contains(lines[3], "--type=deb --arch=arm64 --outfile=") || !strings.Contains(lines[3], "--enroll-secret=has space --disable-open-folder --fleet-desktop --enable-scripts") {
-		t.Errorf("deb call = %q", lines[3])
+	if deb := call("--type=deb --arch=arm64 "); !strings.Contains(deb, "--outfile=") || !strings.Contains(deb, "--enroll-secret=has space --disable-open-folder --fleet-desktop --enable-scripts") {
+		t.Errorf("deb call = %q", deb)
+	}
+}
+
+func TestBuildScriptRunsJobsAtOnce(t *testing.T) {
+	// Each stub run waits for all three to have started, which can only
+	// happen if they run at the same time.
+	started := t.TempDir()
+	cmd, _ := buildScriptCmd(t, `#!/usr/bin/env bash
+touch "`+started+`/$$"
+for _ in $(seq 1 100); do
+  [ "$(ls "`+started+`" | wc -l)" -ge 3 ] && break
+  sleep 0.05
+done
+[ "$(ls "`+started+`" | wc -l)" -ge 3 ] || { echo "ran alone"; exit 1; }
+for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
+`, "deb-amd64", "rpm-amd64", "arch-amd64")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed (%v):\n%s", err, out)
+	}
+}
+
+func TestBuildScriptStopEndsEveryJob(t *testing.T) {
+	pids := filepath.Join(t.TempDir(), "pids")
+	cmd, _ := buildScriptCmd(t, `#!/usr/bin/env bash
+echo $$ >> "`+pids+`"
+exec sleep 30
+`, "deb-amd64", "rpm-amd64", "arch-amd64")
+	// mktemp honors TMPDIR, so the jobs' work dirs land where we can check.
+	tmp := t.TempDir()
+	cmd.Env = append(cmd.Env, "TMPDIR="+tmp)
+	// Like the process engine: own group, and Stop signals the group.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	var running []int
+	for deadline := time.Now().Add(5 * time.Second); len(running) < 3; {
+		if time.Now().After(deadline) {
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+			t.Fatalf("jobs never all started: %v", running)
+		}
+		time.Sleep(20 * time.Millisecond)
+		b, _ := os.ReadFile(pids)
+		running = running[:0]
+		for _, f := range strings.Fields(string(b)) {
+			if pid, err := strconv.Atoi(f); err == nil {
+				running = append(running, pid)
+			}
+		}
+	}
+
+	if err := syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM); err != nil {
+		t.Fatal(err)
+	}
+	exited := make(chan error, 1)
+	go func() { exited <- cmd.Wait() }()
+	select {
+	case <-exited:
+	case <-time.After(5 * time.Second):
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		t.Fatal("build didn't exit after SIGTERM")
+	}
+	if code := cmd.ProcessState.ExitCode(); code != 143 {
+		t.Errorf("exit code = %d, want 143", code)
+	}
+	for _, pid := range running {
+		for deadline := time.Now().Add(2 * time.Second); syscall.Kill(pid, 0) == nil; {
+			if time.Now().After(deadline) {
+				_ = syscall.Kill(pid, syscall.SIGKILL)
+				t.Errorf("job %d still running after Stop", pid)
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+	}
+	if left, _ := os.ReadDir(tmp); len(left) != 0 {
+		t.Errorf("temp dirs left behind: %v", left)
 	}
 }
