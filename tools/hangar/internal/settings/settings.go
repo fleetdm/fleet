@@ -77,6 +77,7 @@ type ServerPorts struct {
 	Redis     uint16 `json:"redis"`      // docker redis host port
 	S3        uint16 `json:"s3"`         // docker s3 (object store) host port
 	S3Console uint16 `json:"s3_console"` // docker s3 console host port
+	APNsMock  uint16 `json:"apns_mock"`  // mock APNs server (cmd/apple-apns-mock) listen port
 }
 
 // ServerProfile is one independent local Fleet server instance: its own git
@@ -97,6 +98,11 @@ type ServerProfile struct {
 	ComposeProject string           `json:"compose_project"` // docker compose -p value
 	FleetServe     FleetServeConfig `json:"fleet_serve"`
 	Enabled        bool             `json:"enabled"`
+	// MockAPNs runs cmd/apple-apns-mock with this server's stack and points
+	// fleet serve's Apple MDM pushes at it, so osquery-perf's simulated Apple
+	// devices can MDM-enroll. Real Apple devices on this server get no pushes
+	// while it's on.
+	MockAPNs bool `json:"mock_apns"`
 }
 
 // DefaultPortsForIndex returns the canonical port block for the i-th server
@@ -109,6 +115,7 @@ func DefaultPortsForIndex(i int) ServerPorts {
 		Redis:     uint16(6379 + i*10),
 		S3:        uint16(9000 + i*20),
 		S3Console: uint16(9001 + i*10),
+		APNsMock:  uint16(8378 + i*10),
 	}
 }
 
@@ -399,6 +406,11 @@ func migrate(s *Settings) {
 		}
 		if s.Servers[i].Ports == (ServerPorts{}) {
 			s.Servers[i].Ports = DefaultPortsForIndex(i)
+		}
+		// A file written before the mock APNs port existed has every other
+		// port set, so the whole-block backfill above doesn't reach it.
+		if s.Servers[i].Ports.APNsMock == 0 {
+			s.Servers[i].Ports.APNsMock = DefaultPortsForIndex(i).APNsMock
 		}
 		if s.Servers[i].Color == "" {
 			s.Servers[i].Color = defaultColor(i)

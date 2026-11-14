@@ -28,7 +28,7 @@ import {
   type ProcInfo,
   type Settings,
 } from "./lib/ipc";
-import { activeServer } from "./lib/servers";
+import { activeServer, apnsMockProcId } from "./lib/servers";
 import {
   useMultiServerHealth,
   type DockerHealth,
@@ -151,6 +151,13 @@ export default function App() {
       (p.state === "running" || p.state === "stopping"),
   );
 
+  const activeApnsMockId = settings ? apnsMockProcId(activeServer(settings)) : null;
+  const apnsMockRunning = procs.some(
+    (p) =>
+      p.id === activeApnsMockId &&
+      (p.state === "running" || p.state === "stopping"),
+  );
+
   // Tray reflects the active server's serve/docker plus the global services.
   const trayState = {
     branch: branchStatus?.branch ?? null,
@@ -196,7 +203,13 @@ export default function App() {
         await startAll({
           server: srv,
           settings,
-          health: { serveUp: serve.up, dockerUp: docker.up, ngrokRunning, pythonRunning },
+          health: {
+            serveUp: serve.up,
+            dockerUp: docker.up,
+            ngrokRunning,
+            pythonRunning,
+            apnsMockRunning,
+          },
         });
       } catch (e) {
         console.error("tray:start-all failed", e);
@@ -206,7 +219,13 @@ export default function App() {
       try {
         await stopAll({
           server: srv,
-          health: { serveUp: serve.up, dockerUp: docker.up, ngrokRunning, pythonRunning },
+          health: {
+            serveUp: serve.up,
+            dockerUp: docker.up,
+            ngrokRunning,
+            pythonRunning,
+            apnsMockRunning,
+          },
         });
       } catch (e) {
         console.error("tray:stop-all failed", e);
@@ -217,7 +236,7 @@ export default function App() {
       cancelled = true;
       unlistens.forEach((u) => u());
     };
-  }, [settings, serve.up, docker.up, ngrokRunning, pythonRunning]);
+  }, [settings, serve.up, docker.up, ngrokRunning, pythonRunning, apnsMockRunning]);
 
   // Quit flow. anyRunning + shutdown targets span ALL servers, so Cmd+Q tears
   // down every stack, not just the active one. Read via a ref so the

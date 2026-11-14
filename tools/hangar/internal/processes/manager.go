@@ -237,8 +237,12 @@ func (m *Manager) Start(id string, a StartArgs) error {
 	cmd := shellpath.Command(a.Program, a.Args...)
 	cmd.Dir = a.Cwd
 	extra := map[string]string{}
+	envKeys := []string{}
 	for _, p := range a.Env {
 		if p.Key != "" {
+			if _, dup := extra[p.Key]; !dup {
+				envKeys = append(envKeys, p.Key)
+			}
 			extra[p.Key] = p.Value
 		}
 	}
@@ -273,6 +277,7 @@ func (m *Manager) Start(id string, a StartArgs) error {
 		State:       "running",
 		StartedAtMS: &now,
 		RecentLog:   []string{},
+		EnvKeys:     envKeys,
 	}
 	lc := &procLifecycle{}
 	lc.ctx, lc.cancel = context.WithCancel(context.Background())

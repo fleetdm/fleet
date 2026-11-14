@@ -15,6 +15,9 @@ import {
 } from "../../lib/ipc";
 import {
   activeServer,
+  APNS_PUSH_URL_ENV,
+  apnsMockEnvConflict,
+  apnsMockUrl,
   canAddServer,
   MAX_SERVERS,
   serverColorVar,
@@ -470,6 +473,7 @@ const PORT_FIELDS: { key: keyof ServerPorts; label: string }[] = [
   { key: "redis", label: "Redis" },
   { key: "s3", label: "S3" },
   { key: "s3_console", label: "S3 console" },
+  { key: "apns_mock", label: "Mock APNs" },
 ];
 
 const COLOR_KEYS = ["green", "purple", "blue"];
@@ -1227,6 +1231,20 @@ function FleetServerSection({
     await save({ config_path: null });
   }
 
+  async function setMockApns(on: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const next = updateActiveServer(settings, (s) => ({ ...s, mock_apns: on }));
+      await api.saveSettings(next);
+      onChange(next);
+    } catch (e) {
+      setError(String(e));
+    }
+    setBusy(false);
+  }
+  const apnsConflict = server.mock_apns ? apnsMockEnvConflict(server) : null;
+
   // Env-var rows. Tracked as local state so a draft row with an empty
   // key isn't persisted until the user types a key. Persisting onChange
   // saves on every keystroke after the key exists, matching how python
@@ -1311,6 +1329,17 @@ function FleetServerSection({
             checked={cfg.logging_debug}
             onChange={(v) => save({ logging_debug: v })}
           />
+          <CheckboxRow
+            label="Mock APNs"
+            description={`Runs a mock Apple push server (cmd/apple-apns-mock) on ${apnsMockUrl(server)} with this server's stack and sets ${APNS_PUSH_URL_ENV} to it, so osquery-perf's simulated macOS, iOS and iPadOS hosts can enroll in MDM. Real Apple devices enrolled in this server get no pushes while it's on. fleet serve picks it up on its next start; the Server tab offers a restart if it's already running.`}
+            checked={server.mock_apns}
+            onChange={setMockApns}
+          />
+          {apnsConflict && (
+            <div style={{ color: "var(--ui-warning)", fontSize: "var(--fs-xxx-small)" }}>
+              {apnsConflict}
+            </div>
+          )}
         </div>
 
         {error && (
@@ -2490,6 +2519,14 @@ function TroubleshootSection({ settings }: { settings: Settings }) {
         title: "SCEP servers",
         subtitle: "any scepserver process (matches the command line)",
         mode: { kind: "pattern", pattern: "scepserver" },
+      },
+      {
+        // Matches both the `go run ./cmd/apple-apns-mock` wrapper and the
+        // compiled binary, which is named after the package dir.
+        id: "apns-mock",
+        title: "Mock APNs servers",
+        subtitle: "any apple-apns-mock process (matches the command line)",
+        mode: { kind: "pattern", pattern: "apple-apns-mock" },
       },
       {
         // The local TUF file-server the tools/tuf/test scripts leave running.

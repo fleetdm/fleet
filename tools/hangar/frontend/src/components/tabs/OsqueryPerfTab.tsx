@@ -9,8 +9,16 @@ import {
   type ProcInfo,
   type Settings,
 } from "../../lib/ipc";
-import { activeServer } from "../../lib/servers";
+import {
+  activeServer,
+  apnsMockUrl,
+  procId,
+  serveNeedsRestartForApns,
+  serverForUrl,
+  type ServerProfile,
+} from "../../lib/servers";
 import { noAutocorrect } from "../../lib/noAutocorrect";
+import { useApnsMockStatus } from "../../lib/useApnsMockStatus";
 
 /// Local form shape. Saved configs persist a superset of these fields
 /// (id + name + timestamps) — see PerfConfig in ipc.ts. Loading a
@@ -27,6 +35,8 @@ export interface PerfFormConfig {
   mdm_enabled: boolean;
   mdm_prob: number;
   mdm_scep_challenge: string;
+  /// Overrides the mock APNs URL; empty means the target server's own mock.
+  mdm_apns_url: string;
   start_period: string;
   query_interval: string;
   config_interval: string;
@@ -43,6 +53,7 @@ const DEFAULT_PERF_FORM: PerfFormConfig = {
   mdm_enabled: false,
   mdm_prob: 1,
   mdm_scep_challenge: "",
+  mdm_apns_url: "",
   start_period: "30s",
   query_interval: "10s",
   config_interval: "1m",
@@ -98,6 +109,7 @@ function configToForm(c: PerfConfig): PerfFormConfig {
     mdm_enabled: c.mdm_enabled,
     mdm_prob: c.mdm_prob,
     mdm_scep_challenge: c.mdm_scep_challenge,
+    mdm_apns_url: c.mdm_apns_url ?? "",
     start_period: c.start_period,
     query_interval: c.query_interval,
     config_interval: c.config_interval,
@@ -120,6 +132,7 @@ function formToConfig(
     mdm_enabled: form.mdm_enabled,
     mdm_prob: form.mdm_prob,
     mdm_scep_challenge: form.mdm_scep_challenge,
+    mdm_apns_url: form.mdm_apns_url,
     start_period: form.start_period,
     query_interval: form.query_interval,
     config_interval: form.config_interval,
@@ -149,6 +162,7 @@ function formMatchesConfig(form: PerfFormConfig, c: PerfConfig): boolean {
   if (form.mdm_enabled !== c.mdm_enabled) return false;
   if (form.mdm_prob !== c.mdm_prob) return false;
   if (form.mdm_scep_challenge !== c.mdm_scep_challenge) return false;
+  if (form.mdm_apns_url !== (c.mdm_apns_url ?? "")) return false;
   if (form.start_period !== c.start_period) return false;
   if (form.query_interval !== c.query_interval) return false;
   if (form.config_interval !== c.config_interval) return false;
@@ -324,7 +338,7 @@ export function OsqueryPerfTab({
       return;
     }
     const id = `${PERF_PREFIX}${Date.now().toString(36)}`;
-    const args = perfArgsFor(form);
+    const args = perfArgsFor(form, resolveApnsTarget(form, settings, procs).url);
     // Spawn from the agent's directory so `software-library/software.db`
     // (resolved relative to cwd inside the agent) is found. Running
     // from the repo root used to "go run ./cmd/osquery-perf/agent.go"
@@ -515,6 +529,7 @@ export function OsqueryPerfTab({
         <NewRunPanel
           form={form}
           onChange={setForm}
+          apns={resolveApnsTarget(form, settings, procs)}
           templates={templates}
           onStart={(f, name) => startRun(f, name, loadedId)}
           canStart={activeCount < MAX_PERF_RUNS && templates.length > 0}
@@ -1261,6 +1276,7 @@ function ConfigChip({
 
 function NewRunPanel({
   form,
+  apns,
   templates,
   onChange,
   onStart,
@@ -1275,6 +1291,7 @@ function NewRunPanel({
   onSaveAsNew,
 }: {
   form: PerfFormConfig;
+  apns: ApnsTarget;
   templates: PerfTemplate[];
   onChange: (next: PerfFormConfig) => void;
   onStart: (form: PerfFormConfig, name: string) => void;
@@ -1338,15 +1355,15 @@ function NewRunPanel({
     selectedIds.every((id) => templates.find((t) => t.id === id)?.mobile === true);
   const secretRequired = !onlyMobileSelected;
 
-  // SCEP is only meaningful for Apple MDM enrollment — Windows MDM
-  // doesn't use it. So it's required to start only when MDM is on AND
-  // at least one Apple template (macOS/iOS/iPadOS) is in the run.
-  const anyAppleSelected = selectedIds.some(
-    (id) => templates.find((t) => t.id === id)?.apple === true,
-  );
-  const scepRequired = form.mdm_enabled && anyAppleSelected;
+  // Apple MDM (SCEP challenge + mock APNs) is needed by macOS hosts that may
+  // enroll and by every iOS/iPadOS host; Windows MDM uses neither.
+  const appleMdm = needsAppleMdm(form);
+  const anyMobileSelected = selectedIds.some(isMobileTemplate);
 
-  const previewArgs = perfArgsFor({ ...form, enroll_secret: secretDraft, mdm_scep_challenge: scepDraft });
+  const previewArgs = perfArgsFor(
+    { ...form, enroll_secret: secretDraft, mdm_scep_challenge: scepDraft },
+    apns.url,
+  );
 
   function start() {
     // Commit any drafts first so the spawn matches the preview.
@@ -1394,7 +1411,8 @@ function NewRunPanel({
     selectedIds.length === 0 ||
     total < 1 ||
     (secretRequired && !secretDraft.trim()) ||
-    (scepRequired && !scepDraft.trim());
+    (appleMdm && !scepDraft.trim()) ||
+    (appleMdm && !apns.url);
 
   return (
     <div
@@ -1759,7 +1777,9 @@ function NewRunPanel({
       <MdmSection
         form={form}
         onChange={onChange}
-        scepRequired={scepRequired}
+        appleMdm={appleMdm}
+        anyMobileSelected={anyMobileSelected}
+        apns={apns}
         scepDraft={scepDraft}
         setScepDraft={setScepDraft}
         commitScep={commitScep}
@@ -1780,29 +1800,34 @@ function NewRunPanel({
 function MdmSection({
   form,
   onChange,
-  scepRequired,
+  appleMdm,
+  anyMobileSelected,
+  apns,
   scepDraft,
   setScepDraft,
   commitScep,
 }: {
   form: PerfFormConfig;
   onChange: (next: PerfFormConfig) => void;
-  /// True only when MDM is on AND an Apple template is selected — Apple
-  /// MDM enrollment needs SCEP; Windows MDM doesn't. Drives both the
-  /// required marker and whether Start is blocked.
-  scepRequired: boolean;
+  /// See needsAppleMdm. Drives the required markers and whether Start is
+  /// blocked on SCEP and APNs.
+  appleMdm: boolean;
+  /// iOS/iPadOS hosts enroll in MDM whether or not the toggle is on.
+  anyMobileSelected: boolean;
+  apns: ApnsTarget;
   scepDraft: string;
   setScepDraft: (s: string) => void;
   commitScep: () => void;
 }) {
+  const active = form.mdm_enabled || anyMobileSelected;
   return (
     <div
       style={{
         padding: 10,
-        background: form.mdm_enabled
+        background: active
           ? "var(--tint-info-soft)"
           : "var(--app-surface-2)",
-        border: form.mdm_enabled
+        border: active
           ? "1px solid var(--core-vibrant-blue)"
           : "1px solid var(--app-border)",
         borderRadius: "var(--radius-md)",
@@ -1850,14 +1875,19 @@ function MdmSection({
             />
           </span>
         )}
+        {!form.mdm_enabled && anyMobileSelected && (
+          <span className="dim" style={{ marginLeft: "auto", fontSize: "var(--fs-xxx-small)" }}>
+            iOS/iPadOS hosts always enroll in MDM
+          </span>
+        )}
       </label>
-      {form.mdm_enabled && (
-        <div>
+      {active && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <Field
             label={
               <>
                 SCEP challenge{" "}
-                {scepRequired ? (
+                {appleMdm ? (
                   <span style={{ color: "var(--ui-error)" }}>*</span>
                 ) : (
                   <span
@@ -1879,8 +1909,7 @@ function MdmSection({
                 <span className="mono">
                   go run tools/mdm/assets/main.go export -key=&lt;server_private_key&gt; -dir=&lt;tmp&gt; -name=scep_challenge
                 </span>{" "}
-                in the Fleet repo, then paste the file contents here. The server also needs{" "}
-                <span className="mono">FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1</span> in its env.
+                in the Fleet repo, then paste the file contents here.
               </>
             }
           >
@@ -1894,9 +1923,100 @@ function MdmSection({
               style={{ width: "100%" }}
             />
           </Field>
+          {appleMdm && <ApnsField form={form} onChange={onChange} apns={apns} />}
         </div>
       )}
     </div>
+  );
+}
+
+/// The mock APNs URL simulated Apple devices listen on for MDM pushes. The
+/// agent refuses to start Apple MDM hosts without one, and Fleet has to push
+/// to the same mock, so this also reports whether that's set up.
+function ApnsField({
+  form,
+  onChange,
+  apns,
+}: {
+  form: PerfFormConfig;
+  onChange: (next: PerfFormConfig) => void;
+  apns: ApnsTarget;
+}) {
+  const { server } = apns;
+  const auto = !apns.overridden && server?.mock_apns;
+  const status = useApnsMockStatus(auto ? server.ports.apns_mock : null);
+
+  let note: React.ReactNode = null;
+  let tone: "ok" | "neutral" | "warn" | "error" = "ok";
+  if (apns.overridden) {
+    note = server?.mock_apns
+      ? `Using this URL instead of ${server.name}'s own mock (${apnsMockUrl(server)}).`
+      : null;
+  } else if (auto) {
+    if (status === null) {
+      tone = "neutral";
+      note = `Checking ${server.name}'s mock APNs…`;
+    } else if (status.up) {
+      note = `${server.name}'s mock APNs · ${apns.url} · ${status.active_connections} device${status.active_connections === 1 ? "" : "s"} connected`;
+    } else {
+      tone = "warn";
+      note = `${server.name}'s mock APNs isn't running yet. Start it on the Server tab (Start all starts it too); hosts connect once it's up.`;
+    }
+  } else if (server) {
+    tone = "error";
+    note = `${server.name} doesn't run a mock APNs server. Turn on Mock APNs in Settings → Fleet server with ${server.name} active, then restart fleet serve. Or enter the URL of a mock you run yourself.`;
+  } else {
+    tone = "error";
+    note = "The server URL isn't one of Hangar's servers. Enter the mock APNs URL that Fleet server pushes to (its FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL).";
+  }
+  if (apns.serveNeedsRestart && server) {
+    tone = tone === "error" ? "error" : "warn";
+    note = (
+      <>
+        {note} fleet serve on {server.name} was started before mock APNs was turned on, so its
+        pushes still go to Apple: restart it from the Server tab.
+      </>
+    );
+  }
+
+  return (
+    <Field
+      label={
+        <>
+          Mock APNs URL <span style={{ color: "var(--ui-error)" }}>*</span>
+        </>
+      }
+      hint={
+        note && (
+          <span
+            style={{
+              color:
+                tone === "error"
+                  ? "var(--ui-error)"
+                  : tone === "warn"
+                    ? "var(--ui-warning)"
+                    : tone === "neutral"
+                      ? "var(--app-text-dim)"
+                      : "var(--core-fleet-green)",
+            }}
+          >
+            {note}
+          </span>
+        )
+      }
+    >
+      <input
+        type="text"
+        value={form.mdm_apns_url}
+        placeholder={
+          server?.mock_apns ? `${apnsMockUrl(server)} (${server.name}'s mock)` : "http://127.0.0.1:8378"
+        }
+        onChange={(e) => onChange({ ...form, mdm_apns_url: e.target.value })}
+        {...noAutocorrect}
+        className="mono"
+        style={{ width: "100%" }}
+      />
+    </Field>
   );
 }
 
@@ -2086,7 +2206,61 @@ function SmallField({
 /// Builds the argv tail (after `go run .`). Kept here so the preview
 /// and spawn always come out of the same function — preview can never
 /// drift from what's actually run.
-export function perfArgsFor(form: PerfFormConfig): string[] {
+/// Template ids the agent itself checks by name: iOS/iPadOS templates always
+/// enroll in Apple MDM, macOS ones only when mdm_prob says so.
+function isMobileTemplate(id: string): boolean {
+  return id.startsWith("iphone_") || id.startsWith("ipad_");
+}
+function isMacTemplate(id: string): boolean {
+  return id.startsWith("macos_");
+}
+
+/// Mirrors the agent's startup checks: these runs fatal without
+/// --mdm_apns_url, and their Apple hosts can't enroll without SCEP.
+export function needsAppleMdm(form: PerfFormConfig): boolean {
+  const ids = Object.keys(form.os_counts);
+  return (
+    (form.mdm_enabled && form.mdm_prob > 0 && ids.some(isMacTemplate)) ||
+    ids.some(isMobileTemplate)
+  );
+}
+
+export type ApnsTarget = {
+  /// What --mdm_apns_url gets; "" when nothing could be resolved.
+  url: string;
+  /// The Hangar server the run targets, when server_url points at one.
+  server?: ServerProfile;
+  overridden: boolean;
+  /// That server's fleet serve is running without the push URL its mock
+  /// APNs setting asks for.
+  serveNeedsRestart: boolean;
+};
+
+export function resolveApnsTarget(
+  form: PerfFormConfig,
+  settings: Settings,
+  procs: ProcInfo[],
+): ApnsTarget {
+  const server = serverForUrl(settings, form.server_url);
+  const serveProc = server
+    ? procs.find(
+        (p) =>
+          p.id === procId(server.id, "fleet-serve") &&
+          (p.state === "running" || p.state === "stopping"),
+      )
+    : undefined;
+  const serveNeedsRestart =
+    !!server && !!serveProc && server.mock_apns &&
+    serveNeedsRestartForApns(server, serveProc.env_keys ?? []);
+  const override = form.mdm_apns_url.trim();
+  if (override) return { url: override, server, overridden: true, serveNeedsRestart: false };
+  if (server?.mock_apns) {
+    return { url: apnsMockUrl(server), server, overridden: false, serveNeedsRestart };
+  }
+  return { url: "", server, overridden: false, serveNeedsRestart: false };
+}
+
+export function perfArgsFor(form: PerfFormConfig, apnsUrl: string): string[] {
   const args: string[] = [];
   if (form.server_url.trim()) {
     args.push("--server_url", form.server_url.trim());
@@ -2105,11 +2279,15 @@ export function perfArgsFor(form: PerfFormConfig): string[] {
     const spec = ids.map((id) => `${id}:${form.os_counts[id]}`).join(",");
     args.push("--os_templates", spec);
   }
+  const appleMdm = needsAppleMdm(form);
   if (form.mdm_enabled) {
     args.push("--mdm_prob", String(form.mdm_prob));
-    if (form.mdm_scep_challenge.trim()) {
-      args.push("--mdm_scep_challenge", form.mdm_scep_challenge.trim());
-    }
+  }
+  if ((form.mdm_enabled || appleMdm) && form.mdm_scep_challenge.trim()) {
+    args.push("--mdm_scep_challenge", form.mdm_scep_challenge.trim());
+  }
+  if (appleMdm && apnsUrl.trim()) {
+    args.push("--mdm_apns_url", apnsUrl.trim());
   }
   if (form.start_period.trim()) {
     args.push("--start_period", form.start_period.trim());

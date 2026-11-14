@@ -23,6 +23,12 @@ export class Config {
     "mdm_enabled": boolean;
     "mdm_prob": number;
     "mdm_scep_challenge": string;
+
+    /**
+     * MDMAPNsURL overrides the mock APNs server simulated Apple devices listen
+     * on; empty means the target server's own mock (resolved in the UI).
+     */
+    "mdm_apns_url": string;
     "start_period": string;
     "query_interval": string;
     "config_interval": string;
@@ -59,6 +65,9 @@ export class Config {
         }
         if (!("mdm_scep_challenge" in $$source)) {
             this["mdm_scep_challenge"] = "";
+        }
+        if (!("mdm_apns_url" in $$source)) {
+            this["mdm_apns_url"] = "";
         }
         if (!("start_period" in $$source)) {
             this["start_period"] = "";

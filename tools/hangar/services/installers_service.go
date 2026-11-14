@@ -461,7 +461,7 @@ func hangarPorts() map[uint16]bool {
 	}
 	if cur, err := loadSettings(); err == nil {
 		for _, srv := range cur.Servers {
-			for _, p := range []uint16{srv.Ports.Server, srv.Ports.MySQL, srv.Ports.Redis, srv.Ports.S3, srv.Ports.S3Console} {
+			for _, p := range []uint16{srv.Ports.Server, srv.Ports.MySQL, srv.Ports.Redis, srv.Ports.S3, srv.Ports.S3Console, srv.Ports.APNsMock} {
 				reserved[p] = true
 			}
 		}

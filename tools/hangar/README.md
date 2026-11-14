@@ -101,6 +101,14 @@ wails3 generate bindings -clean=true -ts
   directory set, so test machines can download them from it, else in `<server 1's repo>/packages/`
   (gitignored). A context pointing at one of Hangar's servers builds with that server's own
   `fleetctl`. `.msi` builds need Docker.
+- **Mock APNs.** osquery-perf won't start simulated macOS hosts that can enroll in MDM, or any
+  iOS/iPadOS host, without a mock APNs server (`--mdm_apns_url`). Turning on *Mock APNs* for a
+  server (Settings → Fleet server) runs `cmd/apple-apns-mock` from server 1's clone on that
+  server's Redis as part of Start all, and points `fleet serve` at it through
+  `FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL`. Fleet reads that only at startup, so the Server tab asks
+  for a restart when the running serve doesn't match. While it's on, real Apple devices enrolled
+  in that server get no pushes. See
+  [the mock's design doc](../../docs/Contributing/mdm/apple/apple-apns-mock.md).
 
 ## Versioning
 

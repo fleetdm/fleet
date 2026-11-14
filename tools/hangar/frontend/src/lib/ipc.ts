@@ -24,6 +24,7 @@ import {
   MdmAssetsService,
   TufService,
   InstallersService,
+  ApnsMockService,
 } from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services";
 
 import type * as buildinfoM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/buildinfo/models";
@@ -43,6 +44,7 @@ import type * as mdmassetsM from "../../bindings/github.com/fleetdm/fleet/tools/
 import type * as tufM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/tuf/models";
 import type * as installersM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/installers/models";
 import type * as servicesM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services/models";
+import type * as apnsmockM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/apnsmock/models";
 
 // cast narrows a binding's $CancellablePromise<GeneratedModel> to the alias
 // type. Safe: the underlying value is the same JSON.
@@ -127,6 +129,7 @@ export type MdmAssetsFile = mdmassetsM.AssetFile;
 
 export type TufConfig = settingsM.TufConfig;
 export type TufServerStatus = tufM.ServerStatus;
+export type ApnsMockStatus = apnsmockM.Status;
 
 export type InstallersConfig = settingsM.InstallersConfig;
 export type InstallerTarget = settingsM.InstallerTarget;
@@ -321,6 +324,9 @@ export const api = {
   installersShareStatus: () => cast<InstallersShareStatus>(InstallersService.InstallersShareStatus()),
   installersSharedFiles: () =>
     cast<InstallersSharedFile[]>(InstallersService.InstallersSharedFiles()),
+  // Per-server mock APNs (cmd/apple-apns-mock); started via startProcess.
+  apnsMockStatus: (port: number) =>
+    cast<ApnsMockStatus>(ApnsMockService.ApnsMockStatus(port)),
 
   listProcesses: () => cast<ProcInfo[]>(ProcessService.ListProcesses()),
   startProcess: (args: {

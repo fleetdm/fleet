@@ -141,7 +141,7 @@ func TestLoadMissingFileSynthesizesServer(t *testing.T) {
 	if s.ID != "s1" || !s.Enabled || s.WorktreePath != nil {
 		t.Errorf("default server unexpected: %+v", s)
 	}
-	if s.Ports != (ServerPorts{Server: 8080, MySQL: 3306, Redis: 6379, S3: 9000, S3Console: 9001}) {
+	if s.Ports != (ServerPorts{Server: 8080, MySQL: 3306, Redis: 6379, S3: 9000, S3Console: 9001, APNsMock: 8378}) {
 		t.Errorf("server 1 should use canonical ports, got %+v", s.Ports)
 	}
 	if s.ComposeProject != "fleet" {
@@ -240,19 +240,44 @@ func TestLoadRepairsDanglingActiveServer(t *testing.T) {
 
 func TestDefaultPortsForIndex(t *testing.T) {
 	cases := []struct {
-		i                                   int
-		server, mysql, redis, s3, s3console uint16
+		i                                             int
+		server, mysql, redis, s3, s3console, apnsMock uint16
 	}{
-		{0, 8080, 3306, 6379, 9000, 9001},
-		{1, 8090, 3326, 6389, 9020, 9011},
-		{2, 8100, 3346, 6399, 9040, 9021},
+		{0, 8080, 3306, 6379, 9000, 9001, 8378},
+		{1, 8090, 3326, 6389, 9020, 9011, 8388},
+		{2, 8100, 3346, 6399, 9040, 9021, 8398},
 	}
 	for _, c := range cases {
 		got := DefaultPortsForIndex(c.i)
-		want := ServerPorts{Server: c.server, MySQL: c.mysql, Redis: c.redis, S3: c.s3, S3Console: c.s3console}
+		want := ServerPorts{Server: c.server, MySQL: c.mysql, Redis: c.redis, S3: c.s3, S3Console: c.s3console, APNsMock: c.apnsMock}
 		if got != want {
 			t.Errorf("ports[%d] = %+v, want %+v", c.i, got, want)
 		}
+	}
+}
+
+func TestLoadBackfillsAPNsMockPort(t *testing.T) {
+	dir := t.TempDir()
+	// Written before apns_mock existed: every other port is set.
+	raw := `{"servers": [
+		{"id": "s1", "ports": {"server": 8080, "mysql": 3306, "redis": 6379, "s3": 9000, "s3_console": 9001}},
+		{"id": "s2", "ports": {"server": 8090, "mysql": 3326, "redis": 6389, "s3": 9020, "s3_console": 9011}}
+	]}`
+	if err := os.WriteFile(filepath.Join(dir, fileName), []byte(raw), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p := got.Servers[0].Ports; p.APNsMock != 8378 || p.Server != 8080 {
+		t.Errorf("s1 ports = %+v, want apns_mock 8378 and the rest untouched", p)
+	}
+	if p := got.Servers[1].Ports; p.APNsMock != 8388 || p.MySQL != 3326 {
+		t.Errorf("s2 ports = %+v, want apns_mock 8388 and the rest untouched", p)
+	}
+	if got.Servers[0].MockAPNs {
+		t.Error("mock_apns should default off")
 	}
 }
 

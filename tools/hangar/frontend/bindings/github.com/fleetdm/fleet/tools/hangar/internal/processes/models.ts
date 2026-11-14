@@ -231,6 +231,13 @@ export class ProcInfo {
     "recent_log": string[];
     "was_user_stopped": boolean;
 
+    /**
+     * EnvKeys names the env vars the process was started with on top of the
+     * inherited environment (values omitted: they can be secrets). Lets the UI
+     * tell when a running process predates a config change.
+     */
+    "env_keys": string[];
+
     /** Creates a new ProcInfo instance. */
     constructor($$source: Partial<ProcInfo> = {}) {
         if (!("id" in $$source)) {
@@ -266,6 +273,9 @@ export class ProcInfo {
         if (!("was_user_stopped" in $$source)) {
             this["was_user_stopped"] = false;
         }
+        if (!("env_keys" in $$source)) {
+            this["env_keys"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -275,9 +285,13 @@ export class ProcInfo {
      */
     static createFrom($$source: any = {}): ProcInfo {
         const $$createField9_0 = $$createType4;
+        const $$createField11_0 = $$createType4;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("recent_log" in $$parsedSource) {
             $$parsedSource["recent_log"] = $$createField9_0($$parsedSource["recent_log"]);
+        }
+        if ("env_keys" in $$parsedSource) {
+            $$parsedSource["env_keys"] = $$createField11_0($$parsedSource["env_keys"]);
         }
         return new ProcInfo($$parsedSource as Partial<ProcInfo>);
     }

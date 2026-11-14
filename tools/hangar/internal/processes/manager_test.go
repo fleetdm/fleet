@@ -1,6 +1,7 @@
 package processes
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -104,6 +105,35 @@ func TestSpawnCaptureAndComplete(t *testing.T) {
 	// On-disk log written.
 	if _, err := os.Stat(filepath.Join(m.logDir, "job-chan.log")); err != nil {
 		t.Errorf("disk log not written: %v", err)
+	}
+}
+
+func TestEnvKeysRecordedWithoutValues(t *testing.T) {
+	m := New(t.TempDir(), t.TempDir(), &recorder{})
+	err := m.Start("env", StartArgs{
+		Program: "sh",
+		Args:    []string{"-c", "true"},
+		Env: []EnvPair{
+			{Key: "B_KEY", Value: "secret-b"},
+			{Key: "", Value: "dropped"},
+			{Key: "A_KEY", Value: "secret-a"},
+			{Key: "B_KEY", Value: "secret-b2"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := waitForState(t, m, "env", "done", 5*time.Second)
+	if strings.Join(got.EnvKeys, ",") != "B_KEY,A_KEY" {
+		t.Errorf("env keys = %v, want [B_KEY A_KEY] in first-seen order", got.EnvKeys)
+	}
+	// ProcInfo goes to the frontend as JSON; env values can be secrets.
+	raw, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "secret-") {
+		t.Errorf("serialized ProcInfo leaks an env value: %s", raw)
 	}
 }
 

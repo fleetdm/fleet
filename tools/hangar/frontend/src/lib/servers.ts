@@ -169,6 +169,10 @@ export function serveEnvFor(server: ServerProfile): Array<[string, string]> {
     .map((e) => ({ ...e, key: e.key.trim() }))
     .filter((e) => e.enabled && e.key.length > 0)
     .map((e) => [e.key, e.value] as [string, string]);
+  // A push URL the user set by hand wins over the mock's.
+  if (server.mock_apns && !userEnvValue(server, APNS_PUSH_URL_ENV)) {
+    rows.push([APNS_PUSH_URL_ENV, apnsMockUrl(server)]);
+  }
   if (!isDefaultStack(server)) {
     const s3 = `http://localhost:${server.ports.s3}`;
     rows.push(["FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL", s3]);
@@ -198,6 +202,119 @@ export function serveLabelFor(server: ServerProfile): string {
   return server.fleet_serve.premium
     ? "fleet serve --dev (premium)"
     : "fleet serve --dev (free)";
+}
+
+// --- mock APNs ---
+//
+// cmd/apple-apns-mock stands in for Apple's push service so osquery-perf's
+// simulated Apple devices get MDM pushes. Each server runs its own, on its own
+// Redis, and fleet serve reads the push URL only at startup and only with --dev.
+
+export const APNS_PUSH_URL_ENV = "FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL";
+/// Swaps Fleet's pusher for a no-op, so pushes never reach the mock either.
+export const APNS_DISABLE_PUSH_ENV = "FLEET_DEV_MDM_APPLE_DISABLE_PUSH";
+
+/// 127.0.0.1, not localhost: the mock listens on IPv4 only. Matches
+/// apnsmock.URL on the Go side.
+export function apnsMockUrl(server: ServerProfile): string {
+  return `http://127.0.0.1:${server.ports.apns_mock}`;
+}
+
+export function apnsMockProcId(server: ServerProfile): string {
+  return procId(server.id, "apns-mock");
+}
+
+export function apnsMockChannel(serverId: string): string {
+  return `apns-mock-${serverId}`;
+}
+
+/// The value of an enabled serve env row the user added, or undefined.
+export function userEnvValue(
+  server: ServerProfile,
+  key: string,
+): string | undefined {
+  return server.fleet_serve.env.find(
+    (e) => e.enabled && e.key.trim() === key,
+  )?.value;
+}
+
+/// Why this server's Fleet won't push to its mock even with mock APNs on, or
+/// null when nothing in its env gets in the way.
+export function apnsMockEnvConflict(server: ServerProfile): string | null {
+  const disable = userEnvValue(server, APNS_DISABLE_PUSH_ENV);
+  if (disable === "1") {
+    return `${APNS_DISABLE_PUSH_ENV}=1 is set in this server's env, so Fleet sends no pushes at all. Turn that row off.`;
+  }
+  const url = userEnvValue(server, APNS_PUSH_URL_ENV);
+  if (url !== undefined && url.trim() !== apnsMockUrl(server)) {
+    return `${APNS_PUSH_URL_ENV} is set to ${url.trim() || "an empty value"} in this server's env, which overrides the mock's ${apnsMockUrl(server)}.`;
+  }
+  return null;
+}
+
+/// True when the running serve process was started with a different push
+/// setup than the server is configured for now, so a restart is needed.
+export function serveNeedsRestartForApns(
+  server: ServerProfile,
+  serveEnvKeys: string[],
+): boolean {
+  const startedWithPushUrl = serveEnvKeys.includes(APNS_PUSH_URL_ENV);
+  const wantsPushUrl = serveEnvFor(server).some(([k]) => k === APNS_PUSH_URL_ENV);
+  return startedWithPushUrl !== wantsPushUrl;
+}
+
+/// `go run ./cmd/apple-apns-mock` from the primary repo, like Hangar's other
+/// repo tools (SCEP, TUF, MDM assets): the mock is independent of the Fleet
+/// version a server runs, and an older worktree may predate it.
+export function apnsMockStartArgs(
+  server: ServerProfile,
+  settings: Settings,
+): {
+  id: string;
+  label: string;
+  cwd: string;
+  program: string;
+  args: string[];
+  log_channel: string;
+} | null {
+  const cwd = settings.servers[0]?.worktree_path;
+  if (!cwd) return null;
+  return {
+    id: apnsMockProcId(server),
+    label: "mock APNs",
+    cwd,
+    program: "go",
+    args: [
+      "run",
+      "./cmd/apple-apns-mock",
+      "--listen",
+      `127.0.0.1:${server.ports.apns_mock}`,
+      "--redis-address",
+      `127.0.0.1:${server.ports.redis}`,
+    ],
+    log_channel: apnsMockChannel(server.id),
+  };
+}
+
+/// The Hangar server a URL points at (a local address on one of its serve
+/// ports), or undefined for anything else, e.g. a remote or load-test server.
+export function serverForUrl(
+  settings: Settings,
+  url: string,
+): ServerProfile | undefined {
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return undefined;
+  }
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname)) {
+    return undefined;
+  }
+  const port = Number(
+    parsed.port || (parsed.protocol === "https:" ? 443 : 80),
+  );
+  return settings.servers.find((s) => s.ports.server === port);
 }
 
 // --- presentation ---

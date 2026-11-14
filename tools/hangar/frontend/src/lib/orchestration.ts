@@ -15,6 +15,8 @@ import {
   type Settings,
 } from "./ipc";
 import {
+  apnsMockProcId,
+  apnsMockStartArgs,
   dockerEnvFor,
   dockerUpArgs,
   prepareDbArgsFor,
@@ -115,6 +117,8 @@ export type SystemHealth = {
   dockerUp: boolean;
   ngrokRunning: boolean;
   pythonRunning: boolean;
+  /// This server's mock APNs process (per-server, unlike ngrok/python).
+  apnsMockRunning: boolean;
 };
 
 export type StartAllArgs = {
@@ -160,6 +164,20 @@ export async function startAll(args: StartAllArgs): Promise<void> {
     });
     const ok = await waitForExit(procId(server.id, "fleet-prepare-db"));
     if (!ok) return;
+  }
+  // The mock needs the server's Redis (up by now) and must be listening
+  // before Fleet's first push; pushes sent before it's up are retried by
+  // Fleet's apns_push_to_pending_hosts cron.
+  // Optional for serve to boot, so a failure here mustn't stop the rest.
+  if (server.mock_apns && !health.apnsMockRunning) {
+    const mock = apnsMockStartArgs(server, settings);
+    if (mock) {
+      try {
+        await api.startProcess(mock);
+      } catch (e) {
+        console.error("mock APNs start failed", e);
+      }
+    }
   }
   if (!health.serveUp) {
     await startServe(server);
@@ -212,6 +230,11 @@ export async function stopAll(args: StopAllArgs): Promise<void> {
   if (health.serveUp) {
     try {
       await api.stopProcess(procId(server.id, "fleet-serve"));
+    } catch {}
+  }
+  if (health.apnsMockRunning) {
+    try {
+      await api.stopProcess(apnsMockProcId(server));
     } catch {}
   }
   if (health.dockerUp && server.worktree_path) {
