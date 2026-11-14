@@ -18,6 +18,7 @@ import (
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	notifications_bootstrap "github.com/fleetdm/fleet/v4/server/notifications/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/platform/tracing"
@@ -49,9 +50,9 @@ const (
 	byFastPath = "false"
 )
 
-// newAPIHandler builds the real API handler the way cmd/fleet does and returns it alongside the gorilla router underneath, so
-// a test can drive the composite and introspect the route table without repeating the type assertion.
-func newAPIHandler(t *testing.T, cfg config.FleetConfig, featureRoutes []endpointer.HandlerRoutesFunc) (http.Handler, *mux.Router) {
+// newAPIHandler builds the real API handler the way cmd/fleet does and returns it alongside the router underneath, so a test can
+// drive the composite and introspect the route table without repeating the type assertion.
+func newAPIHandler(t *testing.T, cfg config.FleetConfig, featureRoutes []endpointer.HandlerRoutesFunc) (http.Handler, *endpointer.Router) {
 	t.Helper()
 	ds := new(mock.Store)
 	svc, _ := newTestService(t, ds, nil, nil)
@@ -59,13 +60,12 @@ func newAPIHandler(t *testing.T, cfg config.FleetConfig, featureRoutes []endpoin
 
 	h, err := MakeHandler(svc, cfg, slog.New(slog.DiscardHandler), limitStore, nil, nil, featureRoutes)
 	require.NoError(t, err)
-	provider, ok := h.(interface{ Router() *mux.Router })
+	provider, ok := h.(interface{ Router() *endpointer.Router })
 	require.True(t, ok, "MakeHandler should return the fast-path handler by default")
 	return h, provider.Router()
 }
 
-// productionFeatureRoutes returns the same feature-route set cmd/fleet/serve.go passes to MakeHandler: the Android, activity,
-// ACME, and chart bounded contexts.
+// productionFeatureRoutes returns the same feature-route set cmd/fleet/serve.go passes to MakeHandler.
 func productionFeatureRoutes(t *testing.T, fleetSvc fleet.Service) []endpointer.HandlerRoutesFunc {
 	t.Helper()
 	logger := slog.New(slog.DiscardHandler)
@@ -76,29 +76,29 @@ func productionFeatureRoutes(t *testing.T, fleetSvc fleet.Service) []endpointer.
 	_, activityRoutes := activity_bootstrap.New(conns, nil, nil, logger)
 	_, acmeRoutes := acme_bootstrap.New(conns, nil, nil, logger)
 	_, chartRoutes := chart_bootstrap.New(conns, nil, nil, chartacl.ExpandPlatform, logger)
+	_, notificationsRoutes := notifications_bootstrap.New(conns, nil, logger)
 
-	return []endpointer.HandlerRoutesFunc{
+	return FeatureRoutes(
 		android_service.GetRoutes(fleetSvc, nil),
 		activityRoutes(passthrough),
+		notificationsRoutes(passthrough),
 		acmeRoutes(passthrough),
 		chartRoutes(passthrough),
-	}
+	)
 }
 
 // newRouterForTest builds the production route table and replaces every handler with one that reports the route it belongs to,
 // the mux vars it resolved, and the route template it found in context. Comparing those strings across the two routers catches
 // a mis-dispatch, a lost path variable, and a missing route template alike.
-func newRouterForTest(t *testing.T) *mux.Router {
+func newRouterForTest(t *testing.T) *endpointer.Router {
 	t.Helper()
 	ds := new(mock.Store)
 	svc, _ := newTestService(t, ds, nil, nil)
 	_, router := newAPIHandler(t, config.TestConfig(), productionFeatureRoutes(t, svc))
 
-	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		name := route.GetName()
-		route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// RouteTemplateRequestFunc is what the real transport runs; it reads the gorilla route when there is one and
-			// leaves the context alone otherwise, which is how the fast path supplies the template.
+	router.WrapHandlers(func(rt endpointer.Route, _ http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// RouteTemplateRequestFunc is what the real transport runs; it reads the template the router put in context.
 			tpl, _ := endpointer.RouteTemplateFromContext(endpointer.RouteTemplateRequestFunc(r.Context(), r))
 			// gorilla attaches the matched route to the request; the fast path does not. Only a handler can report this,
 			// so a request answered by the router itself (404, 405, a redirect) carries no such header.
@@ -108,10 +108,9 @@ func newRouterForTest(t *testing.T) *mux.Router {
 				// Each hand-off to gorilla has to clear the stdlib pattern, which otelmux prefers over the route that actually matched.
 				w.Header().Set(gorillaSawPatternHeader, r.Pattern)
 			}
-			_, _ = w.Write([]byte(name + " tpl=" + tpl + " vars=" + formatVars(mux.Vars(r))))
+			_, _ = w.Write([]byte(rt.Name + " tpl=" + tpl + " vars=" + formatVars(mux.Vars(r))))
 		})
-		return nil
-	}))
+	})
 	return router
 }
 
@@ -166,20 +165,11 @@ func TestFastPathMatchesGorillaForEveryRoute(t *testing.T) {
 
 	type sample struct{ method, path, route string }
 	var samples []sample
-	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		tpl, err := route.GetPathTemplate()
-		if err != nil {
-			return nil // a route with no path is not reachable
+	for _, rt := range router.Routes() {
+		for _, method := range rt.Methods {
+			samples = append(samples, sample{method: method, path: sampleRequestPath(rt.Template()), route: rt.Name})
 		}
-		methods, err := route.GetMethods()
-		if err != nil || len(methods) == 0 {
-			return nil
-		}
-		for _, method := range methods {
-			samples = append(samples, sample{method: method, path: sampleRequestPath(tpl), route: route.GetName()})
-		}
-		return nil
-	}))
+	}
 	require.Greater(t, len(samples), 400, "expected the full route table to be walked")
 
 	handler, err := newFastPathHandler(router, nil, config.TestConfig())
@@ -316,12 +306,11 @@ func TestFastPathMatchesGorillaForEdgeCases(t *testing.T) {
 // falling through to gorilla.
 func TestFastPathServesHotAgentRoutes(t *testing.T) {
 	_, router := newAPIHandler(t, config.TestConfig(), nil)
-	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		route.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	router.WrapHandlers(func(endpointer.Route, http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("X-Served-By-Gorilla", strconv.FormatBool(mux.CurrentRoute(r) != nil))
 		})
-		return nil
-	}))
+	})
 	handler, err := newFastPathHandler(router, nil, config.TestConfig())
 	require.NoError(t, err)
 
@@ -358,13 +347,12 @@ func TestFastPathAppliesRouterMiddlewareInGorillaOrder(t *testing.T) {
 	}
 	middlewares := []mux.MiddlewareFunc{tag("first"), tag("second"), tag("third")}
 
-	router := mux.NewRouter()
+	router := endpointer.NewRouter()
 	for _, mw := range middlewares {
-		router.Use(mw)
+		router.Gorilla().Use(mw)
 	}
-	router.Handle("/api/v1/fleet/config", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})).Methods("GET").Name("get_config")
+	router.Handle(endpointer.Route{Name: "get_config", Methods: []string{"GET"}, Path: "/api/v1/fleet/config"},
+		http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) }))
 
 	handler, err := newFastPathHandler(router, middlewares, config.TestConfig())
 	require.NoError(t, err)
@@ -407,18 +395,20 @@ func TestFastPathResolvesDuplicateRoutesLikeGorilla(t *testing.T) {
 	teapot := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusTeapot) })
 	featureRoutes := []endpointer.HandlerRoutesFunc{
 		// A bounded context claiming a path the core handler already registered.
-		func(r *mux.Router, _ []kithttp.ServerOption) {
-			r.Handle("/api/{fleetversion:(?:v1|2022-04|latest)}/fleet/config", teapot).
-				Methods("GET").Name("feature_duplicate_config")
+		func(r *endpointer.Router, _ []kithttp.ServerOption) {
+			r.Handle(endpointer.Route{
+				Name:     "feature_duplicate_config",
+				Methods:  []string{"GET"},
+				Path:     "/api/_version_/fleet/config",
+				Versions: []string{"v1", "2022-04", "latest"},
+			}, teapot)
 		},
 	}
 
 	_, router := newAPIHandler(t, config.TestConfig(), featureRoutes)
-	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		name := route.GetName()
-		route.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(name)) })
-		return nil
-	}))
+	router.WrapHandlers(func(rt endpointer.Route, _ http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(rt.Name)) })
+	})
 	handler, err := newFastPathHandler(router, nil, config.TestConfig())
 	require.NoError(t, err)
 
@@ -433,9 +423,11 @@ func TestFastPathResolvesDuplicateRoutesLikeGorilla(t *testing.T) {
 // TestFastPathErrorsWhenARouteIsAmbiguous pins the loud failure. A route the stdlib mux cannot disambiguate is a programming
 // error in a compile-time-fixed route table, so it has to stop startup.
 func TestFastPathErrorsWhenARouteIsAmbiguous(t *testing.T) {
-	router := mux.NewRouter()
-	router.Handle("/api/v1/fleet/hosts/{id:[0-9]+}/software", noopHandler).Methods("GET").Name("get_host_software")
-	router.Handle("/api/v1/fleet/hosts/identifier/{identifier}", noopHandler).Methods("GET").Name("get_host_by_identifier")
+	router := endpointer.NewRouter()
+	router.Handle(endpointer.Route{Name: "get_host_software", Methods: []string{"GET"}, Path: "/api/v1/fleet/hosts/{id:[0-9]+}/software"},
+		noopHandler)
+	router.Handle(endpointer.Route{Name: "get_host_by_identifier", Methods: []string{"GET"}, Path: "/api/v1/fleet/hosts/identifier/{identifier}"},
+		noopHandler)
 
 	h, err := newFastPathHandler(router, nil, config.TestConfig())
 	require.Nil(t, h)
@@ -482,10 +474,9 @@ func TestFastPathSpanNamesFeedTheTracingTierRegistry(t *testing.T) {
 	ds := new(mock.Store)
 	svc, _ := newTestService(t, ds, nil, nil)
 	_, router := newAPIHandler(t, cfg, productionFeatureRoutes(t, svc))
-	require.NoError(t, router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
-		route.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-		return nil
-	}))
+	router.WrapHandlers(func(endpointer.Route, http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	})
 	handler, err := newFastPathHandler(router, nil, cfg)
 	require.NoError(t, err)
 

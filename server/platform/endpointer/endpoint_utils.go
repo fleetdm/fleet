@@ -30,10 +30,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/gorilla/mux"
 )
 
-type HandlerRoutesFunc func(r *mux.Router, opts []kithttp.ServerOption)
+type HandlerRoutesFunc func(r *Router, opts []kithttp.ServerOption)
 
 // ParseTag parses a `url` tag and whether it's optional or not, which is an optional part of the tag
 func ParseTag(tag string) (string, bool, error) {
@@ -1022,7 +1021,7 @@ func LogDeprecatedPathAlias(ctx context.Context, _ *http.Request) context.Contex
 // RegisterDeprecatedPathAliases registers deprecated URL path aliases that point
 // to the same handler as the canonical path, and wraps them in a handler that
 // can log deprecation warnings.
-func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *HandlerRegistry, aliases []DeprecatedPathAlias) {
+func RegisterDeprecatedPathAliases(r *Router, versions []string, registry *HandlerRegistry, aliases []DeprecatedPathAlias) {
 	allVersions := append(append([]string{}, versions...), "latest")
 	for _, alias := range aliases {
 		handler := registry.handlers[handlerKey{alias.Method, alias.PrimaryPath}]
@@ -1036,7 +1035,7 @@ func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *H
 				ctx := context.WithValue(r.Context(), deprecatedPathInfoKey{}, info)
 				handler.ServeHTTP(w, r.WithContext(ctx))
 			})
-			handleRoute(r, Route{
+			r.Handle(Route{
 				Name:     getNameFromPathAndVerb(alias.Method, path, ""),
 				Methods:  []string{alias.Method},
 				Path:     path,
@@ -1051,7 +1050,7 @@ type CommonEndpointer[H any] struct {
 	MakeDecoderFn func(iface any, requestBodyLimit int64) kithttp.DecodeRequestFunc
 	EncodeFn      kithttp.EncodeResponseFunc
 	Opts          []kithttp.ServerOption
-	Router        *mux.Router
+	Router        *Router
 	Versions      []string
 
 	// AuthMiddleware is a pre-built authentication middleware.
@@ -1324,7 +1323,7 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 		Prefix:   e.usePathPrefix,
 	}
 	handler := pathHandler(route.Template())
-	handleRoute(e.Router, route, handler)
+	e.Router.Handle(route, handler)
 	if e.HandlerRegistry != nil {
 		e.HandlerRegistry.handlers[handlerKey{verb, path}] = handler
 	}
@@ -1332,7 +1331,7 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 		aliasRoute := route
 		aliasRoute.Name = getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
 		aliasRoute.Path = alias
-		handleRoute(e.Router, aliasRoute, pathHandler(aliasRoute.Template()))
+		e.Router.Handle(aliasRoute, pathHandler(aliasRoute.Template()))
 	}
 }
 

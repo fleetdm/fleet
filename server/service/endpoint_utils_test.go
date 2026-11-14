@@ -9,7 +9,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -302,7 +301,7 @@ type stringErrorer string
 func (s stringErrorer) Error() error { return nil }
 
 func TestEndpointer(t *testing.T) {
-	r := mux.NewRouter()
+	r := endpointer.NewRouter()
 	ds := new(mock.Store)
 	ds.SessionByKeyFunc = func(ctx context.Context, key string) (*fleet.Session, error) {
 		return &fleet.Session{
@@ -415,22 +414,19 @@ func TestEndpointer(t *testing.T) {
 	}
 
 	doesItMatch := func(method, path string, override bool) bool {
-		testURL := url.URL{Path: path}
-		request := http.Request{Method: method, URL: &testURL, Header: map[string][]string{"Authorization": {"Bearer asd"}}, Body: io.NopCloser(strings.NewReader(""))}
-		routeMatch := mux.RouteMatch{}
-
-		res := r.Match(&request, &routeMatch)
-		if routeMatch.Route != nil {
-			rec := httptest.NewRecorder()
-			routeMatch.Handler.ServeHTTP(rec, &request)
-			got := rec.Body.String()
-			if override {
-				require.Equal(t, "\"override\"\n", got)
-			} else {
-				require.Equal(t, "\"nop\"\n", got)
-			}
+		req := httptest.NewRequest(method, path, nil)
+		req.Header.Set("Authorization", "Bearer asd")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code == http.StatusNotFound || rec.Code == http.StatusMethodNotAllowed {
+			return false
 		}
-		return res && routeMatch.MatchErr == nil && routeMatch.Route != nil
+		want := "\"nop\"\n"
+		if override {
+			want = "\"override\"\n"
+		}
+		require.Equal(t, want, rec.Body.String())
+		return true
 	}
 
 	for _, route := range mustMatch {
@@ -443,7 +439,7 @@ func TestEndpointer(t *testing.T) {
 }
 
 func TestEndpointerCustomMiddleware(t *testing.T) {
-	r := mux.NewRouter()
+	r := endpointer.NewRouter()
 	ds := new(mock.Store)
 	svc, _ := newTestService(t, ds, nil, nil)
 
@@ -493,21 +489,11 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 			return nil, nil
 		}, nil)
 
-	req := httptest.NewRequest("GET", "/none/", nil)
-	var m1 mux.RouteMatch
-
-	require.True(t, r.Match(req, &m1))
-	rec := httptest.NewRecorder()
-	m1.Handler.ServeHTTP(rec, req)
+	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/none/", nil))
 	require.Equal(t, "H1", buf.String())
 
 	buf.Reset()
-	req = httptest.NewRequest("GET", "/mw/", nil)
-	var m2 mux.RouteMatch
-
-	require.True(t, r.Match(req, &m2))
-	rec = httptest.NewRecorder()
-	m2.Handler.ServeHTTP(rec, req)
+	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/mw/", nil))
 	require.Equal(t, "ABCH2", buf.String())
 }
 

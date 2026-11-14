@@ -14,7 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
-	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2/store/memstore"
@@ -52,7 +51,7 @@ func TestRemovedPaths(t *testing.T) {
 
 	// A router of its own, not MakeHandler's: that one instruments every route with global Prometheus counters, which TestAPIRoutesMetrics
 	// asserts exactly. TestAPIRoutesConflicts checks these routes against the real router.
-	router := mux.NewRouter()
+	router := endpointer.NewRouter()
 	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
 
 	// Fill in the path variables with a value that matches any of them.
@@ -96,7 +95,7 @@ func TestRemovedPaths(t *testing.T) {
 func TestRemovedPathsThroughHandler(t *testing.T) {
 	t.Parallel()
 
-	router := mux.NewRouter()
+	router := endpointer.NewRouter()
 	endpointer.RegisterRemovedPaths(router, []string{"v1", "2022-04"}, slog.New(slog.DiscardHandler), removedPaths())
 	handler, err := newFastPathHandler(router, nil, config.TestConfig())
 	require.NoError(t, err)
@@ -140,7 +139,7 @@ func TestRemovedPathsThroughHandler(t *testing.T) {
 func TestRemovedPathOverlaps(t *testing.T) {
 	t.Parallel()
 
-	router := mux.NewRouter()
+	router := endpointer.NewRouter()
 	endpointer.RegisterRemovedPaths(router, []string{"v1"}, slog.New(slog.DiscardHandler), removedPaths())
 
 	for _, c := range []struct {
