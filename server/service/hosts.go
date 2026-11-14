@@ -2989,6 +2989,10 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 	if !fleet.IsMobilePlatform(host.Platform) {
 		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID is only supported on iOS, iPadOS, and Android hosts.")
 	}
+	if host.UUID == "" {
+		// The ID is stored by host UUID, which every host that hasn't enrolled would share.
+		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID can't be set on a host that hasn't enrolled.")
+	}
 	if googleDeviceID == "" {
 		// Removing the ID lets another device register as this host, so it takes the explicit DELETE.
 		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID is required. To remove it, use the DELETE method.")

@@ -660,8 +660,9 @@ func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx 
 // Android MDM is turned off for all Fleet).
 func (ds *Datastore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
 	// The Google unmark is queued with the unenrollment because callers may not retry, and
-	// an unqueued name would stay MANAGED in Google.
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	// an unqueued name would stay MANAGED in Google. For the same reason a deadlock or a
+	// lock wait on the Google rows is retried here.
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// host_mdm is locked before the Google rows, as in the single-host unenroll, so the
 		// two can't deadlock.
 		// installed_from_dep is also cleared because Android has no DEP/ABM equivalent (no "Pending" state).

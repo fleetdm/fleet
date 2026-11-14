@@ -2041,11 +2041,26 @@ func (s *integrationEnterpriseTestSuite) newGoogleCATest() *googleCATest {
 		require.NoError(t, err)
 		appCfg.Integrations.GoogleConditionalAccess = nil
 		require.NoError(t, s.ds.SaveAppConfig(ctx, appCfg))
-		require.NoError(t, s.ds.DeleteGoogleConditionalAccessIntegration(ctx))
+		g.deleteRows(ctx)
 		require.NoError(t, s.ds.DeleteMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetGoogleConditionalAccessServiceAccountKey}))
 		g.client.reset()
 	})
 	return g
+}
+
+// deleteRows deletes the integration row and every device row.
+func (g *googleCATest) deleteRows(ctx context.Context) {
+	mysqltest.ExecAdhocSQL(g.t, g.s.ds, func(q sqlx.ExtContext) error {
+		for _, stmt := range []string{
+			`DELETE FROM google_conditional_access_devices`,
+			`DELETE FROM google_conditional_access_integrations`,
+		} {
+			if _, err := q.ExecContext(ctx, stmt); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (g *googleCATest) connect(customerID, adminEmail, key string, wantStatus int) googleConditionalAccessResponse {
@@ -2350,7 +2365,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 
 	// Start over without a row, as after the cleanup of a deleted integration.
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
-	require.NoError(t, s.ds.DeleteGoogleConditionalAccessIntegration(ctx))
+	g.deleteRows(ctx)
 	g.client.reset()
 
 	// A registration whose secret can't be saved is deregistered again. A secret longer
@@ -2399,7 +2414,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	g.client.reset()
 
 	// DELETE also cleans up a key left without a connection row.
-	require.NoError(t, s.ds.DeleteGoogleConditionalAccessIntegration(ctx))
+	g.deleteRows(ctx)
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
 	g.requireCalls(nil, nil, nil)
 	require.Nil(t, g.storedKey())
@@ -2754,7 +2769,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleAppConfig() 
 
 	// Start over without a row, as after the cleanup of a deleted integration.
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
-	require.NoError(t, s.ds.DeleteGoogleConditionalAccessIntegration(ctx))
+	g.deleteRows(ctx)
 	g.client.reset()
 
 	// After a key upload that fleetdm.com failed, an unrelated config update doesn't retry,
@@ -2798,7 +2813,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleAppConfig() 
 
 	// Turning off an integration whose connection never completed still removes the key.
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
-	require.NoError(t, s.ds.DeleteGoogleConditionalAccessIntegration(ctx))
+	g.deleteRows(ctx)
 	g.client.registerErr = errors.New("fleetdm.com unavailable")
 	g.connect("C02cajzvg", "admin@example.com", key, http.StatusBadGateway)
 	require.NotNil(t, g.storedKey())

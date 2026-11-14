@@ -2472,21 +2472,17 @@ type SaveGoogleConditionalAccessIntegrationFunc func(ctx context.Context, integr
 
 type DeleteGoogleConditionalAccessDevicesExceptFunc func(ctx context.Context, customerID string, limit int) (int, error)
 
-type DeleteGoogleConditionalAccessIntegrationFunc func(ctx context.Context) error
-
 type GetGoogleConditionalAccessDeviceFunc func(ctx context.Context, hostUUID string, customerID string) (*fleet.GoogleConditionalAccessDevice, error)
 
 type StartGoogleConditionalAccessRegistrationFunc func(ctx context.Context, hostUUID string, customerID string, tokenHash []byte, tokenExpiresAt time.Time) (bool, error)
 
 type ConsumeGoogleConditionalAccessRegistrationTokenFunc func(ctx context.Context, customerID string, tokenHash []byte) (string, error)
 
-type ResetGoogleConditionalAccessRegistrationAttemptsFunc func(ctx context.Context, hostUUID string, customerID string) error
-
 type RecordGoogleConditionalAccessRegistrationFunc func(ctx context.Context, hostUUID string, customerID string, names []string) error
 
 type UpdateGoogleConditionalAccessDeviceUserStateFunc func(ctx context.Context, name string, fromState fleet.GoogleConditionalAccessDeviceUserState, toState fleet.GoogleConditionalAccessDeviceUserState, errorMessage *string) (bool, error)
 
-type QueueGoogleConditionalAccessUnmarkFunc func(ctx context.Context, hostUUIDs []string) error
+type QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFunc func(ctx context.Context, customerID string, limit int) (int, error)
 
 type ListGoogleConditionalAccessDeviceUsersFunc func(ctx context.Context, filter fleet.GoogleConditionalAccessDeviceUserFilter) ([]fleet.GoogleConditionalAccessDeviceUser, error)
 
@@ -6377,9 +6373,6 @@ type DataStore struct {
 	DeleteGoogleConditionalAccessDevicesExceptFunc        DeleteGoogleConditionalAccessDevicesExceptFunc
 	DeleteGoogleConditionalAccessDevicesExceptFuncInvoked bool
 
-	DeleteGoogleConditionalAccessIntegrationFunc        DeleteGoogleConditionalAccessIntegrationFunc
-	DeleteGoogleConditionalAccessIntegrationFuncInvoked bool
-
 	GetGoogleConditionalAccessDeviceFunc        GetGoogleConditionalAccessDeviceFunc
 	GetGoogleConditionalAccessDeviceFuncInvoked bool
 
@@ -6389,17 +6382,14 @@ type DataStore struct {
 	ConsumeGoogleConditionalAccessRegistrationTokenFunc        ConsumeGoogleConditionalAccessRegistrationTokenFunc
 	ConsumeGoogleConditionalAccessRegistrationTokenFuncInvoked bool
 
-	ResetGoogleConditionalAccessRegistrationAttemptsFunc        ResetGoogleConditionalAccessRegistrationAttemptsFunc
-	ResetGoogleConditionalAccessRegistrationAttemptsFuncInvoked bool
-
 	RecordGoogleConditionalAccessRegistrationFunc        RecordGoogleConditionalAccessRegistrationFunc
 	RecordGoogleConditionalAccessRegistrationFuncInvoked bool
 
 	UpdateGoogleConditionalAccessDeviceUserStateFunc        UpdateGoogleConditionalAccessDeviceUserStateFunc
 	UpdateGoogleConditionalAccessDeviceUserStateFuncInvoked bool
 
-	QueueGoogleConditionalAccessUnmarkFunc        QueueGoogleConditionalAccessUnmarkFunc
-	QueueGoogleConditionalAccessUnmarkFuncInvoked bool
+	QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFunc        QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFunc
+	QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFuncInvoked bool
 
 	ListGoogleConditionalAccessDeviceUsersFunc        ListGoogleConditionalAccessDeviceUsersFunc
 	ListGoogleConditionalAccessDeviceUsersFuncInvoked bool
@@ -15296,13 +15286,6 @@ func (s *DataStore) DeleteGoogleConditionalAccessDevicesExcept(ctx context.Conte
 	return s.DeleteGoogleConditionalAccessDevicesExceptFunc(ctx, customerID, limit)
 }
 
-func (s *DataStore) DeleteGoogleConditionalAccessIntegration(ctx context.Context) error {
-	s.mu.Lock()
-	s.DeleteGoogleConditionalAccessIntegrationFuncInvoked = true
-	s.mu.Unlock()
-	return s.DeleteGoogleConditionalAccessIntegrationFunc(ctx)
-}
-
 func (s *DataStore) GetGoogleConditionalAccessDevice(ctx context.Context, hostUUID string, customerID string) (*fleet.GoogleConditionalAccessDevice, error) {
 	s.mu.Lock()
 	s.GetGoogleConditionalAccessDeviceFuncInvoked = true
@@ -15324,13 +15307,6 @@ func (s *DataStore) ConsumeGoogleConditionalAccessRegistrationToken(ctx context.
 	return s.ConsumeGoogleConditionalAccessRegistrationTokenFunc(ctx, customerID, tokenHash)
 }
 
-func (s *DataStore) ResetGoogleConditionalAccessRegistrationAttempts(ctx context.Context, hostUUID string, customerID string) error {
-	s.mu.Lock()
-	s.ResetGoogleConditionalAccessRegistrationAttemptsFuncInvoked = true
-	s.mu.Unlock()
-	return s.ResetGoogleConditionalAccessRegistrationAttemptsFunc(ctx, hostUUID, customerID)
-}
-
 func (s *DataStore) RecordGoogleConditionalAccessRegistration(ctx context.Context, hostUUID string, customerID string, names []string) error {
 	s.mu.Lock()
 	s.RecordGoogleConditionalAccessRegistrationFuncInvoked = true
@@ -15345,11 +15321,11 @@ func (s *DataStore) UpdateGoogleConditionalAccessDeviceUserState(ctx context.Con
 	return s.UpdateGoogleConditionalAccessDeviceUserStateFunc(ctx, name, fromState, toState, errorMessage)
 }
 
-func (s *DataStore) QueueGoogleConditionalAccessUnmark(ctx context.Context, hostUUIDs []string) error {
+func (s *DataStore) QueueGoogleConditionalAccessUnmarkOfUnenrolledHosts(ctx context.Context, customerID string, limit int) (int, error) {
 	s.mu.Lock()
-	s.QueueGoogleConditionalAccessUnmarkFuncInvoked = true
+	s.QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFuncInvoked = true
 	s.mu.Unlock()
-	return s.QueueGoogleConditionalAccessUnmarkFunc(ctx, hostUUIDs)
+	return s.QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFunc(ctx, customerID, limit)
 }
 
 func (s *DataStore) ListGoogleConditionalAccessDeviceUsers(ctx context.Context, filter fleet.GoogleConditionalAccessDeviceUserFilter) ([]fleet.GoogleConditionalAccessDeviceUser, error) {

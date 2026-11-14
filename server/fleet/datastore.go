@@ -1230,7 +1230,9 @@ type Datastore interface {
 	// device's DeviceUser names as pending, and reports whether the stored value changed. Setting the
 	// stored value again is a no-op, a different value returns a *HostGoogleDeviceIDConflictError, a
 	// value bound to another host returns a 409 error, and a name stored on another host returns a
-	// *GoogleConditionalAccessDeviceUserConflictError. Nothing is written on an error.
+	// *GoogleConditionalAccessDeviceUserConflictError. Nothing is written on an error. An empty
+	// customerID matches every customer, so a row keeps the one it has. Names need a customer:
+	// passing some without one is an error.
 	SetHostGoogleDeviceID(ctx context.Context, hostUUID, customerID, googleDeviceID string, names []string) (bool, error)
 	// GetHostGoogleDeviceID returns the host's device ID in Google, or "" if it is not set or it was
 	// set for a customer other than customerID. An empty customerID matches every customer.
@@ -4335,29 +4337,23 @@ type Datastore interface {
 	// conditional access integration.
 	SaveGoogleConditionalAccessIntegration(ctx context.Context, integration *ConditionalAccessGoogleIntegration) error
 	// DeleteGoogleConditionalAccessDevicesExcept deletes up to limit device rows, with
-	// their DeviceUser rows, that don't belong to the customer, and returns how many
-	// device rows it deleted. An empty customer ID deletes any row.
+	// their DeviceUser rows, that belong to a customer other than customerID, and returns
+	// how many device rows it deleted. Rows with no customer yet are kept, so an empty
+	// customer ID deletes every row that has one.
 	DeleteGoogleConditionalAccessDevicesExcept(ctx context.Context, customerID string, limit int) (int, error)
-	// DeleteGoogleConditionalAccessIntegration deletes the Google conditional access integration
-	// and every stored device and DeviceUser row.
-	DeleteGoogleConditionalAccessIntegration(ctx context.Context) error
 	// GetGoogleConditionalAccessDevice returns the host's registration row for the
 	// customer with its DeviceUsers, or a NotFoundError.
 	GetGoogleConditionalAccessDevice(ctx context.Context, hostUUID, customerID string) (*GoogleConditionalAccessDevice, error)
 	// StartGoogleConditionalAccessRegistration counts a registration attempt and stores
-	// the hash of the host's single-use token (none when tokenHash is nil) with its
-	// expiry. It creates the row, or takes over another customer's row and drops its
-	// names. It returns false and changes nothing when the host already made
-	// GoogleConditionalAccessMaxRegistrationAttempts within
-	// GoogleConditionalAccessRegistrationWindow.
+	// the hash of the host's single-use token with its expiry. It creates the row, or
+	// takes over another customer's row and drops its names. It returns false and changes
+	// nothing when the host already made GoogleConditionalAccessMaxRegistrationAttempts
+	// within GoogleConditionalAccessRegistrationWindow.
 	StartGoogleConditionalAccessRegistration(ctx context.Context, hostUUID, customerID string, tokenHash []byte, tokenExpiresAt time.Time) (bool, error)
 	// ConsumeGoogleConditionalAccessRegistrationToken clears the token and the attempt
 	// counter of the row holding it and returns the host UUID. It returns a
 	// NotFoundError for an unknown or expired token, or one of another customer.
 	ConsumeGoogleConditionalAccessRegistrationToken(ctx context.Context, customerID string, tokenHash []byte) (string, error)
-	// ResetGoogleConditionalAccessRegistrationAttempts clears the token and the attempt
-	// counter of the host's row for the customer, if there is one.
-	ResetGoogleConditionalAccessRegistrationAttempts(ctx context.Context, hostUUID, customerID string) error
 	// RecordGoogleConditionalAccessRegistration stores the names on the host as pending,
 	// clearing a queued unmark of any of them, and resets the token and the attempt
 	// counter. The host's other names are queued for unmark, or deleted when stale. The
@@ -4369,10 +4365,13 @@ type Datastore interface {
 	// UpdateGoogleConditionalAccessDeviceUserState sets a name's state and error message
 	// if it is still in fromState, and reports whether it did.
 	UpdateGoogleConditionalAccessDeviceUserState(ctx context.Context, name string, fromState, toState GoogleConditionalAccessDeviceUserState, errorMessage *string) (bool, error)
-	// QueueGoogleConditionalAccessUnmark queues the hosts' names for the UNMANAGED
-	// write and clears their Google device IDs. Stale names are deleted, and so is a row
-	// left with no names.
-	QueueGoogleConditionalAccessUnmark(ctx context.Context, hostUUIDs []string) error
+	// QueueGoogleConditionalAccessUnmarkOfUnenrolledHosts queues, for up to limit of the
+	// customer's hosts that have a name marked or waiting to be and are deleted or no
+	// longer MDM-enrolled, the names for the UNMANAGED write, and clears their Google
+	// device IDs. It returns how many hosts it queued. Deleting and unenrolling a host
+	// queue the same in their own transaction; this catches a registration that commits
+	// after it.
+	QueueGoogleConditionalAccessUnmarkOfUnenrolledHosts(ctx context.Context, customerID string, limit int) (int, error)
 	// ListGoogleConditionalAccessDeviceUsers lists names in name order.
 	ListGoogleConditionalAccessDeviceUsers(ctx context.Context, filter GoogleConditionalAccessDeviceUserFilter) ([]GoogleConditionalAccessDeviceUser, error)
 	// DeleteGoogleConditionalAccessDeviceUser deletes the name if it is still in state.

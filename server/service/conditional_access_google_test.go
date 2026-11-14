@@ -346,7 +346,6 @@ func newGoogleCAAppConfigTest(t *testing.T) *googleCAAppConfigTest {
 		}
 		return nil
 	}
-	ds.DeleteGoogleConditionalAccessIntegrationFunc = func(ctx context.Context) error { return nil }
 	ds.DeleteMDMConfigAssetsByNameFunc = func(ctx context.Context, names []fleet.MDMAssetName) error {
 		g.storedKey = nil
 		return nil
@@ -391,7 +390,6 @@ func TestModifyAppConfigGoogleConditionalAccessGitOps(t *testing.T) {
 		require.Equal(t, []string{"C02cajzvg https://old.example.com"}, g.relay.deregisters)
 		require.Empty(t, g.unmanaged)
 		require.Nil(t, g.storedKey)
-		require.False(t, g.ds.DeleteGoogleConditionalAccessIntegrationFuncInvoked)
 		require.Equal(t, []fleet.ConditionalAccessGoogleIntegration{{State: fleet.ConditionalAccessGoogleStateDeleted}}, g.rows)
 		require.Nil(t, g.config.Integrations.GoogleConditionalAccess)
 	})
@@ -402,7 +400,6 @@ func TestModifyAppConfigGoogleConditionalAccessGitOps(t *testing.T) {
 		_, err := g.svc.ModifyAppConfig(g.ctx, []byte(`{"org_info": {"org_name": "Test2"}}`), gitops)
 		require.NoError(t, err)
 		require.Empty(t, g.relay.deregisters)
-		require.False(t, g.ds.DeleteGoogleConditionalAccessIntegrationFuncInvoked)
 		require.NotNil(t, g.config.Integrations.GoogleConditionalAccess)
 	})
 
