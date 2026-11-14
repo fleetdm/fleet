@@ -176,6 +176,9 @@ func (m *Manager) dockerComposeDownFor(id string) error {
 	if a, ok := m.lastArgs[id]; ok {
 		project = composeProjectFromArgs(a.Args)
 	}
+	// The run being stopped; compose down takes a while, and id can be started
+	// again meanwhile.
+	lc := m.lifecycles[id]
 	m.stateMu.Unlock()
 	if cwd == "" {
 		return nil
@@ -200,6 +203,15 @@ func (m *Manager) dockerComposeDownFor(id string) error {
 		final = "done"
 	}
 	m.stateMu.Lock()
+	// A newer run owns id now: leave its state and pid alone. (No entry is
+	// fine: the run being stopped may simply have exited on its own.)
+	if cur := m.lifecycles[id]; cur != nil && cur != lc {
+		m.stateMu.Unlock()
+		if lc != nil {
+			m.finishLifecycle(id, lc)
+		}
+		return nil
+	}
 	if info := m.procs[id]; info != nil {
 		for _, line := range append(splitLines(stdout.String()), splitLines(stderr.String())...) {
 			info.RecentLog = append(info.RecentLog, line)
@@ -213,8 +225,6 @@ func (m *Manager) dockerComposeDownFor(id string) error {
 		info.EndedAtMS = &ended
 		info.WasUserStopped = true
 	}
-	// Taken before the pid goes: after that, id can be started again.
-	lc := m.lifecycles[id]
 	delete(m.pids, id)
 	m.stateMu.Unlock()
 	m.emitState(id, final, exitCode, nil)
