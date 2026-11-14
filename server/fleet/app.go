@@ -1413,6 +1413,10 @@ func (c *AppConfig) Copy() *AppConfig {
 			}
 		}
 	}
+	if c.Integrations.GoogleConditionalAccess != nil {
+		gca := *c.Integrations.GoogleConditionalAccess
+		clone.Integrations.GoogleConditionalAccess = &gca
+	}
 	if c.Integrations.CertificatesIdPIntrospectionURLs.Value != nil {
 		clone.Integrations.CertificatesIdPIntrospectionURLs.Value = slices.Clone(c.Integrations.CertificatesIdPIntrospectionURLs.Value)
 	}

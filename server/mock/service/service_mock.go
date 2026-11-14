@@ -995,6 +995,14 @@ type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurat
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
+type ConnectGoogleConditionalAccessFunc func(ctx context.Context, customerID string, adminEmail string, serviceAccountKey json.RawMessage) error
+
+type GetGoogleConditionalAccessFunc func(ctx context.Context) (*fleet.GoogleConditionalAccessIntegration, *fleet.ConditionalAccessGoogleStatus, error)
+
+type UpdateGoogleConditionalAccessFunc func(ctx context.Context, customerID *string, adminEmail *string, serviceAccountKey json.RawMessage) error
+
+type DeleteGoogleConditionalAccessFunc func(ctx context.Context) error
+
 type ConditionalAccessGetIdPSigningCertFunc func(ctx context.Context) (certPEM []byte, err error)
 
 type ConditionalAccessGetIdPAppleProfileFunc func(ctx context.Context) (profileData []byte, err error)
@@ -2520,6 +2528,18 @@ type Service struct {
 
 	ConditionalAccessMicrosoftDeleteFunc        ConditionalAccessMicrosoftDeleteFunc
 	ConditionalAccessMicrosoftDeleteFuncInvoked bool
+
+	ConnectGoogleConditionalAccessFunc        ConnectGoogleConditionalAccessFunc
+	ConnectGoogleConditionalAccessFuncInvoked bool
+
+	GetGoogleConditionalAccessFunc        GetGoogleConditionalAccessFunc
+	GetGoogleConditionalAccessFuncInvoked bool
+
+	UpdateGoogleConditionalAccessFunc        UpdateGoogleConditionalAccessFunc
+	UpdateGoogleConditionalAccessFuncInvoked bool
+
+	DeleteGoogleConditionalAccessFunc        DeleteGoogleConditionalAccessFunc
+	DeleteGoogleConditionalAccessFuncInvoked bool
 
 	ConditionalAccessGetIdPSigningCertFunc        ConditionalAccessGetIdPSigningCertFunc
 	ConditionalAccessGetIdPSigningCertFuncInvoked bool
@@ -6027,6 +6047,34 @@ func (s *Service) ConditionalAccessMicrosoftDelete(ctx context.Context) error {
 	s.ConditionalAccessMicrosoftDeleteFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConditionalAccessMicrosoftDeleteFunc(ctx)
+}
+
+func (s *Service) ConnectGoogleConditionalAccess(ctx context.Context, customerID string, adminEmail string, serviceAccountKey json.RawMessage) error {
+	s.mu.Lock()
+	s.ConnectGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConnectGoogleConditionalAccessFunc(ctx, customerID, adminEmail, serviceAccountKey)
+}
+
+func (s *Service) GetGoogleConditionalAccess(ctx context.Context) (*fleet.GoogleConditionalAccessIntegration, *fleet.ConditionalAccessGoogleStatus, error) {
+	s.mu.Lock()
+	s.GetGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetGoogleConditionalAccessFunc(ctx)
+}
+
+func (s *Service) UpdateGoogleConditionalAccess(ctx context.Context, customerID *string, adminEmail *string, serviceAccountKey json.RawMessage) error {
+	s.mu.Lock()
+	s.UpdateGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateGoogleConditionalAccessFunc(ctx, customerID, adminEmail, serviceAccountKey)
+}
+
+func (s *Service) DeleteGoogleConditionalAccess(ctx context.Context) error {
+	s.mu.Lock()
+	s.DeleteGoogleConditionalAccessFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteGoogleConditionalAccessFunc(ctx)
 }
 
 func (s *Service) ConditionalAccessGetIdPSigningCert(ctx context.Context) (certPEM []byte, err error) {

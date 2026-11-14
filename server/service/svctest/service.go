@@ -188,6 +188,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		require.True(t, lic.IsPremium(), "ConditionalAccessMicrosoftProxy requires a premium license via opts.License")
 	}
 
+	var googleConditionalAccess *service.GoogleConditionalAccessClient
+	if len(opts) > 0 {
+		googleConditionalAccess = opts[0].ConditionalAccessGoogleClient
+	}
 	if len(opts) > 0 && opts[0].AndroidModule != nil {
 		androidService = opts[0].AndroidModule
 	}
@@ -236,6 +240,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		scepConfigService,
 		digiCertService,
 		conditionalAccessMicrosoftProxy,
+		googleConditionalAccess,
 		keyValueStore,
 		installAttemptCounter,
 		androidService,

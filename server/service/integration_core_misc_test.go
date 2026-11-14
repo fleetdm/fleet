@@ -642,4 +642,15 @@ func (s *integrationTestSuite) TestConditionalAccessRequiresPremium() {
 	var d conditionalAccessMicrosoftDeleteResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional-access/microsoft", nil,
 		http.StatusPaymentRequired, &d)
+
+	var g googleConditionalAccessResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
+		CustomerID:        "C02cajzvg",
+		AdminEmail:        "admin@example.com",
+		ServiceAccountKey: json.RawMessage(`{"client_email":"sa@example.com","private_key":"k"}`),
+	}, http.StatusPaymentRequired, &g)
+	s.DoJSON("PATCH", "/api/latest/fleet/conditional_access/google", json.RawMessage(`{"admin_email": "admin@example.com"}`),
+		http.StatusPaymentRequired, &g)
+	var gd deleteGoogleConditionalAccessResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusPaymentRequired, &gd)
 }
