@@ -303,6 +303,7 @@ var activityTemplatesByCategory = map[string][]fleet.ActivityDetails{
 		fleet.ActivityTypeDeletedConditionalAccessIntegrationMicrosoft{},
 		fleet.ActivityTypeAddedConditionalAccessIntegrationGoogle{},
 		fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{},
+		fleet.ActivityTypeEditedConditionalAccessIntegrationGoogle{},
 		fleet.ActivityTypeAddedConditionalAccessOkta{},
 		fleet.ActivityTypeDeletedConditionalAccessOkta{},
 		fleet.ActivityTypeEnabledConditionalAccessAutomations{},

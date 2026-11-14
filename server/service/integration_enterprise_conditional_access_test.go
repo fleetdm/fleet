@@ -2100,6 +2100,10 @@ func (g *googleCATest) deletedCount() int {
 	return g.s.countActivitiesOfType(fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}.ActivityName())
 }
 
+func (g *googleCATest) editedCount() int {
+	return g.s.countActivitiesOfType(fleet.ActivityTypeEditedConditionalAccessIntegrationGoogle{}.ActivityName())
+}
+
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	t := s.T()
 	ctx := t.Context()
@@ -2142,7 +2146,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	g.requireCalls(nil, nil, nil)
 
 	// A failed delegation check (e.g. a wrong customer ID) stores nothing.
-	addedBefore, deletedBefore := g.addedCount(), g.deletedCount()
+	addedBefore, deletedBefore, editedBefore := g.addedCount(), g.deletedCount(), g.editedCount()
 	g.client.checkErr = errors.New("Not Authorized to access this resource/api")
 	res = s.Do("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
 		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", ServiceAccountKey: json.RawMessage(key),
@@ -2171,6 +2175,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	}, row)
 	require.Equal(t, addedBefore+1, g.addedCount())
 	require.Equal(t, deletedBefore, g.deletedCount())
+	require.Equal(t, editedBefore, g.editedCount())
 	require.Equal(t, &fleet.GoogleConditionalAccessIntegration{CustomerID: "C02cajzvg", AdminEmail: "admin@example.com"},
 		g.getConfig().Integrations.GoogleConditionalAccess)
 	for _, path := range []string{"/api/latest/fleet/config", "/api/latest/fleet/conditional_access/google"} {
@@ -2185,14 +2190,17 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
 	g.requireCalls(nil, nil, nil)
 	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, editedBefore, g.editedCount())
 
-	// A new key re-runs the check with that key but doesn't re-register.
+	// A new key re-runs the check with that key but doesn't re-register. Each change to a
+	// connected integration logs the edited activity.
 	g.connect("C02cajzvg", "admin@example.com", otherKey, http.StatusOK)
 	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)
 	checkKeys := g.client.delegationCheckKeys()
 	require.Len(t, checkKeys, 1)
 	require.JSONEq(t, otherKey, string(checkKeys[0]))
 	require.JSONEq(t, otherKey, string(g.storedKey()))
+	require.Equal(t, editedBefore+1, g.editedCount())
 	g.client.reset()
 
 	// Changing the admin email re-runs the check without re-registering.
@@ -2202,6 +2210,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "secret-C02cajzvg", row.ProxyServerSecret)
+	require.Equal(t, editedBefore+2, g.editedCount())
 	g.client.reset()
 
 	// Changing the customer ID drops the previous customer's registration and re-registers.
@@ -2222,9 +2231,11 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.JSONEq(t, otherKey, string(g.storedKey()))
 	require.Equal(t, "C02cajzvg", g.getConfig().Integrations.GoogleConditionalAccess.CustomerID)
 	require.Equal(t, 1, countGoogleDeviceRows(t, s.ds, "C02cajzvg"))
+	require.Equal(t, editedBefore+2, g.editedCount())
 	g.client.reset()
 
-	addedBefore, deletedBefore = g.addedCount(), g.deletedCount()
+	// The customer change logs one edited activity, not a deletion and an addition.
+	addedBefore, deletedBefore, editedBefore = g.addedCount(), g.deletedCount(), g.editedCount()
 	g.connect("C03other", "admin2@example.com", key, http.StatusOK)
 	g.requireCalls([]string{"admin2@example.com/C03other"}, []string{"C03other"}, []string{"C02cajzvg"})
 	require.Equal(t, []string{"secret-C02cajzvg"}, g.client.deregisterSecrets())
@@ -2242,8 +2253,9 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
-	require.Equal(t, addedBefore+1, g.addedCount())
-	require.Equal(t, deletedBefore+1, g.deletedCount())
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, deletedBefore, g.deletedCount())
+	require.Equal(t, editedBefore+1, g.editedCount())
 	g.client.reset()
 
 	// DELETE drops the fleetdm.com registration first, so a failure is a 502 and changes
@@ -2266,7 +2278,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	// Then it removes the key and the setting and marks the row deleted without the
 	// secret. Nothing is unmarked in Google, and the device rows are kept for a re-add
 	// for the same customer.
-	addedBefore, deletedBefore = g.addedCount(), g.deletedCount()
+	addedBefore, deletedBefore, editedBefore = g.addedCount(), g.deletedCount(), g.editedCount()
 	s.DoJSON("DELETE", "/api/latest/fleet/conditional_access/google", nil, http.StatusOK, &deleteGoogleConditionalAccessResponse{})
 	g.requireCalls(nil, nil, []string{"C03other"})
 	require.Equal(t, []string{"secret-C03other"}, g.client.deregisterSecrets())
@@ -2297,6 +2309,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Equal(t, 2, countGoogleDeviceRows(t, s.ds, "C03other"))
 	require.JSONEq(t, otherKey, string(g.storedKey()))
 	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, editedBefore, g.editedCount())
 	g.client.reset()
 
 	// A registration fleetdm.com no longer has doesn't block DELETE.
@@ -2362,14 +2375,16 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Contains(t, *st.ErrorMessage, "fleetdm.com unavailable")
 	g.client.reset()
 
-	// Sending the same values again retries the check and the registration.
-	addedBefore = g.addedCount()
+	// Sending the same values again retries the check and the registration, which logs
+	// the addition.
+	addedBefore, editedBefore = g.addedCount(), g.editedCount()
 	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
 	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
 	st = g.status()
 	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, st.State)
 	require.Nil(t, st.ErrorMessage)
 	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, editedBefore, g.editedCount())
 	g.client.reset()
 
 	// DELETE also cleans up a key left without a connection row.
@@ -2394,7 +2409,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleUpdate() {
 
 	g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
 	g.client.reset()
-	addedBefore, deletedBefore := g.addedCount(), g.deletedCount()
+	addedBefore, deletedBefore, editedBefore := g.addedCount(), g.deletedCount(), g.editedCount()
 
 	maintainer := &fleet.User{Name: "GCA editor", Email: "gca-editor@example.com", GlobalRole: new(fleet.RoleMaintainer)}
 	require.NoError(t, maintainer.SetPassword(test.GoodPassword, 10, 10))
@@ -2412,6 +2427,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleUpdate() {
 	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, resp.State)
 	g.update(`{"customer_id": "C02cajzvg", "admin_email": "admin@example.com"}`, http.StatusOK)
 	g.requireCalls(nil, nil, nil)
+	require.Equal(t, editedBefore, g.editedCount())
 
 	// A given field is validated, and an empty value doesn't keep the stored one.
 	for field, body := range map[string]string{
@@ -2464,12 +2480,13 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleUpdate() {
 	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, g.status().State)
 	g.client.reset()
 
-	// Edits that keep the customer log nothing.
+	// Each successful edit logs the edited activity, and nothing else.
 	require.Equal(t, addedBefore, g.addedCount())
 	require.Equal(t, deletedBefore, g.deletedCount())
+	require.Equal(t, editedBefore+2, g.editedCount())
 
 	// A new customer ID is checked with the stored key, drops the previous customer's
-	// registration and registers the new one.
+	// registration and registers the new one, logging one edited activity.
 	resp = g.update(`{"customer_id": "C03other"}`, http.StatusOK)
 	require.Equal(t, "C03other", resp.CustomerID)
 	require.Equal(t, "admin2@example.com", resp.AdminEmail)
@@ -2479,19 +2496,30 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleUpdate() {
 	row, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "secret-C03other", row.ProxyServerSecret)
-	require.Equal(t, addedBefore+1, g.addedCount())
-	require.Equal(t, deletedBefore+1, g.deletedCount())
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, deletedBefore, g.deletedCount())
+	require.Equal(t, editedBefore+3, g.editedCount())
 	g.client.reset()
 
-	// An update with no changes retries a registration that failed.
+	// A customer change whose registration fails has already dropped the previous
+	// customer's, so it logs the deletion.
+	addedBefore, deletedBefore, editedBefore = g.addedCount(), g.deletedCount(), g.editedCount()
 	g.client.registerErr = &conditional_access_google.RelayStatusError{Code: http.StatusServiceUnavailable}
 	g.update(`{"customer_id": "C02cajzvg"}`, http.StatusBadGateway)
 	require.Equal(t, fleet.ConditionalAccessGoogleStateRegistrationFailed, g.status().State)
+	require.Equal(t, addedBefore, g.addedCount())
+	require.Equal(t, deletedBefore+1, g.deletedCount())
+	require.Equal(t, editedBefore, g.editedCount())
 	g.client.reset()
+
+	// An update with no changes retries the registration, which logs the addition.
 	resp = g.update(`{}`, http.StatusOK)
 	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, resp.State)
 	require.Nil(t, resp.ErrorMessage)
 	g.requireCalls([]string{"admin2@example.com/C02cajzvg"}, []string{"C02cajzvg"}, nil)
+	require.Equal(t, addedBefore+1, g.addedCount())
+	require.Equal(t, deletedBefore+1, g.deletedCount())
+	require.Equal(t, editedBefore, g.editedCount())
 	g.client.reset()
 
 	// A removed integration can't be edited.

@@ -113,15 +113,18 @@ func (svc *Service) applyGoogleConditionalAccessSettings(
 	// A registration is always for the customer the config names.
 	current := appConfig.Integrations.GoogleConditionalAccess
 	keyChanged := !bytes.Equal(storedKey, key)
-	if !keyChanged && googleConditionalAccessConnected(existing, current, settings) {
+	changed := keyChanged || current == nil || *current != settings
+	if !changed && existing != nil && existing.State == fleet.ConditionalAccessGoogleStateConnected {
 		return nil
 	}
 
 	if err := svc.verifyGoogleConditionalAccess(ctx, settings, key, "service_account_key"); err != nil {
 		return err
 	}
+	wasRegistered := existing.Registered()
 	registeredCustomerID := googleConditionalAccessCustomerID(current)
-	if existing.Registered() && registeredCustomerID != settings.CustomerID {
+	leftCustomer := wasRegistered && registeredCustomerID != settings.CustomerID
+	if leftCustomer {
 		if err := svc.leaveGoogleConditionalAccessCustomer(ctx, appConfig.ServerSettings.ServerURL, registeredCustomerID,
 			googleConditionalAccessSecret(existing)); err != nil {
 			return err
@@ -141,7 +144,32 @@ func (svc *Service) applyGoogleConditionalAccessSettings(
 	if err := svc.saveGoogleConditionalAccessSettings(ctx, appConfig, settings); err != nil {
 		return err
 	}
-	return svc.registerGoogleConditionalAccess(ctx, appConfig.ServerSettings.ServerURL, settings, existing, registeredCustomerID)
+	if err := svc.registerGoogleConditionalAccess(ctx, appConfig.ServerSettings.ServerURL, settings, existing, registeredCustomerID); err != nil {
+		if leftCustomer {
+			// The previous registration is gone and nothing replaced it; the retry logs the
+			// addition.
+			deleted := fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}
+			if actErr := svc.NewActivity(ctx, authz.UserFromContext(ctx), deleted); actErr != nil {
+				svc.logger.ErrorContext(ctx, "create activity for deletion of google conditional access integration", "err", actErr)
+			}
+		}
+		return err
+	}
+	// The first successful registration logs the addition, and a change to a registered
+	// integration logs one edit, even when it replaced the registration.
+	var activity fleet.ActivityDetails
+	switch {
+	case !wasRegistered:
+		activity = fleet.ActivityTypeAddedConditionalAccessIntegrationGoogle{}
+	case changed:
+		activity = fleet.ActivityTypeEditedConditionalAccessIntegrationGoogle{}
+	default:
+		return nil
+	}
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), activity); err != nil {
+		return ctxerr.Wrapf(ctx, err, "create activity %s", activity.ActivityName())
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -364,16 +392,6 @@ func NewGoogleConditionalAccessClient(relayURI string, logger *slog.Logger) *Goo
 	}
 }
 
-// googleConditionalAccessConnected reports whether the integration is connected with
-// settings, given the settings currently in the config.
-func googleConditionalAccessConnected(
-	existing *fleet.ConditionalAccessGoogleIntegration, current *fleet.GoogleConditionalAccessIntegration,
-	settings fleet.GoogleConditionalAccessIntegration,
-) bool {
-	return existing != nil && existing.State == fleet.ConditionalAccessGoogleStateConnected &&
-		current != nil && *current == settings
-}
-
 func googleConditionalAccessSecret(existing *fleet.ConditionalAccessGoogleIntegration) string {
 	if existing == nil {
 		return ""
@@ -460,13 +478,6 @@ func (svc *Service) registerGoogleConditionalAccess(
 		}
 		return ctxerr.Wrap(ctx, err, "save google conditional access integration")
 	}
-	return svc.newGoogleConditionalAccessAddedActivity(ctx)
-}
-
-func (svc *Service) newGoogleConditionalAccessAddedActivity(ctx context.Context) error {
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeAddedConditionalAccessIntegrationGoogle{}); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for google conditional access integration")
-	}
 	return nil
 }
 
@@ -482,13 +493,7 @@ func (svc *Service) leaveGoogleConditionalAccessCustomer(ctx context.Context, se
 		return err
 	}
 	// The secret is no longer valid on fleetdm.com, so the row must not keep it.
-	if err := svc.saveGoogleConditionalAccessRow(ctx, nil, fleet.ConditionalAccessGoogleStatePending, nil); err != nil {
-		return err
-	}
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedConditionalAccessIntegrationGoogle{}); err != nil {
-		return ctxerr.Wrap(ctx, err, "create activity for deletion of google conditional access integration")
-	}
-	return nil
+	return svc.saveGoogleConditionalAccessRow(ctx, nil, fleet.ConditionalAccessGoogleStatePending, nil)
 }
 
 func (svc *Service) deleteGoogleConditionalAccessRegistration(ctx context.Context, serverURL, customerID, secret string) error {

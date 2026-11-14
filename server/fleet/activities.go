@@ -2165,6 +2165,12 @@ func (a ActivityTypeDeletedConditionalAccessIntegrationGoogle) ActivityName() st
 	return "deleted_conditional_access_integration_google"
 }
 
+type ActivityTypeEditedConditionalAccessIntegrationGoogle struct{}
+
+func (a ActivityTypeEditedConditionalAccessIntegrationGoogle) ActivityName() string {
+	return "edited_conditional_access_integration_google"
+}
+
 type ActivityTypeAddedConditionalAccessOkta struct{}
 
 func (a ActivityTypeAddedConditionalAccessOkta) ActivityName() string {
