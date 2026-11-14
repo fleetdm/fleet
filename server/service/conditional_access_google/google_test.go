@@ -230,7 +230,8 @@ func TestCheckDelegationNotFoundIsNotAMissingResource(t *testing.T) {
 	require.EqualError(t, err, "Requested entity was not found.")
 	require.False(t, fleet.IsNotFound(err))
 	require.False(t, IsStale(err))
-	require.False(t, IsAuthError(err))
+	// The check names no device, so any refusal is about the delegation.
+	require.True(t, IsAuthError(err))
 }
 
 func TestGoogleErrorMessages(t *testing.T) {
@@ -484,6 +485,10 @@ func TestAuthError(t *testing.T) {
 	fake.apiStatus = http.StatusUnauthorized
 	fake.apiBody = `{"error":{"code":401,"message":"bad token"}}`
 	require.True(t, IsAuthError(client.CheckDelegation(t.Context())))
+	// A refused token on a device call isn't about the device.
+	err = client.SetClientState(t.Context(), "devices/d/deviceUsers/u", fleet.GoogleConditionalAccessClientState{Managed: new(true)})
+	require.True(t, IsAuthError(err))
+	require.False(t, IsStale(err))
 
 	// A token endpoint outage or rate limit isn't a delegation problem.
 	client, fake = newTestCloudIdentity(t)
@@ -517,12 +522,86 @@ func TestListDeviceUserNames(t *testing.T) {
 	require.Equal(t, http.MethodGet, req.Method)
 	require.Equal(t, "/v1/devices/dev1/deviceUsers", req.URL.Path)
 	require.Equal(t, "customers/02cajzvg", req.URL.Query().Get("customer"))
+	require.Equal(t, "20", req.URL.Query().Get("pageSize"))
 	require.Equal(t, "p2", fake.requests[1].URL.Query().Get("pageToken"))
 
 	fake.apiStatus = http.StatusNotFound
 	fake.apiBody = `{"error":{"code":404,"message":"Requested entity was not found."}}`
 	_, err = client.ListDeviceUserNames(t.Context(), "gone")
 	require.True(t, fleet.IsNotFound(err))
+	require.True(t, IsStale(err))
+
+	// A device that left the Workspace.
+	fake.apiStatus = http.StatusForbidden
+	fake.apiBody = `{"error":{"code":403,"message":"nope"}}`
+	_, err = client.ListDeviceUserNames(t.Context(), "left")
+	require.False(t, fleet.IsNotFound(err))
+	require.True(t, IsStale(err))
+	require.False(t, IsAuthError(err))
+
+	// A page that fails leaves no partial listing.
+	fake.pages = []string{`{"deviceUsers":[{"name":"devices/dev1/deviceUsers/a"}],"nextPageToken":"p2"}`}
+	fake.apiStatus = http.StatusBadGateway
+	fake.apiBody = "<html>Bad Gateway</html>"
+	names, err = client.ListDeviceUserNames(t.Context(), "dev1")
+	require.True(t, IsUnavailable(err))
+	require.Empty(t, names)
+}
+
+func TestListDeviceUserNamesKeepsOnlyTheDeviceNames(t *testing.T) {
+	client, fake := newTestCloudIdentity(t)
+	fake.apiBody = `{"deviceUsers":[{"name":"devices/DEV1/deviceUsers/a"},{"name":"devices/dev2/deviceUsers/b"},{"name":"devices/dev1x/deviceUsers/c"}]}`
+
+	names, err := client.ListDeviceUserNames(t.Context(), "dev1")
+	require.NoError(t, err)
+	require.Equal(t, []string{"devices/DEV1/deviceUsers/a"}, names)
+}
+
+func TestDeviceIDThatCannotNameADevice(t *testing.T) {
+	client, fake := newTestCloudIdentity(t)
+
+	// "-" stands for every device, and the others would change the request path.
+	for _, id := range []string{"", "-", "dev1/deviceUsers/u", "dev1?x", "dev1#x"} {
+		_, err := client.ListDeviceUserNames(t.Context(), id)
+		require.True(t, fleet.IsNotFound(err), id)
+		require.True(t, IsStale(err), id)
+		require.False(t, IsAuthError(err), id)
+
+		exists, err := client.DeviceExists(t.Context(), id)
+		require.NoError(t, err, id)
+		require.False(t, exists, id)
+	}
+	require.Empty(t, fake.requests)
+}
+
+func TestListingStopsAfterTooManyPages(t *testing.T) {
+	endless := func(page string, n int) []string {
+		pages := make([]string, n)
+		for i := range pages {
+			pages[i] = page
+		}
+		return pages
+	}
+
+	client, fake := newTestCloudIdentity(t)
+	fake.pages = endless(`{"deviceUsers":[{"name":"devices/dev1/deviceUsers/a"}],"nextPageToken":"more"}`, maxDeviceUserPages+1)
+	names, err := client.ListDeviceUserNames(t.Context(), "dev1")
+	require.ErrorIs(t, err, errTooManyPages)
+	require.Empty(t, names)
+	require.Len(t, fake.requests, maxDeviceUserPages)
+	// Google answered, so this is no outage, nor about the device or the delegation.
+	require.False(t, IsUnavailable(err))
+	require.False(t, IsStale(err))
+	require.False(t, IsAuthError(err))
+
+	client, fake = newTestCloudIdentity(t)
+	fake.pages = endless(`{"devices":[{"name":"devices/dev1","deviceId":"other"}],"nextPageToken":"more"}`, maxDevicePages+1)
+	ids, err := client.FindDeviceIDs(t.Context(), "358304e85c824471")
+	require.ErrorIs(t, err, errTooManyPages)
+	require.Empty(t, ids)
+	require.Len(t, fake.requests, maxDevicePages)
+	require.False(t, IsUnavailable(err))
+	require.False(t, IsAuthError(err))
 }
 
 func TestDeviceExists(t *testing.T) {
@@ -574,11 +653,19 @@ func TestFindDeviceIDs(t *testing.T) {
 	require.Equal(t, "/v1/devices", req.URL.Path)
 	require.Equal(t, "customers/02cajzvg", req.URL.Query().Get("customer"))
 	require.Equal(t, "id:358304e85c824471", req.URL.Query().Get("filter"))
+	require.Equal(t, "100", req.URL.Query().Get("pageSize"))
 	require.Equal(t, "p2", fake.requests[1].URL.Query().Get("pageToken"))
 
 	ids, err = client.FindDeviceIDs(t.Context(), "none")
 	require.NoError(t, err)
 	require.Empty(t, ids)
+
+	// An empty ID isn't searched: it would match the records that have no deviceId.
+	fake.apiBody = `{"devices":[{"name":"devices/other"}]}`
+	ids, err = client.FindDeviceIDs(t.Context(), "")
+	require.NoError(t, err)
+	require.Empty(t, ids)
+	require.Len(t, fake.requests, 3)
 
 	fake.apiStatus = http.StatusForbidden
 	fake.apiBody = `{"error":{"code":403,"message":"The caller does not have permission"}}`

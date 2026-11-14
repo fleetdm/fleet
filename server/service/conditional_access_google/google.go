@@ -32,6 +32,18 @@ const ClientStateSuffix = "-fleet"
 
 const maxGoogleResponseBytes = 1 << 20
 
+const (
+	// The largest pages Google serves.
+	deviceUsersPageSize = 20
+	devicesPageSize     = 100
+	// A device has a few DeviceUsers and a device ID a record or two, so a listing
+	// that outgrows these isn't followed to its end.
+	maxDeviceUserPages = 50
+	maxDevicePages     = 10
+)
+
+var errTooManyPages = errors.New("listing has more pages than expected")
+
 func NewCloudIdentityFactory(logger *slog.Logger) CloudIdentityFactory {
 	return func(ctx context.Context, creds Credentials) (CloudIdentity, error) {
 		c, err := newCloudIdentity(ctx, creds, logger)
@@ -83,7 +95,7 @@ func newCloudIdentity(ctx context.Context, creds Credentials, logger *slog.Logge
 func (c *cloudIdentityClient) CheckDelegation(ctx context.Context) error {
 	// Only authorization matters; fetch no device data.
 	if _, err := c.svc.Devices.List().Customer(c.customer()).PageSize(1).Fields("nextPageToken").Context(ctx).Do(); err != nil {
-		return &Error{err: err}
+		return &Error{err: err, delegationCheck: true}
 	}
 	return nil
 }
@@ -105,7 +117,8 @@ func (c *cloudIdentityClient) SetClientState(ctx context.Context, deviceUserName
 	if len(mask) == 0 {
 		return errors.New("client state has no field to write")
 	}
-	if _, err := c.svc.Devices.DeviceUsers.ClientStates.Patch(c.clientStateName(deviceUserName), &body).
+	name := deviceUserName + "/clientStates/" + c.bareCustomerID + ClientStateSuffix
+	if _, err := c.svc.Devices.DeviceUsers.ClientStates.Patch(name, &body).
 		Customer(c.customer()).UpdateMask(strings.Join(mask, ",")).Context(ctx).Do(); err != nil {
 		return &Error{err: err, resourceCall: true}
 	}
@@ -113,24 +126,42 @@ func (c *cloudIdentityClient) SetClientState(ctx context.Context, deviceUserName
 }
 
 func (c *cloudIdentityClient) ListDeviceUserNames(ctx context.Context, deviceID string) ([]string, error) {
+	if !validDeviceID(deviceID) {
+		return nil, &invalidDeviceIDError{id: deviceID}
+	}
+	device := "devices/" + deviceID
+	prefix := device + "/deviceUsers/"
 	var names []string
-	if err := c.svc.Devices.DeviceUsers.List("devices/"+deviceID).Customer(c.customer()).
-		Fields("deviceUsers/name", "nextPageToken").Context(ctx).
+	morePages := limitPages(maxDeviceUserPages)
+	err := c.svc.Devices.DeviceUsers.List(device).Customer(c.customer()).PageSize(deviceUsersPageSize).
+		Fields("deviceUsers(name)", "nextPageToken").
 		Pages(ctx, func(resp *cloudidentity.GoogleAppsCloudidentityDevicesV1ListDeviceUsersResponse) error {
 			for _, du := range resp.DeviceUsers {
-				names = append(names, du.Name)
+				// Only this device's names are kept, whatever Google answers.
+				if len(du.Name) > len(prefix) && strings.EqualFold(du.Name[:len(prefix)], prefix) {
+					names = append(names, du.Name)
+				}
 			}
-			return nil
-		}); err != nil {
+			return morePages(resp.NextPageToken)
+		})
+	switch {
+	case errors.Is(err, errTooManyPages):
+		return nil, err
+	case err != nil:
 		return nil, &Error{err: err, resourceCall: true}
 	}
 	return names, nil
 }
 
 func (c *cloudIdentityClient) FindDeviceIDs(ctx context.Context, androidDeviceID string) ([]string, error) {
+	if androidDeviceID == "" {
+		// The match below would keep every record that has no deviceId.
+		return nil, nil
+	}
 	var ids []string
-	if err := c.svc.Devices.List().Customer(c.customer()).Filter("id:"+androidDeviceID).
-		Fields("devices(name,deviceId)", "nextPageToken").Context(ctx).
+	morePages := limitPages(maxDevicePages)
+	err := c.svc.Devices.List().Customer(c.customer()).Filter("id:"+androidDeviceID).PageSize(devicesPageSize).
+		Fields("devices(name,deviceId)", "nextPageToken").
 		Pages(ctx, func(resp *cloudidentity.GoogleAppsCloudidentityDevicesV1ListDevicesResponse) error {
 			for _, d := range resp.Devices {
 				// Google doesn't document the filter as an exact match.
@@ -138,14 +169,21 @@ func (c *cloudIdentityClient) FindDeviceIDs(ctx context.Context, androidDeviceID
 					ids = append(ids, strings.TrimPrefix(d.Name, "devices/"))
 				}
 			}
-			return nil
-		}); err != nil {
+			return morePages(resp.NextPageToken)
+		})
+	switch {
+	case errors.Is(err, errTooManyPages):
+		return nil, err
+	case err != nil:
 		return nil, &Error{err: err}
 	}
 	return ids, nil
 }
 
 func (c *cloudIdentityClient) DeviceExists(ctx context.Context, deviceID string) (bool, error) {
+	if !validDeviceID(deviceID) {
+		return false, nil
+	}
 	if _, err := c.svc.Devices.Get("devices/" + deviceID).Customer(c.customer()).Fields("name").Context(ctx).Do(); err != nil {
 		gErr := &Error{err: err, resourceCall: true}
 		if gErr.IsNotFound() {
@@ -156,8 +194,34 @@ func (c *cloudIdentityClient) DeviceExists(ctx context.Context, deviceID string)
 	return true, nil
 }
 
-func (c *cloudIdentityClient) clientStateName(deviceUserName string) string {
-	return deviceUserName + "/clientStates/" + c.bareCustomerID + ClientStateSuffix
+// validDeviceID rejects what would reach something other than the one device: "-"
+// stands for every device, and "/", "?" and "#" change the request path.
+func validDeviceID(id string) bool {
+	return id != "" && id != "-" && !strings.ContainsAny(id, "/?#")
+}
+
+// invalidDeviceIDError reads like Google's 404 for a device, without the call.
+type invalidDeviceIDError struct {
+	id string
+}
+
+func (e *invalidDeviceIDError) Error() string {
+	return fmt.Sprintf("invalid Google device ID %q", e.id)
+}
+
+func (e *invalidDeviceIDError) IsNotFound() bool { return true }
+func (e *invalidDeviceIDError) IsStale() bool    { return true }
+
+// limitPages returns the check a listing runs after each page, which fails once it has
+// read limit pages and Google has more.
+func limitPages(limit int) func(nextPageToken string) error {
+	pages := 0
+	return func(nextPageToken string) error {
+		if pages++; pages >= limit && nextPageToken != "" {
+			return errTooManyPages
+		}
+		return nil
+	}
 }
 
 func (c *cloudIdentityClient) customer() string {
@@ -201,6 +265,9 @@ type Error struct {
 	// resourceCall is set on a call naming a device or DeviceUser, where a 404 or 403 is
 	// about that resource rather than the delegation.
 	resourceCall bool
+	// delegationCheck is set on the delegation check, where any refusal is about the
+	// delegation.
+	delegationCheck bool
 }
 
 func (e *Error) Unwrap() error { return e.err }
@@ -323,12 +390,13 @@ func (e *Error) IsStale() bool {
 }
 
 func (e *Error) IsAuthError() bool {
-	status, answered := e.httpStatus()
-	if !answered || status < http.StatusBadRequest || e.IsUnavailable() {
+	status, _ := e.httpStatus()
+	if status < http.StatusBadRequest || e.IsUnavailable() {
 		return false
 	}
-	if _, ok := errors.AsType[*oauth2.RetrieveError](e.err); ok {
-		// The token exchange refuses a bad subject, scope or signature.
+	if _, ok := errors.AsType[*oauth2.RetrieveError](e.err); ok || e.delegationCheck {
+		// The token exchange refuses a bad subject, scope or signature, and the delegation
+		// check has nothing else to be refused for.
 		return true
 	}
 	// A 403 on a device resource can mean the device left the Workspace.

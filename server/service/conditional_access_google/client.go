@@ -28,7 +28,8 @@ type CloudIdentity interface {
 	// DeviceUser. It returns a fleet.IsNotFound error when Google has no such DeviceUser.
 	SetClientState(ctx context.Context, deviceUserName string, state fleet.GoogleConditionalAccessClientState) error
 	// ListDeviceUserNames lists the DeviceUser names of a device, by its device ID. It
-	// returns a fleet.IsNotFound error when Google has no such device.
+	// returns an IsStale error when Google has no such device, which is a fleet.IsNotFound
+	// error too, or when the device left the customer's Workspace.
 	ListDeviceUserNames(ctx context.Context, deviceID string) ([]string, error)
 	// FindDeviceIDs returns the device IDs of the customer's records whose deviceId field
 	// is androidDeviceID, the Android Management API device ID. Google doesn't keep the
