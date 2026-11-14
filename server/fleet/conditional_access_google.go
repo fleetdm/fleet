@@ -81,6 +81,8 @@ type ConditionalAccessGoogleIntegration struct {
 	State             ConditionalAccessGoogleState `db:"state"`
 	// ErrorMessage is the reason the integration isn't connected, meant for the admin.
 	ErrorMessage *string `db:"error_message"`
+	// UpdatedAt is the row's last change, which on a deleted integration is its removal.
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 // ConditionalAccessGoogleState is the connection state of the Google conditional
@@ -166,6 +168,7 @@ type GoogleConditionalAccessDeviceUser struct {
 	Name         string                                 `db:"device_user_name" json:"name"`
 	State        GoogleConditionalAccessDeviceUserState `db:"state" json:"state"`
 	ErrorMessage *string                                `db:"error_message" json:"error_message"`
+	CreatedAt    time.Time                              `db:"created_at" json:"-"`
 	UpdatedAt    time.Time                              `db:"updated_at" json:"updated_at"`
 }
 

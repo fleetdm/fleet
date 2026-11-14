@@ -299,7 +299,7 @@ func (svc *Service) registerGoogleDeviceUsers(
 		HostDisplayName: host.DisplayName(),
 		GoogleDeviceID:  googleDeviceID,
 		GoogleEmail:     email,
-		FromSignIn:      true,
+		Automated:       true,
 	}); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "create activity for google device registration")
 	}
