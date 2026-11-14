@@ -724,14 +724,16 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	if maybeTmID != nil || maybeTmName != nil {
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, maybeTmID, maybeTmName)
 		if err != nil {
-			// If this is a dry run, the team may not have been created yet
-			if dryRun && fleet.IsNotFound(err) {
-				return nil, nil
+			// On a dry run the fleet may not have been created yet. teamID then
+			// stays nil (Unassigned), which is fine: a dry run returns before
+			// anything fleet-specific is read or written.
+			if !dryRun || !fleet.IsNotFound(err) {
+				return nil, err
 			}
-			return nil, err
+		} else {
+			teamID = &team.ID
+			teamName = &team.Name
 		}
-		teamID = &team.ID
-		teamName = &team.Name
 	}
 
 	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
@@ -755,8 +757,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 
 		// unlike the embedded secrets validation below, this is a static check,
 		// so it runs before the post-loop dryRun return to surface errors on
-		// gitops dry runs (like the rest of this loop, it is skipped when a dry
-		// run targets a team that doesn't exist yet)
+		// gitops dry runs
 		if err := fleet.ValidateFleetVariablesInScript(script.ScriptContents, license.IsPremium(ctx)); err != nil {
 			// re-key validation errors on the indexed field, matching the rest
 			// of this loop, so callers can tell which script failed
