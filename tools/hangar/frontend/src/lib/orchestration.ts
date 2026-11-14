@@ -21,12 +21,11 @@ import {
   dockerUpArgs,
   prepareDbArgsFor,
   procId,
-  SERVE_PUSH_URL_META,
   serveArgsFor,
   serveChannel,
   serveEnvFor,
   serveLabelFor,
-  servePushUrlFor,
+  serveMetaFor,
 } from "./servers";
 
 // Re-export the serve helpers so existing call sites (ServerTab) can keep
@@ -119,7 +118,7 @@ export async function startServe(server: ServerProfile): Promise<void> {
     args: serveArgsFor(server),
     log_channel: serveChannel(server.id),
     env: serveEnvFor(server).length > 0 ? serveEnvFor(server) : null,
-    meta: { [SERVE_PUSH_URL_META]: servePushUrlFor(server) ?? "" },
+    meta: serveMetaFor(server),
   });
 }
 

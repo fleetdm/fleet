@@ -37,6 +37,7 @@ import {
   serveChannel,
   serveNeedsRestartForApns,
   SERVE_PUSH_URL_META,
+  serveMetaFor,
   updateServer,
 } from "../../lib/servers";
 import type {
@@ -655,6 +656,7 @@ function ChainCard({
         args: step.args,
         log_channel: step.logChannel,
         env: step.env && step.env.length > 0 ? step.env : null,
+        meta: step.kind === "serve" ? serveMetaFor(server) : null,
       });
       if (step.longRunning) return true;
       return await waitForExit(step.id);

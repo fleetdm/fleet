@@ -1,6 +1,7 @@
 package processes
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -147,6 +148,30 @@ func TestMetaReturnedAsGiven(t *testing.T) {
 	got := waitForState(t, m, "meta", "done", 5*time.Second)
 	if got.Meta["push_url"] != "http://127.0.0.1:8378" {
 		t.Errorf("meta = %v, want the value given at start", got.Meta)
+	}
+}
+
+func TestFinishLifecycleKeepsANewerRun(t *testing.T) {
+	m := New(t.TempDir(), t.TempDir(), &recorder{})
+	run := func() *procLifecycle {
+		lc := &procLifecycle{}
+		lc.ctx, lc.cancel = context.WithCancel(context.Background())
+		return lc
+	}
+	// The old run's final state is recorded, the id is started again, and only
+	// then does the old run's cleanup reach finishLifecycle.
+	old, newer := run(), run()
+	m.lifecycles["p"] = newer
+	m.finishLifecycle("p", old)
+	if old.ctx.Err() == nil {
+		t.Error("the old run's Done never closed")
+	}
+	if newer.ctx.Err() != nil || m.lifecycles["p"] != newer {
+		t.Error("the old run's cleanup ended the newer run's lifecycle")
+	}
+	m.finishLifecycle("p", newer)
+	if newer.ctx.Err() == nil || m.lifecycles["p"] != nil {
+		t.Error("the newer run's own cleanup didn't finish it")
 	}
 }
 

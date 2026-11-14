@@ -213,10 +213,14 @@ func (m *Manager) dockerComposeDownFor(id string) error {
 		info.EndedAtMS = &ended
 		info.WasUserStopped = true
 	}
+	// Taken before the pid goes: after that, id can be started again.
+	lc := m.lifecycles[id]
 	delete(m.pids, id)
 	m.stateMu.Unlock()
 	m.emitState(id, final, exitCode, nil)
-	m.finishLifecycle(id)
+	if lc != nil {
+		m.finishLifecycle(id, lc)
+	}
 	return nil
 }
 

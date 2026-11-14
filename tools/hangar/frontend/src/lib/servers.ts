@@ -242,6 +242,11 @@ export function servePushUrlFor(server: ServerProfile): string | undefined {
     .pop()?.[1];
 }
 
+/// Start metadata for fleet serve; every path that starts it passes this.
+export function serveMetaFor(server: ServerProfile): Record<string, string> {
+  return { [SERVE_PUSH_URL_META]: servePushUrlFor(server) ?? "" };
+}
+
 /// The value of an enabled serve env row the user added, or undefined.
 export function userEnvValue(
   server: ServerProfile,
