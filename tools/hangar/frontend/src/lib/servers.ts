@@ -231,6 +231,17 @@ export function apnsMockChannel(serverId: string): string {
   return `apns-mock-${serverId}`;
 }
 
+/// ProcInfo.meta key holding the push URL fleet serve was started with ("" for
+/// none), so a mock that moved since is noticed even after it restarts.
+export const SERVE_PUSH_URL_META = "apns_push_url";
+
+/// The push URL fleet serve gets from serveEnvFor, or undefined for Apple's.
+export function servePushUrlFor(server: ServerProfile): string | undefined {
+  return serveEnvFor(server)
+    .filter(([k]) => k === APNS_PUSH_URL_ENV)
+    .pop()?.[1];
+}
+
 /// The value of an enabled serve env row the user added, or undefined.
 export function userEnvValue(
   server: ServerProfile,
@@ -260,11 +271,16 @@ export function apnsMockEnvConflict(server: ServerProfile): string | null {
 /// setup than the server is configured for now, so a restart is needed.
 export function serveNeedsRestartForApns(
   server: ServerProfile,
-  serveEnvKeys: string[],
+  serveProc: ProcInfo,
 ): boolean {
-  const startedWithPushUrl = serveEnvKeys.includes(APNS_PUSH_URL_ENV);
-  const wantsPushUrl = serveEnvFor(server).some(([k]) => k === APNS_PUSH_URL_ENV);
-  return startedWithPushUrl !== wantsPushUrl;
+  const want = servePushUrlFor(server) ?? "";
+  const started = serveProc.meta?.[SERVE_PUSH_URL_META];
+  // A serve started before Hangar recorded its push URL (or adopted after a
+  // Hangar restart) only tells whether it had one.
+  if (started === undefined) {
+    return (serveProc.env_keys ?? []).includes(APNS_PUSH_URL_ENV) !== (want !== "");
+  }
+  return started !== want;
 }
 
 /// The port this server's running mock listens on, read from its command line,

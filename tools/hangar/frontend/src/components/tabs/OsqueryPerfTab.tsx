@@ -2267,7 +2267,7 @@ export function resolveApnsTarget(
     : undefined;
   const serveNeedsRestart =
     !!server && !!serveProc && server.mock_apns &&
-    serveNeedsRestartForApns(server, serveProc.env_keys ?? []);
+    serveNeedsRestartForApns(server, serveProc);
   const override = form.mdm_apns_url.trim();
   if (override) {
     // Typing the server's own mock URL is still that mock, so keep its warnings.

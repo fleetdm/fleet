@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"os/exec"
 	"strings"
 	"sync"
@@ -278,6 +279,7 @@ func (m *Manager) Start(id string, a StartArgs) error {
 		StartedAtMS: &now,
 		RecentLog:   []string{},
 		EnvKeys:     envKeys,
+		Meta:        maps.Clone(a.Meta),
 	}
 	lc := &procLifecycle{}
 	lc.ctx, lc.cancel = context.WithCancel(context.Background())

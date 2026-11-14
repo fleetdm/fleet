@@ -338,6 +338,8 @@ export const api = {
     args: string[];
     log_channel?: string | null;
     env?: Array<[string, string]> | null;
+    /// Non-secret detail returned in ProcInfo.meta.
+    meta?: Record<string, string> | null;
   }) =>
     ProcessService.StartProcess(
       args.id,
@@ -347,6 +349,7 @@ export const api = {
       args.args,
       args.log_channel ?? "",
       (args.env ?? []).map(([key, value]) => ({ key, value })) as never,
+      args.meta ?? {},
     ),
   stopProcess: (id: string) => ProcessService.StopProcess(id),
   restartProcess: (id: string) => ProcessService.RestartProcess(id),

@@ -36,6 +36,7 @@ import {
   procId,
   serveChannel,
   serveNeedsRestartForApns,
+  SERVE_PUSH_URL_META,
   updateServer,
 } from "../../lib/servers";
 import type {
@@ -1133,12 +1134,16 @@ function ActiveProcessesPanel({
     server.mock_apns || apnsMockRunning ? apnsMockPort : null,
   );
   const mockMoved = apnsMockMoved(server, procs);
-  // A serve that pushes to the mock has to follow it to its new port. Its env
-  // values aren't visible, so any serve set up to use the mock is restarted.
+  // A serve that pushes to the mock has to follow it to its new port, even
+  // after the mock was restarted there from its own card. A serve started
+  // before Hangar recorded its push URL only shows whether it had one, so with
+  // a moved mock any serve set up to use the mock is restarted.
   const serveNeedsRestart =
     serveOwned &&
-    (serveNeedsRestartForApns(server, serveProc?.env_keys ?? []) ||
+    !!serveProc &&
+    (serveNeedsRestartForApns(server, serveProc) ||
       (mockMoved && !apnsMockEnvConflict(server)));
+  const servePushedTo = serveProc?.meta?.[SERVE_PUSH_URL_META] ?? "";
   const [restartError, setRestartError] = useState<string | null>(null);
   // What the banner's restart covers, held from the click until it succeeds:
   // once the mock is down the process list no longer shows it had moved, and
@@ -1425,7 +1430,9 @@ function ActiveProcessesPanel({
                         : "Restart it to move it to the new port."
                     }`
                   : server.mock_apns
-                    ? "fleet serve was started before mock APNs was turned on, so its Apple MDM pushes still go to Apple. Restart it to send them to the mock."
+                    ? servePushedTo
+                      ? `fleet serve still pushes to ${servePushedTo}, but mock APNs is now at ${apnsMockUrl(server)}. Restart it so pushes reach the mock.`
+                      : "fleet serve was started before mock APNs was turned on, so its Apple MDM pushes still go to Apple. Restart it to send them to the mock."
                     : "fleet serve is still sending Apple MDM pushes to the mock APNs server. Restart it to send them to Apple again."}
           </WarningBanner>
         </div>

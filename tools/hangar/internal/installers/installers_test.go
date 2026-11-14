@@ -485,27 +485,33 @@ func TestScan(t *testing.T) {
 func TestScanHonorsURLPrefixAndCustomHeaders(t *testing.T) {
 	inner := fakeFleet(t, "premium", true)
 	defer inner.Close()
-	// Like a server behind an access proxy on a path prefix.
-	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rest, ok := strings.CutPrefix(r.URL.Path, "/fleet-prefix")
-		if !ok || r.Header.Get("X-Access") != "letmein" || r.Header.Get("Authorization") != "Bearer tok" {
-			http.Error(w, "blocked by proxy", http.StatusForbidden)
-			return
+	for prefix, path := range map[string]string{
+		"/fleet-prefix/": "/fleet-prefix",
+		// A reserved character must stay part of the path, not start a fragment.
+		"fleet#prefix": "/fleet#prefix",
+	} {
+		// Like a server behind an access proxy on a path prefix.
+		proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rest, ok := strings.CutPrefix(r.URL.Path, path)
+			if !ok || r.Header.Get("X-Access") != "letmein" || r.Header.Get("Authorization") != "Bearer tok" {
+				http.Error(w, "blocked by proxy", http.StatusForbidden)
+				return
+			}
+			r.URL.Path = rest
+			inner.Config.Handler.ServeHTTP(w, r)
+		}))
+		c, err := NewClient(fleetctl.Credentials{
+			Address: proxy.URL, Token: "tok", URLPrefix: prefix,
+			// Like fleetctl, a custom header can't replace the context's token.
+			CustomHeaders: map[string]string{"X-Access": "letmein", "Authorization": "Bearer other"},
+		})
+		if err != nil {
+			t.Fatal(err)
 		}
-		r.URL.Path = rest
-		inner.Config.Handler.ServeHTTP(w, r)
-	}))
-	defer proxy.Close()
-	c, err := NewClient(fleetctl.Credentials{
-		Address: proxy.URL, Token: "tok", URLPrefix: "/fleet-prefix/",
-		// Like fleetctl, a custom header can't replace the context's token.
-		CustomHeaders: map[string]string{"X-Access": "letmein", "Authorization": "Bearer other"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if res, err := c.Scan(context.Background()); err != nil || res.ServerURL != "https://fleet.public" {
-		t.Fatalf("scan through the proxy = %+v, %v", res, err)
+		if res, err := c.Scan(context.Background()); err != nil || res.ServerURL != "https://fleet.public" {
+			t.Errorf("prefix %q: scan through the proxy = %+v, %v", prefix, res, err)
+		}
+		proxy.Close()
 	}
 }
 

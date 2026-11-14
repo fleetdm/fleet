@@ -238,6 +238,12 @@ export class ProcInfo {
      */
     "env_keys": string[];
 
+    /**
+     * Meta is non-secret detail the caller attached at start, returned as
+     * given (e.g. the push URL fleet serve was started with).
+     */
+    "meta": { [_ in string]?: string };
+
     /** Creates a new ProcInfo instance. */
     constructor($$source: Partial<ProcInfo> = {}) {
         if (!("id" in $$source)) {
@@ -276,6 +282,9 @@ export class ProcInfo {
         if (!("env_keys" in $$source)) {
             this["env_keys"] = [];
         }
+        if (!("meta" in $$source)) {
+            this["meta"] = {};
+        }
 
         Object.assign(this, $$source);
     }
@@ -286,12 +295,16 @@ export class ProcInfo {
     static createFrom($$source: any = {}): ProcInfo {
         const $$createField9_0 = $$createType4;
         const $$createField11_0 = $$createType4;
+        const $$createField12_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("recent_log" in $$parsedSource) {
             $$parsedSource["recent_log"] = $$createField9_0($$parsedSource["recent_log"]);
         }
         if ("env_keys" in $$parsedSource) {
             $$parsedSource["env_keys"] = $$createField11_0($$parsedSource["env_keys"]);
+        }
+        if ("meta" in $$parsedSource) {
+            $$parsedSource["meta"] = $$createField12_0($$parsedSource["meta"]);
         }
         return new ProcInfo($$parsedSource as Partial<ProcInfo>);
     }
@@ -303,3 +316,4 @@ const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = LogEntry.createFrom;
 const $$createType3 = $Create.Array($$createType2);
 const $$createType4 = $Create.Array($Create.Any);
+const $$createType5 = $Create.Map($Create.Any, $Create.Any);

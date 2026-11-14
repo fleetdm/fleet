@@ -137,6 +137,19 @@ func TestEnvKeysRecordedWithoutValues(t *testing.T) {
 	}
 }
 
+func TestMetaReturnedAsGiven(t *testing.T) {
+	m := New(t.TempDir(), t.TempDir(), &recorder{})
+	meta := map[string]string{"push_url": "http://127.0.0.1:8378"}
+	if err := m.Start("meta", StartArgs{Program: "sh", Args: []string{"-c", "true"}, Meta: meta}); err != nil {
+		t.Fatal(err)
+	}
+	meta["push_url"] = "changed after start"
+	got := waitForState(t, m, "meta", "done", 5*time.Second)
+	if got.Meta["push_url"] != "http://127.0.0.1:8378" {
+		t.Errorf("meta = %v, want the value given at start", got.Meta)
+	}
+}
+
 func TestStartAlreadyRunning(t *testing.T) {
 	m := New(t.TempDir(), t.TempDir(), &recorder{})
 	if err := m.Start("s", StartArgs{Program: "sleep", Args: []string{"30"}}); err != nil {

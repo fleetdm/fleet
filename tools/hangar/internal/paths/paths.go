@@ -88,13 +88,13 @@ func expand(p, home string) string {
 }
 
 // OnDisk returns the absolute path p with each element spelled as it is on
-// disk. On a case-insensitive volume (the macOS default) ~/code/fleet opens
-// ~/Code/fleet, so a guessed or typed spelling can differ from the real one
-// and the same folder would compare as two. Elements that can't be read are
-// kept as given.
+// disk; a relative p is returned unchanged. On a case-insensitive volume (the
+// macOS default) ~/code/fleet opens ~/Code/fleet, so a guessed or typed
+// spelling can differ from the real one and the same folder would compare as
+// two. Elements that can't be read are kept as given.
 func OnDisk(p string) string {
 	if !filepath.IsAbs(p) {
-		return filepath.Clean(p)
+		return p
 	}
 	// Clean drops ".." lexically, but the OS applies it after following
 	// symlinks: with link -> /elsewhere/sub, link/../fleet is /elsewhere/fleet.

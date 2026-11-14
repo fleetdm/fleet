@@ -106,8 +106,12 @@ func TestOnDisk(t *testing.T) {
 	if got, want := OnDisk(filepath.Join(real, "nope")), filepath.Join(real, "nope"); got != want {
 		t.Errorf("OnDisk with a missing element = %q, want %q", got, want)
 	}
-	if got := OnDisk("relative/path"); got != "relative/path" {
-		t.Errorf("relative path changed: %q", got)
+	// Relative input isn't touched: cleaning link/../fleet as text could point
+	// somewhere other than where the OS would go.
+	for _, rel := range []string{"relative/path", "link/../fleet"} {
+		if got := OnDisk(rel); got != rel {
+			t.Errorf("relative path %q changed to %q", rel, got)
+		}
 	}
 
 	// ".." after a symlink is applied where the link points, as the OS does.

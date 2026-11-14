@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"syscall"
@@ -77,13 +78,18 @@ func NewClient(c fleetctl.Credentials) (*Client, error) {
 		}
 		tlsCfg.RootCAs = pool
 	}
-	// fleetctl joins the address, url-prefix and request path the same way.
-	base := strings.TrimRight(c.Address, "/")
+	// fleetctl joins the address, url-prefix and request path the same way;
+	// going through url.URL escapes a prefix like "a#b" instead of cutting it.
+	u, err := url.Parse(strings.TrimRight(c.Address, "/"))
+	if err != nil {
+		return nil, fmt.Errorf("parse address %q: %w", c.Address, err)
+	}
 	if prefix := strings.Trim(c.URLPrefix, "/"); prefix != "" {
-		base += "/" + prefix
+		u.Path = strings.TrimRight(u.Path, "/") + "/" + prefix
+		u.RawPath = ""
 	}
 	return &Client{
-		base:    base,
+		base:    strings.TrimRight(u.String(), "/"),
 		token:   c.Token,
 		headers: c.CustomHeaders,
 		// Clients are short-lived (one per scan), so don't leave idle connections behind.
