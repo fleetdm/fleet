@@ -1550,6 +1550,34 @@ func TestUpdateAppStoreAppActivityToken(t *testing.T) {
 	})
 }
 
+func TestUpdateAppStoreAppActivityKeepsStoredSettings(t *testing.T) {
+	t.Parallel()
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}})
+
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ds.GetAppStoreAppVersionsByTeamAndTitleIDFunc = func(context.Context, uint, uint) ([]*fleet.VPPAppStoreApp, error) {
+		return []*fleet.VPPAppStoreApp{{
+			AdamID:           "100",
+			Platform:         fleet.IOSPlatform,
+			Name:             "Canva",
+			VPPAppsTeamsID:   1,
+			Configuration:    json.RawMessage(`<dict></dict>`),
+			LabelsIncludeAny: []fleet.SoftwareScopeLabel{{LabelID: 3, LabelName: "Staging"}},
+		}}, nil
+	}
+	ds.InsertVPPAppWithTeamFunc = func(_ context.Context, app *fleet.VPPApp, _ *uint, _ *uint) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{AppTeamID: 1}, nil
+	}
+	ds.GetVPPTokenFunc = func(context.Context, uint) (*fleet.VPPTokenDB, error) { return nil, nil }
+
+	// A partial edit (no labels, no configuration) still reports the stored ones.
+	_, act, err := svc.UpdateAppStoreApp(ctx, 5, nil, fleet.AppStoreAppUpdatePayload{SelfService: new(true)})
+	require.NoError(t, err)
+	require.Equal(t, []fleet.ActivitySoftwareLabel{{ID: 3, Name: "Staging"}}, act.LabelsIncludeAny)
+	require.JSONEq(t, `"<dict></dict>"`, string(act.Configuration))
+}
+
 const batchVPPTeamName = "📱 Mobile"
 
 // batchVPPFixture wires BatchAssociateVPPApps for fleet 7 with fake Apple VPP
