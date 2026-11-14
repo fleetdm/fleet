@@ -4,6 +4,5 @@
   "token": "fleet-desktop",
   "installer_format": "pkg",
   "slug": "fleet-desktop/darwin",
-  "default_categories": ["Productivity"],
-  "cask_path": "ee/maintained-apps/inputs/homebrew/custom-tap/api/fleet-desktop.json"
+  "default_categories": ["Productivity"]
 }
