@@ -96,10 +96,9 @@ const (
 	// integration deleted 30 days ago, for Google conditional access. Premium only; runs
 	// every 5m.
 	CronGoogleConditionalAccess CronScheduleName = "google_conditional_access"
-	// CronGoogleConditionalAccessDeviceCheck deletes the stored DeviceUsers whose Google
-	// device is gone, sets stale those whose device left the Workspace, and retries the
-	// Android hosts the 5m cron stopped trying. Premium only; runs every 1h.
-	CronGoogleConditionalAccessDeviceCheck CronScheduleName = "google_conditional_access_device_check"
+	// CronGoogleConditionalAccessAndroidRetry retries registering the Android hosts the
+	// google_conditional_access cron stopped trying. Premium only; runs every 1h.
+	CronGoogleConditionalAccessAndroidRetry CronScheduleName = "google_conditional_access_android_retry"
 )
 
 type CronSchedulesService interface {

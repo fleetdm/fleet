@@ -2490,7 +2490,7 @@ type QueueGoogleConditionalAccessUnmarkOfUnenrolledHostsFunc func(ctx context.Co
 
 type ListGoogleConditionalAccessDeviceUsersFunc func(ctx context.Context, filter fleet.GoogleConditionalAccessDeviceUserFilter) ([]fleet.GoogleConditionalAccessDeviceUser, error)
 
-type DeleteGoogleConditionalAccessDeviceUserFunc func(ctx context.Context, name string, state fleet.GoogleConditionalAccessDeviceUserState, deleteEmptyDevice bool) (bool, error)
+type DeleteGoogleConditionalAccessUnmarkedDeviceUserFunc func(ctx context.Context, name string) (bool, error)
 
 type ListGoogleConditionalAccessBookmarkHostsFunc func(ctx context.Context, customerID string, afterHostID uint, limit int) ([]fleet.GoogleConditionalAccessBookmarkHost, error)
 
@@ -6404,8 +6404,8 @@ type DataStore struct {
 	ListGoogleConditionalAccessDeviceUsersFunc        ListGoogleConditionalAccessDeviceUsersFunc
 	ListGoogleConditionalAccessDeviceUsersFuncInvoked bool
 
-	DeleteGoogleConditionalAccessDeviceUserFunc        DeleteGoogleConditionalAccessDeviceUserFunc
-	DeleteGoogleConditionalAccessDeviceUserFuncInvoked bool
+	DeleteGoogleConditionalAccessUnmarkedDeviceUserFunc        DeleteGoogleConditionalAccessUnmarkedDeviceUserFunc
+	DeleteGoogleConditionalAccessUnmarkedDeviceUserFuncInvoked bool
 
 	ListGoogleConditionalAccessBookmarkHostsFunc        ListGoogleConditionalAccessBookmarkHostsFunc
 	ListGoogleConditionalAccessBookmarkHostsFuncInvoked bool
@@ -15359,11 +15359,11 @@ func (s *DataStore) ListGoogleConditionalAccessDeviceUsers(ctx context.Context, 
 	return s.ListGoogleConditionalAccessDeviceUsersFunc(ctx, filter)
 }
 
-func (s *DataStore) DeleteGoogleConditionalAccessDeviceUser(ctx context.Context, name string, state fleet.GoogleConditionalAccessDeviceUserState, deleteEmptyDevice bool) (bool, error) {
+func (s *DataStore) DeleteGoogleConditionalAccessUnmarkedDeviceUser(ctx context.Context, name string) (bool, error) {
 	s.mu.Lock()
-	s.DeleteGoogleConditionalAccessDeviceUserFuncInvoked = true
+	s.DeleteGoogleConditionalAccessUnmarkedDeviceUserFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteGoogleConditionalAccessDeviceUserFunc(ctx, name, state, deleteEmptyDevice)
+	return s.DeleteGoogleConditionalAccessUnmarkedDeviceUserFunc(ctx, name)
 }
 
 func (s *DataStore) ListGoogleConditionalAccessBookmarkHosts(ctx context.Context, customerID string, afterHostID uint, limit int) ([]fleet.GoogleConditionalAccessBookmarkHost, error) {

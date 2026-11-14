@@ -27,9 +27,13 @@ const (
 	// left alone.
 	googleBookmarkRetryDelay = 6 * time.Hour
 	// googleAndroidFastAttempts is how many sync runs in a row try an Android host that
-	// can't be registered yet. After that only the hourly run tries it.
+	// can't be registered yet. After that only the hourly RetryAndroidHosts tries it.
 	googleAndroidFastAttempts = 3
 )
+
+// errGoogleRunSuperseded stops a run whose integration was removed or replaced since it
+// started, so it doesn't keep writing to Google with the old credentials.
+var errGoogleRunSuperseded = errors.New("google conditional access integration changed during the run")
 
 // GoogleConditionalAccessSyncer runs the Google conditional access cron jobs.
 type GoogleConditionalAccessSyncer struct {
@@ -89,21 +93,23 @@ func (s *GoogleConditionalAccessSyncer) Sync(ctx context.Context) error {
 	resolveAndroidHosts := func(ctx context.Context, run *googleSyncRun) error {
 		return s.resolveAndroidHosts(ctx, run, 0, googleAndroidFastAttempts)
 	}
-	for _, job := range []func(context.Context, *googleSyncRun) error{
+	for i, job := range []func(context.Context, *googleSyncRun) error{
 		s.unmark, s.retryMarks, s.migrateBookmarkHosts, resolveAndroidHosts,
 	} {
-		if err := job(ctx, run); err != nil {
+		err := s.checkCurrent(ctx, run, i > 0)
+		if err == nil {
+			err = job(ctx, run)
+		}
+		if err != nil {
 			return s.handleRunError(ctx, run, err)
 		}
 	}
 	return nil
 }
 
-// CheckDevices deletes the names whose Google device is gone and sets stale those whose
-// device left the Workspace, so their host registers again on its next open. It also
-// tries the Android hosts the sync cron stopped trying, which the sync cron never lists,
-// so the two don't work on the same host.
-func (s *GoogleConditionalAccessSyncer) CheckDevices(ctx context.Context) error {
+// RetryAndroidHosts tries the Android hosts the sync cron stopped trying, which the sync
+// cron never lists, so the two don't work on the same host.
+func (s *GoogleConditionalAccessSyncer) RetryAndroidHosts(ctx context.Context) error {
 	ctx = ctxdb.RequirePrimary(ctx, true)
 	integration, err := s.integration(ctx)
 	if err != nil || integration == nil || integration.State == fleet.ConditionalAccessGoogleStateDeleted {
@@ -117,57 +123,7 @@ func (s *GoogleConditionalAccessSyncer) CheckDevices(ctx context.Context) error 
 	if err != nil || run == nil {
 		return err
 	}
-
-	type deviceCheck struct {
-		found bool
-		// staleErr is set when the device left the customer's Workspace.
-		staleErr error
-		// failed skips the device's other names for this run.
-		failed bool
-	}
-	checked := make(map[string]deviceCheck)
-	err = s.eachDeviceUser(ctx, run, []fleet.GoogleConditionalAccessDeviceUserState{
-		fleet.GoogleConditionalAccessDeviceUserPending, fleet.GoogleConditionalAccessDeviceUserManaged,
-	}, false, func(du fleet.GoogleConditionalAccessDeviceUser) error {
-		device := fleet.GoogleDeviceIDFromDeviceUserName(du.Name)
-		check, ok := checked[device]
-		if !ok {
-			found, err := run.ci.DeviceExists(ctx, device)
-			switch {
-			case googleStopsRun(err):
-				return err
-			case conditional_access_google.IsStale(err):
-				check.staleErr = err
-			case err != nil:
-				s.logger.WarnContext(ctx, "check google device", "device_user_name", du.Name, "err", err)
-				check.failed = true
-			}
-			check.found = found
-			checked[device] = check
-		}
-		switch {
-		case check.failed:
-			return nil
-		case check.staleErr != nil:
-			s.logger.InfoContext(ctx, "google device left the workspace, the host signs in again", "device_user_name", du.Name, "err", check.staleErr)
-			if _, err := s.ds.UpdateGoogleConditionalAccessDeviceUserState(ctx, du.Name, du.State,
-				fleet.GoogleConditionalAccessDeviceUserStale, new(check.staleErr.Error())); err != nil {
-				return ctxerr.Wrap(ctx, err, "set google device user stale")
-			}
-			return nil
-		case check.found:
-			return nil
-		}
-		s.logger.InfoContext(ctx, "google device gone, deleting its device user", "device_user_name", du.Name)
-		if _, err := s.ds.DeleteGoogleConditionalAccessDeviceUser(ctx, du.Name, du.State, false); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete google device user of a gone device")
-		}
-		return nil
-	})
-	if err == nil {
-		err = s.resolveAndroidHosts(ctx, run, googleAndroidFastAttempts, 0)
-	}
-	if err != nil {
+	if err := s.resolveAndroidHosts(ctx, run, googleAndroidFastAttempts, 0); err != nil {
 		return s.handleRunError(ctx, run, err)
 	}
 	return nil
@@ -247,7 +203,29 @@ func googleStopsRun(err error) bool {
 	return conditional_access_google.IsAuthError(err) || conditional_access_google.IsUnavailable(err)
 }
 
+// checkCurrent returns errGoogleRunSuperseded when the run's registration is no longer
+// the integration's: an admin removed the integration or changed its customer. It reads
+// nothing when check is false.
+func (s *GoogleConditionalAccessSyncer) checkCurrent(ctx context.Context, run *googleSyncRun, check bool) error {
+	if !check {
+		return nil
+	}
+	integration, err := s.integration(ctx)
+	if err != nil {
+		return err
+	}
+	if integration == nil || integration.State == fleet.ConditionalAccessGoogleStateDeleted ||
+		integration.ProxyServerSecret != run.integration.ProxyServerSecret {
+		return errGoogleRunSuperseded
+	}
+	return nil
+}
+
 func (s *GoogleConditionalAccessSyncer) handleRunError(ctx context.Context, run *googleSyncRun, err error) error {
+	if errors.Is(err, errGoogleRunSuperseded) {
+		s.logger.InfoContext(ctx, "google conditional access integration changed, stopping the run")
+		return nil
+	}
 	if conditional_access_google.IsAuthError(err) {
 		return s.setDelegationFailed(ctx, run.integration, err)
 	}
@@ -304,6 +282,9 @@ func (s *GoogleConditionalAccessSyncer) eachDeviceUser(
 ) error {
 	after := ""
 	for {
+		if err := s.checkCurrent(ctx, run, after != ""); err != nil {
+			return err
+		}
 		dus, err := s.ds.ListGoogleConditionalAccessDeviceUsers(ctx, fleet.GoogleConditionalAccessDeviceUserFilter{
 			CustomerID: run.customerID, States: states, HostExists: hostExists, AfterName: after, Limit: googleSyncBatchSize,
 		})
@@ -346,7 +327,7 @@ func (s *GoogleConditionalAccessSyncer) unmark(ctx context.Context, run *googleS
 				}
 				return nil
 			}
-			deleted, err := s.ds.DeleteGoogleConditionalAccessDeviceUser(ctx, du.Name, unmanaging, true)
+			deleted, err := s.ds.DeleteGoogleConditionalAccessUnmarkedDeviceUser(ctx, du.Name)
 			if err != nil || deleted {
 				return ctxerr.Wrap(ctx, err, "delete unmarked google device user")
 			}
@@ -417,6 +398,9 @@ func (s *GoogleConditionalAccessSyncer) migrateBookmarkHosts(ctx context.Context
 	}
 	var afterHostID uint
 	for {
+		if err := s.checkCurrent(ctx, run, afterHostID != 0); err != nil {
+			return err
+		}
 		hosts, err := s.ds.ListGoogleConditionalAccessBookmarkHosts(ctx, customerID, afterHostID, googleSyncBatchSize)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "list bookmark-era google hosts")

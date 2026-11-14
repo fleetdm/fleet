@@ -364,7 +364,7 @@ func registerMDMCrons(ctx context.Context, deps cronSchedulesDeps) {
 }
 
 // registerPremiumCrons covers the Fleet Premium schedules: Microsoft Autopilot
-// sync, the Google conditional access sync and device check, maintained apps, VPP
+// sync, the Google conditional access sync and Android retry, maintained apps, VPP
 // app version refresh (and the one-shot VPP country backfill), recovery lock
 // passwords, managed local account rotation, activities streaming, and the
 // calendar schedule.
@@ -381,8 +381,8 @@ func registerPremiumCrons(ctx context.Context, deps cronSchedulesDeps) {
 		return newGoogleConditionalAccessSchedule(ctx, deps.instanceID, deps.ds, deps.googleCAClients, deps.svc.NewActivity, deps.logger)
 	})
 
-	deps.register("failed to register google_conditional_access_device_check schedule", func() (fleet.CronSchedule, error) {
-		return newGoogleConditionalAccessDeviceCheckSchedule(ctx, deps.instanceID, deps.ds, deps.googleCAClients, deps.svc.NewActivity, deps.logger)
+	deps.register("failed to register google_conditional_access_android_retry schedule", func() (fleet.CronSchedule, error) {
+		return newGoogleConditionalAccessAndroidRetrySchedule(ctx, deps.instanceID, deps.ds, deps.googleCAClients, deps.svc.NewActivity, deps.logger)
 	})
 
 	deps.register("failed to register maintained apps schedule", func() (fleet.CronSchedule, error) {

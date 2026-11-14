@@ -644,31 +644,21 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleStaleNames()
 	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{deniedName: fleet.GoogleConditionalAccessDeviceUserPending}, g.states(denied))
 	require.True(t, g.iosStatus(denied).Registered)
 
-	// The hourly check deletes a name whose device is gone, sets stale a name whose device
-	// left the Workspace, and leaves the others.
+	// Google is only asked whether a device still exists after a write to it fails, so
+	// marked names cost no call on either cron.
 	two := g.newIOSHost("ios", true)
 	g.client.setDev(func(d *googleDeviceMock) { d.markErrs = nil })
-	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone,
-		g.registerNames(g.signIn(two), "devices/gone/deviceUsers/1", "devices/left/deviceUsers/1", "devices/here/deviceUsers/1"))
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(g.signIn(two), "devices/two/deviceUsers/1"))
 	g.client.setDev(func(d *googleDeviceMock) {
-		d.goneDevices = map[string]bool{"gone": true}
-		d.leftDevices = map[string]bool{"left": true}
+		d.goneDevices = map[string]bool{"two": true}
+		d.googleCalls = 0
 	})
-	require.Equal(t, "gone", g.googleDeviceID(two))
-	require.NoError(t, g.syncer.CheckDevices(t.Context()))
+	g.sync()
+	require.NoError(t, g.syncer.RetryAndroidHosts(t.Context()))
+	require.Zero(t, g.client.devCalls().googleCalls)
 	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
-		"devices/left/deviceUsers/1": fleet.GoogleConditionalAccessDeviceUserStale,
-		"devices/here/deviceUsers/1": fleet.GoogleConditionalAccessDeviceUserManaged,
+		"devices/two/deviceUsers/1": fleet.GoogleConditionalAccessDeviceUserManaged,
 	}, g.states(two))
-	require.True(t, g.iosStatus(two).Registered)
-	// The host's device ID moves off the deleted record to one that is still marked.
-	require.Equal(t, "here", g.googleDeviceID(two))
-
-	// When the last record is deleted the ID is cleared and the host signs in again.
-	g.client.setDev(func(d *googleDeviceMock) { d.goneDevices = map[string]bool{"here": true} })
-	require.NoError(t, g.syncer.CheckDevices(t.Context()))
-	require.Empty(t, g.googleDeviceID(two))
-	require.False(t, g.iosStatus(two).Registered)
 }
 
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDelegationFailure() {
@@ -705,7 +695,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleDelegationFa
 	// Once the integration shows the failure, the runs that keep failing don't report it again.
 	g.client.checkErr = googleAuthError{}
 	require.NoError(t, g.syncer.Sync(t.Context()))
-	require.NoError(t, g.syncer.CheckDevices(t.Context()))
+	require.NoError(t, g.syncer.RetryAndroidHosts(t.Context()))
 	row, err = s.ds.GetGoogleConditionalAccessIntegration(t.Context())
 	require.NoError(t, err)
 	require.Equal(t, fleet.ConditionalAccessGoogleStateDelegationFailed, row.State)
@@ -846,12 +836,12 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleAndroidResol
 	}
 	require.Equal(t, []string{hostAndroidID, lateAndroidID, lateAndroidID, lateAndroidID}, g.client.devCalls().finds)
 	require.Empty(t, g.states(late))
-	require.NoError(t, g.syncer.CheckDevices(t.Context()))
+	require.NoError(t, g.syncer.RetryAndroidHosts(t.Context()))
 	require.Len(t, g.client.devCalls().finds, 5)
 
 	// A record with a DeviceUser stored on another host leaves the host unregistered.
 	g.client.setDev(func(d *googleDeviceMock) { d.androidRecords[lateAndroidID] = []string{"and-live"} })
-	require.NoError(t, g.syncer.CheckDevices(t.Context()))
+	require.NoError(t, g.syncer.RetryAndroidHosts(t.Context()))
 	require.Empty(t, g.states(late))
 	require.Empty(t, g.googleDeviceID(late))
 	require.Len(t, g.cronActivities, 1)
@@ -861,7 +851,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleAndroidResol
 		d.androidRecords[lateAndroidID] = []string{"and-late"}
 		d.deviceUsers["and-late"] = []string{"devices/and-late/deviceUsers/1"}
 	})
-	require.NoError(t, g.syncer.CheckDevices(t.Context()))
+	require.NoError(t, g.syncer.RetryAndroidHosts(t.Context()))
 	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{"devices/and-late/deviceUsers/1": managed}, g.states(late))
 	require.Equal(t, "and-late", g.googleDeviceID(late))
 	require.Len(t, g.cronActivities, 2)
@@ -907,7 +897,7 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleAndroidResol
 
 	// The hourly run leaves the hosts the sync cron still tries on every run.
 	finds = len(g.client.devCalls().finds)
-	require.NoError(t, g.syncer.CheckDevices(t.Context()))
+	require.NoError(t, g.syncer.RetryAndroidHosts(t.Context()))
 	require.Len(t, g.client.devCalls().finds, finds)
 }
 
@@ -955,4 +945,34 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleCleanup() {
 	require.True(t, fleet.IsNotFound(err))
 	require.False(t, g.hasDevice(takeover))
 	require.Zero(t, g.client.devCalls().googleCalls)
+}
+
+func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleRemovedDuringRun() {
+	t := s.T()
+	g := s.newGoogleDeviceTest()
+	g.connectIntegration()
+
+	queued, failed := g.newIOSHost("ios", true), g.newIOSHost("ios", true)
+	queuedName, failedName := "devices/during-run/deviceUsers/1", "devices/during-run-failed/deviceUsers/1"
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(g.signIn(queued), queuedName))
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.markErrs = map[string]error{failedName: errors.New("Google returned HTTP 500")}
+	})
+	require.Equal(t, fleet.GoogleConditionalAccessRegisterDone, g.registerNames(g.signIn(failed), failedName))
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/google_device_id", queued.ID), nil, http.StatusNoContent)
+
+	// The integration is removed while the run unmarks: the run stops before it marks
+	// anything with the removed integration's key.
+	g.client.reset()
+	g.client.setDev(func(d *googleDeviceMock) {
+		d.onUnmark = func(string) {
+			require.NoError(t, s.ds.SaveGoogleConditionalAccessIntegration(context.WithoutCancel(t.Context()),
+				&fleet.ConditionalAccessGoogleIntegration{State: fleet.ConditionalAccessGoogleStateDeleted}))
+		}
+	})
+	g.syncAfter(2 * time.Minute)
+	_, _, _, unmanaged := g.client.calls()
+	require.Equal(t, []string{queuedName}, unmanaged)
+	require.Empty(t, g.client.devCalls().managed)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{failedName: fleet.GoogleConditionalAccessDeviceUserPending}, g.states(failed))
 }

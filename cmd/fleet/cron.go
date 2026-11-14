@@ -3304,13 +3304,13 @@ func newGoogleConditionalAccessSchedule(
 		(*service.GoogleConditionalAccessSyncer).Sync)
 }
 
-func newGoogleConditionalAccessDeviceCheckSchedule(
+func newGoogleConditionalAccessAndroidRetrySchedule(
 	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
 	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
 ) (*schedule.Schedule, error) {
 	return newGoogleConditionalAccessSyncerSchedule(ctx, instanceID, ds, clients, newActivityFn, logger,
-		fleet.CronGoogleConditionalAccessDeviceCheck, time.Hour, "check_google_conditional_access_devices",
-		(*service.GoogleConditionalAccessSyncer).CheckDevices)
+		fleet.CronGoogleConditionalAccessAndroidRetry, time.Hour, "retry_google_conditional_access_android_hosts",
+		(*service.GoogleConditionalAccessSyncer).RetryAndroidHosts)
 }
 
 func newGoogleConditionalAccessSyncerSchedule(

@@ -544,9 +544,7 @@ func (ds *Datastore) ListGoogleConditionalAccessDeviceUsers(
 	return dus, nil
 }
 
-func (ds *Datastore) DeleteGoogleConditionalAccessDeviceUser(
-	ctx context.Context, name string, state fleet.GoogleConditionalAccessDeviceUserState, deleteEmptyDevice bool,
-) (bool, error) {
+func (ds *Datastore) DeleteGoogleConditionalAccessUnmarkedDeviceUser(ctx context.Context, name string) (bool, error) {
 	var deleted bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		deleted = false
@@ -569,7 +567,7 @@ func (ds *Datastore) DeleteGoogleConditionalAccessDeviceUser(
 		}
 		res, err := tx.ExecContext(ctx, `
 			DELETE FROM google_conditional_access_device_users WHERE device_user_name = ? AND host_uuid = ? AND state = ?`,
-			name, hostUUID, state)
+			name, hostUUID, fleet.GoogleConditionalAccessDeviceUserUnmanaging)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting google device user")
 		}
@@ -578,15 +576,9 @@ func (ds *Datastore) DeleteGoogleConditionalAccessDeviceUser(
 			return ctxerr.Wrap(ctx, err, "deleted google device user")
 		}
 		if n == 0 {
-			return nil // another transaction changed or deleted the name
+			return nil // registered again, or deleted, since the caller listed it
 		}
 		deleted = true
-		if err := repointGoogleDeviceIDDB(ctx, tx, hostUUID); err != nil {
-			return err
-		}
-		if !deleteEmptyDevice {
-			return nil
-		}
 		return googleExecIn(ctx, tx, "deleting empty google_conditional_access_devices row", deleteEmptyGoogleDevicesStmt, []string{hostUUID})
 	})
 	return deleted, err

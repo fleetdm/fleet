@@ -213,9 +213,9 @@ func googleDeviceID(t *testing.T, ds *Datastore, hostUUID string) string {
 	return *id
 }
 
-// deleteDeviceUser deletes the name if it is in state, and reports whether it did.
-func deleteDeviceUser(t *testing.T, ds *Datastore, name string, state fleet.GoogleConditionalAccessDeviceUserState, deleteEmptyDevice bool) bool {
-	deleted, err := ds.DeleteGoogleConditionalAccessDeviceUser(t.Context(), name, state, deleteEmptyDevice)
+// deleteUnmarked deletes the name if it is queued for unmark, and reports whether it did.
+func deleteUnmarked(t *testing.T, ds *Datastore, name string) bool {
+	deleted, err := ds.DeleteGoogleConditionalAccessUnmarkedDeviceUser(t.Context(), name)
 	require.NoError(t, err)
 	return deleted
 }
@@ -572,16 +572,16 @@ func testConditionalAccessGoogleSyncQueries(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{"devices/d2/deviceUsers/a"},
 		list(fleet.GoogleConditionalAccessDeviceUserFilter{CustomerID: customer, States: unmanaging, Limit: 10}))
 
-	// Deleting a name only when it is in the expected state.
-	require.False(t, deleteDeviceUser(t, ds, "devices/d2/deviceUsers/a", fleet.GoogleConditionalAccessDeviceUserPending, true))
-	require.Len(t, googleDeviceUserStates(t, ds, "gone-uuid"), 1)
-	require.True(t, deleteDeviceUser(t, ds, "devices/d2/deviceUsers/a", fleet.GoogleConditionalAccessDeviceUserUnmanaging, true))
-	require.False(t, deleteDeviceUser(t, ds, "devices/d2/deviceUsers/a", fleet.GoogleConditionalAccessDeviceUserUnmanaging, true))
+	// Only a name queued for unmark is deleted once unmarked, and the row goes with it.
+	require.False(t, deleteUnmarked(t, ds, "devices/d1/deviceUsers/a"))
+	require.Len(t, googleDeviceUserStates(t, ds, live.UUID), 2)
+	require.True(t, deleteUnmarked(t, ds, "devices/d2/deviceUsers/a"))
+	require.False(t, deleteUnmarked(t, ds, "devices/d2/deviceUsers/a"))
 	require.False(t, googleDeviceRowExists(t, ds, "gone-uuid"))
-	// Without deleteEmptyDevice the row stays.
-	require.True(t, deleteDeviceUser(t, ds, "devices/d1/deviceUsers/a", fleet.GoogleConditionalAccessDeviceUserPending, false))
-	require.True(t, deleteDeviceUser(t, ds, "devices/d1/deviceUsers/b", fleet.GoogleConditionalAccessDeviceUserPending, false))
-	require.True(t, googleDeviceRowExists(t, ds, live.UUID))
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM google_conditional_access_device_users WHERE host_uuid = ?`, live.UUID)
+		return err
+	})
 
 	// Bookmark-era hosts: a Google device ID and no names for the customer.
 	bm1 := newTestHostWithPlatform(t, ds, "bm1", "ios", nil)
@@ -741,24 +741,29 @@ func testConditionalAccessGoogleDeviceID(t *testing.T, ds *Datastore) {
 		[]string{"devices/d2/deviceUsers/a", "devices/d1/deviceUsers/a"}))
 	require.Equal(t, "d1", googleDeviceID(t, ds, "uuid-1"))
 
-	// When the stored device's last name is deleted the ID moves to a device that still
-	// has one, and it is cleared with the last name.
-	require.True(t, deleteDeviceUser(t, ds, "devices/d1/deviceUsers/a", pending, true))
-	require.Equal(t, "d2", googleDeviceID(t, ds, "uuid-1"))
-	require.True(t, deleteDeviceUser(t, ds, "devices/d2/deviceUsers/a", pending, false))
-	require.Empty(t, googleDeviceID(t, ds, "uuid-1"))
-	require.True(t, googleDeviceRowExists(t, ds, "uuid-1"))
-
-	// A sign-in replaces an ID none of its names are under.
+	// A sign-in replaces an ID none of its names are under, and queues the names it no
+	// longer has for unmark.
 	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, "uuid-1", customer, []string{"devices/d3/deviceUsers/a"}))
+	require.Equal(t, "d3", googleDeviceID(t, ds, "uuid-1"))
 	ok, err := ds.UpdateGoogleConditionalAccessDeviceUserState(ctx, "devices/d3/deviceUsers/a", pending, fleet.GoogleConditionalAccessDeviceUserStale, nil)
 	require.NoError(t, err)
 	require.True(t, ok)
 	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, "uuid-1", customer, []string{"devices/d4/deviceUsers/a"}))
 	require.Equal(t, "d4", googleDeviceID(t, ds, "uuid-1"))
-	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{"devices/d4/deviceUsers/a": pending}, googleDeviceUserStates(t, ds, "uuid-1"))
-	// The row goes with its last name once the ID is cleared.
-	require.True(t, deleteDeviceUser(t, ds, "devices/d4/deviceUsers/a", pending, true))
+	unmanaging := fleet.GoogleConditionalAccessDeviceUserUnmanaging
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		"devices/d1/deviceUsers/a": unmanaging, "devices/d2/deviceUsers/a": unmanaging, "devices/d4/deviceUsers/a": pending,
+	}, googleDeviceUserStates(t, ds, "uuid-1"))
+	// Once the ID is removed, the row goes with the last name unmarked.
+	ok, err = ds.DeleteHostGoogleDeviceID(ctx, "uuid-1", "d4")
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Empty(t, googleDeviceID(t, ds, "uuid-1"))
+	for _, name := range []string{"devices/d1/deviceUsers/a", "devices/d2/deviceUsers/a"} {
+		require.True(t, deleteUnmarked(t, ds, name))
+		require.True(t, googleDeviceRowExists(t, ds, "uuid-1"))
+	}
+	require.True(t, deleteUnmarked(t, ds, "devices/d4/deviceUsers/a"))
 	require.False(t, googleDeviceRowExists(t, ds, "uuid-1"))
 
 	// A device bound to another host is refused, also when that host has no names yet.
@@ -771,16 +776,15 @@ func testConditionalAccessGoogleDeviceID(t *testing.T, ds *Datastore) {
 	require.Equal(t, "devices/d5/deviceUsers/a", conflict.Name)
 	require.False(t, googleDeviceRowExists(t, ds, "uuid-2"))
 
-	// The ID moves to a device a previous customer's row still holds, which doesn't count.
-	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, "uuid-4", customer,
-		[]string{"devices/d7/deviceUsers/a", "devices/d8/deviceUsers/a"}))
+	// A sign-in takes the ID from a previous customer's row, which doesn't count.
 	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO google_conditional_access_devices
 		(host_uuid, customer_id, google_device_id) VALUES ('uuid-old', 'C03old', 'd8')`)
 	require.NoError(t, err)
-	require.True(t, deleteDeviceUser(t, ds, "devices/d7/deviceUsers/a", pending, true))
+	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, "uuid-4", customer, []string{"devices/d8/deviceUsers/a"}))
 	require.Equal(t, "d8", googleDeviceID(t, ds, "uuid-4"))
 	require.Empty(t, googleDeviceID(t, ds, "uuid-old"))
-	require.True(t, deleteDeviceUser(t, ds, "devices/d8/deviceUsers/a", pending, true))
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM google_conditional_access_devices WHERE host_uuid = 'uuid-4'`)
+	require.NoError(t, err)
 
 	// A migrated row keeps its ID when the host's first status call claims it for the
 	// customer, and a row left by another customer doesn't.
@@ -880,7 +884,10 @@ func testConditionalAccessGoogleUnresolvedAndroidHosts(t *testing.T, ds *Datasto
 
 	// Recording a registration resets the count.
 	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, retried.HostUUID, customer, []string{"devices/retried/deviceUsers/a"}))
-	require.True(t, deleteDeviceUser(t, ds, "devices/retried/deviceUsers/a", fleet.GoogleConditionalAccessDeviceUserPending, false))
+	ok, err = ds.UpdateGoogleConditionalAccessDeviceUserState(ctx, "devices/retried/deviceUsers/a",
+		fleet.GoogleConditionalAccessDeviceUserPending, fleet.GoogleConditionalAccessDeviceUserStale, nil)
+	require.NoError(t, err)
+	require.True(t, ok)
 	require.Equal(t, []fleet.GoogleConditionalAccessAndroidHost{retried, stale, fresh, bookmark}, list(customer, 0, 0, 10))
 }
 

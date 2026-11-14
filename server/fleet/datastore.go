@@ -4384,11 +4384,11 @@ type Datastore interface {
 	QueueGoogleConditionalAccessUnmarkOfUnenrolledHosts(ctx context.Context, customerID string, limit int) (int, error)
 	// ListGoogleConditionalAccessDeviceUsers lists names in name order.
 	ListGoogleConditionalAccessDeviceUsers(ctx context.Context, filter GoogleConditionalAccessDeviceUserFilter) ([]GoogleConditionalAccessDeviceUser, error)
-	// DeleteGoogleConditionalAccessDeviceUser deletes the name if it is still in state,
-	// and reports whether it did. When no registered name is left under the host's Google
-	// device ID, the ID moves to the device of one that is, or is cleared. With
-	// deleteEmptyDevice, the host's row goes too when it was its last name.
-	DeleteGoogleConditionalAccessDeviceUser(ctx context.Context, name string, state GoogleConditionalAccessDeviceUserState, deleteEmptyDevice bool) (bool, error)
+	// DeleteGoogleConditionalAccessUnmarkedDeviceUser deletes a name queued for unmark once
+	// it is unmarked, and the host's row when that was its last name and the row has no
+	// device ID. It reports whether it deleted the name, which it doesn't once the host
+	// registered the name again.
+	DeleteGoogleConditionalAccessUnmarkedDeviceUser(ctx context.Context, name string) (bool, error)
 	// ListGoogleConditionalAccessBookmarkHosts lists, in host ID order after afterHostID,
 	// company-owned MDM-enrolled hosts with a Google device ID and no DeviceUsers stored,
 	// whose row belongs to the customer or to none yet.
