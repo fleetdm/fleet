@@ -1,9 +1,5 @@
 # Migrate from JumpCloud to Fleet and Okta
 
-> "Many high-agency people simply gave up on switching MDMs. But not you. Because this time is different."
->
-> Mike McNeil, CEO of Fleet
-
 Fleet is an open-source device management platform for macOS, Windows, Linux, iOS, iPadOS, Android, and Chromebooks. You can do MDM, deploy software, patch, and verify device settings from one place, and manage it all as code. Fleet doesn't include a directory or single sign-on, so you pair it with an identity provider (IdP) like Okta, which Fleet uses for sign-in during setup, user provisioning, and device checks.
 
 This guide moves the two jobs JumpCloud does for you to two tools: directory, SSO, and MFA go to Okta, and device management goes to Fleet. You'll run both side by side, move devices in batches, and retire JumpCloud last. Each step ends with a prompt you can paste into Claude to get walked through it.
