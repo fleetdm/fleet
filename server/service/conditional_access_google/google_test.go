@@ -485,10 +485,14 @@ func TestAuthError(t *testing.T) {
 	fake.apiBody = `{"error":{"code":401,"message":"bad token"}}`
 	require.True(t, IsAuthError(client.CheckDelegation(t.Context())))
 
-	// A token endpoint outage isn't a delegation problem.
+	// A token endpoint outage or rate limit isn't a delegation problem.
 	client, fake = newTestCloudIdentity(t)
 	fake.tokenStatus = http.StatusBadGateway
 	fake.tokenBody = "<html>Bad Gateway</html>"
+	require.False(t, IsAuthError(client.CheckDelegation(t.Context())))
+	client, fake = newTestCloudIdentity(t)
+	fake.tokenStatus = http.StatusTooManyRequests
+	fake.tokenBody = `{"error":"rate_limit_exceeded"}`
 	require.False(t, IsAuthError(client.CheckDelegation(t.Context())))
 
 	// Network failures aren't auth errors.
