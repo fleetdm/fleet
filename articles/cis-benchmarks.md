@@ -1,7 +1,5 @@
 # CIS Benchmarks
 
-_Available in Fleet Premium_.
-
 CIS Benchmarks represent the consensus-based effort of cybersecurity experts to help you protect your systems against threats more confidently.
 For more information about CIS Benchmarks check out [Center for Internet Security](https://www.cisecurity.org/cis-benchmarks)'s website.
 
@@ -51,97 +49,16 @@ If either of these conditions fails, the host is considered to be failing the po
 
 ## How to add CIS Benchmarks
 
-All CIS policies are stored under our restricted licensed folder `ee/cis/`. To easily convert the [CIS benchmarks YAML raw file](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/main/ee/cis/macos-14/cis-policy-queries.yml) to a YAML array format compatible with Fleet GitOps, follow these steps:
+CIS policies are stored in GitOps format in [`docs/solutions/cis/`](https://github.com/fleetdm/fleet/tree/main/docs/solutions/cis), with one folder per platform. Each folder has a `policies/` folder with the policy YAML.
 
-1. Install [yq](https://github.com/mikefarah/yq) if you don't have it already. (yq is a command-line YAML, JSON and XML processor.)
-2. Run this Shell script to transform the policies into [Fleet YAML](https://fleetdm.com/docs/configuration/yaml-files):
+To add the policies to a fleet, copy the YAML file into your GitOps repository and reference it in the fleet's YAML file. For example:
 
-```
-#!/bin/bash
-#shellcheck disable=SC2207
-
-# convert.cis.policy.queries.yml @2025 Fleet Device Management
-
-# if using fleetctl - fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
-
-# This script takes as input the YAML from the file linked above & creates a new YAML array compatible with the "Separate file" format documented here:
-#    https://fleetdm.com/docs/configuration/yaml-files#separate-file
-
-# Usage: ./gitopsconverter.sh -f <source_yaml_file>
-# Example: ./gitopsconverter.sh -f ../lib/l1_win11_intune.yaml
-
-usage() {
-    echo "Usage: $0 -f <source_yaml_file>"
-    echo "Example: $0 -f ../lib/l1_win11_intune.yaml"
-    exit 1
-}
-
-cispath=""
-
-while getopts "f:" opt; do
-    case $opt in
-        f)
-            cispath="$OPTARG"
-            ;;
-        *)
-            usage
-            ;;
-    esac
-done
-
-# Check if source file argument is provided
-if [ -z "$cispath" ]; then
-    usage
-fi
-
-# Check if source file exists
-if [ ! -f "$cispath" ]; then
-    echo "Error: Source file '$cispath' not found"
-    exit 1
-fi
-
-# Set up output directory and file
-outputdir='../gitops'
-filename="$(basename "$cispath")"
-outputfile="${outputdir}/${filename}"
-
-# Create output directory if it doesn't exist
-mkdir -p "$outputdir"
-
-# Clear/create the output file
-> "$outputfile"
-
-echo "Converting: $cispath -> $outputfile"
-
-# Use yq to transform multi-document YAML to a proper array format
-# This extracts only the fields needed for GitOps and outputs as a valid YAML array
-# Trim whitespace from all fields
-# Extract critical value from tags field (e.g., "critical:true" -> true)
-# Fields based on Fleet GitOps documentation: https://fleetdm.com/docs/configuration/yaml-files#separate-file
-# Filter out any documents without a spec.name (empty documents)
-# Handle null/missing fields by providing defaults before trimming
-/opt/homebrew/bin/yq eval-all '
-  [select(.spec.name != null and .spec.name != "") | .spec | {
-    "name": ((.name // "") | sub("\n$", "")),
-    "description": ((.description // "") | sub("\n$", "")),
-    "resolution": ((.resolution // "") | sub("\n$", "")),
-    "query": ((.query // "") | sub("\n$", "")),
-    "platform": ((.platform // "") | sub("\n$", "")),
-    "critical": ((.tags // "") | test("critical:true")),
-    "calendar_events_enabled": false,
-    "tags": ((.tags // "") | sub("\n$", ""))
-  }]
-' "$cispath" | /opt/homebrew/bin/yq eval '.[] | [.]' - | /opt/homebrew/bin/yq eval-all '. as $item ireduce ([]; . + $item)' - > "$outputfile"
-
-echo "Done. Output written to: $outputfile"
+```yaml
+policies:
+  - path: ../lib/cis-policy-queries.yml
 ```
 
-3. The converted YAML is written to standard out in the Terminal. Copy/paste the CIS policies you wish to use into your own YAML file and run Fleet GitOps.
-
-If you're using `fleetctl apply`, you can apply the policies to a specific fleet use the `--policies-team` flag:
-```sh
-fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
-```
+To add only some of the policies, copy the ones you want into your own YAML file. Learn more about [Fleet's YAML files](https://fleetdm.com/docs/configuration/yaml-files#policies).
 
 ## Levels 1 and 2
 CIS designates various benchmarks as Level 1 or Level 2 to describe the level of thoroughness and burden that each benchmark represents.
@@ -173,12 +90,13 @@ Following are the requirements to use the CIS Benchmarks in Fleet:
 
 Certain benchmarks cannot be automated by a policy in Fleet. For a list of specific benchmarks which are not covered, please visit the README for each benchmark:
 
-- [macOS 13.0 Ventura](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-13/README.md)
-- [macOS 14.0 Sonoma](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-14/README.md)
-- [macOS 15.0 Sequoia](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-15/README.md)
-- [macOS 26.0 Tahoe](https://github.com/fleetdm/fleet/tree/main/ee/cis/macos-26/README.md)
-- [Windows 10 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-10/README.md)
-- [Windows 11 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/README.md)
+- [macOS 13.0 Ventura](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/macos-13/README.md)
+- [macOS 14.0 Sonoma](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/macos-14/README.md)
+- [macOS 15.0 Sequoia](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/macos-15/README.md)
+- [macOS 26.0 Tahoe](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/macos-26/README.md)
+- [Windows 10 Enterprise](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/win-10/README.md)
+- [Windows 11 Enterprise](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/win-11/README.md)
+- [Windows 11 (Intune)](https://github.com/fleetdm/fleet/blob/main/docs/solutions/cis/win-11-intune/README.md)
 
 ## Performance testing
 In August 2023, we completed [scale testing on 10k Windows hosts and 70k macOS hosts](https://docs.google.com/document/d/1OSpyzMkHjVhG_-EIBkLu7X3hj_XfVASGl3IXIYChpck/edit?usp=sharing). Ultimately, we validated both server and host performance at that scale.

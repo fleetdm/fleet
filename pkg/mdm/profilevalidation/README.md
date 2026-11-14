@@ -223,7 +223,7 @@ It runs after the structural validator in `server/fleet` (well-formed XML, allow
 To check the repo's profiles by hand, run from the repository root:
 
 ```sh
-go run ./tools/profile-validate [-strict] [paths…]   # defaults to it-and-security, docs/solutions, ee/cis
+go run ./tools/profile-validate [-strict] [paths…]   # defaults to it-and-security, docs/solutions
 ```
 
 - `.mobileconfig` files are Apple profiles, `.json` files with a `com.apple.*` `Type` are declarations, and `.xml` files with a `<LocURI>` are Windows profiles. Anything else is ignored.

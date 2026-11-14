@@ -17,7 +17,7 @@ documents.
 
 All conventions (directory layout, YAML format, required fields, query
 patterns, script/profile naming, README structure, test runner
-invocation) are documented in `ee/cis/CIS-BENCHMARKS.md`. Read that
+invocation) are documented in `docs/solutions/cis/CIS-BENCHMARKS.md`. Read that
 file before you begin. Do not invent conventions — if something is not
 documented, ask the user.
 
@@ -31,9 +31,9 @@ and documentation.
 
 - CIS benchmark PDF (new version): `pdf/<filename>.pdf`
 - CIS benchmark PDF (previous version, if upgrading): `pdf/<filename>.pdf`
-- Existing policies (if upgrading): `ee/cis/<os-dir>/cis-policy-queries.yml`
-- Existing tests: `ee/cis/<os-dir>/test/scripts/` and `test/profiles/`
-- Conventions: `ee/cis/CIS-BENCHMARKS.md`
+- Existing policies (if upgrading): `docs/solutions/cis/<os-dir>/policies/cis-policy-queries.yml`
+- Existing tests: `docs/solutions/cis/<os-dir>/test/scripts/` and `test/profiles/`
+- Conventions: `docs/solutions/cis/CIS-BENCHMARKS.md`
 
 ## Step-by-step workflow
 
@@ -42,10 +42,10 @@ and documentation.
 Skip this step when upgrading an existing OS version's benchmark.
 
 For a brand-new OS version (e.g. `macos-27` when the latest
-directory in `ee/cis/` is `macos-26`), follow CIS-BENCHMARKS.md
+directory in `docs/solutions/cis/` is `macos-26`), follow CIS-BENCHMARKS.md
 §Adding a new macOS version **before** writing any policies:
 
-1. Create the `ee/cis/<os-dir>/` scaffold (policy YAML, README,
+1. Create the `docs/solutions/cis/<os-dir>/` scaffold (policy YAML, README,
    `test/scripts/`, `test/profiles/`).
 2. Register the version in `tools/cis/cis-test-runner.py` — four
    dict entries (`VERSION_MAP`, `SSH_BREAKING_CIS_IDS`,
