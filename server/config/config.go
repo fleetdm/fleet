@@ -1701,6 +1701,14 @@ func (m *MDMConfig) IsMicrosoftWSTEPSet() bool {
 	return pair.IsSet()
 }
 
+// GlobalEnrollSecretAllowed reports whether a global enroll secret is accepted for a host on platform. It isn't for
+// hosts whose platform gets one-time enroll secrets, since the shared secret isn't meant to be on them.
+func (m *MDMConfig) GlobalEnrollSecretAllowed(platform string) bool {
+	// Same as fleet.IsApplePlatform, which this package can't import.
+	isApple := platform == "darwin" || platform == "ios" || platform == "ipados"
+	return !(m.AppleOneTimeEnrollSecrets && isApple) && !(m.WindowsOneTimeEnrollSecrets && platform == "windows")
+}
+
 type TLS struct {
 	TLSCert       string
 	TLSKey        string

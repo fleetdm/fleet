@@ -4554,6 +4554,14 @@ type Datastore interface {
 	NewAppleSCEPChallenge(ctx context.Context, info AppleSCEPChallengeInfo, ttl time.Duration) (string, error)
 	// ConsumeAppleSCEPChallenge marks the given SCEP challenge as consumed and returns its associated info if found.
 	ConsumeAppleSCEPChallenge(ctx context.Context, challenge string) (*AppleSCEPChallengeInfo, error)
+	// FindOrCreateWindowsConditionalAccessSCEPChallenge returns the unconsumed, unexpired single-use challenge for
+	// Fleet's conditional access SCEP server bound to the Windows MDM enrollment's host, creating one valid for
+	// ConditionalAccessSCEPChallengeTTL if there's none. Apple hosts get theirs through ExpandHostSecrets.
+	FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx context.Context, enrollmentID uint) (string, error)
+	// ConsumeConditionalAccessSCEPChallenge marks the host's conditional access SCEP challenge as consumed. It returns a
+	// not found error, and leaves the challenge untouched, if it doesn't exist, is expired or consumed, or belongs to
+	// another host.
+	ConsumeConditionalAccessSCEPChallenge(ctx context.Context, challenge, hostUUID string) error
 	// SetAppleSCEPChallengeIssuedCert records the issued certificate serial number for the given SCEP challenge.
 	// It will only have an effect on rows without a cert serial and for challenges that is already consumed.
 	SetAppleSCEPChallengeIssuedCert(ctx context.Context, challenge string, certSerial int64) error

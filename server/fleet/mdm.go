@@ -124,9 +124,12 @@ const (
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
-	// FleetVarConditionalAccessSCEPURL points a Windows SCEP profile at Fleet's conditional access SCEP server and marks
-	// its certificate as Fleet-tracked. The challenge is a global enroll secret the admin writes into the profile.
+	// FleetVarConditionalAccessSCEPURL points a SCEP profile at Fleet's conditional access SCEP server. On Windows it
+	// also marks the certificate as Fleet-tracked.
 	FleetVarConditionalAccessSCEPURL FleetVarName = "CONDITIONAL_ACCESS_SCEP_URL"
+	// FleetVarConditionalAccessSCEPChallenge is filled in with a one-time challenge for the host when the profile is
+	// sent. Profiles written before it existed carry a global enroll secret instead.
+	FleetVarConditionalAccessSCEPChallenge FleetVarName = "CONDITIONAL_ACCESS_SCEP_CHALLENGE" // nolint:gosec // G101: variable name, not a credential
 
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
@@ -143,7 +146,7 @@ func HasCAVariables(fleetVars []string) bool {
 	for _, v := range fleetVars {
 		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
 			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarCertificateRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
-			v == string(FleetVarConditionalAccessSCEPURL) ||
+			v == string(FleetVarConditionalAccessSCEPURL) || v == string(FleetVarConditionalAccessSCEPChallenge) ||
 			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarEJBCADataPrefix)) || strings.HasPrefix(v, string(FleetVarEJBCAPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
@@ -178,6 +181,8 @@ var (
 	FleetVarSCEPWindowsCertificateIDRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
 	FleetVarPSSODeviceRegistrationTokenRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarPSSODeviceRegistrationToken))
 	FleetVarConditionalAccessSCEPURLRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarConditionalAccessSCEPURL))
+	// nolint:gosec // G101: variable name, not a credential
+	FleetVarConditionalAccessSCEPChallengeRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarConditionalAccessSCEPChallenge))
 
 	IDPFleetVariables = []FleetVarName{
 		FleetVarHostEndUserIDPUsername,

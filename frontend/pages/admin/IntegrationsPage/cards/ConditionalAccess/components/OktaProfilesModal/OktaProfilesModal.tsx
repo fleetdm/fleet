@@ -112,7 +112,6 @@ const WindowsProfilesTab = () => {
         label="Certificate profile"
         name="windows-certificate-profile"
         value={windowsProfiles?.scep_profile ?? ""}
-        helpText="Replace the placeholder with a global enroll secret before uploading. For GitOps, use a secret variable instead."
       />
       <ProfileEditor
         label="Browser profile"

@@ -2590,6 +2590,10 @@ type NewAppleSCEPChallengeFunc func(ctx context.Context, info fleet.AppleSCEPCha
 
 type ConsumeAppleSCEPChallengeFunc func(ctx context.Context, challenge string) (*fleet.AppleSCEPChallengeInfo, error)
 
+type FindOrCreateWindowsConditionalAccessSCEPChallengeFunc func(ctx context.Context, enrollmentID uint) (string, error)
+
+type ConsumeConditionalAccessSCEPChallengeFunc func(ctx context.Context, challenge string, hostUUID string) error
+
 type SetAppleSCEPChallengeIssuedCertFunc func(ctx context.Context, challenge string, certSerial int64) error
 
 type CleanupAppleSCEPChallengesFunc func(ctx context.Context) error
@@ -6443,6 +6447,12 @@ type DataStore struct {
 
 	ConsumeAppleSCEPChallengeFunc        ConsumeAppleSCEPChallengeFunc
 	ConsumeAppleSCEPChallengeFuncInvoked bool
+
+	FindOrCreateWindowsConditionalAccessSCEPChallengeFunc        FindOrCreateWindowsConditionalAccessSCEPChallengeFunc
+	FindOrCreateWindowsConditionalAccessSCEPChallengeFuncInvoked bool
+
+	ConsumeConditionalAccessSCEPChallengeFunc        ConsumeConditionalAccessSCEPChallengeFunc
+	ConsumeConditionalAccessSCEPChallengeFuncInvoked bool
 
 	SetAppleSCEPChallengeIssuedCertFunc        SetAppleSCEPChallengeIssuedCertFunc
 	SetAppleSCEPChallengeIssuedCertFuncInvoked bool
@@ -15432,6 +15442,20 @@ func (s *DataStore) ConsumeAppleSCEPChallenge(ctx context.Context, challenge str
 	s.ConsumeAppleSCEPChallengeFuncInvoked = true
 	s.mu.Unlock()
 	return s.ConsumeAppleSCEPChallengeFunc(ctx, challenge)
+}
+
+func (s *DataStore) FindOrCreateWindowsConditionalAccessSCEPChallenge(ctx context.Context, enrollmentID uint) (string, error) {
+	s.mu.Lock()
+	s.FindOrCreateWindowsConditionalAccessSCEPChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.FindOrCreateWindowsConditionalAccessSCEPChallengeFunc(ctx, enrollmentID)
+}
+
+func (s *DataStore) ConsumeConditionalAccessSCEPChallenge(ctx context.Context, challenge string, hostUUID string) error {
+	s.mu.Lock()
+	s.ConsumeConditionalAccessSCEPChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.ConsumeConditionalAccessSCEPChallengeFunc(ctx, challenge, hostUUID)
 }
 
 func (s *DataStore) SetAppleSCEPChallengeIssuedCert(ctx context.Context, challenge string, certSerial int64) error {

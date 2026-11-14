@@ -9525,9 +9525,52 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			vars:    []string{"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "CUSTOM_SCEP_CHALLENGE_scepName", "CUSTOM_SCEP_PROXY_URL_scepName", "SCEP_RENEWAL_ID"},
 		},
 		{
-			name:    "conditional access SCEP URL variable",
+			// Supported, but only alongside the renewal ID in a SCEP payload.
+			name:    "conditional access SCEP URL variable outside a SCEP profile",
 			profile: customProfileForValidation(fleet.FleetVarConditionalAccessSCEPURL.WithPrefix()),
-			errMsg:  "Fleet variable " + fleet.FleetVarConditionalAccessSCEPURL.WithPrefix() + " is not supported in configuration profiles.",
+			errMsg:  fleet.ConditionalAccessSCEPVariablesMissingErrMsg,
+		},
+		{
+			name: "Conditional access happy path",
+			profile: customSCEPForValidation("${FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE}", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"Name", "com.apple.security.scep"),
+			vars: []string{"CONDITIONAL_ACCESS_SCEP_CHALLENGE", "CONDITIONAL_ACCESS_SCEP_URL", "SCEP_RENEWAL_ID"},
+		},
+		{
+			name: "Conditional access profile written before the variables, with the secret and URL in it",
+			profile: customSCEPForValidation("global-secret", "https://fleet.example.com/api/fleet/conditional_access/scep",
+				"Name", "com.apple.security.scep"),
+			vars: []string{"SCEP_RENEWAL_ID"},
+		},
+		{
+			name: "Conditional access literal challenge with the url variable",
+			profile: customSCEPForValidation("global-secret", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"Name", "com.apple.security.scep"),
+			vars: []string{"CONDITIONAL_ACCESS_SCEP_URL", "SCEP_RENEWAL_ID"},
+		},
+		{
+			name: "Conditional access challenge is not a fleet variable",
+			profile: customSCEPForValidation("x$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"Name", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE\" must be in the SCEP certificate's \"Challenge\" field.",
+		},
+		{
+			name: "Conditional access challenge outside the Challenge field",
+			profile: customSCEPForValidation("global-secret", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE\" must be in the SCEP certificate's \"Challenge\" field.",
+		},
+		{
+			name: "Conditional access url outside the URL field",
+			profile: customSCEPForValidation("global-secret", "https://fleet.example.com/api/fleet/conditional_access/scep",
+				"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL", "com.apple.security.scep"),
+			errMsg: "Variable \"$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL\" must be in the SCEP certificate's \"URL\" field.",
+		},
+		{
+			name: "Conditional access renewal ID shows up in the wrong place",
+			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_CHALLENGE", "$FLEET_VAR_CONDITIONAL_ACCESS_SCEP_URL",
+				"$FLEET_VAR_SCEP_RENEWAL_ID", "com.apple.security.scep"),
+			errMsg: renewalIDNotInSubjectMsg,
 		},
 		{
 			name:    "silent migration SCEP challenge variable",

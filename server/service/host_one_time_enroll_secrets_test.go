@@ -684,6 +684,7 @@ func TestEnrollRejectSharedSecretForWindowsMDMHosts(t *testing.T) {
 func TestExpandWindowsHostSecrets(t *testing.T) {
 	placeholder := fleet.HostSecretPlaceholder(fleet.HostSecretEnrollSecret)
 	withPlaceholder := `<Data>FLEET_SECRET="` + placeholder + `"</Data>`
+	withCAChallenge := `<Data>` + fleet.HostSecretPlaceholder(fleet.HostSecretConditionalAccessSCEPChallenge) + `</Data>`
 	for _, tc := range []struct {
 		name    string
 		doc     string
@@ -697,15 +698,23 @@ func TestExpandWindowsHostSecrets(t *testing.T) {
 		// Nothing minted: the host gets an empty value, which fleetd reads as nothing waiting.
 		{name: "nothing minted resolves to empty", doc: withPlaceholder, want: `<Data>FLEET_SECRET=""</Data>`},
 		{name: "failed lookup is an error, not an empty secret", doc: withPlaceholder, liveErr: errors.New("db down"), wantErr: "db down"},
+		{name: "conditional access challenge is resolved", doc: withCAChallenge, live: "0a1b", want: `<Data>0a1b</Data>`},
+		{name: "conditional access challenge failure is an error", doc: withCAChallenge, liveErr: errors.New("db down"), wantErr: "db down"},
 		// The lookup func is set only when the document needs it; an unset mock func panics if called.
 		{name: "document without host secrets never reaches the datastore", doc: `<Data>plain</Data>`, want: `<Data>plain</Data>`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			if tc.doc == withPlaceholder {
+			switch tc.doc {
+			case withPlaceholder:
 				ds.GetLiveWindowsMDMOneTimeEnrollSecretFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
 					require.EqualValues(t, 7, enrollmentID)
 					require.True(t, ctxdb.IsPrimaryRequired(ctx), "the secret may have been minted moments ago")
+					return tc.live, tc.liveErr
+				}
+			case withCAChallenge:
+				ds.FindOrCreateWindowsConditionalAccessSCEPChallengeFunc = func(ctx context.Context, enrollmentID uint) (string, error) {
+					require.EqualValues(t, 7, enrollmentID)
 					return tc.live, tc.liveErr
 				}
 			}

@@ -569,9 +569,18 @@ func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enr
 			}
 			secretValues[secretType] = token
 		case fleet.HostSecretSCEPChallenge:
-			challenge, err := ds.findOrCreateAppleSCEPRenewalChallenge(ctx, enrollmentID)
+			challenge, err := ds.findOrCreateAppleEnrollmentSCEPChallenge(ctx, enrollmentID, fleet.AppleMDMCertPurposeSCEPRenewal,
+				fleet.AppleSCEPRenewalChallengeTTL, fleet.GenerateRandom32ByteEntropyURLSafeToken)
 			if err != nil {
 				return "", ctxerr.Wrapf(ctx, err, "getting scep renewal challenge for enrollment %s", enrollmentID)
+			}
+			secretValues[secretType] = challenge
+		case fleet.HostSecretConditionalAccessSCEPChallenge:
+			// The device channel ID is the UDID, which the Okta profile's SAN carries as %HardwareUUID%.
+			challenge, err := ds.findOrCreateAppleEnrollmentSCEPChallenge(ctx, enrollmentID, fleet.ConditionalAccessSCEPChallengePurpose,
+				fleet.ConditionalAccessSCEPChallengeTTL, newConditionalAccessSCEPChallengeToken)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting conditional access scep challenge for enrollment %s", enrollmentID)
 			}
 			secretValues[secretType] = challenge
 		case fleet.HostSecretFileVaultKey:
