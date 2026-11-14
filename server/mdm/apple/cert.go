@@ -28,39 +28,6 @@ const (
 // emailAddressOID defined by https://oidref.com/1.2.840.113549.1.9.1
 var emailAddressOID = []int{1, 2, 840, 113549, 1, 9, 1}
 
-// GenerateAPNSCSRKey generates a APNS CSR (certificate signing request) and
-// returns the CSR and private key.
-func GenerateAPNSCSRKey(email, org string) (*x509.CertificateRequest, *rsa.PrivateKey, error) {
-	key, err := newPrivateKey()
-	if err != nil {
-		return nil, nil, fmt.Errorf("generate private key: %w", err)
-	}
-
-	subj := pkix.Name{
-		Organization: []string{org},
-		ExtraNames: []pkix.AttributeTypeAndValue{{
-			Type:  emailAddressOID,
-			Value: email,
-		}},
-	}
-	template := &x509.CertificateRequest{
-		Subject:            subj,
-		SignatureAlgorithm: x509.SHA256WithRSA,
-	}
-
-	b, err := x509.CreateCertificateRequest(rand.Reader, template, key)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	certReq, err := x509.ParseCertificateRequest(b)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return certReq, key, nil
-}
-
 func GenerateAPNSCSR(org, email string, key crypto.PrivateKey) (*x509.CertificateRequest, error) {
 	subj := pkix.Name{
 		Organization: []string{org},
@@ -107,49 +74,6 @@ func (e FleetWebsiteError) Error() string {
 
 type getSignedAPNSCSRRequest struct {
 	UnsignedCSRData []byte `json:"unsignedCsrData"`
-}
-
-// GetSignedAPNSCSR makes a request to the fleetdm.com API to get a signed APNs
-// CSR that is sent to the email provided in the certificate subject.
-func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
-	csrPEM := EncodeCertRequestPEM(csr)
-
-	payload := getSignedAPNSCSRRequest{
-		UnsignedCSRData: csrPEM,
-	}
-
-	b, err := json.Marshal(payload)
-	if err != nil {
-		return fmt.Errorf("marshal payload: %w", err)
-	}
-
-	// for testing
-	baseURL := defaultFleetDMAPIURL
-	if x := os.Getenv("TEST_FLEETDM_API_URL"); x != "" {
-		baseURL = strings.TrimRight(x, "/")
-	}
-	u := baseURL + getSignedAPNSCSRPath
-
-	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(b))
-	if err != nil {
-		return err
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
-		return FleetWebsiteError{
-			Status:   resp.StatusCode,
-			message:  string(b),
-			ExitType: resp.Header.Get("x-exit"),
-		}
-	}
-	return nil
 }
 
 type websiteSignCSRResponse struct {

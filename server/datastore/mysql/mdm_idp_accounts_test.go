@@ -160,7 +160,7 @@ func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
 	t.Run("manual mapping with different email", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-manual-diff")
 
-		err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
+		_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
 		require.NoError(t, err)
 
 		// enrollment reconciles the association and supersedes the manual mapping
@@ -178,7 +178,7 @@ func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
 	t.Run("manual mapping with same email", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-manual-same")
 
-		err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "sso.user@example.com")
+		_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "sso.user@example.com")
 		require.NoError(t, err)
 
 		_, err = ds.AssociateHostMDMIdPAccount(ctx, host.UUID, idpAccount.UUID)
@@ -274,7 +274,7 @@ func testReconcileSupersedesManuallySetIdPMapping(t *testing.T, ds *Datastore) {
 	t.Run("manual mapping survives reconcile without idp account", func(t *testing.T) {
 		host := newDarwinHost(t, "uuid-manual-no-idp")
 
-		err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
+		_, err := ds.SetOrUpdateIDPHostDeviceMapping(ctx, host.ID, "someone.else@example.com")
 		require.NoError(t, err)
 
 		// no host_mdm_idp_accounts association exists (e.g. re-enrollment without SSO)

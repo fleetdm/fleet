@@ -25,6 +25,17 @@ At Fleet, we understand that transparency isn’t just a buzzword—it's a cruci
 
 _Using the AI autofill feature to create a new policy in Fleet. May 2024._
 
+To learn what data this feature sends, how to turn it off, and how to report a concern, see [AI in Fleet](https://fleetdm.com/guides/ai-in-fleet).
+
+
+## What's sent to the LLM
+
+The **Generative AI** setting in **Settings > Organization settings > Advanced options** controls all of Fleet's AI features: policy descriptions, policy resolutions, and [configuration profiles](https://fleetdm.com/guides/custom-os-settings#enforce). It's on by default.
+
+Only policy queries (SQL) and profile prompts are sent to the large language model (LLM). Fleet doesn't use this data to train models. To learn what each feature sends and to whom, see [AI in Fleet](https://fleetdm.com/guides/ai-in-fleet).
+
+To turn off all AI features, uncheck **Generative AI**. In GitOps, set `server_settings.ai_features_disabled: true`.
+
 
 ## Built with the end user in mind
 

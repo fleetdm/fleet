@@ -1,10 +1,12 @@
 - name: Removable storage is read-only
   critical: false
-  description: Enforces read-only access to USB removable storage (USB sticks, external HDD/SSD presented as removable, SD cards) on Linux hosts via a udev rule.
+  hidden: true
+  description: Checks that USB removable storage (USB sticks, external HDD/SSD presented as removable, SD cards) is read-only on Linux hosts.
   resolution: |
-    Fleet auto-remediates this policy by installing a udev rule at
-    /etc/udev/rules.d/99-fleet-readonly-removable-storage.rules that flags USB
-    removable block devices as read-only at the kernel level.
+    No action needed from you. Fleet runs a script that installs a udev rule at
+    /etc/udev/rules.d/99-fleet-readonly-removable-storage.rules, which makes USB
+    removable block devices read-only at the kernel level. If it keeps failing,
+    IT reviews the script output in the host's activity.
   platform: linux
   labels_exclude_any:
     - "Linux hosts excluded from external storage restrictions"

@@ -9,7 +9,6 @@ locals {
     FLEET_MYSQL_CONN_MAX_LIFETIME              = "14400"
     FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME = "14400"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
-    FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
     # ELASTIC_APM_SERVER_URL                     = var.elastic_url
     # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     # ELASTIC_APM_SERVICE_NAME                   = "dogfood-free"

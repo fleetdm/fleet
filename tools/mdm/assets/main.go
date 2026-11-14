@@ -244,9 +244,9 @@ export FLEET_MDM_APPLE_APNS_KEY=%[1]s/apns_key.key
 export FLEET_MDM_APPLE_SCEP_CERT=%[1]s/ca_cert.crt
 export FLEET_MDM_APPLE_SCEP_KEY=%[1]s/ca_key.key
 export FLEET_MDM_APPLE_SCEP_CHALLENGE=$(cat %[1]s/scep_challenge)
-export FLEET_MDM_APPLE_BM_SERVER_TOKEN=%[1]s/abm_token
-export FLEET_MDM_APPLE_BM_CERT=%[1]s/abm_cert.crt
-export FLEET_MDM_APPLE_BM_KEY=%[1]s/abm_key.key
+export FLEET_MDM_APPLE_BUSINESS_SERVER_TOKEN=%[1]s/abm_token
+export FLEET_MDM_APPLE_BUSINESS_CERT=%[1]s/abm_cert.crt
+export FLEET_MDM_APPLE_BUSINESS_KEY=%[1]s/abm_key.key
 `, flagDir)
 	case "rollover-ca-cert":
 		if err := rolloverCmd.Parse(os.Args[2:]); err != nil {

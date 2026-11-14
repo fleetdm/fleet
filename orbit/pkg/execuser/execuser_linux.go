@@ -329,6 +329,11 @@ func getConfigForCommand(user string, path string, xdgSessionEnv bool) (args []s
 		// This is required for Ubuntu 18, and not required for Ubuntu 21/22
 		// (because it's already part of the user).
 		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%s/bus", userID),
+		// sudo's env_reset drops XDG_RUNTIME_DIR, and libwayland resolves a relative
+		// WAYLAND_DISPLAY against it. On compositors whose socket isn't wayland-0
+		// (Hyprland uses wayland-1) GTK and Qt then fall back to an X11 display that
+		// doesn't exist, so zenity and kdialog fail with "Failed to open display".
+		"XDG_RUNTIME_DIR=/run/user/"+userID,
 	)
 
 	return args, env, nil

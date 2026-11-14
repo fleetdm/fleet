@@ -3,6 +3,7 @@
   "slug": "nosql-workbench/windows",
   "package_identifier": "Amazon.NoSQLWorkbench",
   "unique_identifier": "NoSQL Workbench",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

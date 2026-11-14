@@ -1,6 +1,6 @@
 {
   "name": "Krita",
-  "unique_identifier": "org.kde.krita",
+  "unique_identifier": "org.krita",
   "token": "krita",
   "installer_format": "dmg",
   "slug": "krita/darwin",

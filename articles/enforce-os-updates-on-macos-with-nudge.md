@@ -69,7 +69,7 @@ Nudge reads its settings from a configuration profile. The example profile requi
 
 1. Download the [Nudge profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/nudge.mobileconfig) (`nudge.mobileconfig`). Replace each `REPLACE-WITH-UUID` with a unique value from `uuidgen`.
 
-2. Go to **Controls > OS settings > Configuration profiles** and select **Add profile**.
+2. Go to **Controls > OS settings > Configuration profiles**, select **Add profile**, then select **Create manually**.
 3. Upload `nudge.mobileconfig`.
 
 In GitOps, add the profile to the fleet's YAML file:
@@ -81,7 +81,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/nudge.mobileconfig
 ```
 
-To set a fixed deadline, require a major upgrade, or customize the reminder text, deferrals, and how often Nudge appears, see the [Nudge wiki](https://github.com/macadmins/nudge/wiki). Fleet's own [Nudge profile](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/configuration-profiles/nudge-configuration.mobileconfig) is a fuller example.
+To set a fixed deadline, require a major upgrade, or customize the reminder text, deferrals, and how often Nudge appears, see the [Nudge wiki](https://github.com/macadmins/nudge/wiki).
 
 ## Step 4: Optional: Reinstall Nudge if it's removed
 
@@ -126,7 +126,6 @@ Check the post-install script output on the host's **Activity** tab. If the plis
 
 - [Enforce OS updates](https://fleetdm.com/guides/enforce-os-updates)
 - [Nudge wiki](https://github.com/macadmins/nudge/wiki)
-- [Fleet's own Nudge setup](https://github.com/fleetdm/fleet/tree/main/it-and-security)
 
 <meta name="articleTitle" value="Enforce OS updates on macOS with Nudge">
 <meta name="authorFullName" value="Lucas Manuel Rodriguez">

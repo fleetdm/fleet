@@ -1,0 +1,1 @@
+- Fixed Fleet-maintained apps whose macOS and Windows names differ (e.g. "R for macOS" and "R for Windows") changing their name with the sort direction on the **Add software > Fleet-maintained** page. These apps now show their name without the platform suffix (e.g. "R").

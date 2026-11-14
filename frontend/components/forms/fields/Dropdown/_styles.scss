@@ -157,7 +157,7 @@
         transform: rotate(180deg);
         transition: transform 0.25s ease;
         path {
-          stroke: $ui-fleet-black-75-over;
+          fill: $ui-fleet-black-75-over;
         }
       }
     }
@@ -176,7 +176,7 @@
     .dropdown__custom-arrow .dropdown__icon {
       svg {
         path {
-          stroke: $ui-fleet-black-75-over;
+          fill: $ui-fleet-black-75-over;
         }
       }
     }
@@ -189,7 +189,7 @@
     &.is-open {
       .dropdown__custom-arrow .dropdown__icon {
         svg path {
-          stroke: $ui-fleet-black-75-over;
+          fill: $ui-fleet-black-75-over;
         }
       }
       .dropdown__custom-value .dropdown__icon {

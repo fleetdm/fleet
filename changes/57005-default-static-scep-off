@@ -1,0 +1,1 @@
+- Apple static SCEP challenges are now off by default. The GET /enrollment_profiles/manual endpoint now returns an error by default unless turned on via config.

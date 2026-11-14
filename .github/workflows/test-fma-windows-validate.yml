@@ -68,15 +68,23 @@ jobs:
 
           # The runner images ship with some of the apps we validate already
           # installed; flag the ones present in this shard so the removal steps
-          # below start the validator from a clean state.
+          # below start the validator from a clean state. An app's ARM64 build
+          # (<token>-arm64) collides with the same preinstalled app.
+          function Test-Slug([string[]]$tokens) {
+            foreach ($t in $tokens) {
+              if (("$t/windows" -in $slugs) -or ("$t-arm64/windows" -in $slugs)) { return $true }
+            }
+            return $false
+          }
           $flags = [ordered]@{
-            has_google_chrome = ("google-chrome/windows" -in $slugs)
-            has_7zip          = ("7-zip/windows" -in $slugs)
-            has_firefox       = (("firefox/windows" -in $slugs) -or ("firefox@esr/windows" -in $slugs))
-            has_nodejs        = ("nodejs/windows" -in $slugs)
-            has_powershell    = ("powershell/windows" -in $slugs)
-            has_r             = ("r/windows" -in $slugs)
-            has_git           = ("git/windows" -in $slugs)
+            has_google_chrome = (Test-Slug "google-chrome")
+            has_7zip          = (Test-Slug "7-zip")
+            has_firefox       = (Test-Slug "firefox", "firefox@esr")
+            has_nodejs        = (Test-Slug "nodejs")
+            has_powershell    = (Test-Slug "powershell")
+            has_r             = (Test-Slug "r")
+            has_git           = (Test-Slug "git")
+            has_python313     = (Test-Slug "python-3.13")
           }
           foreach ($key in $flags.Keys) {
             "$key=$($flags[$key].ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -657,6 +665,21 @@ jobs:
           }
         # Use Windows PowerShell 5.1 (not pwsh): the "Remove pre-installed PowerShell"
         # step above may have uninstalled PowerShell 7, so pwsh.exe may be unavailable.
+        shell: powershell
+
+      - name: Remove pre-installed Python 3.13
+        if: steps.check-windows-apps.outputs.has_python313 == 'true'
+        run: |
+          # The runner images ship Python 3.13 (toolcache and system installs). The
+          # python.org installer fails over the same or a newer patch release (1603 /
+          # 1638), so remove both architectures with the FMA's own uninstall scripts.
+          foreach ($script in "python_3_13_uninstall.ps1", "python_3_13_arm64_uninstall.ps1") {
+            $path = "fleet\ee\maintained-apps\inputs\winget\scripts\$script"
+            if (-not (Test-Path $path)) { continue }
+            & $path
+            Write-Host "$script exited $LASTEXITCODE"
+          }
+          exit 0
         shell: powershell
 
       - name: Validate apps

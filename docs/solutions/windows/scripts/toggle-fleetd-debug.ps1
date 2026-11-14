@@ -1,6 +1,6 @@
 # Use this script to toggle debug mode for fleetd (Orbit) troubleshooting
 
-$serviceName = "Fleet"
+$serviceName = "Fleet osquery"
 $regPath = "HKLM:\SYSTEM\CurrentControlSet\Services\$serviceName"
 
 if (-not (Test-Path $regPath)) {

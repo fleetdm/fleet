@@ -1,0 +1,1 @@
+- Fixed closed live reports holding a Redis connection open for up to an hour.

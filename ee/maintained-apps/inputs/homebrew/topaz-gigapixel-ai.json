@@ -6,5 +6,6 @@
   "slug": "topaz-gigapixel-ai/darwin",
   "default_categories": [
     "Productivity"
-  ]
+  ],
+  "frozen": true
 }

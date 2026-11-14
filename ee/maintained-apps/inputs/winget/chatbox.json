@@ -3,7 +3,7 @@
   "slug": "chatbox/windows",
   "package_identifier": "Bin-Huang.Chatbox",
   "unique_identifier": "Chatbox",
-  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox Community%' AND publisher = 'Benn Huang';",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Chatbox %' AND name NOT LIKE 'Chatbox CE %' AND publisher = 'Mediocre Company';",
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "machine",

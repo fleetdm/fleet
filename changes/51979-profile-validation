@@ -1,0 +1,2 @@
+- Added profile validation, lenient mode on user upload and strict mode for AI generated profiles.
+- Changed parser in .mobileconfig uploads from one dependency to another which is slightly stricter.

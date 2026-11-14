@@ -21,7 +21,6 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { getNextLocationPath } from "utilities/helpers";
 import { pluralize } from "utilities/strings/stringUtils";
 
-import EmptyReports from "./EmptyReports";
 import HostReportCard from "./HostReportCard";
 
 const baseClass = "host-reports-tab";
@@ -205,7 +204,12 @@ const HostReportsTab = ({
   // No reports should be available if MDM enrollment is pending so hide any previous reports
   // that may be associated with the host to prevent confusion while pending
   if (showReportsEmptyState) {
-    return <EmptyReports isSearching={false} />;
+    return (
+      <EmptyState
+        header="No reports for this host"
+        info="Expecting to see reports? Check back later."
+      />
+    );
   }
 
   const isTrulyEmpty = totalCount === 0 && !searchQuery;
@@ -239,6 +243,7 @@ const HostReportsTab = ({
             onChange={onSortChange}
             className={`${baseClass}__sort-dropdown`}
             variant="table-filter"
+            iconName="sort"
             isDisabled={isTrulyEmpty}
           />
           <SearchField
@@ -268,7 +273,10 @@ const HostReportsTab = ({
         />
       )}
       {!isTrulyEmpty && reports.length === 0 && searchQuery && (
-        <EmptyReports isSearching />
+        <EmptyState
+          header="No reports match the current search criteria"
+          info="Expecting to see reports? Check back later."
+        />
       )}
       {!isTrulyEmpty && reports.length > 0 && (
         <>

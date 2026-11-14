@@ -679,7 +679,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		require.True(t, ds.GetHostEscrowStateFuncInvoked)
 
 		// Linux distributions Fleet does not escrow for, even though they are recognized platforms
-		unsupportedLinux := []string{"arch", "omarchy", "cachyos", "debian", "pop"}
+		unsupportedLinux := []string{"arch", "cachyos", "debian", "pop"}
 		for _, platform := range unsupportedLinux {
 			host.Platform = platform
 			host.OSVersion = platform
@@ -728,6 +728,38 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		require.ErrorContains(t, err, "Your version of fleetd does not support creating disk encryption keys on Linux. Please upgrade fleetd, then click Refetch, then try again.")
 
 		require.Len(t, reportedErrors, 6+len(unsupportedLinux))
+	})
+
+	t.Run("omarchy requires the fleetd that fixed the Hyprland prompt", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+		ds.GetHostEscrowStateFunc = func(ctx context.Context, hostID uint) (*fleet.HostEscrowState, error) {
+			return &fleet.HostEscrowState{}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{MDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+				LinuxSettings:        fleet.LinuxSettings{EnableEscrowDiskEncryptionKey: optjson.SetBool(true)},
+			}}, nil
+		}
+		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error { return nil }
+		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error { return nil }
+		ds.QueueEscrowFunc = func(ctx context.Context, hostID uint) error { return nil }
+		orbitVersion := "1.63.0"
+		ds.GetHostOrbitInfoFunc = func(ctx context.Context, id uint) (*fleet.HostOrbitInfo, error) {
+			return &fleet.HostOrbitInfo{Version: orbitVersion}, nil
+		}
+		host := &fleet.Host{ID: 1, Platform: "omarchy", DiskEncryptionEnabled: new(true)}
+
+		// new enough for every other distribution, but not for Omarchy
+		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+		require.ErrorContains(t, err, "Your version of fleetd does not support creating disk encryption keys on Linux.")
+		require.True(t, ds.ReportEscrowErrorFuncInvoked)
+		require.False(t, ds.QueueEscrowFuncInvoked)
+
+		orbitVersion = fleet.MinOrbitOmarchyLUKSVersion
+		require.NoError(t, svc.TriggerLinuxDiskEncryptionEscrow(ctx, host))
+		require.True(t, ds.QueueEscrowFuncInvoked)
 	})
 
 	t.Run("validation success", func(t *testing.T) {

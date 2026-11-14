@@ -4,5 +4,6 @@
   "token": "spotify",
   "installer_format": "dmg",
   "slug": "spotify/darwin",
-  "default_categories": ["Productivity"]
+  "default_categories": ["Productivity"],
+  "frozen": true
 }

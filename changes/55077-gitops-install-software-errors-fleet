@@ -1,0 +1,1 @@
+- Updated GitOps `install_software` policy errors to say "fleet" instead of "team" when the referenced software package, App Store app, or Fleet-maintained app isn't found.

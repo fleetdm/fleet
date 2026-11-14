@@ -46,6 +46,9 @@ type HostOptions struct {
 	HasSetupExperienceItems bool
 	SCEPRenewalInProgress   bool
 	FromMDMMigration        bool
+	// EnrolledFromADE is whether an Apple device enrolled with the automatic (ADE) enrollment profile, or nil when that isn't
+	// known. Being assigned to Fleet in Apple Business doesn't mean the device used it: it can also enroll manually.
+	EnrolledFromADE *bool
 	// TeamID is currently only used for resetApple to assign the host to the correct team for account driven enrollments.
 	TeamID *uint
 	// PersonalEnrollmentType is manual_profile for a manual (profile-driven) BYOD
@@ -246,12 +249,17 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		return ctxerr.Wrap(ctx, err, "getting checkin info")
 	}
 
+	installedFromDEP, queueDEPTask := info.DEPAssignedToFleet, info.DEPAssignedToFleet || info.InstalledFromDEP
+	if opts.EnrolledFromADE != nil {
+		installedFromDEP, queueDEPTask = *opts.EnrolledFromADE, *opts.EnrolledFromADE
+	}
+
 	// create MDM enrolled activity if not in the middle of a SCEP renewal
 	if !info.SCEPRenewalInProgress {
 		mdmEnrolledActivity := &fleet.ActivityTypeMDMEnrolled{
 			HostID:           info.HostID,
 			HostDisplayName:  info.DisplayName,
-			InstalledFromDEP: info.DEPAssignedToFleet,
+			InstalledFromDEP: installedFromDEP,
 			MDMPlatform:      fleet.MDMPlatformApple,
 			Platform:         info.Platform,
 		}
@@ -287,9 +295,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		return err
 	}
 
-	// TODO: improve this to not enqueue the job if a host that is
-	// assigned in ABM is manually enrolling for some reason.
-	if info.DEPAssignedToFleet || info.InstalledFromDEP {
+	if queueDEPTask {
 		t.logger.InfoContext(ctx, "queueing post-enroll task for newly enrolled DEP device", "host_uuid", opts.UUID)
 		err := worker.QueueAppleMDMJob(
 			ctx,
@@ -307,22 +313,20 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 	}
 
 	// manual MDM enrollments
-	if !info.InstalledFromDEP {
-		t.logger.InfoContext(ctx, "queueing post-enroll task for manual enrolled device", "host_uuid", opts.UUID)
-		if err := worker.QueueAppleMDMJob(
-			ctx,
-			t.ds,
-			t.logger,
-			worker.AppleMDMPostManualEnrollmentTask,
-			opts.UUID,
-			opts.Platform,
-			tmID,
-			opts.EnrollReference,
-			false,
-			false,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "queue manual post-enroll task")
-		}
+	t.logger.InfoContext(ctx, "queueing post-enroll task for manual enrolled device", "host_uuid", opts.UUID)
+	if err := worker.QueueAppleMDMJob(
+		ctx,
+		t.ds,
+		t.logger,
+		worker.AppleMDMPostManualEnrollmentTask,
+		opts.UUID,
+		opts.Platform,
+		tmID,
+		opts.EnrollReference,
+		false,
+		false,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue manual post-enroll task")
 	}
 
 	return nil

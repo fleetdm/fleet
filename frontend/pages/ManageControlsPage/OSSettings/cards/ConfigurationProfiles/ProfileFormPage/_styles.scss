@@ -10,4 +10,15 @@
   &__header-links {
     display: flex;
   }
+
+  // Narrower and further in than other pages, per the design: a 1280px
+  // column starting about where the Controls tab does, its side padding
+  // shrinking with the window. Phones keep the standard padding.
+  @media (min-width: $break-xs) {
+    &.main-content {
+      max-width: 1280px;
+      padding-left: clamp(#{$pad-page}, 10vw, 160px);
+      padding-right: clamp(#{$pad-page}, 10vw, 160px);
+    }
+  }
 }

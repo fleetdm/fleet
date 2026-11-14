@@ -25,6 +25,7 @@ const baseClass = "config-profile-status-modal";
 interface IConfigProfileStatusModalProps {
   name: string;
   uuid: string;
+  payloadDisplayName?: string;
   teamId: number;
   platform: ProfilePlatform;
   onClickResend: (hostCount: number) => void;
@@ -34,6 +35,7 @@ interface IConfigProfileStatusModalProps {
 const ConfigProfileStatusModal = ({
   name,
   uuid,
+  payloadDisplayName,
   teamId,
   platform,
   onClickResend,
@@ -108,7 +110,19 @@ const ConfigProfileStatusModal = ({
 
   return (
     <Modal className={baseClass} title={name} onExit={onExit}>
-      {renderContent()}
+      <div className={`${baseClass}__content`}>
+        <div className={`${baseClass}__details`}>
+          {payloadDisplayName && (
+            <span>
+              PayloadDisplayName: <b>{payloadDisplayName}</b>
+            </span>
+          )}
+          <span>
+            UUID: <b>{uuid}</b>
+          </span>
+        </div>
+        {renderContent()}
+      </div>
       <div className="modal-cta-wrap">
         <Button onClick={onExit}>Close</Button>
       </div>

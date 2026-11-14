@@ -145,10 +145,11 @@ func (m *MySQLStorage) StoreCommandReport(r *mdm.Request, result *mdm.CommandRes
 		return nil
 	}
 
-	// ensure there's a matching command
+	// ensure there's a matching queued command for this enrollment
 	matchingRow := m.db.QueryRowContext(
 		r.Context,
-		`SELECT 1 FROM nano_commands WHERE command_uuid = ?`,
+		`SELECT 1 FROM nano_enrollment_queue WHERE id = ? AND command_uuid = ?`,
+		r.ID,
 		result.CommandUUID,
 	)
 	var matchingCount int
@@ -221,7 +222,8 @@ WHERE q.id = %s
 ORDER BY
     q.priority DESC,
     q.created_at
-LIMIT 1;`, skipNotNow, id), args...,
+LIMIT 1;`, skipNotNow, id,
+		), args...,
 	).Scan(&command.CommandUUID, &command.Command.Command.RequestType, &command.Raw, &command.Subtype)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil

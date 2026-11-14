@@ -1,37 +1,33 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
-import Card from "components/Card";
+import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-
-const baseClass = "add-cert-card";
 
 interface IAddCertCardProps {
   setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const AddCertCard = ({ setShowModal }: IAddCertCardProps) => (
-  <Card className={baseClass}>
-    <div className={`${baseClass}__content-wrap`}>
-      <div className={`${baseClass}__text`}>
-        <b>Add certificate</b>
-        <p>Help your end users connect to your corporate network.</p>
-      </div>
+  <EmptyState
+    variant="list"
+    header="No certificates"
+    info="Add a certificate to help your end users connect to your corporate network."
+    primaryButton={
       <GitOpsModeTooltipWrapper
         tipOffset={8}
         renderChildren={(disableChildren) => (
           <Button
             disabled={disableChildren}
-            className={`${baseClass}__card--add-button`}
             type="button"
             onClick={() => setShowModal(true)}
           >
-            Add
+            Add certificate
           </Button>
         )}
       />
-    </div>
-  </Card>
+    }
+  />
 );
 
 export default AddCertCard;

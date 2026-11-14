@@ -62,3 +62,37 @@ func TestDistributedReadWrite(t *testing.T) {
 	assert.Equal(t, []map[string]string{{"1": "1"}}, gotWrite.Results["fleet_distributed_query_1"])
 	assert.Equal(t, fleet.StatusOK, gotWrite.Statuses["fleet_distributed_query_1"])
 }
+
+func TestOsqueryConfig(t *testing.T) {
+	_, nodeKeyPath := newNodeKeyFile(t, "orbit-key")
+
+	type gotRequest struct {
+		body           map[string]any
+		fallbackChange string
+	}
+	var got []gotRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/osquery/config", r.URL.Path)
+		assert.Equal(t, "NodeKey orbit-key", r.Header.Get("Authorization"))
+		var body map[string]any
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		got = append(got, gotRequest{body: body, fallbackChange: r.Header.Get(fleet.OsqueryConfigFallbackChangeHeader)})
+		_, _ = w.Write([]byte(`{"etag":"v1","options":{}}`))
+	}))
+	defer srv.Close()
+
+	oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+
+	raw, err := oc.OsqueryConfig("", false)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"etag":"v1","options":{}}`, string(raw))
+
+	_, err = oc.OsqueryConfig("v1", true)
+	require.NoError(t, err)
+
+	// The etag field is always sent, opting in to conditional requests.
+	assert.Equal(t, []gotRequest{
+		{body: map[string]any{"node_key": "orbit-key", "etag": ""}},
+		{body: map[string]any{"node_key": "orbit-key", "etag": "v1"}, fallbackChange: "1"},
+	}, got)
+}

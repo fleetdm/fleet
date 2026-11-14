@@ -1,28 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "react-query";
 
-import Button from "components/buttons/Button";
-import DataError from "components/DataError";
-import Icon from "components/Icon";
-// @ts-ignore
-import OrgLogoIcon from "components/icons/OrgLogoIcon";
-import List from "components/List";
-import Spinner from "components/Spinner";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import {
   INotificationAction,
-  INotificationItem,
   INotificationView,
   isNotificationItemInstalling,
 } from "interfaces/device_notification";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 import deviceNotificationsAPI from "services/entities/device_notifications";
 import { isDarkMode } from "utilities/theme";
 
+import DeviceNotificationCard from "./DeviceNotificationCard";
 import { postBridgeMessage } from "./fleetDesktopBridge";
-
-const baseClass = "device-notification-page";
 
 interface IDeviceNotificationPageParams {
   device_auth_token: string;
@@ -32,67 +20,6 @@ interface IDeviceNotificationPageParams {
 interface IDeviceNotificationPageProps {
   params: IDeviceNotificationPageParams;
 }
-
-// Title/description carry inline `**bold**` as the only markup. Avoid pulling
-// in react-markdown for one construct.
-const renderBoldMarkup = (text: string): React.ReactNode => {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      // eslint-disable-next-line react/no-array-index-key
-      return <strong key={i}>{part.slice(2, -2)}</strong>;
-    }
-    // eslint-disable-next-line react/no-array-index-key
-    return <React.Fragment key={i}>{part}</React.Fragment>;
-  });
-};
-
-// Status treatment follows the self-service tiles: spinner while Fleet is still
-// waiting on the install, error icon once it has failed.
-const renderNotificationItemStatus = (item: INotificationItem) => {
-  if (!item.status) {
-    return null;
-  }
-  if (isNotificationItemInstalling(item)) {
-    return (
-      <span className={`${baseClass}__item-status`}>
-        <Spinner size="x-small" centered={false} delay={0} />
-        {item.status}
-      </span>
-    );
-  }
-  if (item.install_status === "failed_install") {
-    return (
-      <span className={`${baseClass}__item-status`}>
-        <Icon name="error" />
-        {item.status}
-      </span>
-    );
-  }
-  if (item.install_status === "installed") {
-    return (
-      <span className={`${baseClass}__item-status`}>
-        <Icon name="success" />
-        {item.status}
-      </span>
-    );
-  }
-  return <span className={`${baseClass}__item-status`}>{item.status}</span>;
-};
-
-const renderNotificationItemRow = (item: INotificationItem) => (
-  <>
-    <span className={`${baseClass}__item-left`}>
-      <SoftwareIcon name={item.name} url={item.icon_url} size="small" />
-      <span className={`${baseClass}__item-name`}>
-        <TooltipTruncatedText
-          value={getDisplayedSoftwareName(item.name, item.display_name)}
-        />
-      </span>
-    </span>
-    {renderNotificationItemStatus(item)}
-  </>
-);
 
 const DeviceNotificationPage = ({
   params: { device_auth_token, notification_uuid },
@@ -220,66 +147,19 @@ const DeviceNotificationPage = ({
   }
 
   const view = data;
-  const { actions } = view;
-  const primaryAction = actions[actions.length - 1];
-  const secondaryAction = actions.length > 1 ? actions[0] : null;
   const orgLogoURL = darkMode
     ? view.org_logo_url_dark_mode
     : view.org_logo_url_light_mode;
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__card`} ref={cardRef}>
-        <div className={`${baseClass}__header`}>
-          <p className={`${baseClass}__title`}>
-            {renderBoldMarkup(view.title)}
-          </p>
-          <p className={`${baseClass}__description`}>
-            {renderBoldMarkup(view.description)}
-          </p>
-        </div>
-        <List
-          data={view.items}
-          idKey="software_title_id"
-          renderItemRow={renderNotificationItemRow}
-        />
-        <div className={`${baseClass}__actions`}>
-          <OrgLogoIcon className={`${baseClass}__logo`} src={orgLogoURL} />
-          {isPostError && (
-            <div className={`${baseClass}__action-error`} role="alert">
-              <DataError
-                singleCustomLine
-                description="Please try again."
-                excludeIssueLink
-              />
-            </div>
-          )}
-          {secondaryAction && (
-            <Button
-              variant="subdued"
-              size="small"
-              disabled={isPosting}
-              onClick={() =>
-                postAction({ action: secondaryAction, isPrimary: false })
-              }
-            >
-              {secondaryAction.label}
-            </Button>
-          )}
-          {primaryAction && (
-            <Button
-              size="small"
-              disabled={isPosting}
-              onClick={() =>
-                postAction({ action: primaryAction, isPrimary: true })
-              }
-            >
-              {primaryAction.label}
-            </Button>
-          )}
-        </div>
-      </div>
-    </div>
+    <DeviceNotificationCard
+      view={view}
+      orgLogoURL={orgLogoURL}
+      onPostAction={(action, isPrimary) => postAction({ action, isPrimary })}
+      isPosting={isPosting}
+      isPostError={isPostError}
+      cardRef={cardRef}
+    />
   );
 };
 

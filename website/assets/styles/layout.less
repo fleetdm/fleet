@@ -473,6 +473,27 @@ a[purpose='announcement-banner'] {
         white-space: normal;
         padding: 8px;
       }
+      // Workshop and Fast Track cards sit side by side on tablets.
+      [purpose='mobile-dropdown-ctas'] {
+        display: flex;
+        flex-direction: row;
+        gap: 8px;
+        margin: 0px -8px;
+        [purpose='dropdown-cta'] {
+          flex: 1 1 0;
+          margin-left: 0px;
+          margin-right: 0px;
+        }
+        @media (max-width: 767px) {
+          flex-direction: column;
+          gap: 0px;
+          margin: 0px;
+          [purpose='dropdown-cta'] {
+            margin-left: -8px;
+            margin-right: -8px;
+          }
+        }
+      }
       [purpose='dropdown-cta'] {
         text-decoration: none;
         margin-top: 4px;
@@ -495,6 +516,10 @@ a[purpose='announcement-banner'] {
             width: 100px;
             background-position: center center;
             background-repeat: no-repeat;
+            &.fast-track {
+              background-image: url('/images/nav-cta-fast-track-100x160@2x.png');
+              border-radius: 8px;
+            }
           }
         }
       }
@@ -590,7 +615,7 @@ a[purpose='announcement-banner'] {
         }
       }
       &.more-dropdown {
-        left: -439px;
+        left: -664px;
         flex-direction: row;
       }
       &.customers-dropdown {
@@ -671,6 +696,10 @@ a[purpose='announcement-banner'] {
       }
     }
   }
+  [purpose='dropdown-cta-column'] {
+    display: flex;
+    flex-direction: row;
+  }
   [purpose='dropdown-cta'] {
     margin-right: 16px;
     display: block;
@@ -690,6 +719,9 @@ a[purpose='announcement-banner'] {
         height: 160px;
         width: 100px;
         border-radius: 8px;
+        &.fast-track {
+          background-image: url('/images/nav-cta-fast-track-100x160@2x.png');
+        }
       }
       [purpose='dropdown-cta-text'] {
         padding: 5px 9px;

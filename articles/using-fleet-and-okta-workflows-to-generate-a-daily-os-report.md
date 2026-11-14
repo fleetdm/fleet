@@ -56,7 +56,7 @@ Next, we pass all the data to the helper flow for processing, which is the `Redu
 card.](../website/assets/images/articles/using-fleet-and-okta-workflows-image1-250x508@2x.png "Okta workflow reduce card.")
 
 
-The helper flow accepts the list from the previous step, named `osVersion`, which is just the JSON body at this point. The payload has other values, such as platform and name, but we only want the `host_count` and `version.` We extract these keys using a `Get Multiple` card. This card used dot notation to specify the path from which to pull the values. We now have two values as an output of this card which we can use downstream. This looks like such:
+The helper flow accepts the list from the previous step, named `osVersion`, which is just the JSON body at this point. The payload has other values, such as platform and name, but we only want the `hosts_count` and `os_version`. We extract these keys using a `Get Multiple` card. This card used dot notation to specify the path from which to pull the values. We now have two values as an output of this card which we can use downstream. This looks like such:
 
 
 ![Okta workflow Get Multiple card.](../website/assets/images/articles/using-fleet-and-okta-workflows-image7-300x375@2x.png "Okta workflow Get Multiple card.")

@@ -42,6 +42,21 @@
     font-weight: $bold;
   }
 
+  &__dpc-extras {
+    position: relative;
+  }
+
+  &__loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: $loading-overlay;
+    border-radius: $border-radius;
+    z-index: 1;
+  }
+
   &__dpc-extras-code {
     background-color: $core-fleet-white;
     color: $core-fleet-black;
@@ -59,7 +74,9 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 160px;
+      box-sizing: border-box;
+      // Height of the loaded DPC extras, for the first load.
+      min-height: 142px;
     }
   }
 }

@@ -14,7 +14,7 @@ Follow the steps below to connect your Android hosts to enterprise Wi-Fi:
 
 1. Create a JSON file (e.g., `wifi-eap-tls.json`) with the following content, replacing the placeholder values described below.
 
-2. In Fleet, head to **Controls > OS settings > Custom settings**, select **Add profile**, and upload file below.
+2. In Fleet, head to **Controls > OS settings > Custom settings**, select **Add profile**, select **Create manually**, and upload file below.
 
 ```json
 {

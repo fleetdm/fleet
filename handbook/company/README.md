@@ -5,6 +5,7 @@
 Fleet Device Management is the open-core company behind the leading AI-native device management platform for Windows, Apple, Linux, Android, and more. Today, Fleet enrolls millions of devices and infrastructure at NVIDIA, large retailers, and airlines, and it is especially popular with [enterprise IT and security teams](https://www.linkedin.com/posts/luismadrigal_osquery-activity-7296343347919495168-nK6C).
 
 Fleet is dedicated to:
+
 - 🔌 giving IT admins the time to transform themselves into 5x AI engineers, cutting [KTLO](https://www.audible.com/pd/The-Phoenix-Project-Audiobook/B00VAZZY32) so they can build the future. With AI and human review, experts can one-shot entire IT projects in minutes.
 - 🪟 unbundling the Microsoft suite and dispelling misconceptions about what is and isn't possible. Customers should choose the right IdP, MDM, EDR, and office suite for their needs, not their vendors'.
 - 🐧 remaining the best Linux management option on the market and the premier solution for managing every distro, deskside hardware, and new devices like ARM PCs and NVIDIA's DGX series.
@@ -80,7 +81,7 @@ It takes a fully-activated mind to achieve ambitious goals, and remote work requ
 ### 🟢 Results
 We work to get results. How we work determines what we get.  Aim to deliver results daily.
 
-- **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make [smaller changes](https://about.gitlab.com/handbook/product/product-principles/#the-minimal-viable-change-mvc), more often.  Always publish. <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)). -->
+- **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make [smaller changes](https://about.gitlab.com/handbook/product/product-principles/#the-minimal-valuable-change-mvc), more often.  Always publish. <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)). -->
 - **Start quickly.** Be 70% sure.  Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- [Satisfice](https://longform.asmartbear.com/maximizing) before optimizing. -->
 - **Keep it simple.** Avoid preemptive structure.  Reuse systems. Prefer ["boring solutions"](https://about.gitlab.com/blog/boring-solutions-faster-iteration/).  [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
 - **Be realistic.** Focus on one task at a time.  Resist [the urge to commit](https://www.linkedin.com/posts/37signals_the-problem-with-commitments-is-that-they-ugcPost-7252753513485619201-PdAw?utm_source=share&utm_medium=member_ios) to every good idea.  Work [hard](https://paulgraham.com/hwh.html).  Schedule [time off](https://fleetdm.com/handbook/company/communications#paid-time-off) to recharge. <!-- Practice self-care. -->

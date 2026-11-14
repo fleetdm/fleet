@@ -29,7 +29,7 @@ export interface IStatusCellValue {
 const STATUS_DISPLAY_OPTIONS: Record<MdmProfileStatus, IStatusCellValue> = {
   verified: {
     displayName: "Verified",
-    statusName: "success",
+    statusName: "verified",
   },
   verifying: {
     displayName: "Verifying",

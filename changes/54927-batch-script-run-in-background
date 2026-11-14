@@ -1,0 +1,1 @@
+- Fixed batch script runs not running in the background, which could cause a timeout with a large number of hosts.

@@ -163,8 +163,11 @@ describe("SaveNewPolicyModal", () => {
       });
     });
 
-    it("should disable the save button in Custom target mode when no labels are selected, and enable it once labels are selected", async () => {
-      render(<SaveNewPolicyModal {...defaultProps} />);
+    it("surfaces an inline labels error on Save click in Custom target mode when no labels are selected", async () => {
+      const onCreatePolicy = jest.fn();
+      render(
+        <SaveNewPolicyModal {...defaultProps} onCreatePolicy={onCreatePolicy} />
+      );
       let allHosts;
       let custom;
       await waitFor(() => {
@@ -174,15 +177,20 @@ describe("SaveNewPolicyModal", () => {
         expect(custom).toBeInTheDocument();
       });
       custom && (await userEvent.click(custom));
-      const saveButton = screen.getByRole("button", { name: "Save" });
-      expect(saveButton).toBeDisabled();
 
-      const funButton = await screen.findByRole("checkbox", {
-        name: "Fun",
-      });
-      expect(funButton).not.toBeChecked();
-      await userEvent.click(funButton);
+      await userEvent.type(screen.getByLabelText("Name"), "name");
+      const saveButton = screen.getByRole("button", { name: "Save" });
       expect(saveButton).toBeEnabled();
+      await userEvent.click(saveButton);
+
+      expect(onCreatePolicy).not.toHaveBeenCalled();
+      expect(screen.getByText(/Select at least one label/)).toBeInTheDocument();
+
+      const funButton = await screen.findByRole("checkbox", { name: "Fun" });
+      await userEvent.click(funButton);
+      expect(
+        screen.queryByText(/Select at least one label/)
+      ).not.toBeInTheDocument();
     });
 
     it("sends hidden when Hide from end user is checked on a fleet policy", async () => {

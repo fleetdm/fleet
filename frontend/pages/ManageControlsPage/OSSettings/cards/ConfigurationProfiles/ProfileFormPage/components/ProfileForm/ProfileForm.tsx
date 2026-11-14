@@ -1,5 +1,5 @@
 import { AxiosResponse } from "axios";
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
@@ -39,6 +39,7 @@ import {
   profileContentTypeFor,
 } from "../../../components/ProfileUploader/helpers";
 import EditTargetsModal, { IProfileTargets } from "../EditTargetsModal";
+import GeneratedProfileSummary from "../GeneratedProfileSummary";
 import ProfileAdvancedOptions, {
   IProfileDeployOptions,
 } from "../ProfileAdvancedOptions";
@@ -78,16 +79,34 @@ interface IEditedProfile {
   contents: string;
 }
 
-/** An existing profile's values, or an empty form when adding. */
-const initialFormDataFor = (editing?: IEditedProfile): IProfileFormData => {
+/** A profile the AI generated, reviewed here before it's added. */
+export interface IGeneratedProfile {
+  /** From the API's response, so the contents aren't typed again. */
+  type: ProfileContentType;
+  contents: string;
+  /** Change after mount when the name and description arrive late; a field
+   * the admin has edited keeps the edit. */
+  name: string;
+  description: string;
+  isNamePending?: boolean;
+  isDescriptionPending?: boolean;
+  /** Chosen while the profile was being generated. */
+  targets?: IProfileTargets;
+}
+
+/** An existing profile's values, a generated profile's, or an empty form. */
+const initialFormDataFor = (
+  editing?: IEditedProfile,
+  generated?: IGeneratedProfile
+): IProfileFormData => {
   const profile = editing?.profile;
   const includeLabels =
     profile?.labels_include_all ?? profile?.labels_include_any;
   const excludeLabels = profile?.labels_exclude_any;
   return {
-    name: profile?.name ?? "",
-    description: profile?.description ?? "",
-    contents: editing?.contents ?? "",
+    name: profile?.name ?? generated?.name ?? "",
+    description: profile?.description ?? generated?.description ?? "",
+    contents: editing?.contents ?? generated?.contents ?? "",
     targetType:
       includeLabels?.length || excludeLabels?.length ? "Custom" : "All hosts",
     includeMode: profile?.labels_include_all?.length ? "all" : "any",
@@ -95,6 +114,7 @@ const initialFormDataFor = (editing?: IEditedProfile): IProfileFormData => {
     excludeLabels: labelsToSelection(excludeLabels),
     selfService: profile?.self_service ?? false,
     hidden: profile?.hidden ?? false,
+    ...generated?.targets,
   };
 };
 
@@ -113,6 +133,12 @@ interface IProfileFormProps {
   listPath: string;
   /** The profile being edited and its contents; absent when adding. */
   editing?: IEditedProfile;
+  /** Shows the AI's title and summary in place of the name and description
+   * fields. Only when adding. */
+  generated?: IGeneratedProfile;
+  /** Rendered under the editor, given whether the profile is being saved. */
+  renderBelowEditor?: (state: { isSubmitting: boolean }) => React.ReactNode;
+  onTargetsChange?: (targets: IProfileTargets) => void;
 }
 
 const ProfileForm = ({
@@ -123,11 +149,16 @@ const ProfileForm = ({
   gitOpsModeEnabled,
   listPath,
   editing,
+  generated,
+  renderBelowEditor,
+  onTargetsChange,
 }: IProfileFormProps) => {
   const { config } = useContext(AppContext);
   const profile = editing?.profile;
   const isEdit = !!profile;
-  const [initialFormData] = useState(() => initialFormDataFor(editing));
+  const [initialFormData] = useState(() =>
+    initialFormDataFor(editing, generated)
+  );
   // The uploaded file only seeds the editor; its name is what the server
   // derives a profile name from when the admin leaves Name empty.
   const [uploadedFile, setUploadedFile] = useState<IUploadedFile | null>(null);
@@ -154,7 +185,10 @@ const ProfileForm = ({
     }
     if (!data.contents.trim()) {
       errors.contents = "Upload or paste a profile";
-    } else if (!isEdit && !detectContentType(data.contents)) {
+    } else if (
+      !isEdit &&
+      !(generated?.type ?? detectContentType(data.contents))
+    ) {
       errors.contents = UNRECOGNIZED_CONTENTS_ERROR;
     }
     return errors;
@@ -176,11 +210,50 @@ const ProfileForm = ({
     skipTrim: ["contents"],
   });
 
-  // An existing profile's type is fixed by what it is; pasted content on the
-  // add page is typed by what it looks like.
+  // A late name or description replaces only what the admin hasn't edited.
+  const appliedGeneratedRef = useRef({
+    name: initialFormData.name,
+    description: initialFormData.description,
+  });
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
+  const generatedName = generated?.name;
+  const generatedDescription = generated?.description;
+  useEffect(() => {
+    const applied = appliedGeneratedRef.current;
+    const current = formDataRef.current;
+    if (generatedName !== undefined && generatedName !== applied.name) {
+      if (current.name === applied.name) {
+        setField("name", generatedName);
+      }
+      applied.name = generatedName;
+    }
+    if (
+      generatedDescription !== undefined &&
+      generatedDescription !== applied.description
+    ) {
+      if (current.description === applied.description) {
+        setField("description", generatedDescription);
+      }
+      applied.description = generatedDescription;
+    }
+  }, [generatedName, generatedDescription, setField]);
+
+  // Targets chosen in the generating view after the form opened.
+  const appliedTargetsRef = useRef(generated?.targets);
+  const generatedTargets = generated?.targets;
+  useEffect(() => {
+    if (generatedTargets && generatedTargets !== appliedTargetsRef.current) {
+      appliedTargetsRef.current = generatedTargets;
+      commitFields(generatedTargets);
+    }
+  }, [generatedTargets, commitFields]);
+
+  // An existing profile's type is fixed by what it is, and a generated one's
+  // by the API; pasted content on the add page is typed by what it looks like.
   const contentType: ProfileContentType | null = profile
     ? profileContentTypeFor(profile)
-    : detectContentType(formData.contents);
+    : generated?.type ?? detectContentType(formData.contents);
   const hasContents = formData.contents.trim() !== "";
 
   // Same gate as the profiles list; this page is also reachable by URL and
@@ -223,11 +296,13 @@ const ProfileForm = ({
     deployChanged;
   // Free can't set either flag, so it sends neither.
   const deployFields = isPremiumTier ? { selfService, hidden } : {};
-  useBlockNavigation(hasChanges || isSubmitting);
+  // A generated profile is lost on leaving, edited or not.
+  useBlockNavigation(hasChanges || !!generated || isSubmitting);
 
-  // An existing profile's type is fixed; on add the new contents decide it.
+  // An existing or generated profile's type is fixed; on add the new
+  // contents decide it.
   const keepsSelfService = (type: ProfileContentType | null) =>
-    !!profile || type === "mobileconfig";
+    !!profile || (generated?.type ?? type) === "mobileconfig";
 
   const onFileSelected = async (files: FileList | null) => {
     if (!files || files.length === 0) {
@@ -363,6 +438,8 @@ const ProfileForm = ({
 
   const onDoneEditingTargets = (targets: IProfileTargets) => {
     commitFields(targets);
+    appliedTargetsRef.current = targets;
+    onTargetsChange?.(targets);
     setShowEditTargetsModal(false);
   };
 
@@ -385,7 +462,10 @@ const ProfileForm = ({
           disabled ||
           !isPlatformMDMEnabled ||
           isSubmitting ||
-          (!isEdit && !hasContents)
+          (!isEdit && !hasContents) ||
+          // a save before they arrive would drop the generated name and summary
+          !!generated?.isNamePending ||
+          !!generated?.isDescriptionPending
         }
       >
         {isEdit ? "Update profile" : "Add profile"}
@@ -426,44 +506,60 @@ const ProfileForm = ({
           isInputField
           renderChildren={(disableChildren) => (
             <div className={`${baseClass}__fields`}>
-              <InputField
-                {...getTextFieldProps("name")}
-                label="Name"
-                placeholder="E.g., Disable camera access for Firefox"
-                inputOptions={{ maxLength: NAME_MAX_LENGTH }}
-                disabled={isFieldDisabled(disableChildren)}
-              />
-              <InputField
-                {...getTextFieldProps("description")}
-                label="Description"
-                type="textarea"
-                placeholder="E.g., Blocks Firefox from accessing the camera on managed Macs, without affecting other apps."
-                inputOptions={{ maxLength: DESCRIPTION_MAX_LENGTH }}
-                disabled={isFieldDisabled(disableChildren)}
-              />
-              <div className={`${baseClass}__upload`}>
-                <Button
-                  variant="secondary"
-                  icon="upload"
+              {generated ? (
+                <GeneratedProfileSummary
+                  name={formData.name}
+                  description={formData.description}
+                  isNamePending={generated.isNamePending}
+                  isDescriptionPending={generated.isDescriptionPending}
                   disabled={isFieldDisabled(disableChildren)}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  Upload a profile
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  accept={
-                    profile
-                      ? getAcceptedExtensions(profile).join(",")
-                      : ADD_PROFILE_ACCEPT
+                  onChangeName={(name) => commitFields({ name })}
+                  onChangeDescription={(description) =>
+                    commitFields({ description })
                   }
-                  id="upload-profile"
-                  aria-label="Upload a profile"
-                  type="file"
-                  disabled={isFieldDisabled(disableChildren)}
-                  onChange={onFileInputChange}
                 />
-              </div>
+              ) : (
+                <>
+                  <InputField
+                    {...getTextFieldProps("name")}
+                    label="Name"
+                    placeholder="E.g., Disable camera access for Firefox"
+                    inputOptions={{ maxLength: NAME_MAX_LENGTH }}
+                    disabled={isFieldDisabled(disableChildren)}
+                  />
+                  <InputField
+                    {...getTextFieldProps("description")}
+                    label="Description"
+                    type="textarea"
+                    placeholder="E.g., Blocks Firefox from accessing the camera on managed Macs, without affecting other apps."
+                    inputOptions={{ maxLength: DESCRIPTION_MAX_LENGTH }}
+                    disabled={isFieldDisabled(disableChildren)}
+                  />
+                  <div className={`${baseClass}__upload`}>
+                    <Button
+                      variant="secondary"
+                      icon="upload"
+                      disabled={isFieldDisabled(disableChildren)}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      Upload a profile
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      accept={
+                        profile
+                          ? getAcceptedExtensions(profile).join(",")
+                          : ADD_PROFILE_ACCEPT
+                      }
+                      id="upload-profile"
+                      aria-label="Upload a profile"
+                      type="file"
+                      disabled={isFieldDisabled(disableChildren)}
+                      onChange={onFileInputChange}
+                    />
+                  </div>
+                </>
+              )}
               <Editor
                 {...getTextFieldProps("contents")}
                 name="profile-contents"
@@ -490,7 +586,13 @@ const ProfileForm = ({
                 onLoad={(editor) => editor.setBehavioursEnabled(false)}
                 readOnly={isFieldDisabled(disableChildren)}
                 wrapEnabled
+                helpText={
+                  generated
+                    ? "AI can make mistakes. Please double-check before you proceed."
+                    : undefined
+                }
               />
+              {renderBelowEditor?.({ isSubmitting })}
             </div>
           )}
         />

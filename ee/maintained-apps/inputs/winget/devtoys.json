@@ -3,6 +3,7 @@
   "slug": "devtoys/windows",
   "package_identifier": "DevToys-app.DevToys",
   "unique_identifier": "DevToys",
+  "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
   "installer_scope": "user",

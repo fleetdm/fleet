@@ -123,7 +123,7 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
       try {
         const response = await sessionsAPI.login(formData);
-        const { user, available_teams, token, token_expires_at } = response;
+        const { user, available_fleets, token, token_expires_at } = response;
 
         const expiresAt = token_expires_at
           ? new Date(token_expires_at)
@@ -134,10 +134,10 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
         queryClient.clear();
 
         setCurrentUser(user);
-        setAvailableTeams(user, available_teams);
+        setAvailableTeams(user, available_fleets);
         setCurrentTeam(undefined);
 
-        if (!user.global_role && user.teams.length === 0) {
+        if (!user.global_role && user.fleets.length === 0) {
           return router.push(NO_ACCESS);
         }
         // Redirect to password reset page if user is forced to reset password.
@@ -156,6 +156,18 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
           // is an email link scanner (e.g. Microsoft's); see #26976.
           local.setItem("auth_pending_mfa", "true");
           setPendingEmail(true);
+        }
+
+        // The API's rate limit message ("limit exceeded, retry after: 2s") is
+        // meant for API clients, so it's replaced here.
+        if ((response as { status: number }).status === 429) {
+          notify.error(
+            "Too many login attempts. Wait 10 seconds and try again.",
+            {
+              response,
+            }
+          );
+          return false;
         }
 
         const { base } = formatErrorResponse(response);

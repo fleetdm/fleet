@@ -24,9 +24,9 @@ export const generateTableConfig = (
       ),
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name } = cellProps.row.original;
+        const { name, displayName } = cellProps.row.original;
 
-        return <SoftwareNameCell name={name} />;
+        return <SoftwareNameCell name={name} display_name={displayName} />;
       },
       sortType: "caseInsensitive",
     },

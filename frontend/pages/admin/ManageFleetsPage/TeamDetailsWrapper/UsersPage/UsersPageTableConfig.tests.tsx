@@ -24,7 +24,7 @@ const createTeamUser = (
 ): ITeamUsersTableData => {
   const user = createMockUser({
     global_role: null,
-    teams: [createMockTeam({ id: TEAM_ID, role: "observer" })],
+    fleets: [createMockTeam({ id: TEAM_ID, role: "observer" })],
     ...overrides,
   });
   const [row] = generateDataSet(TEAM_ID, [user]);
@@ -48,6 +48,11 @@ describe("UsersPageTableConfig - API endpoint restrictions", () => {
     const column = getPermissionsColumn();
     expect(column?.title).toBe("Permissions");
     expect(column?.Header).toBe("Permissions");
+  });
+
+  it("keeps the user's fleets on the row, where the permission helpers read them", () => {
+    const row = createTeamUser();
+    expect(row.fleets.map((fleet) => fleet.id)).toEqual([TEAM_ID]);
   });
 
   it("counts the endpoints a user is restricted to", () => {

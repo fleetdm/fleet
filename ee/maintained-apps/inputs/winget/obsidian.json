@@ -3,7 +3,7 @@
   "slug": "obsidian/windows",
   "package_identifier": "Obsidian.Obsidian",
   "unique_identifier": "Obsidian",
-  "fuzzy_match_name": true,
+  "exists_query": "SELECT 1 FROM programs WHERE (name = 'Obsidian' OR name LIKE 'Obsidian %') AND publisher = 'Obsidian';",
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/obsidian_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/obsidian_uninstall.ps1",
   "installer_arch": "x64",

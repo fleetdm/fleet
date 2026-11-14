@@ -9,13 +9,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/gorilla/mux"
 )
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
@@ -29,8 +30,7 @@ func jsonMarshal(w http.ResponseWriter, response interface{}) error {
 }
 
 func uint32FromRequest(r *http.Request, name string) (uint32, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
+	s, ok := platform_http.PathVar(r, name)
 	if !ok {
 		return 0, endpointer.ErrBadRoute
 	}
@@ -143,14 +143,10 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
 
-	teamID, err := handleDeprecatedParams(r, "team_id", "fleet_id")
-	if err != nil {
-		return hopt, err
-	}
-	if teamID != "" {
+	if teamID := r.URL.Query().Get("fleet_id"); teamID != "" {
 		id, err := strconv.ParseUint(teamID, 10, 32)
 		if err != nil {
-			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", teamID)))
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid fleet_id: %s", teamID)))
 		}
 		tid := uint(id)
 		hopt.TeamFilter = &tid
@@ -195,14 +191,10 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.PolicyResponseFilter = v
 	}
 
-	softwareID := r.URL.Query().Get("software_id")
-	if softwareID != "" {
-		id, err := strconv.ParseUint(softwareID, 10, 64)
-		if err != nil {
-			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid software_id: %s", softwareID)))
+	if r.URL.Query().Has("software_id") {
+		if removedEntry, ok := removednames.Find(removednames.KindQueryParam, "software_id", ""); ok {
+			return hopt, ctxerr.Wrap(r.Context(), fleet.NewInvalidArgumentError("software_id", removedEntry.Message()))
 		}
-		sid := uint(id)
-		hopt.SoftwareIDFilter = &sid
 	}
 
 	softwareVersionID := r.URL.Query().Get("software_version_id")
@@ -274,7 +266,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		if hopt.TeamFilter == nil {
 			return hopt, ctxerr.Wrap(
 				r.Context(), badRequest(
-					"Missing team_id (it must be present when software_status is specified)",
+					"Missing fleet_id (it must be present when software_status is specified)",
 				),
 			)
 		}
@@ -649,19 +641,8 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.IncludeDeviceStatus = ids
 	}
 
-	// cannot combine software_id, software_version_id, and software_title_id
-	var softwareErrorLabel []string
-	if hopt.SoftwareIDFilter != nil {
-		softwareErrorLabel = append(softwareErrorLabel, "software_id")
-	}
-	if hopt.SoftwareVersionIDFilter != nil {
-		softwareErrorLabel = append(softwareErrorLabel, "software_version_id")
-	}
-	if hopt.SoftwareTitleIDFilter != nil {
-		softwareErrorLabel = append(softwareErrorLabel, "software_title_id")
-	}
-	if len(softwareErrorLabel) > 1 {
-		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid parameters. The combination of %s is not allowed.", strings.Join(softwareErrorLabel, " and "))))
+	if hopt.SoftwareVersionIDFilter != nil && hopt.SoftwareTitleIDFilter != nil {
+		return hopt, ctxerr.Wrap(r.Context(), badRequest("Invalid parameters. The combination of software_version_id and software_title_id is not allowed."))
 	}
 
 	depProfileError := r.URL.Query().Get("dep_profile_error")
@@ -761,14 +742,10 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	}
 
 	userOpts := fleet.UserListOptions{ListOptions: opt}
-	tid, err := handleDeprecatedParams(r, "team_id", "fleet_id")
-	if err != nil {
-		return userOpts, err
-	}
-	if tid != "" {
+	if tid := r.URL.Query().Get("fleet_id"); tid != "" {
 		teamID, err := strconv.ParseUint(tid, 10, 64)
 		if err != nil {
-			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", tid)))
+			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid fleet_id: %s", tid)))
 		}
 		// GitHub CodeQL flags this as: Incorrect conversion between integer types. Previously waived: https://github.com/fleetdm/fleet/security/code-scanning/516
 		userOpts.TeamID = uint(teamID)

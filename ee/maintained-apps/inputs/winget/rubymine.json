@@ -3,6 +3,7 @@
   "slug": "rubymine/windows",
   "package_identifier": "JetBrains.RubyMine",
   "unique_identifier": "RubyMine",
+  "open_process_names": ["rubymine.exe", "rubymine64.exe"],
   "fuzzy_match_name": true,
   "use_display_version_for_patch": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/rubymine_install.ps1",

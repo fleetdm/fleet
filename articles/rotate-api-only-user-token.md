@@ -48,7 +48,8 @@ Then trigger each integration once and confirm it succeeds.
 1. Go to **Settings > Users**.  Only Fleet users with the global admin role have access to this page.
 2. Find the old API-only user.
 3. Select **Actions > Delete**, then confirm.
-## Confirm the old token is revoked
+
+## Step 6: Confirm the old token is revoked
 
 Confirm that the old token no longer works and the new one does.
 

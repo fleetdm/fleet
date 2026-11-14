@@ -64,7 +64,7 @@ Leave out the `Authentication` key. As covered above, Fleet always applies MDM a
 
 ## Upload the VPN declaration
 
-In Fleet: **Controls > OS settings > Custom settings > Profiles tab > Add profile**.
+In Fleet: **Controls > OS settings > Custom settings > Profiles tab > Add profile > Create manually**.
 
 ```json
 {

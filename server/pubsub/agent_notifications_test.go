@@ -56,11 +56,13 @@ func TestAgentNotificationsRoundTrip(t *testing.T) {
 		// A team ID beyond any real one, for the same reason as the host IDs.
 		testScope := fleet.AgentNotificationScopeTeam(testHostIDOffset)
 		require.NoError(t, notifier.NotifyOrbitConfigScope(ctx, testScope, fleet.AgentWSReasonSettings))
+		require.NoError(t, notifier.NotifyOsqueryConfigHosts(ctx, []uint{testHostIDOffset + 5}, fleet.AgentWSReasonSettings))
+		require.NoError(t, notifier.NotifyOsqueryConfigScope(ctx, testScope, fleet.AgentWSReasonReports))
 
 		require.Eventually(t, func() bool {
 			mu.Lock()
 			defer mu.Unlock()
-			return len(received) == 3
+			return len(received) == 5
 		}, 5*time.Second, 50*time.Millisecond)
 
 		mu.Lock()
@@ -80,6 +82,16 @@ func TestAgentNotificationsRoundTrip(t *testing.T) {
 			Reason: fleet.AgentWSReasonSettings,
 			Scope:  testScope,
 		}, received[2])
+		assert.Equal(t, AgentNotification{
+			Type:    fleet.AgentWSMessageTypeOsqueryConfig,
+			HostIDs: []uint{testHostIDOffset + 5},
+			Reason:  fleet.AgentWSReasonSettings,
+		}, received[3])
+		assert.Equal(t, AgentNotification{
+			Type:   fleet.AgentWSMessageTypeOsqueryConfig,
+			Reason: fleet.AgentWSReasonReports,
+			Scope:  testScope,
+		}, received[4])
 	}
 
 	t.Run("standalone", func(t *testing.T) { runTest(t, false) })
@@ -112,6 +124,14 @@ func (c *captureNotifier) NotifyOrbitConfigScope(ctx context.Context, scope flee
 	return c.record(fmt.Sprintf("scope %s %s", scope, reason))
 }
 
+func (c *captureNotifier) NotifyOsqueryConfigHosts(ctx context.Context, hostIDs []uint, reason string) error {
+	return c.record(fmt.Sprintf("osquery hosts %v %s", hostIDs, reason))
+}
+
+func (c *captureNotifier) NotifyOsqueryConfigScope(ctx context.Context, scope fleet.AgentNotificationScope, reason string) error {
+	return c.record(fmt.Sprintf("osquery scope %s %s", scope, reason))
+}
+
 func TestDelayedAgentNotifier(t *testing.T) {
 	const (
 		liveDelay  = 100 * time.Millisecond
@@ -133,12 +153,19 @@ func TestDelayedAgentNotifier(t *testing.T) {
 		{"orbit config scope", func(ctx context.Context, n *DelayedAgentNotifier) error {
 			return n.NotifyOrbitConfigScope(ctx, fleet.AgentNotificationScopeTeam(5), fleet.AgentWSReasonSettings)
 		}, scopeDelay, "scope team:5 settings"},
+		{"osquery config hosts", func(ctx context.Context, n *DelayedAgentNotifier) error {
+			return n.NotifyOsqueryConfigHosts(ctx, []uint{3}, fleet.AgentWSReasonSettings)
+		}, 0, "osquery hosts [3] settings"},
+		{"osquery config scope", func(ctx context.Context, n *DelayedAgentNotifier) error {
+			return n.NotifyOsqueryConfigScope(ctx, fleet.AgentNotificationScopeGlobal, fleet.AgentWSReasonReports)
+		}, scopeDelay, "osquery scope global reports"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			inner := &captureNotifier{notified: make(chan struct{}, 1)}
 			notifier := NewDelayedAgentNotifier(inner, AgentNotifierDelays{
-				LiveQuery:        liveDelay,
-				OrbitConfigScope: scopeDelay,
+				LiveQuery:          liveDelay,
+				OrbitConfigScope:   scopeDelay,
+				OsqueryConfigScope: scopeDelay,
 			}, slog.New(slog.DiscardHandler))
 
 			// The call returns immediately; the publish happens after the
@@ -166,15 +193,19 @@ func TestDelayedAgentNotifier(t *testing.T) {
 }
 
 func TestDelayedAgentNotifierBatchesHosts(t *testing.T) {
-	inner := &captureNotifier{notified: make(chan struct{}, 2)}
-	notifier := NewDelayedAgentNotifier(inner, AgentNotifierDelays{OrbitConfigHosts: 200 * time.Millisecond},
-		slog.New(slog.DiscardHandler))
+	inner := &captureNotifier{notified: make(chan struct{}, 3)}
+	notifier := NewDelayedAgentNotifier(inner, AgentNotifierDelays{
+		OrbitConfigHosts:   200 * time.Millisecond,
+		OsqueryConfigHosts: 200 * time.Millisecond,
+	}, slog.New(slog.DiscardHandler))
 
 	require.NoError(t, notifier.NotifyOrbitConfigHosts(t.Context(), []uint{3, 1}, fleet.AgentWSReasonActivity))
 	require.NoError(t, notifier.NotifyOrbitConfigHosts(t.Context(), []uint{2, 1}, fleet.AgentWSReasonActivity))
 	require.NoError(t, notifier.NotifyOrbitConfigHosts(t.Context(), []uint{4}, fleet.AgentWSReasonMDM))
+	// Same reason, different type: batched separately.
+	require.NoError(t, notifier.NotifyOsqueryConfigHosts(t.Context(), []uint{6}, fleet.AgentWSReasonActivity))
 
-	for range 2 {
+	for range 3 {
 		select {
 		case <-inner.notified:
 		case <-time.After(5 * time.Second):
@@ -182,7 +213,7 @@ func TestDelayedAgentNotifierBatchesHosts(t *testing.T) {
 		}
 	}
 	inner.mu.Lock()
-	assert.ElementsMatch(t, []string{"hosts [1 2 3] activity", "hosts [4] mdm"}, inner.calls)
+	assert.ElementsMatch(t, []string{"hosts [1 2 3] activity", "hosts [4] mdm", "osquery hosts [6] activity"}, inner.calls)
 	inner.mu.Unlock()
 
 	// The window is over: the next notification starts a new batch.
@@ -194,7 +225,7 @@ func TestDelayedAgentNotifierBatchesHosts(t *testing.T) {
 	}
 	inner.mu.Lock()
 	defer inner.mu.Unlock()
-	assert.Equal(t, "hosts [5] activity", inner.calls[2])
+	assert.Equal(t, "hosts [5] activity", inner.calls[3])
 }
 
 func TestAgentNotificationsResubscribe(t *testing.T) {

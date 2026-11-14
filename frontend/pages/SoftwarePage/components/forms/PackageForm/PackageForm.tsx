@@ -2,6 +2,7 @@
 
 import classnames from "classnames";
 import React, { useState, useEffect, useCallback, useContext } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -83,6 +84,19 @@ const getGraphicName = (ext: string) => {
   }
   return "file-pkg";
 };
+
+export const IPA_DUAL_PLATFORM_BANNER_COPY =
+  "Fleet adds this app for both iOS and iPadOS. Edit each platform separately. Changes to one don't apply to the other.";
+
+const renderIpaDualPlatformBanner = () => (
+  <InfoBanner
+    icon="info"
+    iconColor="ui-fleet-black-50"
+    className={`${baseClass}__ipa-dual-platform-banner`}
+  >
+    {IPA_DUAL_PLATFORM_BANNER_COPY}
+  </InfoBanner>
+);
 
 const renderSoftwareDeployWarningBanner = () => (
   <InfoBanner
@@ -225,6 +239,14 @@ const PackageForm = ({
     software: { isValid: false },
   });
   const [uploaderError, setUploaderError] = useState<string | null>(null);
+  const [showLabelsError, setShowLabelsError] = useState(false);
+
+  const hasSelectedLabel = Object.values(formData.labelTargets).some(
+    (v) => v === true
+  );
+  const labelsRequired = formData.targetType === "Custom" && !hasSelectedLabel;
+  const labelsError =
+    showLabelsError && labelsRequired ? "Select at least one label" : null;
 
   // GitOps mode hides the target selector, so a "Custom" target with no labels
   // can never be satisfied: the picker that would fix it isn't rendered, and
@@ -320,6 +342,9 @@ const PackageForm = ({
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
 
+    setShowLabelsError(labelsRequired);
+    if (labelsRequired) return;
+
     // The server caps the whole request body, and not just the file.
     if (
       maxSoftwarePackageSize !== undefined &&
@@ -338,10 +363,34 @@ const PackageForm = ({
     setFormValidation(generateFormValidation(newData));
   };
 
+  // Also validate 3s after the user stops typing, so a stale pause surfaces
+  // a syntax warning without flashing mid-token. Blur / submit still fire
+  // immediately. The warning is advisory: Save isn't gated on preInstallQuery
+  // validity.
+  const debounceValidatePreInstallQuery = useDebouncedCallback(
+    (value?: string) => {
+      setFormValidation(
+        generateFormValidation({ ...formData, preInstallQuery: value })
+      );
+    },
+    3000
+  );
+
   const onChangePreInstallQuery = (value?: string) => {
-    const newData = { ...formData, preInstallQuery: value };
-    setFormData(newData);
-    setFormValidation(generateFormValidation(newData));
+    setFormData({ ...formData, preInstallQuery: value });
+    // Clear any existing syntax error immediately on change — the 3s debounce
+    // will re-add it if the query is still invalid once the user stops typing.
+    if (formValidation.preInstallQuery?.message) {
+      setFormValidation({
+        ...formValidation,
+        preInstallQuery: { isValid: true, message: "" },
+      });
+    }
+    debounceValidatePreInstallQuery(value);
+  };
+
+  const onBlurPreInstallQuery = () => {
+    setFormValidation(generateFormValidation(formData));
   };
 
   const onChangePostInstallScript = (value?: string) => {
@@ -404,6 +453,7 @@ const PackageForm = ({
     const newData = { ...formData, targetType: value };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
+    if (value === "All hosts") setShowLabelsError(false);
   };
 
   const onSelectCustomTarget = (value: string) => {
@@ -419,6 +469,7 @@ const PackageForm = ({
     };
     setFormData(newData);
     setFormValidation(generateFormValidation(newData));
+    if (value) setShowLabelsError(false);
   };
 
   const disableFieldsForGitOps = gitopsCompatible && gitOpsModeEnabled;
@@ -513,14 +564,14 @@ const PackageForm = ({
 
   const renderTargetLabelSelector = () => (
     <>
-      {!isEditingSoftware && (
+      {!isEditingSoftware && !isIpaPackage && (
         <InfoBanner
-          icon="info-outline"
+          icon="info"
           iconColor="ui-fleet-black-50"
           className={`${baseClass}__multi-package-banner`}
         >
-          If multiple packages of the same software target the same host, Fleet
-          will install the one that was added first.
+          If multiple versions target the same host, Fleet will deploy the one
+          that was added first.
         </InfoBanner>
       )}
       <DropdownTargetLabelSelector
@@ -537,6 +588,7 @@ const PackageForm = ({
           formData.targetType === "Custom" &&
           generateHelpText(formData.automaticInstall, formData.customTarget)
         }
+        labelsError={labelsError}
       />
     </>
   );
@@ -567,6 +619,13 @@ const PackageForm = ({
         {multiPackageContext && gitOpsModeEnabled && (
           <GitOpsCustomPackageBanner />
         )}
+        {/* One .ipa upload creates separate iOS and iPadOS titles that must be
+            edited independently. Warn on Add; hide in GitOps mode (read-only)
+            and on Edit (the user is already inside a single-platform title). */}
+        {isIpaPackage &&
+          !isEditingSoftware &&
+          !gitOpsModeEnabled &&
+          renderIpaDualPlatformBanner()}
         {(showDeploySoftwareSlider ||
           showSoftwareOptionsSelector ||
           showTargetLabelSelector) && ( // Only show container if any one component will render — avoids stray gap spacing
@@ -601,6 +660,7 @@ const PackageForm = ({
             uninstallScript={formData.uninstallScript}
             onClickShowSchema={onClickShowSchema}
             onChangePreInstallQuery={onChangePreInstallQuery}
+            onBlurPreInstallQuery={onBlurPreInstallQuery}
             onChangeInstallScript={onChangeInstallScript}
             onChangePostInstallScript={onChangePostInstallScript}
             onChangeUninstallScript={onChangeUninstallScript}
@@ -615,11 +675,12 @@ const PackageForm = ({
             // tooltipped and non-tooltipped branches need identical text,
             // disabled state, and type. A previous duplication let the
             // "Save" / "Add software" copy drift between branches.
+            let submitText = "Add software";
+            if (multiPackageContext) submitText = "Add";
+            else if (isEditingSoftware) submitText = "Save";
             const submitButton = (
               <Button type="submit" disabled={isSubmitDisabled}>
-                {isEditingSoftware || multiPackageContext
-                  ? "Save"
-                  : "Add software"}
+                {submitText}
               </Button>
             );
             return submitTooltipContent ? (

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "3.20.4",
+      "version": "3.20.5",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'NoSQL Workbench' AND publisher = 'DynamoDB Developer Experience';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'NoSQL Workbench' AND publisher = 'DynamoDB Developer Experience' AND version_compare(version, '3.20.4') < 0);",
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'NoSQL Workbench %' AND publisher = 'DynamoDB Developer Experience';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'NoSQL Workbench %' AND publisher = 'DynamoDB Developer Experience' AND version_compare(version, '3.20.5') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM processes WHERE LOWER(name) = 'nosql workbench.exe');"
       },
-      "installer_url": "https://dy9cqqaswpltd.cloudfront.net/NoSQL%20Workbench-win-3.20.4.exe",
+      "installer_url": "https://dy9cqqaswpltd.cloudfront.net/NoSQL%20Workbench-win-3.20.5.exe",
       "install_script_ref": "1aa3b9df",
       "uninstall_script_ref": "077a0b5d",
-      "sha256": "fcc3752886dbc080964b2b789b951ca2eb6b6ceef22f163282cc773593ae7d65",
+      "sha256": "5029599c11c371d720378a65b8a55ccafc1fa8037dddc3bcbf4d1a50890d9576",
       "default_categories": [
         "Developer tools"
       ]

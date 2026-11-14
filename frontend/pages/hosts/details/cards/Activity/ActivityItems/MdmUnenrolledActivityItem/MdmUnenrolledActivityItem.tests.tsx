@@ -46,6 +46,6 @@ describe("MdmUnenrolledActivityItem", () => {
   it("does not render the cancel or show-details icons", () => {
     renderItem("darwin", "Admin User");
     expect(screen.queryByTestId("close-icon")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("info-outline-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("info-icon")).not.toBeInTheDocument();
   });
 });

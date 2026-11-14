@@ -1,6 +1,6 @@
 # Fleet Desktop
 
-Fleet Desktop is a self-service portal for your end users. It shows up in the menu bar on macOS and system tray on Windows/Linux. Learn more about [Linux support](https://fleetdm.com/docs/get-started/faq#what-host-operating-systems-does-fleet-support).
+Fleet Desktop is a self-service portal for your end users. On macOS, it's an app. On Windows and [Linux](https://fleetdm.com/docs/get-started/faq#what-host-operating-systems-does-fleet-support), it shows up in the system tray. A Fleet Desktop app for Windows is [coming soon](https://github.com/fleetdm/fleet/issues/50162).
 
 Fleet Desktop unlocks two key benefits:
 
@@ -8,13 +8,24 @@ Fleet Desktop unlocks two key benefits:
    <iframe src="https://www.youtube.com/embed/cI2vDG3PbVo" allowfullscreen></iframe>
 </div>
 
-If your end users have a hard time finding Fleet Desktop in the macOS menu bar, you can optionally deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin). Additionally, to remind end users that they're failing policies, you can deploy [this configuration profile](https://github.com/fleetdm/fleet/blob/8cd2da576b01075db63d0a254ae597291c1d3d96/it-and-security/lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig) to open this app everytime the end user logs in or restarts their Mac. 
+## Deploy Fleet Desktop
 
-## Install Fleet Desktop
-For information on how to install Fleet Desktop, visit: [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop).
+Fleet Desktop is deployed automatically when you [enroll hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop). It shows up in the menu bar on macOS and the system tray on Windows and Linux.
 
-## Upgrade Fleet Desktop
-Once installed, Fleet Desktop will be automatically updated via Fleetd. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
+### macOS
+
+The best practice on macOS is to also deploy the [Fleet Desktop app](https://fleetdm.com/software-catalog/fleet-desktop-darwin). The app is required for [patch notifications](https://fleetdm.com/guides/patching-end-user-experience#force-patch-notify-before-patching) and Fleet's [Platform SSO extension](https://fleetdm.com/guides/deploying-apple-account-provisioning-with-fleet). If you want, you can [hide the menu bar icon](#hide-the-menu-bar-icon-on-macos).
+
+1. Add the Fleet Desktop app as a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#add-a-fleet-maintained-app) and select **Automatic**. Fleet creates a policy that installs the app on Macs that don't have it, and reinstalls it if an end user deletes it.
+2. Install it on new Macs during [setup experience](https://fleetdm.com/guides/setup-experience#install-software).
+
+## Update Fleet Desktop
+
+Fleet automatically updates the Fleet Desktop menu bar icon on macOS and the system tray item on Windows and Linux. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
+
+### macOS
+
+The Fleet Desktop app is a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps#update-apps-automatically). To keep it up to date, add a [patch policy](https://fleetdm.com/guides/patching-end-user-experience) for it.
 
 ## Custom transparency link
 Organizations with complex security postures can direct end users to a resource of their choice to serve custom content.

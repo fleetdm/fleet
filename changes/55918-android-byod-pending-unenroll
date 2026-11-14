@@ -1,0 +1,1 @@
+- Hid Unenroll, Lock, and Clear passcode from the Host details Actions menu while an Unenroll (or Wipe) is pending on a personally-owned (BYOD) Android host. `GET /api/v1/fleet/hosts/{id}` now reports `pending_action: "unenroll"` for such hosts, and a second Unenroll request returns 409 instead of sending another work-profile wipe.

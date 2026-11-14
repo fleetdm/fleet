@@ -1,0 +1,1 @@
+- Fixed editing a saved script skipping the file type checks that Add script applies: an edit now returns the same validation errors as Add script for that script's file type (for example, a `.py` script without a python shebang or a `.ps1` script starting with a shebang).

@@ -1,12 +1,12 @@
 # Setup Experience Overview
 
-Setup experience lets newly enrolled hosts be configured with all the MDM profiles, software, and scripts that they would need. And optionally block them from completing setup until requirements like all required software being installed are met.
+Setup experience lets newly enrolled hosts be configured with all the MDM profiles, software (including script-only packages) that they would need. And optionally block them from completing setup until requirements like all required software being installed are met.
 
 ## Summary
 
 Setup experience has various triggers depending on the platform and MDM enrollment. After enrollment, orbit goes through end user authentication, then calls the `/api/fleet/orbit/setup_experience/init` endpoint which causes the Fleet server to queue up the relevant items in the `setup_experience_status_results` table with pending statuses. For ADE enrollments, Fleet enqueues the items when handling the `TokenUpdate` request. 
 
-The orbit `SetupExperiencer` config receiver runs every 30s and requests the current setup experience status. This status lets orbit know if config profiles, software installers and scripts are still pending or finished while those happen asynchronously through MDM and unified queue activities. Once all items are completed, the end user can exit setup experience.
+The orbit `SetupExperiencer` config receiver runs every 30s and requests the current setup experience status. This status lets orbit know if config profiles and software installers (including script-only packages) are still pending or finished while those happen asynchronously through MDM and unified queue activities. Once all items are completed, the end user can exit setup experience.
 
 ## End user authentication gate (Linux and Windows)
 
@@ -22,27 +22,27 @@ The check runs at initiation only. Re-checking at the SAML callback would fail a
 
 ## Enqueuing items
 
-Fleet enqueues relevant software installers, VPP apps, and scripts during MDM enrollment for Apple hosts or after orbit calls `setup_experience/init` for Windows and Linux hosts. This is what the end user sees on the web UI.
+Fleet enqueues relevant software installers (including script-only packages) and VPP apps during MDM enrollment for Apple hosts or after orbit calls `setup_experience/init` for Windows and Linux hosts. This is what the end user sees on the web UI.
 
 ## Setup experience status
 
-Whenever `/api/fleet/orbit/setup_experience/status` is called, the Fleet server checks the current state of MDM profiles, software installs, and script runs. At the end of the function, it will call `SetupExperienceNextStep()` which queues up the next item (software install/VPP install/script run) for the host in the unified queue (see [upcoming activities](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/upcoming-activities.md)), and updates the status in `setup_experience_status_results` for that item. If there is nothing left to do, the device is released. On macOS, if everything is done and the device hasn't been released manually, the server sends a `DeviceConfigured` MDM command here to release the device from Setup Assistant.
+Whenever `/api/fleet/orbit/setup_experience/status` is called, the Fleet server checks the current state of MDM profiles, software installs. At the end of the function, it will call `SetupExperienceNextStep()` which queues up the next item (software install/VPP install) for the host in the unified queue (see [upcoming activities](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/upcoming-activities.md)), and updates the status in `setup_experience_status_results` for that item. If there is nothing left to do, the device is released. On macOS, if everything is done and the device hasn't been released manually, the server sends a `DeviceConfigured` MDM command here to release the device from Setup Assistant.
 
-These activities run in order, but they don't directly interact with the setup experience which is why the setup experience receiver polls for status. The results from software installs, script runs, or VPP installs are responsible for updating the setup experience status for that item. See [software installation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/software/software-installation.md) for how Fleet installs software on hosts while setup experience is running.
+These activities run in order, but they don't directly interact with the setup experience which is why the setup experience receiver polls for status. The results from software installs or VPP installs are responsible for updating the setup experience status for that item. See [software installation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/software/software-installation.md) for how Fleet installs software on hosts while setup experience is running.
 
 ## Platform differences
 
 ### Windows
 
-Windows enrollment goes through the Enrollment Status Page (ESP). Setup experience is driven by orbit: when a Windows host is awaiting configuration, Fleet sets `RunSetupExperience` in orbit's config response, and orbit calls `/api/fleet/orbit/setup_experience/init` to enqueue items. Fleet does not push profiles as part of setup experience on Windows. The device is held in the ESP based on the enrollment's `awaiting_configuration` state until the installs complete (or fail/time out), not merely until `init` is called. Only software installers are supported on Windows; scripts are macOS-only.
+Windows enrollment goes through the Enrollment Status Page (ESP). Setup experience is driven by orbit: when a Windows host is awaiting configuration, Fleet sets `RunSetupExperience` in orbit's config response, and orbit calls `/api/fleet/orbit/setup_experience/init` to enqueue items. Fleet does not push profiles as part of setup experience on Windows. The device is held in the ESP based on the enrollment's `awaiting_configuration` state until the installs complete (or fail/time out), not merely until `init` is called. Only software installers are supported on Windows.
 
 ### Linux
 
-Linux has no MDM, so there is no MDM command path at all. Setup experience starts when orbit calls `/api/fleet/orbit/setup_experience/init` on boot, and the same 30s polling loop drives software installs (no scripts).
+Linux has no MDM, so there is no MDM command path at all. Setup experience starts when orbit calls `/api/fleet/orbit/setup_experience/init` on boot, and the same 30s polling loop drives software installs (no script-only packages).
 
 ### macOS
 
-When Fleet processes a `TokenUpdate` request with `AwaitingConfiguration==true` for ADE enrollments, which indicates a host waiting for commands during setup assistant, it enqueues MDM items (profiles, bootstrap package, orbit installer, account configuration) as MDM commands in the nanomdm command queue and software and scripts in the unified queue. Manual enrollments, ADE enrollments without AwaitingConfiguration=true(e.g. `sudo profiles renew -type enrollment`), and AB MDM migration enrollments do not enqueue Setup Experience items, only profiles and an orbit install.
+When Fleet processes a `TokenUpdate` request with `AwaitingConfiguration==true` for ADE enrollments, which indicates a host waiting for commands during setup assistant, it enqueues MDM items (profiles, bootstrap package, orbit installer, account configuration) as MDM commands in the nanomdm command queue and software (including script-only packages) in the unified queue. Manual enrollments, ADE enrollments without AwaitingConfiguration=true(e.g. `sudo profiles renew -type enrollment`), and AB MDM migration enrollments do not enqueue Setup Experience items, only profiles and an orbit install.
 
 ### iOS/iPadOS
 
@@ -66,11 +66,11 @@ flowchart TB
         subgraph GOSES["GetOrbitSetupExperienceStatus()"]
             direction TB
             G_MDM["bootstrap package status\nconfiguration profile statuses\naccount configuration status\n(macOS only)"]
-            G_SW["get software/script statuses\nfrom setup_experience_status_results"]
+            G_SW["get software statuses\nfrom setup_experience_status_results"]
             G_FI{"failed installs?"}
             G_RFSS["ResetSetupExperienceItemsAfterFailure()\nif resetFailedSetupSteps == true and requireAllSoftware == true"]
             G_RCSA["recordCanceledSetupExperienceSoftwareActivities()"]
-            G_SENS["SetupExperienceNextStep()\nenqueues next software / VPP / script install"]
+            G_SENS["SetupExperienceNextStep()\nenqueues next software / VPP install"]
             G_REL{"ready for release?"}
             G_DEVCFG["DeviceConfigured MDM command\n(macOS: exit Setup Assistant)"]
 
@@ -86,7 +86,6 @@ flowchart TB
         G_SENS --> UQ
 
         SIR_EP(("POST /orbit/software_install/result\nSaveHostSoftwareInstallResult()"))
-        SCR_EP(("POST /orbit/scripts/result\nSaveHostScriptResult()"))
 
         SIR_EP -.->|"maybeUpdateSetupExperienceStatus\nupdates setup_experience_status_results"| G_SW
         SCR_EP -.->|"maybeUpdateSetupExperienceStatus\nupdates setup_experience_status_results"| G_SW
@@ -103,11 +102,9 @@ flowchart TB
         O_PP{"profiles/bootstrap/\naccount config pending?"}
         O_RUI["render web UI"]
         O_SP{"any software\ninstalls pending?"}
-        O_SCP{"any scripts\npending?"}
         O_RETURN["receiver returns"]
         O_DONE(["done — show close button"])
         O_SWRX(("software install receiver"))
-        O_SCRX(("script receiver"))
 
         O_START --> O_CONN
         O_CONN -->|"yes"| O_EUA
@@ -119,7 +116,6 @@ flowchart TB
         O_PP -->|"yes"| O_RETURN
         O_PP -->|"no"| O_RUI --> O_SP
         O_SP -->|"yes"| O_RETURN
-        O_SP -->|"no"| O_SCP
         O_SCP -->|"yes"| O_RETURN
         O_SCP -->|"no"| O_DONE
         O_RETURN -. "next run in 30s" .-> O_SECR
@@ -130,7 +126,6 @@ flowchart TB
     O_CSAS -->|"calls"| GOSES
 
     UQ -.->|"delivered to orbit"| O_SWRX
-    UQ -.->|"delivered to orbit"| O_SCRX
     O_SWRX -->|"calls"| SIR_EP
     O_SCRX -->|"calls"| SCR_EP
 ```
