@@ -78,7 +78,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"idp_name": "",
 				"metadata_url": ""
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -108,7 +108,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"idp_name": "",
 				"metadata_url": ""
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -131,7 +131,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true,
 				"lock_end_user_info": true
 			}
@@ -480,7 +480,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// without end user authentication, enrolling with the automatic enrollment
 	// token (no account) removes the link
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": {"macos_setup": {"enable_end_user_authentication": false}}
+		"mdm": {"setup_experience": {"enable_end_user_authentication": false}}
 	}`), http.StatusOK, &appConfigResponse{})
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
 		basePath: "/api/mdm/apple/enroll",
@@ -493,7 +493,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NoError(t, err)
 	require.Nil(t, unlinked)
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": {"macos_setup": {"enable_end_user_authentication": true}}
+		"mdm": {"setup_experience": {"enable_end_user_authentication": true}}
 	}`), http.StatusOK, &appConfigResponse{})
 
 	// changing the server URL also updates the remote DEP profile

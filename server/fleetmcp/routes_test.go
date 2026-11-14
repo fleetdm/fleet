@@ -264,8 +264,8 @@ routes:
 }
 
 var fakeHosts = []map[string]any{
-	{"id": 42, "uuid": "uuid-42", "hostname": "alpha.local", "platform": "darwin", "status": "online", "team_id": 1, "team_name": "Workstations"},
-	{"id": 43, "uuid": "uuid-43", "hostname": "beta.local", "platform": "darwin", "status": "online", "team_id": 1, "team_name": "Workstations"},
+	{"id": 42, "uuid": "uuid-42", "hostname": "alpha.local", "platform": "darwin", "status": "online", "fleet_id": 1, "fleet_name": "Workstations"},
+	{"id": 43, "uuid": "uuid-43", "hostname": "beta.local", "platform": "darwin", "status": "online", "fleet_id": 1, "fleet_name": "Workstations"},
 }
 
 // fakeFleetResponse returns the minimal body each route needs for the tools to

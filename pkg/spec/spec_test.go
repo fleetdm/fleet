@@ -510,6 +510,16 @@ spec:
 `),
 			removedMessage(removednames.KindSpecKind, "user_roles"),
 		},
+		{
+			"kind: pack",
+			[]byte(`
+apiVersion: v1
+kind: pack
+spec:
+  name: pack1
+`),
+			removedMessage(removednames.KindSpecKind, "pack"),
+		},
 	}
 
 	for _, tt := range tests {

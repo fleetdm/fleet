@@ -40,8 +40,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 `,
@@ -348,7 +348,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "macos_recovery_lock_password_enabled not found")
 				_, ok = gitops.Controls.MacOSMigration.(map[string]interface{})
 				assert.True(t, ok, "macos_migration not found")
-				assert.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup not found")
+				assert.NotNil(t, gitops.Controls.MacOSSetup, "setup_experience not found")
 				_, ok = gitops.Controls.MacOSUpdates.(map[string]interface{})
 				assert.True(t, ok, "macos_updates not found")
 				_, ok = gitops.Controls.IOSUpdates.(map[string]interface{})
@@ -1478,51 +1478,6 @@ org_settings:
 			require.ErrorContains(t, err, mode)
 		}
 	})
-
-	// Deprecated org_logo_url and org_logo_url_light_background keys are migrated to the new mode-aware names.
-	t.Run("deprecated URL keys are renamed", func(t *testing.T) {
-		config := getGlobalConfig([]string{"org_settings"})
-		config += `
-org_settings:
-  server_settings:
-    server_url: https://fleet.example.com
-  org_info:
-    contact_url: https://example.com/contact
-    org_name: Test Org
-    org_logo_url: https://example.com/dark-logo.png
-    org_logo_url_light_background: https://example.com/light-logo.png
-  secrets:
-`
-		gitops, err := gitOpsFromString(t, config)
-		require.NoError(t, err)
-		orgInfo := gitops.OrgSettings["org_info"].(map[string]any)
-		assert.Equal(t, "https://example.com/dark-logo.png", orgInfo["org_logo_url_dark_mode"])
-		assert.Equal(t, "https://example.com/light-logo.png", orgInfo["org_logo_url_light_mode"])
-		_, hasOldDark := orgInfo["org_logo_url"]
-		_, hasOldLight := orgInfo["org_logo_url_light_background"]
-		assert.False(t, hasOldDark, "deprecated org_logo_url should be removed after migration")
-		assert.False(t, hasOldLight, "deprecated org_logo_url_light_background should be removed after migration")
-	})
-
-	// Setting both an old and new URL key for the same mode errors out
-	// (handled by the generic deprecated-key migrator).
-	t.Run("old + new URL keys conflict", func(t *testing.T) {
-		config := getGlobalConfig([]string{"org_settings"})
-		config += `
-org_settings:
-  server_settings:
-    server_url: https://fleet.example.com
-  org_info:
-    contact_url: https://example.com/contact
-    org_name: Test Org
-    org_logo_url: https://example.com/old.png
-    org_logo_url_dark_mode: https://example.com/new.png
-  secrets:
-`
-		_, err := gitOpsFromString(t, config)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "org_logo_url")
-	})
 }
 
 // TestGitOpsOrgSettingsNestedPathResolution covers issue #45661: relative paths
@@ -1662,7 +1617,7 @@ func TestGitOpsControlsResolveFilePathsAbs(t *testing.T) {
 	})
 
 	t.Run("parse-time paths and bootstrap URL are left untouched", func(t *testing.T) {
-		// controls.scripts are already resolved at parse time, and bootstrap_package
+		// controls.scripts are already resolved at parse time, and macos_bootstrap_package
 		// is a URL — re-anchoring either here would double-anchor / corrupt them.
 		scriptPath := "../lib/no-team/script.sh"
 		controls := GitOpsControls{
@@ -3619,7 +3574,6 @@ software:
 		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: nested.yml")
 		assert.Contains(t, multiErr.ErrorOrNil().Error(), "nested paths are not supported: *.yml")
 	})
-
 }
 
 func TestParseSoftwareFieldsBesideFileReference(t *testing.T) {
@@ -4426,6 +4380,11 @@ software:
 				"  org_info:\n    org_name: Test Org\n  secrets:\n  mdm:\n" + mdm +
 				"controls:\nagent_options:\nreports:\npolicies:\n"
 		}
+		orgInfoFile := func(orgInfo string) string {
+			return "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n" +
+				"  org_info:\n    org_name: Test Org\n" + orgInfo + "  secrets:\n" +
+				"controls:\nagent_options:\nreports:\npolicies:\n"
+		}
 		scriptsDisabledFile := func(serverSettings string) string {
 			return "org_settings:\n  server_settings:\n    server_url: https://fleet.example.com\n" + serverSettings +
 				"  org_info:\n    org_name: Test Org\n  secrets:\n" +
@@ -4443,7 +4402,7 @@ software:
 				name: "fleet controls", file: "workstations.yml",
 				config: fleetFile("  enable_recovery_lock_password: true\n"+
 					"  windows_enabled_and_configured: true\n  windows_migration_enabled: false\n"+
-					"  macos_setup:\n    require_all_software_macos: true\n    require_all_software_windows: false\n", ""),
+					"  setup_experience:\n    require_all_software_macos: true\n    require_all_software_windows: false\n", ""),
 				want: []string{
 					`The "controls.enable_recovery_lock_password" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 					// the path names the parent by its current name, not the file's alias
@@ -4470,7 +4429,7 @@ software:
 			{
 				// the block under a differently cased parent still decodes, so its old keys must not slip through
 				name: "fleet controls parent in another letter case", file: "workstations.yml",
-				config: fleetFile("  Macos_Setup:\n    require_all_software_macos: true\n    require_all_software_windows: true\n", ""),
+				config: fleetFile("  Setup_Experience:\n    require_all_software_macos: true\n    require_all_software_windows: true\n", ""),
 				want: []string{
 					`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`,
 					`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`,
@@ -4480,13 +4439,13 @@ software:
 			{
 				name: "controls file parent in another letter case", file: "workstations.yml",
 				config:      fleetFile("  path: ./controls.yml\n", ""),
-				extra:       map[string]string{"controls.yml": "Macos_Setup:\n  require_all_software_macos: true\n"},
+				extra:       map[string]string{"controls.yml": "Setup_Experience:\n  require_all_software_macos: true\n"},
 				want:        []string{`The "controls.setup_experience.require_all_software_macos" key is not available anymore.`},
 				alsoUnknown: true,
 			},
 			{
 				name: "unassigned parent with a Unicode case variant", file: "unassigned.yml",
-				config:      "name: Unassigned\ncontrols:\n  macoſ_setup:\n    require_all_software_windows: true\npolicies:\nsoftware:\n",
+				config:      "name: Unassigned\ncontrols:\n  ſetup_experience:\n    require_all_software_windows: true\npolicies:\nsoftware:\n",
 				want:        []string{`The "controls.setup_experience.require_all_software_windows" key is not available anymore.`},
 				alsoUnknown: true,
 			},
@@ -4519,6 +4478,30 @@ software:
 				extra: map[string]string{"org-settings.yml": "server_settings:\n  server_url: https://fleet.example.com\n  scripts_disabled: true\n" +
 					"org_info:\n  org_name: Test Org\nsecrets:\n"},
 				want: []string{`in "./org-settings.yml": The "org_settings.server_settings.scripts_disabled" key is not available anymore.`},
+			},
+			{
+				name: "org_settings org_info logo URLs", file: "default.yml",
+				config: orgInfoFile("    org_logo_url: https://example.com/dark.png\n    org_logo_url_light_background: https://example.com/light.png\n"),
+				want: []string{
+					`The "org_settings.org_info.org_logo_url" key is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+					`The "org_settings.org_info.org_logo_url_light_background" key is not available anymore.`,
+				},
+			},
+			{
+				name: "org_settings org_info logo URLs next to their replacements", file: "default.yml",
+				config: orgInfoFile("    org_logo_url: https://example.com/dark.png\n    org_logo_url_dark_mode: https://example.com/dark.png\n" +
+					"    Org_Logo_URL_Light_Background: \"\"\n    org_logo_url_light_mode: \"\"\n"),
+				want: []string{
+					`The "org_settings.org_info.org_logo_url" key is not available anymore.`,
+					`The "org_settings.org_info.org_logo_url_light_background" key is not available anymore.`,
+				},
+			},
+			{
+				name: "org_settings file with org_info logo URL", file: "default.yml",
+				config: "org_settings:\n  path: ./org-settings.yml\ncontrols:\nagent_options:\nreports:\npolicies:\n",
+				extra: map[string]string{"org-settings.yml": "server_settings:\n  server_url: https://fleet.example.com\n" +
+					"org_info:\n  org_name: Test Org\n  org_logo_url: https://example.com/dark.png\nsecrets:\n"},
+				want: []string{`in "./org-settings.yml": The "org_settings.org_info.org_logo_url" key is not available anymore.`},
 			},
 			{
 				name: "org_settings in another letter case", file: "default.yml",
@@ -4835,8 +4818,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 `
@@ -4900,8 +4883,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 `
@@ -4922,7 +4905,7 @@ org_settings:
 		require.True(t, winSettings.CustomSettings.Valid)
 		require.Len(t, winSettings.CustomSettings.Value, 1)
 
-		require.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup (via setup_experience) not parsed")
+		require.NotNil(t, gitops.Controls.MacOSSetup, "setup_experience not parsed")
 
 		diskEnc, ok := gitops.Controls.EnableDiskEncryption.(bool)
 		require.True(t, ok)
@@ -4975,8 +4958,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 `
@@ -4997,7 +4980,7 @@ org_settings:
 		require.True(t, winSettings.CustomSettings.Valid)
 		require.Len(t, winSettings.CustomSettings.Value, 1)
 
-		require.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup (via setup_experience in external file) not parsed")
+		require.NotNil(t, gitops.Controls.MacOSSetup, "setup_experience in external file not parsed")
 	})
 
 	// Test that duplicate settings with old and new key names produce an error
@@ -5114,132 +5097,6 @@ controls:
 		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "configuration_profiles")
 		require.Contains(t, err.Error(), "'controls.android_settings.custom_settings' (deprecated)")
-	})
-
-	t.Run("duplicate_old_and_new_keys_error_setup_experience", func(t *testing.T) {
-		dir := t.TempDir()
-		profileDir := filepath.Join(dir, "lib")
-		require.NoError(t, os.Mkdir(profileDir, 0o755))
-		config := `
-reports:
-policies:
-agent_options:
-org_settings:
-  server_settings:
-  org_info:
-  secrets:
-controls:
-  setup_experience:
-  macos_setup:
-`
-		yamlPath := filepath.Join(dir, "gitops.yml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
-
-		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot specify both")
-		require.Contains(t, err.Error(), "setup_experience")
-		require.Contains(t, err.Error(), "'controls.macos_setup' (deprecated)")
-	})
-
-	t.Run("duplicate_old_and_new_keys_error_bootstrap_package", func(t *testing.T) {
-		dir := t.TempDir()
-		config := `
-reports:
-policies:
-agent_options:
-org_settings:
-  server_settings:
-  org_info:
-  secrets:
-controls:
-  setup_experience:
-    bootstrap_package: ""
-    macos_bootstrap_package: ""
-`
-		yamlPath := filepath.Join(dir, "gitops.yml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
-
-		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot specify both")
-		require.Contains(t, err.Error(), "macos_bootstrap_package")
-		require.Contains(t, err.Error(), "'controls.setup_experience.bootstrap_package' (deprecated)")
-	})
-
-	t.Run("duplicate_old_and_new_keys_error_enable_release_device_manually", func(t *testing.T) {
-		dir := t.TempDir()
-		config := `
-reports:
-policies:
-agent_options:
-org_settings:
-  server_settings:
-  org_info:
-  secrets:
-controls:
-  setup_experience:
-    enable_release_device_manually: false
-    apple_enable_release_device_manually: false
-`
-		yamlPath := filepath.Join(dir, "gitops.yml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
-
-		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot specify both")
-		require.Contains(t, err.Error(), "apple_enable_release_device_manually")
-		require.Contains(t, err.Error(), "'controls.setup_experience.enable_release_device_manually' (deprecated)")
-	})
-
-	t.Run("duplicate_old_and_new_keys_error_script", func(t *testing.T) {
-		dir := t.TempDir()
-		config := `
-reports:
-policies:
-agent_options:
-org_settings:
-  server_settings:
-  org_info:
-  secrets:
-controls:
-  setup_experience:
-    script: null
-    macos_script: null
-`
-		yamlPath := filepath.Join(dir, "gitops.yml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
-
-		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot specify both")
-		require.Contains(t, err.Error(), "macos_script")
-		require.Contains(t, err.Error(), "'controls.setup_experience.script' (deprecated)")
-	})
-
-	t.Run("duplicate_old_and_new_keys_error_manual_agent_install", func(t *testing.T) {
-		dir := t.TempDir()
-		config := `
-reports:
-policies:
-agent_options:
-org_settings:
-  server_settings:
-  org_info:
-  secrets:
-controls:
-  setup_experience:
-    manual_agent_install: false
-    macos_manual_agent_install: false
-`
-		yamlPath := filepath.Join(dir, "gitops.yml")
-		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
-
-		_, err := GitOpsFromFile(yamlPath, dir, nil, nopLogf)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "cannot specify both")
-		require.Contains(t, err.Error(), "macos_manual_agent_install")
-		require.Contains(t, err.Error(), "'controls.setup_experience.manual_agent_install' (deprecated)")
 	})
 
 	t.Run("duplicate_keys_external_file", func(t *testing.T) {
@@ -5475,8 +5332,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 controls:
@@ -5495,7 +5352,7 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
 		require.NoError(t, err)
-		assert.Contains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software' is deprecated")
+		assert.Contains(t, logs.String(), "'controls.setup_experience.software' is deprecated")
 		assert.Contains(t, logs.String(), "setup_experience: true")
 	})
 
@@ -5513,8 +5370,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 controls:
@@ -5531,7 +5388,7 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
 		require.NoError(t, err)
-		assert.NotContains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software' is deprecated")
+		assert.NotContains(t, logs.String(), "'controls.setup_experience.software' is deprecated")
 	})
 
 	t.Run("no_warning_when_setup_experience_software_empty", func(t *testing.T) {
@@ -5548,8 +5405,8 @@ org_settings:
     server_url: https://fleet.example.com
   org_info:
     contact_url: https://example.com/contact
-    org_logo_url: ""
-    org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: Test Org
   secrets:
 controls:
@@ -5566,7 +5423,7 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
 		require.NoError(t, err)
-		assert.NotContains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software' is deprecated")
+		assert.NotContains(t, logs.String(), "'controls.setup_experience.software' is deprecated")
 	})
 }
 

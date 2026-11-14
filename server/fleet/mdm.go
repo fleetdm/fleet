@@ -72,7 +72,6 @@ const (
 	// (not doing it now because of time constraints to finish the story for the release).
 
 	// Host variables
-	FleetVarHostEndUserEmailIDP             FleetVarName = "HOST_END_USER_EMAIL_IDP" // legacy variable, avoid to use in new replacements
 	FleetVarHostHardwareSerial              FleetVarName = "HOST_HARDWARE_SERIAL"
 	FleetVarHostEndUserIDPUsername          FleetVarName = "HOST_END_USER_IDP_USERNAME"
 	FleetVarHostEndUserIDPUsernameLocalPart FleetVarName = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
@@ -180,11 +179,6 @@ var (
 	FleetVarPSSODeviceRegistrationTokenRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarPSSODeviceRegistrationToken))
 	FleetVarConditionalAccessSCEPURLRegexp    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarConditionalAccessSCEPURL))
 
-	// Fleet variable replacement failed errors
-	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+
-		"Fleet couldn't populate $FLEET_VAR_%s. "+
-		"[Learn more](https://fleetdm.com/learn-more-about/idp-email)", FleetVarHostEndUserEmailIDP)
-
 	IDPFleetVariables = []FleetVarName{
 		FleetVarHostEndUserIDPUsername,
 		FleetVarHostEndUserIDPUsernameLocalPart,
@@ -196,7 +190,6 @@ var (
 	// FleetVarsSupportedInDigiCert lists the variables allowed in a DigiCert CA's common name, seat ID, and UPN.
 	// The IdP variables come from IDPFleetVariables because that's the list the CA field substitution resolves.
 	FleetVarsSupportedInDigiCert = slices.Concat([]FleetVarName{
-		FleetVarHostEndUserEmailIDP,
 		FleetVarHostHardwareSerial,
 		FleetVarHostPlatform,
 		FleetVarHostUUID,
@@ -250,10 +243,10 @@ type ABMToken struct {
 	BYODTeamName   string `db:"byod_team" json:"-"`
 
 	// These fields are composed of the ID and name fields above, and are used in API responses.
-	MacOSTeam  ABMTokenTeam `json:"macos_team" renameto:"macos_fleet"`
-	IOSTeam    ABMTokenTeam `json:"ios_team" renameto:"ios_fleet"`
-	IPadOSTeam ABMTokenTeam `json:"ipados_team" renameto:"ipados_fleet"`
-	BYODTeam   ABMTokenTeam `json:"byod_team" renameto:"byod_fleet"`
+	MacOSTeam  ABMTokenTeam `json:"macos_fleet"`
+	IOSTeam    ABMTokenTeam `json:"ios_fleet"`
+	IPadOSTeam ABMTokenTeam `json:"ipados_fleet"`
+	BYODTeam   ABMTokenTeam `json:"byod_fleet"`
 }
 
 func (a ABMToken) AuthzType() string {
@@ -262,7 +255,7 @@ func (a ABMToken) AuthzType() string {
 
 type ABMTokenTeam struct {
 	Name string `json:"name"`
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
+	ID   uint   `json:"fleet_id"`
 }
 
 // AppleCSR is the authorization subject of the Apple MDM setup endpoints.
@@ -297,7 +290,7 @@ type MDMIdPAccount struct {
 
 type MDMAppleBootstrapPackage struct {
 	Name      string    `json:"name"`
-	TeamID    uint      `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID    uint      `json:"fleet_id" db:"team_id"`
 	Bytes     []byte    `json:"bytes,omitempty" db:"bytes"`
 	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
@@ -513,8 +506,8 @@ type CommandEnqueueResult struct {
 // MDMCommandAuthz is used to check user authorization to read/write an
 // MDM command.
 type MDMCommandAuthz struct {
-	TeamID   *uint  `json:"team_id" renameto:"fleet_id"` // required for authorization by team
-	Platform string `json:"platform"`                    // Platform of the targeted host
+	TeamID   *uint  `json:"fleet_id"` // required for authorization by team
+	Platform string `json:"platform"` // Platform of the targeted host
 }
 
 // SetTeamID implements the TeamIDSetter interface.
@@ -782,7 +775,7 @@ func (o MDMOperationType) IsValid() bool {
 // MDMConfigProfileAuthz is used to check user authorization to read/write an
 // MDM configuration profile.
 type MDMConfigProfileAuthz struct {
-	TeamID *uint `json:"team_id" renameto:"fleet_id"` // required for authorization by team
+	TeamID *uint `json:"fleet_id"` // required for authorization by team
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -794,7 +787,7 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
 	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
-	TeamID      *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"` // null for no-team
+	TeamID      *uint  `json:"fleet_id" db:"team_id"` // null for no-team
 	Name        string `json:"name" db:"name"`
 	Description string `json:"description" db:"description"`
 	Platform    string `json:"platform" db:"platform"`               // "windows", "android" or "darwin"
@@ -1520,7 +1513,7 @@ type VPPTokenDB struct {
 	// uploaded; may be empty for tokens uploaded before this field was added,
 	// in which case it is lazily backfilled.
 	CountryCode string      `db:"country_code" json:"country_code"`
-	Teams       []TeamTuple `json:"teams" renameto:"fleets"`
+	Teams       []TeamTuple `json:"fleets"`
 	CreatedAt   *time.Time  `db:"created_at" json:"created_at"`
 }
 
@@ -1534,7 +1527,7 @@ func (t *VPPTokenDB) AvailableToTeam(teamID uint) bool {
 }
 
 type TeamTuple struct {
-	ID   uint   `json:"team_id" renameto:"fleet_id"`
+	ID   uint   `json:"fleet_id"`
 	Name string `json:"name"`
 }
 

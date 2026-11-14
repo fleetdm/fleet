@@ -110,8 +110,6 @@ type Software struct {
 	// software's identity (ToUniqueStr, ComputeRawChecksum), so the flag can be set on an existing row.
 	// It's a Premium field: the service clears it on Free so it's omitted from responses.
 	AITool *bool `json:"ai_tool,omitempty" db:"ai_tool"`
-	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
-	Browser string `json:"browser"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package), or the Go toolchain version for go_binaries
@@ -179,18 +177,6 @@ func (Software) AuthzType() string {
 	return "software"
 }
 
-// populateBrowserField populates the browser field for backwards compatibility
-// see https://github.com/fleetdm/fleet/pull/31760/files
-func (s *Software) populateBrowserField() {
-	// Only populate browser field for browser extension sources
-	switch s.Source {
-	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
-		s.Browser = s.ExtensionFor
-	default:
-		s.Browser = ""
-	}
-}
-
 // marshalExtensionID hides the Go module path stored in extension_id for go_binaries: it
 // exists only for vulnerability detection, which reads it from the database.
 func marshalExtensionID(source, extensionID string) string {
@@ -200,10 +186,7 @@ func marshalExtensionID(source, extensionID string) string {
 	return extensionID
 }
 
-// MarshalJSON populates the browser field for backwards compatibility then calls the typical
-// MarshalJSON implementation
 func (s *Software) MarshalJSON() ([]byte, error) {
-	s.populateBrowserField()
 	type Alias Software
 	return json.Marshal(&struct {
 		*Alias
@@ -410,7 +393,7 @@ type SoftwareAutoUpdateConfig struct {
 
 type SoftwareAutoUpdateSchedule struct {
 	TitleID      uint `json:"title_id" db:"title_id"`
-	TeamID       uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID       uint `json:"fleet_id" db:"team_id"`
 	VPPAppTeamID uint `json:"-" db:"vpp_app_team_id"`
 	SoftwareAutoUpdateConfig
 }
@@ -499,8 +482,6 @@ type SoftwareTitle struct {
 	Source string `json:"source" db:"source"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
-	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
-	Browser string `json:"browser"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.
@@ -548,46 +529,6 @@ type SoftwareTitle struct {
 	SoftwareAutoUpdateConfig
 }
 
-// populateBrowserField populates the browser field for backwards compatibility
-// see https://github.com/fleetdm/fleet/pull/31760/files
-func (st *SoftwareTitle) populateBrowserField() {
-	// Only populate browser field for browser extension sources
-	switch st.Source {
-	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
-		st.Browser = st.ExtensionFor
-	default:
-		st.Browser = ""
-	}
-}
-
-// MarshalJSON populates the browser field for backwards compatibility then calls the typical
-// MarshalJSON implementation
-func (st *SoftwareTitle) MarshalJSON() ([]byte, error) {
-	st.populateBrowserField()
-	type Alias SoftwareTitle
-	return json.Marshal((*Alias)(st))
-}
-
-// populateBrowserField populates the browser field for backwards compatibility
-// see https://github.com/fleetdm/fleet/pull/31760/files
-func (st *SoftwareTitleListResult) populateBrowserField() {
-	// Only populate browser field for browser extension sources
-	switch st.Source {
-	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
-		st.Browser = st.ExtensionFor
-	default:
-		st.Browser = ""
-	}
-}
-
-// MarshalJSON populates the browser field for backwards compatibility then calls the typical
-// MarshalJSON implementation
-func (st *SoftwareTitleListResult) MarshalJSON() ([]byte, error) {
-	st.populateBrowserField()
-	type Alias SoftwareTitleListResult
-	return json.Marshal((*Alias)(st))
-}
-
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
 // SoftwarePackage is a string pointer here. This type is for use when listing out SoftwareTitles;
 // the above type is used when fetching them individually.
@@ -601,8 +542,6 @@ type SoftwareTitleListResult struct {
 	Source string `json:"source" db:"source"`
 	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
-	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
-	Browser string `json:"browser"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.
@@ -738,7 +677,7 @@ type SoftwareTitleListOptions struct {
 	// ListOptions cannot be embedded in order to unmarshall with validation.
 	ListOptions ListOptions `url:"list_options"`
 
-	TeamID              *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID              *uint   `query:"fleet_id,optional"`
 	VulnerableOnly      bool    `query:"vulnerable,optional"`
 	AvailableForInstall bool    `query:"available_for_install,optional"`
 	SelfServiceOnly     bool    `query:"self_service,optional"`
@@ -807,7 +746,7 @@ type HostSoftwareTitleListOptions struct {
 // AuthzSoftwareInventory is used for access controls on software inventory.
 type AuthzSoftwareInventory struct {
 	// TeamID is the ID of the team. A value of nil means global scope.
-	TeamID *uint `json:"team_id" renameto:"fleet_id"`
+	TeamID *uint `json:"fleet_id"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -827,7 +766,6 @@ type HostSoftwareEntry struct {
 // MarshalJSON implements custom JSON marshaling for HostSoftwareEntry to ensure
 // all fields (both from embedded Software and the additional fields) are marshaled
 func (hse *HostSoftwareEntry) MarshalJSON() ([]byte, error) {
-	hse.populateBrowserField()
 	type Alias Software
 	return json.Marshal(&struct {
 		*Alias
@@ -897,7 +835,7 @@ type SoftwareListOptions struct {
 
 	// HostID filters software to the specified host if not nil.
 	HostID                      *uint   `json:"-"`
-	TeamID                      *uint   `query:"team_id,optional" renameto:"fleet_id"`
+	TeamID                      *uint   `query:"fleet_id,optional"`
 	VulnerableOnly              bool    `query:"vulnerable,optional"`
 	WithoutVulnerabilityDetails bool    `query:"without_vulnerability_details,optional"`
 	IncludeCVEScores            bool    `json:"-"`
@@ -1133,7 +1071,7 @@ type VPPBatchPayloadWithPlatform struct {
 type SoftwareCategory struct {
 	ID     uint   `json:"id" db:"id"`
 	Name   string `json:"name" db:"name"`
-	TeamID uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID uint   `json:"fleet_id" db:"team_id"`
 	UpdateCreateTimestamps
 }
 

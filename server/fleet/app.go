@@ -169,10 +169,10 @@ type VulnerabilitySettings struct {
 type MDMAppleABMAssignmentInfo struct {
 	OrganizationName string `json:"organization_name"`
 	Default          bool   `json:"default,omitempty"`
-	MacOSTeam        string `json:"macos_team" renameto:"macos_fleet"`
-	IOSTeam          string `json:"ios_team" renameto:"ios_fleet"`
-	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
-	BYODTeam         string `json:"byod_team" renameto:"byod_fleet"`
+	MacOSTeam        string `json:"macos_fleet"`
+	IOSTeam          string `json:"ios_fleet"`
+	IpadOSTeam       string `json:"ipados_fleet"`
+	BYODTeam         string `json:"byod_fleet"`
 }
 
 // CleanRemovedTeam unassigns removedTeamName, which for ABM is spelled as a
@@ -200,7 +200,7 @@ func (m *MDMAppleABMAssignmentInfo) RenameTeam(oldName, newName string) bool {
 // between a VPP token (via organization unit, formerly "location") and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
-	Teams    []string `json:"teams" renameto:"fleets"`
+	Teams    []string `json:"fleets"`
 }
 
 func (m *MDMAppleVolumePurchasingProgramInfo) RenameTeam(oldName, newName string) bool {
@@ -279,7 +279,7 @@ type MDM struct {
 	WindowsUpdates WindowsUpdates `json:"windows_updates"`
 
 	MacOSSettings                  MacOSSettings            `json:"macos_settings" renameto:"apple_settings"`
-	MacOSSetup                     MacOSSetup               `json:"macos_setup" renameto:"setup_experience"`
+	MacOSSetup                     MacOSSetup               `json:"setup_experience" removedkey:"macos_setup" renamescope:"mdm"`
 	MacOSMigration                 MacOSMigration           `json:"macos_migration"`
 	WindowsMigrationEnabled        bool                     `json:"windows_mdm_migration_enabled" removedkey:"windows_migration_enabled" renamescope:"mdm"`
 	EnableTurnOnWindowsMDMManually bool                     `json:"enable_turn_on_windows_mdm_manually"`
@@ -1027,19 +1027,19 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 // MacOSSetup contains settings related to the setup of DEP enrolled devices.
 type MacOSSetup struct {
-	BootstrapPackage                                  optjson.String                     `json:"bootstrap_package" renameto:"macos_bootstrap_package"`
+	BootstrapPackage                                  optjson.String                     `json:"macos_bootstrap_package" removedkey:"bootstrap_package" renamescope:"setup_experience"`
 	EnableEndUserAuthentication                       bool                               `json:"enable_end_user_authentication"`
 	LockEndUserInfo                                   optjson.Bool                       `json:"lock_end_user_info"`
-	MacOSSetupAssistant                               optjson.String                     `json:"macos_setup_assistant" renameto:"apple_setup_assistant"`
-	EnableReleaseDeviceManually                       optjson.Bool                       `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	Script                                            optjson.String                     `json:"script" renameto:"macos_script"`
+	MacOSSetupAssistant                               optjson.String                     `json:"apple_setup_assistant" removedkey:"macos_setup_assistant" renamescope:"setup_experience"`
+	EnableReleaseDeviceManually                       optjson.Bool                       `json:"apple_enable_release_device_manually" removedkey:"enable_release_device_manually" renamescope:"setup_experience"`
+	Script                                            optjson.String                     `json:"macos_script" removedkey:"script" renamescope:"setup_experience"`
 	Software                                          optjson.Slice[*MacOSSetupSoftware] `json:"software"`
-	ManualAgentInstall                                optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware                                bool                               `json:"macos_require_all_software" removedkey:"require_all_software_macos" renamescope:"macos_setup,setup_experience"`
-	RequireAllSoftwareWindows                         bool                               `json:"windows_require_all_software" removedkey:"require_all_software_windows" renamescope:"macos_setup,setup_experience"`
+	ManualAgentInstall                                optjson.Bool                       `json:"macos_manual_agent_install" removedkey:"manual_agent_install" renamescope:"setup_experience"`
+	RequireAllSoftware                                bool                               `json:"macos_require_all_software" removedkey:"require_all_software_macos" renamescope:"setup_experience"`
+	RequireAllSoftwareWindows                         bool                               `json:"windows_require_all_software" removedkey:"require_all_software_windows" renamescope:"setup_experience"`
 	MacOSEnableBootstrapPackageDuringManualEnrollment bool                               `json:"macos_enable_bootstrap_package_during_manual_enrollment"`
 	MacOSEnableBootstrapPackageDuringMigration        bool                               `json:"macos_enable_bootstrap_package_during_migration"`
-	EnableManagedLocalAccount                         optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"macos_setup,setup_experience"`
+	EnableManagedLocalAccount                         optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account" renamescope:"setup_experience"`
 	EndUserLocalAccountType                           optjson.String                     `json:"end_user_local_account_type"`
 }
 
@@ -1792,47 +1792,12 @@ func (c *AppConfig) assignDeprecatedFields() {
 
 // OrgInfo contains general info about the organization using Fleet.
 type OrgInfo struct {
-	OrgName string `json:"org_name"`
-	// Deprecated: use OrgLogoURLDarkMode.
-	OrgLogoURL string `json:"org_logo_url"`
-	// Deprecated: use OrgLogoURLLightMode.
-	OrgLogoURLLightBackground string `json:"org_logo_url_light_background"`
-	OrgLogoURLDarkMode        string `json:"org_logo_url_dark_mode"`
-	OrgLogoURLLightMode       string `json:"org_logo_url_light_mode"`
+	OrgName             string `json:"org_name"`
+	OrgLogoURLDarkMode  string `json:"org_logo_url_dark_mode" removedkey:"org_logo_url" renamescope:"org_info"`
+	OrgLogoURLLightMode string `json:"org_logo_url_light_mode" removedkey:"org_logo_url_light_background" renamescope:"org_info"`
 	// ContactURL is the URL displayed for users to contact support. By default,
 	// https://fleetdm.com/company/contact is used.
 	ContactURL string `json:"contact_url"`
-}
-
-// Keep deprecated fields (OrgLogoURL and OrgLogoURLLightBackground) in sync
-// with the new fields (OrgLogoURLDarkMode and OrgLogoURLLightMode).
-func (o *OrgInfo) NormalizeLogoFields() *InvalidArgumentError {
-	invalid := &InvalidArgumentError{}
-
-	switch {
-	case o.OrgLogoURL != "" && o.OrgLogoURLDarkMode != "" && o.OrgLogoURL != o.OrgLogoURLDarkMode:
-		invalid.Append("org_logo_url",
-			"cannot specify both org_logo_url and org_logo_url_dark_mode with different values")
-	case o.OrgLogoURL == "" && o.OrgLogoURLDarkMode != "":
-		o.OrgLogoURL = o.OrgLogoURLDarkMode
-	case o.OrgLogoURLDarkMode == "" && o.OrgLogoURL != "":
-		o.OrgLogoURLDarkMode = o.OrgLogoURL
-	}
-
-	switch {
-	case o.OrgLogoURLLightBackground != "" && o.OrgLogoURLLightMode != "" && o.OrgLogoURLLightBackground != o.OrgLogoURLLightMode:
-		invalid.Append("org_logo_url_light_background",
-			"cannot specify both org_logo_url_light_background and org_logo_url_light_mode with different values")
-	case o.OrgLogoURLLightBackground == "" && o.OrgLogoURLLightMode != "":
-		o.OrgLogoURLLightBackground = o.OrgLogoURLLightMode
-	case o.OrgLogoURLLightMode == "" && o.OrgLogoURLLightBackground != "":
-		o.OrgLogoURLLightMode = o.OrgLogoURLLightBackground
-	}
-
-	if invalid.HasErrors() {
-		return invalid
-	}
-	return nil
 }
 
 // orgLogoServingPathPrefix is the relative path Fleet writes into the
@@ -1855,11 +1820,8 @@ func AbsolutizeLogoURL(u, serverURL string) string {
 	return strings.TrimRight(serverURL, "/") + u
 }
 
-// AbsolutizeLogoURLs applies AbsolutizeLogoURL to all four logo URL
-// fields on OrgInfo (deprecated + mode-aware pairs) in place.
+// AbsolutizeLogoURLs applies AbsolutizeLogoURL to both logo URL fields on OrgInfo in place.
 func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
-	o.OrgLogoURL = AbsolutizeLogoURL(o.OrgLogoURL, serverURL)
-	o.OrgLogoURLLightBackground = AbsolutizeLogoURL(o.OrgLogoURLLightBackground, serverURL)
 	o.OrgLogoURLDarkMode = AbsolutizeLogoURL(o.OrgLogoURLDarkMode, serverURL)
 	o.OrgLogoURLLightMode = AbsolutizeLogoURL(o.OrgLogoURLLightMode, serverURL)
 }
@@ -2336,7 +2298,7 @@ type EnrollSecret struct {
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	// TeamID is the ID for the associated team. If no ID is set, then this is a
 	// global enroll secret.
-	TeamID *uint `json:"team_id,omitempty" renameto:"fleet_id" db:"team_id"`
+	TeamID *uint `json:"fleet_id,omitempty" db:"team_id"`
 }
 
 func (e *EnrollSecret) GetTeamID() *uint {

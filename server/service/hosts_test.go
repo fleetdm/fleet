@@ -68,17 +68,6 @@ func TestHostDetails(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return expectedLabels, nil
 	}
-	expectedPacks := []*fleet.Pack{
-		{
-			Name: "pack1",
-		},
-		{
-			Name: "pack2",
-		},
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return expectedPacks, nil
-	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
@@ -121,7 +110,6 @@ func TestHostDetails(t *testing.T) {
 	hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), host, opts)
 	require.NoError(t, err)
 	assert.Equal(t, expectedLabels, hostDetail.Labels)
-	assert.Equal(t, expectedPacks, hostDetail.Packs)
 	require.NotNil(t, hostDetail.Batteries)
 	assert.Equal(t, dsBats, *hostDetail.Batteries)
 	require.Nil(t, hostDetail.MDM.MacOSSettings)
@@ -135,9 +123,6 @@ func setupHostDetailsMDMAppleDiskEncryptionMocks(ds *mock.Store) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
-		return nil, nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
@@ -547,9 +532,6 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return nil, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
@@ -755,9 +737,6 @@ func mockHostDetailsDatastore(ds *mock.Store) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
-		return nil, nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
@@ -1094,9 +1073,6 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return nil, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
@@ -1268,9 +1244,6 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return nil, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
 	}
@@ -1363,9 +1336,6 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	svc := &Service{ds: ds}
 
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
-		return nil, nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
@@ -1494,7 +1464,6 @@ func TestHostDetailsHostNameStatus(t *testing.T) {
 	svc := &Service{ds: ds}
 
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) { return nil, nil }
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error { return nil }
 	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) { return nil, nil }
@@ -1640,7 +1609,6 @@ func TestHostDetailsOSUpdates(t *testing.T) {
 	svc := &Service{ds: ds}
 
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) { return nil, nil }
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) { return nil, nil }
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error { return nil }
 	ds.LoadHostMDMAppleDeviceVitalsFunc = func(ctx context.Context, host *fleet.Host) error { return nil }
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) { return nil, nil }
@@ -1938,9 +1906,6 @@ func TestHostAuth(t *testing.T) {
 		return nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
-		return nil, nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return nil, nil
 	}
 	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
@@ -2458,10 +2423,10 @@ func TestSanitizeCSVFormula(t *testing.T) {
 	})
 }
 
-func TestHostsReportFleetAliasesWithoutDeviceMapping(t *testing.T) {
+func TestHostsReportFleetColumnsWithoutDeviceMapping(t *testing.T) {
 	// Hosts without device mapping, as in an export that does not ask for it, still get the fleet columns.
 	resp := hostsReportResponse{
-		Columns: []string{"hostname", "team_name", "fleet_id", "fleet_name"},
+		Columns: []string{"hostname", "fleet_name", "fleet_id"},
 		Hosts:   []*fleet.HostResponse{{Host: &fleet.Host{Hostname: "h1", TeamID: new(uint(7)), TeamName: new("Workstations")}}},
 	}
 	rr := httptest.NewRecorder()
@@ -2469,7 +2434,7 @@ func TestHostsReportFleetAliasesWithoutDeviceMapping(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code)
 	rows, err := csv.NewReader(rr.Body).ReadAll()
 	require.NoError(t, err)
-	require.Equal(t, [][]string{{"hostname", "team_name", "fleet_id", "fleet_name"}, {"h1", "Workstations", "7", "Workstations"}}, rows)
+	require.Equal(t, [][]string{{"hostname", "fleet_name", "fleet_id"}, {"h1", "Workstations", "7"}}, rows)
 }
 
 func TestStreamHosts(t *testing.T) {
@@ -5227,9 +5192,6 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
 		return nil, nil
 	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
@@ -5380,9 +5342,6 @@ func TestHostMDMProfileScopes(t *testing.T) {
 		return nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
-		return nil, nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
@@ -5573,9 +5532,6 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
-		return nil, nil
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
@@ -5940,13 +5896,20 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		{
 			name: "valid team filter",
 			filters: &map[string]interface{}{
-				"team_id": float64(1), // json unmarshals to float64
+				"fleet_id": float64(1), // json unmarshals to float64
 			},
 		},
 		{
-			name: "invalid team_id type",
+			name: "invalid fleet_id type",
 			filters: &map[string]interface{}{
-				"team_id": "invalid",
+				"fleet_id": "invalid",
+			},
+			has400Err: true,
+		},
+		{
+			name: "removed team_id key",
+			filters: &map[string]any{
+				"team_id": float64(1),
 			},
 			has400Err: true,
 		},
@@ -5998,24 +5961,24 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		{
 			name: "multiple valid filters",
 			filters: &map[string]interface{}{
-				"status":  "new",
-				"team_id": float64(1),
-				"query":   "test",
+				"status":   "new",
+				"fleet_id": float64(1),
+				"query":    "test",
 			},
 		},
 		{
 			name: "mixed valid and invalid filters",
 			filters: &map[string]interface{}{
-				"status":  "new",
-				"team_id": "invalid",
+				"status":   "new",
+				"fleet_id": "invalid",
 			},
 			has400Err: true,
 		},
 		{
 			name: "mixed invalid filters and valid filters (different order)",
 			filters: &map[string]interface{}{
-				"status":  "invalid",
-				"team_id": 1,
+				"status":   "invalid",
+				"fleet_id": 1,
 			},
 			has400Err: true,
 		},
@@ -6495,9 +6458,6 @@ func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
-		return nil, nil
-	}
-	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return nil, nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
