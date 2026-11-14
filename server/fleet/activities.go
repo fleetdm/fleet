@@ -2477,7 +2477,8 @@ type ActivityTypeSetHostGoogleDeviceID struct {
 	// GoogleEmail is the Google account that signed in. A sign-in is the only record of who
 	// bound the host; a Fleet user setting the ID names no account.
 	GoogleEmail string `json:"google_email,omitempty"`
-	// Automated is set when the end user's Google sign-in bound the host, not a Fleet user.
+	// Automated is set when the end user's Google sign-in or the sync cron bound the host,
+	// not a Fleet user.
 	Automated bool `json:"-"`
 }
 

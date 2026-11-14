@@ -3294,3 +3294,36 @@ func newAppStoreAppConfigurationReconcilerSchedule(
 
 	return s, nil
 }
+
+func newGoogleConditionalAccessSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	return newGoogleConditionalAccessSyncerSchedule(ctx, instanceID, ds, clients, newActivityFn, logger,
+		fleet.CronGoogleConditionalAccess, 5*time.Minute, "sync_google_conditional_access",
+		(*service.GoogleConditionalAccessSyncer).Sync)
+}
+
+func newGoogleConditionalAccessDeviceCheckSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+) (*schedule.Schedule, error) {
+	return newGoogleConditionalAccessSyncerSchedule(ctx, instanceID, ds, clients, newActivityFn, logger,
+		fleet.CronGoogleConditionalAccessDeviceCheck, time.Hour, "check_google_conditional_access_devices",
+		(*service.GoogleConditionalAccessSyncer).CheckDevices)
+}
+
+func newGoogleConditionalAccessSyncerSchedule(
+	ctx context.Context, instanceID string, ds fleet.Datastore, clients *service.GoogleConditionalAccessClient,
+	newActivityFn fleet.NewActivityFunc, logger *slog.Logger,
+	name fleet.CronScheduleName, interval time.Duration, jobID string,
+	job func(*service.GoogleConditionalAccessSyncer, context.Context) error,
+) (*schedule.Schedule, error) {
+	logger = logger.With("cron", string(name))
+	syncer := service.NewGoogleConditionalAccessSyncer(ds, clients, newActivityFn, logger)
+	return schedule.New(
+		ctx, string(name), instanceID, interval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob(jobID, func(ctx context.Context) error { return job(syncer, ctx) }),
+	), nil
+}
