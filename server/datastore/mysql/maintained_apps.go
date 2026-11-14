@@ -313,23 +313,23 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 		return nil, nil
 	}
 
-	// Inventory-only versioned titles. Exclude titles with an upgrade code (those join
-	// through it instead) and titles owned by an installer/VPP/in-house app, whose links
-	// are the authoritative mapping. That last exclusion also removes every destination,
-	// since a destination is by definition installer-owned.
+	// Inventory-only versioned titles. Exclude titles owned by an installer/VPP/in-house
+	// app, whose links are the authoritative mapping. That exclusion also removes every
+	// destination, since a destination is by definition installer-owned. Titles with an
+	// upgrade code are filtered below, once their destination is known.
 	staleStmt := `
-		SELECT st.id, st.name
+		SELECT st.id, st.name, COALESCE(st.upgrade_code, '') AS upgrade_code
 		FROM software_titles st
 		WHERE st.source = 'programs' AND st.extension_for = ''
 			AND (` + strings.Join(nameConds, " OR ") + `)
-			AND (st.upgrade_code IS NULL OR st.upgrade_code = '')
 			AND NOT EXISTS (SELECT 1 FROM software_installers si WHERE si.title_id = st.id)
 			AND NOT EXISTS (SELECT 1 FROM vpp_apps va WHERE va.title_id = st.id)
 			AND NOT EXISTS (SELECT 1 FROM in_house_apps iha WHERE iha.title_id = st.id)`
 
 	var candidates []struct {
-		ID   uint   `db:"id"`
-		Name string `db:"name"`
+		ID          uint   `db:"id"`
+		Name        string `db:"name"`
+		UpgradeCode string `db:"upgrade_code"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctxdb.RequirePrimary(ctx, true)), &candidates, staleStmt, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select stale windows titles")
@@ -339,6 +339,7 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 	var unmatched []string
 	for _, c := range candidates {
 		match, ok := matchWindowsFMATitle(c.Name, allPrefixes)
+		ok = ok && match.acceptsProgram(c.Name, c.UpgradeCode)
 		if !ok || match.titleID == c.ID {
 			if !ok {
 				unmatched = append(unmatched, c.Name)
@@ -356,6 +357,9 @@ func (ds *Datastore) staleWindowsTitlesByDestination(
 
 	return staleByDestination, nil
 }
+
+// errStaleWindowsTitleKept rolls back a merge whose guarded delete kept a stale title.
+var errStaleWindowsTitleKept = errors.New("stale windows software title was not deleted")
 
 // mergeWindowsFMATitle moves every reference to staleIDs onto destinationID and deletes
 // the emptied titles, in one transaction so a title is never deleted before its
@@ -415,6 +419,7 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 		// choosing it and deleting it. Those links are ON DELETE SET NULL, so deleting
 		// such a title would leave the new owner pointing at nothing. Repeating the
 		// checks here keeps that invariant on the statement that would do the damage.
+		// A title it keeps must keep its references too, so the whole merge rolls back.
 		titlesStmt, titlesArgs, err := sqlx.In(`
 			DELETE FROM software_titles
 			WHERE id IN (?)
@@ -425,12 +430,30 @@ func (ds *Datastore) mergeWindowsFMATitle(ctx context.Context, destinationID uin
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "build delete stale titles statement")
 		}
-		if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+		res, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "delete stale windows titles")
+		}
+		deleted, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "count deleted stale windows titles")
+		}
+		if deleted != int64(len(staleIDs)) {
+			return errStaleWindowsTitleKept
 		}
 
 		return nil
 	}); err != nil {
+		if errors.Is(err, errStaleWindowsTitleKept) {
+			// The next pass rescans, and leaves out any title that now has an owner.
+			if ds.logger != nil {
+				ds.logger.InfoContext(ctx, "skipped merging Windows software titles, one gained an owner during the merge",
+					"destination_title_id", destinationID,
+					"stale_title_ids", staleIDs,
+				)
+			}
+			return nil
+		}
 		return err
 	}
 
@@ -727,15 +750,30 @@ func (ds *Datastore) GetWindowsFMAMatches(ctx context.Context) ([]fleet.Maintain
 	//
 	// platform is selected even though it is also filtered on, because WinMatchPrefixes
 	// checks it and would otherwise return nothing for every row.
+	//
+	// has_msi_installer considers every cached version, active or not: a host may still
+	// run a version installed from an earlier installer.
+	//
+	// has_channel_sibling looks at the whole catalog, not just added apps, since a
+	// sibling's programs reach hosts whether or not Fleet installed them. Channels share
+	// a slug base: "qgis/windows" and "qgis@ltr/windows".
 	query := `
 		SELECT fma.name, fma.unique_identifier, fma.platform,
-			MIN(si.title_id) AS software_title_id, MIN(st.name) AS title_name
+			MIN(si.title_id) AS software_title_id, MIN(st.name) AS title_name,
+			COALESCE(MIN(st.upgrade_code), '') AS title_upgrade_code,
+			MAX(si.extension = 'msi') AS has_msi_installer,
+			EXISTS (
+				SELECT 1 FROM fleet_maintained_apps sib
+				WHERE sib.platform = 'windows' AND sib.id != fma.id
+					AND SUBSTRING_INDEX(SUBSTRING_INDEX(sib.slug, '/', 1), '@', 1) =
+						SUBSTRING_INDEX(SUBSTRING_INDEX(fma.slug, '/', 1), '@', 1)
+			) AS has_channel_sibling
 		FROM fleet_maintained_apps fma
 		JOIN software_installers si
 			ON si.fleet_maintained_app_id = fma.id AND si.title_id IS NOT NULL
 		JOIN software_titles st ON st.id = si.title_id
 		WHERE fma.platform = 'windows' AND fma.name != ''
-		GROUP BY fma.id, fma.name, fma.unique_identifier, fma.platform
+		GROUP BY fma.id, fma.name, fma.unique_identifier, fma.platform, fma.slug
 		HAVING COUNT(DISTINCT si.title_id) = 1`
 
 	var apps []fleet.MaintainedApp

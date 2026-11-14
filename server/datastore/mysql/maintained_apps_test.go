@@ -39,6 +39,16 @@ func TestMaintainedApps(t *testing.T) {
 		{"WindowsFMAMatchByUniqueIdentifier", testWindowsFMAMatchByUniqueIdentifier},
 		{"WindowsFMAMatchByNameWhenIdentifierStale", testWindowsFMAMatchByNameWhenIdentifierStale},
 		{"WindowsFMANotRenamedWithUpgradeCode", testWindowsFMANotRenamedWithUpgradeCode},
+		{"WindowsFMAMatchWithUpgradeCodeWhenTitleHasNone", testWindowsFMAMatchWithUpgradeCodeWhenTitleHasNone},
+		{"WindowsFMAReconcileUpgradeCodeTitleWhenInstallerTitleHasNone", testWindowsFMAReconcileUpgradeCodeTitleWhenInstallerTitleHasNone},
+		{"WindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp", testWindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp},
+		{"WindowsFMAUpgradeCodeProgramNotMatchedToOtherProduct", testWindowsFMAUpgradeCodeProgramNotMatchedToOtherProduct},
+		{"WindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling", testWindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling},
+		{"WindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe", testWindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe},
+		{"WindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode", testWindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode},
+		{"WindowsFMAUpgradeCodeProgramOutsideVersionSeries", testWindowsFMAUpgradeCodeProgramOutsideVersionSeries},
+		{"WindowsFMAIngestWithStaleTitleUpgradeCode", testWindowsFMAIngestWithStaleTitleUpgradeCode},
+		{"WindowsFMAMergeRollsBackWhenTitleGainsOwner", testWindowsFMAMergeRollsBackWhenTitleGainsOwner},
 		{"WindowsFMANoCollapseWithoutInstaller", testWindowsFMANoCollapseWithoutInstaller},
 		{"WindowsFMAAmbiguousMatchIsNoOp", testWindowsFMAAmbiguousMatchIsNoOp},
 		{"WindowsFMAReconcileMovesTitleReferences", testWindowsFMAReconcileMovesTitleReferences},
@@ -1737,6 +1747,12 @@ func testGetWindowsFMAMatches(t *testing.T, ds *Datastore) {
 	require.Equal(t, "CPUID CPU-Z", byName["CPU-Z"].UniqueIdentifier)
 	// Platform must be selected, since WinMatchPrefixes gates on it.
 	require.Equal(t, "windows", byName["Granola"].Platform)
+	// What decides whether a program reporting an upgrade code may match by name.
+	granola, ok := byName["Granola"]
+	require.True(t, ok)
+	require.Empty(t, granola.TitleUpgradeCode)
+	require.False(t, granola.HasMSIInstaller)
+	require.False(t, granola.HasChannelSibling)
 
 	// All name fields are offered as match candidates, longest first.
 	require.Equal(t, []string{"CPUID CPU-Z", "CPU-Z"}, byName["CPU-Z"].WinMatchPrefixes())
@@ -1866,7 +1882,11 @@ func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
 	// Now the Granola + Zoom + Widget FMAs get added, each owning a canonical title.
 	addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
 	addWindowsFMAWithInstaller(t, ds, user.ID, "Zoom", "Zoom", "zoom/windows")
-	addWindowsFMAWithInstaller(t, ds, user.ID, "Widget", "Widget", "widget/windows")
+	widgetTitleID := addWindowsFMAWithInstaller(t, ds, user.ID, "Widget", "Widget", "widget/windows")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_titles SET upgrade_code = '{WIDGET}' WHERE id = ?`, widgetTitleID)
+		return err
+	})
 
 	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 
@@ -1895,8 +1915,8 @@ func testReconcileWindowsSoftwareTitles(t *testing.T, ds *Datastore) {
 	}
 
 	// Negative cases. "Zoombie 5.0" only shares a prefix with the Zoom FMA and keeps its
-	// own title. "Widget 2.0" reports an upgrade code, so it is excluded from name
-	// merging and stays separate from the Widget installer's title.
+	// own title. "Widget 2.0" reports an upgrade code other than the one the Widget
+	// installer's title carries, so it is excluded from name merging and stays separate.
 	require.Equal(t, 1, titleCount("Zoombie 5.0"))
 	require.Equal(t, 1, titleCount("Widget 2.0"))
 	require.Equal(t, "Widget 2.0", titleNameForSoftware(t, ds, "Widget 2.0"))
@@ -2456,9 +2476,10 @@ func testWindowsFMAMergeMultipleDestinations(t *testing.T, ds *Datastore) {
 	require.Zero(t, countTitlesNamed(t, ds, "Obsidian 1.5.3"))
 }
 
-// testWindowsFMAIngestIgnoresOtherSources: name matching is only meaningful for the
-// programs table. Software from another source that happens to share a prefix with an
-// added app must keep its own title.
+// testWindowsFMAIngestIgnoresOtherSources: name matching is only meaningful for programs
+// rows with no extension_for, like the installer's title. Software from another source,
+// or scoped to an extension, that happens to share a prefix with an added app must keep
+// its own title.
 func testWindowsFMAIngestIgnoresOtherSources(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -2469,15 +2490,22 @@ func testWindowsFMAIngestIgnoresOtherSources(t *testing.T, ds *Datastore) {
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Granola 9.9.9", Version: "9.9.9", Source: "chrome_extensions", ExtensionID: "abc"},
+		// Batched with a row that does match, so the title lookup returns the installer's title.
+		{Name: "Granola 9.9.8", Version: "9.9.8", Source: "programs"},
+		{Name: "Granola 9.9.7", Version: "9.9.7", Source: "programs", ExtensionFor: "foo"},
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, "Granola 9.9.9", titleNameForSoftware(t, ds, "Granola 9.9.9"),
 		"non-programs software must not be collapsed onto the installer's title")
+	require.Equal(t, "Granola", titleNameForSoftware(t, ds, "Granola 9.9.8"))
+	require.Equal(t, "Granola 9.9.7", titleNameForSoftware(t, ds, "Granola 9.9.7"),
+		"a programs row scoped to an extension must not be collapsed onto the installer's title")
 
 	// And the reconcile pass leaves it alone too.
 	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
 	require.Equal(t, "Granola 9.9.9", titleNameForSoftware(t, ds, "Granola 9.9.9"))
+	require.Equal(t, "Granola 9.9.7", titleNameForSoftware(t, ds, "Granola 9.9.7"))
 }
 
 // testWindowsFMAReconcileIndependentOfCatalogSync: the Windows merge is reachable on its
@@ -2538,6 +2566,11 @@ func titleIDForTitleNamed(t *testing.T, ds *Datastore, name string) uint {
 // canonical title, mirroring an admin adding a Fleet-maintained app to no team.
 func addWindowsFMAWithInstaller(t *testing.T, ds *Datastore, userID uint, name, uniqueIdentifier, slug string) uint {
 	t.Helper()
+	return addWindowsFMAWithInstallerExtension(t, ds, userID, name, uniqueIdentifier, slug, "exe")
+}
+
+func addWindowsFMAWithInstallerExtension(t *testing.T, ds *Datastore, userID uint, name, uniqueIdentifier, slug, extension string) uint {
+	t.Helper()
 	ctx := t.Context()
 
 	app, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
@@ -2552,8 +2585,8 @@ func addWindowsFMAWithInstaller(t *testing.T, ds *Datastore, userID uint, name, 
 		Title:                name,
 		Source:               "programs",
 		StorageID:            "storageid-" + slug,
-		Filename:             slug + ".exe",
-		Extension:            "exe",
+		Filename:             slug + "." + extension,
+		Extension:            extension,
 		Platform:             "windows",
 		Version:              "1.0.0",
 		UserID:               userID,
@@ -2642,25 +2675,474 @@ func testWindowsFMAMatchByNameWhenIdentifierStale(t *testing.T, ds *Datastore) {
 }
 
 // testWindowsFMANotRenamedWithUpgradeCode: software_titles.unique_identifier resolves to
-// upgrade_code before name, so giving a program that reports an upgrade code the canonical
-// FMA name produces a SECOND title with that name under a different unique_identifier.
-// Programs with an upgrade code already match through it and must be left alone.
+// upgrade_code before name, so an installer's title with an upgrade code is reached
+// through it. A program reporting a different upgrade code under a matching name must
+// keep its own title; renaming it would only produce a SECOND title with the canonical
+// name under a different unique_identifier.
 func testWindowsFMANotRenamedWithUpgradeCode(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 
-	addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+	titleID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Granola", "Granola", "granola/windows", "msi")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE software_titles SET upgrade_code = '{22222222-2222-2222-2222-222222222222}' WHERE id = ?`, titleID)
+		return err
+	})
 
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
 		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs", UpgradeCode: new("{11111111-1111-1111-1111-111111111111}")},
+		// No upgrade code, so it joins by name, colliding with the title on its upgrade code.
+		{Name: "Granola 7.373.3", Version: "7.373.3", Source: "programs", UpgradeCode: new("")},
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, 1, countTitlesNamed(t, ds, "Granola"), "must not create a duplicate canonical title")
 	require.Equal(t, "Granola 7.373.2", titleNameForSoftware(t, ds, "Granola 7.373.2"),
-		"software with an upgrade code keeps its own title")
+		"software with a different upgrade code keeps its own title")
+	var gotTitleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &gotTitleID, `SELECT title_id FROM software WHERE name = 'Granola 7.373.3'`)
+	})
+	require.Equal(t, titleID, gotTitleID)
+}
+
+// testWindowsFMAMatchWithUpgradeCodeWhenTitleHasNone: an MSI FMA whose manifest carries
+// no upgrade code owns a title without one, so the name match is the only link to the
+// installed program. Every version lands on that title, including one reporting a
+// different upgrade code (some apps mint one per build).
+func testWindowsFMAMatchWithUpgradeCodeWhenTitleHasNone(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
+
+	canonicalID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Azul Zulu JRE", "Azul Zulu JRE", "azul-zulu-25-jre/windows", "msi")
+
+	const upgradeCode = "{C519F0B9-88B8-4FCD-91FA-A5F673AC4B47}"
+	for _, c := range []struct {
+		hostID      uint
+		name        string
+		version     string
+		upgradeCode string
+	}{
+		{host1.ID, "Azul Zulu JRE 25.38.109 (25.0.5.0.3), 64-bit", "25.0.5.0.3", upgradeCode},
+		{host2.ID, "Azul Zulu JRE 25.40.12 (25.0.6.0.1), 64-bit", "25.0.6.0.1", upgradeCode},
+		{host3.ID, "Azul Zulu JRE 25.42.3 (25.0.7.0.1), 64-bit", "25.0.7.0.1", "{D6E1E4B2-1F0A-4C2B-9F3E-8A7B6C5D4E3F}"},
+	} {
+		_, err := ds.UpdateHostSoftware(ctx, c.hostID, []fleet.Software{
+			{Name: c.name, Version: c.version, Source: "programs", UpgradeCode: new(c.upgradeCode)},
+		})
+		require.NoError(t, err)
+	}
+
+	var linked []struct {
+		Name        string `db:"name"`
+		TitleID     uint   `db:"title_id"`
+		UpgradeCode string `db:"upgrade_code"`
+	}
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &linked,
+			`SELECT name, title_id, upgrade_code FROM software WHERE name LIKE 'Azul Zulu JRE %' ORDER BY name`)
+	})
+	require.Len(t, linked, 3)
+	for _, l := range linked {
+		require.Equal(t, canonicalID, l.TitleID, "software %q should link to the installer's title", l.Name)
+		require.NotEmpty(t, l.UpgradeCode, "software %q keeps the upgrade code it reported", l.Name)
+	}
+
+	var programTitles int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &programTitles, `SELECT COUNT(*) FROM software_titles WHERE source = 'programs'`)
+	})
+	require.Equal(t, 1, programTitles, "no versioned or duplicate canonical title should be created")
+}
+
+// testWindowsFMAReconcileUpgradeCodeTitleWhenInstallerTitleHasNone: a program ingested
+// before it could match sits on a versioned title carrying its upgrade code, which later
+// versions resolve to, so only the reconcile pass can repair it.
+func testWindowsFMAReconcileUpgradeCodeTitleWhenInstallerTitleHasNone(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	const (
+		upgradeCode   = "{C519F0B9-88B8-4FCD-91FA-A5F673AC4B47}"
+		versionedName = "Azul Zulu JRE 25.38.109 (25.0.5.0.3), 64-bit"
+		laterName     = "Azul Zulu JRE 25.40.12 (25.0.6.0.1), 64-bit"
+	)
+
+	// Inventory first, so only a versioned title exists when the installer is added.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: versionedName, Version: "25.0.5.0.3", Source: "programs", UpgradeCode: new(upgradeCode)},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 1, countTitlesNamed(t, ds, versionedName))
+
+	canonicalID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Azul Zulu JRE", "Azul Zulu JRE", "azul-zulu-25-jre/windows", "msi")
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+
+	titleIDForSoftware := func(name string) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT title_id FROM software WHERE name = ?`, name)
+		})
+		return id
+	}
+	require.Equal(t, canonicalID, titleIDForSoftware(versionedName))
+	require.Zero(t, countTitlesNamed(t, ds, versionedName), "the versioned title should be merged away")
+
+	// The first ingestion cached the FMA set from before the installer existed.
+	ds.clearWindowsFMAMatchesCache()
+
+	// With the versioned title gone, a later version reporting the same upgrade code
+	// resolves to no title through it and joins the installer's title by name.
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: laterName, Version: "25.0.6.0.1", Source: "programs", UpgradeCode: new(upgradeCode)},
+	})
+	require.NoError(t, err)
+	require.Equal(t, canonicalID, titleIDForSoftware(laterName))
+	require.Equal(t, 1, countTitlesNamed(t, ds, "Azul Zulu JRE"))
+}
+
+// testWindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp: an exe or msix app's own program
+// reports no upgrade code, so an MSI product that merely shares its name prefix must
+// keep its own title, at ingestion and in the reconcile pass.
+func testWindowsFMAUpgradeCodeProgramNotMatchedToNonMSIApp(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	const addIn = "Microsoft Teams Meeting Add-in for Microsoft Office"
+	// Inventory before the app is added, for the reconcile pass to consider.
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: addIn, Version: "1.25.0", Source: "programs", UpgradeCode: new("{A7AB73A3-CB10-4AA5-9D38-6AEFFBDE4C91}")},
+	})
+	require.NoError(t, err)
+
+	addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Microsoft Teams", "Microsoft Teams", "microsoft-teams/windows", "msix")
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, addIn, titleNameForSoftware(t, ds, addIn))
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: addIn + " 2", Version: "1.26.0", Source: "programs", UpgradeCode: new("{B8BC84B4-DC21-4BB6-AE49-7BF00CEF5DA2}")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, addIn+" 2", titleNameForSoftware(t, ds, addIn+" 2"))
+}
+
+// testWindowsFMAUpgradeCodeProgramNotMatchedToOtherProduct: PowerShell Preview's MSI
+// reports "PowerShell 7-preview-x64", which prefix-matches the PowerShell app by its
+// catalog name. What follows the name isn't a version, so the Preview program keeps its
+// own title, at ingestion and in the reconcile pass, while PowerShell's own program joins.
+func testWindowsFMAUpgradeCodeProgramNotMatchedToOtherProduct(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	const (
+		previewX64 = "PowerShell 7-preview-x64"
+		previewX86 = "PowerShell 7-preview-x86"
+		stable     = "PowerShell 7-x64"
+	)
+	// Inventory before the app is added, for the reconcile pass to consider.
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: previewX64, Version: "7.6.0.4", Source: "programs", UpgradeCode: new("{11111111-1111-1111-1111-111111111111}")},
+	})
+	require.NoError(t, err)
+
+	addWindowsFMAWithInstallerExtension(t, ds, user.ID, "PowerShell", "PowerShell 7-x64", "powershell/windows", "msi")
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, previewX64, titleNameForSoftware(t, ds, previewX64))
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: previewX86, Version: "7.6.0.4", Source: "programs", UpgradeCode: new("{22222222-2222-2222-2222-222222222222}")},
+		{Name: stable, Version: "7.6.9.0", Source: "programs", UpgradeCode: new("{33333333-3333-3333-3333-333333333333}")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, previewX86, titleNameForSoftware(t, ds, previewX86))
+	require.Equal(t, "PowerShell", titleNameForSoftware(t, ds, stable))
+}
+
+// testWindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling: QGIS LTR's MSI reports
+// "QGIS <version>", which prefix-matches the regular QGIS app, so with only regular QGIS
+// added the LTR program must keep its own title, at ingestion and in the reconcile pass.
+func testWindowsFMAUpgradeCodeProgramNotMatchedToChannelSibling(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	const (
+		ltrName      = "QGIS 3.44.14 'Solothurn'"
+		laterLTRName = "QGIS 3.44.15 'Solothurn'"
+	)
+	// Inventory before the app is added, for the reconcile pass to consider.
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: ltrName, Version: "3.44.14", Source: "programs", UpgradeCode: new("{11111111-1111-1111-1111-111111111111}")},
+	})
+	require.NoError(t, err)
+
+	// QGIS LTR is in the catalog but not added.
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name: "QGIS LTR", Slug: "qgis@ltr/windows", Platform: "windows", UniqueIdentifier: "QGIS LTR",
+	})
+	require.NoError(t, err)
+	addWindowsFMAWithInstallerExtension(t, ds, user.ID, "QGIS", "QGIS", "qgis/windows", "msi")
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, ltrName, titleNameForSoftware(t, ds, ltrName))
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: laterLTRName, Version: "3.44.15", Source: "programs", UpgradeCode: new("{22222222-2222-2222-2222-222222222222}")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, laterLTRName, titleNameForSoftware(t, ds, laterLTRName))
+}
+
+// testWindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe: an app that moved from an exe
+// to an MSI installer can keep the exe as an inactive cached version. The active MSI
+// still makes its programs eligible, at ingestion and in the reconcile pass.
+func testWindowsFMAMatchWithUpgradeCodeWhenOlderVersionIsExe(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	const (
+		versionedName = "Bitwig Studio 5.3.2"
+		laterName     = "Bitwig Studio 5.3.3"
+	)
+	// Inventory before the app is added, for the reconcile pass to consider.
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: versionedName, Version: "5.3.2", Source: "programs", UpgradeCode: new("{33333333-3333-3333-3333-333333333333}")},
+	})
+	require.NoError(t, err)
+
+	canonicalID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Bitwig Studio", "Bitwig Studio", "bitwig-studio/windows", "exe")
+	var exeInstallerID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &exeInstallerID, `SELECT id FROM software_installers WHERE title_id = ?`, canonicalID)
+	})
+	msiInstallerID, err := ds.InsertFleetMaintainedAppVersion(ctx, exeInstallerID, &fleet.UploadSoftwareInstallerPayload{
+		Version: "2.0.0", Filename: "bitwig-studio.msi", Extension: "msi", StorageID: "storageid-bitwig-studio-msi",
+		URL: "https://example.test/bitwig-studio.msi", InstallScript: "echo i", UninstallScript: "echo u",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SetFleetMaintainedAppActiveInstaller(ctx, &fleet.UpdateSoftwareInstallerPayload{TitleID: canonicalID}, msiInstallerID))
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, "Bitwig Studio", titleNameForSoftware(t, ds, versionedName))
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: laterName, Version: "5.3.3", Source: "programs", UpgradeCode: new("{44444444-4444-4444-4444-444444444444}")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "Bitwig Studio", titleNameForSoftware(t, ds, laterName))
+	require.Equal(t, 1, countTitlesNamed(t, ds, "Bitwig Studio"))
+}
+
+// testWindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode: a program renamed to an FMA
+// title must land on that title, not on another title with the same name and a different
+// upgrade code. Each wrong title is created after the right one, which places it last
+// among same-named rows.
+func testWindowsFMAIngestSkipsSameNameTitleWithOtherUpgradeCode(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	insertTitle := func(name string, upgradeCode *string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO software_titles (name, source, extension_for, upgrade_code) VALUES (?, 'programs', '', ?)`,
+				name, upgradeCode)
+			return err
+		})
+	}
+
+	// The FMA title has no upgrade code; the other one has.
+	azulID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Azul Zulu JRE", "Azul Zulu JRE", "azul-zulu-25-jre/windows", "msi")
+	insertTitle("Azul Zulu JRE", new("{11111111-1111-1111-1111-111111111111}"))
+
+	// The FMA title has an upgrade code; the other one, such as a duplicate left by an
+	// earlier ingestion, has none.
+	const granolaCode = "{22222222-2222-2222-2222-222222222222}"
+	granolaID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Granola", "Granola", "granola/windows", "msi")
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`, granolaCode, granolaID)
+		return err
+	})
+	insertTitle("Granola", nil)
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Azul Zulu JRE 25.38.109 (25.0.5.0.3), 64-bit", Version: "25.0.5.0.3", Source: "programs", UpgradeCode: new("{33333333-3333-3333-3333-333333333333}")},
+		{Name: "Granola 7.373.3", Version: "7.373.3", Source: "programs", UpgradeCode: new("")},
+	})
+	require.NoError(t, err)
+
+	titleIDForSoftware := func(name string) uint {
+		var id uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &id, `SELECT title_id FROM software WHERE name = ?`, name)
+		})
+		return id
+	}
+	require.Equal(t, azulID, titleIDForSoftware("Azul Zulu JRE 25.38.109 (25.0.5.0.3), 64-bit"))
+	require.Equal(t, granolaID, titleIDForSoftware("Granola 7.373.3"))
+}
+
+// testWindowsFMAUpgradeCodeProgramOutsideVersionSeries: "Azul Zulu JRE 25" is one FMA per
+// Java major, but every major's MSI reports "Azul Zulu JRE <major>.…" and prefix-matches
+// its identifier, "Azul Zulu JRE". Only the 25 program joins the title, at ingestion and
+// in the reconcile pass.
+func testWindowsFMAUpgradeCodeProgramOutsideVersionSeries(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+	const (
+		jre21      = "Azul Zulu JRE 21.40.17 (21.0.8.0.1), 64-bit"
+		jre25      = "Azul Zulu JRE 25.38.109 (25.0.5.0.3), 64-bit"
+		laterJRE21 = "Azul Zulu JRE 21.42.19 (21.0.9.0.1), 64-bit"
+		laterJRE25 = "Azul Zulu JRE 25.40.12 (25.0.6.0.1), 64-bit"
+	)
+	// Inventory before the app is added, for the reconcile pass to consider.
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{
+		{Name: jre21, Version: "21.0.8.0.1", Source: "programs", UpgradeCode: new("{11111111-1111-1111-1111-111111111111}")},
+		{Name: jre25, Version: "25.0.5.0.3", Source: "programs", UpgradeCode: new("{22222222-2222-2222-2222-222222222222}")},
+	})
+	require.NoError(t, err)
+
+	canonicalID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Azul Zulu JRE 25", "Azul Zulu JRE", "azul-zulu-25-jre/windows", "msi")
+
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, "Azul Zulu JRE 25", titleNameForSoftware(t, ds, jre25))
+	require.Equal(t, jre21, titleNameForSoftware(t, ds, jre21))
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, []fleet.Software{
+		{Name: laterJRE21, Version: "21.0.9.0.1", Source: "programs", UpgradeCode: new("{33333333-3333-3333-3333-333333333333}")},
+		{Name: laterJRE25, Version: "25.0.6.0.1", Source: "programs", UpgradeCode: new("{44444444-4444-4444-4444-444444444444}")},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "Azul Zulu JRE 25", titleNameForSoftware(t, ds, laterJRE25))
+	require.Equal(t, laterJRE21, titleNameForSoftware(t, ds, laterJRE21))
+
+	var titleID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM software WHERE name = ?`, laterJRE25)
+	})
+	require.Equal(t, canonicalID, titleID)
+}
+
+// testWindowsFMAIngestWithStaleTitleUpgradeCode: ingestion matches against a cached FMA
+// set, so a title whose upgrade code changed within the TTL is matched with its old one.
+// The program must still land on the FMA title, not on a row its insert creates under
+// the old code.
+func testWindowsFMAIngestWithStaleTitleUpgradeCode(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	setUpgradeCode := func(titleID uint, code string) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE software_titles SET upgrade_code = ? WHERE id = ?`, code, titleID)
+			return err
+		})
+	}
+
+	bitwigID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Bitwig Studio", "Bitwig Studio", "bitwig-studio/windows", "msi")
+	granolaID := addWindowsFMAWithInstallerExtension(t, ds, user.ID, "Granola", "Granola", "granola/windows", "msi")
+	setUpgradeCode(granolaID, "{11111111-1111-1111-1111-111111111111}")
+
+	ds.clearWindowsFMAMatchesCache()
+	_, err := ds.getWindowsFMAMatchesCached(ctx)
+	require.NoError(t, err)
+
+	// Within the TTL, one title gains an upgrade code and the other changes it.
+	setUpgradeCode(bitwigID, "{22222222-2222-2222-2222-222222222222}")
+	setUpgradeCode(granolaID, "{33333333-3333-3333-3333-333333333333}")
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Bitwig Studio 5.3.3", Version: "5.3.3", Source: "programs", UpgradeCode: new("")},
+		{Name: "Granola 7.373.3", Version: "7.373.3", Source: "programs", UpgradeCode: new("")},
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, bitwigID, titleIDForSoftware(t, ds, "Bitwig Studio 5.3.3"))
+	require.Equal(t, granolaID, titleIDForSoftware(t, ds, "Granola 7.373.3"))
+}
+
+// testWindowsFMAMergeRollsBackWhenTitleGainsOwner: the scan that picks stale titles
+// doesn't lock them, so one can gain an installer before the merge runs. The guarded
+// delete then keeps that title, and the merge must roll back rather than move its
+// software away from it.
+func testWindowsFMAMergeRollsBackWhenTitleGainsOwner(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Inventory first, so versioned titles exist for the installer to merge.
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{
+		{Name: "Granola 7.373.2", Version: "7.373.2", Source: "programs"},
+		{Name: "Granola 7.373.3", Version: "7.373.3", Source: "programs"},
+	})
+	require.NoError(t, err)
+	ownedID := titleIDForTitleNamed(t, ds, "Granola 7.373.2")
+	otherID := titleIDForTitleNamed(t, ds, "Granola 7.373.3")
+
+	canonicalID := addWindowsFMAWithInstaller(t, ds, user.ID, "Granola", "Granola", "granola/windows")
+	fmaMatches, err := ds.GetWindowsFMAMatches(ctx)
+	require.NoError(t, err)
+	stale, err := ds.staleWindowsTitlesByDestination(ctx, fmaMatches, windowsFMAPrefixes(fmaMatches))
+	require.NoError(t, err)
+	require.ElementsMatch(t, []uint{ownedID, otherID}, stale[canonicalID])
+
+	// A custom package attaches to one of them after the scan.
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "Granola 7.373.2",
+		Source:          "programs",
+		StorageID:       "storageid-granola-custom",
+		Filename:        "granola.exe",
+		Extension:       "exe",
+		Platform:        "windows",
+		Version:         "7.373.2",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.Equal(t, ownedID, titleID)
+
+	require.NoError(t, ds.mergeWindowsFMATitle(ctx, canonicalID, stale[canonicalID]))
+	require.Equal(t, ownedID, titleIDForSoftware(t, ds, "Granola 7.373.2"), "the merge should roll back")
+	require.Equal(t, otherID, titleIDForSoftware(t, ds, "Granola 7.373.3"), "the merge should roll back")
+
+	// The next pass leaves the owned title out and merges the other.
+	require.NoError(t, ds.ReconcileWindowsMaintainedAppSoftwareTitles(ctx))
+	require.Equal(t, ownedID, titleIDForSoftware(t, ds, "Granola 7.373.2"))
+	require.Equal(t, canonicalID, titleIDForSoftware(t, ds, "Granola 7.373.3"))
 }
 
 // testWindowsFMANoCollapseWithoutInstaller: with no publisher available to scope the
