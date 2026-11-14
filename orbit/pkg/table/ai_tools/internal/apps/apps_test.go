@@ -44,6 +44,25 @@ func TestMatchKnown(t *testing.T) {
 		{[]string{"vs_minshellmsi"}, false, "", 0},
 		{[]string{"vs_minshellmsires"}, false, "", 0},
 		{[]string{"Windows Media Player.app"}, false, "", 0},
+
+		// Granola and Grok Bot: macOS passes the bundle id, Windows the display name.
+		{[]string{"Granola.app", "Granola", "com.granola.app"}, true, "granola", 0},
+		{[]string{"Granola 7.722.1"}, true, "granola", 0},
+		{[]string{"Grok Bot.app", "Grok Bot", "com.anysphere.sand"}, true, "grok-bot", 0},
+		{[]string{"Grok Bot 0.78.3"}, true, "grok-bot", 0},
+		{[]string{"Sand.app", "Sand", "com.anysphere.sand"}, true, "grok-bot", 0},
+		// Meta Muse matches its bundle id only.
+		{[]string{"Muse.app", "Muse", "com.meta.endo"}, true, "meta-muse", 0},
+
+		{[]string{"Museeks"}, false, "", 0},
+		{[]string{"Museeks.app", "Museeks", "com.electron.museeks"}, false, "", 0},
+		{[]string{"MuseScore 4"}, false, "", 0},
+		{[]string{"MuseScore.app", "MuseScore", "org.musescore.MuseScore"}, false, "", 0},
+		{[]string{"Muse Hub"}, false, "", 0},
+		{[]string{"GranolaBar"}, false, "", 0},
+		{[]string{"grok"}, false, "", 0},
+		{[]string{".grok"}, false, "", 0},
+		{[]string{"grok.exe"}, false, "", 0},
 	}
 	for _, c := range cases {
 		k, ok := matchKnown(c.tokens...)

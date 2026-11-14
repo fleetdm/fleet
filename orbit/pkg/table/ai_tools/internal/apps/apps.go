@@ -56,6 +56,9 @@ func knownApps() []knownApp {
 		{"antigravity", []string{"antigravity"}, []string{"antigravity"}, 0},
 		{"trae", []string{"trae"}, []string{"trae"}, 0},
 		{"lm-studio-cli", []string{"lms"}, []string{"lms"}, 0},
+		{"granola", []string{"granola", "com.granola.app"}, []string{"granola"}, 0},
+		{"grok-bot", []string{"grok bot", "com.anysphere.sand"}, []string{"grok bot"}, 0}, // desktop app, not the Grok CLI
+		{"meta-muse", []string{"com.meta.endo"}, []string{"muse"}, 0},                     // bundle id only, so Muse Hub/MuseScore/Museeks never match
 	}
 }
 
