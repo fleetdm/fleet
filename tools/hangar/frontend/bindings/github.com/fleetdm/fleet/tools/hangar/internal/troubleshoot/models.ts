@@ -6,6 +6,67 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
+ * Container is a running Docker container found by ScanDocker.
+ */
+export class Container {
+    "id": string;
+    "name": string;
+    "image": string;
+
+    /**
+     * Project and Service are the compose labels; both "" for a container
+     * started with plain docker run (e.g. fleetctl package's .msi build).
+     */
+    "project": string;
+    "service": string;
+    "status": string;
+
+    /**
+     * Ports are the published host ports.
+     */
+    "ports": number[];
+
+    /** Creates a new Container instance. */
+    constructor($$source: Partial<Container> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("image" in $$source)) {
+            this["image"] = "";
+        }
+        if (!("project" in $$source)) {
+            this["project"] = "";
+        }
+        if (!("service" in $$source)) {
+            this["service"] = "";
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("ports" in $$source)) {
+            this["ports"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Container instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Container {
+        const $$createField6_0 = $$createType0;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("ports" in $$parsedSource) {
+            $$parsedSource["ports"] = $$createField6_0($$parsedSource["ports"]);
+        }
+        return new Container($$parsedSource as Partial<Container>);
+    }
+}
+
+/**
  * DetectedProcess is a process found by a scan.
  */
 export class DetectedProcess {
@@ -68,3 +129,6 @@ export class KillOutcome {
         return new KillOutcome($$parsedSource as Partial<KillOutcome>);
     }
 }
+
+// Private type creation functions
+const $$createType0 = $Create.Array($Create.Any);

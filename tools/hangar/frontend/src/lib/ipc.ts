@@ -117,6 +117,7 @@ export type CapturedRun = fleetctlM.CapturedRun;
 
 export type DetectedProcess = troubleshootM.DetectedProcess;
 export type KillOutcome = troubleshootM.KillOutcome;
+export type DockerContainer = troubleshootM.Container;
 
 export type ScepProfile = settingsM.ScepProfile;
 export type ScepBinaryInfo = scepM.BinaryInfo;
@@ -405,6 +406,10 @@ export const api = {
     ),
   troubleshootKillPid: (pid: number) =>
     cast<KillOutcome>(TroubleshootService.TroubleshootKillPid(pid)),
+  troubleshootScanDocker: () =>
+    cast<DockerContainer[]>(TroubleshootService.TroubleshootScanDocker()),
+  troubleshootStopContainers: (ids: string[]) =>
+    TroubleshootService.TroubleshootStopContainers(ids),
   fleetctlRunCapture: (args: {
     program: string;
     cwd?: string | null;
