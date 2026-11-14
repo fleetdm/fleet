@@ -518,6 +518,11 @@ function BuildCard({
     .map((k) => planned[k])
     .filter((name): name is string => !!name && existing.has(name))
     .map((name) => existing.get(name)!);
+  // Two fleet names can come out as the same file name ("Work Stations" and
+  // "work-stations"), so say when the packages being replaced are another fleet's.
+  const otherFleets = target.team_name
+    ? Array.from(new Set(overwrites.map((f) => f.build?.team).filter((t): t is string => !!t && t !== target.team_name)))
+    : [];
 
   const fleetUrl = target.fleet_url.trim();
   const loopback = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(fleetUrl);
@@ -768,6 +773,7 @@ function BuildCard({
           >
             ⚠ replaces {overwrites.length} existing package{overwrites.length === 1 ? "" : "s"} (newest built{" "}
             {new Date(Math.max(...overwrites.map((f) => f.mod_time_ms))).toLocaleString()})
+            {otherFleets.length > 0 && ` — built for ${otherFleets.join(", ")}, whose name gives the same file names`}
           </span>
         )}
         <div style={{ flex: 1 }} />

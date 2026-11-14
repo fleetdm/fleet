@@ -16,9 +16,15 @@
 # Runs under macOS's bash 3.2: no `wait -n`, no associative arrays.
 set -uo pipefail
 
-work_root=$(mktemp -d)
+# Jobs build in a hidden folder next to the packages rather than in $TMPDIR, so
+# moving a finished package into place is a rename: Stop can't cut it short the
+# way it could a copy from another volume.
+out_dir=$(dirname "$(cut -f 4 <<< "$HANGAR_JOBS" | head -n 1)")
+# Left by a build that was killed before it could clean up.
+rm -rf "$out_dir"/.hangar-build.*
+work_root=$(mktemp -d "$out_dir/.hangar-build.XXXXXX") || exit 1
 # Stop sends SIGTERM to the whole group, every job's fleetctl included; exit
-# through the EXIT trap so the jobs' temp dirs are removed.
+# through the EXIT trap so the jobs' work dirs are removed.
 trap 'rm -rf "$work_root"' EXIT
 trap 'exit 143' TERM INT
 

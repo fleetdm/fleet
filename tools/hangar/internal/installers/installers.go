@@ -6,8 +6,9 @@
 // from a TUF repo, the manifest — plus a small Fleet API client (fleetapi.go)
 // for scanning a server's fleets and enroll secrets.
 //
-// The builds themselves run build.sh (embedded) through the process engine, one
-// at a time, so output streams to a log channel like the TUF tab.
+// A build runs build.sh (embedded) through the process engine, so output
+// streams to a log channel like the TUF tab. One build runs at a time; its
+// platforms build in parallel.
 package installers
 
 import (
@@ -347,6 +348,10 @@ func ParseExtraFlags(s string) ([]string, error) {
 	}
 	for _, a := range out {
 		name, _, _ := strings.Cut(a, "=")
+		// fleetctl reads -flag like --flag, and the last one given wins.
+		if strings.HasPrefix(name, "-") {
+			name = "--" + strings.TrimLeft(name, "-")
+		}
 		if managedFlags[name] {
 			return nil, fmt.Errorf("extra flags: %s is set by Hangar — use the tab's own setting", name)
 		}

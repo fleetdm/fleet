@@ -239,7 +239,11 @@ func TestParseExtraFlags(t *testing.T) {
 	if got, err := ParseExtraFlags("   "); err != nil || len(got) != 0 {
 		t.Errorf("blank: %q %v", got, err)
 	}
-	for _, bad := range []string{`--fleet-url=https://x`, `--outfile x.pkg`, `--enable-scripts`, `--host-identifier "unclosed`} {
+	for _, bad := range []string{
+		`--fleet-url=https://x`, `--outfile x.pkg`, `--enable-scripts`, `--host-identifier "unclosed`,
+		// fleetctl takes a single dash too.
+		`-outfile=/elsewhere/x.pkg`, `-type deb`, `--host-identifier=instance -enroll-secret=`,
+	} {
 		if _, err := ParseExtraFlags(bad); err == nil {
 			t.Errorf("%q should be rejected", bad)
 		}
@@ -390,7 +394,9 @@ func TestListOutputs(t *testing.T) {
 func fakeFleet(t *testing.T, tier string, newRoutes bool) *httptest.Server {
 	t.Helper()
 	return httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Authorization") != "Bearer tok" {
+		// "fleet-admin" is a user with a role on a fleet only.
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer tok" && auth != "Bearer fleet-admin" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -398,6 +404,10 @@ func fakeFleet(t *testing.T, tier string, newRoutes bool) *httptest.Server {
 		case "/api/v1/fleet/config":
 			_, _ = w.Write([]byte(`{"server_settings":{"server_url":"https://fleet.public"},"license":{"tier":"` + tier + `"}}`))
 		case "/api/v1/fleet/spec/enroll_secret":
+			if auth == "Bearer fleet-admin" {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
 			_, _ = w.Write([]byte(`{"spec":{"secrets":[{"secret":"global"}]}}`))
 		case "/api/v1/fleet/fleets":
 			if !newRoutes {
@@ -454,6 +464,29 @@ func TestScan(t *testing.T) {
 	b, _ := json.Marshal(res)
 	if strings.Contains(string(b), "ws") || strings.Contains(string(b), "global") {
 		t.Errorf("scan JSON leaks a secret: %s", b)
+	}
+}
+
+func TestScanWithoutGlobalSecretAccess(t *testing.T) {
+	srv := fakeFleet(t, "premium", true)
+	defer srv.Close()
+	c, err := NewClient(fleetctl.Credentials{Address: srv.URL, Token: "fleet-admin", TLSSkipVerify: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := c.Scan(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Teams) != 4 || res.Teams[0].Name != UnassignedName || res.Teams[0].HasSecret || !res.Teams[0].SecretHidden {
+		t.Fatalf("scan = %+v", res)
+	}
+	if _, _, err := SecretFor(res, nil); err == nil || !strings.Contains(err.Error(), "can't read") {
+		t.Errorf("unassigned err = %v", err)
+	}
+	three := uint(3)
+	if s, _, err := SecretFor(res, &three); err != nil || s != "ws" {
+		t.Errorf("team 3: %q %v", s, err)
 	}
 }
 
@@ -584,6 +617,10 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 			t.Fatal(err)
 		}
 	}
+	// A work dir left by a build that was killed.
+	if err := os.MkdirAll(filepath.Join(dir, ".hangar-build.stale", "macos.x"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	out, err := cmd.CombinedOutput()
 	if err == nil {
@@ -626,12 +663,16 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 	if b, _ := os.ReadFile(filepath.Join(dir, "fleetd-rc-linux-amd64.deb")); string(b) != "old\n" {
 		t.Errorf("previous deb overwritten: %q", b)
 	}
-	// No temp dirs or stray files are left next to the outputs.
+	// No work dirs (this build's or the stale one) are left next to the outputs.
 	entries, _ := os.ReadDir(dir)
 	for _, e := range entries {
 		if e.IsDir() {
 			t.Errorf("leftover dir %s", e.Name())
 		}
+	}
+	// Jobs write inside the output folder, so the final move is a rename.
+	if pkg := call("--type=pkg "); !strings.Contains(pkg, "--outfile="+filepath.Join(dir, ".hangar-build.")) {
+		t.Errorf("pkg built outside the output folder: %q", pkg)
 	}
 	// The stray arm64 .msi was moved to its intended name (replacing an old
 	// one) and made readable.
@@ -673,13 +714,10 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 
 func TestBuildScriptStopEndsEveryJob(t *testing.T) {
 	pids := filepath.Join(t.TempDir(), "pids")
-	cmd, _ := buildScriptCmd(t, `#!/usr/bin/env bash
+	cmd, dir := buildScriptCmd(t, `#!/usr/bin/env bash
 echo $$ >> "`+pids+`"
 exec sleep 30
 `, "deb-amd64", "rpm-amd64", "arch-amd64")
-	// mktemp honors TMPDIR, so the jobs' work dirs land where we can check.
-	tmp := t.TempDir()
-	cmd.Env = append(cmd.Env, "TMPDIR="+tmp)
 	// Like the process engine: own group, and Stop signals the group.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
@@ -725,7 +763,10 @@ exec sleep 30
 			time.Sleep(20 * time.Millisecond)
 		}
 	}
-	if left, _ := os.ReadDir(tmp); len(left) != 0 {
-		t.Errorf("temp dirs left behind: %v", left)
+	entries, _ := os.ReadDir(dir)
+	for _, e := range entries {
+		if e.IsDir() {
+			t.Errorf("work dir left behind: %s", e.Name())
+		}
 	}
 }

@@ -20,7 +20,8 @@ import (
 )
 
 // Team is one enrollment target found by a scan. ID nil is Unassigned (the
-// global enroll secret). Secrets never leave the backend.
+// global enroll secret). A scan result carries no secrets: the tab asks for
+// the one it needs once a fleet is picked (SecretFor).
 type Team struct {
 	ID        *uint  `json:"id"`
 	Name      string `json:"name"`
@@ -183,10 +184,16 @@ func (c *Client) Scan(ctx context.Context) (ScanResult, error) {
 			Secrets []apiSecret `json:"secrets"`
 		} `json:"spec"`
 	}
-	if err := c.get(ctx, "/api/v1/fleet/spec/enroll_secret", &spec); err != nil {
+	switch err := c.get(ctx, "/api/v1/fleet/spec/enroll_secret", &spec); {
+	case hasStatus(err, http.StatusForbidden):
+		// Only global admins and maintainers may read the global secret; a
+		// fleet-level user can still build for the fleets they manage.
+		res.Teams = append(res.Teams, Team{Name: UnassignedName, SecretHidden: true})
+	case err != nil:
 		return ScanResult{}, fmt.Errorf("read global enroll secret: %w", err)
+	default:
+		res.Teams = append(res.Teams, teamFrom(nil, UnassignedName, spec.Spec.Secrets))
 	}
-	res.Teams = append(res.Teams, teamFrom(nil, UnassignedName, spec.Spec.Secrets))
 
 	if !res.Premium {
 		return res, nil
@@ -204,7 +211,8 @@ func (c *Client) Scan(ctx context.Context) (ScanResult, error) {
 
 // listTeams lists fleets on current servers (/fleets) and falls back to the
 // pre-rename /teams route for older releases. The response carries the list
-// under "fleets", "teams", or both.
+// under "fleets", "teams", or both. Only the first 1000 are read, far more
+// than a test server has.
 func (c *Client) listTeams(ctx context.Context) ([]apiTeam, error) {
 	var resp struct {
 		Fleets []apiTeam `json:"fleets"`
