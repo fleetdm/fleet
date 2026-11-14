@@ -10,6 +10,56 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as installers$0 from "../internal/installers/models.js";
 
 /**
+ * InstallersContextInfo is what the tab needs for a context (or a manual
+ * build) before any scan: where its packages go and which fleetctl builds them.
+ */
+export class InstallersContextInfo {
+    "address": string;
+    "output_dir": string;
+    "output_err": string;
+    "fleetctl": string;
+    "fleetctl_exists": boolean;
+
+    /**
+     * FleetctlServer names the Hangar server whose fleetctl builds this
+     * context's packages; "" means Hangar's default fleetctl.
+     */
+    "fleetctl_server": string;
+
+    /** Creates a new InstallersContextInfo instance. */
+    constructor($$source: Partial<InstallersContextInfo> = {}) {
+        if (!("address" in $$source)) {
+            this["address"] = "";
+        }
+        if (!("output_dir" in $$source)) {
+            this["output_dir"] = "";
+        }
+        if (!("output_err" in $$source)) {
+            this["output_err"] = "";
+        }
+        if (!("fleetctl" in $$source)) {
+            this["fleetctl"] = "";
+        }
+        if (!("fleetctl_exists" in $$source)) {
+            this["fleetctl_exists"] = false;
+        }
+        if (!("fleetctl_server" in $$source)) {
+            this["fleetctl_server"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InstallersContextInfo instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InstallersContextInfo {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new InstallersContextInfo($$parsedSource as Partial<InstallersContextInfo>);
+    }
+}
+
+/**
  * InstallersLocalTUF says whether a local TUF build can be targeted, and the
  * channels its repo publishes.
  */
@@ -47,52 +97,6 @@ export class InstallersLocalTUF {
             $$parsedSource["channels"] = $$createField3_0($$parsedSource["channels"]);
         }
         return new InstallersLocalTUF($$parsedSource as Partial<InstallersLocalTUF>);
-    }
-}
-
-/**
- * InstallersTargetInfo is what the build card needs for a target before any
- * scan: where its files go, which fleetctl builds it, and (for a Hangar server)
- * the fleetctl context matching its port.
- */
-export class InstallersTargetInfo {
-    "target_id": string;
-    "slug": string;
-    "matched_context": string;
-    "fleetctl": string;
-    "fleetctl_exists": boolean;
-    "output_dir": string;
-
-    /** Creates a new InstallersTargetInfo instance. */
-    constructor($$source: Partial<InstallersTargetInfo> = {}) {
-        if (!("target_id" in $$source)) {
-            this["target_id"] = "";
-        }
-        if (!("slug" in $$source)) {
-            this["slug"] = "";
-        }
-        if (!("matched_context" in $$source)) {
-            this["matched_context"] = "";
-        }
-        if (!("fleetctl" in $$source)) {
-            this["fleetctl"] = "";
-        }
-        if (!("fleetctl_exists" in $$source)) {
-            this["fleetctl_exists"] = false;
-        }
-        if (!("output_dir" in $$source)) {
-            this["output_dir"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new InstallersTargetInfo instance from a string or object.
-     */
-    static createFrom($$source: any = {}): InstallersTargetInfo {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new InstallersTargetInfo($$parsedSource as Partial<InstallersTargetInfo>);
     }
 }
 

@@ -202,44 +202,46 @@ type TufConfig struct {
 	Debug        bool     `json:"debug"`
 }
 
-// InstallersConfig is the saved state of the Installers tab: where generated
-// fleetd packages land, the selected build target, and one build config per
-// target, keyed by ServerProfile.ID or "custom" (a Fleet server Hangar doesn't
-// run). A target missing from Servers uses DefaultInstallerServer.
+// InstallersConfig is the saved state of the Installers tab: which fleetctl
+// context the packages are built for, what each context enrolls into, and the
+// build options shared by all of them. Packages land in
+// <file-server dir or primary repo>/packages/<context>/ (see
+// internal/installers.OutputDir).
 type InstallersConfig struct {
-	// OutputDir is the root folder; each server gets a subfolder named after
-	// it. Empty means the default (~/Documents/fleetd-installers).
-	OutputDir string                           `json:"output_dir"`
-	Target    string                           `json:"target"` // selected target; "" = the first server
-	Servers   map[string]InstallerServerConfig `json:"servers"`
-	// SharePort is the port for sharing the output folder over HTTP; 0 means
+	// Context is the fleetctl context to build for; "" means not picked yet
+	// (the "default" context when there is one).
+	Context string `json:"context"`
+	// Manual builds without a context, from a typed-in Fleet URL and secret.
+	Manual bool `json:"manual"`
+	// Targets is what each context enrolls into, keyed by context name;
+	// ManualTarget is the same for manual builds.
+	Targets      map[string]InstallerTarget `json:"targets"`
+	ManualTarget InstallerTarget            `json:"manual_target"`
+	Options      InstallerOptions           `json:"options"`
+	// SharePort is the port for sharing the packages folder over HTTP; 0 means
 	// pick a free one.
 	SharePort uint16 `json:"share_port"`
 }
 
-// InstallerServerConfig is one build target's inputs. The Fleet URL and enroll
-// secret are what gets baked into the packages; a scan through a fleetctl
-// context fills them in, or they're typed by hand (no context needed).
-type InstallerServerConfig struct {
-	// Name names the custom target's folder and files. Unused for servers.
-	Name string `json:"name"`
-	// Fleetctl is the server ID whose fleetctl builds the custom target
-	// ("" = the first server with one). Unused for servers, which use their own.
-	Fleetctl string `json:"fleetctl"`
-	// Context is the fleetctl context used to talk to the server. Empty means
-	// auto-match by the server's port.
-	Context string `json:"context"`
-	// Platforms are installer keys (see internal/installers.Platforms).
-	Platforms    []string `json:"platforms"`
-	FleetDesktop bool     `json:"fleet_desktop"`
-	Debug        bool     `json:"debug"`
-	// TeamID is the fleet/team whose enroll secret is used; nil = Unassigned
-	// (the global enroll secret). TeamName is display-only.
-	TeamID   *uint  `json:"team_id"`
-	TeamName string `json:"team_name"`
-	// FleetURL and EnrollSecret are baked into the packages.
+// InstallerTarget is where one context's packages enroll. The Fleet URL and
+// enroll secret are baked into the packages; scanning the context's server
+// fills them in, or they're typed by hand.
+type InstallerTarget struct {
+	// TeamID is the fleet whose enroll secret is used; nil = Unassigned (the
+	// global enroll secret). TeamName is "" when the secret was typed in.
+	TeamID       *uint  `json:"team_id"`
+	TeamName     string `json:"team_name"`
 	FleetURL     string `json:"fleet_url"`
 	EnrollSecret string `json:"enroll_secret"`
+}
+
+// InstallerOptions is what gets built, whatever the context.
+type InstallerOptions struct {
+	// Platforms are installer keys (see internal/installers.Platforms).
+	Platforms     []string `json:"platforms"`
+	FleetDesktop  bool     `json:"fleet_desktop"`
+	EnableScripts bool     `json:"enable_scripts"`
+	Debug         bool     `json:"debug"`
 	// ExtraFlags are additional `fleetctl package` flags, shell-quoted.
 	ExtraFlags string `json:"extra_flags"`
 	// UpdateSource is "official" (updates.fleetdm.com) or "local-tuf"
@@ -250,18 +252,22 @@ type InstallerServerConfig struct {
 	OsquerydChannel string `json:"osqueryd_channel"`
 }
 
-// Update sources for InstallerServerConfig.UpdateSource.
+// Update sources for InstallerOptions.UpdateSource.
 const (
 	UpdateSourceOfficial = "official"
 	UpdateSourceLocalTUF = "local-tuf"
 )
 
-// DefaultInstallerServer is a server card's config before the user changes
-// anything: every platform, Fleet Desktop on, official updates on stable.
-func DefaultInstallerServer() InstallerServerConfig {
-	return InstallerServerConfig{
-		Platforms:       []string{"macos", "windows-amd64", "windows-arm64", "deb-amd64", "deb-arm64", "rpm-amd64", "rpm-arm64"},
+// DefaultInstallerOptions builds every platform with Fleet Desktop and
+// scripts on, updating from the official stable channels.
+func DefaultInstallerOptions() InstallerOptions {
+	return InstallerOptions{
+		Platforms: []string{
+			"macos", "windows-amd64", "windows-arm64", "deb-amd64", "deb-arm64",
+			"rpm-amd64", "rpm-arm64", "arch-amd64", "arch-arm64",
+		},
 		FleetDesktop:    true,
+		EnableScripts:   true,
 		UpdateSource:    UpdateSourceOfficial,
 		OrbitChannel:    "stable",
 		DesktopChannel:  "stable",
@@ -326,6 +332,10 @@ func Default() Settings {
 		Theme:         ThemeSystem,
 		FavoriteCrons: []string{},
 		ScepProfiles:  []ScepProfile{},
+		Installers: InstallersConfig{
+			Targets: map[string]InstallerTarget{},
+			Options: DefaultInstallerOptions(),
+		},
 		Tuf: TufConfig{
 			// Mirror the common my_tuf.sh run: all platforms, desktop + debug on.
 			Platforms:    []string{"macos", "windows", "windows-arm64", "linux", "linux-arm64"},
@@ -410,8 +420,11 @@ func migrate(s *Settings) {
 		s.Tuf.Platforms = []string{}
 	}
 	// Same for the Installers map (a JSON object, never null, for the frontend).
-	if s.Installers.Servers == nil {
-		s.Installers.Servers = map[string]InstallerServerConfig{}
+	if s.Installers.Targets == nil {
+		s.Installers.Targets = map[string]InstallerTarget{}
+	}
+	if s.Installers.Options.Platforms == nil {
+		s.Installers.Options.Platforms = []string{}
 	}
 }
 

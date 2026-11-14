@@ -107,47 +107,16 @@ export class FleetServeConfig {
 }
 
 /**
- * InstallerServerConfig is one build target's inputs. The Fleet URL and enroll
- * secret are what gets baked into the packages; a scan through a fleetctl
- * context fills them in, or they're typed by hand (no context needed).
+ * InstallerOptions is what gets built, whatever the context.
  */
-export class InstallerServerConfig {
-    /**
-     * Name names the custom target's folder and files. Unused for servers.
-     */
-    "name": string;
-
-    /**
-     * Fleetctl is the server ID whose fleetctl builds the custom target
-     * ("" = the first server with one). Unused for servers, which use their own.
-     */
-    "fleetctl": string;
-
-    /**
-     * Context is the fleetctl context used to talk to the server. Empty means
-     * auto-match by the server's port.
-     */
-    "context": string;
-
+export class InstallerOptions {
     /**
      * Platforms are installer keys (see internal/installers.Platforms).
      */
     "platforms": string[];
     "fleet_desktop": boolean;
+    "enable_scripts": boolean;
     "debug": boolean;
-
-    /**
-     * TeamID is the fleet/team whose enroll secret is used; nil = Unassigned
-     * (the global enroll secret). TeamName is display-only.
-     */
-    "team_id": number | null;
-    "team_name": string;
-
-    /**
-     * FleetURL and EnrollSecret are baked into the packages.
-     */
-    "fleet_url": string;
-    "enroll_secret": string;
 
     /**
      * ExtraFlags are additional `fleetctl package` flags, shell-quoted.
@@ -163,37 +132,19 @@ export class InstallerServerConfig {
     "desktop_channel": string;
     "osqueryd_channel": string;
 
-    /** Creates a new InstallerServerConfig instance. */
-    constructor($$source: Partial<InstallerServerConfig> = {}) {
-        if (!("name" in $$source)) {
-            this["name"] = "";
-        }
-        if (!("fleetctl" in $$source)) {
-            this["fleetctl"] = "";
-        }
-        if (!("context" in $$source)) {
-            this["context"] = "";
-        }
+    /** Creates a new InstallerOptions instance. */
+    constructor($$source: Partial<InstallerOptions> = {}) {
         if (!("platforms" in $$source)) {
             this["platforms"] = [];
         }
         if (!("fleet_desktop" in $$source)) {
             this["fleet_desktop"] = false;
         }
+        if (!("enable_scripts" in $$source)) {
+            this["enable_scripts"] = false;
+        }
         if (!("debug" in $$source)) {
             this["debug"] = false;
-        }
-        if (!("team_id" in $$source)) {
-            this["team_id"] = null;
-        }
-        if (!("team_name" in $$source)) {
-            this["team_name"] = "";
-        }
-        if (!("fleet_url" in $$source)) {
-            this["fleet_url"] = "";
-        }
-        if (!("enroll_secret" in $$source)) {
-            this["enroll_secret"] = "";
         }
         if (!("extra_flags" in $$source)) {
             this["extra_flags"] = "";
@@ -215,53 +166,109 @@ export class InstallerServerConfig {
     }
 
     /**
-     * Creates a new InstallerServerConfig instance from a string or object.
+     * Creates a new InstallerOptions instance from a string or object.
      */
-    static createFrom($$source: any = {}): InstallerServerConfig {
-        const $$createField3_0 = $$createType2;
+    static createFrom($$source: any = {}): InstallerOptions {
+        const $$createField0_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("platforms" in $$parsedSource) {
-            $$parsedSource["platforms"] = $$createField3_0($$parsedSource["platforms"]);
+            $$parsedSource["platforms"] = $$createField0_0($$parsedSource["platforms"]);
         }
-        return new InstallerServerConfig($$parsedSource as Partial<InstallerServerConfig>);
+        return new InstallerOptions($$parsedSource as Partial<InstallerOptions>);
     }
 }
 
 /**
- * InstallersConfig is the saved state of the Installers tab: where generated
- * fleetd packages land, the selected build target, and one build config per
- * target, keyed by ServerProfile.ID or "custom" (a Fleet server Hangar doesn't
- * run). A target missing from Servers uses DefaultInstallerServer.
+ * InstallerTarget is where one context's packages enroll. The Fleet URL and
+ * enroll secret are baked into the packages; scanning the context's server
+ * fills them in, or they're typed by hand.
+ */
+export class InstallerTarget {
+    /**
+     * TeamID is the fleet whose enroll secret is used; nil = Unassigned (the
+     * global enroll secret). TeamName is "" when the secret was typed in.
+     */
+    "team_id": number | null;
+    "team_name": string;
+    "fleet_url": string;
+    "enroll_secret": string;
+
+    /** Creates a new InstallerTarget instance. */
+    constructor($$source: Partial<InstallerTarget> = {}) {
+        if (!("team_id" in $$source)) {
+            this["team_id"] = null;
+        }
+        if (!("team_name" in $$source)) {
+            this["team_name"] = "";
+        }
+        if (!("fleet_url" in $$source)) {
+            this["fleet_url"] = "";
+        }
+        if (!("enroll_secret" in $$source)) {
+            this["enroll_secret"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new InstallerTarget instance from a string or object.
+     */
+    static createFrom($$source: any = {}): InstallerTarget {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new InstallerTarget($$parsedSource as Partial<InstallerTarget>);
+    }
+}
+
+/**
+ * InstallersConfig is the saved state of the Installers tab: which fleetctl
+ * context the packages are built for, what each context enrolls into, and the
+ * build options shared by all of them. Packages land in
+ * <file-server dir or primary repo>/packages/<context>/ (see
+ * internal/installers.OutputDir).
  */
 export class InstallersConfig {
     /**
-     * OutputDir is the root folder; each server gets a subfolder named after
-     * it. Empty means the default (~/Documents/fleetd-installers).
+     * Context is the fleetctl context to build for; "" means not picked yet
+     * (the "default" context when there is one).
      */
-    "output_dir": string;
+    "context": string;
 
     /**
-     * selected target; "" = the first server
+     * Manual builds without a context, from a typed-in Fleet URL and secret.
      */
-    "target": string;
-    "servers": { [_ in string]?: InstallerServerConfig };
+    "manual": boolean;
 
     /**
-     * SharePort is the port for sharing the output folder over HTTP; 0 means
+     * Targets is what each context enrolls into, keyed by context name;
+     * ManualTarget is the same for manual builds.
+     */
+    "targets": { [_ in string]?: InstallerTarget };
+    "manual_target": InstallerTarget;
+    "options": InstallerOptions;
+
+    /**
+     * SharePort is the port for sharing the packages folder over HTTP; 0 means
      * pick a free one.
      */
     "share_port": number;
 
     /** Creates a new InstallersConfig instance. */
     constructor($$source: Partial<InstallersConfig> = {}) {
-        if (!("output_dir" in $$source)) {
-            this["output_dir"] = "";
+        if (!("context" in $$source)) {
+            this["context"] = "";
         }
-        if (!("target" in $$source)) {
-            this["target"] = "";
+        if (!("manual" in $$source)) {
+            this["manual"] = false;
         }
-        if (!("servers" in $$source)) {
-            this["servers"] = {};
+        if (!("targets" in $$source)) {
+            this["targets"] = {};
+        }
+        if (!("manual_target" in $$source)) {
+            this["manual_target"] = (new InstallerTarget());
+        }
+        if (!("options" in $$source)) {
+            this["options"] = (new InstallerOptions());
         }
         if (!("share_port" in $$source)) {
             this["share_port"] = 0;
@@ -275,9 +282,17 @@ export class InstallersConfig {
      */
     static createFrom($$source: any = {}): InstallersConfig {
         const $$createField2_0 = $$createType4;
+        const $$createField3_0 = $$createType3;
+        const $$createField4_0 = $$createType5;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("servers" in $$parsedSource) {
-            $$parsedSource["servers"] = $$createField2_0($$parsedSource["servers"]);
+        if ("targets" in $$parsedSource) {
+            $$parsedSource["targets"] = $$createField2_0($$parsedSource["targets"]);
+        }
+        if ("manual_target" in $$parsedSource) {
+            $$parsedSource["manual_target"] = $$createField3_0($$parsedSource["manual_target"]);
+        }
+        if ("options" in $$parsedSource) {
+            $$parsedSource["options"] = $$createField4_0($$parsedSource["options"]);
         }
         return new InstallersConfig($$parsedSource as Partial<InstallersConfig>);
     }
@@ -427,7 +442,7 @@ export class NgrokYamlInfo {
      * Creates a new NgrokYamlInfo instance from a string or object.
      */
     static createFrom($$source: any = {}): NgrokYamlInfo {
-        const $$createField4_0 = $$createType6;
+        const $$createField4_0 = $$createType7;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("tunnels" in $$parsedSource) {
             $$parsedSource["tunnels"] = $$createField4_0($$parsedSource["tunnels"]);
@@ -724,8 +739,8 @@ export class ServerProfile {
      * Creates a new ServerProfile instance from a string or object.
      */
     static createFrom($$source: any = {}): ServerProfile {
-        const $$createField5_0 = $$createType7;
-        const $$createField7_0 = $$createType8;
+        const $$createField5_0 = $$createType8;
+        const $$createField7_0 = $$createType9;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ports" in $$parsedSource) {
             $$parsedSource["ports"] = $$createField5_0($$parsedSource["ports"]);
@@ -833,14 +848,14 @@ export class Settings {
      * Creates a new Settings instance from a string or object.
      */
     static createFrom($$source: any = {}): Settings {
-        const $$createField4_0 = $$createType9;
-        const $$createField5_0 = $$createType10;
-        const $$createField6_0 = $$createType8;
+        const $$createField4_0 = $$createType10;
+        const $$createField5_0 = $$createType11;
+        const $$createField6_0 = $$createType9;
         const $$createField8_0 = $$createType2;
-        const $$createField9_0 = $$createType11;
-        const $$createField10_0 = $$createType12;
-        const $$createField11_0 = $$createType14;
-        const $$createField13_0 = $$createType16;
+        const $$createField9_0 = $$createType12;
+        const $$createField10_0 = $$createType13;
+        const $$createField11_0 = $$createType15;
+        const $$createField13_0 = $$createType17;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("ngrok" in $$parsedSource) {
             $$parsedSource["ngrok"] = $$createField4_0($$parsedSource["ngrok"]);
@@ -939,17 +954,18 @@ export class TufConfig {
 const $$createType0 = EnvVar.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = $Create.Array($Create.Any);
-const $$createType3 = InstallerServerConfig.createFrom;
+const $$createType3 = InstallerTarget.createFrom;
 const $$createType4 = $Create.Map($Create.Any, $$createType3);
-const $$createType5 = NgrokTunnel.createFrom;
-const $$createType6 = $Create.Array($$createType5);
-const $$createType7 = ServerPorts.createFrom;
-const $$createType8 = FleetServeConfig.createFrom;
-const $$createType9 = NgrokConfig.createFrom;
-const $$createType10 = PythonConfig.createFrom;
-const $$createType11 = TufConfig.createFrom;
-const $$createType12 = InstallersConfig.createFrom;
-const $$createType13 = ServerProfile.createFrom;
-const $$createType14 = $Create.Array($$createType13);
-const $$createType15 = ScepProfile.createFrom;
-const $$createType16 = $Create.Array($$createType15);
+const $$createType5 = InstallerOptions.createFrom;
+const $$createType6 = NgrokTunnel.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = ServerPorts.createFrom;
+const $$createType9 = FleetServeConfig.createFrom;
+const $$createType10 = NgrokConfig.createFrom;
+const $$createType11 = PythonConfig.createFrom;
+const $$createType12 = TufConfig.createFrom;
+const $$createType13 = InstallersConfig.createFrom;
+const $$createType14 = ServerProfile.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = ScepProfile.createFrom;
+const $$createType17 = $Create.Array($$createType16);

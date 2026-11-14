@@ -37,6 +37,6 @@ export {
 };
 
 export {
-    InstallersLocalTUF,
-    InstallersTargetInfo
+    InstallersContextInfo,
+    InstallersLocalTUF
 } from "./models.js";

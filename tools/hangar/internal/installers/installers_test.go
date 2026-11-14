@@ -3,6 +3,7 @@ package installers
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -31,25 +32,105 @@ func TestSlug(t *testing.T) {
 			t.Errorf("Slug(%q) = %q, want %q", in, got, want)
 		}
 	}
-	if got := ServerSlug(settings.ServerProfile{ID: "s2", Name: "🚀"}); got != "s2" {
-		t.Errorf("ServerSlug fallback = %q, want s2", got)
+	for target, want := range map[settings.InstallerTarget]string{
+		{TeamName: "💻 Workstations"}:          "workstations",
+		{TeamName: UnassignedName}:            "unassigned",
+		{EnrollSecret: "typed", TeamName: ""}: ManualFleet,
+		{TeamName: "📱"}:                       ManualFleet,
+		{TeamName: "📱", TeamID: new(uint(9))}: "fleet-9",
+	} {
+		if got := FleetSlug(target); got != want {
+			t.Errorf("FleetSlug(%+v) = %q, want %q", target, got, want)
+		}
+	}
+}
+
+func TestContextDirName(t *testing.T) {
+	// Names that are already safe are used as they are.
+	for _, name := range []string{"default", "qa-premium_4.94", "context"} {
+		if got := ContextDirName(name); got != name {
+			t.Errorf("ContextDirName(%q) = %q, want it unchanged", name, got)
+		}
+	}
+	// Anything else is sanitized, can't add path segments, and gets a hash.
+	for _, name := range []string{"../../etc", "a/b c", "..", "Load Test (100k)", "Default"} {
+		got := ContextDirName(name)
+		if strings.ContainsAny(got, "/\\") || strings.HasPrefix(got, ".") || got == name {
+			t.Errorf("ContextDirName(%q) = %q", name, got)
+		}
+	}
+	if got := ContextDirName("a/b c"); !strings.HasPrefix(got, "a-b-c-") {
+		t.Errorf("ContextDirName(a/b c) = %q, want a-b-c-<hash>", got)
+	}
+	// Distinct contexts never share a folder, including on a case-insensitive disk.
+	seen := map[string]string{}
+	for _, name := range []string{"my ctx", "my-ctx", "my/ctx", "Prod", "prod", "PROD", "..", "context"} {
+		dir := strings.ToLower(ContextDirName(name))
+		if other, dup := seen[dir]; dup {
+			t.Errorf("%q and %q both map to %q", other, name, dir)
+		}
+		seen[dir] = name
+	}
+}
+
+func TestOutputDir(t *testing.T) {
+	cases := []struct {
+		name, fileServer, repo, context, want string
+	}{
+		{"file server wins", "/srv/files", "/src/fleet", "default", "/srv/files/packages/default"},
+		{"repo fallback", "", "/src/fleet", "qa", "/src/fleet/packages/qa"},
+		{"manual build", "/srv/files", "/src/fleet", "", "/srv/files/packages"},
+	}
+	for _, c := range cases {
+		got, err := OutputDir(c.fileServer, c.repo, c.context)
+		if err != nil || got != c.want {
+			t.Errorf("%s: OutputDir = %q, %v; want %q", c.name, got, err, c.want)
+		}
+	}
+	if got, err := OutputDir("", "/src/fleet", "../../tmp"); err != nil || filepath.Dir(got) != "/src/fleet/packages" {
+		t.Errorf("context must stay one folder under packages/: %q, %v", got, err)
+	}
+	if _, err := OutputDir("", "", "default"); err == nil {
+		t.Error("no file server dir and no repo should be an error")
+	}
+	if _, err := OutputDir("relative/dir", "", "default"); err == nil {
+		t.Error("a relative folder should be an error")
+	}
+}
+
+func TestInstallerExt(t *testing.T) {
+	cases := map[string]string{
+		"fleetd-x-linux-amd64.pkg.tar.zst": ".pkg.tar.zst",
+		"fleetd-x-macos.pkg":               ".pkg",
+		"a.msi":                            ".msi",
+		"a.deb":                            ".deb",
+		"a.rpm":                            ".rpm",
+		"manifest.json":                    "",
+		"a.tar.zst":                        "",
+	}
+	for name, want := range cases {
+		if got := InstallerExt(name); got != want {
+			t.Errorf("InstallerExt(%q) = %q, want %q", name, got, want)
+		}
 	}
 }
 
 func TestFileNames(t *testing.T) {
-	def := settings.DefaultInstallerServer()
+	def := settings.DefaultInstallerOptions()
 	var got []string
-	for _, j := range Jobs("rc", "/out/rc", def) {
+	for _, j := range Jobs("workstations", "/out/default", def) {
 		got = append(got, filepath.Base(j.OutFile))
 	}
 	want := []string{
-		"fleetd-rc-macos-desktop.pkg",
-		"fleetd-rc-windows-amd64-desktop.msi",
-		"fleetd-rc-windows-arm64-desktop.msi",
-		"fleetd-rc-linux-amd64-desktop.deb",
-		"fleetd-rc-linux-arm64-desktop.deb",
-		"fleetd-rc-linux-amd64-desktop.rpm",
-		"fleetd-rc-linux-arm64-desktop.rpm",
+		"fleetd-workstations-macos.pkg",
+		"fleetd-workstations-windows-amd64.msi",
+		"fleetd-workstations-windows-arm64.msi",
+		"fleetd-workstations-linux-amd64.deb",
+		"fleetd-workstations-linux-arm64.deb",
+		"fleetd-workstations-linux-amd64.rpm",
+		"fleetd-workstations-linux-arm64.rpm",
+		"fleetd-workstations-linux-amd64.pkg.tar.zst",
+		"fleetd-workstations-linux-arm64.pkg.tar.zst",
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("default names\n got %v\nwant %v", got, want)
@@ -59,36 +140,39 @@ func TestFileNames(t *testing.T) {
 	pkg, _ := PlatformByKey("macos")
 	cfg := def
 	cfg.FleetDesktop = false
-	if n := FileName("prev", deb, cfg); n != "fleetd-prev-linux-arm64.deb" {
-		t.Errorf("no desktop: %q", n)
+	cfg.EnableScripts = false
+	if n := FileName("unassigned", deb, cfg); n != "fleetd-unassigned-linux-arm64-nodesktop-noscripts.deb" {
+		t.Errorf("no desktop, no scripts: %q", n)
 	}
 	cfg = def
 	cfg.UpdateSource = settings.UpdateSourceLocalTUF
 	cfg.OrbitChannel = "edge"
-	if n := FileName("rc", pkg, cfg); n != "fleetd-rc-macos-tuf-edge-desktop.pkg" {
+	if n := FileName("rc", pkg, cfg); n != "fleetd-rc-macos-tuf-edge.pkg" {
 		t.Errorf("tuf+edge: %q", n)
 	}
 	cfg = def
 	cfg.OrbitChannel, cfg.DesktopChannel, cfg.OsquerydChannel = "edge", "edge", "edge"
-	if n := FileName("rc", pkg, cfg); n != "fleetd-rc-macos-edge-desktop.pkg" {
+	if n := FileName("rc", pkg, cfg); n != "fleetd-rc-macos-edge.pkg" {
 		t.Errorf("all edge: %q", n)
 	}
 	cfg = def
 	cfg.OrbitChannel, cfg.OsquerydChannel = "1.61.0", "edge"
-	if n := FileName("rc", pkg, cfg); n != "fleetd-rc-macos-orbit-1.61.0-osquery-edge-desktop.pkg" {
+	if n := FileName("rc", pkg, cfg); n != "fleetd-rc-macos-orbit-1.61.0-osquery-edge.pkg" {
 		t.Errorf("mixed channels: %q", n)
 	}
 }
 
 func TestJobsSubsetAndEncode(t *testing.T) {
-	cfg := settings.DefaultInstallerServer()
-	cfg.Platforms = []string{"rpm-arm64", "bogus", "macos"} // order follows Platforms
+	cfg := settings.DefaultInstallerOptions()
+	cfg.Platforms = []string{"arch-arm64", "rpm-arm64", "bogus", "macos"} // order follows Platforms
 	jobs := Jobs("rc", "/o", cfg)
-	if len(jobs) != 2 || jobs[0].Key != "macos" || jobs[1].Key != "rpm-arm64" {
+	if len(jobs) != 3 || jobs[0].Key != "macos" || jobs[1].Key != "rpm-arm64" || jobs[2].Key != "arch-arm64" {
 		t.Fatalf("jobs = %+v", jobs)
 	}
 	enc := EncodeJobs(jobs)
-	wantEnc := "macos\tpkg\t-\t/o/fleetd-rc-macos-desktop.pkg\nrpm-arm64\trpm\tarm64\t/o/fleetd-rc-linux-arm64-desktop.rpm\n"
+	wantEnc := "macos\tpkg\t-\t/o/fleetd-rc-macos.pkg\n" +
+		"rpm-arm64\trpm\tarm64\t/o/fleetd-rc-linux-arm64.rpm\n" +
+		"arch-arm64\tpkg.tar.zst\tarm64\t/o/fleetd-rc-linux-arm64.pkg.tar.zst\n"
 	if enc != wantEnc {
 		t.Errorf("EncodeJobs = %q", enc)
 	}
@@ -96,15 +180,16 @@ func TestJobsSubsetAndEncode(t *testing.T) {
 
 func TestCommonArgs(t *testing.T) {
 	in := BuildInputs{FleetURL: "https://fleet.example", EnrollSecret: "s3cret", UpdateURL: "https://tuf.example", UpdateRoots: `[{"k":1}]`}
-	def := settings.DefaultInstallerServer()
+	def := settings.DefaultInstallerOptions()
 	got := CommonArgs(def, in)
-	want := []string{"--fleet-url=https://fleet.example", "--enroll-secret=s3cret", "--disable-open-folder", "--fleet-desktop"}
+	want := []string{"--fleet-url=https://fleet.example", "--enroll-secret=s3cret", "--disable-open-folder", "--fleet-desktop", "--enable-scripts"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("default args %v", got)
 	}
 
 	cfg := def
 	cfg.FleetDesktop = false
+	cfg.EnableScripts = false
 	cfg.Debug = true
 	cfg.DesktopChannel = "edge"
 	cfg.UpdateSource = settings.UpdateSourceLocalTUF
@@ -119,68 +204,74 @@ func TestCommonArgs(t *testing.T) {
 }
 
 func TestValidateConfig(t *testing.T) {
-	cfg := settings.DefaultInstallerServer()
-	if err := ValidateConfig(cfg); err != nil {
+	cfg := settings.DefaultInstallerOptions()
+	if err := ValidateConfig(cfg, settings.InstallerTarget{FleetURL: "https://f"}); err != nil {
 		t.Errorf("default config: %v", err)
 	}
-	cfg.FleetURL = "https://f\n--insecure"
-	if err := ValidateConfig(cfg); err == nil {
+	if err := ValidateConfig(cfg, settings.InstallerTarget{FleetURL: "https://f\n--insecure"}); err == nil {
 		t.Error("newline in Fleet URL should be rejected")
 	}
 }
 
 func TestValidateArgs(t *testing.T) {
-	ok := CommonArgs(settings.DefaultInstallerServer(), BuildInputs{FleetURL: "https://f", EnrollSecret: "s"})
+	ok := CommonArgs(settings.DefaultInstallerOptions(), BuildInputs{FleetURL: "https://f", EnrollSecret: "s"})
 	if err := ValidateArgs(ok); err != nil {
 		t.Errorf("valid args: %v", err)
 	}
 	// A server-supplied value with a line break is caught, not split into flags.
-	bad := CommonArgs(settings.DefaultInstallerServer(), BuildInputs{FleetURL: "https://f", EnrollSecret: "s\n--insecure"})
+	bad := CommonArgs(settings.DefaultInstallerOptions(), BuildInputs{FleetURL: "https://f", EnrollSecret: "s\n--insecure"})
 	if err := ValidateArgs(bad); err == nil || !strings.Contains(err.Error(), "--enroll-secret") {
 		t.Errorf("secret with newline: %v", err)
 	}
 }
 
 func TestParseExtraFlags(t *testing.T) {
-	got, err := ParseExtraFlags(`--enable-scripts --host-identifier=instance  --osquery-flagfile "/tmp/my flags.txt" --end-user-email='a b@x.io'`)
+	got, err := ParseExtraFlags(`--use-system-configuration --host-identifier=instance  --osquery-flagfile "/tmp/my flags.txt" --end-user-email='a b@x.io'`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"--enable-scripts", "--host-identifier=instance", "--osquery-flagfile", "/tmp/my flags.txt", "--end-user-email=a b@x.io"}
+	want := []string{"--use-system-configuration", "--host-identifier=instance", "--osquery-flagfile", "/tmp/my flags.txt", "--end-user-email=a b@x.io"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ParseExtraFlags\n got %q\nwant %q", got, want)
 	}
 	if got, err := ParseExtraFlags("   "); err != nil || len(got) != 0 {
 		t.Errorf("blank: %q %v", got, err)
 	}
-	for _, bad := range []string{`--fleet-url=https://x`, `--outfile x.pkg`, `--enable-scripts "unclosed`} {
+	for _, bad := range []string{`--fleet-url=https://x`, `--outfile x.pkg`, `--enable-scripts`, `--host-identifier "unclosed`} {
 		if _, err := ParseExtraFlags(bad); err == nil {
 			t.Errorf("%q should be rejected", bad)
 		}
 	}
 	// Extra flags go last on the fleetctl command line.
-	args := CommonArgs(settings.DefaultInstallerServer(), BuildInputs{FleetURL: "https://f", EnrollSecret: "s", ExtraFlags: want[:2]})
-	if args[len(args)-2] != "--enable-scripts" || args[len(args)-1] != "--host-identifier=instance" {
+	args := CommonArgs(settings.DefaultInstallerOptions(), BuildInputs{FleetURL: "https://f", EnrollSecret: "s", ExtraFlags: want[:2]})
+	if args[len(args)-2] != "--use-system-configuration" || args[len(args)-1] != "--host-identifier=instance" {
 		t.Errorf("args = %q", args)
 	}
 }
 
-func TestMatchContext(t *testing.T) {
-	ctxs := map[string]string{
-		"default": "",
-		"public":  "https://fleetqa.ngrok.io",
-		"rc":      "https://localhost:8080",
-		"prev":    "https://127.0.0.1:8090/",
+func TestServerForAddress(t *testing.T) {
+	servers := []settings.ServerProfile{
+		{ID: "s1", Ports: settings.ServerPorts{Server: 8080}},
+		{ID: "s2", Ports: settings.ServerPorts{Server: 8090}},
 	}
-	order := []string{"default", "public", "rc", "prev"}
-	if got := MatchContext(ctxs, order, 8080); got != "rc" {
-		t.Errorf("8080 → %q", got)
+	cases := map[string]string{
+		"https://localhost:8080":       "s1",
+		"https://127.0.0.1:8090/":      "s2",
+		"https://[::1]:8090":           "s2",
+		"https://localhost:8100":       "",
+		"https://fleetqa.ngrok.io":     "",
+		"https://fleet.example:8080":   "",
+		"":                             "",
+		"not a url with spaces ::8080": "",
 	}
-	if got := MatchContext(ctxs, order, 8090); got != "prev" {
-		t.Errorf("8090 → %q", got)
-	}
-	if got := MatchContext(ctxs, order, 8100); got != "" {
-		t.Errorf("8100 → %q", got)
+	for addr, want := range cases {
+		got := ""
+		if srv := ServerForAddress(servers, addr); srv != nil {
+			got = srv.ID
+		}
+		if got != want {
+			t.Errorf("ServerForAddress(%q) = %q, want %q", addr, got, want)
+		}
 	}
 }
 
@@ -260,7 +351,7 @@ func TestUpdateManifest(t *testing.T) {
 
 func TestListOutputs(t *testing.T) {
 	dir := t.TempDir()
-	for _, n := range []string{"a.pkg", "b.deb", "manifest.json", "notes.txt"} {
+	for _, n := range []string{"a.pkg", "b.deb", "c.pkg.tar.zst", "manifest.json", "notes.txt"} {
 		if err := os.WriteFile(filepath.Join(dir, n), []byte("xx"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -272,7 +363,7 @@ func TestListOutputs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 2 {
+	if len(got) != 3 {
 		t.Fatalf("ListOutputs = %+v", got)
 	}
 	for _, f := range got {
@@ -364,6 +455,45 @@ func TestScan(t *testing.T) {
 	}
 }
 
+func TestScanErrorsSayWhatToFix(t *testing.T) {
+	srv := fakeFleet(t, "premium", true)
+	defer srv.Close()
+
+	c, err := NewClient(fleetctl.Credentials{Address: srv.URL, Token: "expired", TLSSkipVerify: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Scan(context.Background()); err == nil || !strings.Contains(err.Error(), "fleetctl login") {
+		t.Errorf("rejected token: %v", err)
+	}
+
+	c, err = NewClient(fleetctl.Credentials{Address: srv.URL, Token: "tok"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Scan(context.Background()); err == nil || !strings.Contains(err.Error(), "tls-skip-verify") {
+		t.Errorf("untrusted certificate: %v", err)
+	}
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	down := "https://" + l.Addr().String()
+	l.Close()
+	c, err = NewClient(fleetctl.Credentials{Address: down, Token: "tok", TLSSkipVerify: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Scan(context.Background()); err == nil || !strings.Contains(err.Error(), "no Fleet server is running") {
+		t.Errorf("server down: %v", err)
+	}
+
+	if _, err := NewClient(fleetctl.Credentials{Address: srv.URL}); err == nil || !strings.Contains(err.Error(), "fleetctl login") {
+		t.Errorf("no token: %v", err)
+	}
+}
+
 func TestScanOldRoutesAndFree(t *testing.T) {
 	old := fakeFleet(t, "premium", false)
 	defer old.Close()
@@ -427,12 +557,12 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 	if err := os.WriteFile(stub, []byte(stubSrc), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	cfg := settings.DefaultInstallerServer()
-	cfg.Platforms = []string{"macos", "windows-arm64", "deb-amd64", "deb-arm64", "rpm-amd64"}
+	cfg := settings.DefaultInstallerOptions()
+	cfg.Platforms = []string{"macos", "windows-arm64", "deb-amd64", "deb-arm64", "rpm-amd64", "arch-amd64"}
 	jobs := Jobs("rc", dir, cfg)
 	common := CommonArgs(cfg, BuildInputs{FleetURL: "https://f", EnrollSecret: "has space"})
 
-	for _, n := range []string{"fleetd-rc-windows-arm64-desktop.msi", "fleetd-rc-linux-amd64-desktop.deb"} {
+	for _, n := range []string{"fleetd-rc-windows-arm64.msi", "fleetd-rc-linux-amd64.deb"} {
 		if err := os.WriteFile(filepath.Join(dir, n), []byte("old\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
@@ -449,13 +579,14 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 		t.Fatalf("expected non-zero exit with a failed job, output:\n%s", out)
 	}
 	for _, want := range []string{
-		"==> [macos] building fleetd-rc-macos-desktop.pkg",
+		"==> [macos] building fleetd-rc-macos.pkg",
 		"==> [macos] ok",
 		"==> [windows-arm64] ok",
 		"==> [deb-amd64] failed",
 		"==> [deb-arm64] ok",
 		"==> [rpm-amd64] failed",
-		"==> done: 3 of 5 built",
+		"==> [arch-amd64] ok",
+		"==> done: 4 of 6 built",
 	} {
 		if !strings.Contains(string(out), want) {
 			t.Errorf("output missing %q:\n%s", want, out)
@@ -463,11 +594,11 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 	}
 	calls, _ := os.ReadFile(filepath.Join(dir, "calls.log"))
 	lines := strings.Split(strings.TrimSpace(string(calls)), "\n")
-	if len(lines) != 5 {
+	if len(lines) != 6 {
 		t.Fatalf("calls = %q", calls)
 	}
 	// A run that wrote nothing leaves the previous file alone.
-	if b, _ := os.ReadFile(filepath.Join(dir, "fleetd-rc-linux-amd64-desktop.deb")); string(b) != "old\n" {
+	if b, _ := os.ReadFile(filepath.Join(dir, "fleetd-rc-linux-amd64.deb")); string(b) != "old\n" {
 		t.Errorf("previous deb overwritten: %q", b)
 	}
 	// No temp dirs or stray files are left next to the outputs.
@@ -479,7 +610,7 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 	}
 	// The stray arm64 .msi was moved to its intended name (replacing an old
 	// one) and made readable.
-	msi := filepath.Join(dir, "fleetd-rc-windows-arm64-desktop.msi")
+	msi := filepath.Join(dir, "fleetd-rc-windows-arm64.msi")
 	if b, err := os.ReadFile(msi); err != nil || string(b) != "new\n" {
 		t.Errorf("arm64 msi = %q, %v", b, err)
 	}
@@ -489,7 +620,10 @@ for a in "$@"; do case "$a" in --outfile=*) touch "${a#--outfile=}";; esac; done
 	if !strings.HasPrefix(lines[0], "args: package --type=pkg --outfile=") || strings.Contains(lines[0], "--arch") {
 		t.Errorf("pkg call = %q", lines[0])
 	}
-	if !strings.Contains(lines[3], "--type=deb --arch=arm64 --outfile=") || !strings.Contains(lines[3], "--enroll-secret=has space --disable-open-folder --fleet-desktop") {
+	if _, err := os.Stat(filepath.Join(dir, "fleetd-rc-linux-amd64.pkg.tar.zst")); err != nil {
+		t.Errorf("Arch package not moved into place: %v", err)
+	}
+	if !strings.Contains(lines[3], "--type=deb --arch=arm64 --outfile=") || !strings.Contains(lines[3], "--enroll-secret=has space --disable-open-folder --fleet-desktop --enable-scripts") {
 		t.Errorf("deb call = %q", lines[3])
 	}
 }

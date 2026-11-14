@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -115,6 +116,29 @@ func (c *Client) get(ctx context.Context, path string, out any) error {
 	return json.Unmarshal(body, out)
 }
 
+// describe turns a failed first request into what to fix: the server being
+// down, the context's token or TLS settings, or the address itself.
+func (c *Client) describe(err error) error {
+	var dnsErr *net.DNSError
+	var netErr net.Error
+	var certErr *tls.CertificateVerificationError
+	switch {
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return fmt.Errorf("no Fleet server is running at %s", c.base)
+	case hasStatus(err, http.StatusUnauthorized):
+		return errors.New("the server rejected the context's API token (expired or logged out) — run fleetctl login for this context")
+	case hasStatus(err, http.StatusForbidden):
+		return errors.New("the context's user isn't allowed to read the server's settings")
+	case errors.As(err, &certErr):
+		return fmt.Errorf("%s's TLS certificate isn't trusted — set tls-skip-verify or rootca on the context", c.base)
+	case errors.As(err, &dnsErr):
+		return fmt.Errorf("can't resolve %s", dnsErr.Name)
+	case errors.As(err, &netErr) && netErr.Timeout():
+		return fmt.Errorf("%s didn't answer in time", c.base)
+	}
+	return fmt.Errorf("read %s/api/v1/fleet/config: %w", c.base, err)
+}
+
 func hasStatus(err error, codes ...int) bool {
 	var se *statusError
 	if !errors.As(err, &se) {
@@ -150,10 +174,7 @@ func (c *Client) Scan(ctx context.Context) (ScanResult, error) {
 		} `json:"license"`
 	}
 	if err := c.get(ctx, "/api/v1/fleet/config", &cfg); err != nil {
-		if errors.Is(err, syscall.ECONNREFUSED) {
-			return ScanResult{}, fmt.Errorf("no Fleet server is running at %s — start it in the Server tab, then scan again", c.base)
-		}
-		return ScanResult{}, fmt.Errorf("read config: %w", err)
+		return ScanResult{}, c.describe(err)
 	}
 	res := ScanResult{Address: c.base, ServerURL: cfg.ServerSettings.ServerURL, Premium: cfg.License.Tier == "premium"}
 

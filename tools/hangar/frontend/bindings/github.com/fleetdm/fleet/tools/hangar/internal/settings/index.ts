@@ -4,7 +4,8 @@
 export {
     EnvVar,
     FleetServeConfig,
-    InstallerServerConfig,
+    InstallerOptions,
+    InstallerTarget,
     InstallersConfig,
     NgrokConfig,
     NgrokRunningTunnel,

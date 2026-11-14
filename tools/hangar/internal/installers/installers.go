@@ -1,16 +1,19 @@
-// Package installers builds fleetd installers (fleetctl package) for the
-// Fleet servers Hangar runs, named so they can be told apart at a glance and
-// shared with test machines. It covers the pure parts — platform list, file
-// naming, the fleetctl arguments, matching a server to a fleetctl context,
-// reading channels from a TUF repo, the manifest — plus a small Fleet API
-// client (fleetapi.go) for scanning a server's fleets and enroll secrets.
+// Package installers builds fleetd installers (fleetctl package) for a
+// fleetctl context's Fleet server, or for a typed-in URL and enroll secret,
+// named so they can be told apart at a glance and shared with test machines.
+// It covers the pure parts — platform list, output folder and file naming, the
+// fleetctl arguments, matching a context to a Hangar server, reading channels
+// from a TUF repo, the manifest — plus a small Fleet API client (fleetapi.go)
+// for scanning a server's fleets and enroll secrets.
 //
-// The builds themselves run build.sh (embedded) through the process engine,
-// one process per server, so output streams to a log channel like the TUF tab.
+// The builds themselves run build.sh (embedded) through the process engine, one
+// at a time, so output streams to a log channel like the TUF tab.
 package installers
 
 import (
+	"crypto/sha256"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,27 +26,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/tools/hangar/internal/paths"
 	"github.com/fleetdm/fleet/tools/hangar/internal/settings"
 )
 
-// ProcPrefix / LogChannelPrefix namespace a server's build in the process
-// engine: "installers:s1" logs to "installers-s1".
 const (
-	ProcPrefix       = "installers:"
-	LogChannelPrefix = "installers-"
-	ManifestName     = "manifest.json"
-	// DefaultDirName is the default output folder, under ~/Documents.
-	DefaultDirName = "fleetd-installers"
+	// ProcID / LogChannel are the build's process-engine id and log channel
+	// (mirrored in lib/installers.ts).
+	ProcID       = "installers:build"
+	LogChannel   = "installers-build"
+	ManifestName = "manifest.json"
+	// PackagesDirName is the folder packages land in, under the file server's
+	// directory or the primary repo.
+	PackagesDirName = "packages"
 )
-
-// CustomTarget is the build target for a Fleet server Hangar doesn't run.
-const CustomTarget = "custom"
-
-// ProcID is the process-engine id of serverID's build.
-func ProcID(serverID string) string { return ProcPrefix + serverID }
-
-// LogChannel is the log channel of serverID's build.
-func LogChannel(serverID string) string { return LogChannelPrefix + serverID }
 
 //go:embed build.sh
 var BuildScript string
@@ -65,6 +61,23 @@ var Platforms = []Platform{
 	{Key: "deb-arm64", OS: "linux", Type: "deb", Arch: "arm64"},
 	{Key: "rpm-amd64", OS: "linux", Type: "rpm", Arch: "amd64"},
 	{Key: "rpm-arm64", OS: "linux", Type: "rpm", Arch: "arm64"},
+	{Key: "arch-amd64", OS: "linux", Type: "pkg.tar.zst", Arch: "amd64"},
+	{Key: "arch-arm64", OS: "linux", Type: "pkg.tar.zst", Arch: "arm64"},
+}
+
+// installerExts are the file extensions of every package type, longest first
+// so ".pkg.tar.zst" isn't read as ".pkg".
+var installerExts = []string{".pkg.tar.zst", ".pkg", ".msi", ".deb", ".rpm"}
+
+// InstallerExt is name's package extension (".pkg.tar.zst" whole, unlike
+// filepath.Ext), or "" when it isn't a package.
+func InstallerExt(name string) string {
+	for _, ext := range installerExts {
+		if strings.HasSuffix(name, ext) {
+			return ext
+		}
+	}
+	return ""
 }
 
 // PlatformByKey looks up a platform by its key.
@@ -86,20 +99,69 @@ func Slug(name string) string {
 	return strings.Trim(nonSlug.ReplaceAllString(strings.ToLower(name), "-"), "-")
 }
 
-// ServerSlug is the server's name as used in folder and file names, falling
-// back to its id ("s1") when the name has nothing usable.
-func ServerSlug(srv settings.ServerProfile) string {
-	if s := Slug(srv.Name); s != "" {
+// ManualFleet names the files of a build whose enroll secret was typed in.
+const ManualFleet = "manual"
+
+// FleetSlug is the fleet part of the file names: the picked fleet's name
+// ("unassigned" for the global secret), or ManualFleet for a typed-in secret.
+// A fleet whose name has nothing usable (all emoji) goes by its id.
+func FleetSlug(t settings.InstallerTarget) string {
+	if s := Slug(t.TeamName); s != "" {
 		return s
 	}
-	return Slug(srv.ID)
+	if t.TeamName != "" && t.TeamID != nil {
+		return fmt.Sprintf("fleet-%d", *t.TeamID)
+	}
+	return ManualFleet
+}
+
+var nonContextSafe = regexp.MustCompile(`[^a-z0-9._-]+`)
+
+// ContextDirName is the context's folder under packages/: its name lowercased
+// with anything but letters, digits, '.', '_' and '-' replaced, so it can't
+// add path segments. When that changes the name, a hash of the original is
+// appended: "my ctx" and "my-ctx" (or "Prod" and "prod" on a case-insensitive
+// disk) must not share a folder, or one's packages would replace the other's.
+func ContextDirName(context string) string {
+	name := strings.Trim(nonContextSafe.ReplaceAllString(strings.ToLower(context), "-"), "-.")
+	if name == context && name != "" {
+		return name
+	}
+	sum := sha256.Sum256([]byte(context))
+	if name == "" {
+		name = "context"
+	}
+	return name + "-" + hex.EncodeToString(sum[:3])
+}
+
+// OutputDir is where a build's packages go: <base>/packages/<context>/, or
+// <base>/packages/ for a manual build (context ""). base is the file server's
+// directory when one is set, so the packages can be downloaded from it right
+// away, else the primary repo.
+func OutputDir(fileServerDir, repo, context string) (string, error) {
+	base := strings.TrimSpace(fileServerDir)
+	if base == "" {
+		base = strings.TrimSpace(repo)
+	}
+	if base == "" {
+		return "", errors.New("set the Fleet repo (or the file server's directory) in Settings first")
+	}
+	base = paths.Expand(base)
+	if !filepath.IsAbs(base) {
+		return "", fmt.Errorf("packages folder must be an absolute path (got %s)", base)
+	}
+	dir := filepath.Join(base, PackagesDirName)
+	if context != "" {
+		dir = filepath.Join(dir, ContextDirName(context))
+	}
+	return dir, nil
 }
 
 // channelSuffix describes non-stable channels for the file name: "" when all
 // three are stable, "-edge" when every non-stable one is edge, and otherwise
 // one "-<component>-<channel>" per non-stable component (e.g. a version pin
 // from a local TUF repo: "-orbit-1.61.0").
-func channelSuffix(cfg settings.InstallerServerConfig) string {
+func channelSuffix(cfg settings.InstallerOptions) string {
 	type comp struct{ name, ch string }
 	var custom []comp
 	for _, c := range []comp{{"orbit", cfg.OrbitChannel}, {"desktop", cfg.DesktopChannel}, {"osquery", cfg.OsquerydChannel}} {
@@ -130,23 +192,26 @@ var nonSlugKeepDots = regexp.MustCompile(`[^a-z0-9.]+`)
 
 // FileName is the installer's file name:
 //
-//	fleetd-<server>-<os>[-<arch>][-tuf][-<channels>][-desktop].<ext>
+//	fleetd-<fleet>-<os>[-<arch>][-tuf][-<channels>][-nodesktop][-noscripts].<ext>
 //
-// e.g. fleetd-rc-linux-arm64-desktop.deb. Only settings that differ from the
+// e.g. fleetd-workstations-linux-arm64.deb. Only settings that differ from the
 // defaults add a part, so a default rebuild overwrites the same file (and its
 // share link keeps working).
-func FileName(serverSlug string, p Platform, cfg settings.InstallerServerConfig) string {
+func FileName(fleetSlug string, p Platform, opts settings.InstallerOptions) string {
 	var b strings.Builder
-	b.WriteString("fleetd-" + serverSlug + "-" + p.OS)
+	b.WriteString("fleetd-" + fleetSlug + "-" + p.OS)
 	if p.Arch != "" {
 		b.WriteString("-" + p.Arch)
 	}
-	if cfg.UpdateSource == settings.UpdateSourceLocalTUF {
+	if opts.UpdateSource == settings.UpdateSourceLocalTUF {
 		b.WriteString("-tuf")
 	}
-	b.WriteString(channelSuffix(cfg))
-	if cfg.FleetDesktop {
-		b.WriteString("-desktop")
+	b.WriteString(channelSuffix(opts))
+	if !opts.FleetDesktop {
+		b.WriteString("-nodesktop")
+	}
+	if !opts.EnableScripts {
+		b.WriteString("-noscripts")
 	}
 	b.WriteString("." + p.Type)
 	return b.String()
@@ -160,11 +225,11 @@ type Job struct {
 	OutFile string
 }
 
-// Jobs lists the runs for cfg's selected platforms, in Platforms order,
+// Jobs lists the runs for opts' selected platforms, in Platforms order,
 // writing into outDir. Unknown keys are ignored.
-func Jobs(serverSlug, outDir string, cfg settings.InstallerServerConfig) []Job {
+func Jobs(fleetSlug, outDir string, opts settings.InstallerOptions) []Job {
 	selected := map[string]bool{}
-	for _, k := range cfg.Platforms {
+	for _, k := range opts.Platforms {
 		selected[k] = true
 	}
 	var jobs []Job
@@ -172,7 +237,7 @@ func Jobs(serverSlug, outDir string, cfg settings.InstallerServerConfig) []Job {
 		if !selected[p.Key] {
 			continue
 		}
-		jobs = append(jobs, Job{Key: p.Key, Type: p.Type, Arch: p.Arch, OutFile: filepath.Join(outDir, FileName(serverSlug, p, cfg))})
+		jobs = append(jobs, Job{Key: p.Key, Type: p.Type, Arch: p.Arch, OutFile: filepath.Join(outDir, FileName(fleetSlug, p, opts))})
 	}
 	return jobs
 }
@@ -193,7 +258,7 @@ func EncodeJobs(jobs []Job) string {
 }
 
 // BuildInputs is everything resolved at build time that isn't in the saved
-// per-server config.
+// options.
 type BuildInputs struct {
 	FleetURL     string
 	EnrollSecret string
@@ -206,7 +271,7 @@ type BuildInputs struct {
 
 // CommonArgs are the fleetctl package flags shared by every job of a build
 // (build.sh adds --type, --arch and --outfile per job).
-func CommonArgs(cfg settings.InstallerServerConfig, in BuildInputs) []string {
+func CommonArgs(cfg settings.InstallerOptions, in BuildInputs) []string {
 	args := []string{
 		"--fleet-url=" + in.FleetURL,
 		"--enroll-secret=" + in.EnrollSecret,
@@ -214,6 +279,9 @@ func CommonArgs(cfg settings.InstallerServerConfig, in BuildInputs) []string {
 	}
 	if cfg.FleetDesktop {
 		args = append(args, "--fleet-desktop")
+	}
+	if cfg.EnableScripts {
+		args = append(args, "--enable-scripts")
 	}
 	if cfg.Debug {
 		args = append(args, "--debug")
@@ -237,7 +305,7 @@ func CommonArgs(cfg settings.InstallerServerConfig, in BuildInputs) []string {
 // may not repeat them.
 var managedFlags = map[string]bool{
 	"--type": true, "--arch": true, "--outfile": true, "--fleet-url": true, "--enroll-secret": true,
-	"--fleet-desktop": true, "--debug": true, "--disable-open-folder": true,
+	"--fleet-desktop": true, "--enable-scripts": true, "--debug": true, "--disable-open-folder": true,
 	"--orbit-channel": true, "--desktop-channel": true, "--osqueryd-channel": true,
 	"--update-url": true, "--update-roots": true,
 }
@@ -286,24 +354,29 @@ func ParseExtraFlags(s string) ([]string, error) {
 	return out, nil
 }
 
-// MatchContext picks the fleetctl context for a server listening on port: the
-// first context whose address is a loopback host on that port. "" if none.
-func MatchContext(contexts map[string]string, order []string, port uint16) string {
-	for _, name := range order {
-		u, err := url.Parse(contexts[name])
-		if err != nil || u.Host == "" {
-			continue
-		}
-		switch u.Hostname() {
-		case "localhost", "127.0.0.1", "::1":
-		default:
-			continue
-		}
-		if u.Port() == strconv.Itoa(int(port)) {
-			return name
+// ServerForAddress is the Hangar server a fleetctl context's address points
+// at (a loopback host on that server's port), or nil. Its fleetctl is the one
+// to build with, so packages match the server's version.
+func ServerForAddress(servers []settings.ServerProfile, address string) *settings.ServerProfile {
+	u, err := url.Parse(strings.TrimSpace(address))
+	if err != nil || u.Host == "" {
+		return nil
+	}
+	switch u.Hostname() {
+	case "localhost", "127.0.0.1", "::1":
+	default:
+		return nil
+	}
+	port := u.Port()
+	if port == "" {
+		port = map[string]string{"https": "443", "http": "80"}[u.Scheme]
+	}
+	for i := range servers {
+		if strconv.Itoa(int(servers[i].Ports.Server)) == port {
+			return &servers[i]
 		}
 	}
-	return ""
+	return nil
 }
 
 // Channels lists the channels a package can point each component at.
@@ -387,9 +460,11 @@ func versionLess(a, b string) bool {
 type ManifestEntry struct {
 	Platform        string `json:"platform"`
 	BuiltAt         string `json:"built_at"`
+	Context         string `json:"context,omitempty"`
 	FleetURL        string `json:"fleet_url"`
 	Team            string `json:"team"`
 	FleetDesktop    bool   `json:"fleet_desktop"`
+	EnableScripts   bool   `json:"enable_scripts"`
 	Debug           bool   `json:"debug"`
 	UpdateURL       string `json:"update_url"`
 	OrbitChannel    string `json:"orbit_channel"`
@@ -399,7 +474,7 @@ type ManifestEntry struct {
 	ExtraFlags      string `json:"extra_flags,omitempty"`
 }
 
-// Manifest is a server folder's manifest.json: one entry per file name.
+// Manifest is a packages folder's manifest.json: one entry per file name.
 type Manifest struct {
 	Files map[string]ManifestEntry `json:"files"`
 }
@@ -478,9 +553,9 @@ func ValidateArgs(args []string) error {
 
 // ValidateConfig rejects values that can't be passed through build.sh safely:
 // args travel newline-separated, so a newline would inject an extra flag.
-func ValidateConfig(cfg settings.InstallerServerConfig) error {
+func ValidateConfig(cfg settings.InstallerOptions, target settings.InstallerTarget) error {
 	for name, v := range map[string]string{
-		"Fleet URL":       cfg.FleetURL,
+		"Fleet URL":       target.FleetURL,
 		"orbit channel":   cfg.OrbitChannel,
 		"desktop channel": cfg.DesktopChannel,
 		"osquery channel": cfg.OsquerydChannel,
@@ -492,9 +567,9 @@ func ValidateConfig(cfg settings.InstallerServerConfig) error {
 	return nil
 }
 
-// OutputFile is one installer found in a server's output folder, with how it
-// was built when manifest.json has an entry for it (nil for files Hangar
-// didn't build).
+// OutputFile is one installer found in a packages folder, with how it was
+// built when manifest.json has an entry for it (nil for files Hangar didn't
+// build).
 type OutputFile struct {
 	Name    string         `json:"name"`
 	Path    string         `json:"path"`
@@ -503,8 +578,8 @@ type OutputFile struct {
 	Build   *ManifestEntry `json:"build"`
 }
 
-// ListOutputs lists the installers (pkg/msi/deb/rpm) in dir, newest first.
-// A missing dir is an empty list.
+// ListOutputs lists the installers (pkg/msi/deb/rpm/pkg.tar.zst) in dir,
+// newest first. A missing dir is an empty list.
 func ListOutputs(dir string) ([]OutputFile, error) {
 	var m Manifest
 	if b, err := os.ReadFile(filepath.Join(dir, ManifestName)); err == nil {
@@ -522,9 +597,7 @@ func ListOutputs(dir string) ([]OutputFile, error) {
 		if e.IsDir() {
 			continue
 		}
-		switch filepath.Ext(e.Name()) {
-		case ".pkg", ".msi", ".deb", ".rpm":
-		default:
+		if InstallerExt(e.Name()) == "" {
 			continue
 		}
 		info, err := e.Info()

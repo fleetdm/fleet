@@ -87,9 +87,11 @@ export class Download {
 export class ManifestEntry {
     "platform": string;
     "built_at": string;
+    "context"?: string;
     "fleet_url": string;
     "team": string;
     "fleet_desktop": boolean;
+    "enable_scripts": boolean;
     "debug": boolean;
     "update_url": string;
     "orbit_channel": string;
@@ -114,6 +116,9 @@ export class ManifestEntry {
         }
         if (!("fleet_desktop" in $$source)) {
             this["fleet_desktop"] = false;
+        }
+        if (!("enable_scripts" in $$source)) {
+            this["enable_scripts"] = false;
         }
         if (!("debug" in $$source)) {
             this["debug"] = false;
@@ -147,9 +152,9 @@ export class ManifestEntry {
 }
 
 /**
- * OutputFile is one installer found in a server's output folder, with how it
- * was built when manifest.json has an entry for it (nil for files Hangar
- * didn't build).
+ * OutputFile is one installer found in a packages folder, with how it was
+ * built when manifest.json has an entry for it (nil for files Hangar didn't
+ * build).
  */
 export class OutputFile {
     "name": string;

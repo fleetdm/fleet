@@ -233,11 +233,7 @@ func (d dotHidingDir) ReadDir(n int) ([]fs.DirEntry, error) {
 }
 
 func isInstaller(p string) bool {
-	switch path.Ext(p) {
-	case ".pkg", ".msi", ".deb", ".rpm":
-		return true
-	}
-	return false
+	return InstallerExt(p) != ""
 }
 
 // BaseURL is the share's address as another machine dials it.
@@ -346,7 +342,9 @@ func escapePath(p string) string {
 // carry shell syntax); the download goes to a fixed name in a private temp
 // dir. fileURL is percent-encoded, so it's safe inside single quotes.
 func InstallCommand(name, fileURL string) (cmd, shell string) {
-	switch path.Ext(name) {
+	switch InstallerExt(name) {
+	case ".pkg.tar.zst":
+		return fmt.Sprintf(`d=$(mktemp -d) && curl -fLo "$d/fleetd.pkg.tar.zst" '%s' && sudo pacman -U --noconfirm "$d/fleetd.pkg.tar.zst"`, fileURL), "sh"
 	case ".deb":
 		return fmt.Sprintf(`d=$(mktemp -d) && curl -fLo "$d/fleetd.deb" '%s' && sudo apt-get install -y "$d/fleetd.deb"`, fileURL), "sh"
 	case ".rpm":

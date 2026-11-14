@@ -7,42 +7,44 @@ import { LogBox } from "../LogLines";
 import {
   api,
   type ContextSummary,
-  type InstallerServerConfig,
+  type InstallerOptions,
+  type InstallerTarget,
   type InstallersChannels,
+  type InstallersContextInfo,
   type InstallersLocalTUF,
   type InstallersManifestEntry,
   type InstallersOutputFile,
   type InstallersScanResult,
-  type InstallersTargetInfo,
   type InstallersShareStatus,
   type InstallersSharedFile,
   type LogEntry,
   type LogLine,
   type ProcInfo,
-  type ServerProfile,
   type Settings,
 } from "../../lib/ipc";
 import {
-  CUSTOM_TARGET,
+  INSTALLERS_CHANNEL,
+  INSTALLERS_PROC_ID,
   INSTALLER_PLATFORMS,
   UPDATE_LOCAL_TUF,
   UPDATE_OFFICIAL,
-  defaultInstallerServer,
+  emptyInstallerTarget,
   formatBytes,
-  installersChannel,
-  installersProcId,
   jobStatuses,
   type JobStatus,
 } from "../../lib/installers";
-import { serverColorVar } from "../../lib/servers";
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"];
 // The share controls row swaps between the port box and the URL + buttons;
 // a fixed minimum height keeps the card from shifting when it does.
 const SHARE_ROW: React.CSSProperties = { display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap", minHeight: 40 };
 const SHARE_BUTTON: React.CSSProperties = { minWidth: 130 };
-// Fleet dropdown value shown while the enroll secret was typed by hand.
+// Fleet dropdown values: the enroll secret was typed by hand, or no fleet has
+// been picked yet. Real fleets use fleetOptionValue.
 const MANUAL_FLEET = "__manual__";
+const NO_FLEET = "__none__";
+// Context dropdown value for building without a fleetctl context.
+const NO_CONTEXT = "__none__";
 
 export function InstallersTab({
   settings,
@@ -54,8 +56,10 @@ export function InstallersTab({
   procs: ProcInfo[];
 }) {
   const cfg = settings.installers;
-  const [defaultDir, setDefaultDir] = useState("");
-  const [contexts, setContexts] = useState<ContextSummary[]>([]);
+  // null until ~/.fleet/config has been read, so the card doesn't mount in
+  // manual mode first and then jump to a context.
+  const [contexts, setContexts] = useState<ContextSummary[] | null>(null);
+  const [contextsErr, setContextsErr] = useState("");
   const [official, setOfficial] = useState<InstallersChannels | null>(null);
   const [localTuf, setLocalTuf] = useState<InstallersLocalTUF | null>(null);
   const [toast, setToast] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
@@ -68,20 +72,30 @@ export function InstallersTab({
   }, []);
   useEffect(() => () => window.clearTimeout(toastTimer.current), []);
 
+  const loadContexts = useCallback(() => {
+    api
+      .fleetctlReadContext()
+      .then((c) => {
+        setContexts(c.contexts);
+        setContextsErr("");
+      })
+      .catch((e) => {
+        setContexts([]);
+        setContextsErr(errText(e));
+      });
+  }, []);
   useEffect(() => {
-    api.installersDefaultOutputDir().then(setDefaultDir).catch(() => {});
+    loadContexts();
     api.installersOfficialChannels().then(setOfficial).catch(() => {});
-    api.fleetctlReadContext().then((c) => setContexts(c.contexts)).catch(() => {});
     const loadTuf = () => api.installersLocalTuf().then(setLocalTuf).catch(() => {});
     loadTuf();
     const poll = window.setInterval(loadTuf, 10000);
     return () => window.clearInterval(poll);
-  }, []);
+  }, [loadContexts]);
 
-  // Updates build on the latest settings (not the render-time prop), so two
-  // cards changing at once, or a change made while the folder picker is open,
-  // don't overwrite each other. Saves are debounced so typing in a text field
-  // doesn't race one disk write per keystroke.
+  // Updates build on the latest settings (not the render-time prop), so a
+  // scan finishing while the user types doesn't overwrite either change.
+  // Saves are debounced so typing doesn't race one disk write per keystroke.
   const latest = useRef(settings);
   latest.current = settings;
   const saveTimer = useRef<number | undefined>(undefined);
@@ -110,57 +124,45 @@ export function InstallersTab({
     [onSettingsChange, flushSave],
   );
 
-  const setOutputDir = useCallback(
-    (dir: string) => persist((s) => ({ ...s, installers: { ...s.installers, output_dir: dir } })),
+  // Only contexts with an address can be scanned or built for.
+  const usable = (contexts ?? []).filter((c) => !!c.address);
+  const manual = cfg.manual || usable.length === 0;
+  // Until a context is picked here, use "default" (fleetctl's own default).
+  const contextName = manual
+    ? ""
+    : usable.some((c) => c.name === cfg.context)
+      ? cfg.context
+      : (usable.find((c) => c.name === "default") ?? usable[0]).name;
+  const target = manual ? cfg.manual_target : (cfg.targets[contextName] ?? emptyInstallerTarget());
+
+  const selectContext = useCallback(
+    (value: string) =>
+      persist((s) => ({
+        ...s,
+        installers: value === NO_CONTEXT ? { ...s.installers, manual: true } : { ...s.installers, manual: false, context: value },
+      })),
     [persist],
   );
-
-  const setServerCfg = useCallback(
-    (serverId: string, next: InstallerServerConfig) =>
-      persist((s) => ({ ...s, installers: { ...s.installers, servers: { ...s.installers.servers, [serverId]: next } } })),
-    [persist],
-  );
-
-  const setSharePort = useCallback(
-    (port: number) => persist((s) => ({ ...s, installers: { ...s.installers, share_port: port } })),
-    [persist],
-  );
-
-  const chooseDir = useCallback(async () => {
-    try {
-      const dir = await api.pickFolder();
-      if (dir) setOutputDir(dir);
-    } catch (e) {
-      flash("err", errText(e));
-    }
-  }, [setOutputDir, flash]);
-
-  const outputRoot = cfg.output_dir.trim() || defaultDir;
-  // Only servers that can build: enabled, with a worktree to take fleetctl from.
-  const enabledServers = settings.servers.filter((srv) => srv.enabled && !!srv.worktree_path);
-  // Build targets: each Hangar server, plus a custom target for any other Fleet.
-  const targets: Target[] = [
-    ...enabledServers.map((srv) => ({ id: srv.id, label: srv.name, server: srv })),
-    { id: CUSTOM_TARGET, label: "Custom Fleet server" },
-  ];
-  // Until a target is picked here, follow the server selected in Hangar's switcher.
-  const targetId = targets.some((t) => t.id === cfg.target)
-    ? cfg.target
-    : (targets.find((t) => t.id === settings.active_server_id) ?? targets[0]).id;
-  // Switching to a Hangar server resets its context to the one matching its
-  // port (an explicit pick from earlier would otherwise win); the custom
-  // target keeps the context chosen for it.
+  // Keyed by the context it was started for, so a slow scan of the previous
+  // context can't write into the newly picked one.
   const setTarget = useCallback(
-    (id: string) =>
+    (forContext: string, forManual: boolean, update: (t: InstallerTarget) => InstallerTarget) =>
       persist((s) => {
-        const servers = { ...s.installers.servers };
-        if (id !== CUSTOM_TARGET && servers[id]?.context) servers[id] = { ...servers[id], context: "" };
-        return { ...s, installers: { ...s.installers, target: id, servers } };
+        const inst = s.installers;
+        if (forManual) return { ...s, installers: { ...inst, manual_target: update(inst.manual_target) } };
+        const cur = inst.targets[forContext] ?? emptyInstallerTarget();
+        return { ...s, installers: { ...inst, targets: { ...inst.targets, [forContext]: update(cur) } } };
       }),
     [persist],
   );
-  const buildingIds = new Set(
-    procs.filter((p) => p.id.startsWith("installers:") && (p.state === "running" || p.state === "stopping")).map((p) => p.id.slice("installers:".length)),
+  const setOptions = useCallback(
+    (update: (o: InstallerOptions) => InstallerOptions) =>
+      persist((s) => ({ ...s, installers: { ...s.installers, options: update(s.installers.options) } })),
+    [persist],
+  );
+  const setSharePort = useCallback(
+    (port: number) => persist((s) => ({ ...s, installers: { ...s.installers, share_port: port } })),
+    [persist],
   );
 
   return (
@@ -176,31 +178,32 @@ export function InstallersTab({
           gap: "var(--pad-medium)",
         }}
       >
+        {contexts === null ? (
+          <div className="dim">Reading fleetctl contexts…</div>
+        ) : (
+          <BuildCard
+            key={manual ? NO_CONTEXT : contextName}
+            contextName={contextName}
+            manual={manual}
+            contexts={usable}
+            contextsErr={contextsErr}
+            onContextChange={selectContext}
+            onReloadContexts={loadContexts}
+            target={target}
+            onTargetChange={(update) => setTarget(contextName, manual, update)}
+            options={cfg.options}
+            onOptionsChange={setOptions}
+            official={official}
+            localTuf={localTuf}
+            proc={procs.find((p) => p.id === INSTALLERS_PROC_ID)}
+            flash={flash}
+          />
+        )}
+
         <OutputShareCard
-          outputDir={cfg.output_dir}
-          defaultDir={defaultDir}
-          outputRoot={outputRoot}
-          onOutputDirChange={setOutputDir}
-          onChooseDir={chooseDir}
+          settings={settings}
           port={cfg.share_port}
           onPortChange={setSharePort}
-          flash={flash}
-        />
-
-        <TargetCard
-          key={targetId}
-          targetId={targetId}
-          targets={targets}
-          buildingIds={buildingIds}
-          onTargetChange={setTarget}
-          servers={enabledServers}
-          cfg={cfg.servers[targetId] ?? defaultInstallerServer()}
-          onChange={(next) => setServerCfg(targetId, next)}
-          outputDir={cfg.output_dir}
-          contexts={contexts}
-          official={official}
-          localTuf={localTuf}
-          proc={procs.find((p) => p.id === installersProcId(targetId))}
           flash={flash}
         />
       </div>
@@ -209,42 +212,44 @@ export function InstallersTab({
   );
 }
 
-type Target = { id: string; label: string; server?: ServerProfile };
-
-function TargetCard({
-  targetId,
-  targets,
-  buildingIds,
-  onTargetChange,
-  servers,
-  cfg,
-  onChange,
-  outputDir,
+function BuildCard({
+  contextName,
+  manual,
   contexts,
+  contextsErr,
+  onContextChange,
+  onReloadContexts,
+  target,
+  onTargetChange,
+  options,
+  onOptionsChange,
   official,
   localTuf,
   proc,
   flash,
 }: {
-  targetId: string;
-  targets: Target[];
-  buildingIds: Set<string>;
-  onTargetChange: (id: string) => void;
-  servers: ServerProfile[];
-  cfg: InstallerServerConfig;
-  onChange: (next: InstallerServerConfig) => void;
-  outputDir: string;
+  contextName: string;
+  manual: boolean;
   contexts: ContextSummary[];
+  contextsErr: string;
+  onContextChange: (value: string) => void;
+  onReloadContexts: () => void;
+  target: InstallerTarget;
+  onTargetChange: (update: (t: InstallerTarget) => InstallerTarget) => void;
+  options: InstallerOptions;
+  onOptionsChange: (update: (o: InstallerOptions) => InstallerOptions) => void;
   official: InstallersChannels | null;
   localTuf: InstallersLocalTUF | null;
   proc: ProcInfo | undefined;
   flash: (kind: "ok" | "err", msg: string) => void;
 }) {
-  const [info, setInfo] = useState<InstallersTargetInfo | null>(null);
+  const [info, setInfo] = useState<InstallersContextInfo | null>(null);
   const [showSecret, setShowSecret] = useState(false);
   const [flagsErr, setFlagsErr] = useState("");
   const [scan, setScan] = useState<InstallersScanResult | null>(null);
   const [scanErr, setScanErr] = useState("");
+  const [secretErr, setSecretErr] = useState("");
+  const [infoErr, setInfoErr] = useState("");
   const [scanning, setScanning] = useState(false);
   const [planned, setPlanned] = useState<Record<string, string>>({});
   const [outputs, setOutputs] = useState<InstallersOutputFile[]>([]);
@@ -252,93 +257,144 @@ function TargetCard({
   const [showLog, setShowLog] = useState(false);
   const [showFiles, setShowFiles] = useState(false);
 
-  // Async results (scan, fleet secret) merge into the latest config, not the
+  // Async results (scan, fleet secret) merge into the latest target, not the
   // one from the render that started them.
-  const cfgRef = useRef(cfg);
-  cfgRef.current = cfg;
-  const update = (patch: Partial<InstallerServerConfig>) => onChange({ ...cfgRef.current, ...patch });
-  const set = <K extends keyof InstallerServerConfig>(k: K, v: InstallerServerConfig[K]) => update({ [k]: v } as Partial<InstallerServerConfig>);
+  const targetRef = useRef(target);
+  targetRef.current = target;
+  const update = (patch: Partial<InstallerTarget>) => onTargetChange((t) => ({ ...t, ...patch }));
+  const setOpt = <K extends keyof InstallerOptions>(k: K, v: InstallerOptions[K]) => onOptionsChange((o) => ({ ...o, [k]: v }));
 
-  const server = targets.find((t) => t.id === targetId)?.server;
-  const isCustom = targetId === CUSTOM_TARGET;
+  // One build runs at a time, for whichever context started it; its label says
+  // which (built the same way in InstallersStartBuild).
   const building = proc?.state === "running" || proc?.state === "stopping";
-  const contextName = cfg.context || info?.matched_context || "";
-  const usableContexts = contexts.filter((c) => !!c.address);
-  const accent = server ? serverColorVar(server.color) : "var(--app-border)";
+  const ownProc = proc?.label === (manual ? "fleetd packages (manual)" : `fleetd packages (${contextName})`) ? proc : undefined;
+  const ownBuilding = building && !!ownProc;
+  const address = contexts.find((c) => c.name === contextName)?.address ?? "";
+
+  // Re-read now and then: building fleetctl from the Server tab, or changing
+  // the file server's directory, changes the answer.
+  useEffect(() => {
+    let cancelled = false;
+    const load = () =>
+      api
+        .installersContextInfo(contextName, manual)
+        .then((i) => {
+          if (cancelled) return;
+          setInfo(i);
+          setInfoErr("");
+        })
+        .catch((e) => {
+          if (!cancelled) setInfoErr(errText(e));
+        });
+    load();
+    const poll = window.setInterval(load, 10000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(poll);
+    };
+  }, [contextName, manual, proc?.state]);
+
+  const plannedKey = JSON.stringify([target.team_name, target.team_id, options]);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .installersPlannedFiles(target, options)
+      .then((p) => !cancelled && setPlanned(p))
+      .catch(() => !cancelled && setPlanned({}));
+    return () => {
+      cancelled = true;
+    };
+  }, [plannedKey]);
 
   useEffect(() => {
-    api.installersTargetInfo(targetId, cfg, outputDir).then(setInfo).catch(() => setInfo(null));
-  }, [targetId, cfg.name, cfg.fleetctl, server?.name, server?.worktree_path, outputDir]);
-
-  const plannedKey = JSON.stringify(cfg);
-  useEffect(() => {
-    api.installersPlannedFiles(targetId, cfg).then(setPlanned).catch(() => setPlanned({}));
-  }, [targetId, server?.name, plannedKey]);
-
-  useEffect(() => {
-    if (!cfg.extra_flags.trim()) {
+    if (!options.extra_flags.trim()) {
       setFlagsErr("");
       return;
     }
-    api.installersCheckExtraFlags(cfg.extra_flags).then(setFlagsErr).catch(() => setFlagsErr(""));
-  }, [cfg.extra_flags]);
+    let cancelled = false;
+    api
+      .installersCheckExtraFlags(options.extra_flags)
+      .then((err) => !cancelled && setFlagsErr(err))
+      .catch(() => !cancelled && setFlagsErr(""));
+    return () => {
+      cancelled = true;
+    };
+  }, [options.extra_flags]);
 
-  // Only the latest scan may update state, so a slow scan of a previous
-  // context can't overwrite the current one.
+  // Reads the context's server: its server_url, license and fleets. A fleet
+  // picked earlier gets its secret re-read (secrets can be rotated); on a first
+  // visit it's the global (Unassigned) secret, like fleetctl's own examples. A
+  // secret typed (or cleared) by hand is left alone. When the server can't be
+  // read, the URL falls back to the context's address and everything stays
+  // editable by hand.
   const scanSeq = useRef(0);
   const runScan = useCallback(async () => {
-    if (!contextName) return;
+    if (manual || !contextName) return;
     const seq = ++scanSeq.current;
     setScanning(true);
+    setSecretErr("");
     try {
       const res = await api.installersScan(contextName);
       if (seq !== scanSeq.current) return;
       setScan(res);
       setScanErr("");
-      // Fill in what's empty; never overwrite what's been typed.
-      const cur = cfgRef.current;
-      if (!cur.fleet_url.trim() && res.server_url) update({ fleet_url: res.server_url });
-      const team = res.teams.find((t) => (t.id ?? null) === (cur.team_id ?? null));
-      if (!cur.enroll_secret.trim() && team?.has_secret) {
-        const secret = await api.installersFleetSecret(contextName, team.id ?? null);
-        if (seq === scanSeq.current) update({ enroll_secret: secret, team_name: team.name });
+      const cur = targetRef.current;
+      const firstVisit = !cur.fleet_url.trim() && !cur.enroll_secret.trim() && !cur.team_name;
+      if (!cur.fleet_url.trim()) update({ fleet_url: res.server_url || address });
+      const team = cur.team_name
+        ? res.teams.find((t) => (t.id ?? null) === (cur.team_id ?? null))
+        : firstVisit
+          ? res.teams.find((t) => t.id == null)
+          : undefined;
+      if (!team) return;
+      if (!team.has_secret) {
+        if (cur.team_name) update({ enroll_secret: "" });
+        return;
       }
+      let secret: string;
+      try {
+        secret = await api.installersFleetSecret(contextName, team.id ?? null);
+      } catch (e) {
+        if (seq === scanSeq.current) setSecretErr(errText(e));
+        return;
+      }
+      const now = targetRef.current;
+      // Typed, cleared or picked something else while the secret was read.
+      if (seq !== scanSeq.current || now.team_name !== cur.team_name || now.enroll_secret !== cur.enroll_secret) return;
+      update({ enroll_secret: secret, team_id: team.id ?? null, team_name: team.name });
     } catch (e) {
       if (seq !== scanSeq.current) return;
       setScan(null);
       setScanErr(errText(e));
+      if (!targetRef.current.fleet_url.trim() && address) update({ fleet_url: address });
     } finally {
       if (seq === scanSeq.current) setScanning(false);
     }
-  }, [contextName]);
+  }, [contextName, manual, address]);
 
-  // Scan once a context is known, and again whenever it changes (dropping the
-  // old context's fleets right away).
+  // The card is keyed by context, so this runs whenever the context changes.
   useEffect(() => {
-    setScan(null);
-    setScanErr("");
-    if (contextName) runScan();
-  }, [contextName, runScan]);
+    runScan();
+  }, [runScan]);
 
   const loadOutputs = useCallback(() => {
-    api.installersListOutputs(targetId, cfgRef.current, outputDir).then(setOutputs).catch(() => setOutputs([]));
-  }, [targetId, outputDir]);
+    api.installersListOutputs(contextName, manual).then(setOutputs).catch(() => setOutputs([]));
+  }, [contextName, manual]);
   useEffect(() => {
     loadOutputs();
   }, [loadOutputs, proc?.state, info?.output_dir]);
 
-  // Tail this target's build log (statuses come from build.sh's marker lines).
-  const procId = installersProcId(targetId);
+  // Tail the build log (statuses come from build.sh's marker lines).
   const logSeq = useRef(0);
   const loadLog = useCallback(async () => {
     const seq = ++logSeq.current;
     try {
-      const w = await api.readLogWindow({ source: installersChannel(targetId), since_ms: 0, levels: LOG_LEVELS, max_lines: 5000 });
+      const w = await api.readLogWindow({ source: INSTALLERS_CHANNEL, since_ms: 0, levels: LOG_LEVELS, max_lines: 5000 });
       if (seq === logSeq.current) setEntries(w.entries);
     } catch (e) {
       console.error("installers readLogWindow", e);
     }
-  }, [targetId]);
+  }, []);
   useEffect(() => {
     loadLog();
     // Builds stream many lines (docker pulls); reload at most every 300ms.
@@ -346,7 +402,7 @@ function TargetCard({
     let cancelled = false;
     let un: (() => void) | undefined;
     listen<LogLine>("proc:log", (e) => {
-      if (e.payload.proc_id !== procId || timer !== undefined) return;
+      if (e.payload.proc_id !== INSTALLERS_PROC_ID || timer !== undefined) return;
       timer = window.setTimeout(() => {
         timer = undefined;
         loadLog();
@@ -362,211 +418,200 @@ function TargetCard({
       window.clearTimeout(timer);
       un?.();
     };
-  }, [loadLog, procId]);
+  }, [loadLog]);
   // A final reload when the build ends catches lines that raced the listener.
   useEffect(() => {
     loadLog();
   }, [proc?.state, loadLog]);
 
-  const statuses = useMemo(() => jobStatuses(entries), [entries]);
-  // Open the output when a build fails while the tab is open — not for an old
-  // failure on remount.
-  const prevState = useRef(proc?.state);
+  // The log and per-platform results belong to whichever context built last.
+  const statuses = useMemo(() => (ownProc ? jobStatuses(entries) : {}), [entries, ownProc]);
+  // Open the output when this context's build fails while the tab is open —
+  // not for an old failure on remount.
+  const prevState = useRef(ownProc?.state);
   useEffect(() => {
-    if (proc?.state === "failed" && prevState.current !== "failed") setShowLog(true);
-    prevState.current = proc?.state;
-  }, [proc?.state]);
+    if (ownProc?.state === "failed" && prevState.current !== "failed") setShowLog(true);
+    prevState.current = ownProc?.state;
+  }, [ownProc?.state]);
 
-  const channels: InstallersChannels | null = cfg.update_source === UPDATE_LOCAL_TUF ? (localTuf?.channels ?? null) : official;
+  const channels: InstallersChannels | null = options.update_source === UPDATE_LOCAL_TUF ? (localTuf?.channels ?? null) : official;
 
   const setUpdateSource = (source: string) => {
     const list = source === UPDATE_LOCAL_TUF ? localTuf?.channels : official;
-    const keep = (ch: string, options: string[] | undefined) => (options?.includes(ch) ? ch : "stable");
-    update({
+    const keep = (ch: string, opts: string[] | undefined) => (opts?.includes(ch) ? ch : "stable");
+    onOptionsChange((o) => ({
+      ...o,
       update_source: source,
-      orbit_channel: keep(cfg.orbit_channel, list?.orbit),
-      desktop_channel: keep(cfg.desktop_channel, list?.desktop),
-      osqueryd_channel: keep(cfg.osqueryd_channel, list?.osqueryd),
-    });
+      orbit_channel: keep(o.orbit_channel, list?.orbit),
+      desktop_channel: keep(o.desktop_channel, list?.desktop),
+      osqueryd_channel: keep(o.osqueryd_channel, list?.osqueryd),
+    }));
   };
 
-  const togglePlatform = (key: string) => {
-    const has = cfg.platforms.includes(key);
-    set("platforms", has ? cfg.platforms.filter((p) => p !== key) : [...cfg.platforms, key]);
-  };
+  const togglePlatform = (key: string) =>
+    onOptionsChange((o) => ({
+      ...o,
+      platforms: o.platforms.includes(key) ? o.platforms.filter((p) => p !== key) : [...o.platforms, key],
+    }));
 
-  // Switching context drops what came from the old one — the fleet, a secret
-  // filled from it, and a Fleet URL filled from its server_url — but keeps
-  // anything typed by hand.
-  const changeContext = (next: string) => {
-    const cur = cfgRef.current;
-    const urlFromScan = !!scan?.server_url && cur.fleet_url.trim() === scan.server_url;
-    update({
-      context: next,
-      team_id: null,
-      team_name: "",
-      ...(cur.team_name ? { enroll_secret: "" } : {}),
-      ...(urlFromScan ? { fleet_url: "" } : {}),
-    });
-  };
-
-  // Picking a fleet fills its enroll secret (and the Fleet URL if empty).
+  // Picking a fleet fills its enroll secret (and the Fleet URL if empty). The
+  // fleet is only applied once its secret is in hand, so a failed read leaves
+  // the old fleet and secret as they were, and a slower earlier pick can't land
+  // after a later one.
+  const pickSeq = useRef(0);
   const pickTeam = async (value: string) => {
-    if (value === MANUAL_FLEET) return;
-    const team = scan?.teams.find((t) => (t.id == null ? "" : String(t.id)) === value);
-    update({ team_id: team?.id ?? null, team_name: team?.name ?? "" });
+    const team = scan?.teams.find((t) => fleetOptionValue(t.id ?? null) === value);
     if (!team?.has_secret) return;
+    const seq = ++pickSeq.current;
+    // A rescan finishing now must not re-read the previous fleet over this one.
+    scanSeq.current++;
+    setScanning(false);
     try {
       const secret = await api.installersFleetSecret(contextName, team.id ?? null);
-      update({ enroll_secret: secret, team_name: team.name, fleet_url: cfgRef.current.fleet_url.trim() || scan?.server_url || "" });
+      if (seq !== pickSeq.current) return;
+      setSecretErr("");
+      update({
+        team_id: team.id ?? null,
+        team_name: team.name,
+        enroll_secret: secret,
+        fleet_url: targetRef.current.fleet_url.trim() || scan?.server_url || address,
+      });
     } catch (e) {
-      flash("err", errText(e));
+      if (seq === pickSeq.current) flash("err", errText(e));
     }
   };
 
   const build = async () => {
     try {
       setShowLog(false);
-      await api.installersStartBuild(targetId, cfg, outputDir);
+      await api.installersStartBuild(contextName, manual, target, options);
     } catch (e) {
       flash("err", errText(e));
     }
   };
   const stop = async () => {
     try {
-      await api.installersStopBuild(targetId);
+      await api.installersStopBuild();
     } catch (e) {
       flash("err", errText(e));
     }
   };
 
-  const teamValue = cfg.team_id == null ? "" : String(cfg.team_id);
-  const manualSecret = !!cfg.enroll_secret.trim() && !cfg.team_name;
-  const selectedTeam = scan?.teams.find((t) => (t.id ?? null) === (cfg.team_id ?? null));
+  const manualSecret = !!target.enroll_secret.trim() && !target.team_name;
+  const fleetValue = manualSecret ? MANUAL_FLEET : target.team_name ? fleetOptionValue(target.team_id ?? null) : NO_FLEET;
+  const selectedTeam = target.team_name ? scan?.teams.find((t) => (t.id ?? null) === (target.team_id ?? null)) : undefined;
   const missing: string[] = [];
-  if (!info?.fleetctl_exists) missing.push("fleetctl build");
-  if (!cfg.fleet_url.trim()) missing.push("Fleet URL");
-  if (!cfg.enroll_secret.trim()) missing.push("enroll secret");
-  if (cfg.platforms.length === 0) missing.push("a platform");
-  if (cfg.update_source === UPDATE_LOCAL_TUF && !localTuf?.available) missing.push("local TUF");
+  if (!info) missing.push(infoErr ? `context details (${infoErr})` : "context details");
+  if (info && !info.fleetctl_exists) missing.push("fleetctl build");
+  if (info?.output_err) missing.push("a packages folder");
+  if (!target.fleet_url.trim()) missing.push("Fleet URL");
+  if (!target.enroll_secret.trim()) missing.push("enroll secret");
+  if (options.platforms.length === 0) missing.push("a platform");
+  if (options.update_source === UPDATE_LOCAL_TUF && !localTuf?.available) missing.push("local TUF");
   if (flagsErr) missing.push("valid extra flags");
-  const canBuild = missing.length === 0 && !building;
+  const canBuild = !!info && missing.length === 0 && !building;
 
   // Selected platforms whose file name already exists in the folder: building
   // replaces them (only on success, but the old file is gone afterwards).
   const existing = new Map(outputs.map((f) => [f.name, f]));
-  const overwrites = cfg.platforms
+  const overwrites = options.platforms
     .map((k) => planned[k])
     .filter((name): name is string => !!name && existing.has(name))
     .map((name) => existing.get(name)!);
 
-  const fleetUrl = cfg.fleet_url.trim();
+  const fleetUrl = target.fleet_url.trim();
   const loopback = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(fleetUrl);
   const urlMatchesScan = !!scan?.server_url && fleetUrl.replace(/\/+$/, "") === scan.server_url.replace(/\/+$/, "");
 
   // Flag non-default agent options so a customized build isn't a surprise.
-  const nonStable = [cfg.orbit_channel, cfg.desktop_channel, cfg.osqueryd_channel].some((ch) => ch && ch !== "stable");
-  const customized = !cfg.fleet_desktop || cfg.update_source === UPDATE_LOCAL_TUF || nonStable || cfg.debug || !!cfg.extra_flags.trim();
+  const nonStable = [options.orbit_channel, options.desktop_channel, options.osqueryd_channel].some((ch) => ch && ch !== "stable");
+  const customized =
+    !options.fleet_desktop || !options.enable_scripts || options.update_source === UPDATE_LOCAL_TUF || nonStable || options.debug || !!options.extra_flags.trim();
 
   return (
-    <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--pad-smedium)", borderTop: `3px solid ${accent}` }}>
+    <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--pad-smedium)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)", flexWrap: "wrap" }}>
-        <div className="section-title" style={{ margin: 0 }}>Build for</div>
-        <select value={targetId} onChange={(e) => onTargetChange(e.target.value)} style={{ minWidth: 220 }}>
-          {targets.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
-              {t.server ? ` (:${t.server.ports.server})` : ""}
-              {buildingIds.has(t.id) ? " · building" : ""}
+        <div className="section-title" style={{ margin: 0 }}>Build fleetd packages for</div>
+        <select value={manual ? NO_CONTEXT : contextName} onChange={(e) => onContextChange(e.target.value)} disabled={building} style={{ minWidth: 260 }}>
+          {contexts.map((c) => (
+            <option key={c.name} value={c.name}>
+              {c.name} — {c.address}
             </option>
           ))}
+          <option value={NO_CONTEXT}>No context — enter the URL and secret by hand</option>
         </select>
-        {server && <span className="dot" style={{ background: accent }} />}
+        <button className="link-btn" onClick={onReloadContexts} title="Re-read ~/.fleet/config">
+          reload contexts
+        </button>
         <div style={{ flex: 1 }} />
-        {info && !info.fleetctl_exists && (
-          <span style={{ color: "var(--ui-error)" }} title={info.fleetctl}>fleetctl not built</span>
+        {!info && infoErr && <span style={{ color: "var(--ui-error)" }}>{infoErr}</span>}
+        {info && (
+          <span className={info.fleetctl_exists ? "dim" : undefined} style={{ color: info.fleetctl_exists ? undefined : "var(--ui-error)" }} title={info.fleetctl}>
+            {info.fleetctl_exists
+              ? info.fleetctl_server
+                ? `builds with ${info.fleetctl_server}'s fleetctl`
+                : "builds with Hangar's fleetctl"
+              : "fleetctl not built — build it from the Server tab"}
+          </span>
         )}
       </div>
-
-      {isCustom && (
-        <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap" }}>
-          <Field label="Name (used for the folder and file names)">
-            <input value={cfg.name} placeholder="custom" onChange={(e) => set("name", e.target.value)} style={{ width: "100%" }} />
-          </Field>
-          <Field label="Build with fleetctl from">
-            <select value={cfg.fleetctl} onChange={(e) => set("fleetctl", e.target.value)} style={{ width: "100%" }}>
-              <option value="">{servers[0] ? `${servers[0].name} (default)` : "no server with a worktree"}</option>
-              {servers.slice(1).map((srv) => (
-                <option key={srv.id} value={srv.id}>{srv.name}</option>
-              ))}
-            </select>
-          </Field>
-        </div>
+      {contextsErr ? (
+        <span style={{ color: "var(--ui-warning)" }}>Couldn't read ~/.fleet/config ({contextsErr}). Enter the URL and secret by hand, or reload contexts.</span>
+      ) : (
+        contexts.length === 0 && (
+          <span className="dim">No fleetctl contexts with an address in ~/.fleet/config. Log in from the fleetctl tab to pick fleets from a server.</span>
+        )
       )}
 
-      {/* Connection: an optional context scan fills the URL and secret below */}
-      <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap", alignItems: "flex-end" }}>
-        <Field label={isCustom ? "fleetctl context (optional)" : "fleetctl context"}>
-          {/* Preselects the context matching this server's port; only contexts with
-              an address can scan, so others aren't offered. */}
-          <select value={contextName} onChange={(e) => changeContext(e.target.value)} style={{ width: "100%" }}>
-            {(isCustom || !contextName) && <option value="">{isCustom ? "none — enter URL and secret below" : "no context matches this server — pick one"}</option>}
-            {contextName && !usableContexts.some((c) => c.name === contextName) && <option value={contextName}>{contextName}</option>}
-            {usableContexts.map((c) => (
-              <option key={c.name} value={c.name}>
-                {c.name} — {c.address}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Fleet">
-          <div style={{ display: "flex", gap: "var(--pad-small)" }}>
-            <select
-              value={manualSecret ? MANUAL_FLEET : teamValue}
-              onChange={(e) => pickTeam(e.target.value)}
-              disabled={!scan}
-              style={{ flex: 1, minWidth: 0 }}
-            >
-              {/* A hand-entered secret belongs to no fleet Hangar knows about, so
-                  the dropdown says so instead of showing the last fleet picked. */}
-              {manualSecret && <option value={MANUAL_FLEET}>— secret entered by hand</option>}
-              {!scan && !manualSecret && (
-                <option value={teamValue}>
-                  {cfg.team_name || (contextName ? "click Scan to list fleets" : "no context — enter the secret below")}
-                </option>
-              )}
-              {scan && !manualSecret && !selectedTeam && <option value={teamValue}>{cfg.team_name || "?"} (not found)</option>}
-              {scan?.teams.map((t) => (
-                <option key={t.id ?? "none"} value={t.id == null ? "" : String(t.id)} disabled={!t.has_secret}>
-                  {t.name}
-                  {t.has_secret ? "" : t.secret_hidden ? " (secret hidden from this user)" : " (no enroll secret)"}
-                </option>
-              ))}
-            </select>
-            {/* The label stays in the layout (hidden) under the spinner so the button never changes size. */}
-            <button
-              onClick={runScan}
-              disabled={!contextName || scanning}
-              aria-label={scanning ? "Scanning" : "Scan"}
-              title={contextName ? "List this server's fleets via the fleetctl context" : "Scanning needs a fleetctl context — pick one, or enter the URL and secret below"}
-              style={{ position: "relative" }}
-            >
-              <span style={{ visibility: scanning ? "hidden" : "visible" }}>Scan</span>
-              {scanning && (
-                <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span className="spin">↻</span>
-                </span>
-              )}
-            </button>
-          </div>
-        </Field>
-      </div>
-      {scanErr && <span style={{ color: "var(--ui-error)" }}>{scanErr}</span>}
-      {scan && (
-        <span className="dim">
-          {scan.premium ? "Premium" : "Free (no fleets — Unassigned only)"} · {scan.teams.length - 1} fleet{scan.teams.length === 2 ? "" : "s"} · via{" "}
-          <span className="mono">{scan.context}</span>
-        </span>
+      {/* Where the enroll secret comes from: a fleet on the context's server, or typed in */}
+      {!manual && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <Field label="Fleet">
+            <div style={{ display: "flex", gap: "var(--pad-small)" }}>
+              <select value={fleetValue} onChange={(e) => pickTeam(e.target.value)} disabled={!scan} style={{ flex: 1, minWidth: 0 }}>
+                {/* A hand-entered secret belongs to no fleet Hangar knows about, so
+                    the dropdown says so instead of showing the last fleet picked. */}
+                {manualSecret && <option value={MANUAL_FLEET}>— secret entered by hand</option>}
+                {!scan && !manualSecret && (
+                  <option value={fleetValue}>{scanning ? "loading fleets…" : target.team_name || "fleets unavailable — enter the secret below"}</option>
+                )}
+                {scan && !manualSecret && !selectedTeam && (
+                  <option value={fleetValue}>{target.team_name ? `${target.team_name} (not found)` : "pick a fleet"}</option>
+                )}
+                {scan?.teams.map((t) => (
+                  <option key={t.id ?? "none"} value={fleetOptionValue(t.id ?? null)} disabled={!t.has_secret}>
+                    {t.name}
+                    {t.has_secret ? "" : t.secret_hidden ? " (secret hidden from this user)" : " (no enroll secret)"}
+                  </option>
+                ))}
+              </select>
+              {/* The label stays in the layout (hidden) under the spinner so the button never changes size. */}
+              <button onClick={runScan} disabled={scanning} aria-label={scanning ? "Loading" : "Reload"} title="Read the fleets again" style={{ position: "relative" }}>
+                <span style={{ visibility: scanning ? "hidden" : "visible" }}>Reload</span>
+                {scanning && (
+                  <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span className="spin">↻</span>
+                  </span>
+                )}
+              </button>
+            </div>
+          </Field>
+          {scanErr ? (
+            <span style={{ color: "var(--ui-warning)" }}>
+              Couldn't read fleets through <span className="mono">{contextName}</span>: {scanErr}. You can still build. Check the Fleet URL and paste an
+              enroll secret below.
+            </span>
+          ) : scan ? (
+            <span className="dim">
+              {scan.premium
+                ? `Premium · ${scan.teams.length - 1} fleet${scan.teams.length === 2 ? "" : "s"}`
+                : "Free · Unassigned only (fleets need Premium)"}
+            </span>
+          ) : null}
+          {secretErr && (
+            <span style={{ color: "var(--ui-warning)" }}>Couldn't read the enroll secret: {secretErr}. Pick another fleet or paste a secret below.</span>
+          )}
+        </div>
       )}
 
       {/* What gets baked into the packages — visible so it's easy to confirm */}
@@ -584,17 +629,24 @@ function TargetCard({
           }
           warn={loopback}
         >
-          <input value={cfg.fleet_url} placeholder="https://fleet.example.com" onChange={(e) => set("fleet_url", e.target.value)} style={{ width: "100%" }} />
+          <div style={{ display: "flex", gap: "var(--pad-small)" }}>
+            <input value={target.fleet_url} placeholder="https://fleet.example.com" onChange={(e) => update({ fleet_url: e.target.value })} style={{ flex: 1, minWidth: 0 }} />
+            {scan?.server_url && !urlMatchesScan && (
+              <button onClick={() => update({ fleet_url: scan.server_url })} title={scan.server_url}>
+                Use server_url
+              </button>
+            )}
+          </div>
         </Field>
         <Field
           label="Enroll secret"
-          hint={cfg.enroll_secret.trim() ? (cfg.team_name ? `from ${cfg.team_name}` : "entered by hand") : undefined}
+          hint={target.enroll_secret.trim() ? (target.team_name ? `from ${target.team_name}` : "entered by hand") : undefined}
         >
           <div style={{ display: "flex", gap: "var(--pad-small)" }}>
             <input
               type={showSecret ? "text" : "password"}
-              value={cfg.enroll_secret}
-              placeholder="scan and pick a fleet, or paste one"
+              value={target.enroll_secret}
+              placeholder={manual ? "paste an enroll secret" : "pick a fleet, or paste one"}
               onChange={(e) => update({ enroll_secret: e.target.value, team_id: null, team_name: "" })}
               autoComplete="off"
               spellCheck={false}
@@ -612,17 +664,17 @@ function TargetCard({
           <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
             <span style={{ fontWeight: 600 }}>Platforms</span>
             <div style={{ flex: 1 }} />
-            <button className="link-btn" onClick={() => set("platforms", INSTALLER_PLATFORMS.map((p) => p.key))}>all</button>
-            <button className="link-btn" onClick={() => set("platforms", [])}>none</button>
+            <button className="link-btn" onClick={() => setOpt("platforms", INSTALLER_PLATFORMS.map((p) => p.key))}>all</button>
+            <button className="link-btn" onClick={() => setOpt("platforms", [])}>none</button>
           </div>
           {INSTALLER_PLATFORMS.map((p) => (
-            <label key={p.key} style={{ display: "grid", gridTemplateColumns: "auto 150px 1fr auto", alignItems: "center", gap: 8 }}>
-              <input type="checkbox" checked={cfg.platforms.includes(p.key)} onChange={() => togglePlatform(p.key)} />
+            <label key={p.key} style={{ display: "grid", gridTemplateColumns: "auto 190px 1fr auto", alignItems: "center", gap: 8 }}>
+              <input type="checkbox" checked={options.platforms.includes(p.key)} onChange={() => togglePlatform(p.key)} />
               <span>{p.label}</span>
               <span className="mono dim" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={planned[p.key]}>
                 {planned[p.key] ?? ""}
               </span>
-              <JobBadge status={statuses[p.key]} active={building} userStopped={!!proc?.was_user_stopped} />
+              <JobBadge status={statuses[p.key]} active={ownBuilding} userStopped={!!ownProc?.was_user_stopped} />
             </label>
           ))}
         </div>
@@ -633,26 +685,30 @@ function TargetCard({
             {customized && <span style={{ color: "var(--ui-warning)" }}>· not the defaults</span>}
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <input type="checkbox" checked={cfg.fleet_desktop} onChange={(e) => set("fleet_desktop", e.target.checked)} />
+            <input type="checkbox" checked={options.fleet_desktop} onChange={(e) => setOpt("fleet_desktop", e.target.checked)} />
             Include Fleet Desktop
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <input type="checkbox" checked={options.enable_scripts} onChange={(e) => setOpt("enable_scripts", e.target.checked)} />
+            Enable scripts (<span className="mono">--enable-scripts</span>)
           </label>
           <div style={{ display: "flex", gap: "var(--pad-large)", alignItems: "center", flexWrap: "wrap" }}>
             <span style={{ fontWeight: 600 }}>Updates</span>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <input type="radio" checked={cfg.update_source !== UPDATE_LOCAL_TUF} onChange={() => setUpdateSource(UPDATE_OFFICIAL)} />
+              <input type="radio" checked={options.update_source !== UPDATE_LOCAL_TUF} onChange={() => setUpdateSource(UPDATE_OFFICIAL)} />
               Official (updates.fleetdm.com)
             </label>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }} title={localTuf?.available ? localTuf.url : localTuf?.reason}>
               <input
                 type="radio"
-                checked={cfg.update_source === UPDATE_LOCAL_TUF}
-                disabled={!localTuf?.available && cfg.update_source !== UPDATE_LOCAL_TUF}
+                checked={options.update_source === UPDATE_LOCAL_TUF}
+                disabled={!localTuf?.available && options.update_source !== UPDATE_LOCAL_TUF}
                 onChange={() => setUpdateSource(UPDATE_LOCAL_TUF)}
               />
               Local TUF
             </label>
           </div>
-          {cfg.update_source === UPDATE_LOCAL_TUF && (
+          {options.update_source === UPDATE_LOCAL_TUF && (
             <span className={localTuf?.available ? "dim" : undefined} style={{ color: localTuf?.available ? undefined : "var(--ui-error)" }}>
               {localTuf?.available ? (
                 <>
@@ -664,25 +720,25 @@ function TargetCard({
             </span>
           )}
           <div style={{ display: "flex", gap: "var(--pad-medium)", flexWrap: "wrap" }}>
-            <ChannelSelect label="orbit" value={cfg.orbit_channel} options={channels?.orbit} onChange={(v) => set("orbit_channel", v)} />
-            <ChannelSelect label="Fleet Desktop" value={cfg.desktop_channel} options={channels?.desktop} onChange={(v) => set("desktop_channel", v)} />
-            <ChannelSelect label="osquery" value={cfg.osqueryd_channel} options={channels?.osqueryd} onChange={(v) => set("osqueryd_channel", v)} />
+            <ChannelSelect label="orbit" value={options.orbit_channel} options={channels?.orbit} onChange={(v) => setOpt("orbit_channel", v)} />
+            <ChannelSelect label="Fleet Desktop" value={options.desktop_channel} options={channels?.desktop} onChange={(v) => setOpt("desktop_channel", v)} />
+            <ChannelSelect label="osquery" value={options.osqueryd_channel} options={channels?.osqueryd} onChange={(v) => setOpt("osqueryd_channel", v)} />
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <input type="checkbox" checked={cfg.debug} onChange={(e) => set("debug", e.target.checked)} />
+            <input type="checkbox" checked={options.debug} onChange={(e) => setOpt("debug", e.target.checked)} />
             Debug logging in orbit
           </label>
           <Field
             label="Extra fleetctl package flags"
             full
-            hint={flagsErr || "Added to every build, e.g. --enable-scripts --host-identifier=instance. Quote values with spaces."}
+            hint={flagsErr || "Added to every build, e.g. --host-identifier=instance. Quote values with spaces."}
             warn={!!flagsErr}
           >
             <input
               className="mono"
-              value={cfg.extra_flags}
-              placeholder="--enable-scripts"
-              onChange={(e) => set("extra_flags", e.target.value)}
+              value={options.extra_flags}
+              placeholder="--host-identifier=instance"
+              onChange={(e) => setOpt("extra_flags", e.target.value)}
               spellCheck={false}
               style={{ width: "100%" }}
             />
@@ -696,32 +752,36 @@ function TargetCard({
           <button className="danger" onClick={stop}>Stop</button>
         ) : (
           <button className="primary" onClick={build} disabled={!canBuild}>
-            Generate {cfg.platforms.length} installer{cfg.platforms.length === 1 ? "" : "s"}
+            Generate {options.platforms.length} package{options.platforms.length === 1 ? "" : "s"}
           </button>
         )}
-        <BuildStatus proc={proc} building={building} statuses={statuses} />
-        {!building && !canBuild && <span className="dim">needs: {missing.join(", ")}</span>}
+        {building && !ownProc ? (
+          <span className="dim">{proc?.label} is building — one build at a time</span>
+        ) : (
+          <BuildStatus proc={ownProc} building={ownBuilding} statuses={statuses} />
+        )}
+        {!building && !canBuild && (info || infoErr) && <span className="dim">needs: {missing.join(", ")}</span>}
         {!building && overwrites.length > 0 && (
           <span
             style={{ color: "var(--ui-warning)" }}
             title={overwrites.map((f) => `${f.name} (built ${new Date(f.mod_time_ms).toLocaleString()})`).join("\n")}
           >
-            ⚠ replaces {overwrites.length} existing installer{overwrites.length === 1 ? "" : "s"} (newest built{" "}
+            ⚠ replaces {overwrites.length} existing package{overwrites.length === 1 ? "" : "s"} (newest built{" "}
             {new Date(Math.max(...overwrites.map((f) => f.mod_time_ms))).toLocaleString()})
           </span>
         )}
         <div style={{ flex: 1 }} />
-        {entries.length > 0 && (
+        {ownProc && entries.length > 0 && (
           <button className="link-btn" onClick={() => setShowLog((v) => !v)}>{showLog ? "hide output" : "show output"}</button>
         )}
       </div>
-      {showLog && <LogBox entries={entries} maxHeight={260} />}
+      {ownProc && showLog && <LogBox entries={entries} maxHeight={260} />}
 
-      {/* What's in this target's folder, with how each file was built (from manifest.json) */}
+      {/* What's in this context's folder, with how each file was built (from manifest.json) */}
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
           {outputs.length === 0 ? (
-            <span className="dim">No installers in this target's folder yet</span>
+            <span className="dim">No packages in this folder yet</span>
           ) : (
             <button
               className="link-btn"
@@ -731,15 +791,26 @@ function TargetCard({
             >
               <span style={{ fontWeight: 600, color: "var(--app-text)" }}>{showFiles ? "▾" : "▸"} Files</span>
               <span className="dim">
-                {outputs.length} installer{outputs.length === 1 ? "" : "s"} · newest {new Date(outputs[0].mod_time_ms).toLocaleString()}
+                {outputs.length} package{outputs.length === 1 ? "" : "s"} · newest {new Date(outputs[0].mod_time_ms).toLocaleString()}
               </span>
             </button>
           )}
           <div style={{ flex: 1 }} />
-          {info && outputs.length > 0 && (
-            <button className="link-btn" onClick={() => api.openPath(info.output_dir, false).catch((e) => flash("err", errText(e)))} title={info.output_dir}>
-              open folder
-            </button>
+          {info?.output_err ? (
+            <span style={{ color: "var(--ui-error)" }}>{info.output_err}</span>
+          ) : (
+            info && (
+              <>
+                <span className="mono dim" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={info.output_dir}>
+                  {info.output_dir}
+                </span>
+                {outputs.length > 0 && (
+                  <button className="link-btn" onClick={() => api.openPath(info.output_dir, false).catch((e) => flash("err", errText(e)))}>
+                    open folder
+                  </button>
+                )}
+              </>
+            )
           )}
         </div>
         {showFiles &&
@@ -759,24 +830,38 @@ function TargetCard({
 }
 
 function OutputShareCard({
-  outputDir,
-  defaultDir,
-  outputRoot,
-  onOutputDirChange,
-  onChooseDir,
+  settings,
   port,
   onPortChange,
   flash,
 }: {
-  outputDir: string;
-  defaultDir: string;
-  outputRoot: string;
-  onOutputDirChange: (dir: string) => void;
-  onChooseDir: () => void;
+  settings: Settings;
   port: number;
   onPortChange: (port: number) => void;
   flash: (kind: "ok" | "err", msg: string) => void;
 }) {
+  // The packages folder follows the file server's directory, else the primary
+  // repo (see internal/installers.OutputDir).
+  const fileServerDir = settings.python_server.directory ?? "";
+  const primaryRepo = settings.servers[0]?.worktree_path ?? "";
+  const [outputRoot, setOutputRoot] = useState("");
+  const [rootErr, setRootErr] = useState("");
+  useEffect(() => {
+    api
+      .installersPackagesRoot()
+      .then((r) => {
+        setOutputRoot(r);
+        setRootErr("");
+      })
+      .catch((e) => {
+        setOutputRoot("");
+        setRootErr(errText(e));
+      });
+  }, [fileServerDir, primaryRepo]);
+  const [lanIp, setLanIp] = useState("");
+  useEffect(() => {
+    api.lanIp().then(setLanIp).catch(() => setLanIp(""));
+  }, []);
   const [status, setStatus] = useState<InstallersShareStatus | null>(null);
   const [files, setFiles] = useState<InstallersSharedFile[]>([]);
   const [suggested, setSuggested] = useState<number | null>(null);
@@ -795,14 +880,14 @@ function OutputShareCard({
     try {
       const st = await api.installersShareStatus();
       // Listed either way: with install commands while sharing, plain otherwise.
-      const list = await api.installersSharedFiles(outputDir).catch(() => [] as InstallersSharedFile[]);
+      const list = await api.installersSharedFiles().catch(() => [] as InstallersSharedFile[]);
       if (id !== seq.current) return;
       setStatus(st);
       setFiles(list);
     } catch (e) {
       console.error("share status", e);
     }
-  }, [outputDir]);
+  }, [outputRoot]);
   useEffect(() => {
     refresh();
     const poll = window.setInterval(() => {
@@ -836,7 +921,7 @@ function OutputShareCard({
   const start = () =>
     act(async () => {
       try {
-        await api.installersShareStart(outputDir, port);
+        await api.installersShareStart(port);
       } catch (e) {
         flash("err", errText(e));
         suggest();
@@ -870,30 +955,33 @@ function OutputShareCard({
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: "var(--pad-smedium)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "var(--pad-small)" }}>
-        <div className="section-title" style={{ margin: 0 }}>Output &amp; sharing</div>
+        <div className="section-title" style={{ margin: 0 }}>Packages folder &amp; sharing</div>
         <StatusPill label="HTTP server" up={running} upText="sharing" downText="not sharing" />
-        <div style={{ flex: 1 }} />
-        <span className="dim">
-          builds with each server's own <span className="mono">fleetctl package</span>
-        </span>
       </div>
 
-      {/* Folder: locked while sharing, since the server keeps serving the folder it started with. */}
+      {/* One subfolder per context; manual builds go in the folder itself. */}
       <div style={{ display: "flex", gap: "var(--pad-small)", alignItems: "center", flexWrap: "wrap" }}>
-        <input
-          value={outputDir}
-          placeholder={defaultDir}
-          onChange={(e) => onOutputDirChange(e.target.value)}
-          disabled={running}
-          title={running ? "Stop sharing to change the folder" : undefined}
-          style={{ flex: 1, minWidth: 260 }}
-        />
-        <button onClick={onChooseDir} disabled={running}>Choose…</button>
+        {rootErr ? (
+          <span style={{ color: "var(--ui-error)" }}>{rootErr}</span>
+        ) : (
+          <span className="mono" style={{ flex: 1, minWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={outputRoot}>
+            {outputRoot}
+          </span>
+        )}
         <button onClick={() => outputRoot && api.openPath(outputRoot, false).catch((e) => flash("err", errText(e)))} disabled={!outputRoot}>
           Open
         </button>
-        {outputDir.trim() && !running && <button className="link-btn" onClick={() => onOutputDirChange("")}>use default</button>}
       </div>
+      <span className="dim">
+        {fileServerDir ? (
+          <>
+            Inside the file server's directory, so they're also at{" "}
+            <span className="mono">http://{lanIp || "<this Mac>"}:{settings.python_server.port}/packages/</span> while python http.server runs.
+          </>
+        ) : (
+          <>Inside the Fleet repo. Set a directory for python http.server in Settings to put packages there instead.</>
+        )}
+      </span>
 
       {/* Sharing controls on one line. Like the SCEP and TUF servers, Start/Stop
           sit at the right at a fixed width, so the button doesn't move. */}
@@ -981,10 +1069,15 @@ function OutputShareCard({
   );
 }
 
+function fleetOptionValue(id: number | null): string {
+  return id == null ? "unassigned" : String(id);
+}
+
 // describeBuild summarizes a manifest entry: fleet, update server, channels and
 // options, e.g. "💻 Workstations · official updates · stable · Fleet Desktop".
 function describeBuild(b: InstallersManifestEntry): string {
   const parts = [b.team || "Unassigned"];
+  if (b.context) parts.push(`via ${b.context}`);
   let host = "";
   try {
     host = new URL(b.update_url).host;
@@ -999,6 +1092,7 @@ function describeBuild(b: InstallersManifestEntry): string {
   ].filter(([, ch]) => ch && ch !== "stable");
   parts.push(custom.length === 0 ? "stable" : custom.map(([c, ch]) => `${c} ${ch}`).join(", "));
   parts.push(b.fleet_desktop ? "Fleet Desktop" : "no Desktop");
+  parts.push(b.enable_scripts ? "scripts" : "no scripts");
   if (b.debug) parts.push("debug");
   if (b.extra_flags) parts.push(b.extra_flags);
   if (b.fleet_url) parts.push(b.fleet_url);

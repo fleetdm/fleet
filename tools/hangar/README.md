@@ -92,6 +92,16 @@ wails3 generate bindings -clean=true -ts
   notarize first (`task darwin:sign:notarize`) for real hosts — an ad-hoc build installs cleanly
   only because a pkg install skips the quarantine flag.
 
+- **fleetd packages.** The Installers tab runs `fleetctl package` for every platform and
+  architecture (macOS `.pkg`; `.msi`, `.deb`, `.rpm` and Arch `.pkg.tar.zst` for amd64 and arm64)
+  for a fleetctl context: it reads the context's Fleet server for its `server_url` and fleets, and
+  bakes in the picked fleet's enroll secret. If the server can't be read (down, expired token,
+  untrusted certificate), or there's no context, the Fleet URL and secret are typed in instead.
+  Packages land in `<file server directory>/packages/<context>/` when python http.server has a
+  directory set, so test machines can download them from it, else in `<server 1's repo>/packages/`
+  (gitignored). A context pointing at one of Hangar's servers builds with that server's own
+  `fleetctl`. `.msi` builds need Docker.
+
 ## Versioning
 
 `build/config.yml`'s `info.version` is the **single place** to set the release — bump it there
@@ -125,7 +135,7 @@ leaves hosts reporting the old version.
 Two different things live in `~/Library/Logs/com.fleetdm.fleet-hangar/`:
 
 - **`<channel>.log`** — the output of the processes Hangar spawns (`fleet-serve-s1`, `scep-scep1`,
-  `tuf-build`, `installers-s1`, ...). This is what the Logs tab shows, and its *Reveal in Finder* button opens this
+  `tuf-build`, `installers-build`, ...). This is what the Logs tab shows, and its *Reveal in Finder* button opens this
   folder. Rotated at 16 MB, one generation kept as `.log.1`.
 - **`hangar.log`** — Hangar's own diagnostics: startup, the macOS sleep/wake and screen-change
   events it saw, which quit path it took, a heartbeat every five minutes, and — because file

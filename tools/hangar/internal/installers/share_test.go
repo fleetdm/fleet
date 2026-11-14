@@ -201,7 +201,10 @@ func TestInstallCommandIgnoresHostileNames(t *testing.T) {
 // The shell command really downloads the file and hands it to the installer.
 func TestInstallCommandRuns(t *testing.T) {
 	root := t.TempDir()
-	writeFiles(t, root, map[string]string{"rc/fleetd-rc-linux-arm64-desktop.deb": "deb-bytes"})
+	writeFiles(t, root, map[string]string{
+		"rc/fleetd-rc-linux-arm64.deb":         "deb-bytes",
+		"rc/fleetd-rc-linux-arm64.pkg.tar.zst": "arch-bytes",
+	})
 	port, err := FreePort(18100, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -212,7 +215,7 @@ func TestInstallCommandRuns(t *testing.T) {
 	}
 	defer s.Stop()
 	files, err := ListShared(root, BaseURL("127.0.0.1", port))
-	if err != nil || len(files) != 1 {
+	if err != nil || len(files) != 2 {
 		t.Fatalf("files %v %v", files, err)
 	}
 	// Stub sudo: print the installer's last argument's contents.
@@ -220,11 +223,17 @@ func TestInstallCommandRuns(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(bin, "sudo"), []byte("#!/bin/sh\nfor a; do last=$a; done; cat \"$last\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("sh", "-c", files[0].Command)
-	cmd.Env = append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH"))
-	out, err := cmd.CombinedOutput()
-	if err != nil || !strings.Contains(string(out), "deb-bytes") {
-		t.Errorf("command failed: %v\n%s", err, out)
+	for _, f := range files {
+		want := "deb-bytes"
+		if strings.HasSuffix(f.Path, ".pkg.tar.zst") {
+			want = "arch-bytes"
+		}
+		cmd := exec.Command("sh", "-c", f.Command)
+		cmd.Env = append(os.Environ(), "PATH="+bin+":"+os.Getenv("PATH"))
+		out, err := cmd.CombinedOutput()
+		if err != nil || !strings.Contains(string(out), want) {
+			t.Errorf("%s: command failed: %v\n%s", f.Path, err, out)
+		}
 	}
 }
 
@@ -284,10 +293,11 @@ func TestFreePortSkipsLoopbackOnly(t *testing.T) {
 func TestShareServesAllTypesAndRanges(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
-		"rc/a.rpm": "rpm-bytes",
-		"rc/a.deb": "deb-bytes",
-		"rc/a.pkg": "pkg-bytes",
-		"rc/a.msi": "msi-bytes",
+		"rc/a.rpm":         "rpm-bytes",
+		"rc/a.deb":         "deb-bytes",
+		"rc/a.pkg":         "pkg-bytes",
+		"rc/a.msi":         "msi-bytes",
+		"rc/a.pkg.tar.zst": "pkg.tar.zst-bytes",
 	})
 	port, err := FreePort(18300, nil)
 	if err != nil {
@@ -299,7 +309,7 @@ func TestShareServesAllTypesAndRanges(t *testing.T) {
 	}
 	defer s.Stop()
 	base := BaseURL("127.0.0.1", port)
-	for _, ext := range []string{"rpm", "deb", "pkg", "msi"} {
+	for _, ext := range []string{"rpm", "deb", "pkg", "msi", "pkg.tar.zst"} {
 		resp, err := http.Get(base + "rc/a." + ext)
 		if err != nil {
 			t.Fatal(err)
@@ -318,7 +328,7 @@ func TestShareServesAllTypesAndRanges(t *testing.T) {
 		}
 		b, _ = io.ReadAll(resp.Body)
 		resp.Body.Close()
-		if resp.StatusCode != http.StatusPartialContent || string(b) != "bytes" {
+		if resp.StatusCode != http.StatusPartialContent || string(b) != (ext + "-bytes")[4:] {
 			t.Errorf(".%s range: %d %q", ext, resp.StatusCode, b)
 		}
 	}
