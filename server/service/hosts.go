@@ -2981,7 +2981,7 @@ func putHostGoogleDeviceIDEndpoint(ctx context.Context, request any, svc fleet.S
 }
 
 func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, googleDeviceID string) error {
-	host, err := svc.authorizeHostGoogleWrite(ctx, hostID)
+	host, err := svc.authorizeHostGoogleDeviceID(ctx, hostID)
 	if err != nil {
 		return err
 	}
@@ -3006,14 +3006,16 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 
 	// Fleet marks the device in Google, so the rules are the sign-in's.
 	ctx = ctxdb.RequirePrimary(ctx, true)
-	ci, customerID, err := svc.connectedGoogleCloudIdentity(ctx)
+	notConnected := fleet.NewInvalidArgumentError("google_device_id",
+		"Google conditional access isn't connected. Connect it in Settings > Integrations > Conditional access.")
+	active, err := svc.activeGoogleConditionalAccess(ctx)
 	if err != nil {
 		return err
 	}
-	if ci == nil {
-		return fleet.NewInvalidArgumentError("google_device_id",
-			"Google conditional access isn't connected. Connect it in Settings > Integrations > Conditional access.")
+	if active == nil {
+		return notConnected
 	}
+	customerID := active.settings.CustomerID
 	eligible, err := svc.googleConditionalAccessEligible(ctx, host)
 	if err != nil {
 		return err
@@ -3029,18 +3031,10 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host google device id")
 	}
-	var names []string
-	switch {
-	case stored == "":
-		if names, err = listGoogleDeviceUserNames(ctx, ci, googleDeviceID); err != nil {
-			return err
-		}
-	case strings.EqualFold(stored, googleDeviceID):
+	if strings.EqualFold(stored, googleDeviceID) {
 		return nil
 	}
-
-	changed, err := svc.ds.SetHostGoogleDeviceID(ctx, host.UUID, customerID, googleDeviceID, names)
-	if conflict, ok := errors.AsType[*fleet.HostGoogleDeviceIDConflictError](err); ok {
+	refuseDifferent := func(conflict *fleet.HostGoogleDeviceIDConflictError) error {
 		var userID uint
 		if user := authz.UserFromContext(ctx); user != nil {
 			userID = user.ID
@@ -3048,6 +3042,28 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 		svc.logger.WarnContext(ctx, "refused a different Google device ID for host",
 			"host_id", host.ID, "user_id", userID,
 			"stored_google_device_id", conflict.StoredID, "google_device_id", googleDeviceID)
+		return ctxerr.Wrap(ctx, conflict, "set host google device id")
+	}
+	if stored != "" {
+		// Refused here and not by the datastore, which would bind the new ID with no names
+		// if the stored one were deleted before it looked.
+		return refuseDifferent(&fleet.HostGoogleDeviceIDConflictError{StoredID: stored})
+	}
+
+	ci, err := svc.googleCloudIdentity(ctx, active)
+	if err != nil {
+		return err
+	}
+	if ci == nil {
+		return notConnected
+	}
+	names, err := listGoogleDeviceUserNames(ctx, ci, googleDeviceID)
+	if err != nil {
+		return err
+	}
+	changed, err := svc.ds.SetHostGoogleDeviceID(ctx, host.UUID, customerID, googleDeviceID, names)
+	if conflict, ok := errors.AsType[*fleet.HostGoogleDeviceIDConflictError](err); ok {
+		return refuseDifferent(conflict)
 	}
 	if conflict, ok := errors.AsType[*fleet.GoogleConditionalAccessDeviceUserConflictError](err); ok {
 		svc.logger.WarnContext(ctx, "refused a google device with a user registered to another host",
@@ -3061,17 +3077,11 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 	if !changed {
 		return nil
 	}
-	svc.markGoogleDeviceUsers(ctx, ci, host, names)
-	// The binding is already saved and a retry is a no-op that logs nothing, so the error carries the
-	// change to keep a trail of it.
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeSetHostGoogleDeviceID{
+	return svc.finishGoogleDeviceRegistration(ctx, ci, host, names, authz.UserFromContext(ctx), fleet.ActivityTypeSetHostGoogleDeviceID{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
 		GoogleDeviceID:  googleDeviceID,
-	}); err != nil {
-		return ctxerr.Wrapf(ctx, err, "create activity for setting host %d google device id %q", host.ID, googleDeviceID)
-	}
-	return nil
+	})
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3098,7 +3108,7 @@ func deleteHostGoogleDeviceIDEndpoint(ctx context.Context, request any, svc flee
 }
 
 func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) error {
-	host, err := svc.authorizeHostGoogleWrite(ctx, hostID)
+	host, err := svc.authorizeHostGoogleDeviceID(ctx, hostID)
 	if err != nil {
 		return err
 	}
@@ -3134,9 +3144,7 @@ func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) e
 	return nil
 }
 
-// authorizeHostGoogleWrite authorizes a Premium write of a host's Google data: its
-// device ID and its conditional access registration.
-func (svc *Service) authorizeHostGoogleWrite(ctx context.Context, hostID uint) (*fleet.Host, error) {
+func (svc *Service) authorizeHostGoogleDeviceID(ctx context.Context, hostID uint) (*fleet.Host, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}

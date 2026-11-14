@@ -27,6 +27,7 @@ func TestHostGoogleDeviceIDs(t *testing.T) {
 		{"KeptOnAndroidReenrollment", testHostGoogleDeviceIDKeptOnAndroidReenrollment},
 		{"ConcurrentDifferentValues", testHostGoogleDeviceIDConcurrentDifferentValues},
 		{"ConcurrentSameValueDifferentHosts", testHostGoogleDeviceIDConcurrentSameValueDifferentHosts},
+		{"VoidsRegistrationToken", testHostGoogleDeviceIDVoidsRegistrationToken},
 	}
 
 	for _, c := range cases {
@@ -288,6 +289,21 @@ func testHostGoogleDeviceIDConcurrentSameValueDifferentHosts(t *testing.T, ds *D
 			require.Empty(t, id)
 		}
 	}
+}
+
+// Setting the ID registers the host, so a sign-in started before it can't finish over it.
+func testHostGoogleDeviceIDVoidsRegistrationToken(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	started, err := ds.StartGoogleConditionalAccessRegistration(ctx, "uuid-1", googleTestCustomer, googleTokenHash("t1"), time.Hour)
+	require.NoError(t, err)
+	require.True(t, started)
+
+	changed, err := ds.SetHostGoogleDeviceID(ctx, "uuid-1", googleTestCustomer, "device-a", []string{"devices/device-a/deviceUsers/1"})
+	require.NoError(t, err)
+	require.True(t, changed)
+
+	_, err = ds.ConsumeGoogleConditionalAccessRegistrationToken(ctx, googleTestCustomer, googleTokenHash("t1"))
+	require.True(t, fleet.IsNotFound(err))
 }
 
 // With no customer configured a row keeps belonging to the customer it was set for.

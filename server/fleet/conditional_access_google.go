@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // GoogleConditionalAccessIntegration is the app config part of the integration.
@@ -158,6 +159,9 @@ const (
 	// start without a register call within GoogleConditionalAccessRegistrationWindow.
 	GoogleConditionalAccessMaxRegistrationAttempts = 3
 	GoogleConditionalAccessRegistrationWindow      = 24 * time.Hour
+	// GoogleConditionalAccessMaxSignInDeviceUsers is how many DeviceUser names one sign-in
+	// can register. The lookup returns one per record Google has of the user on the device.
+	GoogleConditionalAccessMaxSignInDeviceUsers = 5
 )
 
 // GoogleConditionalAccessDeviceUser is a Google DeviceUser resource name stored on a host.
@@ -246,6 +250,15 @@ func GoogleDeviceIDFromDeviceUserName(name string) string {
 		return ""
 	}
 	return parts[1]
+}
+
+// ValidGoogleDeviceUserName reports whether name is the resource name of one DeviceUser
+// and fits the column that stores it.
+func ValidGoogleDeviceUserName(name string) bool {
+	// "-" stands for every device or user, and "?" and "#" end the path of a request.
+	validID := func(id string) bool { return id != "" && id != "-" && !strings.ContainsAny(id, "?#") }
+	return validID(GoogleDeviceIDFromDeviceUserName(name)) && validID(name[strings.LastIndex(name, "/")+1:]) &&
+		utf8.RuneCountInString(name) <= 255
 }
 
 // GoogleConditionalAccessBookmarkHost is a host with a Google device ID and no stored
