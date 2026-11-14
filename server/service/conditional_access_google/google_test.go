@@ -2,6 +2,8 @@ package conditional_access_google
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -58,8 +60,10 @@ type fakeGoogle struct {
 
 	tokenStatus int
 	tokenBody   string
-	apiStatus   int
-	apiBody     string
+	// tokenDrop closes the connection instead of answering a token request.
+	tokenDrop bool
+	apiStatus int
+	apiBody   string
 	// apiDrop closes the connection instead of answering an API call.
 	apiDrop bool
 	// blockAPI holds API calls until closed.
@@ -82,6 +86,10 @@ func (f *fakeGoogle) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			f.headers = append(f.headers, decodeJWTPart(parts[0]))
 			f.assertions = append(f.assertions, decodeJWTPart(parts[1]))
 		}
+		if f.tokenDrop {
+			dropConnection(w)
+			return
+		}
 		if f.tokenStatus != 0 {
 			w.WriteHeader(f.tokenStatus)
 			_, _ = w.Write([]byte(f.tokenBody))
@@ -100,10 +108,7 @@ func (f *fakeGoogle) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.requests = append(f.requests, r)
 	f.bodies = append(f.bodies, string(body))
 	if f.apiDrop {
-		conn, _, err := w.(http.Hijacker).Hijack()
-		if err == nil {
-			_ = conn.Close()
-		}
+		dropConnection(w)
 		return
 	}
 	status := f.apiStatus
@@ -117,6 +122,13 @@ func (f *fakeGoogle) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = w.Write([]byte(`{}`))
+}
+
+func dropConnection(w http.ResponseWriter) {
+	conn, _, err := w.(http.Hijacker).Hijack()
+	if err == nil {
+		_ = conn.Close()
+	}
 }
 
 func testKey(t *testing.T) map[string]string {
@@ -276,19 +288,25 @@ func TestServiceAccountKeyNotJSON(t *testing.T) {
 
 // Keys aren't validated on upload, so an unusable one must fail before reaching Google.
 func TestUnusableServiceAccountKey(t *testing.T) {
+	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	ecDER, err := x509.MarshalPKCS8PrivateKey(ecKey)
+	require.NoError(t, err)
+	ecPEM := string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: ecDER}))
+
 	for name, edit := range map[string]func(map[string]string){
 		"private key not PEM": func(k map[string]string) { k["private_key"] = "not a key" },
 		"no private key":      func(k map[string]string) { delete(k, "private_key") },
+		"private key not RSA": func(k map[string]string) { k["private_key"] = ecPEM },
 	} {
 		t.Run(name, func(t *testing.T) {
 			fake, creds := newTestGoogle(t)
 			key := keyFields(t, creds)
 			edit(key)
 			creds.ServiceAccountKey = marshalKey(t, key)
-			client, err := NewCloudIdentityFactory(discardLogger)(t.Context(), creds)
-			require.NoError(t, err)
-			err = client.CheckDelegation(t.Context())
-			require.ErrorContains(t, err, "private key should be a PEM")
+			_, err := NewCloudIdentityFactory(discardLogger)(t.Context(), creds)
+			require.ErrorContains(t, err, "read the service account key: ")
+			require.False(t, IsUnavailable(err))
 			require.Empty(t, fake.assertions)
 			require.Empty(t, fake.requests)
 		})
@@ -345,4 +363,59 @@ func TestCloudIdentityTokenReusedPerClient(t *testing.T) {
 	require.NoError(t, client.SetUnmanaged(t.Context(), "devices/dev1/deviceUsers/user1"))
 	// One token for both calls of the same client.
 	require.Len(t, fake.assertions, 1)
+}
+
+// A failure on Google's side or on the way there is told apart from settings Google
+// rejects, so the caller doesn't blame the admin's input for an outage.
+func TestGoogleErrorUnavailable(t *testing.T) {
+	cases := []struct {
+		name        string
+		setup       func(f *fakeGoogle)
+		unavailable bool
+	}{
+		{"API 5xx", func(f *fakeGoogle) { f.apiStatus, f.apiBody = http.StatusServiceUnavailable, "<html>down</html>" }, true},
+		{"API 429", func(f *fakeGoogle) {
+			f.apiStatus, f.apiBody = http.StatusTooManyRequests, `{"error":{"code":429,"message":"Quota exceeded","status":"RESOURCE_EXHAUSTED"}}`
+		}, true},
+		{"token endpoint 5xx", func(f *fakeGoogle) { f.tokenStatus, f.tokenBody = http.StatusBadGateway, "<html>Bad Gateway</html>" }, true},
+		{"token endpoint 5xx with an OAuth error", func(f *fakeGoogle) {
+			f.tokenStatus, f.tokenBody = http.StatusInternalServerError, `{"error":"internal_failure","error_description":"Backend Error"}`
+		}, true},
+		{"token endpoint 429", func(f *fakeGoogle) {
+			f.tokenStatus, f.tokenBody = http.StatusTooManyRequests, `{"error":"rate_limit_exceeded"}`
+		}, true},
+		{"token endpoint answers a proxy page", func(f *fakeGoogle) { f.tokenStatus, f.tokenBody = http.StatusOK, "<html>Sign in</html>" }, true},
+		{"token request dropped", func(f *fakeGoogle) { f.tokenDrop = true }, true},
+		{"connection dropped", func(f *fakeGoogle) { f.apiDrop = true }, true},
+		{"response larger than the cap", func(f *fakeGoogle) {
+			f.apiBody = `{"nextPageToken":"` + strings.Repeat("x", maxGoogleResponseBytes) + `"}`
+		}, true},
+		{"API 403", func(f *fakeGoogle) {
+			f.apiStatus, f.apiBody = http.StatusForbidden, `{"error":{"code":403,"message":"Not Authorized to access this resource/api"}}`
+		}, false},
+		{"API 404", func(f *fakeGoogle) {
+			f.apiStatus, f.apiBody = http.StatusNotFound, `{"error":{"code":404,"message":"Requested entity was not found."}}`
+		}, false},
+		{"token refused", func(f *fakeGoogle) {
+			f.tokenStatus, f.tokenBody = http.StatusUnauthorized, `{"error":"unauthorized_client","error_description":"Client is unauthorized."}`
+		}, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			client, fake := newTestCloudIdentity(t)
+			c.setup(fake)
+			err := client.CheckDelegation(t.Context())
+			require.Error(t, err)
+			require.Equal(t, c.unavailable, IsUnavailable(err))
+		})
+	}
+
+	t.Run("request canceled", func(t *testing.T) {
+		client, _ := newTestCloudIdentity(t)
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		err := client.CheckDelegation(ctx)
+		require.ErrorIs(t, err, context.Canceled)
+		require.True(t, IsUnavailable(err))
+	})
 }
