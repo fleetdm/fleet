@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // GoogleConditionalAccessIntegration is the app config part of the integration.
@@ -158,6 +159,9 @@ const (
 	// start without a register call within GoogleConditionalAccessRegistrationWindow.
 	GoogleConditionalAccessMaxRegistrationAttempts = 3
 	GoogleConditionalAccessRegistrationWindow      = 24 * time.Hour
+	// GoogleConditionalAccessMaxSignInDeviceUsers is how many DeviceUser names one sign-in
+	// can register. The lookup returns one per record Google has of the user on the device.
+	GoogleConditionalAccessMaxSignInDeviceUsers = 5
 )
 
 // GoogleConditionalAccessDeviceUser is a Google DeviceUser resource name stored on a host.
@@ -188,6 +192,13 @@ func GoogleConditionalAccessDesiredClientState(du GoogleConditionalAccessDeviceU
 }
 
 // GoogleConditionalAccessDevice is a host's registration row with its DeviceUsers.
+//
+// A host has both DeviceUser names and a Google device ID (see GetHostGoogleDeviceID)
+// because Google's API needs both. Google keeps the managed mark per DeviceUser, one per
+// Workspace account on the device, so the names are what Fleet marks, unmarks and checks.
+// The device ID is what an admin sees in Google and sets through the API, and what host
+// details show. A name starts with its device ID, but a host can have names under more
+// than one device record, so the ID is stored rather than derived.
 type GoogleConditionalAccessDevice struct {
 	HostUUID    string `db:"host_uuid"`
 	DeviceUsers []GoogleConditionalAccessDeviceUser
@@ -241,6 +252,15 @@ func GoogleDeviceIDFromDeviceUserName(name string) string {
 	return parts[1]
 }
 
+// ValidGoogleDeviceUserName reports whether name is the resource name of one DeviceUser
+// and fits the column that stores it.
+func ValidGoogleDeviceUserName(name string) bool {
+	// "-" stands for every device or user, and "?" and "#" end the path of a request.
+	validID := func(id string) bool { return id != "" && id != "-" && !strings.ContainsAny(id, "?#") }
+	return validID(GoogleDeviceIDFromDeviceUserName(name)) && validID(name[strings.LastIndex(name, "/")+1:]) &&
+		utf8.RuneCountInString(name) <= 255
+}
+
 // GoogleConditionalAccessBookmarkHost is a host with a Google device ID and no stored
 // DeviceUsers: a row migrated from the bookmark flow that the sync cron still has to
 // resolve.
@@ -267,4 +287,38 @@ type GoogleConditionalAccessDeviceUserConflictError struct {
 
 func (e *GoogleConditionalAccessDeviceUserConflictError) Error() string {
 	return "This Google device user is already registered to another host."
+}
+
+// GoogleConditionalAccessDeviceStatus is the Google sign-in state of an iOS or iPadOS
+// host, as the Self-service web clip reads it on open.
+type GoogleConditionalAccessDeviceStatus struct {
+	Enabled      bool `json:"enabled"`
+	Eligible     bool `json:"eligible"`
+	Registered   bool `json:"registered"`
+	Managed      bool `json:"managed"`
+	RetryBlocked bool `json:"retry_blocked"`
+	// SignInURL is set for hosts that should sign in.
+	SignInURL string `json:"sign_in_url,omitempty"`
+}
+
+// GoogleConditionalAccessRegisterResult tells fleetdm.com which result to show the end
+// user.
+type GoogleConditionalAccessRegisterResult string
+
+const (
+	GoogleConditionalAccessRegisterDone       GoogleConditionalAccessRegisterResult = "done"
+	GoogleConditionalAccessRegisterNotAllowed GoogleConditionalAccessRegisterResult = "not_allowed"
+	// GoogleConditionalAccessRegisterNotFound means Google returned no DeviceUser: the
+	// user hasn't signed in to a Workspace app on the device yet.
+	GoogleConditionalAccessRegisterNotFound GoogleConditionalAccessRegisterResult = "not_found"
+	GoogleConditionalAccessRegisterError    GoogleConditionalAccessRegisterResult = "error"
+)
+
+// GoogleConditionalAccessRegistration is the DeviceUser lookup fleetdm.com sends for an
+// iOS or iPadOS host.
+type GoogleConditionalAccessRegistration struct {
+	Token    string   `json:"token"`
+	Names    []string `json:"names"`
+	Customer string   `json:"customer"`
+	Email    string   `json:"email"`
 }

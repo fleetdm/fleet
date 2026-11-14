@@ -2474,7 +2474,7 @@ type DeleteGoogleConditionalAccessDevicesExceptFunc func(ctx context.Context, cu
 
 type GetGoogleConditionalAccessDeviceFunc func(ctx context.Context, hostUUID string, customerID string) (*fleet.GoogleConditionalAccessDevice, error)
 
-type StartGoogleConditionalAccessRegistrationFunc func(ctx context.Context, hostUUID string, customerID string, tokenHash []byte, tokenExpiresAt time.Time) (bool, error)
+type StartGoogleConditionalAccessRegistrationFunc func(ctx context.Context, hostUUID string, customerID string, tokenHash []byte, tokenTTL time.Duration) (bool, error)
 
 type ConsumeGoogleConditionalAccessRegistrationTokenFunc func(ctx context.Context, customerID string, tokenHash []byte) (string, error)
 
@@ -15293,11 +15293,11 @@ func (s *DataStore) GetGoogleConditionalAccessDevice(ctx context.Context, hostUU
 	return s.GetGoogleConditionalAccessDeviceFunc(ctx, hostUUID, customerID)
 }
 
-func (s *DataStore) StartGoogleConditionalAccessRegistration(ctx context.Context, hostUUID string, customerID string, tokenHash []byte, tokenExpiresAt time.Time) (bool, error) {
+func (s *DataStore) StartGoogleConditionalAccessRegistration(ctx context.Context, hostUUID string, customerID string, tokenHash []byte, tokenTTL time.Duration) (bool, error) {
 	s.mu.Lock()
 	s.StartGoogleConditionalAccessRegistrationFuncInvoked = true
 	s.mu.Unlock()
-	return s.StartGoogleConditionalAccessRegistrationFunc(ctx, hostUUID, customerID, tokenHash, tokenExpiresAt)
+	return s.StartGoogleConditionalAccessRegistrationFunc(ctx, hostUUID, customerID, tokenHash, tokenTTL)
 }
 
 func (s *DataStore) ConsumeGoogleConditionalAccessRegistrationToken(ctx context.Context, customerID string, tokenHash []byte) (string, error) {

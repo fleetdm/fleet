@@ -50,6 +50,10 @@ func (ds *Datastore) SetHostGoogleDeviceID(ctx context.Context, hostUUID, custom
 				return err
 			}
 		}
+		// A sign-in started before this must not finish over it.
+		if err := resetGoogleConditionalAccessRegistrationDB(ctx, tx, hostUUID); err != nil {
+			return err
+		}
 		changed = true
 		return nil
 	})
