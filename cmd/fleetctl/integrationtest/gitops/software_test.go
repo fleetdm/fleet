@@ -1247,6 +1247,106 @@ software:
 	}
 }
 
+func TestGitOpsVPPUnassignedKeepsNoTeamAssignment(t *testing.T) {
+	testing_utils.StartAndServeVPPServer(t)
+	ds, _, savedTeams := testing_utils.SetupFullGitOpsPremiumServer(t)
+	renewDate := time.Now().Add(24 * time.Hour)
+	token, err := test.CreateVPPTokenEncoded(renewDate, "fleet", "ca")
+	require.NoError(t, err)
+
+	teamName := "Workstations"
+	team := &fleet.Team{ID: 42, Name: teamName}
+	savedTeams[teamName] = &team
+
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+	ds.GetVPPAppsFunc = func(ctx context.Context, teamID *uint) ([]fleet.VPPAppResponse, error) {
+		return []fleet.VPPAppResponse{}, nil
+	}
+	ds.GetABMTokenCountFunc = func(ctx context.Context) (int, error) {
+		return 0, nil
+	}
+	ds.GetCertificateTemplatesByTeamIDFunc = func(ctx context.Context, teamID uint, options fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
+		return []*fleet.CertificateTemplateResponseSummary{}, &fleet.PaginationMetadata{}, nil
+	}
+	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+		return nil, nil
+	}
+
+	vppToken := &fleet.VPPTokenDB{
+		ID:          1,
+		OrgName:     "Fleet",
+		Location:    "Earth",
+		RenewDate:   renewDate,
+		Token:       string(token),
+		Teams:       []fleet.TeamTuple{{ID: 0, Name: fleet.TeamNameNoTeam}, {ID: team.ID, Name: teamName}},
+		CountryCode: "us",
+	}
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+		tok := *vppToken
+		return []*fleet.VPPTokenDB{&tok}, nil
+	}
+	var updateCalls [][]uint
+	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
+		updateCalls = append(updateCalls, teams)
+		return vppToken, nil
+	}
+	ds.GetSoftwareCategoryNameToIDMapFunc = func(ctx context.Context, teamID uint, names []string) (map[string]uint, error) {
+		return map[string]uint{}, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{}, nil
+	}
+
+	globalCfg := fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+org_settings:
+  mdm:
+    volume_purchasing_program:
+      - location: Earth
+        fleets:
+          - Unassigned
+          - %q
+  server_settings:
+    server_url: https://example.com
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "FLEET_GLOBAL_ENROLL_SECRET"
+`, teamName)
+	teamCfg := fmt.Sprintf(`
+name: %q
+settings:
+  secrets:
+    - secret: "%s-secret"
+agent_options:
+controls:
+policies:
+queries:
+software:
+`, teamName, teamName)
+
+	tmpDir := t.TempDir()
+	globalFile := filepath.Join(tmpDir, "default.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalCfg), 0o644))
+	teamFile := filepath.Join(tmpDir, "workstations.yml")
+	require.NoError(t, os.WriteFile(teamFile, []byte(teamCfg), 0o644))
+
+	_, err = fleetctltest.RunAppNoChecks([]string{"gitops", "-f", globalFile, "-f", teamFile})
+	require.NoError(t, err)
+
+	require.NotEmpty(t, updateCalls)
+	for i, call := range updateCalls {
+		assert.Contains(t, call, uint(0),
+			"UpdateVPPTokenTeams call %d dropped No team, which deletes the token's Unassigned App Store apps", i)
+		assert.ElementsMatch(t, []uint{0, team.ID}, call, "UpdateVPPTokenTeams call %d", i)
+	}
+}
+
 // TestGitOpsABMMissingTeamKeepsExistingAssignments is the apple_business analog of
 // TestGitOpsVPPMissingTeamKeepsExistingAssignments (issue #51687): when an ABM entry
 // references a team that doesn't exist yet, the interim config must keep every
@@ -1685,6 +1785,43 @@ software:
 								"💻 Workstations",
 								"📱🏢 Company-owned iPhones",
 								"No team",
+							},
+						},
+					},
+				)
+				assert.Contains(t, out, "[!] gitops succeeded")
+			},
+		},
+		{
+			name: "Unassigned is supported",
+			cfgs: []string{
+				global(`
+                                  volume_purchasing_program:
+                                    - location: Fleet Device Management Inc.
+                                      fleets:
+                                        - "💻 Workstations"
+                                        - "📱🏢 Company-owned iPhones"
+                                        - "Unassigned"`),
+				workstations,
+				iosTeam,
+			},
+			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
+				assert.Contains(t, out, "[!] gitops dry run succeeded")
+			},
+			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
+				require.NoError(t, err)
+				assert.ElementsMatch(
+					t,
+					appCfg.MDM.VolumePurchasingProgram.Value,
+					[]fleet.MDMAppleVolumePurchasingProgramInfo{
+						{
+							Location: "Fleet Device Management Inc.",
+							Teams: []string{
+								"💻 Workstations",
+								"📱🏢 Company-owned iPhones",
+								"Unassigned",
 							},
 						},
 					},
