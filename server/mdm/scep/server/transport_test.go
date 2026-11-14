@@ -309,7 +309,7 @@ func TestPKIOperationFleetBadRequestError(t *testing.T) {
 
 	guarded := berGuardService{Service: svc}
 	slogLogger := slog.New(slog.DiscardHandler)
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 	r.Handle("/scep", scepserver.MakeHTTPHandler(scepserver.MakeServerEndpoints(guarded), guarded, slogLogger))
 	server := httptest.NewServer(r)
 	defer server.Close()
