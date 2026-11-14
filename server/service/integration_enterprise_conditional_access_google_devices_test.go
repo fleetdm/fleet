@@ -1098,9 +1098,12 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleMockServer()
 	require.NotEmpty(t, devices)
 	require.Equal(t, strings.TrimPrefix(devices[0].Name, "devices/"), g.googleDeviceID(host))
 
-	// The hourly check drops the names of a record deleted in Google.
-	require.True(t, mock.SetDeviceState(devices[0].Name, mockserver.DeviceDeleted))
-	require.NoError(t, g.syncer.CheckDevices(t.Context()))
+	// An unmark that gets the 404 of a record deleted in Google drops the name.
+	for _, d := range devices {
+		require.True(t, mock.SetDeviceState(d.Name, mockserver.DeviceDeleted))
+	}
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/google_device_id", host.ID), nil, http.StatusNoContent)
+	g.syncAfter(2 * time.Minute)
 	require.Empty(t, g.states(host))
 	require.Empty(t, g.googleDeviceID(host))
 
