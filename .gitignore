@@ -3,6 +3,8 @@
 
 # output directories
 /build
+# fleetd packages Fleet Hangar builds when no file server directory is set
+/packages
 vendor
 node_modules
 dist

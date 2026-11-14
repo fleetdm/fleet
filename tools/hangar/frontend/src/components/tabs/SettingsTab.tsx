@@ -5,6 +5,7 @@ import {
   type ContextInfo,
   type ContextSummary,
   type DetectedProcess,
+  type DockerContainer,
   type EnvVar,
   type GitopsDirScan,
   type NgrokYamlInfo,
@@ -15,6 +16,9 @@ import {
 } from "../../lib/ipc";
 import {
   activeServer,
+  APNS_PUSH_URL_ENV,
+  apnsMockEnvConflict,
+  apnsMockUrl,
   canAddServer,
   MAX_SERVERS,
   serverColorVar,
@@ -470,6 +474,7 @@ const PORT_FIELDS: { key: keyof ServerPorts; label: string }[] = [
   { key: "redis", label: "Redis" },
   { key: "s3", label: "S3" },
   { key: "s3_console", label: "S3 console" },
+  { key: "apns_mock", label: "Mock APNs" },
 ];
 
 const COLOR_KEYS = ["green", "purple", "blue"];
@@ -1227,6 +1232,20 @@ function FleetServerSection({
     await save({ config_path: null });
   }
 
+  async function setMockApns(on: boolean) {
+    setBusy(true);
+    setError(null);
+    try {
+      const next = updateActiveServer(settings, (s) => ({ ...s, mock_apns: on }));
+      await api.saveSettings(next);
+      onChange(next);
+    } catch (e) {
+      setError(String(e));
+    }
+    setBusy(false);
+  }
+  const apnsConflict = server.mock_apns ? apnsMockEnvConflict(server) : null;
+
   // Env-var rows. Tracked as local state so a draft row with an empty
   // key isn't persisted until the user types a key. Persisting onChange
   // saves on every keystroke after the key exists, matching how python
@@ -1311,6 +1330,17 @@ function FleetServerSection({
             checked={cfg.logging_debug}
             onChange={(v) => save({ logging_debug: v })}
           />
+          <CheckboxRow
+            label="Mock APNs"
+            description={`Runs a mock Apple push server (cmd/apple-apns-mock) on ${apnsMockUrl(server)} with this server's stack and sets ${APNS_PUSH_URL_ENV} to it, so osquery-perf's simulated macOS, iOS and iPadOS hosts can enroll in MDM. Real Apple devices enrolled in this server get no pushes while it's on. fleet serve picks it up on its next start; the Server tab offers a restart if it's already running.`}
+            checked={server.mock_apns}
+            onChange={setMockApns}
+          />
+          {apnsConflict && (
+            <div style={{ color: "var(--ui-warning)", fontSize: "var(--fs-xxx-small)" }}>
+              {apnsConflict}
+            </div>
+          )}
         </div>
 
         {error && (
@@ -2492,6 +2522,14 @@ function TroubleshootSection({ settings }: { settings: Settings }) {
         mode: { kind: "pattern", pattern: "scepserver" },
       },
       {
+        // Matches both the `go run ./cmd/apple-apns-mock` wrapper and the
+        // compiled binary, which is named after the package dir.
+        id: "apns-mock",
+        title: "Mock APNs servers",
+        subtitle: "any apple-apns-mock process (matches the command line)",
+        mode: { kind: "pattern", pattern: "apple-apns-mock" },
+      },
+      {
         // The local TUF file-server the tools/tuf/test scripts leave running.
         id: "tuf",
         title: "TUF server (port 8081)",
@@ -2517,9 +2555,10 @@ function TroubleshootSection({ settings }: { settings: Settings }) {
         usually the result of a crash, an HMR reload during dev, or an
         external invocation. Scanning queries the OS directly
         (<span className="mono">pgrep</span> /{" "}
-        <span className="mono">lsof</span>), so what shows up here is
-        what's actually there. fleet serve and docker aren't included;
-        manage those via the Server tab or Docker Desktop.
+        <span className="mono">lsof</span> /{" "}
+        <span className="mono">docker ps</span>), so what shows up here is
+        what's actually there. fleet serve isn't included; manage it from
+        the Server tab.
       </div>
 
       <div
@@ -2532,8 +2571,194 @@ function TroubleshootSection({ settings }: { settings: Settings }) {
         {cards.map((c) => (
           <TroubleshootCardView key={c.id} card={c} />
         ))}
+        <DockerCard settings={settings} />
         <TufAssetsCard />
       </div>
+    </div>
+  );
+}
+
+interface DockerGroup {
+  // Compose project; "" for containers started with plain docker run.
+  project: string;
+  server: ServerProfile | undefined;
+  containers: DockerContainer[];
+}
+
+// dockerGroups buckets containers by compose project, Hangar's servers first.
+function dockerGroups(containers: DockerContainer[], settings: Settings): DockerGroup[] {
+  const byProject = new Map<string, DockerContainer[]>();
+  for (const c of containers) {
+    byProject.set(c.project, [...(byProject.get(c.project) ?? []), c]);
+  }
+  return [...byProject]
+    .map(([project, list]) => ({
+      project,
+      server: project ? settings.servers.find((s) => s.compose_project === project) : undefined,
+      containers: list,
+    }))
+    .sort((a, b) => Number(!!b.server) - Number(!!a.server) || a.project.localeCompare(b.project));
+}
+
+// DockerCard lists running containers. Hangar starts each server's stack with
+// `docker compose up -d`, so after a crash or a removed server profile it's
+// containers that linger, and they keep MySQL/Redis ports taken.
+function DockerCard({ settings }: { settings: Settings }) {
+  const [found, setFound] = useState<DockerContainer[] | null>(null);
+  const [scanning, setScanning] = useState(false);
+  // A container id, or "group:<project>" while a group's Stop all runs.
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+
+  const scan = useCallback(async () => {
+    setScanning(true);
+    setError(null);
+    try {
+      setFound(await api.troubleshootScanDocker());
+    } catch (e) {
+      setFound(null);
+      setError(e instanceof Error ? e.message : String(e));
+    }
+    setScanning(false);
+  }, []);
+
+  useEffect(() => {
+    scan();
+  }, [scan]);
+
+  async function stop(key: string, ids: string[]) {
+    setBusy(key);
+    setError(null);
+    setNote(null);
+    let stopErr: string | null = null;
+    try {
+      await api.troubleshootStopContainers(ids);
+      setNote(`${ids.length} container${ids.length === 1 ? "" : "s"} stopped`);
+    } catch (e) {
+      stopErr = e instanceof Error ? e.message : String(e);
+    }
+    setBusy(null);
+    await scan();
+    // The rescan clears errors; a failed Stop must stay on screen.
+    if (stopErr) setError(stopErr);
+  }
+
+  const groups = useMemo(() => dockerGroups(found ?? [], settings), [found, settings]);
+  const portOwners = useMemo(() => {
+    const owners = new Map<number, string>();
+    for (const s of settings.servers) {
+      for (const p of Object.values(s.ports)) {
+        if (p > 0 && !owners.has(p)) owners.set(p, s.name);
+      }
+    }
+    return owners;
+  }, [settings.servers]);
+
+  const small = { fontSize: "var(--fs-xxx-small)" };
+  return (
+    <div className="card" style={{ padding: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 10 }}>
+        <div style={{ minWidth: 0 }}>
+          <div className="card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            Docker containers
+            {(found != null || scanning) && <CountBadge count={found?.length ?? 0} scanning={scanning} />}
+          </div>
+          <div className="dim" style={{ ...small, marginTop: 2 }}>
+            running containers by compose project · Stop runs <span className="mono">docker stop</span>, which
+            keeps the containers and their data
+          </div>
+        </div>
+        <button
+          onClick={scan}
+          disabled={scanning || busy != null}
+          style={{ padding: "4px 12px", fontSize: "var(--fs-xx-small)", flexShrink: 0 }}
+        >
+          {scanning ? "scanning…" : "↻ Scan"}
+        </button>
+      </div>
+
+      {found == null ? (
+        !error && <div className="dim" style={{ ...small, padding: "4px 0" }}>scanning…</div>
+      ) : groups.length === 0 ? (
+        <div className="dim" style={{ ...small, padding: "4px 0" }}>no running containers</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {groups.map((g) => (
+            <div key={g.project} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className="mono" style={{ fontWeight: 600, ...small }}>
+                  {g.project || "no compose project"}
+                </span>
+                {g.server ? (
+                  <span className="dim" style={small}>Hangar · {g.server.name}</span>
+                ) : (
+                  <span style={{ ...small, color: "var(--ui-warning)" }}>not from Hangar</span>
+                )}
+                <div style={{ flex: 1 }} />
+                {g.containers.length > 1 && (
+                  <button
+                    className="danger"
+                    disabled={busy != null || scanning}
+                    onClick={() => stop(`group:${g.project}`, g.containers.map((c) => c.id))}
+                    style={{ padding: "2px 10px", fontSize: "var(--fs-xxx-small)" }}
+                  >
+                    {busy === `group:${g.project}` ? "stopping…" : "Stop all"}
+                  </button>
+                )}
+              </div>
+              {g.containers.map((c) => {
+                const clashes = g.server
+                  ? []
+                  : [...portOwners.keys()].filter((p) => c.ports.some((r) => p >= r.from && p <= r.to));
+                return (
+                  <div
+                    key={c.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "6px 10px",
+                      background: "var(--app-surface-2)",
+                      border: "1px solid var(--app-border)",
+                      borderRadius: "var(--radius-md)",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+                      <span className="mono" style={{ ...small, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={c.name}>
+                        {c.service || c.name}
+                        <span className="dim">
+                          {" · "}
+                          {c.image.startsWith("fleetdm/wix") ? `${c.image} (.msi build from fleetctl package)` : c.image}
+                          {c.ports.length > 0 &&
+                            ` · ${c.ports.map((r) => (r.from === r.to ? `:${r.from}` : `:${r.from}-${r.to}`)).join(" ")}`}
+                          {` · ${c.status}`}
+                        </span>
+                      </span>
+                      {clashes.length > 0 && (
+                        <span style={{ ...small, color: "var(--ui-error)" }}>
+                          holds {clashes.map((p) => `:${p}`).join(" ")}, which {portOwners.get(clashes[0])} uses
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      className="danger"
+                      disabled={busy != null || scanning}
+                      onClick={() => stop(c.id, [c.id])}
+                      style={{ padding: "2px 10px", fontSize: "var(--fs-xxx-small)" }}
+                    >
+                      {busy === c.id ? "stopping…" : "Stop"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {note && <div style={{ marginTop: 8, ...small, color: "var(--core-fleet-green)" }}>{note}</div>}
+      {error && <div style={{ marginTop: 8, ...small, color: "var(--ui-error)" }}>{error}</div>}
     </div>
   );
 }

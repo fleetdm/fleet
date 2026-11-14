@@ -3,7 +3,7 @@
 // docker compose project, and serve config. Server 1 keeps the canonical dev
 // ports so it behaves byte-identically to the single-server era; additional
 // servers get offset ports + a scoped docker stack.
-import type { ServerProfile, ServerPorts, Settings } from "./ipc";
+import type { ProcInfo, ServerProfile, ServerPorts, Settings } from "./ipc";
 
 export const MAX_SERVERS = 3;
 
@@ -169,6 +169,10 @@ export function serveEnvFor(server: ServerProfile): Array<[string, string]> {
     .map((e) => ({ ...e, key: e.key.trim() }))
     .filter((e) => e.enabled && e.key.length > 0)
     .map((e) => [e.key, e.value] as [string, string]);
+  // A push URL the user set by hand wins over the mock's, even an empty one.
+  if (server.mock_apns && userEnvValue(server, APNS_PUSH_URL_ENV) === undefined) {
+    rows.push([APNS_PUSH_URL_ENV, apnsMockUrl(server)]);
+  }
   if (!isDefaultStack(server)) {
     const s3 = `http://localhost:${server.ports.s3}`;
     rows.push(["FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL", s3]);
@@ -198,6 +202,168 @@ export function serveLabelFor(server: ServerProfile): string {
   return server.fleet_serve.premium
     ? "fleet serve --dev (premium)"
     : "fleet serve --dev (free)";
+}
+
+// --- mock APNs ---
+//
+// cmd/apple-apns-mock stands in for Apple's push service so osquery-perf's
+// simulated Apple devices get MDM pushes. Each server runs its own, on its own
+// Redis, and fleet serve reads the push URL only at startup and only with --dev.
+
+export const APNS_PUSH_URL_ENV = "FLEET_DEV_MDM_APPLE_PUSH_SERVER_URL";
+/// Swaps Fleet's pusher for a no-op, so pushes never reach the mock either.
+export const APNS_DISABLE_PUSH_ENV = "FLEET_DEV_MDM_APPLE_DISABLE_PUSH";
+
+/// 127.0.0.1, not localhost: the mock listens on IPv4 only. Matches
+/// apnsmock.URL on the Go side.
+export function apnsMockUrl(
+  server: ServerProfile,
+  port = server.ports.apns_mock,
+): string {
+  return `http://127.0.0.1:${port}`;
+}
+
+export function apnsMockProcId(server: ServerProfile): string {
+  return procId(server.id, "apns-mock");
+}
+
+export function apnsMockChannel(serverId: string): string {
+  return `apns-mock-${serverId}`;
+}
+
+/// ProcInfo.meta key holding the push URL fleet serve was started with ("" for
+/// none), so a mock that moved since is noticed even after it restarts.
+export const SERVE_PUSH_URL_META = "apns_push_url";
+
+/// The push URL fleet serve gets from serveEnvFor, or undefined for Apple's.
+export function servePushUrlFor(server: ServerProfile): string | undefined {
+  return serveEnvFor(server)
+    .filter(([k]) => k === APNS_PUSH_URL_ENV)
+    .pop()?.[1];
+}
+
+/// Start metadata for fleet serve; every path that starts it passes this.
+export function serveMetaFor(server: ServerProfile): Record<string, string> {
+  return { [SERVE_PUSH_URL_META]: servePushUrlFor(server) ?? "" };
+}
+
+/// The value of an enabled serve env row the user added, or undefined.
+export function userEnvValue(
+  server: ServerProfile,
+  key: string,
+): string | undefined {
+  // The last enabled row wins, as it does in the env fleet serve starts with.
+  return server.fleet_serve.env
+    .filter((e) => e.enabled && e.key.trim() === key)
+    .pop()?.value;
+}
+
+/// Why this server's Fleet won't push to its mock even with mock APNs on, or
+/// null when nothing in its env gets in the way.
+export function apnsMockEnvConflict(server: ServerProfile): string | null {
+  const disable = userEnvValue(server, APNS_DISABLE_PUSH_ENV);
+  if (disable === "1") {
+    return `${APNS_DISABLE_PUSH_ENV}=1 is set in this server's env, so Fleet sends no pushes at all. Turn that row off.`;
+  }
+  const url = userEnvValue(server, APNS_PUSH_URL_ENV);
+  if (url !== undefined && url.trim() !== apnsMockUrl(server)) {
+    return `${APNS_PUSH_URL_ENV} is set to ${url.trim() || "an empty value"} in this server's env, which overrides the mock's ${apnsMockUrl(server)}.`;
+  }
+  return null;
+}
+
+/// True when the running serve process was started with a different push
+/// setup than the server is configured for now, so a restart is needed.
+export function serveNeedsRestartForApns(
+  server: ServerProfile,
+  serveProc: ProcInfo,
+): boolean {
+  const want = servePushUrlFor(server) ?? "";
+  const started = serveProc.meta?.[SERVE_PUSH_URL_META];
+  // A serve started before Hangar recorded its push URL (or adopted after a
+  // Hangar restart) only tells whether it had one.
+  if (started === undefined) {
+    return (serveProc.env_keys ?? []).includes(APNS_PUSH_URL_ENV) !== (want !== "");
+  }
+  return started !== want;
+}
+
+/// The port this server's running mock listens on, read from its command line,
+/// or undefined when Hangar isn't running one. It keeps that port when the one
+/// in Settings changes.
+export function apnsMockRunningPort(
+  server: ServerProfile,
+  procs: ProcInfo[],
+): number | undefined {
+  const proc = procs.find(
+    (p) =>
+      p.id === apnsMockProcId(server) &&
+      (p.state === "running" || p.state === "stopping"),
+  );
+  const port = proc && /--listen \S+:(\d+)/.exec(proc.command)?.[1];
+  return port ? Number(port) : undefined;
+}
+
+/// True when the mock is running on another port than Settings now give it.
+/// Fleet's push URL and osquery-perf's --mdm_apns_url follow Settings, so
+/// nothing reaches the mock until it's restarted.
+export function apnsMockMoved(server: ServerProfile, procs: ProcInfo[]): boolean {
+  const port = apnsMockRunningPort(server, procs);
+  return server.mock_apns && port !== undefined && port !== server.ports.apns_mock;
+}
+
+/// `go run ./cmd/apple-apns-mock` from the primary repo, like Hangar's other
+/// repo tools (SCEP, TUF, MDM assets): the mock is independent of the Fleet
+/// version a server runs, and an older worktree may predate it.
+export function apnsMockStartArgs(
+  server: ServerProfile,
+  settings: Settings,
+): {
+  id: string;
+  label: string;
+  cwd: string;
+  program: string;
+  args: string[];
+  log_channel: string;
+} | null {
+  const cwd = settings.servers[0]?.worktree_path;
+  if (!cwd) return null;
+  return {
+    id: apnsMockProcId(server),
+    label: "mock APNs",
+    cwd,
+    program: "go",
+    args: [
+      "run",
+      "./cmd/apple-apns-mock",
+      "--listen",
+      `127.0.0.1:${server.ports.apns_mock}`,
+      "--redis-address",
+      `127.0.0.1:${server.ports.redis}`,
+    ],
+    log_channel: apnsMockChannel(server.id),
+  };
+}
+
+/// The Hangar server a URL points at (a local address on one of its serve
+/// ports), or undefined for anything else, e.g. a remote or load-test server.
+export function serverForUrl(
+  settings: Settings,
+  url: string,
+): ServerProfile | undefined {
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return undefined;
+  }
+  if (!["localhost", "127.0.0.1", "[::1]"].includes(parsed.hostname)) {
+    return undefined;
+  }
+  const port = Number(
+    parsed.port || (parsed.protocol === "https:" ? 443 : 80),
+  );
+  return settings.servers.find((s) => s.ports.server === port);
 }
 
 // --- presentation ---

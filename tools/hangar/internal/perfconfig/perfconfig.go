@@ -35,9 +35,12 @@ type Config struct {
 	MDMEnabled       bool              `json:"mdm_enabled"`
 	MDMProb          float64           `json:"mdm_prob"`
 	MDMSCEPChallenge string            `json:"mdm_scep_challenge"`
-	StartPeriod      string            `json:"start_period"`
-	QueryInterval    string            `json:"query_interval"`
-	ConfigInterval   string            `json:"config_interval"`
+	// MDMAPNsURL overrides the mock APNs server simulated Apple devices listen
+	// on; empty means the target server's own mock (resolved in the UI).
+	MDMAPNsURL     string `json:"mdm_apns_url"`
+	StartPeriod    string `json:"start_period"`
+	QueryInterval  string `json:"query_interval"`
+	ConfigInterval string `json:"config_interval"`
 	// CreatedAtMS is server-stamped on first save and preserved across
 	// updates. UpdatedAtMS is bumped on every save.
 	CreatedAtMS uint64 `json:"created_at_ms"`

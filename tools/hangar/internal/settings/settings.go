@@ -77,6 +77,7 @@ type ServerPorts struct {
 	Redis     uint16 `json:"redis"`      // docker redis host port
 	S3        uint16 `json:"s3"`         // docker s3 (object store) host port
 	S3Console uint16 `json:"s3_console"` // docker s3 console host port
+	APNsMock  uint16 `json:"apns_mock"`  // mock APNs server (cmd/apple-apns-mock) listen port
 }
 
 // ServerProfile is one independent local Fleet server instance: its own git
@@ -97,6 +98,11 @@ type ServerProfile struct {
 	ComposeProject string           `json:"compose_project"` // docker compose -p value
 	FleetServe     FleetServeConfig `json:"fleet_serve"`
 	Enabled        bool             `json:"enabled"`
+	// MockAPNs runs cmd/apple-apns-mock with this server's stack and points
+	// fleet serve's Apple MDM pushes at it, so osquery-perf's simulated Apple
+	// devices can MDM-enroll. Real Apple devices on this server get no pushes
+	// while it's on.
+	MockAPNs bool `json:"mock_apns"`
 }
 
 // DefaultPortsForIndex returns the canonical port block for the i-th server
@@ -109,6 +115,7 @@ func DefaultPortsForIndex(i int) ServerPorts {
 		Redis:     uint16(6379 + i*10),
 		S3:        uint16(9000 + i*20),
 		S3Console: uint16(9001 + i*10),
+		APNsMock:  uint16(8378 + i*10),
 	}
 }
 
@@ -202,6 +209,79 @@ type TufConfig struct {
 	Debug        bool     `json:"debug"`
 }
 
+// InstallersConfig is the saved state of the Installers tab: which fleetctl
+// context the packages are built for, what each context enrolls into, and the
+// build options shared by all of them. Packages land in
+// <file-server dir or primary repo>/packages/<context>/ (see
+// internal/installers.OutputDir).
+type InstallersConfig struct {
+	// Context is the fleetctl context to build for; "" means not picked yet
+	// (the "default" context when there is one).
+	Context string `json:"context"`
+	// Manual builds without a context, from a typed-in Fleet URL and secret.
+	Manual bool `json:"manual"`
+	// Targets is what each context enrolls into, keyed by context name;
+	// ManualTarget is the same for manual builds.
+	Targets      map[string]InstallerTarget `json:"targets"`
+	ManualTarget InstallerTarget            `json:"manual_target"`
+	Options      InstallerOptions           `json:"options"`
+	// SharePort is the port for sharing the packages folder over HTTP; 0 means
+	// pick a free one.
+	SharePort uint16 `json:"share_port"`
+}
+
+// InstallerTarget is where one context's packages enroll. The Fleet URL and
+// enroll secret are baked into the packages; scanning the context's server
+// fills them in, or they're typed by hand.
+type InstallerTarget struct {
+	// TeamID is the fleet whose enroll secret is used; nil = Unassigned (the
+	// global enroll secret). TeamName is "" when the secret was typed in.
+	TeamID       *uint  `json:"team_id"`
+	TeamName     string `json:"team_name"`
+	FleetURL     string `json:"fleet_url"`
+	EnrollSecret string `json:"enroll_secret"`
+}
+
+// InstallerOptions is what gets built, whatever the context.
+type InstallerOptions struct {
+	// Platforms are installer keys (see internal/installers.Platforms).
+	Platforms     []string `json:"platforms"`
+	FleetDesktop  bool     `json:"fleet_desktop"`
+	EnableScripts bool     `json:"enable_scripts"`
+	Debug         bool     `json:"debug"`
+	// ExtraFlags are additional `fleetctl package` flags, shell-quoted.
+	ExtraFlags string `json:"extra_flags"`
+	// UpdateSource is "official" (updates.fleetdm.com) or "local-tuf"
+	// (Hangar's test_tuf repo, served at Tuf.TufURL).
+	UpdateSource    string `json:"update_source"`
+	OrbitChannel    string `json:"orbit_channel"`
+	DesktopChannel  string `json:"desktop_channel"`
+	OsquerydChannel string `json:"osqueryd_channel"`
+}
+
+// Update sources for InstallerOptions.UpdateSource.
+const (
+	UpdateSourceOfficial = "official"
+	UpdateSourceLocalTUF = "local-tuf"
+)
+
+// DefaultInstallerOptions builds every platform with Fleet Desktop and
+// scripts on, updating from the official stable channels.
+func DefaultInstallerOptions() InstallerOptions {
+	return InstallerOptions{
+		Platforms: []string{
+			"macos", "windows-amd64", "windows-arm64", "deb-amd64", "deb-arm64",
+			"rpm-amd64", "rpm-arm64", "arch-amd64", "arch-arm64",
+		},
+		FleetDesktop:    true,
+		EnableScripts:   true,
+		UpdateSource:    UpdateSourceOfficial,
+		OrbitChannel:    "stable",
+		DesktopChannel:  "stable",
+		OsquerydChannel: "stable",
+	}
+}
+
 // Settings is the full persisted configuration.
 //
 // Servers is the multi-server source of truth. The legacy single-server fields
@@ -219,6 +299,7 @@ type Settings struct {
 	Theme            ThemePreference  `json:"theme"`
 	FavoriteCrons    []string         `json:"favorite_crons"`
 	Tuf              TufConfig        `json:"tuf"`
+	Installers       InstallersConfig `json:"installers"`
 
 	// Servers is nil in a pre-multi-server file; migrate() backfills it from
 	// the legacy fields on Load so callers always see at least one server.
@@ -258,6 +339,10 @@ func Default() Settings {
 		Theme:         ThemeSystem,
 		FavoriteCrons: []string{},
 		ScepProfiles:  []ScepProfile{},
+		Installers: InstallersConfig{
+			Targets: map[string]InstallerTarget{},
+			Options: DefaultInstallerOptions(),
+		},
 		Tuf: TufConfig{
 			// Mirror the common my_tuf.sh run: all platforms, desktop + debug on.
 			Platforms:    []string{"macos", "windows", "windows-arm64", "linux", "linux-arm64"},
@@ -322,6 +407,11 @@ func migrate(s *Settings) {
 		if s.Servers[i].Ports == (ServerPorts{}) {
 			s.Servers[i].Ports = DefaultPortsForIndex(i)
 		}
+		// A file written before the mock APNs port existed has every other
+		// port set, so the whole-block backfill above doesn't reach it.
+		if s.Servers[i].Ports.APNsMock == 0 {
+			s.Servers[i].Ports.APNsMock = DefaultPortsForIndex(i).APNsMock
+		}
 		if s.Servers[i].Color == "" {
 			s.Servers[i].Color = defaultColor(i)
 		}
@@ -340,6 +430,13 @@ func migrate(s *Settings) {
 	// Normalize nil TUF platforms to an empty slice for the frontend.
 	if s.Tuf.Platforms == nil {
 		s.Tuf.Platforms = []string{}
+	}
+	// Same for the Installers map (a JSON object, never null, for the frontend).
+	if s.Installers.Targets == nil {
+		s.Installers.Targets = map[string]InstallerTarget{}
+	}
+	if s.Installers.Options.Platforms == nil {
+		s.Installers.Options.Platforms = []string{}
 	}
 }
 

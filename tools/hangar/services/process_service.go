@@ -17,9 +17,9 @@ func NewProcessService(pm *processes.Manager, onQuit func()) *ProcessService {
 
 func (s *ProcessService) ListProcesses() []processes.ProcInfo { return s.pm.ListProcesses() }
 
-func (s *ProcessService) StartProcess(id, label, cwd, program string, args []string, logChannel string, env []processes.EnvPair) error {
+func (s *ProcessService) StartProcess(id, label, cwd, program string, args []string, logChannel string, env []processes.EnvPair, meta map[string]string) error {
 	return s.pm.Start(id, processes.StartArgs{
-		Label: label, Cwd: cwd, Program: program, Args: args, LogChannel: logChannel, Env: env,
+		Label: label, Cwd: cwd, Program: program, Args: args, LogChannel: logChannel, Env: env, Meta: meta,
 	})
 }
 

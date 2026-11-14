@@ -1,6 +1,8 @@
 package processes
 
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -107,6 +109,72 @@ func TestSpawnCaptureAndComplete(t *testing.T) {
 	}
 }
 
+func TestEnvKeysRecordedWithoutValues(t *testing.T) {
+	m := New(t.TempDir(), t.TempDir(), &recorder{})
+	err := m.Start("env", StartArgs{
+		Program: "sh",
+		Args:    []string{"-c", "true"},
+		Env: []EnvPair{
+			{Key: "B_KEY", Value: "secret-b"},
+			{Key: "", Value: "dropped"},
+			{Key: "A_KEY", Value: "secret-a"},
+			{Key: "B_KEY", Value: "secret-b2"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := waitForState(t, m, "env", "done", 5*time.Second)
+	if strings.Join(got.EnvKeys, ",") != "B_KEY,A_KEY" {
+		t.Errorf("env keys = %v, want [B_KEY A_KEY] in first-seen order", got.EnvKeys)
+	}
+	// ProcInfo goes to the frontend as JSON; env values can be secrets.
+	raw, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "secret-") {
+		t.Errorf("serialized ProcInfo leaks an env value: %s", raw)
+	}
+}
+
+func TestMetaReturnedAsGiven(t *testing.T) {
+	m := New(t.TempDir(), t.TempDir(), &recorder{})
+	meta := map[string]string{"push_url": "http://127.0.0.1:8378"}
+	if err := m.Start("meta", StartArgs{Program: "sh", Args: []string{"-c", "true"}, Meta: meta}); err != nil {
+		t.Fatal(err)
+	}
+	meta["push_url"] = "changed after start"
+	got := waitForState(t, m, "meta", "done", 5*time.Second)
+	if got.Meta["push_url"] != "http://127.0.0.1:8378" {
+		t.Errorf("meta = %v, want the value given at start", got.Meta)
+	}
+}
+
+func TestFinishLifecycleKeepsANewerRun(t *testing.T) {
+	m := New(t.TempDir(), t.TempDir(), &recorder{})
+	run := func() *procLifecycle {
+		lc := &procLifecycle{}
+		lc.ctx, lc.cancel = context.WithCancel(context.Background())
+		return lc
+	}
+	// The old run's final state is recorded, the id is started again, and only
+	// then does the old run's cleanup reach finishLifecycle.
+	old, newer := run(), run()
+	m.lifecycles["p"] = newer
+	m.finishLifecycle("p", old)
+	if old.ctx.Err() == nil {
+		t.Error("the old run's Done never closed")
+	}
+	if newer.ctx.Err() != nil || m.lifecycles["p"] != newer {
+		t.Error("the old run's cleanup ended the newer run's lifecycle")
+	}
+	m.finishLifecycle("p", newer)
+	if newer.ctx.Err() == nil || m.lifecycles["p"] != nil {
+		t.Error("the newer run's own cleanup didn't finish it")
+	}
+}
+
 func TestStartAlreadyRunning(t *testing.T) {
 	m := New(t.TempDir(), t.TempDir(), &recorder{})
 	if err := m.Start("s", StartArgs{Program: "sleep", Args: []string{"30"}}); err != nil {
@@ -171,6 +239,28 @@ func TestFailedExitCode(t *testing.T) {
 	}
 	if !hasLine(p.RecentLog, "[exit: code 7]") {
 		t.Errorf("missing synth exit line: %v", p.RecentLog)
+	}
+}
+
+func TestDoneClosesAfterFinalState(t *testing.T) {
+	m := New(t.TempDir(), t.TempDir(), &recorder{})
+	select {
+	case <-m.Done("unknown"):
+	default:
+		t.Fatal("Done for an untracked id should already be closed")
+	}
+	if err := m.Start("d", StartArgs{Program: "sh", Args: []string{"-c", "sleep 0.2; exit 3"}}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-m.Done("d"):
+	case <-time.After(5 * time.Second):
+		t.Fatal("Done never closed")
+	}
+	for _, p := range m.ListProcesses() {
+		if p.ID == "d" && p.State != "failed" {
+			t.Errorf("state when Done closed = %q, want failed", p.State)
+		}
 	}
 }
 

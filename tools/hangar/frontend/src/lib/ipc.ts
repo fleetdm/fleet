@@ -23,6 +23,8 @@ import {
   ScepService,
   MdmAssetsService,
   TufService,
+  InstallersService,
+  ApnsMockService,
 } from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services";
 
 import type * as buildinfoM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/buildinfo/models";
@@ -40,6 +42,9 @@ import type * as troubleshootM from "../../bindings/github.com/fleetdm/fleet/too
 import type * as scepM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/scep/models";
 import type * as mdmassetsM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/mdmassets/models";
 import type * as tufM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/tuf/models";
+import type * as installersM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/installers/models";
+import type * as servicesM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/services/models";
+import type * as apnsmockM from "../../bindings/github.com/fleetdm/fleet/tools/hangar/internal/apnsmock/models";
 
 // cast narrows a binding's $CancellablePromise<GeneratedModel> to the alias
 // type. Safe: the underlying value is the same JSON.
@@ -112,6 +117,7 @@ export type CapturedRun = fleetctlM.CapturedRun;
 
 export type DetectedProcess = troubleshootM.DetectedProcess;
 export type KillOutcome = troubleshootM.KillOutcome;
+export type DockerContainer = troubleshootM.Container;
 
 export type ScepProfile = settingsM.ScepProfile;
 export type ScepBinaryInfo = scepM.BinaryInfo;
@@ -124,6 +130,20 @@ export type MdmAssetsFile = mdmassetsM.AssetFile;
 
 export type TufConfig = settingsM.TufConfig;
 export type TufServerStatus = tufM.ServerStatus;
+export type ApnsMockStatus = apnsmockM.Status;
+
+export type InstallersConfig = settingsM.InstallersConfig;
+export type InstallerTarget = settingsM.InstallerTarget;
+export type InstallerOptions = settingsM.InstallerOptions;
+export type InstallersScanResult = installersM.ScanResult;
+export type InstallersTeam = installersM.Team;
+export type InstallersChannels = installersM.Channels;
+export type InstallersOutputFile = installersM.OutputFile;
+export type InstallersManifestEntry = installersM.ManifestEntry;
+export type InstallersContextInfo = servicesM.InstallersContextInfo;
+export type InstallersLocalTUF = servicesM.InstallersLocalTUF;
+export type InstallersShareStatus = installersM.ShareStatus;
+export type InstallersSharedFile = installersM.SharedFile;
 
 export type DepCheck = depsM.DepCheck;
 export type DepReport = depsM.DepReport;
@@ -277,6 +297,38 @@ export const api = {
   tufDeleteAssets: () => TufService.TufDeleteAssets(),
   tufAssetsExist: () => cast<boolean>(TufService.TufAssetsExist()),
 
+  // fleetd packages for a fleetctl context's server (or a typed-in URL and
+  // secret when manual is true).
+  installersOfficialChannels: () =>
+    cast<InstallersChannels>(InstallersService.InstallersOfficialChannels()),
+  installersLocalTuf: () =>
+    cast<InstallersLocalTUF>(InstallersService.InstallersLocalTUF()),
+  installersContextInfo: (contextName: string, manual: boolean) =>
+    cast<InstallersContextInfo>(InstallersService.InstallersContextInfo(contextName, manual)),
+  installersPackagesRoot: () => cast<string>(InstallersService.InstallersPackagesRoot()),
+  installersFleetSecret: (contextName: string, teamId: number | null) =>
+    InstallersService.InstallersFleetSecret(contextName, teamId),
+  installersCheckExtraFlags: (flags: string) => InstallersService.InstallersCheckExtraFlags(flags),
+  installersScan: (contextName: string) =>
+    cast<InstallersScanResult>(InstallersService.InstallersScan(contextName)),
+  installersPlannedFiles: (target: InstallerTarget, opts: InstallerOptions) =>
+    cast<Record<string, string>>(InstallersService.InstallersPlannedFiles(target as never, opts as never)),
+  installersStartBuild: (contextName: string, manual: boolean, target: InstallerTarget, opts: InstallerOptions) =>
+    InstallersService.InstallersStartBuild(contextName, manual, target as never, opts as never),
+  installersStopBuild: () => InstallersService.InstallersStopBuild(),
+  installersListOutputs: (contextName: string, manual: boolean) =>
+    cast<InstallersOutputFile[]>(InstallersService.InstallersListOutputs(contextName, manual)),
+  installersSuggestSharePort: () => cast<number>(InstallersService.InstallersSuggestSharePort()),
+  installersShareStart: (port: number) =>
+    cast<InstallersShareStatus>(InstallersService.InstallersShareStart(port)),
+  installersShareStop: () => InstallersService.InstallersShareStop(),
+  installersShareStatus: () => cast<InstallersShareStatus>(InstallersService.InstallersShareStatus()),
+  installersSharedFiles: () =>
+    cast<InstallersSharedFile[]>(InstallersService.InstallersSharedFiles()),
+  // Per-server mock APNs (cmd/apple-apns-mock); started via startProcess.
+  apnsMockStatus: (port: number) =>
+    cast<ApnsMockStatus>(ApnsMockService.ApnsMockStatus(port)),
+
   listProcesses: () => cast<ProcInfo[]>(ProcessService.ListProcesses()),
   startProcess: (args: {
     id: string;
@@ -286,6 +338,8 @@ export const api = {
     args: string[];
     log_channel?: string | null;
     env?: Array<[string, string]> | null;
+    /// Non-secret detail returned in ProcInfo.meta.
+    meta?: Record<string, string> | null;
   }) =>
     ProcessService.StartProcess(
       args.id,
@@ -295,6 +349,7 @@ export const api = {
       args.args,
       args.log_channel ?? "",
       (args.env ?? []).map(([key, value]) => ({ key, value })) as never,
+      args.meta ?? {},
     ),
   stopProcess: (id: string) => ProcessService.StopProcess(id),
   restartProcess: (id: string) => ProcessService.RestartProcess(id),
@@ -354,6 +409,10 @@ export const api = {
     ),
   troubleshootKillPid: (pid: number) =>
     cast<KillOutcome>(TroubleshootService.TroubleshootKillPid(pid)),
+  troubleshootScanDocker: () =>
+    cast<DockerContainer[]>(TroubleshootService.TroubleshootScanDocker()),
+  troubleshootStopContainers: (ids: string[]) =>
+    TroubleshootService.TroubleshootStopContainers(ids),
   fleetctlRunCapture: (args: {
     program: string;
     cwd?: string | null;
