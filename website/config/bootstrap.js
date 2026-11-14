@@ -95,7 +95,9 @@ module.exports.bootstrap = async function() {
   await Platform.create({
     currentUnfrozenGitHubPrNumbers: [],
     workshopDetails: [],
-    workshopDetailsLastUpdatedAt: Date.now()
+    workshopDetailsLastUpdatedAt: Date.now(),
+    numAiGeneratedProfilesAllTime: 0,
+    aiGeneratedProfileStatsLastUpdatedAt: 0,
   });
 
   // Save new bootstrap version

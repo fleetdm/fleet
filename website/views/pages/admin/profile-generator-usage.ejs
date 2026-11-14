@@ -1,0 +1,29 @@
+<div id="profile-generator-usage" v-cloak>
+  <div class="container pt-4">
+    <h3>Configuration profile generator usage</h3>
+    <p purpose="page-description">How much the AI configuration profile generator (autofill) is used across Fleet deployments.</p>
+
+    <div purpose="stats">
+      <div purpose="stat">
+        <p purpose="stat-label">Configuration profiles generated with AI</p>
+        <p purpose="stat-value" v-if="allTimeStatsLastUpdatedAt">{{numAiProfilesGeneratedAllTime}}</p>
+        <p purpose="stat-value" v-else>Not calculated yet</p>
+        <p purpose="stat-note">All time, from the latest report of each Fleet deployment that reported in the past week.</p>
+        <p purpose="stat-note" v-if="allTimeStatsLastUpdatedAt">Last updated <js-timestamp :at="allTimeStatsLastUpdatedAt" format="timeago"></js-timestamp>.</p>
+      </div>
+      <div purpose="stat">
+        <p purpose="stat-label">Profile generation requests this month</p>
+        <p purpose="stat-value">{{numFreeProfileRequestsThisMonth}}</p>
+        <p purpose="stat-note">Fleet Free only.</p>
+      </div>
+      <div purpose="stat">
+        <p purpose="stat-label">Name and description requests this month</p>
+        <p purpose="stat-value">{{numFreeNameAndDescriptionRequestsThisMonth}}</p>
+        <p purpose="stat-note">Fleet Free only.</p>
+      </div>
+    </div>
+
+    <p purpose="error-rate-note">Error rate: not available yet. Failed AI autofill requests are not recorded.</p>
+  </div>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
