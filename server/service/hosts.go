@@ -2305,7 +2305,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 
 	var googleDeviceID *string
 	if fleet.IsMobilePlatform(host.Platform) {
-		id, err := svc.ds.GetHostGoogleDeviceID(ctx, host.ID)
+		id, err := svc.ds.GetHostGoogleDeviceID(ctx, host.UUID, googleConditionalAccessCustomerID(ac.Integrations.GoogleConditionalAccess))
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host google device id")
 		}
@@ -3000,7 +3000,12 @@ func (svc *Service) SetHostGoogleDeviceID(ctx context.Context, hostID uint, goog
 		return fleet.NewInvalidArgumentError("google_device_id", "Google device ID must be 255 characters or less.")
 	}
 
-	changed, err := svc.ds.SetHostGoogleDeviceID(ctx, hostID, googleDeviceID)
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+	changed, err := svc.ds.SetHostGoogleDeviceID(ctx, host.UUID,
+		googleConditionalAccessCustomerID(appConfig.Integrations.GoogleConditionalAccess), googleDeviceID, nil)
 	if conflict, ok := errors.AsType[*fleet.HostGoogleDeviceIDConflictError](err); ok {
 		var userID uint
 		if user := authz.UserFromContext(ctx); user != nil {
@@ -3057,7 +3062,12 @@ func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) e
 		return err
 	}
 
-	removed, err := svc.ds.GetHostGoogleDeviceID(ctxdb.RequirePrimary(ctx, true), hostID)
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+	removed, err := svc.ds.GetHostGoogleDeviceID(ctxdb.RequirePrimary(ctx, true), host.UUID,
+		googleConditionalAccessCustomerID(appConfig.Integrations.GoogleConditionalAccess))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host google device id")
 	}
@@ -3065,7 +3075,7 @@ func (svc *Service) DeleteHostGoogleDeviceID(ctx context.Context, hostID uint) e
 		return nil
 	}
 	// Deleting only the value read above keeps the activity accurate if a concurrent request changes it.
-	deleted, err := svc.ds.DeleteHostGoogleDeviceID(ctx, hostID, removed)
+	deleted, err := svc.ds.DeleteHostGoogleDeviceID(ctx, host.UUID, removed)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host google device id")
 	}

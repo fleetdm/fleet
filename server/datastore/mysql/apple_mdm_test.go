@@ -1910,8 +1910,14 @@ func testUpdateHostTablesOnMDMUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 1, count)
 
+	googleName := "devices/d1/deviceUsers/a"
+	require.NoError(t, ds.RecordGoogleConditionalAccessRegistration(ctx, testUUID, "C02cajzvg", []string{googleName}))
+
 	_, _, err = ds.MDMTurnOff(ctx, testUUID)
 	require.NoError(t, err)
+	require.Equal(t, map[string]fleet.GoogleConditionalAccessDeviceUserState{
+		googleName: fleet.GoogleConditionalAccessDeviceUserUnmanaging,
+	}, googleDeviceUserStates(t, ds, testUUID))
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &count, `SELECT COUNT(*) FROM host_mdm WHERE host_id = ?`, testUUID)
 	require.NoError(t, err)

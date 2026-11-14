@@ -113,3 +113,18 @@ func TestGoogleConditionalAccessIntegrationValidateKey(t *testing.T) {
 	ValidateGoogleConditionalAccessIntegration(intg, invalid)
 	require.False(t, invalid.HasErrors())
 }
+
+func TestGoogleConditionalAccessDesiredClientState(t *testing.T) {
+	for _, state := range []GoogleConditionalAccessDeviceUserState{
+		GoogleConditionalAccessDeviceUserPending,
+		GoogleConditionalAccessDeviceUserManaged,
+		GoogleConditionalAccessDeviceUserStale,
+	} {
+		du := GoogleConditionalAccessDeviceUser{HostUUID: "host-uuid-1", Name: "devices/d/deviceUsers/u", State: state}
+		require.Equal(t, GoogleConditionalAccessClientState{Managed: new(true), CustomID: new("host-uuid-1")},
+			GoogleConditionalAccessDesiredClientState(du), state)
+	}
+
+	du := GoogleConditionalAccessDeviceUser{HostUUID: "host-uuid-1", Name: "devices/d/deviceUsers/u", State: GoogleConditionalAccessDeviceUserUnmanaging}
+	require.Equal(t, GoogleConditionalAccessClientState{Managed: new(false)}, GoogleConditionalAccessDesiredClientState(du))
+}

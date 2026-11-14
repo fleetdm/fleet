@@ -269,8 +269,10 @@ type fakeGoogleCACloudIdentity struct {
 
 func (f fakeGoogleCACloudIdentity) CheckDelegation(context.Context) error { return f.delegationErr }
 
-func (f fakeGoogleCACloudIdentity) SetUnmanaged(_ context.Context, name string) error {
-	*f.unmanaged = append(*f.unmanaged, name)
+func (f fakeGoogleCACloudIdentity) SetClientState(_ context.Context, name string, state fleet.GoogleConditionalAccessClientState) error {
+	if state.Managed != nil && !*state.Managed {
+		*f.unmanaged = append(*f.unmanaged, name)
+	}
 	return nil
 }
 
