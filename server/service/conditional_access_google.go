@@ -424,6 +424,10 @@ func (svc *Service) checkGoogleDelegation(ctx context.Context, settings fleet.Go
 		return errors.New("Couldn't connect to Google: " + err.Error())
 	}
 	if err := client.CheckDelegation(ctx); err != nil {
+		// An outage says nothing about the settings, so it isn't reported against them.
+		if conditional_access_google.IsUnavailable(err) {
+			return fleet.NewBadGatewayError("Couldn't verify the settings with Google", err)
+		}
 		return errors.New("Couldn't connect to Google: " + err.Error())
 	}
 	return nil
@@ -431,6 +435,9 @@ func (svc *Service) checkGoogleDelegation(ctx context.Context, settings fleet.Go
 
 func (svc *Service) verifyGoogleConditionalAccess(ctx context.Context, settings fleet.GoogleConditionalAccessIntegration, key []byte, field string) error {
 	if err := svc.checkGoogleDelegation(ctx, settings, key); err != nil {
+		if gwErr, ok := errors.AsType[*fleet.GatewayError](err); ok {
+			return ctxerr.Wrap(ctx, gwErr, "check google delegation")
+		}
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(field, err.Error()))
 	}
 	return nil

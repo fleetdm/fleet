@@ -2159,6 +2159,19 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogle() {
 	require.Equal(t, addedBefore, g.addedCount())
 	g.client.reset()
 
+	// A Google outage isn't blamed on the key: it's a 502, and nothing is stored.
+	g.client.checkErr = googleOutageError{}
+	res = s.Do("POST", "/api/latest/fleet/conditional_access/google", connectGoogleConditionalAccessRequest{
+		CustomerID: "C02cajzvg", AdminEmail: "admin@example.com", ServiceAccountKey: json.RawMessage(key),
+	}, http.StatusBadGateway)
+	require.Contains(t, extractServerErrorText(res.Body), "Couldn't verify the settings with Google")
+	g.requireCalls([]string{"admin@example.com/C02cajzvg"}, nil, nil)
+	_, err = s.ds.GetGoogleConditionalAccessIntegration(ctx)
+	require.True(t, fleet.IsNotFound(err))
+	require.Nil(t, g.storedKey())
+	require.Nil(t, g.getConfig().Integrations.GoogleConditionalAccess)
+	g.client.reset()
+
 	// Connect with the key: the integration is turned on.
 	resp := g.connect("C02cajzvg", "admin@example.com", key, http.StatusOK)
 	require.Equal(t, "C02cajzvg", resp.CustomerID)
@@ -2480,6 +2493,13 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessGoogleUpdate() {
 	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, g.status().State)
 	g.client.reset()
 
+	// So does a Google outage, which is a 502 rather than a 422.
+	g.client.checkErr = googleOutageError{}
+	g.update(`{"admin_email": "admin3@example.com"}`, http.StatusBadGateway)
+	require.Equal(t, "admin2@example.com", g.getConfig().Integrations.GoogleConditionalAccess.AdminEmail)
+	require.Equal(t, fleet.ConditionalAccessGoogleStateConnected, g.status().State)
+	g.client.reset()
+
 	// Each successful edit logs the edited activity, and nothing else.
 	require.Equal(t, addedBefore, g.addedCount())
 	require.Equal(t, deletedBefore, g.deletedCount())
@@ -2554,3 +2574,9 @@ func countGoogleDeviceRows(t *testing.T, ds *mysql.Datastore, customerID string)
 	})
 	return n
 }
+
+// googleOutageError is Google failing on its side, such as a 503.
+type googleOutageError struct{}
+
+func (googleOutageError) Error() string       { return "Google returned HTTP 503" }
+func (googleOutageError) IsUnavailable() bool { return true }
