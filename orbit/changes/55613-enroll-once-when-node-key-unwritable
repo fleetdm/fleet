@@ -1,0 +1,1 @@
+- Fixed fleetd enrolling the host again, and recording another `fleet_enrolled` activity and webhook each time, when it could not save its new node key to disk (for example, after its root directory was removed). fleetd now enrolls once, uses the new key from memory, and retries saving it.
