@@ -477,8 +477,8 @@ func TestGetNodeKeyOrEnrollUnwritableNodeKey(t *testing.T) {
 		srv := newKeyCheckingServer(t)
 		_, nodeKeyPath := newNodeKeyFile(t, "stale-key")
 		dir := filepath.Dir(nodeKeyPath)
-		require.NoError(t, os.Chmod(dir, 0o500))
-		t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+		require.NoError(t, os.Chmod(dir, 0o500))       // nolint:gosec // G302
+		t.Cleanup(func() { _ = os.Chmod(dir, 0o700) }) // nolint:gosec // G302
 		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
 
 		require.ErrorIs(t, getConfig(oc), ErrUnauthenticated)
