@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -104,12 +105,7 @@ type OrbitClient struct {
 	// onEnrollRejected, when set, runs each time the server rejects the secret an enroll attempt presented.
 	onEnrollRejected func()
 
-	// unsavedNodeKeyMu guards unsavedNodeKey. It is written only under enrollLock; the mutex lets GetNodeKey read it without
-	// waiting on an enroll.
-	unsavedNodeKeyMu sync.Mutex
-	// unsavedNodeKey is a node key the server issued that could not be written to nodeKeyFilePath. While set it is the host's
-	// key: the server already rotated to it, and the file is missing or holds the key it replaced.
-	unsavedNodeKey string
+	unsavedNodeKey atomic.Pointer[string]
 
 	// refreshCh (size 1) holds a request to fetch the config now instead of at the next tick, see TriggerConfigRefresh.
 	refreshCh chan struct{}
@@ -808,8 +804,6 @@ func (oc *OrbitClient) enroll() (string, error) {
 // want to re-enroll at the same time.
 var enrollLock sync.Mutex
 
-// getNodeKeyOrEnroll returns the host's node key (see currentNodeKey). Without one, or once the server has been rejecting it,
-// it enrolls the host with Fleet and saves the new node key (see saveNodeKey).
 func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	if oc.TestNodeKey != "" {
 		return oc.TestNodeKey, nil
@@ -826,8 +820,8 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 	// the log message below agree even if a concurrent 401 flips it.
 	forced := oc.reenrollForced()
 	if err == nil && len(strings.TrimSpace(orbitNodeKey)) > 0 && !forced {
-		if unsaved {
-			oc.saveNodeKey(orbitNodeKey)
+		if unsaved && oc.saveNodeKey(orbitNodeKey) {
+			oc.restartIfEnrollSecretRefreshed()
 		}
 		return orbitNodeKey, nil
 	}
@@ -902,20 +896,16 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 		}
 		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
 	}
-	// Enrollment succeeded, so clear any armed re-enroll / 401 streak.
 	oc.clearReenrollState()
-	oc.saveNodeKey(orbitNodeKey_)
+	if oc.saveNodeKey(orbitNodeKey_) {
+		oc.restartIfEnrollSecretRefreshed()
+	}
 	return orbitNodeKey_, nil
 }
 
-// currentNodeKey returns the host's node key: the unsaved one when set (unsaved=true), otherwise the node key file's content.
-// err is the file read error.
 func (oc *OrbitClient) currentNodeKey() (key string, unsaved bool, err error) {
-	oc.unsavedNodeKeyMu.Lock()
-	key = oc.unsavedNodeKey
-	oc.unsavedNodeKeyMu.Unlock()
-	if key != "" {
-		return key, true, nil
+	if k := oc.unsavedNodeKey.Load(); k != nil {
+		return *k, true, nil
 	}
 	b, err := os.ReadFile(oc.nodeKeyFilePath)
 	return string(b), false, err
@@ -927,44 +917,40 @@ func (oc *OrbitClient) GetNodeKey() (string, error) {
 	return key, err
 }
 
-// saveNodeKey writes key to the node key file. When the write fails, key stays in memory as the host's node key (enrolling
-// again would only rotate it again) and getNodeKeyOrEnroll retries the write on its next call. Callers hold enrollLock.
-func (oc *OrbitClient) saveNodeKey(key string) {
+func (oc *OrbitClient) saveNodeKey(key string) (saved bool) {
 	err := oc.writeNodeKeyFile(key)
-
-	oc.unsavedNodeKeyMu.Lock()
-	prev := oc.unsavedNodeKey
-	oc.unsavedNodeKey = ""
+	var prev *string
 	if err != nil {
-		oc.unsavedNodeKey = key
+		prev = oc.unsavedNodeKey.Swap(&key)
+	} else {
+		prev = oc.unsavedNodeKey.Swap(nil)
 	}
-	oc.unsavedNodeKeyMu.Unlock()
-
 	switch {
-	case err != nil && prev != key:
+	case err != nil && (prev == nil || *prev != key):
 		log.Error().Err(err).Msg("save orbit node key failed, using it from memory until it can be saved")
-		return
 	case err != nil:
 		log.Debug().Err(err).Msg("save orbit node key failed again")
-		return
-	case prev != "":
+	case prev != nil:
 		log.Info().Msg("saved orbit node key")
 	}
-	// osquery was started with the enroll secret orbit held then, so it would keep re-enrolling with the old one. Restarting hands
-	// it the new secret, and only now is that safe: the node key is on disk, so the restarted orbit does not need to enroll.
-	if oc.enrollSecretRefreshed {
-		oc.enrollSecretRefreshed = false
-		if oc.receiverUpdateCancelFunc != nil {
-			log.Info().Msg("enrolled with a newly delivered enroll secret, restarting so osquery uses it")
-			oc.receiverUpdateCancelFunc()
-		}
+	return err == nil
+}
+
+func (oc *OrbitClient) restartIfEnrollSecretRefreshed() {
+	if !oc.enrollSecretRefreshed {
+		return
+	}
+	oc.enrollSecretRefreshed = false
+	if oc.receiverUpdateCancelFunc != nil {
+		log.Info().Msg("enrolled with a newly delivered enroll secret, restarting so osquery uses it")
+		oc.receiverUpdateCancelFunc()
 	}
 }
 
 func (oc *OrbitClient) writeNodeKeyFile(nodeKey string) error {
 	// Write the new node key atomically: write+restrict a temp file in the same directory, then rename it over the destination. This
 	// guarantees we never truncate or remove an existing, still-valid node key until the new key is fully on disk, so a crash
-	// mid-write cannot leave the host with an empty or missing node key file.
+	// mid-write (or an enroll that is ultimately rejected) cannot leave the host with an empty or missing node key file.
 	tmp, err := os.CreateTemp(filepath.Dir(oc.nodeKeyFilePath), ".orbit-node-key-*")
 	if err != nil {
 		return fmt.Errorf("create temp orbit node key file: %w", err)
@@ -1005,7 +991,7 @@ func (oc *OrbitClient) writeNodeKeyFile(nodeKey string) error {
 	// os.Rename atomically replaces the destination; this matches orbit's existing atomic-write pattern (e.g. pkg/update). On Windows
 	// a rename can fail with a sharing violation if another process (e.g. antivirus/EDR) holds the destination open at this instant
 	// (orbit already contends with Windows file-in-use locking elsewhere, see orbit/pkg/platform). On failure we don't leave an empty
-	// or partial file: the prior key stays on disk, and saveNodeKey keeps the new key in memory until a later call saves it.
+	// or partial file: the prior key stays on disk.
 	if err := os.Rename(tmpPath, oc.nodeKeyFilePath); err != nil {
 		return fmt.Errorf("replace orbit node key file: %w", err)
 	}

@@ -114,7 +114,7 @@ func TestGetNodeKeyOrEnrollFailedEnrollKeepsKey(t *testing.T) {
 	defer srv.Close()
 
 	oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
-	oc.noteUnauthenticated() // arm the re-enroll, as sustained 401s would
+	oc.noteUnauthenticated()
 	_, err := oc.getNodeKeyOrEnroll()
 	require.ErrorContains(t, err, "orbit node key enroll failed")
 	requireNodeKey(t, nodeKeyPath, "old-key")
@@ -350,8 +350,6 @@ func TestAuthenticatedRequest401Debounce(t *testing.T) {
 	})
 }
 
-// keyCheckingServer issues "key-N" on the Nth enroll and accepts an authenticated request only when it carries the key it
-// issued last, as Fleet does after an enroll rotates the host's orbit_node_key.
 type keyCheckingServer struct {
 	*httptest.Server
 	mu      sync.Mutex
@@ -391,7 +389,6 @@ func (s *keyCheckingServer) enrollCount() int {
 	return s.enrolls
 }
 
-// rotate makes the server stop accepting the key it issued, as when another enroll for the same host replaced it.
 func (s *keyCheckingServer) rotate() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -403,8 +400,6 @@ func getConfig(oc *OrbitClient) error {
 }
 
 func TestGetNodeKeyOrEnrollUnwritableNodeKey(t *testing.T) {
-	// Real shape of the failure: the orbit root directory was removed while orbit kept running, so creating the temp key
-	// file fails with "no such file or directory".
 	t.Setenv("FLEETD_ENROLL_RETRY_INTERVAL", "1ms")
 	missingKeyPath := func(t *testing.T) (dir, path string) {
 		dir = filepath.Join(t.TempDir(), "orbit")
