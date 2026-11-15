@@ -469,7 +469,8 @@ CREATE TABLE `cron_stats` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `errors` json DEFAULT NULL,
   PRIMARY KEY (`id`),
-  KEY `idx_cron_stats_name_created_at` (`name`,`created_at`)
+  KEY `idx_cron_stats_name_created_at` (`name`,`created_at`),
+  KEY `idx_cron_stats_name_stats_type_created_at` (`name`,`stats_type`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
