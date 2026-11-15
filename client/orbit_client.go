@@ -99,12 +99,14 @@ type OrbitClient struct {
 	// refreshEnrollSecret, when set, runs before every enroll attempt. A non-empty result replaces enrollSecret, so a secret
 	// delivered while orbit runs is used without a restart.
 	refreshEnrollSecret func() string
-	// enrollSecretRefreshed records that refreshEnrollSecret replaced enrollSecret since the last successful enroll.
+	// enrollSecretRefreshed records that refreshEnrollSecret replaced enrollSecret since the last enroll whose key was saved.
 	enrollSecretRefreshed bool
 
 	// onEnrollRejected, when set, runs each time the server rejects the secret an enroll attempt presented.
 	onEnrollRejected func()
 
+	// unsavedNodeKey holds a node key the server issued that could not be written to nodeKeyFilePath. Until it is saved it takes
+	// precedence over the file, which is missing or holds the key it replaced.
 	unsavedNodeKey atomic.Pointer[string]
 
 	// refreshCh (size 1) holds a request to fetch the config now instead of at the next tick, see TriggerConfigRefresh.
@@ -828,7 +830,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 
 	switch {
 	case forced:
-		// The node key on disk was repeatedly rejected with a 401; re-enroll to obtain a fresh one.
+		// The node key was repeatedly rejected with a 401; re-enroll to obtain a fresh one.
 		log.Info().Str("server", oc.BaseURL.String()).Msg("orbit node key was rejected by the server, re-enrolling")
 	case err == nil:
 		// The file exists but is empty (e.g. a prior write was interrupted). Enroll instead of
@@ -911,7 +913,8 @@ func (oc *OrbitClient) currentNodeKey() (key string, unsaved bool, err error) {
 	return string(b), false, err
 }
 
-// GetNodeKey returns the orbit node key, see currentNodeKey.
+// GetNodeKey returns the orbit node key in use: a key the server issued that could not be saved yet, otherwise the contents of
+// the node key file.
 func (oc *OrbitClient) GetNodeKey() (string, error) {
 	key, _, err := oc.currentNodeKey()
 	return key, err
@@ -950,7 +953,7 @@ func (oc *OrbitClient) restartIfEnrollSecretRefreshed() {
 func (oc *OrbitClient) writeNodeKeyFile(nodeKey string) error {
 	// Write the new node key atomically: write+restrict a temp file in the same directory, then rename it over the destination. This
 	// guarantees we never truncate or remove an existing, still-valid node key until the new key is fully on disk, so a crash
-	// mid-write (or an enroll that is ultimately rejected) cannot leave the host with an empty or missing node key file.
+	// mid-write cannot leave the host with an empty or missing node key file.
 	tmp, err := os.CreateTemp(filepath.Dir(oc.nodeKeyFilePath), ".orbit-node-key-*")
 	if err != nil {
 		return fmt.Errorf("create temp orbit node key file: %w", err)

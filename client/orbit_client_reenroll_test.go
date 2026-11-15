@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -466,6 +467,43 @@ func TestGetNodeKeyOrEnrollUnwritableNodeKey(t *testing.T) {
 		require.NoError(t, getConfig(oc))
 		requireNodeKey(t, nodeKeyPath, "key-1")
 		require.Equal(t, 1, srv.enrollCount())
+	})
+
+	t.Run("requests use the unsaved key over a stale key file", func(t *testing.T) {
+		if runtime.GOOS == "windows" || os.Geteuid() == 0 {
+			t.Skip("needs a directory that chmod makes unwritable")
+		}
+		setReenrollGracePeriod(t, 0)
+		srv := newKeyCheckingServer(t)
+		_, nodeKeyPath := newNodeKeyFile(t, "stale-key")
+		dir := filepath.Dir(nodeKeyPath)
+		require.NoError(t, os.Chmod(dir, 0o500))
+		t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+
+		require.ErrorIs(t, getConfig(oc), ErrUnauthenticated)
+		for range 3 {
+			require.NoError(t, getConfig(oc))
+		}
+		require.Equal(t, 1, srv.enrollCount())
+		key, err := oc.GetNodeKey()
+		require.NoError(t, err)
+		require.Equal(t, "key-1", key)
+		requireNodeKey(t, nodeKeyPath, "stale-key")
+	})
+
+	t.Run("deleting a saved key file enrolls once", func(t *testing.T) {
+		srv := newKeyCheckingServer(t)
+		_, nodeKeyPath := newNodeKeyFile(t, "")
+		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+		require.NoError(t, getConfig(oc))
+		requireNodeKey(t, nodeKeyPath, "key-1")
+
+		require.NoError(t, os.Remove(nodeKeyPath))
+		require.NoError(t, getConfig(oc))
+		require.NoError(t, getConfig(oc))
+		require.Equal(t, 2, srv.enrollCount())
+		requireNodeKey(t, nodeKeyPath, "key-2")
 	})
 
 	t.Run("restart for a refreshed secret waits until the key is saved", func(t *testing.T) {
