@@ -188,23 +188,14 @@ describe("Host Actions Dropdown", () => {
     });
 
     it.each<[HostMdmDeviceStatusUIState, string]>([
-      ["locked", "You can't run a live report on a locked host."],
-      ["wiped", "You can't run a live report on a wiped host."],
-      [
-        "locking",
-        "You can't run a live report while the host's device status is updating.",
-      ],
-      [
-        "unlocking",
-        "You can't run a live report while the host's device status is updating.",
-      ],
-      [
-        "wiping",
-        "You can't run a live report while the host's device status is updating.",
-      ],
+      ["locked", "Live report is unavailable while host is locked."],
+      ["wiped", "Live report is unavailable while host is wiped."],
+      ["locking", "Live report is unavailable while host is locking."],
+      ["unlocking", "Live report is unavailable while host is unlocking."],
+      ["wiping", "Live report is unavailable while host is wiping."],
       [
         "clearing_passcode",
-        "You can't run a live report while the host's device status is updating.",
+        "Live report is unavailable while host is clearing passcode.",
       ],
     ])(
       "explains why Live report is disabled on an online %s host",

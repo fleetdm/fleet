@@ -615,6 +615,36 @@ const removeUnavailableOptions = (
   return options;
 };
 
+// Shown disabled rather than hidden while the host is locked, wiped, or has a
+// pending MDM command, so admins know they're only temporarily unavailable.
+const PENDING_GATED_OPTIONS: (string | number)[] = [
+  "mdmOff",
+  "lock",
+  "wipe",
+  "clearPasscode",
+];
+
+const DEVICE_STATUS_TOOLTIP_TEXT: Record<HostMdmDeviceStatusUIState, string> = {
+  unlocked: "unlocked",
+  locked: "locked",
+  unlocking: "unlocking",
+  locking: "locking",
+  wiped: "wiped",
+  wiping: "wiping",
+  clearing_passcode: "clearing passcode",
+  // Lost Mode with a location request pending; the host itself is locked.
+  locating: "locked",
+  unenrolling: "unenrolling",
+};
+
+const getDeviceStatusTooltip = (
+  label: string,
+  hostMdmDeviceStatus: HostMdmDeviceStatusUIState
+) =>
+  `${label} is unavailable while host is ${
+    DEVICE_STATUS_TOOLTIP_TEXT[hostMdmDeviceStatus] ?? hostMdmDeviceStatus
+  }.`;
+
 // Tooltip copy for the BYOD-disabled state per issue #23242. Shown when the
 // host's stored AccessRights bitmask omits the relevant bit.
 const BYOD_DISABLED_TOOLTIPS: Record<string, JSX.Element> = {
@@ -681,44 +711,14 @@ export const getDropdownOptionTooltipContent = (
   if (!isHostOnline && value === "query") {
     return <>You can&apos;t run a live report on an offline host.</>;
   }
-  if (value === "query") {
-    if (hostMdmDeviceStatus === "locked" || hostMdmDeviceStatus === "wiped") {
-      return (
-        <>You can&apos;t run a live report on a {hostMdmDeviceStatus} host.</>
-      );
-    }
-    if (hostMdmDeviceStatus && isDeviceStatusUpdating(hostMdmDeviceStatus)) {
-      return (
-        <>
-          You can&apos;t run a live report while the host&apos;s device status
-          is updating.
-        </>
-      );
-    }
+  if (
+    value === "query" &&
+    hostMdmDeviceStatus &&
+    hostMdmDeviceStatus !== "unlocked"
+  ) {
+    return getDeviceStatusTooltip("Live report", hostMdmDeviceStatus);
   }
   return undefined;
-};
-
-// Shown disabled rather than hidden while the host is locked, wiped, or has a
-// pending MDM command, so admins know they're only temporarily unavailable.
-const PENDING_GATED_OPTIONS: (string | number)[] = [
-  "mdmOff",
-  "lock",
-  "wipe",
-  "clearPasscode",
-];
-
-const DEVICE_STATUS_TOOLTIP_TEXT: Record<HostMdmDeviceStatusUIState, string> = {
-  unlocked: "unlocked",
-  locked: "locked",
-  unlocking: "unlocking",
-  locking: "locking",
-  wiped: "wiped",
-  wiping: "wiping",
-  clearing_passcode: "clearing passcode",
-  // Lost Mode with a location request pending; the host itself is locked.
-  locating: "locked",
-  unenrolling: "unenrolling",
 };
 
 /** for ios, ipad, and android we want to display different text for mdmOff.
@@ -944,9 +944,10 @@ const modifyOptions = (
       .filter((option) => PENDING_GATED_OPTIONS.includes(option.value))
       .forEach((option) => {
         option.disabled = true;
-        option.tooltipContent = `${option.label} is unavailable while host is ${
-          DEVICE_STATUS_TOOLTIP_TEXT[hostMdmDeviceStatus] ?? hostMdmDeviceStatus
-        }.`;
+        option.tooltipContent = getDeviceStatusTooltip(
+          String(option.label),
+          hostMdmDeviceStatus
+        );
       });
   }
 
