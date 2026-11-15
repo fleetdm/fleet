@@ -202,10 +202,12 @@ describe("Software Summary Card", () => {
 
       // Custom non-FMA macOS/Linux/Windows titles drop the Actions dropdown.
       // Per-installer Edit moves to the Library accordion row; the page-level
-      // CTA collapses to a single pencil-icon "Edit" that opens the Edit
+      // CTA collapses to a single pencil-icon "Edit appearance" that opens the Edit
       // Appearance modal directly.
       expect(screen.queryByText("Actions")).not.toBeInTheDocument();
-      const editButton = screen.getByRole("button", { name: /Edit/ });
+      const editButton = screen.getByRole("button", {
+        name: "Edit appearance",
+      });
       expect(editButton).toBeInTheDocument();
     });
 
@@ -325,11 +327,13 @@ describe("Software Summary Card", () => {
       );
 
       // macOS in-house .pkg is a custom non-FMA, non-iOS title — collapses
-      // to the pencil Edit button. Edit configuration never applied here
+      // to the pencil "Edit appearance" button. Edit configuration never applied here
       // and the dropdown is gone entirely.
       expect(screen.queryByText("Actions")).not.toBeInTheDocument();
       expect(screen.queryByText("Edit configuration")).not.toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Edit/ })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Edit appearance" })
+      ).toBeInTheDocument();
     });
 
     it("does not display Edit configuration for macOS VPP apps", async () => {

@@ -317,7 +317,7 @@ const SoftwareDetailsSummary = ({
                   disabled={!onClickEditAppearance}
                   icon="pencil"
                 >
-                  Edit
+                  Edit appearance
                 </Button>
               ) : (
                 <ActionsDropdown
