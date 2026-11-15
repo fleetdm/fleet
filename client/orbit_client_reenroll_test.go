@@ -2,6 +2,8 @@ package client
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,6 +14,7 @@ import (
 	"testing/synctest"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -334,5 +337,129 @@ func TestAuthenticatedRequest401Debounce(t *testing.T) {
 		require.ErrorIs(t, err, ErrUnauthenticated)
 		require.NoFileExists(t, certPath)
 		require.Equal(t, 1, restartCalls)
+	})
+}
+
+// keyCheckingServer issues "key-N" on the Nth enroll and accepts an authenticated request only when it carries the key it
+// issued last, as Fleet does after an enroll rotates the host's orbit_node_key.
+type keyCheckingServer struct {
+	*httptest.Server
+	mu      sync.Mutex
+	enrolls int
+	current string
+	seen    []string
+}
+
+func newKeyCheckingServer(t *testing.T) *keyCheckingServer {
+	t.Helper()
+	s := &keyCheckingServer{}
+	s.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if strings.HasSuffix(r.URL.Path, "/orbit/enroll") {
+			s.enrolls++
+			s.current = fmt.Sprintf("key-%d", s.enrolls)
+			writeEnrollResponse(t, w, s.current)
+			return
+		}
+		var req fleet.OrbitGetConfigRequest
+		assert.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		s.seen = append(s.seen, req.OrbitNodeKey)
+		if req.OrbitNodeKey == "" || req.OrbitNodeKey != s.current {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		assert.NoError(t, json.NewEncoder(w).Encode(fleet.OrbitConfig{}))
+	}))
+	t.Cleanup(s.Close)
+	return s
+}
+
+func (s *keyCheckingServer) enrollCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.enrolls
+}
+
+// rotate makes the server stop accepting the key it issued, as when another enroll for the same host replaced it.
+func (s *keyCheckingServer) rotate() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.current = "rotated-elsewhere"
+}
+
+func getConfig(oc *OrbitClient) error {
+	return oc.authenticatedRequest("POST", "/api/fleet/orbit/config", &fleet.OrbitGetConfigRequest{}, &fleet.OrbitConfig{})
+}
+
+func TestGetNodeKeyOrEnrollUnwritableNodeKey(t *testing.T) {
+	// Real shape of the failure: the orbit root directory was removed while orbit kept running, so creating the temp key
+	// file fails with "no such file or directory".
+	t.Setenv("FLEETD_ENROLL_RETRY_INTERVAL", "1ms")
+	missingKeyPath := func(t *testing.T) (dir, path string) {
+		dir = filepath.Join(t.TempDir(), "orbit")
+		return dir, filepath.Join(dir, constant.OrbitNodeKeyFileName)
+	}
+
+	t.Run("enrolls once and requests use the issued key", func(t *testing.T) {
+		srv := newKeyCheckingServer(t)
+		_, nodeKeyPath := missingKeyPath(t)
+		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+
+		err := getConfig(oc)
+		require.Equal(t, 1, srv.enrollCount(), "enroll requests")
+		require.NoError(t, err)
+		require.NoError(t, getConfig(oc))
+		require.Equal(t, 1, srv.enrollCount(), "enroll requests")
+		key, err := oc.GetNodeKey()
+		require.NoError(t, err)
+		require.Equal(t, "key-1", key)
+		require.NoFileExists(t, nodeKeyPath)
+	})
+
+	t.Run("concurrent callers share one enroll", func(t *testing.T) {
+		srv := newKeyCheckingServer(t)
+		_, nodeKeyPath := missingKeyPath(t)
+		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+
+		var wg sync.WaitGroup
+		keys := make([]string, 2)
+		errs := make([]error, 2)
+		for i := range keys {
+			wg.Go(func() { keys[i], errs[i] = oc.getNodeKeyOrEnroll() })
+		}
+		wg.Wait()
+		require.Equal(t, 1, srv.enrollCount(), "enroll requests")
+		require.NoError(t, errors.Join(errs...))
+		require.Equal(t, []string{"key-1", "key-1"}, keys)
+	})
+
+	t.Run("a rejected unsaved key re-enrolls once", func(t *testing.T) {
+		setReenrollGracePeriod(t, 0)
+		srv := newKeyCheckingServer(t)
+		_, nodeKeyPath := missingKeyPath(t)
+		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+		require.NoError(t, getConfig(oc))
+
+		srv.rotate()
+		require.ErrorIs(t, getConfig(oc), ErrUnauthenticated)
+		require.NoError(t, getConfig(oc))
+		require.NoError(t, getConfig(oc))
+		require.Equal(t, 2, srv.enrollCount())
+		srv.mu.Lock()
+		require.Equal(t, []string{"key-1", "key-1", "key-2", "key-2"}, srv.seen)
+		srv.mu.Unlock()
+	})
+
+	t.Run("saves the key once the directory is back", func(t *testing.T) {
+		srv := newKeyCheckingServer(t)
+		dir, nodeKeyPath := missingKeyPath(t)
+		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+		require.NoError(t, getConfig(oc))
+
+		require.NoError(t, os.Mkdir(dir, 0o700))
+		require.NoError(t, getConfig(oc))
+		requireNodeKey(t, nodeKeyPath, "key-1")
+		require.Equal(t, 1, srv.enrollCount())
 	})
 }
