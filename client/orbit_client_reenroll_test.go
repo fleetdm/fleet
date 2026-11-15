@@ -103,19 +103,32 @@ func TestGetNodeKeyOrEnrollValidFileReturnsKeyWithoutEnrolling(t *testing.T) {
 	require.Equal(t, "existing-key", key)
 }
 
-func TestEnrollAndWriteNodeKeyFileAtomicReplace(t *testing.T) {
+func TestGetNodeKeyOrEnrollFailedEnrollKeepsKey(t *testing.T) {
+	setReenrollGracePeriod(t, 0)
+	t.Setenv("FLEETD_ENROLL_RETRY_INTERVAL", "1ms")
+	_, nodeKeyPath := newNodeKeyFile(t, "old-key")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+	oc.noteUnauthenticated() // arm the re-enroll, as sustained 401s would
+	_, err := oc.getNodeKeyOrEnroll()
+	require.ErrorContains(t, err, "orbit node key enroll failed")
+	requireNodeKey(t, nodeKeyPath, "old-key")
+	key, err := oc.GetNodeKey()
+	require.NoError(t, err)
+	require.Equal(t, "old-key", key)
+}
+
+func TestWriteNodeKeyFileAtomicReplace(t *testing.T) {
 	t.Run("success overwrites existing key and leaves no temp file", func(t *testing.T) {
 		dir, nodeKeyPath := newNodeKeyFile(t, "old-key")
 
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			writeEnrollResponse(t, w, "fresh-key")
-		}))
-		defer srv.Close()
-
-		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
-		key, err := oc.enrollAndWriteNodeKeyFile()
-		require.NoError(t, err)
-		require.Equal(t, "fresh-key", key)
+		oc := &OrbitClient{nodeKeyFilePath: nodeKeyPath}
+		require.NoError(t, oc.writeNodeKeyFile("fresh-key"))
 		requireNodeKey(t, nodeKeyPath, "fresh-key")
 
 		entries, err := os.ReadDir(dir)
@@ -123,24 +136,21 @@ func TestEnrollAndWriteNodeKeyFileAtomicReplace(t *testing.T) {
 		require.Len(t, entries, 1, "temp file should have been renamed into place, not left behind")
 	})
 
-	t.Run("failed enroll preserves existing key and leaves no temp file", func(t *testing.T) {
-		dir, nodeKeyPath := newNodeKeyFile(t, "old-key")
+	t.Run("failed rename leaves no temp file", func(t *testing.T) {
+		// A non-empty directory at the destination makes the rename fail after the temp file was written.
+		dir := t.TempDir()
+		nodeKeyPath := filepath.Join(dir, "secret-orbit-node-key.txt")
+		require.NoError(t, os.Mkdir(nodeKeyPath, 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(nodeKeyPath, "keep"), nil, 0o600))
 
-		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-		}))
-		defer srv.Close()
-
-		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
-		_, err := oc.enrollAndWriteNodeKeyFile()
-		require.Error(t, err)
-
-		// acquire-then-replace: the existing key must survive a failed enroll.
-		requireNodeKey(t, nodeKeyPath, "old-key")
+		oc := &OrbitClient{nodeKeyFilePath: nodeKeyPath}
+		err := oc.writeNodeKeyFile("fresh-key")
+		require.ErrorContains(t, err, "replace orbit node key file")
 
 		entries, err := os.ReadDir(dir)
 		require.NoError(t, err)
 		require.Len(t, entries, 1, "temp file should have been cleaned up on failure")
+		require.Equal(t, "secret-orbit-node-key.txt", entries[0].Name())
 	})
 }
 
@@ -459,6 +469,24 @@ func TestGetNodeKeyOrEnrollUnwritableNodeKey(t *testing.T) {
 
 		require.NoError(t, os.Mkdir(dir, 0o700))
 		require.NoError(t, getConfig(oc))
+		requireNodeKey(t, nodeKeyPath, "key-1")
+		require.Equal(t, 1, srv.enrollCount())
+	})
+
+	t.Run("restart for a refreshed secret waits until the key is saved", func(t *testing.T) {
+		srv := newKeyCheckingServer(t)
+		dir, nodeKeyPath := missingKeyPath(t)
+		oc := newReenrollTestClient(t, srv.URL, nodeKeyPath)
+		oc.SetEnrollSecretRefresher(func() string { return "resent" })
+		var restarts int
+		oc.receiverUpdateCancelFunc = func() { restarts++ }
+
+		require.NoError(t, getConfig(oc))
+		require.Zero(t, restarts, "a restart before the key is saved would enroll again")
+
+		require.NoError(t, os.Mkdir(dir, 0o700))
+		require.NoError(t, getConfig(oc))
+		require.Equal(t, 1, restarts)
 		requireNodeKey(t, nodeKeyPath, "key-1")
 		require.Equal(t, 1, srv.enrollCount())
 	})
