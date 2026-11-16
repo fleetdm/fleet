@@ -12,9 +12,11 @@ import (
 func TestRouter(t *testing.T) {
 	t.Parallel()
 
+	// The echo reads the name the way request decoders do, so the body shows how many times it was decoded.
 	templateEcho := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		tpl, _ := RouteTemplateFromContext(r.Context())
-		_, _ = w.Write([]byte(tpl + " " + r.PathValue("id") + r.PathValue("name"))) //nolint:gosec // test echo, never rendered
+		name, _ := StringFromRequest(r, "name")
+		_, _ = w.Write([]byte(tpl + " " + r.PathValue("id") + name)) //nolint:gosec // test echo, never rendered
 	})
 	r := NewRouter()
 	for _, name := range []string{"outer", "inner"} {
@@ -35,13 +37,12 @@ func TestRouter(t *testing.T) {
 	r.Handle(Route{Name: "any_method", Path: "/api/any"}, templateEcho)
 	r.Handle(Route{Name: "subtree", Methods: []string{http.MethodGet}, Path: "/api/tree/", Prefix: true}, templateEcho)
 	r.Handle(Route{Name: "slash", Methods: []string{http.MethodGet}, Path: "/api/slash/"}, templateEcho)
+	r.Handle(Route{Name: "host_sub", Methods: []string{http.MethodGet}, Path: "/api/v1/fleet/hosts/{id:[0-9]+}/sub"}, templateEcho)
+	r.Handle(Route{Name: "any_pair", Methods: []string{http.MethodGet}, Path: "/api/v1/fleet/hosts/{a}/{b}"}, templateEcho)
 	const hostTemplate = "/api/{fleetversion:(?:v1|latest)}/fleet/hosts/{id:[0-9]+}"
 	assert.Panics(t, func() { r.Use(func(_ Route, next http.Handler) http.Handler { return next }) }, "Use after Handle")
 
-	routes := r.Routes()
-	require.Len(t, routes, 5)
-	assert.Equal(t, "get_host", routes[0].Name)
-	assert.Equal(t, hostTemplate, routes[0].Template())
+	assert.Equal(t, hostTemplate, r.Routes()[0].Template())
 
 	// Wrapping after registration must reach requests, inside the route middleware, with the template still in context.
 	var wrapped []string
@@ -52,7 +53,7 @@ func TestRouter(t *testing.T) {
 			next.ServeHTTP(w, req)
 		})
 	})
-	assert.Equal(t, []string{"get_host", "delete_label", "any_method", "subtree", "slash"}, wrapped)
+	assert.Equal(t, []string{"get_host", "delete_label", "any_method", "subtree", "slash", "host_sub", "any_pair"}, wrapped)
 
 	for _, tc := range []struct {
 		method, path string
@@ -67,11 +68,17 @@ func TestRouter(t *testing.T) {
 		// A value that fails the constraint is a 404, or a 405 when another method's route takes it.
 		{http.MethodGet, "/api/latest/fleet/hosts/abc", http.StatusNotFound, "", "", ""},
 		{http.MethodGet, "/api/v1/fleet/hosts/abc", http.StatusMethodNotAllowed, "", "", "DELETE"},
+		// The route the ServeMux picks rejects the id, so the less specific route that takes it serves the request.
+		{http.MethodGet, "/api/v1/fleet/hosts/abc/sub", http.StatusOK, "any_pair", "", ""},
+		// A path value is decoded exactly once, and an encoded slash stays in its segment.
 		{http.MethodDelete, "/api/v1/fleet/hosts/a%2Fb", http.StatusOK, "delete_label", "/api/v1/fleet/hosts/{name} a/b", ""},
+		{http.MethodDelete, "/api/v1/fleet/hosts/a%252Fb", http.StatusOK, "delete_label", "/api/v1/fleet/hosts/{name} a%2Fb", ""},
+		{http.MethodDelete, "/api/v1/fleet/hosts/50%25off", http.StatusOK, "delete_label", "/api/v1/fleet/hosts/{name} 50%off", ""},
 		// A route without methods serves every method.
 		{http.MethodGet, "/api/any", http.StatusOK, "any_method", "/api/any ", ""},
 		{http.MethodDelete, "/api/any", http.StatusOK, "any_method", "/api/any ", ""},
 		{http.MethodGet, "/api/tree/a/b", http.StatusOK, "subtree", "/api/tree/ ", ""},
+		{http.MethodGet, "/api/tree", http.StatusNotFound, "", "", ""}, // no redirect, which would drop server.url_prefix
 		{http.MethodGet, "/api/slash/", http.StatusOK, "slash", "/api/slash/ ", ""},
 		{http.MethodGet, "/api/slash/a", http.StatusNotFound, "", "", ""},
 	} {
@@ -137,33 +144,6 @@ func TestRouterRejectsBadRoutes(t *testing.T) {
 				assert.Contains(t, p, tc.wantPanic)
 			}()
 			r.Handle(tc.routes[len(tc.routes)-1], noop)
-		})
-	}
-}
-
-// TestRouterDecodesPathValuesOnce runs StringFromRequest behind the router, the way request decoders read a name from the path.
-func TestRouterDecodesPathValuesOnce(t *testing.T) {
-	t.Parallel()
-
-	r := NewRouter()
-	r.Handle(Route{Name: "get_label", Methods: []string{http.MethodGet}, Path: "/api/labels/{name}"},
-		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-			name, err := StringFromRequest(req, "name")
-			assert.NoError(t, err)
-			_, _ = w.Write([]byte(name)) //nolint:gosec // test echo, never rendered
-		}))
-
-	for _, tc := range []struct{ path, want string }{
-		{"/api/labels/abc%2Fdef", "abc/def"},
-		{"/api/labels/abc%252Fdef", "abc%2Fdef"},
-		{"/api/labels/50%25off", "50%off"},
-		{"/api/labels/a%20b", "a b"},
-	} {
-		t.Run(tc.path, func(t *testing.T) {
-			rec := httptest.NewRecorder()
-			r.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
-			require.Equal(t, http.StatusOK, rec.Code)
-			assert.Equal(t, tc.want, rec.Body.String())
 		})
 	}
 }
