@@ -1808,7 +1808,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 	}
 
 	// add fleet_id
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
 		decoded.TeamID = 0

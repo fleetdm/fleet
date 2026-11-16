@@ -145,7 +145,7 @@ func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *htt
 		}
 	}
 
-	val := r.MultipartForm.Value["fleet_id"]
+	val := r.Form["fleet_id"]
 	if len(val) > 0 {
 		fleetID, err := strconv.ParseUint(val[0], 10, 64)
 		if err != nil {

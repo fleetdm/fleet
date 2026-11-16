@@ -647,8 +647,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}
-	// Strict decoding would only report a renamed key as unknown, and force skips strict decoding, which would drop an old AB or
-	// VPP fleet key and unassign the token.
+	// Strict decoding misses the AB and VPP token entries, which optjson.Slice decodes without DisallowUnknownFields, so an old fleet
+	// key there would be dropped and unassign the token.
 	if err := endpointer.RejectRemovedJSONKeys(p, reflect.TypeFor[appConfigFields]()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "modify AppConfig")
 	}

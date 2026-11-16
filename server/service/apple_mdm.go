@@ -3523,7 +3523,7 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 
 	// default is no team
 	decoded.TeamID = 0
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if ok && len(val) > 0 {
 		fleetID, err := strconv.Atoi(val[0])
 		if err != nil {
@@ -4253,7 +4253,7 @@ func (createAppleDDMAssetRequest) DecodeRequest(ctx context.Context, r *http.Req
 		}
 	}
 
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
 		decoded.TeamID = new(uint(0))

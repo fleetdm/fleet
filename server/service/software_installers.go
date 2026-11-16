@@ -132,7 +132,7 @@ func (updateSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	// default is no team
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if ok {
 		fleetID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {
@@ -419,7 +419,7 @@ func (uploadSoftwareInstallerRequest) DecodeRequest(ctx context.Context, r *http
 	}
 
 	// default is no team
-	val, ok := r.MultipartForm.Value["fleet_id"]
+	val, ok := r.Form["fleet_id"]
 	if ok {
 		fleetID, err := strconv.ParseUint(val[0], 10, 32)
 		if err != nil {

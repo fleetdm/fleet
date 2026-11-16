@@ -77,6 +77,8 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 	} {
 		reject(tc[0], tc[1], tc[2], tc[3])
 	}
+	// Filters never took other old names, so those stay unknown keys.
+	s.DoRaw("POST", "/api/latest/fleet/hosts/delete", []byte(`{"filters": {"teams": 1}}`), http.StatusBadRequest)
 
 	// Multipart uploads: the old field is rejected whether or not fleet_id is also sent, and in the query string too.
 	for _, path := range []string{"/software/package", "/scripts", "/configuration_profiles", "/setup_experience/script", "/bootstrap"} {
@@ -143,6 +145,17 @@ func (s *integrationEnterpriseTestSuite) TestRemovedFleetNames() {
 	s.DoJSON("POST", "/api/latest/fleet/reports", &fleet.QueryPayload{Name: new(t.Name()), Query: new("SELECT 1 AS team_id")}, http.StatusOK,
 		&created)
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/reports/%d/report", created.Query.ID), nil, http.StatusOK, "order_key", "team_id")
+
+	// Uploads take fleet_id from the query string, like they took team_id there.
+	team, err := s.ds.NewTeam(t.Context(), &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	body, headers := generateNewScriptMultipartRequest(t, "query_fleet_id.sh", []byte("echo"), s.token, nil)
+	resp := s.DoRawWithHeaders("POST", fmt.Sprintf("/api/latest/fleet/scripts?fleet_id=%d", team.ID), body.Bytes(), http.StatusOK, headers)
+	var createScriptResp fleet.CreateScriptResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&createScriptResp))
+	script, err := s.ds.Script(t.Context(), createScriptResp.ScriptID)
+	require.NoError(t, err)
+	require.Equal(t, &team.ID, script.TeamID)
 }
 
 func (s *integrationEnterpriseTestSuite) listReports() []fleet.Query {

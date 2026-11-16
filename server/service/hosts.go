@@ -21,7 +21,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -4727,7 +4726,8 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 			opt.MatchQuery = query
 
 		default:
-			if e, ok := removednames.Find(removednames.KindJSONKey, k, ""); ok && e.Scope&removednames.ScopeRequest != 0 {
+			// team_id is the only old name filters took.
+			if k == "team_id" {
 				return nil, nil, &endpointer.RemovedKeyError{Key: k}
 			}
 			return nil, nil, badRequest(fmt.Sprintf("unknown filter key: %s", k))
