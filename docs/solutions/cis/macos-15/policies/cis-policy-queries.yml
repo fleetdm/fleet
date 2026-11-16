@@ -161,7 +161,7 @@
   description: |
     iCloud Drive is Apple's storage solution for applications on both macOS and iOS to use the same files that are resident in Apple's cloud storage. The iCloud Drive folder is available much like Dropbox, Microsoft OneDrive, or Google Drive.
     One of the concerns in public cloud storage is that proprietary data may be inappropriately stored in an end user's personal repository. Organizations that need specific controls on information should ensure that this service is turned off or the user knows what information must be stored on services that are approved for storage of controlled information.
-    This query will check for the existance of the policy not its value (That should be set per organization's decision)
+    This query will check for the existence of the policy not its value (That should be set per organization's decision)
   resolution: |
     The administrator should configure this via MDM profile.
     Ask your administrator to deploy a profile with the following configuration:
@@ -194,7 +194,7 @@
   description: |
     iCloud Drive is Apple's storage solution for applications on both macOS and iOS to use the same files that are resident in Apple's cloud storage. The iCloud Drive folder is available much like Dropbox, Microsoft OneDrive, or Google Drive.
     One of the concerns in public cloud storage is that proprietary data may be inappropriately stored in an end user's personal repository. Organizations that need specific controls on information should ensure that this service is turned off or the user knows what information must be stored on services that are approved for storage of controlled information.
-    This query will check for the existance of the policy not its value (That should be set per organization's decision)
+    This query will check for the existence of the policy not its value (That should be set per organization's decision)
   resolution: |
     The administrator should configure this via MDM profile.
     Ask your administrator to deploy a profile with the following configuration:
@@ -365,7 +365,7 @@
     Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.applicationaccess
       2. The key to include is allowAirDrop
-      3. The key must be set to <false/>
+      3. Both keys must be set to <false/>
     Note: AirDrop can only be enabled or disabled through configuration profiles. If your
     organization allows AirDrop, that policy must be set through MDM; users may then use
     the GUI to transfer files if AirDrop is permitted.
@@ -404,7 +404,7 @@
     Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.applicationaccess
       2. The key to include is allowAirPlayIncomingRequests
-      3. The key must be set to <false/>
+      3. Both keys must be set to <false/>
   query: |
     SELECT 1 WHERE 
       EXISTS (
@@ -426,7 +426,8 @@
 - name: "[macOS 15] CIS - Ensure Set Time and Date Automatically Is Enabled (MDM Required)"
   # platforms: macOS
   platform: darwin
-  description: 
+  description: |
+    Ensure that the system is configured to set the date and time automatically from a network time server. Accurate time is critical for log correlation, certificate validation, and Kerberos authentication.
   resolution: |
       The administrator should configure this via MDM profile.
       Ask your administrator to deploy a profile with the following configuration:
@@ -675,14 +676,14 @@
     Graphical Method:
       Perform the following steps to disable Content Caching:
         1. Open System Settings
-        2. SelectGeneral
-        3. SelectSharing
+        2. Select General
+        3. Select Sharing
         4. Set Content Caching to disabled
     Profile Method:
     Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.applicationaccess 
       2. The key to include is allowContentCaching
-      3. The key must be set to <false/>
+      3. Both keys must be set to <false/>
   query: |
     SELECT 1 WHERE 
       EXISTS (
@@ -748,7 +749,7 @@
     Ask your administrator to deploy a profile with the following configuration:
     1. The PayloadType string is com.apple.applicationaccess
     2. The key to include is allowMediaSharing
-    3. The key must be set to <false/>
+    3. Both keys must be set to <false/>
     4. The key to also include is allowMediaSharingModification
     5. The key must be set to <false/>
   query: |
@@ -874,7 +875,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is true.
+    Extension of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is true.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist TypeToSiriEnabled -bool true
@@ -900,7 +901,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is false.
+    Extension of CIS-2.5.1. This will check that Siri TypeToSiriEnabled field is false.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist TypeToSiriEnabled -bool false
@@ -926,7 +927,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri StatusMenuVisible field is true.
+    Extension of CIS-2.5.1. This will check that Siri StatusMenuVisible field is true.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist StatusMenuVisible -bool true
@@ -952,7 +953,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri StatusMenuVisible field is false.
+    Extension of CIS-2.5.1. This will check that Siri StatusMenuVisible field is false.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist StatusMenuVisible -bool false
@@ -978,7 +979,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is true.
+    Extension of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is true.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist VoiceTriggerUserEnabled -bool true
@@ -1004,7 +1005,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is false.
+    Extension of CIS-2.5.1. This will check that Siri VoiceTriggerUserEnabled field is false.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist VoiceTriggerUserEnabled -bool false
@@ -1030,7 +1031,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri LockscreenEnabled field is true.
+    Extension of CIS-2.5.1. This will check that Siri LockscreenEnabled field is true.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist LockscreenEnabled -bool true
@@ -1056,7 +1057,7 @@
   # platforms: macOS
   platform: darwin
   description: |
-    Extention of CIS-2.5.1. This will check that Siri LockscreenEnabled field is false.
+    Extension of CIS-2.5.1. This will check that Siri LockscreenEnabled field is false.
   resolution: |
         Ask your system administrator to deploy a script that will configure
         $ /usr/bin/sudo -u <username> /usr/bin/defaults write com.apple.Siri.plist LockscreenEnabled -bool false
@@ -1780,7 +1781,7 @@
     Ask your system administrator to deploy an MDM profile that Ensures Show Password Hints Is Disabled.
     Graphical method:
       Perform the following steps to ensure Show Password Hints Is Disabled:
-        1. OpenSystemSettings
+        1. Open System Settings
         2. Select Lock Screen
         3. Verify that Show password hints is disabled
   query: |
@@ -2761,7 +2762,7 @@
             domain='com.apple.Safari' AND 
             name='HistoryAgeInDaysLimit' AND 
               /*
-              Please replace the checked value bellow to match the one decided by your organization.
+              Please replace the checked value below to match the one decided by your organization.
               1 - After one day
               7 - After one week
               14 - After two weeks
@@ -2790,7 +2791,7 @@
     unwanted content. Warning users prior to loading the content enables better security.
   resolution: |
     Payload Method:
-    Ask your administrator to deploy a profile which enableds WarnAboutFraudulentWebsites in Safari
+    Ask your administrator to deploy a profile which enables WarnAboutFraudulentWebsites in Safari
   query: |
     SELECT 1 WHERE 
       EXISTS (
@@ -2873,7 +2874,7 @@
   platform: darwin
   description: |
     Public (Routable) IP addresses can be used to track people to their current location, including
-    home and business addresses. While a valid IP addess is necessary to load the site the valid
+    home and business addresses. While a valid IP address is necessary to load the site the valid
     address does not need to be provided to known trackers and should be hidden.
   resolution: |
     Ask your system administrator to deploy a script that will configure "Hide IP Address in Safari" to Enabled
@@ -2901,7 +2902,7 @@
   platform: darwin
   description: |
     Public (Routable) IP addresses can be used to track people to their current location, including
-    home and business addresses. While a valid IP addess is necessary to load the site the valid
+    home and business addresses. While a valid IP address is necessary to load the site the valid
     address does not need to be provided to known trackers and should be hidden.
     However, enabling this setting will proxy web information through a 3rd party service, which may
     not be allowed by your organization's policy.
@@ -3101,18 +3102,18 @@
     Profile Method:
     Ask your administrator to deploy a profile with the following configuration:
     1. The PayloadType string is com.apple.applicationaccess
-    2. The key to include is allowIntelligenceExtensions
-    3. The key must be set to <false/>
+    2. The key to include is allowExternalIntelligenceIntegrations
+    3. Both keys must be set to <false/>
   query: |
     SELECT 1 WHERE EXISTS(
       SELECT 1 FROM managed_policies WHERE
         domain = 'com.apple.applicationaccess' AND
-        name = 'allowIntelligenceExtensions' AND
+        name = 'allowExternalIntelligenceIntegrations' AND
         (value = 0 OR value = 'false')
     ) AND NOT EXISTS (
       SELECT 1 FROM managed_policies WHERE
         domain = 'com.apple.applicationaccess' AND
-        name = 'allowIntelligenceExtensions' AND
+        name = 'allowExternalIntelligenceIntegrations' AND
         (value != 0 AND value != 'false')
     );
   # purpose: Informational
@@ -3136,7 +3137,7 @@
     Ask your administrator to deploy a profile with the following configuration:
     1. The PayloadType string is com.apple.applicationaccess
     2. The key to include is allowWritingTools
-    3. The key must be set to <false/>
+    3. Both keys must be set to <false/>
   query: |
     SELECT 1 WHERE EXISTS(
       SELECT 1 FROM managed_policies WHERE
@@ -3166,19 +3167,19 @@
   resolution: |
     Profile Method:
     Ask your administrator to deploy a profile with the following configuration:
-    1. The PayloadType string is com.apple.mail
-    2. The key to include is allowMailIntelligence
-    3. The key must be set to <false/>
+    1. The PayloadType string is com.apple.applicationaccess
+    2. The keys to include are allowMailSmartReplies and allowMailSummary
+    3. Both keys must be set to <false/>
   query: |
     SELECT 1 WHERE EXISTS(
       SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.mail' AND
-        name = 'allowMailIntelligence' AND
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowMailSummary' AND
         (value = 0 OR value = 'false')
     ) AND NOT EXISTS (
       SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.mail' AND
-        name = 'allowMailIntelligence' AND
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowMailSummary' AND
         (value != 0 AND value != 'false')
     );
   # purpose: Informational
@@ -3198,19 +3199,19 @@
   resolution: |
     Profile Method:
     Ask your administrator to deploy a profile with the following configuration:
-    1. The PayloadType string is com.apple.mobilenotes
-    2. The key to include is allowNotesIntelligence
-    3. The key must be set to <false/>
+    1. The PayloadType string is com.apple.applicationaccess
+    2. The keys to include are allowNotesTranscription and allowNotesTranscriptionSummary
+    3. Both keys must be set to <false/>
   query: |
     SELECT 1 WHERE EXISTS(
       SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.mobilenotes' AND
-        name = 'allowNotesIntelligence' AND
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowNotesTranscriptionSummary' AND
         (value = 0 OR value = 'false')
     ) AND NOT EXISTS (
       SELECT 1 FROM managed_policies WHERE
-        domain = 'com.apple.mobilenotes' AND
-        name = 'allowNotesIntelligence' AND
+        domain = 'com.apple.applicationaccess' AND
+        name = 'allowNotesTranscriptionSummary' AND
         (value != 0 AND value != 'false')
     );
   # purpose: Informational
