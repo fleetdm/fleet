@@ -1564,12 +1564,12 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 					ID:         30,
 					Name:       "No-Team Package",
 					HashSHA256: ptr.String("eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111eeee1111"),
-					SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Packages: []fleet.SoftwarePackageListItem{{
 						Name:       "noteam-pkg.deb",
 						Platform:   "linux",
 						Version:    "2.0",
 						PackageURL: ptr.String("https://example.com/noteam-pkg.deb"),
-					},
+					}},
 				},
 			}, 1, nil, nil
 		}
@@ -1582,12 +1582,12 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 					ID:         uint(1000 + i),
 					Name:       fmt.Sprintf("Bogus Package %d", i),
 					HashSHA256: ptr.String(fmt.Sprintf("%064x", i)),
-					SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Packages: []fleet.SoftwarePackageListItem{{
 						Name:       fmt.Sprintf("bogus-%d.deb", i),
 						Platform:   "linux",
 						Version:    "0.0.1",
 						PackageURL: ptr.String(fmt.Sprintf("https://example.com/bogus-%d.deb", i)),
-					},
+					}},
 				}
 			}
 			return bogus, int(opt.ListOptions.PerPage), nil, nil //nolint:gosec // dismiss G115
@@ -1598,12 +1598,12 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 				ID:         10,
 				Name:       "Custom Package",
 				HashSHA256: ptr.String("a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6abcd"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:       "custom-pkg.deb",
 					Platform:   "linux",
 					Version:    "1.0",
 					PackageURL: ptr.String("https://example.com/custom-pkg.deb"),
-				},
+				}},
 			},
 			{
 				ID:           20,
@@ -1614,12 +1614,12 @@ func TestGitOpsSoftwareExceptionPolicyValidation(t *testing.T) {
 				ID:         40,
 				Name:       "Zoom",
 				HashSHA256: ptr.String("fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1fma1"),
-				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+				Packages: []fleet.SoftwarePackageListItem{{
 					Name:                 "zoom.pkg",
 					Platform:             "darwin",
 					Version:              "6.0",
 					FleetMaintainedAppID: ptr.Uint(100),
-				},
+				}},
 			},
 		}, 3, nil, nil
 	}

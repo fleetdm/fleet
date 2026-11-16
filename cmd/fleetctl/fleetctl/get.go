@@ -321,7 +321,7 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 		return nil, fmt.Errorf("could not get setup experience software for fleet %d: %w", teamID, err)
 	}
 	for _, sw := range setupSoftware {
-		if pkg := sw.SoftwarePackage; pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+		if len(sw.Packages) > 0 && sw.Packages[0].InstallDuringSetup != nil && *sw.Packages[0].InstallDuringSetup {
 			setupSoftwareByTitleID[sw.ID] = struct{}{}
 		}
 		if len(sw.AppStoreApps) > 0 && sw.AppStoreApps[0].InstallDuringSetup != nil && *sw.AppStoreApps[0].InstallDuringSetup {
@@ -363,8 +363,8 @@ func getTeamSoftwareSpec(client *service.Client, teamID uint) (*fleet.SoftwareSp
 		}
 
 		switch {
-		case detail.SoftwarePackage != nil:
-			pkg := detail.SoftwarePackage
+		case len(detail.Packages) > 0:
+			pkg := detail.Packages[0]
 			if pkg.FleetMaintainedAppID != nil {
 				slug, err := resolveFMASlug(*pkg.FleetMaintainedAppID)
 				if err != nil {

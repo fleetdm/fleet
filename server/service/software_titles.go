@@ -355,6 +355,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 					}
 					meta.Configuration = wrapped
 				}
+				software.Packages = []fleet.SoftwareInstaller{*meta}
 			}
 			software.SoftwarePackage = meta
 		}
