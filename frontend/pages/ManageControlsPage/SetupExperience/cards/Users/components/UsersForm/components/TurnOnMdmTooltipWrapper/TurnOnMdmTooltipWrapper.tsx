@@ -9,6 +9,10 @@ const MDM_BY_PLATFORM = {
   windows: { url: PATHS.ADMIN_INTEGRATIONS_MDM_WINDOWS, text: "Windows MDM" },
 } as const;
 
+// Center the tooltip on the hovered radio or checkbox row, not on the whole
+// section (heading and help text included).
+export const CONTROL_ROW_SELECTOR = "[role='checkbox'], .radio__radio-control";
+
 interface ITurnOnMdmTooltipWrapperProps {
   platform: keyof typeof MDM_BY_PLATFORM;
   isMdmEnabledAndConfigured: boolean;
@@ -36,7 +40,9 @@ const TurnOnMdmTooltipWrapper = ({
       disableTooltip={isMdmEnabledAndConfigured}
       underline={false}
       position="left"
+      tipOffset={8}
       showArrow
+      anchorChildSelector={CONTROL_ROW_SELECTOR}
     >
       {children}
     </TooltipWrapper>

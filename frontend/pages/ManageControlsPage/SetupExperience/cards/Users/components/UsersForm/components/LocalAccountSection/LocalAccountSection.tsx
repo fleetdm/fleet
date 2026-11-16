@@ -43,6 +43,7 @@ const LocalAccountSection = ({
           position="left"
           tipOffset={8}
           isInputField
+          disableTooltip={!isMacMdmEnabledAndConfigured}
           renderChildren={(gitopsEnabled) => {
             return (
               <div className={`${baseClass}__field-group`}>

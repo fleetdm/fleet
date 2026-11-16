@@ -6,7 +6,9 @@ import TooltipWrapper from "components/TooltipWrapper";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PATHS from "router/paths";
 
-import TurnOnMdmTooltipWrapper from "../TurnOnMdmTooltipWrapper";
+import TurnOnMdmTooltipWrapper, {
+  CONTROL_ROW_SELECTOR,
+} from "../TurnOnMdmTooltipWrapper/TurnOnMdmTooltipWrapper";
 
 const baseClass = "users-form";
 
@@ -48,7 +50,9 @@ const EndUserAuthSection = ({
         disableTooltip={isIdPConfigured}
         underline={false}
         position="left"
+        tipOffset={8}
         showArrow
+        anchorChildSelector={CONTROL_ROW_SELECTOR}
       >
         <Checkbox
           disabled={gitOpsModeEnabled || !isIdPConfigured}

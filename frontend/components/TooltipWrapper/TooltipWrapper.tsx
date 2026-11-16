@@ -172,6 +172,9 @@ and mouseout from the element. If a boolean, sets delay to the default below. If
    * (browser cap) and falls back to normal wrapping beyond that — long
    * tooltip strings may need manual `<br />` breaks to stay under the cap. */
   textBalanced?: boolean;
+  /** CSS selector for descendants to position the tooltip against, instead of
+   * the whole wrapped element. Only matching descendants open the tooltip. */
+  anchorChildSelector?: string;
 }
 
 const baseClass = "component__tooltip-wrapper";
@@ -199,6 +202,7 @@ const TooltipWrapper = ({
   fixedPositionStrategy = false,
   isMobileView = false,
   textBalanced = true,
+  anchorChildSelector,
 }: ITooltipWrapper) => {
   const wrapperClassNames = classnames(baseClass, className, {
     "show-arrow": showArrow,
@@ -217,6 +221,10 @@ const TooltipWrapper = ({
   });
 
   const tipId = uniqueId();
+  const anchorSelect = anchorChildSelector
+    ?.split(",")
+    .map((s) => `[data-tooltip-id='${tipId}'] ${s.trim()}`)
+    .join(", ");
 
   let delayShowVal;
   if (typeof delayShow === "boolean" && delayShow) {
@@ -254,6 +262,7 @@ const TooltipWrapper = ({
         <ReactTooltip5
           className={tipClassNames}
           id={tipId}
+          anchorSelect={anchorSelect}
           delayShow={delayShowVal || delayInMs}
           delayHide={delayHideVal}
           noArrow={!showArrow}
