@@ -386,18 +386,17 @@ Fleet 4 doesn't support `POST /hosts/:id/reset`, so you can't switch to it early
 
 GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
-### Configuration responses list saved settings by name
+### YAML-only lists removed from configuration responses
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.android_settings.configuration_profiles`, `macos_bootstrap_package`, `apple_setup_assistant`, and `macos_script` under `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), and [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets) only list what was applied with YAML, as file paths or URLs | They list everything saved in Fleet, including what was added in the UI or API, by name. Profiles don't have `path`. A list is left out for users who can't view that feature on its own endpoint. |
+| `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.android_settings.configuration_profiles`, `macos_bootstrap_package`, `apple_setup_assistant`, and `macos_script` under `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), [Create fleet](https://fleetdm.com/docs/rest-api/rest-api#create-fleet), [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet), and the other responses that include a fleet's settings | Removed. Use each feature's list endpoint, for example [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles). |
 
 #### What to do
 
-After you upgrade, update scripts and integrations that read these keys:
+Change these before you upgrade.
 
-- Read names instead of file paths or URLs.
-- Handle a missing key. For example, observers don't get configuration profiles, and fleet-level users don't get the "No fleet" lists in Get configuration.
+These lists only included settings applied with YAML, so call the list endpoint for each feature instead.
 
 GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
@@ -1059,15 +1058,15 @@ Update scripts that read these keys from `fleetctl get config` or `fleetctl get 
 
 GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
-### get config and get fleets print saved settings by name
+### get config and get fleets don't print YAML-only lists
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
-| `fleetctl get config` and `fleetctl get fleets` print the configuration profiles, scripts, setup experience, and VPP settings applied with YAML, as file paths or URLs | They print everything saved in Fleet by name. Profiles don't have `path`. |
+| `fleetctl get config` and `fleetctl get fleets` print the configuration profiles, scripts, bootstrap package, setup assistant, setup experience script, and VPP assignments applied with YAML | They don't print them |
 
 #### What to do
 
-Update scripts that read these keys from `fleetctl get config` or `fleetctl get fleets` output. See [Configuration responses list saved settings by name](#configuration-responses-list-saved-settings-by-name).
+Update scripts that read these keys from `fleetctl get config` or `fleetctl get fleets` output to use each feature's list endpoint instead. See [YAML-only lists removed from configuration responses](#yaml-only-lists-removed-from-configuration-responses).
 
 GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
