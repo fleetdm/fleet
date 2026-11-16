@@ -46,6 +46,7 @@ Every icon must follow these rules. If you're given an SVG that breaks them, fix
 
 - **Size:** 16px is the minimum. Don't scale an icon to a new size; draw that size separately.
 - **Strokes:** round caps and round joins on every stroke. Corner radius 1.5px on the stroke centerline. Keep all ink inside the frame.
+- **Thinner lines for small details:** when a full-width line would crowd a small detail or make it hard to read, draw that detail one step thinner: 1px on 16px icons, 1.5px on 32px icons (for example the slash in `hide` or the phone's button in `hosts`). Keep the main shape at the standard width.
 - **Gaps inside an icon:** 1.5px between separate parts.
 - **Gaps to a badge:** the outline ends 1.5px from the badge (2.5px on 32px icons). Keep every gap to the same badge equal.
 - **Line ends:** where a line stops next to another shape, end it straight-on, not partway around a curve, so the gap reads the same as the others.
@@ -56,7 +57,7 @@ Every icon must follow these rules. If you're given an SVG that breaks them, fix
 
 After editing paths in Figma, check again that caps and joins are still round. Replacing path data resets them.
 
-If the Figma MCP server is connected, check the drawn icon against these rules with a read-only `use_figma` script: frame size, stroke weight, round caps and joins on every stroked vector, no groups or masks, all ink inside the frame, `#515774` paints only, and the `icon/<name>` name. Report anything that breaks a rule instead of fixing it silently.
+If the Figma MCP server is connected, check the drawn icon against these rules with a read-only `use_figma` script: frame size, stroke weight (standard, or one step thinner for a small detail), round caps and joins on every stroked vector, no groups or masks, all ink inside the frame, `#515774` paints only, and the `icon/<name>` name. Report anything that breaks a rule instead of fixing it silently.
 
 ### 2a. Get approval (new icons)
 
