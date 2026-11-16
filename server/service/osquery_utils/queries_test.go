@@ -4817,6 +4817,61 @@ func TestWindowsProgramFilesScan(t *testing.T) {
 			},
 		},
 		{
+			name:        "Windows Defender reports the newest platform MsMpEng.exe, not the in-box copy",
+			mainResults: []map[string]string{},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\Windows Defender\MsMpEng.exe`, "filename": "MsMpEng.exe", "product_version": "4.18.1909.6", "file_version": "4.18.1909.6"},
+				{"path": `C:\ProgramData\Microsoft\Windows Defender\Platform\4.18.26090.3-0\MsMpEng.exe`, "filename": "MsMpEng.exe", "product_version": "4.18.26090.3", "file_version": "4.18.26090.3"},
+				{"path": `C:\ProgramData\Microsoft\Windows Defender\Platform\4.18.26100.4-0\MsMpEng.exe`, "filename": "MsMpEng.exe", "product_version": "4.18.26100.4", "file_version": "4.18.26100.4"},
+				{"path": `C:\Program Files\SomeApp\app.exe`, "filename": "app.exe", "product_version": "1.0", "file_version": "1.0.0.0"},
+			},
+			expected: []map[string]string{
+				{
+					"name": "MsMpEng.exe", "version": "4.18.26100.4", "source": "programs",
+					"vendor": "", "installed_path": `C:\ProgramData\Microsoft\Windows Defender\Platform\4.18.26100.4-0`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+				{
+					"name": "app.exe", "version": "1.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\SomeApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name:        "Windows Defender keeps the in-box MsMpEng.exe when no platform folder exists",
+			mainResults: []map[string]string{},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\Windows Defender\MsMpEng.exe`, "filename": "MsMpEng.exe", "product_version": "4.18.1909.6", "file_version": "4.18.1909.6"},
+			},
+			expected: []map[string]string{
+				{
+					"name": "MsMpEng.exe", "version": "4.18.1909.6", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\Windows Defender`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name:        "Windows Defender version comparison uses file_version when product_version is empty",
+			mainResults: []map[string]string{},
+			fileScanResults: []map[string]string{
+				{"path": `C:\ProgramData\Microsoft\Windows Defender\Platform\4.18.26100.4-0\msmpeng.exe`, "filename": "msmpeng.exe", "product_version": "", "file_version": "4.18.26100.4"},
+				{"path": `C:\Program Files\Windows Defender\MsMpEng.exe`, "filename": "MsMpEng.exe", "product_version": "4.18.1909.6", "file_version": "4.18.1909.6"},
+			},
+			expected: []map[string]string{
+				{
+					"name": "msmpeng.exe", "version": "4.18.26100.4", "source": "programs",
+					"vendor": "", "installed_path": `C:\ProgramData\Microsoft\Windows Defender\Platform\4.18.26100.4-0`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
 			name:        "version falls back to file_version when product_version is empty",
 			mainResults: []map[string]string{},
 			fileScanResults: []map[string]string{

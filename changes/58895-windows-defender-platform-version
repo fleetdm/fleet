@@ -1,0 +1,1 @@
+- Fixed Windows Defender showing the in-box version from `C:\Program Files\Windows Defender` instead of the running platform version, which caused false positive CVEs such as CVE-2023-36422.

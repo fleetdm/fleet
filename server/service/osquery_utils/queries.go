@@ -34,6 +34,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/google/uuid"
 	"github.com/spf13/cast"
 )
@@ -1991,7 +1992,9 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 	// (Vendor\app.exe) and depth 1 (Vendor\Subfolder\app.exe), excluding WindowsApps (already
 	// covered by the programs table). Deduplication against programs entries is handled server-side
 	// via SoftwareProcessResults. Also enables detection of Windows Defender (MsMpEng.exe) which
-	// does not create registry entries (#42878).
+	// does not create registry entries (#42878). Defender platform updates install the running
+	// MsMpEng.exe under C:\ProgramData\Microsoft\Windows Defender\Platform\<version>, so that
+	// folder is scanned too and processProgramFilesScan keeps only the newest MsMpEng.exe.
 	"windows_program_files_scan": {
 		Description: "A software override query[^1] to detect Windows software installed to Program Files without registry entries.",
 		Platforms:   []string{"windows"},
@@ -2005,6 +2008,7 @@ FROM file
 WHERE (
     path LIKE 'C:\Program Files\%\%.exe'
     OR path LIKE 'C:\Program Files\%\%\%.exe'
+    OR path LIKE 'C:\ProgramData\Microsoft\Windows Defender\Platform\%\MsMpEng.exe'
   )
   AND path NOT LIKE 'C:\Program Files\WindowsApps\%'`,
 		SoftwareProcessResults: processProgramFilesScan,
@@ -2088,6 +2092,8 @@ func processProgramFilesScan(mainSoftwareResults, fileScanResults []map[string]s
 		return mainSoftwareResults
 	}
 
+	fileScanResults = keepNewestWindowsDefender(fileScanResults)
+
 	// Build a set of normalized installed paths from existing programs entries.
 	// normalizeWindowsDir ensures consistent trailing backslash and lowercase.
 	//
@@ -2143,14 +2149,9 @@ func processProgramFilesScan(mainSoftwareResults, fileScanResults []map[string]s
 			continue
 		}
 
-		version := row["product_version"]
-		if version == "" {
-			version = row["file_version"]
-		}
-
 		mainSoftwareResults = append(mainSoftwareResults, map[string]string{
 			"name":              row["filename"],
-			"version":           version,
+			"version":           fileScanVersion(row),
 			"source":            "programs",
 			"vendor":            "",
 			"installed_path":    windowsDirname(exePath),
@@ -2165,6 +2166,49 @@ func processProgramFilesScan(mainSoftwareResults, fileScanResults []map[string]s
 	}
 
 	return mainSoftwareResults
+}
+
+// keepNewestWindowsDefender drops every MsMpEng.exe row except the one with the highest version.
+//
+// C:\Program Files\Windows Defender\MsMpEng.exe is the in-box copy that ships with Windows and is
+// not updated by Defender platform updates. The running copy lives under
+// C:\ProgramData\Microsoft\Windows Defender\Platform\<version>\, and older platform folders can
+// remain after an update. Reporting the in-box version makes Windows Defender look outdated and
+// matches CVEs that the running platform has already fixed (e.g. CVE-2023-36422), so only the
+// newest copy is kept. When no platform folder exists, the in-box copy is still reported.
+func keepNewestWindowsDefender(fileScanResults []map[string]string) []map[string]string {
+	newest := -1
+	count := 0
+	for i, row := range fileScanResults {
+		if !strings.EqualFold(row["filename"], "MsMpEng.exe") {
+			continue
+		}
+		count++
+		if newest == -1 || nvd.SmartVerCmp(fileScanVersion(row), fileScanVersion(fileScanResults[newest])) > 0 {
+			newest = i
+		}
+	}
+	if count <= 1 {
+		return fileScanResults
+	}
+
+	filtered := make([]map[string]string, 0, len(fileScanResults)-count+1)
+	for i, row := range fileScanResults {
+		if i != newest && strings.EqualFold(row["filename"], "MsMpEng.exe") {
+			continue
+		}
+		filtered = append(filtered, row)
+	}
+	return filtered
+}
+
+// fileScanVersion returns the version of a windows_program_files_scan row: product_version,
+// falling back to file_version.
+func fileScanVersion(row map[string]string) string {
+	if v := row["product_version"]; v != "" {
+		return v
+	}
+	return row["file_version"]
 }
 
 // windowsDirname returns the directory portion of a Windows path (everything before the last backslash).
