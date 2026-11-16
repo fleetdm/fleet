@@ -88,34 +88,34 @@ func RandomSoftwareCount(platform string) int {
 type DarwinSoftware struct {
 	Name             string
 	Version          string
-	Source           string  // apps, homebrew_packages, firefox_addons, chrome_extensions, python_packages, vscode_extensions, safari_extensions (interned)
+	Source           string  // apps, homebrew_packages, firefox_addons, chrome_extensions, python_packages, vscode_extensions, safari_extensions, jetbrains_plugins (interned)
 	BundleIdentifier *string // optional - used by apps
 	Vendor           *string // optional - used by apps, vscode_extensions (interned)
 	ExtensionID      *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
-	ExtensionFor     *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
+	ExtensionFor     *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions, jetbrains_plugins
 }
 
 // WindowsSoftware represents Windows software
 type WindowsSoftware struct {
 	Name         string
 	Version      string
-	Source       string  // firefox_addons, chrome_extensions, programs, vscode_extensions, ie_extensions, python_packages, deb_packages (interned)
+	Source       string  // firefox_addons, chrome_extensions, programs, vscode_extensions, ie_extensions, python_packages, deb_packages, jetbrains_plugins (interned)
 	Vendor       *string // optional - used by programs, vscode_extensions (interned)
 	UpgradeCode  *string // optional - used by programs
 	ExtensionID  *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
-	ExtensionFor *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
+	ExtensionFor *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions, jetbrains_plugins
 }
 
 // UbuntuSoftware represents Ubuntu/Linux software
 type UbuntuSoftware struct {
 	Name         string
 	Version      string
-	Source       string  // firefox_addons, chrome_extensions, python_packages, deb_packages, vscode_extensions, npm_packages, rpm_packages (interned)
+	Source       string  // firefox_addons, chrome_extensions, python_packages, deb_packages, vscode_extensions, npm_packages, rpm_packages, jetbrains_plugins (interned)
 	Vendor       *string // optional - used by rpm_packages, vscode_extensions (interned)
 	Arch         *string // optional - used by rpm_packages
 	Release      *string // optional - used by rpm_packages
 	ExtensionID  *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
-	ExtensionFor *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions
+	ExtensionFor *string // optional - used by firefox_addons, chrome_extensions, vscode_extensions, jetbrains_plugins
 }
 
 // DB holds the loaded software data for each platform
@@ -289,17 +289,17 @@ var platformCounts = map[string]struct {
 	max     int
 }{
 	"darwin": {
-		sources: []string{"apps", "homebrew_packages", "firefox_addons", "chrome_extensions", "python_packages", "vscode_extensions", "safari_extensions"},
+		sources: []string{"apps", "homebrew_packages", "firefox_addons", "chrome_extensions", "python_packages", "vscode_extensions", "safari_extensions", "jetbrains_plugins"},
 		min:     362,
 		max:     544,
 	},
 	"windows": {
-		sources: []string{"firefox_addons", "chrome_extensions", "programs", "vscode_extensions", "ie_extensions", "python_packages", "deb_packages"},
+		sources: []string{"firefox_addons", "chrome_extensions", "programs", "vscode_extensions", "ie_extensions", "python_packages", "deb_packages", "jetbrains_plugins"},
 		min:     201,
 		max:     301,
 	},
 	"ubuntu": {
-		sources: []string{"firefox_addons", "chrome_extensions", "python_packages", "deb_packages", "vscode_extensions", "npm_packages", "rpm_packages"},
+		sources: []string{"firefox_addons", "chrome_extensions", "python_packages", "deb_packages", "vscode_extensions", "npm_packages", "rpm_packages", "jetbrains_plugins"},
 		min:     1968,
 		max:     2952,
 	},

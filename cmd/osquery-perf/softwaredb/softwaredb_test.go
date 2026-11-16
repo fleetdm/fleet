@@ -48,7 +48,7 @@ func TestToMapsExtensionFor(t *testing.T) {
 	}
 }
 
-func TestLoadedVSCodeExtensionsReportExtensionFor(t *testing.T) {
+func TestLoadedEditorPluginsReportExtensionFor(t *testing.T) {
 	const dbPath = "../software-library/software.db"
 	if _, err := os.Stat(dbPath); err != nil {
 		t.Skipf("%s not present: %v", dbPath, err)
@@ -56,16 +56,6 @@ func TestLoadedVSCodeExtensionsReportExtensionFor(t *testing.T) {
 	db, err := LoadFromDatabase(dbPath)
 	require.NoError(t, err)
 
-	check := func(rows []map[string]string) int {
-		var n int
-		for _, r := range rows {
-			if r["source"] == "vscode_extensions" {
-				require.NotEmpty(t, r["extension_for"], r["name"])
-				n++
-			}
-		}
-		return n
-	}
 	all := func(n int) []uint32 {
 		indices := make([]uint32, n)
 		for i := range indices {
@@ -73,8 +63,21 @@ func TestLoadedVSCodeExtensionsReportExtensionFor(t *testing.T) {
 		}
 		return indices
 	}
-	n := check(db.DarwinToMaps(all(len(db.Darwin))))
-	n += check(db.WindowsToMaps(all(len(db.Windows))))
-	n += check(db.UbuntuToMaps(all(len(db.Ubuntu))))
-	require.Positive(t, n)
+	for platform, rows := range map[string][]map[string]string{
+		"darwin":  db.DarwinToMaps(all(len(db.Darwin))),
+		"windows": db.WindowsToMaps(all(len(db.Windows))),
+		"ubuntu":  db.UbuntuToMaps(all(len(db.Ubuntu))),
+	} {
+		t.Run(platform, func(t *testing.T) {
+			counts := map[string]int{}
+			for _, r := range rows {
+				if r["source"] == "vscode_extensions" || r["source"] == "jetbrains_plugins" {
+					require.NotEmpty(t, r["extension_for"], r["name"])
+					counts[r["source"]]++
+				}
+			}
+			require.Positive(t, counts["vscode_extensions"])
+			require.Positive(t, counts["jetbrains_plugins"])
+		})
+	}
 }
