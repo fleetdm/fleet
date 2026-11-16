@@ -3,6 +3,7 @@
   "slug": "crestron-airmedia/windows",
   "package_identifier": "Crestron.AirMedia",
   "unique_identifier": "Crestron AirMedia Machine-Wide Installer",
+  "open_process_names": ["airmedia.exe"],
   "installer_arch": "x86",
   "installer_type": "msi",
   "installer_scope": "machine",

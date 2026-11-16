@@ -1,0 +1,1 @@
+- fleetd no longer crash-loops when another osquery extension already registered a table with the same name as one of fleetd's tables. fleetd now skips its conflicting table, logs a warning, and keeps running.

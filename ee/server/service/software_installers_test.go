@@ -25,6 +25,7 @@ import (
 	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -257,9 +258,7 @@ func TestInstallUninstallAuth(t *testing.T) {
 	svc := newTestService(t, ds)
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			ServerSettings: fleet.ServerSettings{ScriptsDisabled: true},
-		}, nil
+		return &fleet.AppConfig{}, nil
 	}
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		return &fleet.Host{
@@ -361,11 +360,7 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{
-			ServerSettings: fleet.ServerSettings{
-				ScriptsDisabled: true,
-			},
-		}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	host.ScriptsEnabled = ptr.Bool(false)
@@ -2945,6 +2940,82 @@ func TestBatchSetSoftwareInstallersDryRunEmptyShortCircuit(t *testing.T) {
 	}
 }
 
+func TestBatchSetSoftwareInstallersDryRunNewFleet(t *testing.T) {
+	t.Parallel()
+
+	kvs := &redismock.KeyValueStore{
+		SetFunc: func(ctx context.Context, key string, value string, expireTime time.Duration) error {
+			t.Errorf("unexpected keyValueStore.Set call: key=%s", key)
+			return nil
+		},
+	}
+
+	ds := new(mock.Store)
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+		return nil, &notFoundError{}
+	}
+	// A nil team ID means Unassigned, so a fleet that doesn't exist yet must never
+	// be checked against Unassigned's installers or categories.
+	ds.GetSoftwareInstallersPendingDeletionFunc = func(ctx context.Context, tmID *uint, incoming []fleet.SoftwareTitleIdentifier) ([]fleet.DeletedSoftwarePackage, error) {
+		return nil, nil
+	}
+	ds.ListSoftwareCategoriesFunc = func(ctx context.Context, teamID uint) ([]fleet.SoftwareCategory, error) {
+		return nil, nil
+	}
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	cases := []struct {
+		name     string
+		payloads []*fleet.SoftwareInstallerPayload
+		wantErr  string
+	}{
+		{"unknown Fleet-maintained app", []*fleet.SoftwareInstallerPayload{{Slug: new("not-a-real-app/darwin")}}, "isn't a supported Fleet-maintained app"},
+		{"invalid URL", []*fleet.SoftwareInstallerPayload{{URL: "not a url"}}, `URL ("not a url") is invalid`},
+		{"always_download with hash", []*fleet.SoftwareInstallerPayload{{URL: "https://example.com/app.pkg", SHA256: "abc", AlwaysDownload: true}}, "cannot be used with 'hash_sha256'"},
+		{"valid payload", []*fleet.SoftwareInstallerPayload{{URL: "https://example.com/app.pkg", Categories: optjson.SetSlice([]string{"Browsers"})}}, ""},
+		{"empty payload", nil, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds.GetSoftwareInstallersPendingDeletionFuncInvoked = false
+			ds.ListSoftwareCategoriesFuncInvoked = false
+
+			requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "New fleet", c.payloads, true)
+			if c.wantErr != "" {
+				require.ErrorContains(t, err, c.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Empty(t, requestUUID)
+			require.False(t, ds.GetSoftwareInstallersPendingDeletionFuncInvoked, "must not list Unassigned's installers")
+			require.False(t, ds.ListSoftwareCategoriesFuncInvoked, "must not list Unassigned's categories")
+		})
+	}
+
+	t.Run("real run still fails", func(t *testing.T) {
+		_, err := svc.BatchSetSoftwareInstallers(ctx, "New fleet", nil, false)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("fleet-scoped user can't validate for a new fleet", func(t *testing.T) {
+		teamCtx := viewer.NewContext(t.Context(), viewer.Viewer{
+			User: &fleet.User{Teams: []fleet.UserTeam{{ID: 1, Role: fleet.RoleAdmin}}},
+		})
+		_, err := svc.BatchSetSoftwareInstallers(teamCtx, "New fleet", nil, true)
+		checkAuthErr(t, true, err)
+	})
+}
+
 func TestSelfServiceInstallAllSoftwareTitles(t *testing.T) {
 	ctx := t.Context()
 	host := &fleet.Host{ID: 1, Platform: "darwin"}
@@ -3381,6 +3452,73 @@ func TestBatchSetSoftwareInstallersStopsAfterFirstFailure(t *testing.T) {
 		return status != nil && strings.HasPrefix(*status, batchSetFailedPrefix)
 	}, 10*time.Second, 50*time.Millisecond, "batch never failed")
 	require.Positive(t, downloads[0].Load())
+	require.Zero(t, downloads[1].Load())
+	require.Zero(t, downloads[2].Load())
+}
+
+// Not parallel: it shortens the package-level stall timeout.
+func TestBatchSetSoftwareInstallersFailsOnStalledDownload(t *testing.T) {
+	dev_mode.SetOverride("FLEET_DEV_BATCH_RETRY_INTERVAL", "1ms", t)
+	orig := installerDownloadStallTimeout
+	installerDownloadStallTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { installerDownloadStallTimeout = orig })
+
+	kvs, getKey := inMemoryKeyValueStore()
+
+	var downloads [3]atomic.Int32
+	installerSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/a.pkg":
+			// Headers and a few bytes, then nothing until the client gives up and closes the connection.
+			downloads[0].Add(1)
+			w.Header().Set("Content-Length", "1024")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("partial"))
+			w.(http.Flusher).Flush()
+			<-r.Context().Done()
+		case "/b.pkg":
+			downloads[1].Add(1)
+		case "/c.pkg":
+			downloads[2].Add(1)
+		}
+	}))
+	t.Cleanup(installerSrv.Close)
+
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		return nil, nil
+	}
+
+	svc := newTestService(t, ds)
+	svc.keyValueStore = kvs
+	svc.logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{
+		User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)},
+	})
+
+	payloads := []*fleet.SoftwareInstallerPayload{
+		{URL: installerSrv.URL + "/a.pkg", AlwaysDownload: true},
+		{URL: installerSrv.URL + "/b.pkg", AlwaysDownload: true},
+		{URL: installerSrv.URL + "/c.pkg", AlwaysDownload: true},
+	}
+	requestUUID, err := svc.BatchSetSoftwareInstallers(ctx, "", payloads, true)
+	require.NoError(t, err)
+
+	var status string
+	require.Eventually(t, func() bool {
+		s := getKey(batchSoftwarePrefix + requestUUID)
+		if s == nil || !strings.HasPrefix(*s, batchSetFailedPrefix) {
+			return false
+		}
+		status = *s
+		return true
+	}, 10*time.Second, 50*time.Millisecond, "batch never failed")
+	require.Contains(t, status, "no data received")
+	require.EqualValues(t, fleet.BatchDownloadMaxRetries, downloads[0].Load())
 	require.Zero(t, downloads[1].Load())
 	require.Zero(t, downloads[2].Load())
 }
@@ -4058,6 +4196,74 @@ func TestDownloadInstallerURLBlocksPrivateNetworks(t *testing.T) {
 			require.Equal(t, tt.wantReach, hits.Load() > before)
 		})
 	}
+}
+
+// Not parallel: it shortens the package-level stall timeout.
+func TestDownloadInstallerURLStall(t *testing.T) {
+	orig := installerDownloadStallTimeout
+	installerDownloadStallTimeout = 500 * time.Millisecond
+	t.Cleanup(func() { installerDownloadStallTimeout = orig })
+
+	const maxSize = 512 * 1024 * 1024 // 512 MiB, generous for test payloads
+
+	// Stalled handlers return once the download gives up, which closes the connection and cancels r.Context().
+	newServer := func(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+		srv := httptest.NewServer(handler)
+		t.Cleanup(srv.Close)
+		return srv
+	}
+
+	t.Run("stall after headers", func(t *testing.T) {
+		srv := newServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Length", "1024")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("partial"))
+			w.(http.Flusher).Flush()
+			<-r.Context().Done()
+		})
+
+		start := time.Now()
+		_, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize)
+		require.Nil(t, tfr)
+		require.ErrorIs(t, err, errInstallerDownloadStalled)
+		require.ErrorContains(t, err, "no data received")
+		require.Less(t, time.Since(start), 5*time.Second)
+	})
+
+	t.Run("stall before headers", func(t *testing.T) {
+		srv := newServer(t, func(_ http.ResponseWriter, r *http.Request) {
+			<-r.Context().Done()
+		})
+
+		start := time.Now()
+		_, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize)
+		require.Nil(t, tfr)
+		require.ErrorIs(t, err, errInstallerDownloadStalled)
+		require.ErrorContains(t, err, "no data received")
+		require.Less(t, time.Since(start), 5*time.Second)
+	})
+
+	t.Run("slow but progressing", func(t *testing.T) {
+		// One byte every 50ms for 1s: twice the stall timeout in total, but never 500ms without bytes.
+		const size = 20
+		srv := newServer(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Length", fmt.Sprint(size))
+			w.WriteHeader(http.StatusOK)
+			for range size {
+				time.Sleep(50 * time.Millisecond)
+				_, _ = w.Write([]byte("x"))
+				w.(http.Flusher).Flush()
+			}
+		})
+
+		resp, tfr, err := downloadInstallerURL(t.Context(), srv.URL+"/installer.pkg", "", maxSize)
+		require.NoError(t, err)
+		t.Cleanup(func() { tfr.Close() })
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		body, err := io.ReadAll(tfr)
+		require.NoError(t, err)
+		require.Len(t, body, size)
+	})
 }
 
 func TestFillSoftwareInstallerPayloadFromExistingUpgradeCode(t *testing.T) {

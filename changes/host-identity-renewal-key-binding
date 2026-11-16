@@ -1,0 +1,1 @@
+- Host identity certificate renewals are now signed over the new key. Set `auth.require_host_identity_renewal_key_binding` to reject renewals from older fleetd.

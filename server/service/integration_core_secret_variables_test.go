@@ -25,7 +25,7 @@ func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	u := &fleet.User{
 		Name:  "GitOps",
 		Email: "gitops1@example.com",
-		// GitOps role is premium only, so we use the global admin role.
+		// The test asserts on activities, which the GitOps role can't read.
 		GlobalRole: new(fleet.RoleAdmin),
 	}
 	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))

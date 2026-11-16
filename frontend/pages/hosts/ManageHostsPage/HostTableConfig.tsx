@@ -34,6 +34,7 @@ import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import {
+  getHostOSDisplayName,
   humanHostMemory,
   humanHostLastSeen,
   hostTeamName,
@@ -202,7 +203,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       <HeaderCell value="Fleet" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "fleet_name",
-    id: "team_name",
+    id: "fleet_name",
     Cell: (cellProps) => (
       <TextCell value={cellProps.cell.value} formatter={hostTeamName} />
     ),
@@ -220,17 +221,18 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     id: "os_version",
     // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
     Cell: (cellProps: IHostTableStringCellProps) => {
-      const os_version = cellProps.cell.value;
+      const { os_name, os_version } = cellProps.row.original;
+      const osDisplayName = getHostOSDisplayName(os_name, os_version);
       const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(
-        os_version
+        osDisplayName
       ) ? (
         // wrap a tooltip around the "rolling" suffix
         <>
-          {os_version.slice(0, -8)}&nbsp;
+          {osDisplayName.slice(0, -8)}&nbsp;
           <TooltipWrapperArchLinuxRolling />
         </>
       ) : (
-        os_version
+        osDisplayName
       );
       return <TooltipTruncatedTextCell value={versionForRender} />;
     },
@@ -801,6 +803,10 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   },
 ];
 
+/** The Fleet column used to be `team_name`; maps that id in saved settings and URLs to the current one. */
+const toFleetColumnId = (id: string) =>
+  id === "team_name" ? "fleet_name" : id;
+
 const defaultHiddenColumns = [
   "hostname",
   "computer_name",
@@ -841,13 +847,13 @@ const generateAvailableTableHeaders = ({
       if (isFreeTier) {
         if (
           isOnlyObserver &&
-          ["selection", "team_name"].includes(currentColumn.id || "")
+          ["selection", "fleet_name"].includes(currentColumn.id || "")
         ) {
           return columns;
           // skip over column headers that are not shown in free admin/maintainer
         }
         if (
-          currentColumn.id === "team_name" ||
+          currentColumn.id === "fleet_name" ||
           currentColumn.id === "mdm.server_url" ||
           currentColumn.id === "mdm.enrollment_status"
         ) {
@@ -891,6 +897,7 @@ const generateVisibleTableColumns = ({
 
 export {
   defaultHiddenColumns,
+  toFleetColumnId,
   generateAvailableTableHeaders,
   generateVisibleTableColumns,
   getPrimaryDeviceUser,

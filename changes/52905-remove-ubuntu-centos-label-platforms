@@ -1,0 +1,1 @@
+- **Breaking change:** Removed the `ubuntu` and `centos` platform options for dynamic labels. Use `linux` instead. Existing labels that target `ubuntu` or `centos` are migrated to `linux` and their queries now run on all Linux hosts; update their queries to only match Ubuntu or CentOS hosts if needed.

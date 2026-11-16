@@ -137,7 +137,7 @@ const InstallSoftware = ({
   );
 
   const isAndroidMdmEnabled = globalConfig?.mdm.android_enabled_and_configured;
-  const isWindowsMdmEnabled = globalConfig?.mdm.windows_enabled_and_configured;
+  const isWindowsMdmEnabled = globalConfig?.mdm.windows_mdm_enabled;
 
   const isLoadingConfig = isLoadingGlobalConfig || isLoadingTeamConfig;
 
@@ -153,7 +153,7 @@ const InstallSoftware = ({
     if (softwareTitles || softwareTitles === null) {
       const appleMdmAndAbmEnabled =
         globalConfig?.mdm.enabled_and_configured &&
-        globalConfig?.mdm.apple_bm_enabled_and_configured;
+        globalConfig?.mdm.apple_business_enabled_and_configured;
       const turnOnAppleMdm =
         (platform === "macos" || platform === "ios" || platform === "ipados") &&
         !appleMdmAndAbmEnabled;
@@ -162,7 +162,7 @@ const InstallSoftware = ({
 
       // Only Apple and Android setup experience require MDM. Windows admins can
       // pre-stage setup-experience software without MDM, but the
-      // require_all_software_windows option does require Windows MDM to be on
+      // windows_require_all_software option does require Windows MDM to be on
       // (gated at the checkbox level inside InstallSoftwareForm).
       const turnOnMdm = turnOnAppleMdm || turnOnAndroidMdm;
 
@@ -192,14 +192,14 @@ const InstallSoftware = ({
           platform={platform}
           savedRequireAllSoftwareMacOS={
             currentTeamId
-              ? teamConfig?.mdm?.setup_experience?.require_all_software_macos
-              : globalConfig?.mdm?.setup_experience?.require_all_software_macos
+              ? teamConfig?.mdm?.setup_experience?.macos_require_all_software
+              : globalConfig?.mdm?.setup_experience?.macos_require_all_software
           }
           savedRequireAllSoftwareWindows={
             currentTeamId
-              ? teamConfig?.mdm?.setup_experience?.require_all_software_windows
+              ? teamConfig?.mdm?.setup_experience?.windows_require_all_software
               : globalConfig?.mdm?.setup_experience
-                  ?.require_all_software_windows
+                  ?.windows_require_all_software
           }
           isWindowsMdmEnabled={!!isWindowsMdmEnabled}
           router={router}

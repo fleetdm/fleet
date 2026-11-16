@@ -1,9 +1,0 @@
-.edit-pack-page {
-  @include vertical-page-layout;
-
-  @at-root .has-sidebar > &__content {
-    display: flex;
-    flex-direction: column;
-    align-self: stretch;
-  }
-}

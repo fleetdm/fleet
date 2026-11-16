@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
+	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
@@ -283,6 +284,7 @@ func (s *integrationMDMTestSuite) TestAndroidLockWipeClearPasscode() {
 	// deliverPubSubCommand simulates an AMAPI COMMAND notification arriving at Fleet's Pub/Sub endpoint with the supplied Operation envelope.
 	deliverPubSubCommand := func(t *testing.T, op androidmanagement.Operation) {
 		t.Helper()
+		android_mock.RegisterOperation(op)
 		body, err := json.Marshal(op)
 		require.NoError(t, err)
 		req := android_service.PubSubPushRequest{
@@ -773,6 +775,7 @@ func (s *integrationMDMTestSuite) TestAndroidCustomCommandsListAndResults() {
 		Name: row.OperationName,
 		Done: true,
 	}
+	android_mock.RegisterOperation(ackOp)
 	body, err := json.Marshal(ackOp)
 	require.NoError(t, err)
 	req := android_service.PubSubPushRequest{

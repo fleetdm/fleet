@@ -1,0 +1,15 @@
+{
+  "name": "Python 3.13 (ARM64)",
+  "slug": "python-3.13-arm64/windows",
+  "package_identifier": "Python.Python.3.13",
+  "unique_identifier": "Python 3.13.15 (ARM64)",
+  "program_publisher": "Python Software Foundation",
+  "exists_query": "SELECT 1 FROM programs WHERE name LIKE 'Python 3.13.% (ARM64)' AND publisher = 'Python Software Foundation';",
+  "use_display_version_for_patch": true,
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/python_3_13_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/python_3_13_arm64_uninstall.ps1",
+  "installer_arch": "arm64",
+  "installer_type": "exe",
+  "installer_scope": "machine",
+  "default_categories": ["Developer tools"]
+}

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/assert"
@@ -84,58 +85,37 @@ func TestSubstituteFleetVarsAndVitalsInAndroidAppConfig(t *testing.T) {
 		require.Contains(t, string(got), "android")
 	})
 
-	t.Run("HOST_END_USER_EMAIL_IDP resolves via datastore", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			require.Equal(t, "host-uuid-1", hostUUID)
-			return []string{"user@example.com"}, nil
-		}
-		cfg := []byte(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
-		require.NoError(t, err)
-		require.Contains(t, string(got), "user@example.com")
-		require.True(t, json.Valid(got))
-	})
-
-	t.Run("HOST_END_USER_EMAIL_IDP missing returns error", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return nil, nil
-		}
-		cfg := []byte(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
+	t.Run("removed HOST_END_USER_EMAIL_IDP is unresolvable with its Fleet 5 message", func(t *testing.T) {
+		cfg := []byte(`{"managedConfiguration": {"email": "${FLEET_VAR_HOST_END_USER_EMAIL_IDP}"}}`)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, host)
 		require.ErrorIs(t, err, ErrUnresolvableAndroidAppConfigVar)
+		require.EqualError(t, err, `The "$FLEET_VAR_HOST_END_USER_EMAIL_IDP" variable is not available anymore. `+
+			`What to use instead: `+removednames.GuideURL)
 		require.Nil(t, got)
 	})
 
 	t.Run("multiple variables substituted independently", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return []string{"user@example.com"}, nil
-		}
-		cfg := []byte(`{"managedConfiguration": {"uuid": "$FLEET_VAR_HOST_UUID", "serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL", "email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
+		cfg := []byte(`{"managedConfiguration": {"uuid": "$FLEET_VAR_HOST_UUID", "serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL", "platform": "$FLEET_VAR_HOST_PLATFORM"}}`)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, host)
 		require.NoError(t, err)
 		s := string(got)
 		require.Contains(t, s, "host-uuid-1")
 		require.Contains(t, s, "ABC123")
-		require.Contains(t, s, "user@example.com")
+		require.Contains(t, s, `"platform": "android"`)
 		require.True(t, json.Valid(got))
 	})
 
 	t.Run("JSON special chars in value are escaped", func(t *testing.T) {
-		ds := new(mock.Store)
-		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
-			return []string{`user"with\special`}, nil
-		}
-		cfg := []byte(`{"managedConfiguration": {"email": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"}}`)
-		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, ds, cfg, host)
+		specialHost := host
+		specialHost.HardwareSerial = `serial"with\special`
+		cfg := []byte(`{"managedConfiguration": {"serial": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}}`)
+		got, err := SubstituteFleetVarsAndVitalsInAndroidAppConfig(ctx, emptyDS, cfg, specialHost)
 		require.NoError(t, err)
 		require.True(t, json.Valid(got), "result must be valid JSON: %s", string(got))
 		// Parse and verify the value round-trips correctly
 		var parsed map[string]map[string]string
 		require.NoError(t, json.Unmarshal(got, &parsed))
-		require.Equal(t, `user"with\special`, parsed["managedConfiguration"]["email"])
+		require.Equal(t, `serial"with\special`, parsed["managedConfiguration"]["serial"])
 	})
 
 	t.Run("IDP username substituted", func(t *testing.T) {

@@ -6,9 +6,9 @@
   ],
   "desc": "Video communication and virtual meeting platform for government agencies",
   "homepage": "https://www.zoomgov.com/",
-  "url": "https://www.zoomgov.com/client/7.2.2.88465/ZoomInstallerIT.pkg",
+  "url": "https://www.zoomgov.com/client/7.2.5.90525/ZoomInstallerIT.pkg",
   "url_specs": {},
-  "version": "7.2.2.88465",
+  "version": "7.2.5.90525",
   "autobump": true,
   "no_autobump_message": null,
   "skip_livecheck": false,
@@ -16,7 +16,7 @@
   "bundle_short_version": null,
   "pinned": false,
   "pinned_version": null,
-  "sha256": "422f801771ef0c3db68bdf1a47a9c44e18b6f822b2f5d751adc3242270dc6417",
+  "sha256": "f880af3051cdc08a89d94575227570fe2d7d7a155ca7632be7fe66598de8a089",
   "artifacts": [
     {
       "uninstall": [
@@ -105,6 +105,6 @@
   "languages": [],
   "ruby_source_path": "Casks/zoom@government.rb",
   "ruby_source_checksum": {
-    "sha256": "99018adaa9b2c395ac0f3ef25a6c9718255496f29f35d1f93f60667babc4adc6"
+    "sha256": "3e7655606e66526258bf9013181fa0aaa3f10ac991cc2de1c3f1dfca3b5f822c"
   }
 }

@@ -32,8 +32,8 @@ const GET_HOST_SOFTWARE: IApiEndpoint = {
 
 const DEPRECATED_ENDPOINT: IApiEndpoint = {
   method: "GET",
-  path: "/api/v1/fleet/packs",
-  display_name: "List packs",
+  path: "/api/v1/fleet/mdm/apple/profiles",
+  display_name: "List custom macOS settings (configuration profiles)",
   deprecated: true,
 };
 
@@ -172,10 +172,12 @@ describe("ApiEndpointSelectorTable", () => {
 
     await user.type(
       screen.getByPlaceholderText("Search by name or path"),
-      "packs"
+      "custom macOS"
     );
 
-    await screen.findByText("List packs");
+    await screen.findByText(
+      "List custom macOS settings (configuration profiles)"
+    );
     expect(screen.getByText("Deprecated")).toBeInTheDocument();
   });
 
@@ -221,5 +223,47 @@ describe("ApiEndpointSelectorTable", () => {
     await user.click(within(selectedRow).getByRole("button"));
 
     expect(onSelectionChange).toHaveBeenCalledWith([]);
+  });
+
+  it("shows and removes a selected endpoint spelled differently from the catalog", async () => {
+    const onSelectionChange = jest.fn();
+    const { user } = render(
+      <ApiEndpointSelectorTable
+        selectedEndpoints={[
+          { method: "get", path: "/api/v1/fleet/hosts/:host_id/software" },
+        ]}
+        onSelectionChange={onSelectionChange}
+      />
+    );
+
+    const selectedRow = (
+      await screen.findByText("List host's software")
+    ).closest("tr");
+    if (!selectedRow) {
+      throw new Error("Expected to find the selected endpoint's table row");
+    }
+
+    await user.click(within(selectedRow).getByRole("button"));
+
+    expect(onSelectionChange).toHaveBeenCalledWith([]);
+  });
+
+  it("excludes a selected endpoint spelled differently from the catalog from the search results", async () => {
+    const { user } = render(
+      <ApiEndpointSelectorTable
+        selectedEndpoints={[
+          { method: "get", path: "/api/v1/fleet/hosts/:host_id/software" },
+        ]}
+        onSelectionChange={jest.fn()}
+      />
+    );
+
+    await user.type(
+      screen.getByPlaceholderText("Search by name or path"),
+      "software"
+    );
+
+    await screen.findByText("Uninstall software");
+    expect(screen.getAllByText("List host's software")).toHaveLength(1);
   });
 });
