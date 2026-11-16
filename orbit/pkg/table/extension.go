@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
+	"slices"
 	"sync"
 	"time"
 
@@ -103,32 +105,6 @@ func (r *Runner) Execute() error {
 
 	ctx, _ := r.getContextAndCancel()
 
-	ticker := time.NewTicker(200 * time.Millisecond)
-	for {
-		srv, err := osquery.NewExtensionManagerServer(
-			ExtensionName,
-			r.socket,
-			// This timeout is only used for registering the extension tables
-			// and for the heartbeat ping requests in r.srv.Run().
-			//
-			// On some systems, registering tables takes more than a couple
-			// of seconds, thus set timeout to minutes instead (see #3878).
-			osquery.ServerTimeout(5*time.Minute))
-		if err == nil {
-			r.setSrv(srv)
-			ticker.Stop()
-			break
-		}
-
-		select {
-		case <-ticker.C:
-			log.Error().Err(err).Msg("NewExtensionManagerServer failed")
-		case <-ctx.Done():
-			ticker.Stop()
-			return ctx.Err()
-		}
-	}
-
 	opts := PluginOpts{Socket: r.socket}
 	plugins := OrbitDefaultTables(opts)
 	platformTables, err := PlatformTables(opts)
@@ -145,13 +121,84 @@ func (r *Runner) Execute() error {
 		))
 	}
 	plugins = append(plugins, r.plugins...)
-	r.srv.RegisterPlugin(plugins...)
 
-	if err := r.srv.Run(); err != nil {
-		return err
+	return r.run(ctx, plugins, func() (*osquery.ExtensionManagerServer, error) {
+		return osquery.NewExtensionManagerServer(
+			ExtensionName,
+			r.socket,
+			// This timeout is only used for registering the extension tables
+			// and for the heartbeat ping requests in r.srv.Run().
+			//
+			// On some systems, registering tables takes more than a couple
+			// of seconds, thus set timeout to minutes instead (see #3878).
+			osquery.ServerTimeout(5*time.Minute))
+	})
+}
+
+// run registers plugins and serves them until osquery goes away. If osquery
+// rejects the registration because another extension (e.g. a third-party one
+// loaded via --extensions_autoload) already registered an item with the same
+// name, the conflicting plugin is dropped and registration is retried, so that
+// a name collision doesn't take orbit down.
+func (r *Runner) run(ctx context.Context, plugins []osquery.OsqueryPlugin, newServer func() (*osquery.ExtensionManagerServer, error)) error {
+	for {
+		srv, err := r.newServer(ctx, newServer)
+		if err != nil {
+			return err
+		}
+		srv.RegisterPlugin(plugins...)
+
+		err = srv.Run()
+		if err == nil {
+			return nil
+		}
+		name, ok := registryConflictItem(err)
+		if !ok || ctx.Err() != nil {
+			return err
+		}
+		remaining := slices.DeleteFunc(plugins, func(p osquery.OsqueryPlugin) bool {
+			return p.Name() == name
+		})
+		if len(remaining) == len(plugins) {
+			// The conflicting item isn't one of ours, retrying won't help.
+			return err
+		}
+		plugins = remaining
+		log.Warn().Str("table", name).Msg("skipping fleetd table: another osquery extension already registered an item with the same name")
 	}
+}
 
-	return nil
+// newServer creates the extension manager server, retrying until it succeeds
+// or ctx is canceled.
+func (r *Runner) newServer(ctx context.Context, newServer func() (*osquery.ExtensionManagerServer, error)) (*osquery.ExtensionManagerServer, error) {
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		srv, err := newServer()
+		if err == nil {
+			r.setSrv(srv)
+			return srv, nil
+		}
+
+		select {
+		case <-ticker.C:
+			log.Error().Err(err).Msg("NewExtensionManagerServer failed")
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
+
+// registryConflictRegexp matches the error osquery returns when an extension
+// registers an item already registered by another extension.
+var registryConflictRegexp = regexp.MustCompile(`Registry item (\S+) conflicts with another item of the same name`)
+
+func registryConflictItem(err error) (string, bool) {
+	m := registryConflictRegexp.FindStringSubmatch(err.Error())
+	if m == nil {
+		return "", false
+	}
+	return m[1], true
 }
 
 func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
