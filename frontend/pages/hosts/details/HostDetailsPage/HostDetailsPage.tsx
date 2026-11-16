@@ -2163,6 +2163,22 @@ const HostDetailsPage = ({
             <PolicyDetailsModal
               onCancel={onCancelPolicyDetailsModal}
               policy={selectedPolicy}
+              onViewAutomationActivity={
+                selectedPolicy
+                  ? () =>
+                      router.push(
+                        getPathWithQueryParams(
+                          PATHS.POLICY_DETAILS(selectedPolicy.id),
+                          {
+                            // Inherited policies have no fleet, so keep the
+                            // host's fleet as context.
+                            fleet_id: selectedPolicy.fleet_id ?? host.fleet_id,
+                            query: host.display_name,
+                          }
+                        )
+                      )
+                  : undefined
+              }
             />
           )}
           {!!host && showReleaseFromABModal && (

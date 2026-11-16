@@ -60,7 +60,7 @@ interface IPolicyDetailsPageProps {
   location: {
     pathname: string;
     search: string;
-    query: { fleet_id?: string };
+    query: { fleet_id?: string; query?: string };
   };
 }
 
@@ -481,6 +481,7 @@ const PolicyDetailsPage = ({
       {!isLoading && !apiError && storedPolicy && (
         <PolicyAutomationsActivitiesTable
           policy={storedPolicy}
+          initialSearchQuery={location.query.query}
           currentAutomatedPolicies={currentAutomatedPolicies}
           otherAutomationType={otherAutomationType}
           canResetPolicy={canEditPolicy}
