@@ -311,6 +311,20 @@ attempts AS (
 	JOIN hosts h ON h.id = li.host_id
 	JOIN vpp_apps_teams vat ON vat.id = li.vpp_app_team_id
 	WHERE COALESCE(h.team_id, 0) = vat.global_or_team_id
+
+	UNION ALL
+
+	-- deleting a version sets its installs' vpp_app_team_id to NULL, select them so they still supersede older installs of the remaining versions
+	SELECT
+		hvsi.host_id,
+		NULL,
+		MAX(IF(hvsi.verification_at IS NOT NULL, hvsi.id, NULL)),
+		MAX(IF(hvsi.verification_at IS NULL AND hvsi.verification_failed_at IS NOT NULL, hvsi.id, NULL)),
+		NULL
+	FROM host_vpp_software_installs hvsi
+	JOIN (SELECT DISTINCT adam_id, platform FROM vpp_apps_teams WHERE id IN (:version_ids)) app ON app.adam_id = hvsi.adam_id AND app.platform = hvsi.platform
+	WHERE hvsi.vpp_app_team_id IS NULL AND hvsi.canceled = 0 AND hvsi.removed = 0
+	GROUP BY hvsi.host_id
 ),
 
 -- keep the version with the latest install of each status on each host
@@ -345,6 +359,7 @@ FROM latest l
 LEFT JOIN latest i ON i.host_id = l.host_id AND i.status = :software_status_installed AND i.rn = 1
 WHERE
 	l.rn = 1
+	AND l.vpp_app_team_id IS NOT NULL
 	AND (l.status != :software_status_failed OR i.host_id IS NULL OR l.install_id > i.install_id)`
 
 func (ds *Datastore) GetSummaryHostVPPAppInstalls(ctx context.Context, versions []*fleet.VPPAppStoreApp) (map[uint]*fleet.VPPAppStatusSummary,

@@ -6,7 +6,7 @@
   "fuzzy_match_name": true,
   "installer_arch": "x64",
   "installer_type": "exe",
-  "installer_scope": "",
+  "installer_scope": "user",
   "default_categories": ["Productivity"],
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/notesnook_install.ps1",
   "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/notesnook_uninstall.ps1"

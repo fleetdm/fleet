@@ -54,6 +54,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesMultiplePackages", testListSoftwareTitlesMultiplePackages},
 		{"ListSoftwareTitlesPolicyDispatchPerInstaller", testListSoftwareTitlesPolicyDispatchPerInstaller},
 		{"ListSoftwareTitlesAppStoreApps", testListSoftwareTitlesAppStoreApps},
+		{"ListSoftwareTitlesPackages", testListSoftwareTitlesPackages},
 		{"SoftwareTitleNameForHostFilter", testSoftwareTitleNameForHostFilter},
 		{"SoftwareTitleByIDNoFleetScopedToVisibleFleets", testSoftwareTitleByIDNoFleetScopedToVisibleFleets},
 		{"GetFleetMaintainedVersionsOrder", testGetFleetMaintainedVersionsOrder},
@@ -384,13 +385,13 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	for i := range 3 {
 		assert.Equal(t, uint(2), titles[i].HostsCount, "titles[%d]", i)
 		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
-		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApps, "titles[%d]", i)
 	}
 	for j := range 4 {
 		i := j + 3
 		assert.Equal(t, uint(1), titles[i].HostsCount, "titles[%d]", i)
 		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
-		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApps, "titles[%d]", i)
 	}
 	for j := range 3 {
 		i := j + 7
@@ -400,13 +401,13 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	// Verify installer/VPP attributes by name.
 	inst1 := titleByName(titles, "installer1")
 	require.NotNil(t, inst1.SoftwarePackage)
-	require.Nil(t, inst1.AppStoreApp)
+	require.Nil(t, inst1.AppStoreApps)
 	inst2 := titleByName(titles, "installer2")
 	require.NotNil(t, inst2.SoftwarePackage)
-	require.Nil(t, inst2.AppStoreApp)
+	require.Nil(t, inst2.AppStoreApps)
 	vpp := titleByName(titles, "vpp1")
 	require.Nil(t, vpp.SoftwarePackage)
-	require.NotNil(t, vpp.AppStoreApp)
+	require.Len(t, vpp.AppStoreApps, 1)
 
 	// The optimized path sorts by hosts_count ASC, software_title_id ASC.
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
@@ -697,11 +698,11 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	assert.Equal(t, uint(1), titles[0].HostsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
-	require.Nil(t, titles[0].AppStoreApp)
+	require.Nil(t, titles[0].AppStoreApps)
 	require.Equal(t, uint(2), titles[1].VersionsCount)
 	assert.Equal(t, uint(2), titles[1].HostsCount)
 	require.Nil(t, titles[1].SoftwarePackage)
-	require.Nil(t, titles[1].AppStoreApp)
+	require.Nil(t, titles[1].AppStoreApps)
 	barTitle := titles[0]
 	fooTitle := titles[1]
 
@@ -720,9 +721,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, uint(0), titles[0].VersionsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
 	require.Equal(t, "vpp3", titles[0].Name)
-	require.NotNil(t, titles[0].AppStoreApp)
-	require.NotNil(t, titles[0].AppStoreApp.SelfService)
-	require.True(t, *titles[0].AppStoreApp.SelfService)
+	require.Len(t, titles[0].AppStoreApps, 1)
+	require.True(t, titles[0].AppStoreApps[0].SelfService)
 
 	// Get title of bar software.
 	title, err := ds.SoftwareTitleByID(context.Background(), barTitle.ID, nil, globalTeamFilter)
@@ -781,10 +781,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "foo.bar", *titles[1].BundleIdentifier)
 	require.Equal(t, uint(1), titles[0].VersionsCount)
 	require.Nil(t, titles[0].SoftwarePackage)
-	require.Nil(t, titles[0].AppStoreApp)
+	require.Nil(t, titles[0].AppStoreApps)
 	require.Equal(t, uint(0), titles[1].VersionsCount)
 	require.NotNil(t, titles[1].SoftwarePackage)
-	require.Nil(t, titles[1].AppStoreApp)
+	require.Nil(t, titles[1].AppStoreApps)
 
 	title, err = ds.SoftwareTitleByID(context.Background(), titles[1].ID, &team1.ID, team1TeamFilter)
 	require.NoError(t, err)
@@ -816,7 +816,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 		assert.Equal(t, uint(1), titles[i].HostsCount, "titles[%d]", i)
 		assert.Equal(t, uint(1), titles[i].VersionsCount, "titles[%d]", i)
 		assert.Nil(t, titles[i].SoftwarePackage, "titles[%d]", i)
-		assert.Nil(t, titles[i].AppStoreApp, "titles[%d]", i)
+		assert.Nil(t, titles[i].AppStoreApps, "titles[%d]", i)
 	}
 	for j := range 2 {
 		i := j + 2
@@ -825,10 +825,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	}
 	inst2 := titleByName(titles, "installer2")
 	require.NotNil(t, inst2.SoftwarePackage)
-	require.Nil(t, inst2.AppStoreApp)
+	require.Nil(t, inst2.AppStoreApps)
 	vpp2Title := titleByName(titles, "vpp2")
 	require.Nil(t, vpp2Title.SoftwarePackage)
-	require.NotNil(t, vpp2Title.AppStoreApp)
+	require.Len(t, vpp2Title.AppStoreApps, 1)
 
 	// Testing the team 1 user with self-service only
 	titles, _, _, err = ds.ListSoftwareTitles(
@@ -1079,6 +1079,8 @@ func testListSoftwareTitlesAppStoreApps(t *testing.T, ds *Datastore) {
 			{ID: iosFirstVersion.AppTeamID, Name: fleet.DefaultAppStoreAppVersionName, AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0", SelfService: true},
 			{ID: iosSecondVersion.AppTeamID, Name: "Beta", AppStoreID: iosAdamID, Platform: fleet.IOSPlatform, Version: "2.6.0"},
 		}, iosTitle.AppStoreApps)
+		// read app_store_app from the titles list, it should only be set for setup experience
+		require.Nil(t, iosTitle.AppStoreApp)
 
 		// read the macOS title, the policy should be on its only version
 		macTitle := titlesByID[macVersion.TitleID]
@@ -1119,6 +1121,194 @@ func testListSoftwareTitlesAppStoreApps(t *testing.T, ds *Datastore) {
 		require.Len(t, setupTitles[0].AppStoreApps, 2)
 		require.Equal(t, new(true), setupTitles[0].AppStoreApps[0].InstallDuringSetup)
 		require.Equal(t, new(true), setupTitles[0].AppStoreApps[1].InstallDuringSetup)
+		// read app_store_app from the setup experience list, it should be the first-added self-service version
+		require.NotNil(t, setupTitles[0].AppStoreApp)
+		require.Equal(t, iosAdamID, setupTitles[0].AppStoreApp.AppStoreID)
+		require.Equal(t, string(fleet.IOSPlatform), setupTitles[0].AppStoreApp.Platform)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApp.SelfService)
+		require.Equal(t, new(true), setupTitles[0].AppStoreApp.InstallDuringSetup)
+		// read the automatic install policies on app_store_app, the "Beta" version's policy should be listed for the whole title
+		require.Len(t, setupTitles[0].AppStoreApp.AutomaticInstallPolicies, 1)
+		require.Equal(t, iosPolicy.ID, setupTitles[0].AppStoreApp.AutomaticInstallPolicies[0].ID)
+	}
+}
+
+func testListSoftwareTitlesPackages(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Packages", "packages@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "packages-team"})
+	require.NoError(t, err)
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}}
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Packages FMA",
+		Slug:             "packages-fma/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.example.packages-fma",
+	})
+	require.NoError(t, err)
+
+	cases := []struct {
+		name    string
+		fleetID uint
+	}{
+		{name: "no team", fleetID: 0},
+		{name: "team", fleetID: team.ID},
+	}
+	for _, c := range cases {
+		t.Log(c.name)
+		fleetID := c.fleetID
+
+		// add a custom package, a Fleet-maintained app package, and a Linux script package
+		customInstallerID, customTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:            "Custom App",
+			Source:           "apps",
+			BundleIdentifier: "com.example.custom",
+			Platform:         "darwin",
+			Extension:        "pkg",
+			Version:          "1.0",
+			InstallScript:    "echo",
+			Filename:         "custom.pkg",
+			StorageID:        "custom-storage-" + c.name,
+			UserID:           user.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			TeamID:           &fleetID,
+		})
+		require.NoError(t, err)
+		_, maintainedAppTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:                "Packages FMA",
+			Source:               "apps",
+			BundleIdentifier:     "com.example.packages-fma",
+			Platform:             "darwin",
+			Extension:            "pkg",
+			Version:              "2.0",
+			InstallScript:        "echo",
+			Filename:             "fma.pkg",
+			StorageID:            "fma-storage-" + c.name,
+			UserID:               user.ID,
+			ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+			TeamID:               &fleetID,
+			FleetMaintainedAppID: new(maintainedApp.ID),
+		})
+		require.NoError(t, err)
+		_, scriptTitleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:           "Script Package",
+			Source:          "sh_packages",
+			Platform:        "linux",
+			Extension:       "sh",
+			Version:         "1.0",
+			InstallScript:   "echo",
+			Filename:        "script.sh",
+			StorageID:       "script-storage-" + c.name,
+			UserID:          user.ID,
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+			TeamID:          &fleetID,
+		})
+		require.NoError(t, err)
+
+		// add an automatic install policy for the custom package
+		policy, err := ds.NewTeamPolicy(ctx, fleetID, &user.ID, fleet.PolicyPayload{Name: "packages-policy-" + c.name, Query: "SELECT 1;"})
+		require.NoError(t, err)
+		policy.SoftwareInstallerID = new(customInstallerID)
+		err = ds.SavePolicy(ctx, policy, false, false)
+		require.NoError(t, err)
+
+		// add an in-house app whose iPadOS id matches the custom package's installer id
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, fmt.Sprintf("ALTER TABLE in_house_apps AUTO_INCREMENT = %d", customInstallerID))
+			return err
+		})
+		_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:            "In-House App",
+			Filename:         "in-house.ipa",
+			BundleIdentifier: "com.example.in-house",
+			Extension:        "ipa",
+			Version:          "3.0",
+			SelfService:      true,
+			UserID:           user.ID,
+			TeamID:           &fleetID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
+		require.NoError(t, err)
+
+		// list titles for the fleet, every title should have its package in packages
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &fleetID}, adminFilter)
+		require.NoError(t, err)
+		require.Len(t, titles, 5)
+		titlesByID := make(map[uint]fleet.SoftwareTitleListResult, len(titles))
+		inHouseTitlesByPlatform := make(map[string]fleet.SoftwareTitleListResult)
+		for _, title := range titles {
+			titlesByID[title.ID] = title
+			if title.Name == "In-House App" {
+				inHouseTitlesByPlatform[title.Packages[0].Platform] = title
+			}
+		}
+
+		// read the custom package, it should have the policy and no Fleet-maintained app id
+		customTitle := titlesByID[customTitleID]
+		require.Len(t, customTitle.Packages, 1)
+		require.Equal(t, customInstallerID, customTitle.Packages[0].InstallerID)
+		require.Equal(t, "custom.pkg", customTitle.Packages[0].Name)
+		require.Len(t, customTitle.Packages[0].AutomaticInstallPolicies, 1)
+		require.Equal(t, policy.ID, customTitle.Packages[0].AutomaticInstallPolicies[0].ID)
+		require.Nil(t, customTitle.Packages[0].FleetMaintainedAppID)
+		require.Nil(t, customTitle.Packages[0].FleetMaintainedVersions)
+		require.Nil(t, customTitle.Packages[0].InstallDuringSetup)
+
+		// read the Fleet-maintained app package, it should have the Fleet-maintained app id
+		maintainedAppTitle := titlesByID[maintainedAppTitleID]
+		require.Len(t, maintainedAppTitle.Packages, 1)
+		require.Equal(t, new(maintainedApp.ID), maintainedAppTitle.Packages[0].FleetMaintainedAppID)
+		require.Equal(t, maintainedAppTitle.SoftwarePackage.FleetMaintainedAppID, maintainedAppTitle.Packages[0].FleetMaintainedAppID)
+		require.Len(t, maintainedAppTitle.Packages[0].FleetMaintainedVersions, 1)
+		require.Equal(t, maintainedAppTitle.SoftwarePackage.FleetMaintainedVersions, maintainedAppTitle.Packages[0].FleetMaintainedVersions)
+
+		// read the in-house app titles, each should list the .ipa once without the custom package's policy
+		require.Len(t, inHouseTitlesByPlatform, 2)
+		iosInHouseTitle := inHouseTitlesByPlatform["ios"]
+		ipadosInHouseTitle := inHouseTitlesByPlatform["ipados"]
+		require.Len(t, iosInHouseTitle.Packages, 1)
+		require.Len(t, ipadosInHouseTitle.Packages, 1)
+		require.Equal(t, "in-house.ipa", iosInHouseTitle.Packages[0].Name)
+		require.Equal(t, "in-house.ipa", ipadosInHouseTitle.Packages[0].Name)
+		require.Equal(t, customInstallerID, ipadosInHouseTitle.Packages[0].InstallerID)
+		require.Empty(t, iosInHouseTitle.Packages[0].AutomaticInstallPolicies)
+		require.Empty(t, ipadosInHouseTitle.Packages[0].AutomaticInstallPolicies)
+		require.Equal(t, "3.0", iosInHouseTitle.Packages[0].Version)
+		require.Equal(t, new(true), iosInHouseTitle.Packages[0].SelfService)
+		require.Nil(t, iosInHouseTitle.Packages[0].FleetMaintainedAppID)
+		require.Nil(t, iosInHouseTitle.Packages[0].InstallDuringSetup)
+		require.Equal(t, "in-house.ipa", iosInHouseTitle.SoftwarePackage.Name)
+
+		// select the custom package and the Linux script for macOS setup, both should have install_during_setup on macOS
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", fleetID, []uint{customTitleID, scriptTitleID})
+		require.NoError(t, err)
+		macOSSetupTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "darwin", fleetID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, macOSSetupTitles, 3)
+		macOSSetupTitlesByID := make(map[uint]fleet.SoftwareTitleListResult, len(macOSSetupTitles))
+		for _, title := range macOSSetupTitles {
+			macOSSetupTitlesByID[title.ID] = title
+		}
+		require.Equal(t, new(true), macOSSetupTitlesByID[customTitleID].Packages[0].InstallDuringSetup)
+		require.Equal(t, new(true), macOSSetupTitlesByID[scriptTitleID].Packages[0].InstallDuringSetup)
+		require.Equal(t, new(false), macOSSetupTitlesByID[maintainedAppTitleID].Packages[0].InstallDuringSetup)
+		require.Equal(t, macOSSetupTitlesByID[scriptTitleID].SoftwarePackage.InstallDuringSetup, macOSSetupTitlesByID[scriptTitleID].Packages[0].InstallDuringSetup)
+
+		// list Linux setup software, the script should not have install_during_setup on Linux
+		linuxSetupTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "linux", fleetID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, linuxSetupTitles, 1)
+		require.Equal(t, new(false), linuxSetupTitles[0].Packages[0].InstallDuringSetup)
+
+		// select the iOS in-house app for setup, it should have install_during_setup on iOS
+		err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", fleetID, []uint{iosInHouseTitle.ID})
+		require.NoError(t, err)
+		iosSetupTitles, _, _, err := ds.ListSetupExperienceSoftwareTitles(ctx, "ios", fleetID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, iosSetupTitles, 1)
+		require.Len(t, iosSetupTitles[0].Packages, 1)
+		require.Equal(t, new(true), iosSetupTitles[0].Packages[0].InstallDuringSetup)
 	}
 }
 
@@ -1329,9 +1519,10 @@ func testListSoftwareTitlesAvailableForInstallFilter(t *testing.T, ds *Datastore
 	for _, title := range titles {
 		names = append(names, nameSource{name: title.Name, source: title.Source})
 		if title.ID == vpp2.TitleID {
-			assert.Len(t, title.AppStoreApp.AutomaticInstallPolicies, 1)
-			assert.Equal(t, title.AppStoreApp.AutomaticInstallPolicies[0].Name, "VPP Policy")
-			assert.Equal(t, title.AppStoreApp.AutomaticInstallPolicies[0].ID, vppPolicy.ID)
+			require.Len(t, title.AppStoreApps, 1)
+			assert.Len(t, title.AppStoreApps[0].AutomaticInstallPolicies, 1)
+			assert.Equal(t, "VPP Policy", title.AppStoreApps[0].AutomaticInstallPolicies[0].Name)
+			assert.Equal(t, vppPolicy.ID, title.AppStoreApps[0].AutomaticInstallPolicies[0].ID)
 		}
 	}
 	assert.ElementsMatch(t, []nameSource{
@@ -2511,7 +2702,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	}, nil)
 	require.NoError(t, err)
 
-	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
+	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw}, fleet.UpdateHostSoftwareOptions{})
 	require.NoError(t, err)
 
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -2765,13 +2956,15 @@ func testListSoftwareTitlesInHouseApps(t *testing.T, ds *Datastore) {
 			switch {
 			case want[i] == nil:
 				require.Nil(t, sw.SoftwarePackage)
-				require.Nil(t, sw.AppStoreApp)
+				require.Nil(t, sw.AppStoreApps)
 			case want[i].AppStoreID != "":
 				require.Nil(t, sw.SoftwarePackage)
-				require.NotNil(t, sw.AppStoreApp)
-				require.Equal(t, want[i], sw.AppStoreApp)
+				require.Len(t, sw.AppStoreApps, 1)
+				require.Equal(t, want[i].AppStoreID, sw.AppStoreApps[0].AppStoreID)
+				require.Equal(t, want[i].Platform, string(sw.AppStoreApps[0].Platform))
+				require.Equal(t, *want[i].SelfService, sw.AppStoreApps[0].SelfService)
 			default:
-				require.Nil(t, sw.AppStoreApp)
+				require.Nil(t, sw.AppStoreApps)
 				require.NotNil(t, sw.SoftwarePackage)
 				require.Equal(t, want[i], sw.SoftwarePackage)
 			}

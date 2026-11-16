@@ -2,6 +2,7 @@ package endpointer
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"io"
 	"reflect"
@@ -15,6 +16,8 @@ import (
 // SetRemovedKeyMessage. It renders as the usual 422 validation error, {"message", "errors": [{"name", "reason"}]}.
 type RemovedKeyError struct {
 	Key string
+	// Param is the parameter whose value is the removed name, such as order_key; empty when Key is the parameter itself.
+	Param string
 }
 
 var removedKeyMessage atomic.Pointer[func(key string) string]
@@ -31,7 +34,7 @@ func (e *RemovedKeyError) Error() string {
 }
 
 func (e *RemovedKeyError) Invalid() []map[string]string {
-	return []map[string]string{{"name": e.Key, "reason": e.Error()}}
+	return []map[string]string{{"name": cmp.Or(e.Param, e.Key), "reason": e.Error()}}
 }
 
 func (e *RemovedKeyError) IsClientError() bool { return true }
@@ -59,7 +62,8 @@ var removedKeyRulesCache sync.Map // reflect.Type → []RemovedKeyRule
 //
 //	RequireAllSoftware bool `json:"macos_require_all_software" removedkey:"require_all_software_macos"`
 //
-// Unlike `renameto`, the old name is rejected instead of accepted.
+// Unlike `renameto`, the old name is rejected instead of accepted. A removed key that moved to another object goes on a
+// blank `_ struct{}` field tagged `json:"-"` in the object it was removed from.
 func ExtractRemovedKeyRules(iface any) []RemovedKeyRule {
 	if iface == nil {
 		return nil
@@ -86,7 +90,7 @@ func ExtractRemovedKeyRules(iface any) []RemovedKeyRule {
 		visited[t] = struct{}{}
 		for sf := range t.Fields() {
 			newKey, _, _ := strings.Cut(sf.Tag.Get("json"), ",")
-			if removed := sf.Tag.Get("removedkey"); removed != "" && newKey != "" && newKey != "-" {
+			if removed := sf.Tag.Get("removedkey"); removed != "" {
 				scope := parseRenameScope(sf.Tag)
 				for oldKey := range strings.SplitSeq(removed, ",") {
 					oldKey = strings.TrimSpace(oldKey)
@@ -112,8 +116,15 @@ func ExtractRemovedKeyRules(iface any) []RemovedKeyRule {
 // captured as json.RawMessage, which the request decoder does not inspect. Input it cannot parse returns the parse
 // error rather than nil, since a more lenient decoder could still read a removed key past where parsing stopped.
 func CheckRemovedKeys(data []byte, rules []RemovedKeyRule) error {
+	if deleted := deletedKeyRules.Load(); deleted != nil {
+		rules = slices.Concat(rules, *deleted)
+	}
 	if len(rules) == 0 || len(data) == 0 {
 		return nil
 	}
 	return newJSONKeyRewriter(nil, rules, "").rewrite(bytes.NewReader(data), io.Discard)
 }
+
+var deletedKeyRules atomic.Pointer[[]RemovedKeyRule]
+
+func SetDeletedKeyRules(rules []RemovedKeyRule) { deletedKeyRules.Store(&rules) }

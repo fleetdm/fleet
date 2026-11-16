@@ -35,7 +35,6 @@ run_new := "run_new"
 
 # Selective prefixes over actions mean that they can be allowed in specific
 # cases for roles that usually aren't allowed to perform them.
-selective_read := "selective_read"
 selective_list := "selective_list"
 
 # Roles
@@ -283,7 +282,7 @@ allow {
 # Team admins and maintainers can read/write for appropriate teams.
 allow {
 	object.type == "enroll_secret"
-	team_role(subject, object.team_id) == [admin, maintainer][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer][_]
 	action == [read, write][_]
 }
 
@@ -292,17 +291,6 @@ allow {
 ##
 # Hosts
 ##
-
-# allowed_read_roles evaluates which roles are allowed for read based on the given action.
-allowed_read_roles(action, base_roles, extra_roles) = result {
-	action == selective_read
-	result := base_roles | extra_roles
-} else = result {
-	action == read
-	result := base_roles
-} else = result {
-	result := null
-}
 
 # allowed_list_roles evaluates which roles are allowed for list based on the given action.
 allowed_list_roles(action, base_roles, extra_roles) = result {
@@ -334,12 +322,11 @@ allow {
 	allowed_list_roles(action, base_roles, extra_roles)[_] == team_role(subject, subject.fleets[_].id)
 }
 
-# Allow read for global admin/maintainer, selective_read for gitops.
+# Allow read for global admin/maintainer.
 allow {
 	object.type == "host"
-	base_roles := {admin, maintainer}
-	extra_roles := {gitops}
-	allowed_read_roles(action, base_roles, extra_roles)[_] == subject.global_role
+	subject.global_role == [admin, maintainer][_]
+	action == read
 }
 
 # Global gitops, admin and maintainers can write hosts.
@@ -356,17 +343,17 @@ allow {
 	action == write_host_label
 }
 
-# Global admin, maintainers, technicians, and gitops can transfer hosts between fleets.
+# Global admin, maintainers, and technicians can transfer hosts between fleets.
 allow {
 	object.type == "host"
-	subject.global_role == [admin, maintainer, technician, gitops][_]
+	subject.global_role == [admin, maintainer, technician][_]
 	action == transfer_host
 }
 
-# Global admin, maintainers, technicians, and gitops can delete hosts.
+# Global admin, maintainers, and technicians can delete hosts.
 allow {
 	object.type == "host"
-	subject.global_role == [admin, maintainer, technician, gitops][_]
+	subject.global_role == [admin, maintainer, technician][_]
 	action == delete_host
 }
 
@@ -377,57 +364,55 @@ allow {
 	action == cancel_host_activity
 }
 
-# Allow read for global technician, observer, and observer_plus, selective_read for gitops.
+# Allow read for global technician, observer, and observer_plus.
 allow {
 	object.type == "host"
-	base_roles := {technician, observer_plus, observer}
-	extra_roles := {gitops}
-	allowed_read_roles(action, base_roles, extra_roles)[_] == subject.global_role
+	subject.global_role == [technician, observer_plus, observer][_]
+	action == read
 }
 
-# Allow read for matching team admin/maintainer/technician/observer/observer_plus, selective read for gitops.
+# Allow read for matching team admin/maintainer/technician/observer/observer_plus.
 allow {
 	object.type == "host"
-	base_roles := {admin, maintainer, technician, observer, observer_plus}
-	extra_roles := {gitops}
-	allowed_read_roles(action, base_roles, extra_roles)[_] == team_role(subject, object.team_id)
+	team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer, observer_plus][_]
+	action == read
 }
 
 # Team admins and maintainers can write to hosts of their own team
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer][_]
 	action == write
 }
 
 # Team admins, maintainers, technicians, and gitops can write labels to hosts of their own team.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
 	action == write_host_label
 }
 
-# Team admins, maintainers, technicians, and gitops can transfer hosts of their own team.
+# Team admins, maintainers, and technicians can transfer hosts of their own team.
 # This is needed both for write access to the source team (where the host currently
 # is) and the destination team (where the host is being transferred to); the service
 # layer authorizes both sides separately.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer, technician][_]
 	action == transfer_host
 }
 
-# Team admins, maintainers, technicians, and gitops can delete hosts of their own team.
+# Team admins, maintainers, and technicians can delete hosts of their own team.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer, technician][_]
 	action == delete_host
 }
 
 # Team admins and maintainers can cancel activities on a host of their own team.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer][_]
+	team_role(subject, object.fleet_id) == [admin, maintainer][_]
 	action == cancel_host_activity
 }
 
@@ -445,7 +430,7 @@ allow {
 # Team admins, maintainers, technicians, observer_plus, and observers can read host health of their own team.
 allow {
   object.type == "host_health"
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer_plus, observer][_]
   action == read
 }
 
@@ -463,7 +448,7 @@ allow {
 # Team admins, maintainers, technicians, observer_plus, observers and gitops can read global labels.
 allow {
   object.type == "label"
-  any([is_null(object.team_id), object.team_id == 0]) # allow specifying team ID 0 for listing exclusively global labels
+  any([is_null(object.fleet_id), object.fleet_id == 0]) # allow specifying team ID 0 for listing exclusively global labels
   # If role is admin, maintainer, technician, observer_plus or observer on any team.
   team_role(subject, subject.fleets[_].id) == [admin, maintainer, technician, observer_plus, observer, gitops][_]
   action == read
@@ -486,7 +471,7 @@ allow {
 # Team admins, maintainers, technicians, and gitops can create global labels
 allow {
   object.type == "label"
-  is_null(object.team_id)
+  is_null(object.fleet_id)
   team_role(subject, subject.fleets[_].id) == [admin, maintainer, technician, gitops][_]
   action == create
 }
@@ -494,7 +479,7 @@ allow {
 # Team admins, maintainers, technicians, and gitops can write global labels they created
 allow {
   object.type == "label"
-  is_null(object.team_id)
+  is_null(object.fleet_id)
   not is_null(object.author_id)
   object.author_id = subject.id
   team_role(subject, subject.fleets[_].id) == [admin, maintainer, technician, gitops][_]
@@ -504,24 +489,24 @@ allow {
 # Team users can read labels on their team
 allow {
   object.type == "label"
-  not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  not is_null(object.fleet_id)
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
   action == read
 }
 
 # Team admins, maintainers, technicians, and gitops can write labels on their team
 allow {
   object.type == "label"
-  not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+  not is_null(object.fleet_id)
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
   action == write
 }
 
 # Team admins, maintainers, technicians, and gitops can create labels on their team
 allow {
   object.type == "label"
-  not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+  not is_null(object.fleet_id)
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
   action == create
 }
 
@@ -546,23 +531,23 @@ allow {
 # Team admin, maintainers and gitops can write queries for their teams.
 allow {
   object.type == "query"
-  not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  not is_null(object.fleet_id)
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == write
 }
 
 # Team admins, maintainers, technicians, gitops, observer_plus and observers can read queries for their teams.
 allow {
   object.type == "query"
-  not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops, observer_plus, observer][_]
+  not is_null(object.fleet_id)
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops, observer_plus, observer][_]
   action == read
 }
 
 # Team admins, maintainers, technicians, observer_plus and observers can read global queries.
 allow {
   object.type == "query"
-  is_null(object.team_id)
+  is_null(object.fleet_id)
   team_role(subject, subject.fleets[_].id) == [admin, maintainer, technician, observer_plus, observer][_]
   action == read
 }
@@ -589,7 +574,7 @@ allow {
   is_null(subject.global_role)
   action == run
 
-  is_null(object.team_id)
+  is_null(object.fleet_id)
 
   not is_null(object.host_targets.fleets)
   ok_teams := { tmid | tmid := object.host_targets.fleets[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus][_] }
@@ -606,7 +591,7 @@ allow {
   is_null(subject.global_role)
   action == run
 
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer_plus][_]
 
   not is_null(object.host_targets.fleets)
   ok_teams := { tmid | tmid := object.host_targets.fleets[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus][_] }
@@ -622,7 +607,7 @@ allow {
   is_null(subject.global_role)
   action == run
 
-  is_null(object.team_id)
+  is_null(object.fleet_id)
 
   # If role is admin, maintainer, technician, or observer_plus on any team.
   team_role(subject, subject.fleets[_].id) == [admin, maintainer, technician, observer_plus][_]
@@ -638,7 +623,7 @@ allow {
   is_null(subject.global_role)
   action == run
 
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer_plus][_]
 
   # there are no team targets
   no_team_targets(object)
@@ -659,7 +644,7 @@ allow {
   subject.global_role == observer
   action = run
 
-  is_null(object.team_id)
+  is_null(object.fleet_id)
 }
 
 # Global observers can run observer_can_run team queries only targeting that team.
@@ -669,9 +654,9 @@ allow {
   subject.global_role == observer
   action = run
 
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   not is_null(object.host_targets.fleets)
-  ok_teams := { tmid | tmid := object.host_targets.fleets[_]; tmid == object.team_id }
+  ok_teams := { tmid | tmid := object.host_targets.fleets[_]; tmid == object.fleet_id }
   # Reject the vacuous empty-list match; see no_team_targets.
   count(object.host_targets.fleets) > 0
   count(ok_teams) == count(object.host_targets.fleets)
@@ -684,7 +669,7 @@ allow {
   subject.global_role == observer
   action = run
 
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   no_team_targets(object)
 }
 
@@ -696,7 +681,7 @@ allow {
   is_null(subject.global_role)
   action == run
 
-  is_null(object.team_id)
+  is_null(object.fleet_id)
 
   not is_null(object.host_targets.fleets)
   ok_teams := { tmid | tmid := object.host_targets.fleets[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus, observer][_] }
@@ -713,10 +698,10 @@ allow {
   is_null(subject.global_role)
   action == run
 
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer_plus, observer][_]
 
   not is_null(object.host_targets.fleets)
-  ok_teams := { tmid | tmid := object.host_targets.fleets[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus][_] } | { tmid | tmid := object.host_targets.fleets[_]; tmid == object.team_id; team_role(subject, tmid) == observer }
+  ok_teams := { tmid | tmid := object.host_targets.fleets[_]; team_role(subject, tmid) == [admin, maintainer, technician, observer_plus][_] } | { tmid | tmid := object.host_targets.fleets[_]; tmid == object.fleet_id; team_role(subject, tmid) == observer }
   # Reject the vacuous empty-list match; see no_team_targets.
   count(object.host_targets.fleets) > 0
   count(ok_teams) == count(object.host_targets.fleets)
@@ -729,7 +714,7 @@ allow {
   is_null(subject.global_role)
   action == run
 
-  is_null(object.team_id)
+  is_null(object.fleet_id)
 
   # If role is admin, maintainer, technician, observer_plus, or observer on any team.
   team_role(subject, subject.fleets[_].id) == [admin, maintainer, technician, observer_plus, observer][_]
@@ -745,7 +730,7 @@ allow {
   is_null(subject.global_role)
   action == run
 
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer_plus, observer][_]
 
   # there are no team targets
   no_team_targets(object)
@@ -768,17 +753,6 @@ allow {
   # If role is admin, maintainer, technician, observer_plus or observer on any team.
   team_role(subject, subject.fleets[_].id) == [admin, maintainer, technician, observer_plus, observer][_]
   action == read
-}
-
-##
-# 2017 Packs (deprecated)
-##
-
-# Global admins, maintainers and gitops can read/write 2017 packs.
-allow {
-  object.type == "pack"
-  subject.global_role == [admin, maintainer, gitops][_]
-  action == [read, write][_]
 }
 
 ##
@@ -812,15 +786,15 @@ allow {
 
 # Team admin, maintainers, and gitops can read and write policies for their teams.
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "policy"
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
 }
 
 # Team admin, maintainers, technician, observers, and observers_plus can read global policies
 allow {
-  is_null(object.team_id)
+  is_null(object.fleet_id)
   object.type == "policy"
   team_role(subject, subject.fleets[_].id) == [admin, maintainer, technician, observer, observer_plus][_]
   action == read
@@ -828,9 +802,9 @@ allow {
 
 # Team technician, observer, and observer_plus can read policies for their teams.
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "policy"
-  team_role(subject, object.team_id) == [technician, observer, observer_plus][_]
+  team_role(subject, object.fleet_id) == [technician, observer, observer_plus][_]
   action == read
 }
 
@@ -854,9 +828,9 @@ allow {
 
 # Team admins, maintainers, technician, observers, observer_plus and gitops can read all software in their teams.
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "software_inventory"
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer, observer_plus, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer, observer_plus, gitops][_]
   action == read
 }
 
@@ -890,17 +864,17 @@ allow {
 
 # Team admins, maintainers, technicians and gitops can read any installable entity (software installer or VPP app) in their teams.
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "installable_entity"
-  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
   action == read
 }
 
 # Team admins, maintainers, and gitops can write any installable entity (software installer or VPP app) in their teams.
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "installable_entity"
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == write
 }
 
@@ -920,8 +894,8 @@ allow {
 # teams (not gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_software_installer_result"
-  not is_null(object.host_team_id)
-  team_role(subject, object.host_team_id) == [admin, maintainer, technician][_]
+  not is_null(object.host_fleet_id)
+  team_role(subject, object.host_fleet_id) == [admin, maintainer, technician][_]
   action == write
 }
 
@@ -937,8 +911,8 @@ allow {
 # (not gitops as this is not something that relates to fleetctl gitops).
 allow {
   object.type == "host_software_installer_result"
-  not is_null(object.host_team_id)
-  team_role(subject, object.host_team_id) == [admin, maintainer, technician, observer, observer_plus][_]
+  not is_null(object.host_fleet_id)
+  team_role(subject, object.host_fleet_id) == [admin, maintainer, technician, observer, observer_plus][_]
   action == read
 }
 
@@ -974,19 +948,19 @@ allow {
 
 # Team admins, maintainers and gitops can write MDM config profiles on their teams.
 allow {
-  not is_null(object.team_id)
-  object.team_id != 0
+  not is_null(object.fleet_id)
+  object.fleet_id != 0
   object.type == "mdm_config_profile"
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == write
 }
 
 # Team admins, maintainers, technicians and gitops can read MDM config profiles on their teams.
 allow {
-  not is_null(object.team_id)
-  object.team_id != 0
+  not is_null(object.fleet_id)
+  object.fleet_id != 0
   object.type == "mdm_config_profile"
-  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
   action == read
 }
 
@@ -996,10 +970,10 @@ allow {
 # but we will keep this as-is to not break any workflows that might be using a
 # gitops token to do a resend.
 allow {
-  not is_null(object.team_id)
-  object.team_id != 0
+  not is_null(object.fleet_id)
+  object.fleet_id != 0
   object.type == "mdm_config_profile"
-  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
   action == resend
 }
 
@@ -1023,19 +997,19 @@ allow {
 
 # Team admins, maintainers and gitops can write DDM assets on their team.
 allow {
-  not is_null(object.team_id)
-  object.team_id != 0
+  not is_null(object.fleet_id)
+  object.fleet_id != 0
   object.type == "ddm_asset"
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == write
 }
 
 # Team admins, maintainers, technicians and gitops can read DDM assets on their teams.
 allow {
-  not is_null(object.team_id)
-  object.team_id != 0
+  not is_null(object.fleet_id)
+  object.fleet_id != 0
   object.type == "ddm_asset"
-  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, gitops][_]
   action == read
 }
 
@@ -1079,15 +1053,15 @@ allow {
 # Global admins and maintainers can write (execute) MDM commands.
 allow {
   object.type == "mdm_command"
-  subject.global_role == [admin, maintainer, gitops][_]
+  subject.global_role == [admin, maintainer][_]
   action == write
 }
 
 # Team admins and maintainers can write (execute) MDM commands on hosts of their teams.
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "mdm_command"
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer][_]
   action == write
 }
 
@@ -1102,10 +1076,10 @@ allow {
 
 # Team admins, maintainers, and technicians can clear passcodes on iOS/iPadOS hosts of their teams.
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "mdm_command"
   object.is_apple_mobile == true
-  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician][_]
   action == clear_passcode
 }
 
@@ -1121,10 +1095,10 @@ allow {
 # Only team admins and maintainers can clear passcodes on hosts of their teams
 # on any other platform (Android).
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "mdm_command"
   object.is_apple_mobile == false
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer][_]
   action == clear_passcode
 }
 
@@ -1138,9 +1112,9 @@ allow {
 
 # Team admins and maintainers can rotate the disk encryption key of their teams' hosts.
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "mdm_command"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer][_]
   action == rotate_disk_encryption_key
 }
 
@@ -1153,9 +1127,9 @@ allow {
 
 # Team admins, maintainers, technicians, observers and observer_plus can read MDM commands on hosts of their teams.
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "mdm_command"
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer, observer_plus][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer, observer_plus][_]
   action == read
 }
 
@@ -1196,17 +1170,17 @@ allow {
 
 # Team admins and maintainers can read and write MDM Apple Settings of their teams.
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "mdm_apple_settings"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer][_]
   action == [read, write][_]
 }
 
 # Team gitops can write MDM Apple Settings of their teams.
 allow {
-  not is_null(object.team_id)
+  not is_null(object.fleet_id)
   object.type == "mdm_apple_settings"
-  team_role(subject, object.team_id) == gitops
+  team_role(subject, object.fleet_id) == gitops
   action == write
 }
 
@@ -1226,19 +1200,19 @@ allow {
 
 # Team admins and maintainers can read and write bootstrap packages on their teams.
 allow {
-  not is_null(object.team_id)
-  object.team_id != 0
+  not is_null(object.fleet_id)
+  object.fleet_id != 0
   object.type == "mdm_apple_bootstrap_package"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer][_]
   action == [read, write][_]
 }
 
 # Team gitops can write bootstrap packages on their teams.
 allow {
-  not is_null(object.team_id)
-  object.team_id != 0
+  not is_null(object.fleet_id)
+  object.fleet_id != 0
   object.type == "mdm_apple_bootstrap_package"
-  team_role(subject, object.team_id) == gitops
+  team_role(subject, object.fleet_id) == gitops
   action == write
 }
 
@@ -1276,19 +1250,19 @@ allow {
 
 # Team admins and maintainers can read and write macos setup assistants on their teams.
 allow {
-  not is_null(object.team_id)
-  object.team_id != 0
+  not is_null(object.fleet_id)
+  object.fleet_id != 0
   object.type == "mdm_apple_setup_assistant"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer][_]
   action == [read, write][_]
 }
 
 # Team gitops can write macos setup assistants on their teams.
 allow {
-  not is_null(object.team_id)
-  object.team_id != 0
+  not is_null(object.fleet_id)
+  object.fleet_id != 0
   object.type == "mdm_apple_setup_assistant"
-  team_role(subject, object.team_id) == gitops
+  team_role(subject, object.fleet_id) == gitops
   action == write
 }
 
@@ -1406,16 +1380,16 @@ allow {
 # Team admin, maintainers, and gitops can write (upload) saved scripts for their teams.
 allow {
   object.type == "script"
-  not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  not is_null(object.fleet_id)
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == write
 }
 
 # Team admins, maintainers, technicians, observer_plus and observers can read scripts for their teams.
 allow {
   object.type == "script"
-  not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer_plus, observer][_]
+  not is_null(object.fleet_id)
+  team_role(subject, object.fleet_id) == [admin, maintainer, technician, observer_plus, observer][_]
   action == read
 }
 
@@ -1490,8 +1464,8 @@ allow {
 # Team admins and maintainers can set the value for hosts in their team.
 allow {
   object.type == "host_custom_vital"
-  not is_null(object.team_id)
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  not is_null(object.fleet_id)
+  team_role(subject, object.fleet_id) == [admin, maintainer][_]
   action == write
 }
 
@@ -1580,10 +1554,10 @@ allow {
 
 # Team admins, maintainers and gitops can read and write certificate templates on their teams.
 allow {
-  not is_null(object.team_id)
-  object.team_id != 0
+  not is_null(object.fleet_id)
+  object.fleet_id != 0
   object.type == "certificate_template"
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
 }
 
@@ -1615,8 +1589,8 @@ allow {
 # Team admins, maintainers, technicians, gitops, observer_plus and observers can read self-service categories on their fleet.
 allow {
   object.type == "software_category"
-  object.team_id != 0
-  team_role(subject, object.team_id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
+  object.fleet_id != 0
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops, technician, observer_plus, observer][_]
   action == read
 }
 
@@ -1630,8 +1604,8 @@ allow {
 # Team admins, maintainers, and gitops can write self-service categories on their fleet.
 allow {
   object.type == "software_category"
-  object.team_id != 0
-  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
+  object.fleet_id != 0
+  team_role(subject, object.fleet_id) == [admin, maintainer, gitops][_]
   action == write
 }
 

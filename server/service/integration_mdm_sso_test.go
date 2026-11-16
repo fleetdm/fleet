@@ -78,7 +78,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"idp_name": "",
 				"metadata_url": ""
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -108,7 +108,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"idp_name": "",
 				"metadata_url": ""
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": false
 			}
 		}
@@ -131,7 +131,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"idp_name": "SimpleSAML",
 				"metadata_url": "%s"
 			},
-			"macos_setup": {
+			"setup_experience": {
 				"enable_end_user_authentication": true,
 				"lock_end_user_info": true
 			}
@@ -286,7 +286,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	// report host details for the device
 	var hostResp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 	assert.Len(t, hostResp.Host.EndUsers, 1)
 	assert.Empty(t, hostResp.Host.EndUsers[0].IdpFullName)                         // full name is not recorded for mdm flow until scim sync
 	assert.Equal(t, "sso_user@example.com", hostResp.Host.EndUsers[0].IdpUserName) // email is the same as the one used to enroll
@@ -321,7 +321,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NoError(t, err)
 
 	hostResp = getHostResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 	checkEndUser := func() {
 		require.Len(t, hostResp.Host.EndUsers, 1)
 		endUser := hostResp.Host.EndUsers[0]
@@ -352,7 +352,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NoError(t, err)
 
 	hostResp = getHostResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 	checkEndUser = func() {
 		require.Len(t, hostResp.Host.EndUsers, 1)
 		endUser := hostResp.Host.EndUsers[0]
@@ -480,7 +480,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// without end user authentication, enrolling with the automatic enrollment
 	// token (no account) removes the link
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": {"macos_setup": {"enable_end_user_authentication": false}}
+		"mdm": {"setup_experience": {"enable_end_user_authentication": false}}
 	}`), http.StatusOK, &appConfigResponse{})
 	s.downloadAndVerifyEnrollmentProfile(t, optsDownloadEnrollProf{
 		basePath: "/api/mdm/apple/enroll",
@@ -493,7 +493,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NoError(t, err)
 	require.Nil(t, unlinked)
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": {"macos_setup": {"enable_end_user_authentication": true}}
+		"mdm": {"setup_experience": {"enable_end_user_authentication": true}}
 	}`), http.StatusOK, &appConfigResponse{})
 
 	// changing the server URL also updates the remote DEP profile
@@ -1024,7 +1024,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 		assert.Empty(t, endUser.IdpGroups)
 		assert.Empty(t, endUser.OtherEmails)
 	}
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 	assert.Len(t, hostResp.Host.EndUsers, 1)
 	checkEndUser()
 
@@ -1062,7 +1062,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	require.NoError(t, err)
 
 	hostResp = getHostResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 	checkEndUser()
 	hostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
@@ -1122,7 +1122,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	require.Contains(t, string(decodedCmd.Command.Payload), "some_other_username")
 
 	hostResp = getHostResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host.MDM.Profiles)
 	var expectedCount int
 	for _, prof := range *hostResp.Host.MDM.Profiles {
@@ -1154,7 +1154,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 
 	// this marked profile N2 as pending for the host as the groups changed
 	hostResp = getHostResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 	require.NotNil(t, hostResp.Host.MDM.Profiles)
 	expectedCount = 0
 	for _, prof := range *hostResp.Host.MDM.Profiles {
@@ -1192,7 +1192,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	require.Contains(t, string(decodedCmd.Command.Payload), "Test Group 1")
 
 	hostResp = getHostResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 
 	// check that both profiles are now delivered
 	require.NotNil(t, hostResp.Host.MDM.Profiles)
@@ -1279,7 +1279,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	require.NoError(t, err)
 
 	hostResp = getHostResponse{}
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 	checkEndUser = func() {
 		require.Len(t, hostResp.Host.EndUsers, 1)
 		endUser := hostResp.Host.EndUsers[0]
@@ -1442,7 +1442,7 @@ func (s *integrationMDMTestSuite) TestReenrollKeepsManuallyMappedIdPUser() {
 	require.NoError(t, mdmDevice.Enroll())
 
 	var hostResp getHostResponse
-	s.DoJSON("GET", "/api/v1/fleet/hosts/identifier/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
+	s.DoJSON("GET", "/api/v1/fleet/hosts/"+mdmDevice.UUID, nil, http.StatusOK, &hostResp)
 	hostID := hostResp.Host.ID
 
 	var putResp putHostDeviceMappingResponse

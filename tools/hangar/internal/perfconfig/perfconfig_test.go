@@ -146,7 +146,7 @@ func TestJSONKeysAndSortedOSCounts(t *testing.T) {
 	}
 	for _, key := range []string{
 		"\"server_url\"", "\"enroll_secret\"", "\"os_counts\"", "\"mdm_enabled\"",
-		"\"mdm_prob\"", "\"mdm_scep_challenge\"", "\"created_at_ms\"", "\"updated_at_ms\"",
+		"\"mdm_prob\"", "\"mdm_scep_challenge\"", "\"mdm_apns_url\"", "\"created_at_ms\"", "\"updated_at_ms\"",
 	} {
 		if !strings.Contains(string(raw), key) {
 			t.Errorf("serialized config missing %s:\n%s", key, raw)

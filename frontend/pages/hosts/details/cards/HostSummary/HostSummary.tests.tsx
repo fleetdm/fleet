@@ -73,7 +73,8 @@ describe("Host Summary section", () => {
         fleet_id: 2,
         fleet_name: "Mobile",
         platform: "ios",
-        os_version: "iOS 14.7.1",
+        os_name: "iOS",
+        os_version: "14.7.1",
       });
 
       const teamName = summaryData.fleet_name as string;
@@ -99,7 +100,8 @@ describe("Host Summary section", () => {
         fleet_id: 2,
         fleet_name: "Mobile",
         platform: "ipados",
-        os_version: "iPadOS 16.7.8",
+        os_name: "iPadOS",
+        os_version: "16.7.8",
       });
 
       const teamName = summaryData.fleet_name as string;

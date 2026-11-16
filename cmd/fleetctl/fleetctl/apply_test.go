@@ -21,6 +21,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/testing_utils"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/pkg/removednames"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
@@ -73,44 +74,11 @@ var userRoleSpecList = []*fleet.User{
 	},
 }
 
-func TestApplyUserRoles(t *testing.T) {
-	_, ds := testing_utils.RunServerWithMockedDS(t)
+func TestApplyUserRolesRemoved(t *testing.T) {
+	testing_utils.RunServerWithMockedDS(t)
 
-	ds.ListUsersFunc = func(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
-		return userRoleSpecList, nil
-	}
-
-	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
-		if email == "admin1@example.com" {
-			return userRoleSpecList[0], nil
-		}
-		return userRoleSpecList[1], nil
-	}
-
-	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
-		return &fleet.Team{
-			ID:        1,
-			CreatedAt: time.Now(),
-			Name:      "team1",
-		}, nil
-	}
-
-	ds.SaveUsersFunc = func(ctx context.Context, users []*fleet.User) error {
-		for _, u := range users {
-			switch u.Email {
-			case "admin1@example.com":
-				userRoleList[0] = u
-			case "admin2@example.com":
-				userRoleList[1] = u
-			}
-		}
-		return nil
-	}
-
-	tmpFile, err := os.CreateTemp(os.TempDir(), "*.yml")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
-
 	_, err = tmpFile.WriteString(`
 ---
 apiVersion: v1
@@ -119,17 +87,13 @@ spec:
   roles:
     admin1@example.com:
       global_role: admin
-      fleets: null
-    admin2@example.com:
-      global_role: null
-      fleets:
-      - role: maintainer
-        fleet: team1
 `)
 	require.NoError(t, err)
-	assert.Equal(t, "[+] applied user roles\n", runAppForTest(t, []string{"apply", "-f", tmpFile.Name()}))
-	require.Len(t, userRoleSpecList[1].Teams, 1)
-	assert.Equal(t, fleet.RoleMaintainer, userRoleSpecList[1].Teams[0].Role)
+	require.NoError(t, tmpFile.Close())
+
+	entry, ok := removednames.Find(removednames.KindSpecKind, fleet.UserRolesKind, "")
+	require.True(t, ok)
+	runAppCheckErr(t, []string{"apply", "-f", tmpFile.Name()}, entry.Message())
 }
 
 // withDiskEncryptionDefaults fills in the explicit per-platform disk
@@ -307,10 +271,11 @@ spec:
 			UpdateNewHosts: optjson.SetBool(true),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}
 	require.Equal(t, "[+] applied 2 fleets\n", runAppForTest(t, []string{"apply", "-f", filename}))
@@ -319,10 +284,11 @@ spec:
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 	assert.Equal(t, withCreateDefaults(fleet.TeamMDM{
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}), teamsByName["team2"].Config.MDM)
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
@@ -354,10 +320,11 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
@@ -389,10 +356,11 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}
 
@@ -450,10 +418,11 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}
 	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
@@ -543,10 +512,11 @@ spec:
 			CustomSettings: []fleet.MDMProfileSpec{},
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}
 
@@ -768,7 +738,6 @@ spec:
     enable_host_users: false
     enable_software_inventory: false
   mdm:
-    apple_bm_default_team: "team1"
     macos_updates:
       minimum_version: 14.6.1
       deadline: 2011-02-01
@@ -778,18 +747,17 @@ spec:
 `)
 
 	newMDMSettings := fleet.MDM{
-		DeprecatedAppleBMDefaultTeam: "team1",
-		WindowsSettings:              fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
-		AppleBMTermsExpired:          false,
+		AppleBMTermsExpired: false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
@@ -864,18 +832,17 @@ spec:
 `)
 
 	newMDMSettings = fleet.MDM{
-		DeprecatedAppleBMDefaultTeam: "team1",
-		WindowsSettings:              fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
-		AppleBMTermsExpired:          false,
+		AppleBMTermsExpired: false,
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.Int{Set: true},
@@ -1257,20 +1224,6 @@ spec:
   name: Ubuntu Linux
   query: select 1 from os_version where platform = 'ubuntu' or platform_like like '%ubuntu%';
 `
-	packsSpec = `---
-apiVersion: v1
-kind: pack
-spec:
-  name: osquery_monitoring
-  reports:
-    - report: osquery_version
-      name: osquery_version_snapshot
-      interval: 7200
-      snapshot: true
-    - report: osquery_version
-      name: osquery_version_differential
-      interval: 7200
-`
 	queriesSpec = `---
 apiVersion: v1
 kind: report
@@ -1471,7 +1424,7 @@ func TestApplyAsGitOps(t *testing.T) {
 		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 		return nil
 	}
 	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName, activationAction fleet.MDMAppleActivationAction) (*fleet.MDMAppleDeclaration, error) {
@@ -1579,7 +1532,7 @@ spec:
       - %s
     setup_experience:
       apple_setup_assistant: %s
-    windows_enabled_and_configured: true
+    windows_mdm_enabled: true
 `, mobileConfigPath, emptySetupAsst))
 
 	// first apply with dry-run
@@ -1593,11 +1546,12 @@ spec:
 	assert.Equal(t, fleet.MDM{
 		EnabledAndConfigured: true,
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
@@ -1610,7 +1564,6 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		WindowsSettings:             fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -1639,12 +1592,13 @@ spec:
 	assert.Equal(t, fleet.MDM{
 		EnabledAndConfigured: true,
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
-			BootstrapPackage:            optjson.SetString(bootstrapURL),
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
+			BootstrapPackage:                 optjson.SetString(bootstrapURL),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("14.6.1"),
@@ -1657,7 +1611,6 @@ spec:
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
-		WindowsSettings:             fleet.WindowsSettings{EnableManagedLocalAccount: optjson.SetBool(false)},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
 
@@ -1703,10 +1656,11 @@ spec:
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(0),
@@ -1725,8 +1679,8 @@ spec:
   fleet:
     name: Team1
     mdm:
-      macos_setup:
-        macos_setup_assistant: %s
+      setup_experience:
+        apple_setup_assistant: %s
 `, emptySetupAsst))
 
 	// first apply with dry-run
@@ -1752,11 +1706,12 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}), savedTeam.Config.MDM)
 
@@ -1768,7 +1723,7 @@ spec:
   fleet:
     name: Team1
     mdm:
-      macos_setup:
+      setup_experience:
         macos_bootstrap_package: %s
 `, bootstrapURL))
 
@@ -1792,12 +1747,13 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
-			BootstrapPackage:            optjson.SetString(bootstrapURL),
-			EnableReleaseDeviceManually: optjson.SetBool(false),
-			EnableManagedLocalAccount:   optjson.SetBool(false),
-			EndUserLocalAccountType:     optjson.SetString("admin"),
-			LockEndUserInfo:             optjson.SetBool(false),
+			MacOSSetupAssistant:              optjson.SetString(emptySetupAsst),
+			BootstrapPackage:                 optjson.SetString(bootstrapURL),
+			EnableReleaseDeviceManually:      optjson.SetBool(false),
+			EnableManagedLocalAccount:        optjson.SetBool(false),
+			EnableManagedLocalAccountWindows: optjson.SetBool(false),
+			EndUserLocalAccountType:          optjson.SetString("admin"),
+			LockEndUserInfo:                  optjson.SetBool(false),
 		},
 	}), savedTeam.Config.MDM)
 
@@ -1842,22 +1798,6 @@ spec:
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
 	assert.Equal(t, "select 1;", appliedLabels[0].Query)
-
-	// Apply packs.
-	var appliedPacks []*fleet.PackSpec
-	ds.ApplyPackSpecsFunc = func(ctx context.Context, specs []*fleet.PackSpec) error {
-		appliedPacks = specs
-		return nil
-	}
-	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
-	name = writeTmpYml(t, packsSpec)
-	assert.Equal(t, "[+] applied 1 pack\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
-	require.Len(t, appliedPacks, 1)
-	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
-	require.Len(t, appliedPacks[0].Queries, 2)
 
 	// Apply queries.
 	var appliedQueries []*fleet.Query
@@ -1927,7 +1867,7 @@ func TestApplyLabels(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
 	var appliedLabels []*fleet.LabelSpec
-	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, names []string, user fleet.User) error {
+	ds.SetAsideLabelsFunc = func(ctx context.Context, notOnTeamID *uint, labels []fleet.LabelToMove, user fleet.User) error {
 		return nil
 	}
 	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorId *uint) error {
@@ -2019,45 +1959,20 @@ func TestApplyLabels(t *testing.T) {
 	assert.False(t, ds.LabelsByNameFuncInvoked)
 }
 
-func TestApplyPacks(t *testing.T) {
+func TestApplyPacksRemoved(t *testing.T) {
 	_, ds := testing_utils.RunServerWithMockedDS(t)
 
-	ds.ListPacksFunc = func(ctx context.Context, opt fleet.PackListOptions) ([]*fleet.Pack, error) {
-		return nil, nil
-	}
-	var appliedPacks []*fleet.PackSpec
-	ds.ApplyPackSpecsFunc = func(ctx context.Context, specs []*fleet.PackSpec) error {
-		appliedPacks = specs
-		return nil
-	}
-
-	name := writeTmpYml(t, packsSpec)
-
-	assert.Equal(t, "[+] applied 1 pack\n", runAppForTest(t, []string{"apply", "-f", name}))
-	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
-	require.Len(t, appliedPacks, 1)
-	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
-	require.Len(t, appliedPacks[0].Queries, 2)
-
-	interval := writeTmpYml(t, `---
+	name := writeTmpYml(t, queriesSpec+`---
 apiVersion: v1
 kind: pack
 spec:
-  name: test_bad_interval
-  reports:
-    - query: good_interval
-      name: good_interval
-      interval: 7200
-    - query: bad_interval
-      name: bad_interval
-      interval: 604801
+  name: pack1
 `)
-
-	expectedErrMsg := "applying packs: POST /api/latest/fleet/spec/packs received status 400 Bad request: pack payload verification: pack scheduled query interval must be an integer greater than 1 and less than 604800"
-
-	_, err := runAppNoChecks([]string{"apply", "-f", interval})
-	assert.Error(t, err)
-	require.Contains(t, err.Error(), expectedErrMsg)
+	_, err := runAppNoChecks([]string{"apply", "-f", name})
+	entry, ok := removednames.Find(removednames.KindSpecKind, "pack", "")
+	require.True(t, ok)
+	require.ErrorContains(t, err, entry.Message())
+	require.False(t, ds.ApplyQueriesFuncInvoked)
 }
 
 func TestApplyQueries(t *testing.T) {
@@ -2589,8 +2504,8 @@ spec:
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigSet.yml"))
 		require.NoError(t, err)
-		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup, "", emptyMacosSetup)
-		expectedAppCfgSetReleaseEnabled := strings.ReplaceAll(expectedAppCfgSet, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
+		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup)
+		expectedAppCfgSetReleaseEnabled := strings.ReplaceAll(expectedAppCfgSet, `apple_enable_release_device_manually: false`, `apple_enable_release_device_manually: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
 		require.NoError(t, err)
@@ -2599,7 +2514,7 @@ spec:
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
 		require.NoError(t, err)
 		expectedTm1Set := fmt.Sprintf(string(b), "", "")
-		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
+		expectedTm1SetReleaseAndRequireEnabled := strings.ReplaceAll(expectedTm1Set, `apple_enable_release_device_manually: false`, `apple_enable_release_device_manually: true`)
 		expectedTm1SetReleaseAndRequireEnabled = strings.ReplaceAll(expectedTm1SetReleaseAndRequireEnabled, `macos_require_all_software: false`, `macos_require_all_software: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Empty.yml"))
@@ -2887,6 +2802,28 @@ spec:
 		assert.Equal(t, srv.URL, mockStore.appConfig.MDM.MacOSSetup.BootstrapPackage.Value)
 		assert.True(t, mockStore.appConfig.MDM.MacOSSetup.ManualAgentInstall.Value)
 		mockStore.Unlock()
+	})
+
+	t.Run("removed key rejected before bootstrap package upload", func(t *testing.T) {
+		pkgName := "signed.pkg"
+		srv, _ := testing_utils.ServeMDMBootstrapPackage(t, filepath.Join("../../../server/service/testdata/bootstrap-packages", pkgName),
+			pkgName)
+		ds := setupServer(t, true)
+
+		spec := `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    setup_experience:
+      macos_bootstrap_package: %s
+      manual_agent_install: true
+`
+		tmpFilename := writeTmpYml(t, fmt.Sprintf(spec, srv.URL))
+
+		runAppCheckErr(t, []string{"apply", "-f", tmpFilename}, `"manual_agent_install" parameter is not available anymore`)
+		assert.False(t, ds.InsertMDMAppleBootstrapPackageFuncInvoked)
+		assert.False(t, ds.SaveAppConfigFuncInvoked)
 	})
 
 	t.Run("replace bootstrap package", func(t *testing.T) {
@@ -4022,7 +3959,7 @@ spec:
   mdm:
     enable_recovery_lock_password: true
 `,
-			wantErr: `422 Validation Failed: The "enable_recovery_lock_password" parameter is not available anymore. ` +
+			wantErr: `The "enable_recovery_lock_password" parameter is not available anymore. ` +
 				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
@@ -4038,7 +3975,7 @@ spec:
         require_all_software_windows: true
 `,
 			flags: []string{"--force"},
-			wantErr: `422 Validation Failed: The "require_all_software_windows" parameter is not available anymore. ` +
+			wantErr: `The "require_all_software_windows" parameter is not available anymore. ` +
 				`What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
@@ -4272,9 +4209,31 @@ apiVersion: v1
 kind: config
 spec:
   mdm:
-    windows_enabled_and_configured: true
+    windows_mdm_enabled: true
 `,
 			wantErr: `422 Validation Failed: Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.`,
+		},
+		{
+			desc: "app config removed windows mdm key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_migration_enabled: true
+`,
+			wantErr: `The "windows_migration_enabled" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
+		},
+		{
+			desc: "app config removed windows mdm enabled key",
+			spec: `
+apiVersion: v1
+kind: config
+spec:
+  mdm:
+    windows_enabled_and_configured: true
+`,
+			wantErr: `The "windows_enabled_and_configured" parameter is not available anymore. What to use instead: https://fleetdm.com/learn-more-about/fleet-5-migration`,
 		},
 		{
 			desc: "activities_webhook empty destination_url",

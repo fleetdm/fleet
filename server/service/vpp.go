@@ -19,7 +19,7 @@ import (
 //////////////////////////////////////////////////////////////////////////////
 
 type getAppStoreAppsRequest struct {
-	TeamID     uint  `query:"team_id" renameto:"fleet_id"`
+	TeamID     uint  `query:"fleet_id"`
 	VPPTokenID *uint `query:"vpp_token_id,optional"`
 }
 
@@ -53,7 +53,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, _ *uint, _ *uint) ([]*f
 //////////////////////////////////////////////////////////////////////////////
 
 type addAppStoreAppRequest struct {
-	TeamID              *uint                           `json:"team_id" renameto:"fleet_id"`
+	TeamID              *uint                           `json:"fleet_id"`
 	AppStoreID          string                          `json:"app_store_id"`
 	Platform            fleet.InstallableDevicePlatform `json:"platform"`
 	SelfService         bool                            `json:"self_service"`
@@ -118,7 +118,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, _ *uint, _ fleet.VPPAppT
 
 type updateAppStoreAppRequest struct {
 	TitleID           uint            `url:"title_id"`
-	TeamID            *uint           `json:"team_id" renameto:"fleet_id"`
+	TeamID            *uint           `json:"fleet_id"`
 	VersionID         *uint           `json:"version_id"`
 	Name              *string         `json:"name"`
 	SelfService       *bool           `json:"self_service"`
@@ -139,8 +139,8 @@ type updateAppStoreAppRequest struct {
 }
 
 type updateAppStoreAppResponse struct {
-	AppStoreApp *fleet.AppStoreAppVersion `json:"app_store_app,omitempty"`
-	Err         error                     `json:"error,omitempty"`
+	AppStoreApp *fleet.VPPAppStoreApp `json:"app_store_app,omitempty"`
+	Err         error                 `json:"error,omitempty"`
 }
 
 func (r updateAppStoreAppResponse) Error() error { return r.Err }
@@ -172,8 +172,7 @@ func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fle
 		return updateAppStoreAppResponse{Err: err}, nil
 	}
 
-	updatedVersion := updatedApp.AppStoreAppVersion()
-	return updateAppStoreAppResponse{AppStoreApp: &updatedVersion}, nil
+	return updateAppStoreAppResponse{AppStoreApp: updatedApp}, nil
 }
 
 func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID *uint, payload fleet.AppStoreAppUpdatePayload) (*fleet.VPPAppStoreApp, *fleet.ActivityEditedAppStoreApp, error) {
@@ -330,7 +329,7 @@ func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.R
 
 type patchVPPTokensTeamsRequest struct {
 	ID      uint   `url:"id"`
-	TeamIDs []uint `json:"teams" renameto:"fleets"`
+	TeamIDs []uint `json:"fleets"`
 }
 
 type patchVPPTokensTeamsResponse struct {

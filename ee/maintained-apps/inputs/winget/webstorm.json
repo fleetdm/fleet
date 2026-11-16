@@ -3,6 +3,7 @@
   "slug": "webstorm/windows",
   "package_identifier": "JetBrains.WebStorm",
   "unique_identifier": "WebStorm",
+  "open_process_names": ["webstorm.exe", "webstorm64.exe"],
   "fuzzy_match_name": true,
   "use_display_version_for_patch": true,
   "install_script_path": "ee/maintained-apps/inputs/winget/scripts/webstorm_install.ps1",

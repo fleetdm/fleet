@@ -1,0 +1,1 @@
+Fixed long script names in the scripts library being cut off mid-word without an ellipsis or full-name tooltip.

@@ -1,16 +1,16 @@
 {
   "versions": [
     {
-      "version": "8.1.8",
+      "version": "8.1.9",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.druva.inSyncClient';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.druva.inSyncClient' AND version_compare(bundle_short_version, '8.1.8') < 0);",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.druva.inSyncClient' AND version_compare(bundle_short_version, '8.1.9') < 0);",
         "open": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps a JOIN processes p ON p.path = concat(a.path, '/Contents/MacOS/', a.bundle_executable) WHERE a.bundle_identifier = 'com.druva.inSyncClient' AND a.bundle_executable != '');"
       },
-      "installer_url": "https://downloads.druva.com/downloads/inSync/MAC/8.1.8/inSync-8.1.8-r110997.dmg",
+      "installer_url": "https://downloads.druva.com/downloads/inSync/MAC/8.1.9/inSync-8.1.9-r110999.dmg",
       "install_script_ref": "85cf67d5",
       "uninstall_script_ref": "e9fc7f0c",
-      "sha256": "331ee50a9bd81fe4ece58c567bb08ca646720531cf030173ee59447ba0ad276c",
+      "sha256": "d03fb6c6ea4824afd70d42188970dbc1367255881cb641551244a4625a8086d2",
       "default_categories": [
         "Productivity"
       ]

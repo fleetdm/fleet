@@ -241,12 +241,12 @@ type Label struct {
 	LabelType           LabelType           `json:"label_type" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	HostCount           int                 `json:"host_count,omitempty" db:"host_count"`
-	TeamID              *uint               `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID              *uint               `json:"fleet_id" db:"team_id"`
 }
 
 type LabelWithTeamName struct {
 	Label
-	TeamName *string `json:"team_name" renameto:"fleet_name" db:"team_name"`
+	TeamName *string `json:"fleet_name" db:"team_name"`
 }
 
 // Implement the HostVitalsLabel interface.
@@ -258,7 +258,7 @@ type LabelSummary struct {
 	ID          uint      `json:"id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
-	TeamID      *uint     `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID      *uint     `json:"fleet_id" db:"team_id"`
 	LabelType   LabelType `json:"label_type" db:"label_type"`
 }
 
@@ -320,7 +320,7 @@ type LabelSpec struct {
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
 	Hosts               HostsSlice          `json:"hosts"`
 	HostVitalsCriteria  *json.RawMessage    `json:"criteria,omitempty" db:"criteria"`
-	TeamID              *uint               `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	TeamID              *uint               `json:"fleet_id" db:"team_id"`
 }
 
 const (
@@ -368,6 +368,29 @@ func IsReservedLabelName(name string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// Fleets can share label names, but every fleet also sees the global labels, so a name can't be used by both
+// a global label and a fleet label.
+const (
+	LabelNameInUseGloballyErrMsg = "Globally-scoped labels and fleet-scoped labels cannot have duplicate names. This name is already in use at the global level."
+	LabelNameInUseByFleetsErrMsg = "Globally-scoped labels and fleet-scoped labels cannot have duplicate names. This name is already in use by one or more fleets."
+)
+
+// NewAmbiguousLabelNameError is returned where a label is identified by name alone and the caller can see that name
+// on more than one fleet.
+func NewAmbiguousLabelNameError(name string) error {
+	return &ConflictError{Message: fmt.Sprintf("More than one fleet has a label named %q.", name)}
+}
+
+// SetAsideLabelName is the temporary name a label gets when GitOps moves its name between the global level and
+// a fleet, so the label can be deleted after the label at the destination is created.
+func SetAsideLabelName(name string, teamID *uint) string {
+	var id uint
+	if teamID != nil {
+		id = *teamID
+	}
+	return fmt.Sprintf("%s__team_%d", name, id)
 }
 
 // DetectMissingLabels returns a list of labels present in the unvalidatedLabels list that could not be found in the validLabelMap.
@@ -587,7 +610,7 @@ type MissingLabelError struct {
 
 // NewMissingLabelError creates a new MissingLabelError, determining which label name was missing
 // based on the provided list of labels and the map of found labels.
-func NewMissingLabelError(providedLabels []string, foundLabels map[string]uint) *MissingLabelError {
+func NewMissingLabelError[V any](providedLabels []string, foundLabels map[string]V) *MissingLabelError {
 	notFoundLabel := ""
 	for _, name := range providedLabels {
 		if _, ok := foundLabels[name]; !ok {

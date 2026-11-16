@@ -15,6 +15,8 @@ export class DropdownButton extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
+    icon: PropTypes.string,
+    iconPosition: PropTypes.oneOf(["left", "right"]),
     options: PropTypes.arrayOf(
       PropTypes.shape({
         disabled: PropTypes.bool,
@@ -88,6 +90,8 @@ export class DropdownButton extends Component {
       children,
       className,
       disabled,
+      icon,
+      iconPosition,
       options,
       size,
       tabIndex,
@@ -108,6 +112,8 @@ export class DropdownButton extends Component {
         <Button
           className={`${buttonClass}`}
           disabled={disabled}
+          icon={icon}
+          iconPosition={iconPosition}
           onClick={toggleDropdown}
           size={size}
           tabIndex={tabIndex}

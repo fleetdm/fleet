@@ -26,9 +26,12 @@ export const GENERATION_STEP_LABELS: Record<GenerationStep, string> = {
 };
 
 export interface IGenerationError {
-  /** "decline" when the AI couldn't make this profile, "failure" otherwise. */
-  kind: "decline" | "failure";
+  /** "decline" when the AI couldn't make this profile, "limit" when Fleet
+   * Free's prompt limit is reached, "failure" otherwise. */
+  kind: "decline" | "limit" | "failure";
   reason: string;
+  /** For "limit": whole days until the limit resets, if Fleet said. */
+  retryAfterDays?: number;
 }
 
 export type GenerationStatus = "idle" | "generating" | "done" | "error";
@@ -57,10 +60,25 @@ const INITIAL_STATE: IGenerationState = {
   readingDone: false,
 };
 
-/** The UI branches on the field the API reports the error on. */
+const SECONDS_PER_DAY = 24 * 60 * 60;
+
+const isLimitError = (e: unknown) =>
+  (e as AxiosResponse | undefined)?.status === 429;
+
+/** The UI branches on the field the API reports the error on, except for the
+ * limit, which reports on "base" like other failures. */
 export const toGenerationError = (e: unknown): IGenerationError => {
-  const firstError = (e as AxiosResponse<IApiError> | undefined)?.data
-    ?.errors?.[0];
+  const response = e as AxiosResponse<IApiError> | undefined;
+  const firstError = response?.data?.errors?.[0];
+  if (isLimitError(e)) {
+    const seconds = Number(response?.headers?.["retry-after"]);
+    return {
+      kind: "limit",
+      reason: firstError?.reason ?? "",
+      retryAfterDays:
+        seconds > 0 ? Math.ceil(seconds / SECONDS_PER_DAY) : undefined,
+    };
+  }
   if (firstError?.name === "natural_language_instructions") {
     return { kind: "decline", reason: firstError.reason };
   }
@@ -127,10 +145,27 @@ const useProfileGeneration = ({ onTimeout }: IUseProfileGenerationOptions) => {
       const capTimer = setTimeout(timeOut, GENERATION_TIMEOUT_MS);
       timersRef.current.push(capTimer);
 
+      // A failed profile discards any name and description shown.
+      const fail = (e: unknown) => {
+        if (signal.aborted) {
+          return;
+        }
+        update({
+          status: "error",
+          error: toGenerationError(e),
+          nameDescription: undefined,
+        });
+        abortRun();
+      };
+
       autofillAPI
         .getConfigProfileNameDescription({ instructions, platform, signal })
         .then((nameDescription) => update({ nameDescription }))
-        .catch(() => update({ nameDescription: null }));
+        // The limit ends the run whichever request reports it; aborting
+        // then keeps the other request's limit from showing twice.
+        .catch((e: unknown) =>
+          isLimitError(e) ? fail(e) : update({ nameDescription: null })
+        );
 
       autofillAPI
         .getConfigProfileContent({ instructions, platform, fleetId, signal })
@@ -148,13 +183,7 @@ const useProfileGeneration = ({ onTimeout }: IUseProfileGenerationOptions) => {
             timeOut();
             return;
           }
-          // A failed profile discards any name and description shown.
-          update({
-            status: "error",
-            error: toGenerationError(e),
-            nameDescription: undefined,
-          });
-          abortRun();
+          fail(e);
         });
     },
     [abortRun]

@@ -71,19 +71,9 @@ func TestKnownJSONKeys(t *testing.T) {
 	})
 
 	t.Run("renameto alias accepted", func(t *testing.T) {
-		// PolicySpec has `json:"team" renameto:"fleet"` — both should be known
-		keys := knownJSONKeys(reflect.TypeFor[fleet.PolicySpec]())
-		assert.Contains(t, keys, "team")
-		assert.Contains(t, keys, "fleet")
-
-		// LabelSpec has `json:"team_id" renameto:"fleet_id"`
-		keys = knownJSONKeys(reflect.TypeFor[fleet.LabelSpec]())
-		assert.Contains(t, keys, "team_id")
-		assert.Contains(t, keys, "fleet_id")
-
 		// MDM has `json:"apple_business_manager" renameto:"apple_business,inline"`
 		// — the registered alias must drop the ",inline" option.
-		keys = knownJSONKeys(reflect.TypeFor[fleet.MDM]())
+		keys := knownJSONKeys(reflect.TypeFor[fleet.MDM]())
 		assert.Contains(t, keys, "apple_business_manager")
 		assert.Contains(t, keys, "apple_business")
 		assert.NotContains(t, keys, "apple_business,inline")
@@ -143,11 +133,11 @@ func TestValidateUnknownKeys(t *testing.T) {
 			RequireAll bool `json:"macos_require_all_software" removedkey:"require_all_software_macos"`
 		}
 		type outer struct {
-			Setup inner `json:"macos_setup" renameto:"setup_experience"`
+			Setup inner `json:"setup_experience"`
 		}
 		// keyed by the deprecated parent name, as the GitOps parser hands it over;
 		// the path uses the current name
-		data := map[string]any{"macos_setup": map[string]any{
+		data := map[string]any{"setup_experience": map[string]any{
 			"require_all_software_macos": true,
 			"require_all_software_maco":  true,
 		}}
@@ -230,15 +220,15 @@ func TestValidateUnknownKeys(t *testing.T) {
 	t.Run("nested struct validation", func(t *testing.T) {
 		// MacOSSetup is a pointer-to-struct field in GitOpsControls
 		data := map[string]any{
-			"macos_setup": map[string]any{
-				"bootstrap_package": "pkg.pkg",
-				"bad_nested_field":  true,
+			"setup_experience": map[string]any{
+				"macos_bootstrap_package": "pkg.pkg",
+				"bad_nested_field":        true,
 			},
 		}
 		errs := validateUnknownKeys(data, reflect.TypeFor[GitOpsControls](), []string{"controls"}, "test.yml")
 		require.Len(t, errs, 1)
 		assert.Contains(t, errs[0].Error(), "bad_nested_field")
-		// reported under the current name, not the deprecated macos_setup the parser rewrote it to
+		// reported under the current name
 		assert.Contains(t, errs[0].Error(), "controls.setup_experience.bad_nested_field")
 	})
 
@@ -459,7 +449,8 @@ func TestFilterWarnings(t *testing.T) {
 
 	t.Run("filters matching errors and logs them", func(t *testing.T) {
 		multiError := &multierror.Error{}
-		multiError = multierror.Append(multiError,
+		multiError = multierror.Append(
+			multiError,
 			&ParseUnknownKeyError{Filename: "test.yml", Field: "bad_key"},
 			errors.New("some other error"),
 			&ParseUnknownKeyError{Filename: "test.yml", Field: "another_bad"},
@@ -481,7 +472,8 @@ func TestFilterWarnings(t *testing.T) {
 
 	t.Run("returns nil when all errors filtered", func(t *testing.T) {
 		multiError := &multierror.Error{}
-		multiError = multierror.Append(multiError,
+		multiError = multierror.Append(
+			multiError,
 			&ParseUnknownKeyError{Filename: "test.yml", Field: "bad1"},
 			&ParseUnknownKeyError{Filename: "test.yml", Field: "bad2"},
 		)
@@ -492,7 +484,8 @@ func TestFilterWarnings(t *testing.T) {
 
 	t.Run("preserves all errors when none match", func(t *testing.T) {
 		multiError := &multierror.Error{}
-		multiError = multierror.Append(multiError,
+		multiError = multierror.Append(
+			multiError,
 			errors.New("error one"),
 			errors.New("error two"),
 		)
@@ -506,13 +499,15 @@ func TestFilterWarnings(t *testing.T) {
 
 	t.Run("multiple filter types", func(t *testing.T) {
 		multiError := &multierror.Error{}
-		multiError = multierror.Append(multiError,
+		multiError = multierror.Append(
+			multiError,
 			&ParseUnknownKeyError{Filename: "test.yml", Field: "bad"},
 			&ParseTypeError{Filename: "test.yml", Keys: []string{"controls"}},
 			errors.New("kept error"),
 		)
 
-		result := filterWarnings(multiError, func(string, ...any) {},
+		result := filterWarnings(
+			multiError, func(string, ...any) {},
 			reflect.TypeFor[*ParseUnknownKeyError](),
 			reflect.TypeFor[*ParseTypeError](),
 		)

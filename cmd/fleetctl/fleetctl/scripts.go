@@ -49,7 +49,6 @@ func runScriptCommand() *cli.Command {
 			},
 			&cli.UintFlag{
 				Name:     fleetFlagName,
-				Aliases:  []string{"team"},
 				Usage:    `Available in Fleet Premium. ID of the fleet that the saved script belongs to. 0 targets unassigned hosts (default: 0).`,
 				Required: false,
 			},
@@ -71,15 +70,6 @@ func runScriptCommand() *cli.Command {
 			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
-			}
-
-			appCfg, err := client.GetAppConfig()
-			if err != nil {
-				return err
-			}
-
-			if appCfg.ServerSettings.ScriptsDisabled {
-				return errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg)
 			}
 
 			async := c.Bool("async")
