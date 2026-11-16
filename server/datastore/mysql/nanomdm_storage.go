@@ -79,6 +79,7 @@ func (ds *Datastore) NewMDMAppleMDMStorage() (*NanoMDMStorage, error) {
 		nanomdm_mysql.WithDB(ds.primary.DB),
 		nanomdm_mysql.WithLogger(ds.logger),
 		nanomdm_mysql.WithReaderFunc(ds.reader),
+		nanomdm_mysql.WithServerPrivateKey(ds.serverPrivateKey),
 	)
 	if err != nil {
 		return nil, err
@@ -100,6 +101,7 @@ func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.
 		nanomdm_mysql.WithLogger(ds.logger),
 		nanomdm_mysql.WithReaderFunc(ds.reader),
 		nanomdm_mysql.WithAsyncLastSeen(asyncCap, asyncInterval),
+		nanomdm_mysql.WithServerPrivateKey(ds.serverPrivateKey),
 	)
 	if err != nil {
 		return nil, err
