@@ -98,11 +98,12 @@ const AISessionModal = ({ hostId, session, onExit }: IAISessionModalProps) => {
       return <Spinner />;
     }
     if (!data.events.length && page === 0) {
-      // The session's tool calls are collected on a later refresh than the session itself.
+      // The session's tool calls are collected on a later refresh than the session itself, or not at all when the
+      // server is set to store sessions only, which the UI can't tell apart.
       return session.tool_call_count > 0 ? (
         <EmptyState
-          header="Collecting events"
-          info="Fleet is still collecting this session's events. Check back later."
+          header="No events collected"
+          info="Events can take a while to appear after the session. They aren't collected if Fleet is set to store sessions without their tool calls."
           width="small"
           variant="list"
         />

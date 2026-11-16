@@ -144,7 +144,7 @@ describe("AISessionModal", () => {
     );
   });
 
-  it("shows that events are still being collected", async () => {
+  it("explains why a session with tool calls has no events", async () => {
     mockServer.use(
       eventsHandler(
         createMockGetHostAISessionEventsResponse({ events: [], count: 0 })
@@ -152,8 +152,10 @@ describe("AISessionModal", () => {
     );
     renderModal(createMockHostAISession({ tool_call_count: 12 }));
 
-    expect(await screen.findByText("Collecting events")).toBeInTheDocument();
-    expect(screen.queryByText("No events")).not.toBeInTheDocument();
+    expect(await screen.findByText("No events collected")).toBeInTheDocument();
+    expect(
+      screen.getByText(/store sessions without their tool calls/)
+    ).toBeInTheDocument();
   });
 
   it("marks a truncated payload", async () => {

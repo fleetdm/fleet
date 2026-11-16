@@ -115,6 +115,7 @@ const AISessionsCard = ({
         showMarkAllPages={false}
         isLoading={isPreviousData}
         disableMultiRowSelect
+        keyboardSelectableRows
         onSelectSingleRow={(row: Row) => {
           if (!isPreviousData) {
             // The modal doesn't take focus, so the clicked row would keep it

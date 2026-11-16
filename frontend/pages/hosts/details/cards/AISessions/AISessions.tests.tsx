@@ -97,6 +97,25 @@ describe("AISessionsCard", () => {
     expect(onSelectSession).toHaveBeenCalledWith(session);
   });
 
+  it("opens a session from the keyboard", async () => {
+    const onSelectSession = jest.fn();
+    const session = createMockHostAISession({ id: 42 });
+    const { user } = renderCard(
+      { onSelectSession },
+      createMockGetHostAISessionsResponse({ ai_sessions: [session] })
+    );
+    const row = screen.getByText("Claude Code").closest("tr") as HTMLElement;
+
+    for (let i = 0; i < 10 && !row.contains(document.activeElement); i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await user.tab();
+    }
+    expect(row).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    expect(onSelectSession).toHaveBeenCalledWith(session);
+  });
+
   it("doesn't leave the clicked row focused behind the session modal", async () => {
     const { user } = renderCard();
 

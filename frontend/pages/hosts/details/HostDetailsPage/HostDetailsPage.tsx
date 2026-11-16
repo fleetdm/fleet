@@ -722,13 +722,6 @@ const HostDetailsPage = ({
     host,
   });
 
-  // e.g. the host moves to a fleet whose sessions the user can't read
-  useEffect(() => {
-    if (!showAISessionsCard) {
-      setSelectedAISession(null);
-    }
-  }, [showAISessionsCard]);
-
   const {
     data: hostAISessions,
     isLoading: isLoadingHostAISessions,
@@ -2568,7 +2561,7 @@ const HostDetailsPage = ({
               onExit={() => setSelectedCertificate(null)}
             />
           )}
-          {selectedAISession && (
+          {showAISessionsCard && selectedAISession && (
             <AISessionModal
               hostId={host.id}
               session={selectedAISession}
