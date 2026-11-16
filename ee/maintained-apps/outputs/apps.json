@@ -7884,6 +7884,13 @@
       "description": "Scrivener is a word processing software with a typewriter style."
     },
     {
+      "name": "Scroll Reverser",
+      "slug": "scroll-reverser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.pilotmoon.scroll-reverser",
+      "description": "Scroll Reverser is a menu bar utility that reverses the scrolling direction of mice and trackpads independently."
+    },
+    {
       "name": "Secretive",
       "slug": "secretive/darwin",
       "platform": "darwin",
