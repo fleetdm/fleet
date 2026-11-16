@@ -1078,6 +1078,7 @@ const entraDeviceCertIssuerLike = "net + windows + MS-Organization-Access%"
 // windowsEntraIDDetails reads the Entra device ID (the device certificate's subject). A certificate is anchored when
 // it's in the machine store and an admin-only HKLM join record is named after its thumbprint. The DISTINCT keeps SQLite
 // from flattening the registry subquery into a nested loop that rescans certificates, which osquery enumerates in full.
+// GetDetailQueries sets DirectIngestFunc, since it depends on the server config and the service.
 var windowsEntraIDDetails = DetailQuery{
 	Query: `SELECT c.subject AS device_id, c.not_valid_after,
   CASE WHEN r.key IS NOT NULL AND c.store_location = 'LocalMachine' THEN 'anchored' ELSE 'unanchored' END AS source
@@ -1087,8 +1088,7 @@ LEFT JOIN (
   WHERE key LIKE 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\%'
 ) r ON UPPER(c.sha1) = UPPER(SUBSTR(r.key, LENGTH('HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\CloudDomainJoin\JoinInfo\') + 1))
 WHERE c.issuer LIKE '` + entraDeviceCertIssuerLike + `';`,
-	Platforms:        []string{"windows"},
-	DirectIngestFunc: entraDeviceIDIngester(false, nil),
+	Platforms: []string{"windows"},
 }
 
 // EntraDeviceUnmarker reports to Entra that a device ID a host no longer holds is not managed and not compliant. It's
