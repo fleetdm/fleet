@@ -127,11 +127,7 @@ func (c *Client) planAndStripOrgLogos(
 		_, pathPresent := orgInfo[s.pathKey]
 		_, urlPresent := orgInfo[s.urlKey]
 		if !pathPresent && !urlPresent {
-			// Left alone when only the deprecated key is set: it carries the value.
-			if _, deprecatedPresent := orgInfo[s.deprecatedURLKey]; !deprecatedPresent {
-				orgInfo[s.urlKey] = ""
-				orgInfo[s.deprecatedURLKey] = ""
-			}
+			orgInfo[s.urlKey] = ""
 			continue
 		}
 
