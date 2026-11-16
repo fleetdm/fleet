@@ -13,15 +13,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/golang-jwt/jwt/v4"
@@ -29,6 +35,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 // testOktaValidCert is a valid PEM-encoded x509 certificate used by tests that
@@ -2180,4 +2187,158 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessMicrosoftEntraDevi
 	}, http.StatusOK, &tmResp)
 	require.Nil(t, s.reportEntraDeviceToken(signer, mac2, testEntraDeviceID2, "user2@example.com", http.StatusBadRequest))
 	assertDeviceID(mac2, testEntraDeviceID3)
+}
+
+// integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite runs with
+// microsoft_compliance_partner.windows_trusted_device_id_only set, a server option fixed when the server starts.
+type integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite struct {
+	withServer
+	suite.Suite
+	proxy *mockedConditionalAccessMicrosoftProxy
+}
+
+func TestIntegrationsEnterpriseEntraTrustedDeviceIDOnly(t *testing.T) {
+	testingSuite := new(integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite)
+	testingSuite.withServer.s = &testingSuite.Suite
+	suite.Run(t, testingSuite)
+}
+
+func (s *integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite) SetupSuite() {
+	s.withDS.SetupSuite("integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite")
+	s.proxy = &mockedConditionalAccessMicrosoftProxy{}
+
+	fleetCfg := config.TestConfig()
+	fleetCfg.MicrosoftCompliancePartner.WindowsTrustedDeviceIDOnly = true
+	opts := &TestServerOpts{
+		License:                         &fleet.LicenseInfo{Tier: fleet.TierPremium},
+		Pool:                            redistest.SetupRedis(s.T(), s.T().Name(), false, false, false),
+		Rs:                              pubsub.NewInmemQueryResults(),
+		Lq:                              live_query_mock.New(s.T()),
+		ConditionalAccessMicrosoftProxy: s.proxy,
+		DBConns:                         s.dbConns,
+		FleetConfig:                     &fleetCfg,
+	}
+	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+		opts.Logger = slog.New(slog.DiscardHandler)
+	}
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, opts)
+	s.server = server
+	s.users = users
+	s.token = s.getTestAdminToken()
+}
+
+func (s *integrationEnterpriseEntraTrustedDeviceIDOnlyTestSuite) TestDroppedDeviceIDsAreUnmarked() {
+	t := s.T()
+	ctx := t.Context()
+	const (
+		joinedID      = "1a1a1a1a-1111-4111-8111-111111111111"
+		rejoinedID    = "2b2b2b2b-2222-4222-8222-222222222222"
+		userStoreOnly = "3c3c3c3c-3333-4333-8333-333333333333"
+	)
+
+	s.proxy.createResponse = &conditional_access_microsoft_proxy.CreateResponse{TenantID: testEntraTenantID, Secret: "secret"}
+	s.proxy.getResponse = &conditional_access_microsoft_proxy.GetResponse{TenantID: testEntraTenantID, SetupDone: true}
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft", conditionalAccessMicrosoftCreateRequest{
+		MicrosoftTenantID: testEntraTenantID,
+	}, http.StatusOK, &conditionalAccessMicrosoftCreateResponse{})
+	var confirm conditionalAccessMicrosoftConfirmResponse
+	s.DoJSON("POST", "/api/latest/fleet/conditional-access/microsoft/confirm", conditionalAccessMicrosoftConfirmRequest{}, http.StatusOK, &confirm)
+	require.True(t, confirm.ConfigurationCompleted)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", team.ID), map[string]any{
+		"integrations": map[string]any{"conditional_access_enabled": true},
+	}, http.StatusOK, &teamResponse{})
+	var pr fleet.TeamPolicyResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.TeamPolicyRequest{
+		Query: "SELECT 1;", Name: "Compliance check", ConditionalAccessEnabled: true, Platform: "windows",
+	}, http.StatusOK, &pr)
+
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   new(t.Name()),
+		NodeKey:         new(t.Name()),
+		UUID:            uuid.NewString(),
+		Hostname:        "win.local",
+		Platform:        "windows",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+	setOrbitEnrollment(t, host, s.ds)
+
+	type report struct {
+		deviceID           string
+		managed, compliant bool
+	}
+	reports := make(chan report, 10)
+	s.proxy.setComplianceStatusFunc = func(
+		ctx context.Context, tenantID, secret, deviceID, userPrincipalName string, mdmEnrolled bool,
+		deviceName, osName, osVersion string, compliant bool, lastCheckInTime time.Time,
+	) (*conditional_access_microsoft_proxy.SetComplianceStatusResponse, error) {
+		reports <- report{deviceID, mdmEnrolled, compliant}
+		return &conditional_access_microsoft_proxy.SetComplianceStatusResponse{}, nil
+	}
+	nextReports := func(n int) []report {
+		var got []report
+		for range n {
+			select {
+			case r := <-reports:
+				got = append(got, r)
+			case <-time.After(10 * time.Second):
+				t.Fatalf("timed out waiting for Entra reports, got %v", got)
+			}
+		}
+		return got
+	}
+	checkIn := func(cert map[string]string, policyPasses bool) {
+		certRows := []map[string]string{}
+		if cert != nil {
+			certRows = append(certRows, cert)
+		}
+		certJSON, err := json.Marshal(certRows)
+		require.NoError(t, err)
+		queries := map[string]json.RawMessage{hostDetailQueryPrefix + "conditional_access_microsoft_device_id_windows": certJSON}
+		statuses := map[string]int{hostDetailQueryPrefix + "conditional_access_microsoft_device_id_windows": 0}
+		if policyPasses {
+			queries[hostPolicyQueryPrefix+fmt.Sprint(pr.Policy.ID)] = json.RawMessage(`[{"1": "1"}]`)
+			statuses[hostPolicyQueryPrefix+fmt.Sprint(pr.Policy.ID)] = 0
+		}
+		body, err := json.Marshal(map[string]any{"node_key": *host.NodeKey, "queries": queries, "statuses": statuses, "messages": map[string]string{}})
+		require.NoError(t, err)
+		s.DoRaw("POST", "/api/osquery/distributed/write", body, http.StatusOK)
+	}
+	requireReported := func(deviceID string) {
+		require.Eventually(t, func() bool {
+			status, err := s.ds.LoadHostConditionalAccessStatus(ctx, host.ID)
+			return err == nil && status.DeviceID == deviceID && status.Compliant != nil
+		}, 5*time.Second, 50*time.Millisecond)
+	}
+	anchored := func(id string) map[string]string {
+		return map[string]string{"device_id": id, "not_valid_after": "2000000000", "source": "anchored"}
+	}
+
+	// The joined device's ID is stored and reported compliant.
+	checkIn(anchored(joinedID), true)
+	require.Equal(t, []report{{joinedID, false, true}}, nextReports(1))
+	requireReported(joinedID)
+
+	// After a rejoin, the new ID is reported and the old one is reset in Entra.
+	checkIn(anchored(rejoinedID), true)
+	require.ElementsMatch(t, []report{{joinedID, false, false}, {rejoinedID, false, true}}, nextReports(2))
+	requireReported(rejoinedID)
+
+	// A certificate that isn't join-backed isn't accepted: the stored ID is cleared and reset in Entra.
+	checkIn(map[string]string{"device_id": userStoreOnly, "not_valid_after": "2000000000", "source": "unanchored"}, false)
+	require.Equal(t, []report{{rejoinedID, false, false}}, nextReports(1))
+	_, err = s.ds.LoadHostConditionalAccessStatus(ctx, host.ID)
+	require.True(t, fleet.IsNotFound(err), err)
+	select {
+	case r := <-reports:
+		t.Fatalf("unexpected Entra report %v", r)
+	case <-time.After(500 * time.Millisecond):
+	}
 }
