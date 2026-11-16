@@ -5,6 +5,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -45,7 +46,7 @@ func Decrypt(encrypted []byte, key string) ([]byte, error) {
 
 	nonceSize := aesGCM.NonceSize()
 	if len(encrypted) < nonceSize {
-		return nil, fmt.Errorf("decrypting: ciphertext too short")
+		return nil, errors.New("decrypting: ciphertext too short")
 	}
 
 	nonce, ciphertext := encrypted[:nonceSize], encrypted[nonceSize:]
