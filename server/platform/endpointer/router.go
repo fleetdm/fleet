@@ -42,7 +42,6 @@ func (rt Route) clone() Route {
 type Router struct {
 	mux        *http.ServeMux
 	routes     []*registeredRoute
-	patterns   []muxPattern
 	middleware []func(rt Route, next http.Handler) http.Handler
 }
 
@@ -51,12 +50,14 @@ type registeredRoute struct {
 	router *Router
 	// template is computed once at registration, since every request reads it.
 	template string
+	// handler is the route's current handler. The ServeMux holds a fixed handler that calls this one, since a ServeMux can't
+	// replace a handler once registered.
+	handler  http.Handler
 	matchers []varMatcher
 	// served is the route's middleware around a call to handler.
 	served http.Handler
-	// handler is the route's current handler. The ServeMux holds a fixed handler that calls this one, since a ServeMux can't
-	// replace a handler once registered.
-	handler http.Handler
+	// patterns are the ServeMux patterns the route is registered as, one per method and version.
+	patterns []muxPattern
 }
 
 func (rr *registeredRoute) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -92,18 +93,17 @@ type muxPattern struct {
 	method   string   // "" matches every method
 	segments []string // the path split on "/", a wildcard written "{name}"
 	prefix   bool
-	rr       *registeredRoute
 	literals int
 }
 
-func newMuxPattern(pattern string, rr *registeredRoute) muxPattern {
+func newMuxPattern(pattern string, prefix bool) muxPattern {
 	method, path, ok := strings.Cut(pattern, " ")
 	if !ok {
 		method, path = "", pattern
 	}
-	p := muxPattern{pattern: pattern, method: method, rr: rr}
+	p := muxPattern{pattern: pattern, method: method}
 	path = strings.TrimSuffix(path, "{$}")
-	if strings.HasSuffix(path, "/") && rr.Prefix {
+	if strings.HasSuffix(path, "/") && prefix {
 		p.prefix = true
 		path = strings.TrimSuffix(path, "/")
 	}
@@ -116,8 +116,7 @@ func newMuxPattern(pattern string, rr *registeredRoute) muxPattern {
 	return p
 }
 
-// match reports whether the decoded request path segments match the pattern and satisfy the route's constraints, and returns
-// the path values.
+// match reports whether the decoded request path segments match the pattern, and returns the path values.
 func (p muxPattern) match(segments []string) (map[string]string, bool) {
 	if len(segments) < len(p.segments) || (!p.prefix && len(segments) != len(p.segments)) ||
 		(p.prefix && len(segments) == len(p.segments)) {
@@ -131,27 +130,36 @@ func (p muxPattern) match(segments []string) (map[string]string, bool) {
 			return nil, false
 		}
 	}
-	return values, p.rr.allows(func(name string) string { return values[name] })
+	return values, true
 }
 
-// resolve returns the most specific pattern serving method on the path whose constraints the values satisfy.
-func (r *Router) resolve(method string, segments []string) (muxPattern, map[string]string, bool) {
-	var best muxPattern
-	var bestValues map[string]string
+// resolved is a route that takes a request, the pattern it matched, and the path values.
+type resolved struct {
+	rr      *registeredRoute
+	pattern muxPattern
+	values  map[string]string
+}
+
+// resolve returns the most specific route pattern serving method on the path whose constraints the values satisfy. Ties go
+// to the route registered first.
+func (r *Router) resolve(method string, segments []string) (resolved, bool) {
+	var best resolved
 	found := false
-	for _, p := range r.patterns {
-		if p.method != "" && p.method != method && (method != http.MethodHead || p.method != http.MethodGet) {
-			continue
-		}
-		values, ok := p.match(segments)
-		if !ok {
-			continue
-		}
-		if !found || p.literals > best.literals || (p.literals == best.literals && best.prefix && !p.prefix) {
-			best, bestValues, found = p, values, true
+	for _, rr := range r.routes {
+		for _, p := range rr.patterns {
+			if p.method != "" && p.method != method && (method != http.MethodHead || p.method != http.MethodGet) {
+				continue
+			}
+			values, ok := p.match(segments)
+			if !ok || !rr.allows(func(name string) string { return values[name] }) {
+				continue
+			}
+			if !found || p.literals > best.pattern.literals || (p.literals == best.pattern.literals && best.pattern.prefix && !p.prefix) {
+				best, found = resolved{rr: rr, pattern: p, values: values}, true
+			}
 		}
 	}
-	return best, bestValues, found
+	return best, found
 }
 
 // allowMethods are the methods unmatched offers in an Allow header.
@@ -173,14 +181,14 @@ func (r *Router) unmatched(w http.ResponseWriter, req *http.Request) {
 		}
 		segments[i] = decoded
 	}
-	if p, values, ok := r.resolve(req.Method, segments); ok {
+	if match, ok := r.resolve(req.Method, segments); ok {
 		routed := new(http.Request)
 		*routed = *req
-		routed.Pattern = p.pattern
-		for name, value := range values {
+		routed.Pattern = match.pattern.pattern
+		for name, value := range match.values {
 			routed.SetPathValue(name, value)
 		}
-		p.rr.serve(w, routed)
+		match.rr.serve(w, routed)
 		return
 	}
 
@@ -189,9 +197,9 @@ func (r *Router) unmatched(w http.ResponseWriter, req *http.Request) {
 		if method == req.Method || (method == http.MethodGet && req.Method == http.MethodHead) || slices.Contains(allow, method) {
 			continue
 		}
-		if p, _, ok := r.resolve(method, segments); ok {
+		if match, ok := r.resolve(method, segments); ok {
 			allow = append(allow, method)
-			if p.method == http.MethodGet && method == http.MethodGet && req.Method != http.MethodHead {
+			if match.pattern.method == http.MethodGet && method == http.MethodGet && req.Method != http.MethodHead {
 				allow = append(allow, http.MethodHead) // the GET pattern serves HEAD
 			}
 		}
@@ -300,7 +308,7 @@ func (r *Router) Handle(rt Route, handler http.Handler) {
 	}
 	for _, pattern := range stdlibPatterns(rt) {
 		register(r.mux, rt.Name, pattern, rr)
-		r.patterns = append(r.patterns, newMuxPattern(pattern, rr))
+		rr.patterns = append(rr.patterns, newMuxPattern(pattern, rt.Prefix))
 	}
 	if rt.Prefix {
 		// Without an exact pattern, the ServeMux redirects the path without its trailing slash to the subtree, and the
