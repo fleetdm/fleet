@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -213,49 +214,59 @@ func TestPatchedQueryVersion(t *testing.T) {
 	}
 }
 
-func TestCheckExistsQuery(t *testing.T) {
+func TestCheckManifestQueries(t *testing.T) {
 	originalRunOsqueryi := runOsqueryi
 	t.Cleanup(func() { runOsqueryi = originalRunOsqueryi })
 
-	const existsQuery = "SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Foo Inc.';"
+	const query = "SELECT 1 FROM programs WHERE name = 'Foo' AND publisher = 'Foo Inc.';"
 
-	testCases := []struct {
-		name        string
-		existsQuery string
-		output      string
-		runErr      error
-		wantErr     string
-		wantNoRows  bool
+	checks := []struct {
+		kind      string
+		check     func(context.Context, string) error
+		errNoRows error
 	}{
-		{name: "one row", existsQuery: existsQuery, output: `[{"1":"1"}]`},
-		{name: "several rows", existsQuery: existsQuery, output: `[{"1":"1"},{"1":"1"}]`},
-		{name: "no rows", existsQuery: existsQuery, output: "[\n\n]\n", wantErr: "returned no rows", wantNoRows: true},
-		{name: "empty query", existsQuery: "  ", wantErr: "no exists query"},
-		{name: "osqueryi fails", existsQuery: existsQuery, runErr: errors.New("exit status 1: Error: near \"FORM\": syntax error"), wantErr: "syntax error"},
-		{name: "unparsable output", existsQuery: existsQuery, output: "not json", wantErr: "parsing exists query output"},
+		{kind: "exists", check: checkExistsQuery, errNoRows: errExistsQueryNoRows},
+		{kind: "patched", check: checkPatchedQuery, errNoRows: errPatchedQueryNoRows},
 	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var gotQuery string
-			runOsqueryi = func(_ context.Context, query string) ([]byte, error) {
-				gotQuery = query
-				return []byte(tc.output), tc.runErr
-			}
+	testCases := []struct {
+		name       string
+		query      string
+		output     string
+		runErr     error
+		wantErr    string // %s is the query kind
+		wantNoRows bool
+	}{
+		{name: "one row", query: query, output: `[{"1":"1"}]`},
+		{name: "several rows", query: query, output: `[{"1":"1"},{"1":"1"}]`},
+		{name: "no rows", query: query, output: "[\n\n]\n", wantErr: "%s query returned no rows", wantNoRows: true},
+		{name: "empty query", query: "  ", wantErr: "no %s query"},
+		{name: "osqueryi fails", query: query, runErr: errors.New("exit status 1: Error: near \"FORM\": syntax error"), wantErr: "executing %s query: exit status 1"},
+		{name: "unparsable output", query: query, output: "not json", wantErr: "parsing %s query output"},
+	}
+	for _, c := range checks {
+		for _, tc := range testCases {
+			t.Run(c.kind+"/"+tc.name, func(t *testing.T) {
+				var gotQuery string
+				runOsqueryi = func(_ context.Context, query string) ([]byte, error) {
+					gotQuery = query
+					return []byte(tc.output), tc.runErr
+				}
 
-			err := checkExistsQuery(t.Context(), tc.existsQuery)
-			if tc.wantErr == "" {
-				require.NoError(t, err)
-			} else {
-				require.ErrorContains(t, err, tc.wantErr)
-			}
-			// run accepts no rows when appExists found the app outside programs,
-			// but must still fail on every other error.
-			require.Equal(t, tc.wantNoRows, errors.Is(err, errExistsQueryNoRows))
-			if strings.TrimSpace(tc.existsQuery) == "" {
-				require.Empty(t, gotQuery, "osqueryi shouldn't run without a query")
-			} else {
-				require.Equal(t, tc.existsQuery, gotQuery)
-			}
-		})
+				err := c.check(t.Context(), tc.query)
+				if tc.wantErr == "" {
+					require.NoError(t, err)
+				} else {
+					require.ErrorContains(t, err, fmt.Sprintf(tc.wantErr, c.kind))
+				}
+				// run accepts no exists query rows when appExists found the app
+				// outside programs, but must still fail on every other error.
+				require.Equal(t, tc.wantNoRows, errors.Is(err, c.errNoRows))
+				if strings.TrimSpace(tc.query) == "" {
+					require.Empty(t, gotQuery, "osqueryi shouldn't run without a query")
+				} else {
+					require.Equal(t, tc.query, gotQuery)
+				}
+			})
+		}
 	}
 }
