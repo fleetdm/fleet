@@ -38,9 +38,11 @@ const (
 	// SystemServiceName is the name of Orbit system service
 	// The service name is used by the OS service management framework
 	SystemServiceName = "Fleet osquery"
-	// AgentDisplayName is the name end users see for the agent: the Windows Task Manager and Installed apps names, the
-	// Linux process name, and the macOS executable name.
+	// AgentDisplayName is the name end users see for the agent: the Windows Task Manager and Installed apps names, and
+	// the macOS executable name.
 	AgentDisplayName = "Fleet"
+	// AgentLinuxProcessName is the agent's process name on Linux, lowercase like other Linux process names.
+	AgentLinuxProcessName = "fleet"
 	// AgentPublisher is the Manufacturer of fleetd's MSI and the company name of its Windows executables. Installed apps
 	// shows it as the publisher, which tells fleetd's "Fleet" entry apart from other apps with that name.
 	AgentPublisher = "Fleet Device Management (fleetdm.com)"

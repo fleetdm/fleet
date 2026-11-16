@@ -24,9 +24,9 @@ func TestIsRenamedOrbit(t *testing.T) {
 	// Rename this test process the way orbit renames itself.
 	orig, err := os.ReadFile("/proc/self/comm")
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile("/proc/self/comm", []byte(constant.AgentDisplayName), 0))
+	require.NoError(t, os.WriteFile("/proc/self/comm", []byte(constant.AgentLinuxProcessName), 0))
 	t.Cleanup(func() { _ = os.WriteFile("/proc/self/comm", bytes.TrimSpace(orig), 0) })
 
 	require.True(t, isRenamedOrbit(pid, exeDir))
-	require.False(t, isRenamedOrbit(pid, t.TempDir()), "another app named Fleet")
+	require.False(t, isRenamedOrbit(pid, t.TempDir()), "another app named fleet")
 }

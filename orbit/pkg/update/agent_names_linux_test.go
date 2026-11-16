@@ -46,6 +46,6 @@ func TestApplyAgentDisplayNames(t *testing.T) {
 			continue
 		}
 		require.NoError(t, err)
-		require.Equal(t, constant.AgentDisplayName, strings.TrimSpace(string(comm)), "thread %s", task.Name())
+		require.Equal(t, constant.AgentLinuxProcessName, strings.TrimSpace(string(comm)), "thread %s", task.Name())
 	}
 }

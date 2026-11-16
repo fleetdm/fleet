@@ -16,7 +16,7 @@ import (
 // names that top -H, ps -L and audit logs show. The service starts bin/orbit/orbit, which names the process "orbit"; the
 // executable path, and ps's full command line, stay the same.
 func applyAgentDisplayNames() error {
-	name := []byte(constant.AgentDisplayName)
+	name := []byte(constant.AgentLinuxProcessName)
 	// /proc/self is the thread group leader, whose name is the process name.
 	if err := os.WriteFile("/proc/self/comm", name, 0); err != nil {
 		return fmt.Errorf("set process name: %w", err)
@@ -31,7 +31,7 @@ func applyAgentDisplayNames() error {
 		for _, task := range tasks {
 			comm := filepath.Join("/proc/self/task", task.Name(), "comm")
 			current, err := os.ReadFile(comm)
-			if err != nil || strings.TrimSpace(string(current)) == constant.AgentDisplayName {
+			if err != nil || strings.TrimSpace(string(current)) == constant.AgentLinuxProcessName {
 				continue // exited, or already renamed
 			}
 			left++

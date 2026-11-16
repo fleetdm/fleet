@@ -7,9 +7,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// AgentNamesReceiver shows the agent as "Fleet" once the server has fleet.CapabilityFleetAgentNames: the Windows Installed
-// apps name and the Linux process name. Service names, labels, units, packages and paths don't change, so scripts, MDM
-// profiles and EDR rules that match them keep working.
+// AgentNamesReceiver renames the agent once the server has fleet.CapabilityFleetAgentNames: "Fleet" in Windows
+// Installed apps and "fleet" as the Linux process name. Service names, labels, units, packages and paths don't change, so
+// scripts, MDM profiles and EDR rules that match them keep working.
 type AgentNamesReceiver struct {
 	serverCapabilities func() fleet.CapabilityMap
 	apply              func() error

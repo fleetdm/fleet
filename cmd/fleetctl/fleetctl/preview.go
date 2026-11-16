@@ -892,14 +892,14 @@ func processNameMatches(pid int, expectedPrefix string) (bool, error) {
 	return strings.HasPrefix(strings.ToLower(process.Executable()), strings.ToLower(expectedPrefix)), nil
 }
 
-// isRenamedOrbit returns whether pid is preview's orbit after it renamed its process to AgentDisplayName, which it
+// isRenamedOrbit returns whether pid is preview's orbit after it renamed its process to AgentLinuxProcessName, which it
 // does on Linux once the server supports it. Other apps can have that name, so it must also run from destDir.
 func isRenamedOrbit(pid int, destDir string) bool {
 	if runtime.GOOS != "linux" {
 		return false
 	}
 	comm, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
-	if err != nil || strings.TrimSpace(string(comm)) != constant.AgentDisplayName {
+	if err != nil || strings.TrimSpace(string(comm)) != constant.AgentLinuxProcessName {
 		return false
 	}
 	exe, err := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
