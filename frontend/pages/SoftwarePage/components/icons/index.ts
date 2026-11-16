@@ -719,6 +719,7 @@ import Notesnook from "./png/Notesnook.png";
 import Notesollama from "./png/Notesollama.png";
 import Notion from "./png/Notion.png";
 import NotionCalendar from "./png/NotionCalendar.png";
+import NoTunes from "./png/noTunes.png";
 import NounProject from "./png/NounProject.png";
 import Nova from "./png/Nova.png";
 import Novabench from "./png/Novabench.png";
@@ -1905,6 +1906,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   notesollama: Notesollama,
   notion: Notion,
   "notion calendar": NotionCalendar,
+  notunes: NoTunes,
   "noun project": NounProject,
   nova: Nova,
   novabench: Novabench,
