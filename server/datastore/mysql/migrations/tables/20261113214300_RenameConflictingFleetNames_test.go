@@ -392,6 +392,48 @@ func TestUp_20261113214300(t *testing.T) {
 		assert.JSONEq(t, want, got)
 	})
 
+	// The server matches a token to its app config entry after NFC normalization, so the entry can spell the
+	// organization name or location in a different form than the token row.
+	t.Run("app config decomposed token names", func(t *testing.T) {
+		db := applyUpToPrev(t)
+
+		org, location := "Café Org", "Café Location"
+		decomposedOrg, decomposedLocation := norm.NFD.String(org), norm.NFD.String(location)
+		require.NotEqual(t, org, decomposedOrg)
+		require.NotEqual(t, location, decomposedLocation)
+
+		ids := insertFleets(t, db, []string{"Workstations", "workstations"})
+		execNoErr(t, db, `INSERT INTO abm_tokens
+			(organization_name, apple_id, renew_at, token, enrollment_url_token, macos_default_team_id)
+			VALUES (?, 'abm@example.com', '2030-01-01', 'x', REPEAT('e', 33), ?)`, org, ids[1])
+		tokenID := execNoErrLastID(t, db,
+			`INSERT INTO vpp_tokens (organization_name, location, renew_at, token) VALUES ('Org', ?, '2030-01-01', 'x')`, location)
+		execNoErr(t, db, `INSERT INTO vpp_token_teams (vpp_token_id, team_id, null_team_type) VALUES (?, ?, 'none')`, tokenID, ids[1])
+
+		config := func(renamed string) string {
+			var merged string
+			require.NoError(t, db.Get(&merged, `SELECT JSON_MERGE_PATCH(json_value, ?) FROM app_config_json WHERE id = 1`,
+				mustJSON(t, map[string]any{"mdm": map[string]any{
+					"apple_business_manager": []any{
+						map[string]any{"organization_name": decomposedOrg, "macos_fleet": renamed, "ios_fleet": "", "ipados_fleet": "", "byod_fleet": ""},
+					},
+					"volume_purchasing_program": []any{
+						map[string]any{"location": decomposedLocation, "fleets": []string{renamed}},
+					},
+				}})))
+			return merged
+		}
+		before, want := config("workstations"), config("workstations 2")
+		execNoErr(t, db, `UPDATE app_config_json SET json_value = ? WHERE id = 1`, before)
+
+		applyNext(t, db)
+
+		require.Equal(t, []string{"Workstations", "workstations 2"}, fleetNames(t, db))
+		var got string
+		require.NoError(t, db.Get(&got, `SELECT json_value FROM app_config_json WHERE id = 1`))
+		assert.JSONEq(t, want, got)
+	})
+
 	t.Run("app config null lists or no row", func(t *testing.T) {
 		for _, deleteRow := range []bool{false, true} {
 			db := applyUpToPrev(t)

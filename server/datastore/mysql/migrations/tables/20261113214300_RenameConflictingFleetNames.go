@@ -117,8 +117,9 @@ func Up_20261113214300(tx *sql.Tx) error {
 			}
 		}
 
-		finalName, finalKey := f.name, f.key
+		finalKey := f.key
 		if firstNumber > 0 {
+			var finalName string
 			for n := firstNumber; ; n++ {
 				finalName = numberedFleetName20261113214300(f.name, n)
 				finalKey = fleetNameKey20261113214300(finalName)
@@ -192,8 +193,8 @@ func rewriteFleetNameCopies20261113214300(tx *sql.Tx, renamed []renamedFleet2026
 		return fmt.Errorf("unmarshal app config: %w", err)
 	}
 
-	// The app config copy is what the admin typed, which can be in a different Unicode normalization form than the
-	// fleet's name.
+	// App config holds what the admin typed, which can be in a different Unicode normalization form than the fleet's
+	// name or the token's organization name or location. The server matches all three after NFC normalization.
 	sameName := func(copied any, name string) bool {
 		s, ok := copied.(string)
 		return ok && s != "" && norm.NFC.String(s) == norm.NFC.String(name)
@@ -215,6 +216,7 @@ func rewriteFleetNameCopies20261113214300(tx *sql.Tx, renamed []renamedFleet2026
 			if err := rows.Scan(&orgName, &ids[0], &ids[1], &ids[2], &ids[3]); err != nil {
 				return err
 			}
+			orgName = norm.NFC.String(orgName)
 			abmFleetIDs[orgName] = make(map[uint]struct{})
 			for _, id := range ids {
 				if id.Valid {
@@ -235,6 +237,7 @@ func rewriteFleetNameCopies20261113214300(tx *sql.Tx, renamed []renamedFleet2026
 		for i, e := range entries {
 			entry, _ := e.(map[string]any)
 			orgName, _ := entry["organization_name"].(string)
+			orgName = norm.NFC.String(orgName)
 			for _, nameKey := range abmNameKeys {
 				for _, r := range renamed {
 					if _, ok := abmFleetIDs[orgName][r.id]; ok && sameName(entry[nameKey], r.oldName) {
@@ -258,6 +261,7 @@ func rewriteFleetNameCopies20261113214300(tx *sql.Tx, renamed []renamedFleet2026
 			if err := rows.Scan(&location, &id); err != nil {
 				return err
 			}
+			location = norm.NFC.String(location)
 			if vppFleetIDs[location] == nil {
 				vppFleetIDs[location] = make(map[uint]struct{})
 			}
@@ -271,6 +275,7 @@ func rewriteFleetNameCopies20261113214300(tx *sql.Tx, renamed []renamedFleet2026
 	for i, e := range entries {
 		entry, _ := e.(map[string]any)
 		location, _ := entry["location"].(string)
+		location = norm.NFC.String(location)
 		for _, listKey := range []string{"teams", "fleets"} {
 			names, _ := entry[listKey].([]any)
 			for j, name := range names {
