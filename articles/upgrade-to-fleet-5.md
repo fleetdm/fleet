@@ -386,17 +386,20 @@ Fleet 4 doesn't support `POST /hosts/:id/reset`, so you can't switch to it early
 
 GitHub issue: [#55003](https://github.com/fleetdm/fleet/issues/55003)
 
-### YAML-only lists removed from configuration responses
+### YAML-only lists removed from configuration and fleet settings
 
 | Fleet 4 | Fleet 5 |
 |:--|:--|
 | `mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.android_settings.configuration_profiles`, `macos_bootstrap_package`, `apple_setup_assistant`, and `macos_script` under `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` in [Get configuration](https://fleetdm.com/docs/rest-api/rest-api#get-configuration), [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration), [List fleets](https://fleetdm.com/docs/rest-api/rest-api#list-fleets), [Get fleet](https://fleetdm.com/docs/rest-api/rest-api#get-fleet), [Create fleet](https://fleetdm.com/docs/rest-api/rest-api#create-fleet), [Update fleet](https://fleetdm.com/docs/rest-api/rest-api#update-fleet), and the other responses that include a fleet's settings | Removed. Use each feature's list endpoint, for example [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles). |
+| The same keys in [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) requests | Removed. Requests that include them fail with a `400` error, except `mdm.setup_experience.macos_bootstrap_package` and `mdm.volume_purchasing_program`, which Fleet uses for that request only and doesn't save. Fleet only reads `macos_bootstrap_package` to check settings that need a bootstrap package, where an empty value means there's none. It doesn't upload or delete the package. To do that, use [Create bootstrap package](https://fleetdm.com/docs/rest-api/rest-api#create-bootstrap-package) and [Delete bootstrap package](https://fleetdm.com/docs/rest-api/rest-api#delete-bootstrap-package). |
 
 #### What to do
 
 Change these before you upgrade.
 
-These lists only included settings applied with YAML, so call the list endpoint for each feature instead.
+1. These lists only included settings applied with YAML, so call the list endpoint for each feature instead.
+2. Remove these keys from your Update configuration requests, and add or delete each item with its own endpoint instead, for example [Create configuration profile](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile).
+3. Use fleetctl 5 with `fleetctl apply`. fleetctl 4 sends these keys to Fleet, so applying configuration or fleet files that list them fails.
 
 GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
@@ -988,6 +991,18 @@ GitHub issue: [#56271](https://github.com/fleetdm/fleet/issues/56271)
 
 GitHub issue: [#57603](https://github.com/fleetdm/fleet/issues/57603)
 
+### YAML-only lists under a fleet's settings.mdm
+
+| Fleet 4 | Fleet 5 |
+|:--|:--|
+| `custom_settings` or `configuration_profiles` under `settings.mdm.apple_settings`, `settings.mdm.windows_settings`, or `settings.mdm.android_settings`, and `macos_bootstrap_package`, `apple_setup_assistant`, or `macos_script` under `settings.mdm.setup_experience`, in a fleet's YAML file | GitOps runs fail with an `unknown key` error |
+
+#### What to do
+
+Before you upgrade, remove these keys from `settings.mdm` in your fleets' YAML files. Configuration profiles and setup experience items belong under [`controls`](https://fleetdm.com/docs/configuration/yaml-files#controls).
+
+GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
+
 ## fleetctl
 
 ### --team is now --fleet
@@ -1066,7 +1081,7 @@ GitHub issue: [#50084](https://github.com/fleetdm/fleet/issues/50084)
 
 #### What to do
 
-Update scripts that read these keys from `fleetctl get config` or `fleetctl get fleets` output to use each feature's list endpoint instead. See [YAML-only lists removed from configuration responses](#yaml-only-lists-removed-from-configuration-responses).
+Update scripts that read these keys from `fleetctl get config` or `fleetctl get fleets` output to use each feature's list endpoint instead. See [YAML-only lists removed from configuration and fleet settings](#yaml-only-lists-removed-from-configuration-and-fleet-settings).
 
 GitHub issue: [#53932](https://github.com/fleetdm/fleet/issues/53932)
 
