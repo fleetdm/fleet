@@ -3,12 +3,9 @@ import { InjectedRouter } from "react-router";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
-// @ts-ignore
 import ChangeEmailForm from "components/forms/ChangeEmailForm";
-// @ts-ignore
 import ChangePasswordForm from "components/forms/ChangePasswordForm";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
-// @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
 import MainContent from "components/MainContent";
@@ -141,7 +138,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     return (
       <Modal title="Confirm email update" onExit={onToggleEmailModal}>
         <ChangeEmailForm
-          formData={updatedUser}
+          defaultData={updatedUser}
           handleSubmit={emailSubmit}
           onCancel={onToggleEmailModal}
           serverErrors={errors}
@@ -225,7 +222,11 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
             <div className={`${baseClass}__manage`}>
               <h1>My account</h1>
               <UserSettingsForm
-                formData={currentUser}
+                defaultData={{
+                  email: currentUser.email,
+                  name: currentUser.name,
+                  position: currentUser.position,
+                }}
                 handleSubmit={handleSubmit}
                 onCancel={onCancel}
                 pendingEmail={pendingEmail}

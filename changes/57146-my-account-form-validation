@@ -1,0 +1,2 @@
+- Fixed the My account page's account details and Change password forms to validate on blur, clear errors on focus, surface every inline error when the submit button is clicked, and use the standard error copy ("Enter your name" rather than "Full name field must be completed", "Match the password above" rather than "New password confirmation does not match new password").
+- Fixed the Change password form so a too-short new password is flagged even when other fields are empty.
